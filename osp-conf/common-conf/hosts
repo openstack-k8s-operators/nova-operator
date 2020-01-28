@@ -1,0 +1,31 @@
+127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4
+::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
+# BEGIN ANSIBLE MANAGED BLOCK
+192.168.24.1    undercloud-0.ctlplane.redhat.local undercloud-0.ctlplane
+
+192.168.24.34  overcloud.ctlplane.localdomain
+172.17.3.125  overcloud.storage.localdomain
+172.17.4.35  overcloud.storagemgmt.localdomain
+172.17.1.29  overcloud.internalapi.localdomain
+10.0.0.143  overcloud.localdomain
+
+172.17.1.146 compute-0.redhat.local compute-0
+172.17.3.131 compute-0.storage.redhat.local compute-0.storage
+172.17.1.146 compute-0.internalapi.redhat.local compute-0.internalapi
+172.17.2.55 compute-0.tenant.redhat.local compute-0.tenant
+192.168.24.14 compute-0.ctlplane.redhat.local compute-0.ctlplane
+
+172.17.1.84 compute-1.redhat.local compute-1
+172.17.3.124 compute-1.storage.redhat.local compute-1.storage
+172.17.1.84 compute-1.internalapi.redhat.local compute-1.internalapi
+172.17.2.21 compute-1.tenant.redhat.local compute-1.tenant
+192.168.24.27 compute-1.ctlplane.redhat.local compute-1.ctlplane
+
+172.17.1.83 controller-0.redhat.local controller-0
+172.17.3.81 controller-0.storage.redhat.local controller-0.storage
+172.17.1.83 controller-0.internalapi.redhat.local controller-0.internalapi
+172.17.2.16 controller-0.tenant.redhat.local controller-0.tenant
+192.168.24.44 controller-0.ctlplane.redhat.local controller-0.ctlplane
+
+
+# END ANSIBLE MANAGED BLOCK

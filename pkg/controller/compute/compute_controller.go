@@ -2,6 +2,9 @@ package compute
 
 import (
 	"context"
+        "strings"
+        "regexp"
+        //"fmt"
 
 	novav1alpha1 "github.com/nova-operator/pkg/apis/nova/v1alpha1"
         appsv1 "k8s.io/api/apps/v1"
@@ -21,11 +24,13 @@ import (
 )
 
 var log = logf.Log.WithName("controller_compute")
+var ospHostAliases = []corev1.HostAlias{}
 
 // TODO move to like image urls?
 const (
-        LIBVIRT_CONFIGMAP_NAME      string = "libvirt-config"
-        NOVA_CONFIGMAP_NAME         string = "nova-config"
+        COMMON_CONFIGMAP_NAME   string = "common-config"
+        LIBVIRT_CONFIGMAP_NAME  string = "libvirt-config"
+        NOVA_CONFIGMAP_NAME     string = "nova-config"
 )
 
 /**
@@ -107,6 +112,19 @@ func (r *ReconcileCompute) Reconcile(request reconcile.Request) (reconcile.Resul
 		return reconcile.Result{}, err
 	}
 
+
+        commonConfigMap := &corev1.ConfigMap{}
+        // TODO: to update hosts infocheck configmap ResourceVersion and update if needed.
+        //currentConfigVersion := commonConfigMap.ResourceVersion
+
+        reqLogger.Info("Creating host entries from config map:", "configMap: ", COMMON_CONFIGMAP_NAME)
+        err = r.client.Get(context.TODO(), types.NamespacedName{Name: COMMON_CONFIGMAP_NAME, Namespace: instance.Namespace}, commonConfigMap)
+
+        if err := controllerutil.SetControllerReference(instance, commonConfigMap, r.scheme); err != nil {
+                return reconcile.Result{}, err
+        }
+        ospHostAliases = createOspHostsEntries(commonConfigMap)
+
         // Define a new Daemonset object
         ds := newDaemonset(instance)
 
@@ -136,6 +154,37 @@ func (r *ReconcileCompute) Reconcile(request reconcile.Request) (reconcile.Resul
         return reconcile.Result{}, nil
 }
 
+func createOspHostsEntries(commonConfigMap *corev1.ConfigMap) []corev1.HostAlias{
+        hostAliases := []corev1.HostAlias{}
+
+        hostsFile := commonConfigMap.Data["hosts"]
+        re := regexp.MustCompile(`(?s).*BEGIN ANSIBLE MANAGED BLOCK\n(.*)# END ANSIBLE MANAGED BLOCK.*`)
+
+        hostsFile = re.FindStringSubmatch(hostsFile)[1]
+
+        for _, hostRecord := range strings.Split(hostsFile, "\n") {
+                if len(hostRecord) > 0 {
+                        var ip string
+                        var names []string
+
+                        for i, r := range strings.Fields(hostRecord) {
+                                if i == 0 {
+                                        ip = r
+                                } else {
+                                        names = append(names, r)
+                                }
+                        }
+
+                        hostAlias := corev1.HostAlias{
+                                IP: ip,
+                                Hostnames: names,
+                        }
+                        hostAliases = append(hostAliases, hostAlias)
+                }
+        }
+
+        return hostAliases
+}
 
 func newDaemonset(cr *novav1alpha1.Compute) *appsv1.DaemonSet {
         var bidirectional corev1.MountPropagationMode = corev1.MountPropagationBidirectional
@@ -175,7 +224,7 @@ func newDaemonset(cr *novav1alpha1.Compute) *appsv1.DaemonSet {
                                         NodeSelector:   map[string]string{"daemon": cr.Spec.Label},
                                         HostNetwork:    true,
                                         HostPID:        true,
-                                        HostAliases:    []corev1.HostAlias{},
+                                        HostAliases:    ospHostAliases,
                                         InitContainers: []corev1.Container{},
                                         Containers:     []corev1.Container{},
                                 },
@@ -183,45 +232,13 @@ func newDaemonset(cr *novav1alpha1.Compute) *appsv1.DaemonSet {
                 },
         }
 
-
+        // Add hosts entries rendered from the the config map to the hosts file of the containers in the pod
         // TODO:
-        //       - move to get the info from a config map
         //       - move to some common lib to be used from nova and neutron operator
         //
-        opsHostAliases := []corev1.HostAlias{
-                {
-                        IP: "172.17.1.83",
-                        Hostnames: []string{ "controller-0.internalapi.redhat.local", "controller-0.internalapi"},
-                },
-                {
-                        IP: "172.17.2.16",
-                        Hostnames: []string{ "controller-0.tenant.redhat.local", "controller-0.tenant"},
-                },
-                {
-                        IP: "172.17.1.146",
-                        Hostnames: []string{ "compute-0.internalapi.redhat.local", "compute-0.internalapi"},
-                },
-                {
-                        IP: "172.17.2.55",
-                        Hostnames: []string{ "compute-0.tenant.redhat.local", "compute-0.tenant"},
-                },
-                {
-                        IP: "172.17.1.84",
-                        Hostnames: []string{ "compute-1.internalapi.redhat.local", "compute-1.internalapi"},
-                },
-                {
-                        IP: "172.17.2.21",
-                        Hostnames: []string{ "compute-1.tenant.redhat.local", "compute-1.tenant"},
-                },
-                {
-                        IP: "172.17.1.29",
-                        Hostnames: []string{"overcloud.internalapi.localdomain"},
-                },
-        }
-
-        for _, opsHostAlias := range opsHostAliases {
-                daemonSet.Spec.Template.Spec.HostAliases = append(daemonSet.Spec.Template.Spec.HostAliases, opsHostAlias)
-        }
+        //for _, ospHostAlias := range ospHostAliases {
+        //        daemonSet.Spec.Template.Spec.HostAliases = append(daemonSet.Spec.Template.Spec.HostAliases, ospHostAlias)
+        //}
 
         initContainerSpec := corev1.Container{
                 Name:  "libvirtd-config-init",
@@ -230,7 +247,7 @@ func newDaemonset(cr *novav1alpha1.Compute) *appsv1.DaemonSet {
                         Privileged:  &trueVar,
                 },
                 Command: []string{
-                        "/bin/bash", "-c", "export POD_IP_INTERNALAPI=$(ip route get 172.17.1.29 | awk '{print $5}') && cp /etc/nova/nova.conf /mnt/nova.conf && crudini --set /mnt/nova.conf DEFAULT my_ip $POD_IP_INTERNALAPI && crudini --set /mnt/nova.conf vnc server_listen $POD_IP_INTERNALAPI && crudini --set /mnt/nova.conf vnc server_proxyclient_address $POD_IP_INTERNALAPI",
+                        "/bin/bash", "-c", "export CTRL_IP_INTRENALAPI=$(getent hosts controller-0.internalapi | awk '{print $1}') && export POD_IP_INTERNALAPI=$(ip route get $CTRL_IP_INTRENALAPI | awk '{print $5}') && cp /etc/nova/nova.conf /mnt/nova.conf && crudini --set /mnt/nova.conf DEFAULT my_ip $POD_IP_INTERNALAPI && crudini --set /mnt/nova.conf vnc server_listen $POD_IP_INTERNALAPI && crudini --set /mnt/nova.conf vnc server_proxyclient_address $POD_IP_INTERNALAPI",
                 },
                 Env: []corev1.EnvVar{
                         {

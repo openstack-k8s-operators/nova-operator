@@ -8,6 +8,7 @@ NOTE:
 ## Pre Req:
 - OSP16 with OVS instead of OVN deployed
 - worker nodes have connection to internalapi and tenant network VLAN
+- OSP controller is named controller-0.internalapi.<domain> with an /etc/hosts entry referencing to controller-0.internalapi.
 
 
 #### Clone it
@@ -99,6 +100,7 @@ Apply `deploy/crds/nova_v1alpha1_compute_cr.yaml`
 TODO: move passwords, connection urls, ... to Secret
 
 Get the following configs from a compute node in the OSP env:
+- /etc/hosts
 - /var/lib/config-data/puppet-generated/neutron/etc/neutron/neutron.conf
 - /var/lib/config-data/puppet-generated/neutron/etc/neutron/plugins/ml2/openvswitch_agent.ini
 - /var/lib/config-data/puppet-generated/nova_libvirt/etc/nova/nova.conf
@@ -106,12 +108,14 @@ Get the following configs from a compute node in the OSP env:
 - /var/lib/config-data/puppet-generated/nova_libvirt/etc/libvirt/qemu.conf
 
 Place each group in a config dir like:
+- common-conf
 - libvirt-conf
 - nova-conf
 - neutron-conf
 
 Create the configMaps
 
+    $ oc create configmap common-config --from-file=/root/common-conf/
     $ oc create configmap libvirt-config --from-file=./libvirt-conf/
     $ oc create configmap nova-config --from-file=./nova-conf/
     $ oc create configmap neutron-config --from-file=./neutron-conf/
