@@ -1,8 +1,0 @@
-apiVersion: nova.openstack-k8s-operators/v1alpha1
-kind: Compute
-metadata:
-  name: nova-compute
-spec:
-  novaLibvirtImage: trunk.registry.rdoproject.org/tripleotrain/rhel-binary-nova-libvirt:f8b48998e5d600f24513848b600e84176ce90223_243bc231
-  novaComputeImage: trunk.registry.rdoproject.org/tripleotrain/rhel-binary-nova-compute:f8b48998e5d600f24513848b600e84176ce90223_243bc231
-  label: compute

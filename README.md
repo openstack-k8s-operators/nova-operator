@@ -1,5 +1,4 @@
-# nova-compute-operator
-POC nova-compute-operator
+# nova-operator
 
 NOTE: 
 - The current functionality is on install at the moment, no update/upgrades or other features.
@@ -8,7 +7,6 @@ NOTE:
 ## Pre Req:
 - OSP16 with OVS instead of OVN deployed
 - worker nodes have connection to internalapi and tenant network VLAN
-- OSP controller is named controller-0.internalapi.<domain> with an /etc/hosts entry referencing to controller-0.internalapi.
 
 
 #### Clone it
@@ -16,16 +14,14 @@ NOTE:
     $ git clone https://github.com/stuggi/nova-operator.git
     $ cd nova-operator
 
-#### Updates required to pkg/controller/compute/compute_controller.go atm:
-  - update opsHostAliases to reflect the hosts entries of your OSP env
-  - update `ip route get 172.17.1.29` to reflect the overcloud.internalapi.localdomain IP address
-
 #### Create the operator
 
 Build the image
     
-    $ oc create -f deploy/crds/nova_v1alpha1_compute_crd.yaml
-    $ operator-sdk build <image e.g quay.io/mschuppe/nova-operator:v0.0.1>
+    oc create -f deploy/crds/nova_v1_virtlogd_crd.yaml
+    oc create -f deploy/crds/nova_v1_libvirtd_crd.yaml
+    oc create -f deploy/crds/nova_v1_novacompute_crd.yaml
+    operator-sdk build <image e.g quay.io/mschuppe/nova-operator:v0.0.1>
 
 Replace `image:` in deploy/operator.yaml with your image
 
@@ -53,56 +49,60 @@ or
     $ python -c 'import urllib2;import yaml;c=yaml.load(urllib2.urlopen("https://trunk.rdoproject.org/rhel8-train/current-tripleo/commit.yaml"))["commits"][0];print "%s_%s" % (c["commit_hash"],c["distro_hash"][0:8])'
     f8b48998e5d600f24513848b600e84176ce90223_243bc231
 
-Update `deploy/crds/nova_v1alpha1_compute_cr.yaml`
 
-    apiVersion: nova.openstack-k8s-operators/v1alpha1
-    kind: Compute
+
+Update `deploy/crds/nova_v1_novacompute_cr.yaml`, `deploy/crds/nova_v1_virtlogd_cr.yaml` and `deploy/crds/nova_v1_libvirtd_cr.yaml`
+
+* `deploy/crds/nova_v1_virtlogd_cr.yaml` and `deploy/crds/nova_v1_libvirtd_cr.yaml`
+
+    apiVersion: nova.openstack.org/v1
+    kind: Virtlogd
+    metadata:
+      name: virtlogd
+    spec:
+      novaLibvirtImage: trunk.registry.rdoproject.org/tripleotrain/rhel-binary-nova-libvirt:f8b48998e5d600f24513848b600e84176ce90223_243bc231
+      label: compute
+
+* `deploy/crds/nova_v1_libvirtd_cr.yaml`
+
+    apiVersion: nova.openstack.org/v1
+    kind: Libvirtd
+    metadata:
+      name: libvirtd
+    spec:
+      novaLibvirtImage: trunk.registry.rdoproject.org/tripleotrain/rhel-binary-nova-libvirt:f8b48998e5d600f24513848b600e84176ce90223_243bc231
+      label: compute
+
+* `deploy/crds/nova_v1_novacompute_cr.yaml`
+
+    apiVersion: nova.openstack.org/v1
+    kind: NovaCompute
     metadata:
       name: nova-compute
     spec:
-      novaLibvirtImage: trunk.registry.rdoproject.org/tripleotrain/rhel-binary-nova-libvirt:f8b48998e5d600f24513848b600e84176ce90223_243bc231
       novaComputeImage: trunk.registry.rdoproject.org/tripleotrain/rhel-binary-nova-compute:f8b48998e5d600f24513848b600e84176ce90223_243bc231
       label: compute
 
-Apply `deploy/crds/nova_v1alpha1_compute_cr.yaml`
 
-    $ oc apply -f deploy/crds/nova_v1alpha1_compute_cr.yaml
+Apply the CRs:
 
-    $ oc get pods
+    oc apply -f deploy/crds/nova_v1_virtlogd_cr.yaml
+    oc apply -f deploy/crds/nova_v1_libvirtd_cr.yaml
+    oc apply -f deploy/crds/nova_v1_novacompute_cr.yaml
+
+    oc get pods
     NAME                           READY   STATUS    RESTARTS   AGE
     nova-operator-ffd64796-vshg6   1/1     Running   0          119s
 
-    $ oc get ds
-    NAME                  DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR    AGE
-    nova-node-daemonset   0         0         0       0            0           daemon=compute   118s
-
-    $ oc describe Compute 
-    Name:         nova-compute
-    Namespace:    default
-    Labels:       <none>
-    Annotations:  kubectl.kubernetes.io/last-applied-configuration:
-                    {"apiVersion":"nova.openstack-k8s-operators/v1alpha1","kind":"Compute","metadata":{"annotations":{},"name":"nova-compute","namespace":"def...
-    API Version:  nova.openstack-k8s-operators/v1alpha1
-    Kind:         Compute
-    Metadata:
-      Creation Timestamp:  2020-01-24T14:07:04Z
-      Generation:          1
-      Resource Version:    3821131
-      Self Link:           /apis/nova.openstack-k8s-operators/v1alpha1/namespaces/default/computes/nova-compute
-      UID:                 cc462eef-3eb2-11ea-a590-5254002c0120
-    Spec:
-      Label:               compute
-      Nova Compute Image:  trunk.registry.rdoproject.org/tripleotrain/rhel-binary-nova-compute:f8b48998e5d600f24513848b600e84176ce90223_243bc231
-      Nova Libvirt Image:  trunk.registry.rdoproject.org/tripleotrain/rhel-binary-nova-libvirt:f8b48998e5d600f24513848b600e84176ce90223_243bc231
-    Events:                <none>
+    oc get ds
+    NAME                     DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR    AGE
+    nova-compute-daemonset   0         0         0       0            0           daemon=compute   118s
 
 ### Create required configMaps
 TODO: move passwords, connection urls, ... to Secret
 
 Get the following configs from a compute node in the OSP env:
 - /etc/hosts
-- /var/lib/config-data/puppet-generated/neutron/etc/neutron/neutron.conf
-- /var/lib/config-data/puppet-generated/neutron/etc/neutron/plugins/ml2/openvswitch_agent.ini
 - /var/lib/config-data/puppet-generated/nova_libvirt/etc/nova/nova.conf
 - /var/lib/config-data/puppet-generated/nova_libvirt/etc/libvirt/libvirtd.conf
 - /var/lib/config-data/puppet-generated/nova_libvirt/etc/libvirt/qemu.conf
@@ -111,7 +111,10 @@ Place each group in a config dir like:
 - common-conf
 - libvirt-conf
 - nova-conf
-- neutron-conf
+
+Add OSP environment controller-0 short hostname in common-conf/osp_controller_hostname
+
+    $ echo "SHORT OSP CTRL-0 HOSTNAME"> /root/common-conf/osp_controller_hostname
 
 Create the configMaps
 
@@ -122,7 +125,9 @@ Create the configMaps
 
 Note: if a later update is needed do e.g.
 
-    $ oc create configmap neutron-config --from-file=./neutron-conf/ --dry-run -o yaml | oc apply -f -
+    $ oc create configmap neutron-config --from-file=./nova-conf/ --dry-run -o yaml | oc apply -f -
+
+Right now the operator does not handle config updates. The CRs need to be recreated.
 
 !! Make sure we have the OSP needed network configs on the worker nodes. The workers need to be able to reach the internalapi and tenant network !!
 
@@ -139,14 +144,18 @@ Label a worker node as compute
 
     oc get daemonset
     NAME                     DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR    AGE
-    nova-compute-daemonset   1         1         1       1            1           daemon=compute   5m27s
+    libvirtd-daemonset       1         1         1       1            1           daemon=compute   32m
+    nova-compute-daemonset   1         1         1       1            1           daemon=compute   32m
+    virtlogd-daemonset       1         1         1       1            1           daemon=compute   32m
 
     oc get pods
     NAME                             READY   STATUS    RESTARTS   AGE
-    nova-compute-daemonset-gjjnm     3/3     Running   0          22s
-    nova-operator-5d56d8459b-mbqrn   1/1     Running   0          7m58s
+    libvirtd-daemonset-2h76d           1/1     Running   0          32m
+    nova-compute-daemonset-dr6j5       1/1     Running   0          32m
+    nova-operator-5d56d8459b-s2lwb     1/1     Running   1          33m
+    virtlogd-daemonset-4d8ls           1/1     Running   1          33m
 
-    oc get pods nova-compute-daemonset-gjjnm-o yaml | grep nodeName
+    oc get pods nova-compute-daemonset-dr6j5 -o yaml | grep nodeName
       nodeName: worker-0
 
 Label 2nd worker node
@@ -156,23 +165,29 @@ Label 2nd worker node
 
     oc get daemonset
     NAME                     DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR    AGE
-    nova-compute-daemonset   2         2         1       2            1           daemon=compute   25m
+    libvirtd-daemonset       2         2         2       2            2           daemon=compute   34m
+    nova-compute-daemonset   2         2         2       2            2           daemon=compute   34m
+    virtlogd-daemonset       2         2         2       2            2           daemon=compute   34m
 
     oc get pods
     NAME                             READY   STATUS    RESTARTS   AGE
-    nova-compute-daemonset-gjjnm     3/3     Running   0          2m48s
-    nova-compute-daemonset-grb7j     3/3     Running   0          29s
-    nova-operator-5d56d8459b-mbqrn   1/1     Running   0          10m
+    libvirtd-daemonset-2h76d           1/1     Running   0          32m
+    libvirtd-daemonset-fdlrs           1/1     Running   1          32m
+    nova-compute-daemonset-dr6j5       1/1     Running   0          32m
+    nova-compute-daemonset-rj4kh       1/1     Running   0          32m
+    nova-operator-5d56d8459b-s2lwb     1/1     Running   1          33m
+    virtlogd-daemonset-4d8ls           1/1     Running   1          33m
+    virtlogd-daemonset-q57px           1/1     Running   0          33m
 
     oc get pods -o custom-columns='NAME:metadata.name,NODE:spec.nodeName'
     NAME                             NODE
-    nova-compute-daemonset-gjjnm     worker-0
-    nova-compute-daemonset-grb7j     worker-1
-    nova-operator-5d56d8459b-mbqrn   worker-1
+    nova-compute-daemonset-dr6j5     worker-0
+    nova-compute-daemonset-rj4kh     worker-1
+    ...
 
 If need get into nova-compute container of daemonset via:
 
-    oc exec -c nova-compute nova-compute-daemonset-gjjnm -i -t -- bash -il
+    oc exec nova-compute-daemonset-dr6j5 -i -t -- bash -il
 
 ## POST steps to add compute workers to the cell
 
@@ -233,12 +248,9 @@ If need get into nova-compute container of daemonset via:
     | worker-1                  | ocp      | up    |
     +---------------------------+----------+-------+
 
-
-## INSTALL THE OVS AGENT OPERATOR BEFORE START AN INSTANCE!!
-
-
 ## Start an instance and verify network connectivity works
 
+NOTE: install the ovs agent operator before start an instance!
 NOTE: selinux needs to be disable to start instance
 
     2020-01-21 10:28:12.280 164015 ERROR nova.compute.manager [instance: fd1cf110-3921-4a65-b45d-807709fe5008] libvirt.libvirtError: internal error: process exited while connecting to monitor: libvirt:  error : cannot execute binary /usr/libexec/qemu-kvm: Permission denied
@@ -303,9 +315,13 @@ Note: If it fails it might be that you need to apply OpenStack security rules!
 
 ## Cleanup
 
-    oc delete -f deploy/crds/nova_v1alpha1_compute_cr.yaml
+    oc delete -f deploy/crds/nova_v1_novacompute_cr.yaml
+    oc delete -f deploy/crds/nova_v1_libvirtd_cr.yaml
+    oc delete -f deploy/crds/nova_v1_virtlogd_cr.yaml
     oc delete -f deploy/operator.yaml
     oc delete -f deploy/role.yaml
     oc delete -f deploy/role_binding.yaml
     oc delete -f deploy/service_account.yaml
-    oc delete -f deploy/crds/nova_v1alpha1_compute_crd.yaml
+    oc delete -f deploy/crds/nova_v1_novacompute_crd.yaml
+    oc delete -f deploy/crds/nova_v1_libvirtd_crd.yaml
+    oc delete -f deploy/crds/nova_v1_virtlogd_crd.yaml

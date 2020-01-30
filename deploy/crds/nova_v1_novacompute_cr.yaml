@@ -1,0 +1,7 @@
+apiVersion: nova.openstack.org/v1
+kind: NovaCompute
+metadata:
+  name: nova-compute
+spec:
+  novaComputeImage: trunk.registry.rdoproject.org/tripleotrain/rhel-binary-nova-compute:f8b48998e5d600f24513848b600e84176ce90223_243bc231
+  label: compute

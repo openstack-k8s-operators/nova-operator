@@ -1,4 +1,4 @@
-package compute
+package novacompute
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
         "regexp"
         //"fmt"
 
-	novav1alpha1 "github.com/nova-operator/pkg/apis/nova/v1alpha1"
+	novav1 "github.com/nova-operator/pkg/apis/nova/v1"
         appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -23,22 +23,16 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
-var log = logf.Log.WithName("controller_compute")
+var log = logf.Log.WithName("controller_novacompute")
 var ospHostAliases = []corev1.HostAlias{}
 
-// TODO move to like image urls?
+// TODO move to spec like image urls?
 const (
         COMMON_CONFIGMAP_NAME   string = "common-config"
-        LIBVIRT_CONFIGMAP_NAME  string = "libvirt-config"
         NOVA_CONFIGMAP_NAME     string = "nova-config"
 )
 
-/**
-* USER ACTION REQUIRED: This is a scaffold file intended for the user to modify with their own Controller
-* business logic.  Delete these comments after modifying this file.*
- */
-
-// Add creates a new Compute Controller and adds it to the Manager. The Manager will set fields on the Controller
+// Add creates a new NovaCompute Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func Add(mgr manager.Manager) error {
 	return add(mgr, newReconciler(mgr))
@@ -46,28 +40,28 @@ func Add(mgr manager.Manager) error {
 
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager) reconcile.Reconciler {
-	return &ReconcileCompute{client: mgr.GetClient(), scheme: mgr.GetScheme()}
+	return &ReconcileNovaCompute{client: mgr.GetClient(), scheme: mgr.GetScheme()}
 }
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
 func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	// Create a new controller
-	c, err := controller.New("compute-controller", mgr, controller.Options{Reconciler: r})
+	c, err := controller.New("novacompute-controller", mgr, controller.Options{Reconciler: r})
 	if err != nil {
 		return err
 	}
 
-	// Watch for changes to primary resource Compute
-	err = c.Watch(&source.Kind{Type: &novav1alpha1.Compute{}}, &handler.EnqueueRequestForObject{})
+	// Watch for changes to primary resource NovaCompute
+	err = c.Watch(&source.Kind{Type: &novav1.NovaCompute{}}, &handler.EnqueueRequestForObject{})
 	if err != nil {
 		return err
 	}
 
 	// TODO(user): Modify this to be the types you create that are owned by the primary resource
-	// Watch for changes to secondary resource Pods and requeue the owner Compute
+	// Watch for changes to secondary resource Pods and requeue the owner NovaCompute
 	err = c.Watch(&source.Kind{Type: &corev1.Pod{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
-		OwnerType:    &novav1alpha1.Compute{},
+		OwnerType:    &novav1.NovaCompute{},
 	})
 	if err != nil {
 		return err
@@ -76,30 +70,30 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	return nil
 }
 
-// blank assignment to verify that ReconcileCompute implements reconcile.Reconciler
-var _ reconcile.Reconciler = &ReconcileCompute{}
+// blank assignment to verify that ReconcileNovaCompute implements reconcile.Reconciler
+var _ reconcile.Reconciler = &ReconcileNovaCompute{}
 
-// ReconcileCompute reconciles a Compute object
-type ReconcileCompute struct {
+// ReconcileNovaCompute reconciles a NovaCompute object
+type ReconcileNovaCompute struct {
 	// This client, initialized using mgr.Client() above, is a split client
 	// that reads objects from the cache and writes to the apiserver
 	client client.Client
 	scheme *runtime.Scheme
 }
 
-// Reconcile reads that state of the cluster for a Compute object and makes changes based on the state read
-// and what is in the Compute.Spec
+// Reconcile reads that state of the cluster for a NovaCompute object and makes changes based on the state read
+// and what is in the NovaCompute.Spec
 // TODO(user): Modify this Reconcile function to implement your Controller logic.  This example creates
 // a Pod as an example
 // Note:
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
-func (r *ReconcileCompute) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+func (r *ReconcileNovaCompute) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
-	reqLogger.Info("Reconciling Compute")
+	reqLogger.Info("Reconciling NovaCompute")
 
-	// Fetch the Compute instance
-	instance := &novav1alpha1.Compute{}
+	// Fetch the NovaCompute instance
+	instance := &novav1.NovaCompute{}
 	err := r.client.Get(context.TODO(), request.NamespacedName, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -111,7 +105,6 @@ func (r *ReconcileCompute) Reconcile(request reconcile.Request) (reconcile.Resul
 		// Error reading the object - requeue the request.
 		return reconcile.Result{}, err
 	}
-
 
         commonConfigMap := &corev1.ConfigMap{}
         // TODO: to update hosts infocheck configmap ResourceVersion and update if needed.
@@ -125,33 +118,33 @@ func (r *ReconcileCompute) Reconcile(request reconcile.Request) (reconcile.Resul
         }
         ospHostAliases = createOspHostsEntries(commonConfigMap)
 
-        // Define a new Daemonset object
-        ds := newDaemonset(instance)
+        // Define a new Pod object
+        pod := newDaemonset(instance)
 
-        // Set Compute instance as the owner and controller
-        if err := controllerutil.SetControllerReference(instance, ds, r.scheme); err != nil {
-                return reconcile.Result{}, err
-        }
+	// Set NovaCompute instance as the owner and controller
+	if err := controllerutil.SetControllerReference(instance, pod, r.scheme); err != nil {
+		return reconcile.Result{}, err
+	}
 
-        // Check if this Daemonset already exists
-        found := &appsv1.DaemonSet{}
-        err = r.client.Get(context.TODO(), types.NamespacedName{Name: ds.Name, Namespace: ds.Namespace}, found)
-        if err != nil && errors.IsNotFound(err) {
-                reqLogger.Info("Creating a new Daemonset", "ds.Namespace", ds.Namespace, "ds.Name", ds.Name)
-                err = r.client.Create(context.TODO(), ds)
-                if err != nil {
-                        return reconcile.Result{}, err
-                }
+	// Check if this Pod already exists
+	found := &appsv1.DaemonSet{}
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace}, found)
+	if err != nil && errors.IsNotFound(err) {
+		reqLogger.Info("Creating a new Pod", "Pod.Namespace", pod.Namespace, "Pod.Name", pod.Name)
+		err = r.client.Create(context.TODO(), pod)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
 
-                // Daemonset created successfully - don't requeue
-                return reconcile.Result{}, nil
-        } else if err != nil {
-                return reconcile.Result{}, err
-        }
+		// Pod created successfully - don't requeue
+		return reconcile.Result{}, nil
+	} else if err != nil {
+		return reconcile.Result{}, err
+	}
 
-        // Daemonset already exists - don't requeue
-        reqLogger.Info("Skip reconcile: Daemonset already exists", "ds.Namespace", found.Namespace, "ds.Name", found.Name)
-        return reconcile.Result{}, nil
+	// Pod already exists - don't requeue
+	reqLogger.Info("Skip reconcile: Pod already exists", "Pod.Namespace", found.Namespace, "Pod.Name", found.Name)
+	return reconcile.Result{}, nil
 }
 
 func createOspHostsEntries(commonConfigMap *corev1.ConfigMap) []corev1.HostAlias{
@@ -186,7 +179,7 @@ func createOspHostsEntries(commonConfigMap *corev1.ConfigMap) []corev1.HostAlias
         return hostAliases
 }
 
-func newDaemonset(cr *novav1alpha1.Compute) *appsv1.DaemonSet {
+func newDaemonset(cr *novav1.NovaCompute) *appsv1.DaemonSet {
         var bidirectional corev1.MountPropagationMode = corev1.MountPropagationBidirectional
         var hostToContainer corev1.MountPropagationMode = corev1.MountPropagationHostToContainer
         var trueVar bool = true
@@ -241,13 +234,13 @@ func newDaemonset(cr *novav1alpha1.Compute) *appsv1.DaemonSet {
         //}
 
         initContainerSpec := corev1.Container{
-                Name:  "libvirtd-config-init",
-                Image: cr.Spec.NovaLibvirtImage,
+                Name:  "nova-compute-config-init",
+                Image: cr.Spec.NovaComputeImage,
                 SecurityContext: &corev1.SecurityContext{
                         Privileged:  &trueVar,
                 },
                 Command: []string{
-                        "/bin/bash", "-c", "export CTRL_IP_INTRENALAPI=$(getent hosts controller-0.internalapi | awk '{print $1}') && export POD_IP_INTERNALAPI=$(ip route get $CTRL_IP_INTRENALAPI | awk '{print $5}') && cp /etc/nova/nova.conf /mnt/nova.conf && crudini --set /mnt/nova.conf DEFAULT my_ip $POD_IP_INTERNALAPI && crudini --set /mnt/nova.conf vnc server_listen $POD_IP_INTERNALAPI && crudini --set /mnt/nova.conf vnc server_proxyclient_address $POD_IP_INTERNALAPI",
+                        "/bin/bash", "-c", "export CTRL_IP_INTRENALAPI=$(getent hosts controller-0.internalapi | awk '{print $1}') && export POD_IP_INTERNALAPI=$(ip route get $CTRL_IP_INTRENALAPI | awk '{print $5}') && cp /etc/nova/nova.conf /mnt/nova.conf && crudini --set /mnt/nova.conf DEFAULT my_ip $POD_IP_INTERNALAPI && crudini --set /mnt/nova.conf vnc server_listen $POD_IP_INTERNALAPI && crudini --set /mnt/nova.conf vnc server_proxyclient_address $POD_IP_INTERNALAPI && echo $OSP_CTRL_HOST >> /mnt/ctrl_host",
                 },
                 Env: []corev1.EnvVar{
                         {
@@ -258,14 +251,17 @@ func newDaemonset(cr *novav1alpha1.Compute) *appsv1.DaemonSet {
                                         },
                                 },
                         },
+//                        {
+//                                Name: "OSP_CTRL_HOST",
+//                                ValueFrom: &corev1.EnvVarSource{
+//                                        ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
+//                                                Name: "common-config",
+//                                                Key: "osp_controller_hostname",
+//                                        },
+//                                },
+//                        },
                 },
                 VolumeMounts: []corev1.VolumeMount{
-                        {
-                                Name:      "libvirt-config",
-                                ReadOnly:  true,
-                                MountPath: "/etc/libvirt/libvirtd.conf",
-                                SubPath:   "libvirtd.conf",
-                        },
                         {
                                 Name:      "nova-config",
                                 ReadOnly:  true,
@@ -273,152 +269,18 @@ func newDaemonset(cr *novav1alpha1.Compute) *appsv1.DaemonSet {
                                 SubPath:   "nova.conf",
                         },
                         {
+                                Name:      "common-config",
+                                ReadOnly:  true,
+                                MountPath: "/common-config",
+                        },
+                        {
                                 Name:      "rendered-config-vol",
                                 MountPath: "/mnt",
                                 ReadOnly:  false,
                         },
-                        {
-                                Name:      "var-lib-nova-volume",
-                                MountPath: "/var/lib/nova",
-                                MountPropagation: &bidirectional,
-                        },
                 },
         }
         daemonSet.Spec.Template.Spec.InitContainers = append(daemonSet.Spec.Template.Spec.InitContainers, initContainerSpec)
-
-
-        virtlogdContainerSpec := corev1.Container{
-                Name:  "virtlogd",
-                Image: cr.Spec.NovaLibvirtImage,
-                //NOTE: removed for now as after some time it left a lot of parallel lsof processes running, need to investigate
-                //ReadinessProbe: &corev1.Probe{
-                //        Handler: corev1.Handler{
-                //                Exec: &corev1.ExecAction{
-                //                        Command: []string{
-                //                                "/openstack/healthcheck", "virtlogd",
-                //                        },
-                //                },
-                //        },
-                //        InitialDelaySeconds: 30,
-                //        PeriodSeconds:       30,
-                //        TimeoutSeconds:      1,
-                //},
-                Command: []string{
-                        "/usr/sbin/virtlogd", "--config", "/etc/libvirt/virtlogd.conf",
-                },
-                SecurityContext: &corev1.SecurityContext{
-                        Privileged:  &trueVar,
-                },
-                VolumeMounts: []corev1.VolumeMount{
-                        {
-                                Name:      "libvirt-config",
-                                ReadOnly:  true,
-                                MountPath: "/etc/libvirt/libvirtd.conf",
-                                SubPath:   "libvirtd.conf",
-                        },
-                        {
-                                Name:      "etc-libvirt-qemu-volume",
-                                MountPath: "/etc/libvirt/qemu",
-                                MountPropagation: &bidirectional,
-                        },
-                        {
-                                Name:      "dev-volume",
-                                MountPath: "/dev",
-                                MountPropagation: &hostToContainer,
-                        },
-                        {
-                                Name:      "sys-fs-cgroup-volume",
-                                MountPath: "/sys/fs/cgroup",
-                                MountPropagation: &hostToContainer,
-                        },
-                        {
-                                Name:      "run-libvirt-volume",
-                                MountPath: "/var/run/libvirt",
-                                MountPropagation: &bidirectional,
-                        },
-                        {
-                                Name:      "libvirt-log-volume",
-                                MountPath: "/var/log/libvirt",
-                                MountPropagation: &bidirectional,
-                        },
-                        {
-                                Name:      "var-lib-nova-volume",
-                                MountPath: "/var/lib/nova",
-                                MountPropagation: &bidirectional,
-                        },
-                },
-        }
-
-        daemonSet.Spec.Template.Spec.Containers = append(daemonSet.Spec.Template.Spec.Containers, virtlogdContainerSpec)
-
-
-        libvirtContainerSpec := corev1.Container{
-                Name:  "libvirtd",
-                Image: cr.Spec.NovaLibvirtImage,
-                //ReadinessProbe: &corev1.Probe{
-                //        Handler: corev1.Handler{
-                //                Exec: &corev1.ExecAction{
-                //                        Command: []string{
-                //                                "/openstack/healthcheck", "libvirtd",
-                //                        },
-                //                },
-                //        },
-                //        InitialDelaySeconds: 30,
-                //        PeriodSeconds:       30,
-                //        TimeoutSeconds:      1,
-                //},
-                Command: []string{
-                        "/usr/sbin/libvirtd", "--config", "/etc/libvirt/libvirtd.conf",
-                },
-                SecurityContext: &corev1.SecurityContext{
-                        Privileged:  &trueVar,
-                },
-                VolumeMounts: []corev1.VolumeMount{
-                        {
-                                Name:      "libvirt-config",
-                                ReadOnly:  true,
-                                MountPath: "/etc/libvirt/libvirtd.conf",
-                                SubPath:   "libvirtd.conf",
-                        },
-                        {
-                                Name:      "etc-libvirt-qemu-volume",
-                                MountPath: "/etc/libvirt/qemu",
-                                MountPropagation: &bidirectional,
-                        },
-                        {
-                                Name:      "dev-volume",
-                                MountPath: "/dev",
-                                MountPropagation: &hostToContainer,
-                        },
-                        {
-                                Name:      "run-volume",
-                                MountPath: "/run",
-                                MountPropagation: &hostToContainer,
-                        },
-                        {
-                                Name:      "sys-fs-cgroup-volume",
-                                MountPath: "/sys/fs/cgroup",
-                                MountPropagation: &hostToContainer,
-                        },
-                        {
-                                Name:      "run-libvirt-volume",
-                                MountPath: "/var/run/libvirt",
-                                MountPropagation: &bidirectional,
-                        },
-                        {
-                                Name:      "libvirt-log-volume",
-                                MountPath: "/var/log/libvirt",
-                                MountPropagation: &bidirectional,
-                        },
-                        {
-                                Name:      "var-lib-nova-volume",
-                                MountPath: "/var/lib/nova",
-                                MountPropagation: &bidirectional,
-                        },
-                },
-        }
-        daemonSet.Spec.Template.Spec.Containers = append(daemonSet.Spec.Template.Spec.Containers, libvirtContainerSpec)
-
 
         novaContainerSpec := corev1.Container{
                 Name:  "nova-compute",
@@ -504,14 +366,6 @@ func newDaemonset(cr *novav1alpha1.Compute) *appsv1.DaemonSet {
 
         volConfigs := []corev1.Volume{
                 {
-                        Name: "hostroot",
-                        VolumeSource: corev1.VolumeSource{
-                                HostPath: &corev1.HostPathVolumeSource{
-                                        Path: "/",
-                                },
-                        },
-                },
-                {
                         Name: "boot-volume",
                         VolumeSource: corev1.VolumeSource{
                                 HostPath: &corev1.HostPathVolumeSource{
@@ -570,28 +424,10 @@ func newDaemonset(cr *novav1alpha1.Compute) *appsv1.DaemonSet {
                         },
                 },
                 {
-                        Name: "run-openvswitch-volume",
-                        VolumeSource: corev1.VolumeSource{
-                                HostPath: &corev1.HostPathVolumeSource{
-                                        Path: "/var/run/openvswitch",
-                                        Type: &dirOrCreate,
-                                },
-                        },
-                },
-                {
                         Name: "var-lib-nova-volume",
                         VolumeSource: corev1.VolumeSource{
                                 HostPath: &corev1.HostPathVolumeSource{
                                         Path: "/var/lib/nova",
-                                        Type: &dirOrCreate,
-                                },
-                        },
-                },
-                {
-                        Name: "libvirt-log-volume",
-                        VolumeSource: corev1.VolumeSource{
-                                HostPath: &corev1.HostPathVolumeSource{
-                                        Path: "/var/log/containers/libvirt",
                                         Type: &dirOrCreate,
                                 },
                         },
@@ -606,23 +442,23 @@ func newDaemonset(cr *novav1alpha1.Compute) *appsv1.DaemonSet {
                         },
                 },
                 {
-                        Name: "libvirt-config",
-                        VolumeSource: corev1.VolumeSource{
-                                ConfigMap: &corev1.ConfigMapVolumeSource{
-                                         DefaultMode: &configVolumeDefaultMode,
-                                         LocalObjectReference: corev1.LocalObjectReference{
-                                                 Name: LIBVIRT_CONFIGMAP_NAME,
-                                         },
-                                },
-                        },
-                },
-                {
                         Name: "nova-config",
                         VolumeSource: corev1.VolumeSource{
                                 ConfigMap: &corev1.ConfigMapVolumeSource{
                                          DefaultMode: &configVolumeDefaultMode,
                                          LocalObjectReference: corev1.LocalObjectReference{
                                                  Name: NOVA_CONFIGMAP_NAME,
+                                         },
+                                },
+                        },
+                },
+                {
+                        Name: "common-config",
+                        VolumeSource: corev1.VolumeSource{
+                                ConfigMap: &corev1.ConfigMapVolumeSource{
+                                         DefaultMode: &configVolumeDefaultMode,
+                                         LocalObjectReference: corev1.LocalObjectReference{
+                                                 Name: COMMON_CONFIGMAP_NAME,
                                          },
                                 },
                         },

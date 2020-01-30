@@ -41,8 +41,11 @@ rules:
   verbs:
   - update
 - apiGroups:
-  - nova.openstack-k8s-operators
+  - nova.openstack.org
   resources:
   - '*'
+  - virtlogds
+  - lirtvirtds
+  - libvirtds
   verbs:
   - '*'

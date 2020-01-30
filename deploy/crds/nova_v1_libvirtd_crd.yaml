@@ -1,14 +1,14 @@
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
-  name: computes.nova.openstack-k8s-operators
+  name: libvirtds.nova.openstack.org
 spec:
-  group: nova.openstack-k8s-operators
+  group: nova.openstack.org
   names:
-    kind: Compute
-    listKind: ComputeList
-    plural: computes
-    singular: compute
+    kind: Libvirtd
+    listKind: LibvirtdList
+    plural: libvirtds
+    singular: libvirtd
   scope: Namespaced
   subresources:
     status: {}
@@ -33,15 +33,12 @@ spec:
               description: Label is the value of the 'daemon=' label to set on a node
                 that should run the daemon
               type: string
-            novaComputeImage:
-              type: string
             novaLibvirtImage:
               description: Image is the Docker image to run for the daemon
               type: string
           required:
           - label
           - novaLibvirtImage
-          - novaComputeImage
           type: object
         status:
           properties:
@@ -52,8 +49,8 @@ spec:
           required:
           - count
           type: object
-  version: v1alpha1
+  version: v1
   versions:
-  - name: v1alpha1
+  - name: v1
     served: true
     storage: true
