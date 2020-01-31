@@ -45,7 +45,6 @@ rules:
   resources:
   - '*'
   - virtlogds
-  - lirtvirtds
   - libvirtds
   verbs:
   - '*'
