@@ -217,6 +217,7 @@ func newDaemonset(cr *novav1.NovaCompute) *appsv1.DaemonSet {
                                         NodeSelector:   map[string]string{"daemon": cr.Spec.Label},
                                         HostNetwork:    true,
                                         HostPID:        true,
+                                        DNSPolicy:      "ClusterFirstWithHostNet",
                                         HostAliases:    ospHostAliases,
                                         InitContainers: []corev1.Container{},
                                         Containers:     []corev1.Container{},
@@ -274,6 +275,11 @@ func newDaemonset(cr *novav1.NovaCompute) *appsv1.DaemonSet {
                                 MountPath: "/common-config",
                         },
                         {
+                                Name:      "etc-machine-id",
+                                MountPath: "/etc/machine-id",
+                                ReadOnly:  true,
+                        },
+                        {
                                 Name:      "rendered-config-vol",
                                 MountPath: "/mnt",
                                 ReadOnly:  false,
@@ -316,6 +322,11 @@ func newDaemonset(cr *novav1.NovaCompute) *appsv1.DaemonSet {
                                 MountPropagation: &bidirectional,
                         },
                         {
+                                Name:      "etc-machine-id",
+                                MountPath: "/etc/machine-id",
+                                ReadOnly:  true,
+                        },
+                        {
                                 Name:      "boot-volume",
                                 MountPath: "/boot",
                                 MountPropagation: &hostToContainer,
@@ -338,7 +349,7 @@ func newDaemonset(cr *novav1.NovaCompute) *appsv1.DaemonSet {
                         {
                                 Name:      "sys-fs-cgroup-volume",
                                 MountPath: "/sys/fs/cgroup",
-                                MountPropagation: &hostToContainer,
+                                ReadOnly:  true,
                         },
                         {
                                 Name:      "run-libvirt-volume",
@@ -353,6 +364,11 @@ func newDaemonset(cr *novav1.NovaCompute) *appsv1.DaemonSet {
                         {
                                 Name:      "var-lib-nova-volume",
                                 MountPath: "/var/lib/nova",
+                                MountPropagation: &bidirectional,
+                        },
+                        {
+                                Name:      "var-lib-libvirt-volume",
+                                MountPath: "/var/lib/libvirt",
                                 MountPropagation: &bidirectional,
                         },
                         {
@@ -407,6 +423,14 @@ func newDaemonset(cr *novav1.NovaCompute) *appsv1.DaemonSet {
                         },
                 },
                 {
+                        Name: "etc-machine-id",
+                        VolumeSource: corev1.VolumeSource{
+                                HostPath: &corev1.HostPathVolumeSource{
+                                        Path: "/etc/machine-id",
+                                },
+                        },
+                },
+                {
                         Name: "sys-fs-cgroup-volume",
                         VolumeSource: corev1.VolumeSource{
                                 HostPath: &corev1.HostPathVolumeSource{
@@ -428,6 +452,15 @@ func newDaemonset(cr *novav1.NovaCompute) *appsv1.DaemonSet {
                         VolumeSource: corev1.VolumeSource{
                                 HostPath: &corev1.HostPathVolumeSource{
                                         Path: "/var/lib/nova",
+                                        Type: &dirOrCreate,
+                                },
+                        },
+                },
+                {
+                        Name: "var-lib-libvirt-volume",
+                        VolumeSource: corev1.VolumeSource{
+                                HostPath: &corev1.HostPathVolumeSource{
+                                        Path: "/var/lib/libvirt",
                                         Type: &dirOrCreate,
                                 },
                         },

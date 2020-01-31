@@ -170,6 +170,7 @@ func newDaemonset(cr *novav1.Libvirtd) *appsv1.DaemonSet {
                                         HostNetwork:    true,
                                         HostPID:        true,
                                         HostIPC:        true,
+                                        DNSPolicy:      "ClusterFirstWithHostNet",
                                         InitContainers: []corev1.Container{},
                                         Containers:     []corev1.Container{},
                                 },
@@ -206,6 +207,11 @@ func newDaemonset(cr *novav1.Libvirtd) *appsv1.DaemonSet {
                                 SubPath:   "libvirtd.conf",
                         },
                         {
+                                Name:      "etc-machine-id",
+                                MountPath: "/etc/machine-id",
+                                ReadOnly:  true,
+                        },
+                        {
                                 Name:      "etc-libvirt-qemu-volume",
                                 MountPath: "/etc/libvirt/qemu",
                                 MountPropagation: &bidirectional,
@@ -223,7 +229,7 @@ func newDaemonset(cr *novav1.Libvirtd) *appsv1.DaemonSet {
                         {
                                 Name:      "sys-fs-cgroup-volume",
                                 MountPath: "/sys/fs/cgroup",
-                                MountPropagation: &hostToContainer,
+                                ReadOnly:  true,
                         },
                         {
                                 Name:      "run-libvirt-volume",
@@ -256,6 +262,14 @@ func newDaemonset(cr *novav1.Libvirtd) *appsv1.DaemonSet {
                                 HostPath: &corev1.HostPathVolumeSource{
                                         Path: "/opt/osp/etc/libvirt/qemu",
                                         Type: &dirOrCreate,
+                                },
+                        },
+                },
+                {
+                        Name: "etc-machine-id",
+                        VolumeSource: corev1.VolumeSource{
+                                HostPath: &corev1.HostPathVolumeSource{
+                                        Path: "/etc/machine-id",
                                 },
                         },
                 },
