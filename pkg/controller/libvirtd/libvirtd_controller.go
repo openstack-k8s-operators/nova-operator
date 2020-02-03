@@ -169,7 +169,6 @@ func newDaemonset(cr *novav1.Libvirtd) *appsv1.DaemonSet {
                                         NodeSelector:   map[string]string{"daemon": cr.Spec.Label},
                                         HostNetwork:    true,
                                         HostPID:        true,
-                                        HostIPC:        true,
                                         DNSPolicy:      "ClusterFirstWithHostNet",
                                         InitContainers: []corev1.Container{},
                                         Containers:     []corev1.Container{},
