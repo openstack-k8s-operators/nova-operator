@@ -24,8 +24,9 @@ var log = logf.Log.WithName("controller_libvirtd")
 
 // TODO move to spec like image urls?
 const (
-        COMMON_CONFIGMAP_NAME   string = "common-config"
-        LIBVIRT_CONFIGMAP_NAME  string = "libvirt-config"
+        COMMON_CONFIGMAP      string = "common-config"
+        LIBVIRT_CONFIGMAP     string = "libvirt-config"
+        LIBVIRT_BIN_CONFIGMAP string = "libvirt-bin"
 )
 
 // Add creates a new Libvirtd Controller and adds it to the Manager. The Manager will set fields on the Controller
@@ -135,7 +136,9 @@ func newDaemonset(cr *novav1.Libvirtd) *appsv1.DaemonSet {
         var bidirectional corev1.MountPropagationMode = corev1.MountPropagationBidirectional
         var hostToContainer corev1.MountPropagationMode = corev1.MountPropagationHostToContainer
         var trueVar bool = true
+        var falseVar bool = false
         var configVolumeDefaultMode int32 = 0644
+        var configVolumeBinMode     int32 = 0755
         var dirOrCreate corev1.HostPathType = corev1.HostPathDirectoryOrCreate
 
         daemonSet := appsv1.DaemonSet{
@@ -193,10 +196,21 @@ func newDaemonset(cr *novav1.Libvirtd) *appsv1.DaemonSet {
                 //        TimeoutSeconds:      1,
                 //},
                 Command: []string{
-                        "/usr/sbin/libvirtd", "--config", "/etc/libvirt/libvirtd.conf",
+                        "bash", "-c", "/tmp/libvirt.sh",
+                        //"/usr/sbin/libvirtd", "--listen", "--config", "/etc/libvirt/libvirtd.conf",
+                },
+                Lifecycle: &corev1.Lifecycle {
+                        PreStop: &corev1.Handler{
+                                Exec: &corev1.ExecAction{
+                                        Command: []string{
+                                                "bash", "-c", "kill $(cat /var/run/libvirtd.pid)",
+                                        },
+                                },
+                        },
                 },
                 SecurityContext: &corev1.SecurityContext{
                         Privileged:  &trueVar,
+                        ReadOnlyRootFilesystem: &falseVar,
                 },
                 VolumeMounts: []corev1.VolumeMount{
                         {
@@ -204,6 +218,12 @@ func newDaemonset(cr *novav1.Libvirtd) *appsv1.DaemonSet {
                                 ReadOnly:  true,
                                 MountPath: "/etc/libvirt/libvirtd.conf",
                                 SubPath:   "libvirtd.conf",
+                        },
+                        {
+                                Name:      "libvirt-bin",
+                                ReadOnly:  true,
+                                MountPath: "/tmp/libvirt.sh",
+                                SubPath:   "libvirt.sh",
                         },
                         {
                                 Name:      "etc-machine-id",
@@ -214,6 +234,11 @@ func newDaemonset(cr *novav1.Libvirtd) *appsv1.DaemonSet {
                                 Name:      "etc-libvirt-qemu-volume",
                                 MountPath: "/etc/libvirt/qemu",
                                 MountPropagation: &bidirectional,
+                        },
+                        {
+                                Name:      "lib-modules-volume",
+                                MountPath: "/lib/modules",
+                                MountPropagation: &hostToContainer,
                         },
                         {
                                 Name:      "dev-volume",
@@ -228,7 +253,6 @@ func newDaemonset(cr *novav1.Libvirtd) *appsv1.DaemonSet {
                         {
                                 Name:      "sys-fs-cgroup-volume",
                                 MountPath: "/sys/fs/cgroup",
-                                ReadOnly:  true,
                         },
                         {
                                 Name:      "run-libvirt-volume",
@@ -324,6 +348,14 @@ func newDaemonset(cr *novav1.Libvirtd) *appsv1.DaemonSet {
                         },
                 },
                 {
+                        Name: "lib-modules-volume",
+                        VolumeSource: corev1.VolumeSource{
+                                HostPath: &corev1.HostPathVolumeSource{
+                                        Path: "/lib/modules",
+                                },
+                        },
+                },
+                {
                         Name: "libvirt-log-volume",
                         VolumeSource: corev1.VolumeSource{
                                 HostPath: &corev1.HostPathVolumeSource{
@@ -338,7 +370,18 @@ func newDaemonset(cr *novav1.Libvirtd) *appsv1.DaemonSet {
                                 ConfigMap: &corev1.ConfigMapVolumeSource{
                                          DefaultMode: &configVolumeDefaultMode,
                                          LocalObjectReference: corev1.LocalObjectReference{
-                                                 Name: LIBVIRT_CONFIGMAP_NAME,
+                                                 Name: LIBVIRT_CONFIGMAP,
+                                         },
+                                },
+                        },
+                },
+                {
+                        Name: "libvirt-bin",
+                        VolumeSource: corev1.VolumeSource{
+                                ConfigMap: &corev1.ConfigMapVolumeSource{
+                                         DefaultMode: &configVolumeBinMode,
+                                         LocalObjectReference: corev1.LocalObjectReference{
+                                                 Name: LIBVIRT_BIN_CONFIGMAP,
                                          },
                                 },
                         },
@@ -349,7 +392,7 @@ func newDaemonset(cr *novav1.Libvirtd) *appsv1.DaemonSet {
                                 ConfigMap: &corev1.ConfigMapVolumeSource{
                                          DefaultMode: &configVolumeDefaultMode,
                                          LocalObjectReference: corev1.LocalObjectReference{
-                                                 Name: COMMON_CONFIGMAP_NAME,
+                                                 Name: COMMON_CONFIGMAP,
                                          },
                                 },
                         },

@@ -11,8 +11,8 @@ NOTE:
 
 #### Clone it
 
-    $ git clone https://github.com/stuggi/nova-operator.git
-    $ cd nova-operator
+    git clone https://github.com/stuggi/nova-operator.git
+    cd nova-operator
 
 #### Create the operator
 
@@ -25,18 +25,18 @@ Build the image
 
 Replace `image:` in deploy/operator.yaml with your image
 
-    $ sed -i 's|REPLACE_IMAGE|quay.io/mschuppe/nova-operator:v0.0.1|g' deploy/operator.yaml
-    $ podman push --authfile ~/mschuppe-auth.json quay.io/mschuppe/nova-operator:v0.0.1
+    sed -i 's|REPLACE_IMAGE|quay.io/mschuppe/nova-operator:v0.0.1|g' deploy/operator.yaml
+    podman push --authfile ~/mschuppe-auth.json quay.io/mschuppe/nova-operator:v0.0.1
 
 Create role, binding service_account
 
-    $ oc create -f deploy/role.yaml
-    $ oc create -f deploy/role_binding.yaml
-    $ oc create -f deploy/service_account.yaml
+    oc create -f deploy/role.yaml
+    oc create -f deploy/role_binding.yaml
+    oc create -f deploy/service_account.yaml
 
 Create operator
 
-    $ oc create -f deploy/operator.yaml
+    oc create -f deploy/operator.yaml
 
     POD=`oc get pods -l name=nova-operator --field-selector=status.phase=Running -o name | head -1 -`; echo $POD
     oc logs $POD -f
@@ -45,11 +45,9 @@ Create custom resource for a compute node which specifies the container images a
 get latest container images from rdo rhel8-train from https://trunk.rdoproject.org/rhel8-train/current-tripleo/commit.yaml
 or
 
-    $ dnf install python2 python2-yaml
-    $ python -c 'import urllib2;import yaml;c=yaml.load(urllib2.urlopen("https://trunk.rdoproject.org/rhel8-train/current-tripleo/commit.yaml"))["commits"][0];print "%s_%s" % (c["commit_hash"],c["distro_hash"][0:8])'
+    dnf install python2 python2-yaml
+    python -c 'import urllib2;import yaml;c=yaml.load(urllib2.urlopen("https://trunk.rdoproject.org/rhel8-train/current-tripleo/commit.yaml"))["commits"][0];print "%s_%s" % (c["commit_hash"],c["distro_hash"][0:8])'
     f8b48998e5d600f24513848b600e84176ce90223_243bc231
-
-
 
 Update `deploy/crds/nova_v1_novacompute_cr.yaml`, `deploy/crds/nova_v1_virtlogd_cr.yaml` and `deploy/crds/nova_v1_libvirtd_cr.yaml`
 
@@ -60,7 +58,7 @@ Update `deploy/crds/nova_v1_novacompute_cr.yaml`, `deploy/crds/nova_v1_virtlogd_
     metadata:
       name: virtlogd
     spec:
-      novaLibvirtImage: trunk.registry.rdoproject.org/tripleotrain/rhel-binary-nova-libvirt:f8b48998e5d600f24513848b600e84176ce90223_243bc231
+      novaLibvirtImage: quay.io/mschuppe/nova-libvirt:latest
       label: compute
 
 * `deploy/crds/nova_v1_libvirtd_cr.yaml`
@@ -70,7 +68,7 @@ Update `deploy/crds/nova_v1_novacompute_cr.yaml`, `deploy/crds/nova_v1_virtlogd_
     metadata:
       name: libvirtd
     spec:
-      novaLibvirtImage: trunk.registry.rdoproject.org/tripleotrain/rhel-binary-nova-libvirt:f8b48998e5d600f24513848b600e84176ce90223_243bc231
+      novaLibvirtImage: quay.io/mschuppe/nova-libvirt:latest
       label: compute
 
 * `deploy/crds/nova_v1_novacompute_cr.yaml`
@@ -114,20 +112,23 @@ Place each group in a config dir like:
 
 Add OSP environment controller-0 short hostname in common-conf/osp_controller_hostname
 
-    $ echo "SHORT OSP CTRL-0 HOSTNAME"> /root/common-conf/osp_controller_hostname
+    echo "SHORT OSP CTRL-0 HOSTNAME"> /root/common-conf/osp_controller_hostname
 
 Create the configMaps
 
-    $ oc create configmap common-config --from-file=/root/common-conf/
-    $ oc create configmap libvirt-config --from-file=./libvirt-conf/
-    $ oc create configmap nova-config --from-file=./nova-conf/
-    $ oc create configmap neutron-config --from-file=./neutron-conf/
+    oc create configmap common-config --from-file=/root/common-conf/
+    oc create configmap libvirt-config --from-file=./libvirt-conf/
+    oc create configmap nova-config --from-file=./nova-conf/
 
 Note: if a later update is needed do e.g.
 
-    $ oc create configmap neutron-config --from-file=./nova-conf/ --dry-run -o yaml | oc apply -f -
+    oc create configmap nova-config --from-file=./nova-conf/ --dry-run -o yaml | oc apply -f -
 
-Right now the operator does not handle config updates. The CRs need to be recreated.
+Note: Right now the operator does not handle config updates. The CRs need to be recreated.
+
+Create configmap which has the libvirt wrapper
+
+    oc create configmap libvirt-bin --from-file=deploy/libvirt-bin/
 
 !! Make sure we have the OSP needed network configs on the worker nodes. The workers need to be able to reach the internalapi and tenant network !!
 
@@ -192,6 +193,7 @@ If need get into nova-compute container of daemonset via:
 ## POST steps to add compute workers to the cell
 
 #### Map the computes to the default cell
+
     (undercloud) $ source stackrc
     (undercloud) $ CTRL=controller-0
     (undercloud) $ CTRL_IP=$(openstack server list -f value -c Networks --name $CTRL | sed 's/ctlplane=//')

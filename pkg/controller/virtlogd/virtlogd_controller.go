@@ -24,8 +24,8 @@ var log = logf.Log.WithName("controller_virtlogd")
 
 // TODO move to spec like image urls?
 const (
-        COMMON_CONFIGMAP_NAME   string = "common-config"
-        LIBVIRT_CONFIGMAP_NAME  string = "libvirt-config"
+        COMMON_CONFIGMAP   string = "common-config"
+        LIBVIRT_CONFIGMAP  string = "libvirt-config"
 )
 
 // Add creates a new Virtlogd Controller and adds it to the Manager. The Manager will set fields on the Controller
@@ -217,6 +217,11 @@ func newDaemonset(cr *novav1.Virtlogd) *appsv1.DaemonSet {
                                 MountPropagation: &bidirectional,
                         },
                         {
+                                Name:      "lib-modules-volume",
+                                MountPath: "/lib/modules",
+                                MountPropagation: &hostToContainer,
+                        },
+                        {
                                 Name:      "dev-volume",
                                 MountPath: "/dev",
                                 MountPropagation: &hostToContainer,
@@ -326,6 +331,14 @@ func newDaemonset(cr *novav1.Virtlogd) *appsv1.DaemonSet {
                         },
                 },
                 {
+                        Name: "lib-modules-volume",
+                        VolumeSource: corev1.VolumeSource{
+                                HostPath: &corev1.HostPathVolumeSource{
+                                        Path: "/lib/modules",
+                                },
+                        },
+                },
+                {
                         Name: "libvirt-log-volume",
                         VolumeSource: corev1.VolumeSource{
                                 HostPath: &corev1.HostPathVolumeSource{
@@ -340,7 +353,7 @@ func newDaemonset(cr *novav1.Virtlogd) *appsv1.DaemonSet {
                                 ConfigMap: &corev1.ConfigMapVolumeSource{
                                          DefaultMode: &configVolumeDefaultMode,
                                          LocalObjectReference: corev1.LocalObjectReference{
-                                                 Name: LIBVIRT_CONFIGMAP_NAME,
+                                                 Name: LIBVIRT_CONFIGMAP,
                                          },
                                 },
                         },

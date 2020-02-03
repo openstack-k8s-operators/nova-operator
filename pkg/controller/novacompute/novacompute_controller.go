@@ -28,8 +28,8 @@ var ospHostAliases = []corev1.HostAlias{}
 
 // TODO move to spec like image urls?
 const (
-        COMMON_CONFIGMAP_NAME   string = "common-config"
-        NOVA_CONFIGMAP_NAME     string = "nova-config"
+        COMMON_CONFIGMAP   string = "common-config"
+        NOVA_CONFIGMAP     string = "nova-config"
 )
 
 // Add creates a new NovaCompute Controller and adds it to the Manager. The Manager will set fields on the Controller
@@ -480,7 +480,7 @@ func newDaemonset(cr *novav1.NovaCompute) *appsv1.DaemonSet {
                                 ConfigMap: &corev1.ConfigMapVolumeSource{
                                          DefaultMode: &configVolumeDefaultMode,
                                          LocalObjectReference: corev1.LocalObjectReference{
-                                                 Name: NOVA_CONFIGMAP_NAME,
+                                                 Name: NOVA_CONFIGMAP,
                                          },
                                 },
                         },
@@ -491,7 +491,7 @@ func newDaemonset(cr *novav1.NovaCompute) *appsv1.DaemonSet {
                                 ConfigMap: &corev1.ConfigMapVolumeSource{
                                          DefaultMode: &configVolumeDefaultMode,
                                          LocalObjectReference: corev1.LocalObjectReference{
-                                                 Name: COMMON_CONFIGMAP_NAME,
+                                                 Name: COMMON_CONFIGMAP,
                                          },
                                 },
                         },
