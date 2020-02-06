@@ -109,8 +109,15 @@ func schema_pkg_apis_nova_v1_LibvirtdStatus(ref common.ReferenceCallback) common
 							Format:      "int32",
 						},
 					},
+					"daemonsetHash": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Daemonset hash used to detect changes",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
-				Required: []string{"count"},
+				Required: []string{"count", "daemonsetHash"},
 			},
 		},
 		Dependencies: []string{},
@@ -180,8 +187,64 @@ func schema_pkg_apis_nova_v1_NovaComputeSpec(ref common.ReferenceCallback) commo
 							Format:      "",
 						},
 					},
+					"publicVip": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Control Plane public VIP String",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"internalApiVip": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Control Plane internalAPI VIP String",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"memcacheServers": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Memcache Servers String",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"rabbitTransportUrl": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RabbitMQ transport URL String",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"cinderPassword": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Cinder API Admin Password",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"novaPassword": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Nova API Admin Password",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"neutronPassword": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Neutron API Admin Password",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"placementPassword": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Placement API Admin Password",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
-				Required: []string{"label", "novaComputeImage"},
+				Required: []string{"label", "novaComputeImage", "internalApiVip", "rabbitTransportUrl", "cinderPassword", "novaPassword", "neutronPassword", "placementPassword"},
 			},
 		},
 		Dependencies: []string{},
@@ -201,8 +264,15 @@ func schema_pkg_apis_nova_v1_NovaComputeStatus(ref common.ReferenceCallback) com
 							Format:      "int32",
 						},
 					},
+					"daemonsetHash": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Daemonset hash used to detect changes",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
-				Required: []string{"count"},
+				Required: []string{"count", "daemonsetHash"},
 			},
 		},
 		Dependencies: []string{},

@@ -3,5 +3,5 @@ kind: Libvirtd
 metadata:
   name: libvirtd
 spec:
-  novaLibvirtImage: quay.io/mschuppe/nova-libvirt:latest
+  novaLibvirtImage: quay.io/openstack-k8s-operators/nova-libvirt:latest
   label: compute

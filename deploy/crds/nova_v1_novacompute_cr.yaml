@@ -3,5 +3,31 @@ kind: NovaCompute
 metadata:
   name: nova-compute
 spec:
-  novaComputeImage: trunk.registry.rdoproject.org/tripleotrain/rhel-binary-nova-compute:f8b48998e5d600f24513848b600e84176ce90223_243bc231
+  # Enpoint Information
+  publicVip: 10.0.0.143
+  internalApiVip: 172.17.1.29
+  # Memcached server list
+  memcacheServers: 172.17.1.83:11211
+  # Rabbit transport url
+  rabbitTransportUrl: rabbit://guest:eJNAlgHTTN8A6mclF6q6dBdL1@controller-0.internalapi.redhat.local:5672/?ssl=0
+  # User Passwords -> TODO: add as secrets and load into config from there
+  cinderPassword: kxtKYHKLdbEGzfGN6OTESU66t
+  novaPassword: ytalxxwY2ovYx0FcQpjbfFeK1
+  neutronPassword: HKCe8oWszT6brfYlJUPHH3moh
+  placementPassword: 3e2CahSMAw8xMA576ORh0yaWc
+
+  novaComputeImage: trunk.registry.rdoproject.org/tripleotrain/rhel-binary-nova-compute:94b7298c65a2f7b7ba53b79ce1d0cf191d254e72_42a57bc6
   label: compute
+
+  #TODO:
+  # host specific settings:
+  # nova.conf
+  # live_migration_inbound_addr=worker-X.internalapi.redhat.local
+  # server_proxyclient_address=POD_IP_INTERNALAPI
+  # my_ip=POD_IP_INTERNALAPI
+
+  # mysql tripleo.cnf:
+  # bind-address=172.17.1.146
+
+  # Additional configs needed to be mapped
+  # /etc/my.cnf.d/tripleo.cnf

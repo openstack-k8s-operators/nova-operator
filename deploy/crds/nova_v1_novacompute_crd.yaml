@@ -29,16 +29,46 @@ spec:
           type: object
         spec:
           properties:
+            cinderPassword:
+              description: Cinder API Admin Password
+              type: string
+            internalApiVip:
+              description: Control Plane internalAPI VIP String
+              type: string
             label:
               description: Label is the value of the 'daemon=' label to set on a node
                 that should run the daemon
               type: string
+            memcacheServers:
+              description: Memcache Servers String
+              type: string
+            neutronPassword:
+              description: Neutron API Admin Password
+              type: string
             novaComputeImage:
               description: container image to run for the daemon
+              type: string
+            novaPassword:
+              description: Nova API Admin Password
+              type: string
+            placementPassword:
+              description: Placement API Admin Password
+              type: string
+            publicVip:
+              description: Control Plane public VIP String
+              type: string
+            rabbitTransportUrl:
+              description: RabbitMQ transport URL String
               type: string
           required:
           - label
           - novaComputeImage
+          - internalApiVip
+          - rabbitTransportUrl
+          - cinderPassword
+          - novaPassword
+          - neutronPassword
+          - placementPassword
           type: object
         status:
           properties:
@@ -46,8 +76,12 @@ spec:
               description: Count is the number of nodes the daemon is deployed to
               format: int32
               type: integer
+            daemonsetHash:
+              description: Daemonset hash used to detect changes
+              type: string
           required:
           - count
+          - daemonsetHash
           type: object
   version: v1
   versions:

@@ -2,10 +2,13 @@ package virtlogd
 
 import (
 	"context"
+        "reflect"
 
 	novav1 "github.com/nova-operator/pkg/apis/nova/v1"
         appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+        virtlogd "github.com/nova-operator/pkg/virtlogd"
+        util "github.com/nova-operator/pkg/util"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -25,7 +28,6 @@ var log = logf.Log.WithName("controller_virtlogd")
 // TODO move to spec like image urls?
 const (
         COMMON_CONFIGMAP   string = "common-config"
-        LIBVIRT_CONFIGMAP  string = "libvirt-config"
 )
 
 // Add creates a new Virtlogd Controller and adds it to the Manager. The Manager will set fields on the Controller
@@ -52,6 +54,24 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	if err != nil {
 		return err
 	}
+
+        // Watch ConfigMaps owned by Virtlogd
+        err = c.Watch(&source.Kind{Type: &corev1.ConfigMap{}}, &handler.EnqueueRequestForOwner{
+                IsController: false,
+                OwnerType:    &novav1.Virtlogd{},
+        })
+        if err != nil {
+                return err
+        }
+
+        // Watch Secrets owned by Virtlogd
+        err = c.Watch(&source.Kind{Type: &corev1.Secret{}}, &handler.EnqueueRequestForOwner{
+                IsController: false,
+                OwnerType:    &novav1.Virtlogd{},
+        })
+        if err != nil {
+                return err
+        }
 
 	// TODO(user): Modify this to be the types you create that are owned by the primary resource
 	// Watch for changes to secondary resource Pods and requeue the owner Virtlogd
@@ -102,20 +122,38 @@ func (r *ReconcileVirtlogd) Reconcile(request reconcile.Request) (reconcile.Resu
 		return reconcile.Result{}, err
 	}
 
-	// Define a new Pod object
-	pod := newDaemonset(instance)
+        // ConfigMap
+        configMap := virtlogd.ConfigMap(instance, instance.Name)
+        if err := controllerutil.SetControllerReference(instance, configMap, r.scheme); err != nil {
+                return reconcile.Result{}, err
+        }
+        // Check if this ConfigMap already exists
+        foundConfigMap := &corev1.ConfigMap{}
+        err = r.client.Get(context.TODO(), types.NamespacedName{Name: configMap.Name, Namespace: configMap.Namespace}, foundConfigMap)
+        if err != nil && errors.IsNotFound(err) {
+                reqLogger.Info("Creating a new ConfigMap", "ConfigMap.Namespace", configMap.Namespace, "Job.Name", configMap.Name)
+                err = r.client.Create(context.TODO(), configMap)
+                if err != nil {
+                        return reconcile.Result{}, err
+                }
+        } else if !reflect.DeepEqual(util.ObjectHash(configMap.Data), util.ObjectHash(foundConfigMap.Data)) {
+                reqLogger.Info("Virtlogd ConfigMap got update, we do not restart virtlogd automatically as it won't reopen console.log files!")
+        }
+
+        // Define a new Daemonset object
+        ds := newDaemonset(instance, instance.Name)
 
 	// Set Virtlogd instance as the owner and controller
-	if err := controllerutil.SetControllerReference(instance, pod, r.scheme); err != nil {
+	if err := controllerutil.SetControllerReference(instance, ds, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
 
-	// Check if this Pod already exists
+	// Check if this Daemonset already exists
 	found := &appsv1.DaemonSet{}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace}, found)
-	if err != nil && errors.IsNotFound(err) {
-		reqLogger.Info("Creating a new Pod", "Pod.Namespace", pod.Namespace, "Pod.Name", pod.Name)
-		err = r.client.Create(context.TODO(), pod)
+        err = r.client.Get(context.TODO(), types.NamespacedName{Name: ds.Name, Namespace: ds.Namespace}, found)
+        if err != nil && errors.IsNotFound(err) {
+                reqLogger.Info("Creating a new Daemonset", "Ds.Namespace", ds.Namespace, "Ds.Name", ds.Name)
+                err = r.client.Create(context.TODO(), ds)
 		if err != nil {
 			return reconcile.Result{}, err
 		}
@@ -126,12 +164,13 @@ func (r *ReconcileVirtlogd) Reconcile(request reconcile.Request) (reconcile.Resu
 		return reconcile.Result{}, err
 	}
 
-	// Pod already exists - don't requeue
-	reqLogger.Info("Skip reconcile: Pod already exists", "Pod.Namespace", found.Namespace, "Pod.Name", found.Name)
-	return reconcile.Result{}, nil
+        // Daemonset already exists - don't requeue
+        reqLogger.Info("Skip reconcile: Daemonset already exists", "Ds.Namespace", found.Namespace, "Ds.Name", found.Name)
+        return reconcile.Result{}, nil
 }
 
-func newDaemonset(cr *novav1.Virtlogd) *appsv1.DaemonSet {
+func newDaemonset(cr *novav1.Virtlogd, cmName string) *appsv1.DaemonSet {
+
         var bidirectional corev1.MountPropagationMode = corev1.MountPropagationBidirectional
         var hostToContainer corev1.MountPropagationMode = corev1.MountPropagationHostToContainer
         var trueVar bool = true
@@ -144,8 +183,7 @@ func newDaemonset(cr *novav1.Virtlogd) *appsv1.DaemonSet {
                         APIVersion: "apps/v1",
                 },
                 ObjectMeta: metav1.ObjectMeta{
-                        Name:      cr.Name + "-daemonset",
-                        //Name:      fmt.Sprintf("%s-nova-%s",cr.Name, cr.Spec.NodeName),
+                        Name:      cmName,
                         Namespace: cr.Namespace,
                         //OwnerReferences: []metav1.OwnerReference{
                         //      *metav1.NewControllerRef(cr, schema.GroupVersionKind{
@@ -157,12 +195,10 @@ func newDaemonset(cr *novav1.Virtlogd) *appsv1.DaemonSet {
                 },
                 Spec: appsv1.DaemonSetSpec{
                         Selector: &metav1.LabelSelector{
-                                // MatchLabels: map[string]string{"daemonset": cr.Spec.NodeName + cr.Name + "-daemonset"},
                                 MatchLabels: map[string]string{"daemonset": cr.Name + "-daemonset"},
                         },
                         Template: corev1.PodTemplateSpec{
                                 ObjectMeta: metav1.ObjectMeta{
-                                        // Labels: map[string]string{"daemonset": cr.Spec.NodeName + cr.Name + "-daemonset"},
                                         Labels: map[string]string{"daemonset": cr.Name + "-daemonset"},
                                 },
                                 Spec: corev1.PodSpec{
@@ -201,10 +237,10 @@ func newDaemonset(cr *novav1.Virtlogd) *appsv1.DaemonSet {
                 },
                 VolumeMounts: []corev1.VolumeMount{
                         {
-                                Name:      "libvirt-config",
+                                Name:      cmName,
                                 ReadOnly:  true,
-                                MountPath: "/etc/libvirt/libvirtd.conf",
-                                SubPath:   "libvirtd.conf",
+                                MountPath: "/etc/libvirt/virtlogd.conf",
+                                SubPath:   "virtlogd.conf",
                         },
                         {
                                 Name:      "etc-machine-id",
@@ -348,12 +384,12 @@ func newDaemonset(cr *novav1.Virtlogd) *appsv1.DaemonSet {
                         },
                 },
                 {
-                        Name: "libvirt-config",
+                        Name: cmName,
                         VolumeSource: corev1.VolumeSource{
                                 ConfigMap: &corev1.ConfigMapVolumeSource{
                                          DefaultMode: &configVolumeDefaultMode,
                                          LocalObjectReference: corev1.LocalObjectReference{
-                                                 Name: LIBVIRT_CONFIGMAP,
+                                                 Name: cmName,
                                          },
                                 },
                         },

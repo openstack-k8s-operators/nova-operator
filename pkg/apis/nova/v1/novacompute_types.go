@@ -9,9 +9,24 @@ import (
 type NovaComputeSpec struct {
         // Label is the value of the 'daemon=' label to set on a node that should run the daemon
         Label string `json:"label"`
-
         // container image to run for the daemon
         NovaComputeImage string `json:"novaComputeImage"`
+        // Control Plane public VIP String
+        PublicVip string `json:"publicVip,omitempty"`
+        // Control Plane internalAPI VIP String
+        InternalApiVip string `json:"internalApiVip"`
+        // Memcache Servers String
+        MemcacheServers string `json:"memcacheServers,omitempty"`
+        // RabbitMQ transport URL String
+        RabbitTransportUrl string `json:"rabbitTransportUrl"`
+        // Cinder API Admin Password
+        CinderPassword string `json:"cinderPassword"`
+        // Nova API Admin Password
+        NovaPassword string `json:"novaPassword"`
+        // Neutron API Admin Password
+        NeutronPassword string `json:"neutronPassword"`
+        // Placement API Admin Password
+        PlacementPassword string `json:"placementPassword"`
 }
 
 // NovaComputeStatus defines the observed state of NovaCompute
@@ -19,6 +34,8 @@ type NovaComputeSpec struct {
 type NovaComputeStatus struct {
         // Count is the number of nodes the daemon is deployed to
         Count int32 `json:"count"`
+        // Daemonset hash used to detect changes
+        DaemonsetHash string `json:"daemonsetHash"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

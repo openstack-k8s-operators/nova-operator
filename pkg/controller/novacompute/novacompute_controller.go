@@ -2,13 +2,17 @@ package novacompute
 
 import (
 	"context"
-        "strings"
+        "reflect"
         "regexp"
-        //"fmt"
+        "strings"
+        "time"
+ //       "fmt"
 
 	novav1 "github.com/nova-operator/pkg/apis/nova/v1"
         appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+        nova "github.com/nova-operator/pkg/novacompute"
+        util "github.com/nova-operator/pkg/util"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -29,7 +33,6 @@ var ospHostAliases = []corev1.HostAlias{}
 // TODO move to spec like image urls?
 const (
         COMMON_CONFIGMAP   string = "common-config"
-        NOVA_CONFIGMAP     string = "nova-config"
 )
 
 // Add creates a new NovaCompute Controller and adds it to the Manager. The Manager will set fields on the Controller
@@ -57,9 +60,27 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
+	// Watch ConfigMaps owned by NovaCompute
+	err = c.Watch(&source.Kind{Type: &corev1.ConfigMap{}}, &handler.EnqueueRequestForOwner{
+		IsController: false,
+		OwnerType:    &novav1.NovaCompute{},
+	})
+	if err != nil {
+		return err
+	}
+
+	// Watch Secrets owned by NovaCompute
+	err = c.Watch(&source.Kind{Type: &corev1.Secret{}}, &handler.EnqueueRequestForOwner{
+		IsController: false,
+		OwnerType:    &novav1.NovaCompute{},
+	})
+	if err != nil {
+		return err
+	}
+
 	// TODO(user): Modify this to be the types you create that are owned by the primary resource
-	// Watch for changes to secondary resource Pods and requeue the owner NovaCompute
-	err = c.Watch(&source.Kind{Type: &corev1.Pod{}}, &handler.EnqueueRequestForOwner{
+	// Watch for changes to secondary resource Daemonset and requeue the owner NovaCompute
+	err = c.Watch(&source.Kind{Type: &appsv1.DaemonSet{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
 		OwnerType:    &novav1.NovaCompute{},
 	})
@@ -83,8 +104,6 @@ type ReconcileNovaCompute struct {
 
 // Reconcile reads that state of the cluster for a NovaCompute object and makes changes based on the state read
 // and what is in the NovaCompute.Spec
-// TODO(user): Modify this Reconcile function to implement your Controller logic.  This example creates
-// a Pod as an example
 // Note:
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
@@ -110,41 +129,96 @@ func (r *ReconcileNovaCompute) Reconcile(request reconcile.Request) (reconcile.R
         // TODO: to update hosts infocheck configmap ResourceVersion and update if needed.
         //currentConfigVersion := commonConfigMap.ResourceVersion
 
-        reqLogger.Info("Creating host entries from config map:", "configMap: ", COMMON_CONFIGMAP_NAME)
-        err = r.client.Get(context.TODO(), types.NamespacedName{Name: COMMON_CONFIGMAP_NAME, Namespace: instance.Namespace}, commonConfigMap)
+        reqLogger.Info("Creating host entries from config map:", "configMap: ", COMMON_CONFIGMAP)
+        err = r.client.Get(context.TODO(), types.NamespacedName{Name: COMMON_CONFIGMAP, Namespace: instance.Namespace}, commonConfigMap)
 
         if err := controllerutil.SetControllerReference(instance, commonConfigMap, r.scheme); err != nil {
                 return reconcile.Result{}, err
         }
         ospHostAliases = createOspHostsEntries(commonConfigMap)
 
-        // Define a new Pod object
-        pod := newDaemonset(instance)
+        // ConfigMap
+        configMap := nova.ConfigMap(instance, instance.Name)
+        if err := controllerutil.SetControllerReference(instance, configMap, r.scheme); err != nil {
+                return reconcile.Result{}, err
+        }
+        // Check if this ConfigMap already exists
+        foundConfigMap := &corev1.ConfigMap{}
+        err = r.client.Get(context.TODO(), types.NamespacedName{Name: configMap.Name, Namespace: configMap.Namespace}, foundConfigMap)
+        if err != nil && errors.IsNotFound(err) {
+                reqLogger.Info("Creating a new ConfigMap", "ConfigMap.Namespace", configMap.Namespace, "Job.Name", configMap.Name)
+                err = r.client.Create(context.TODO(), configMap)
+                if err != nil {
+                        return reconcile.Result{}, err
+                }
+        } else if !reflect.DeepEqual(util.ObjectHash(configMap.Data), util.ObjectHash(foundConfigMap.Data)) {
+                reqLogger.Info("Updating ConfigMap")
+
+                configMap.Data = foundConfigMap.Data
+        }
+
+        configMapHash := util.ObjectHash(configMap)
+        reqLogger.Info("ConfigMapHash: ", "Data Hash:", configMapHash)
+
+        // Define a new Daemonset object
+        ds := newDaemonset(instance, instance.Name, configMapHash)
+        dsHash := util.ObjectHash(ds)
+        reqLogger.Info("DaemonsetHash: ", "Daemonset Hash:", dsHash)
 
 	// Set NovaCompute instance as the owner and controller
-	if err := controllerutil.SetControllerReference(instance, pod, r.scheme); err != nil {
+	if err := controllerutil.SetControllerReference(instance, ds, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
 
-	// Check if this Pod already exists
+	// Check if this Daemonset already exists
 	found := &appsv1.DaemonSet{}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace}, found)
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: ds.Name, Namespace: ds.Namespace}, found)
 	if err != nil && errors.IsNotFound(err) {
-		reqLogger.Info("Creating a new Pod", "Pod.Namespace", pod.Namespace, "Pod.Name", pod.Name)
-		err = r.client.Create(context.TODO(), pod)
+		reqLogger.Info("Creating a new Daemonset", "Ds.Namespace", ds.Namespace, "Ds.Name", ds.Name)
+		err = r.client.Create(context.TODO(), ds)
 		if err != nil {
 			return reconcile.Result{}, err
 		}
 
-		// Pod created successfully - don't requeue
+		// Daemonset created successfully - don't requeue
 		return reconcile.Result{}, nil
 	} else if err != nil {
 		return reconcile.Result{}, err
-	}
+	} else {
 
-	// Pod already exists - don't requeue
-	reqLogger.Info("Skip reconcile: Pod already exists", "Pod.Namespace", found.Namespace, "Pod.Name", found.Name)
+                if instance.Status.DaemonsetHash != dsHash {
+                        reqLogger.Info("Daemonset Updated")
+                        found.Spec = ds.Spec
+                        err = r.client.Update(context.TODO(), found)
+                        if err != nil {
+                                return reconcile.Result{}, err
+                        }
+                        r.setDaemonsetHash(instance, dsHash)
+                        return reconcile.Result{RequeueAfter: time.Second * 10}, err
+                }
+//                if found.Status.ReadyNovaComputeStatus == instance.Spec.NovaComputeStatus {
+//                        reqLogger.Info("Daemonsets running:", "Daemonsets", found.Status.ReadyNovaComputeStatus)
+//                } else {
+//                        reqLogger.Info("Waiting on Nova Compute Daemonset...")
+//                        return reconcile.Result{RequeueAfter: time.Second * 5}, err
+//                }
+        }
+
+	// Daemonset already exists - don't requeue
+	reqLogger.Info("Skip reconcile: Daemonset already exists", "Ds.Namespace", found.Namespace, "Ds.Name", found.Name)
 	return reconcile.Result{}, nil
+}
+
+func (r *ReconcileNovaCompute) setDaemonsetHash(instance *novav1.NovaCompute, hashStr string) error {
+
+        if hashStr != instance.Status.DaemonsetHash {
+                instance.Status.DaemonsetHash = hashStr
+                if err := r.client.Status().Update(context.TODO(), instance); err != nil {
+                        return err
+                }
+        }
+        return nil
+
 }
 
 func createOspHostsEntries(commonConfigMap *corev1.ConfigMap) []corev1.HostAlias{
@@ -179,7 +253,7 @@ func createOspHostsEntries(commonConfigMap *corev1.ConfigMap) []corev1.HostAlias
         return hostAliases
 }
 
-func newDaemonset(cr *novav1.NovaCompute) *appsv1.DaemonSet {
+func newDaemonset(cr *novav1.NovaCompute, cmName string, configHash string) *appsv1.DaemonSet {
         var bidirectional corev1.MountPropagationMode = corev1.MountPropagationBidirectional
         var hostToContainer corev1.MountPropagationMode = corev1.MountPropagationHostToContainer
         var trueVar bool = true
@@ -192,8 +266,7 @@ func newDaemonset(cr *novav1.NovaCompute) *appsv1.DaemonSet {
                         APIVersion: "apps/v1",
                 },
                 ObjectMeta: metav1.ObjectMeta{
-                        Name:      cr.Name + "-daemonset",
-                        //Name:      fmt.Sprintf("%s-nova-%s",cr.Name, cr.Spec.NodeName),
+                        Name:      cmName,
                         Namespace: cr.Namespace,
                         //OwnerReferences: []metav1.OwnerReference{
                         //      *metav1.NewControllerRef(cr, schema.GroupVersionKind{
@@ -205,12 +278,10 @@ func newDaemonset(cr *novav1.NovaCompute) *appsv1.DaemonSet {
                 },
                 Spec: appsv1.DaemonSetSpec{
                         Selector: &metav1.LabelSelector{
-                                // MatchLabels: map[string]string{"daemonset": cr.Spec.NodeName + cr.Name + "-daemonset"},
                                 MatchLabels: map[string]string{"daemonset": cr.Name + "-daemonset"},
                         },
                         Template: corev1.PodTemplateSpec{
                                 ObjectMeta: metav1.ObjectMeta{
-                                        // Labels: map[string]string{"daemonset": cr.Spec.NodeName + cr.Name + "-daemonset"},
                                         Labels: map[string]string{"daemonset": cr.Name + "-daemonset"},
                                 },
                                 Spec: corev1.PodSpec{
@@ -264,7 +335,7 @@ func newDaemonset(cr *novav1.NovaCompute) *appsv1.DaemonSet {
                 },
                 VolumeMounts: []corev1.VolumeMount{
                         {
-                                Name:      "nova-config",
+                                Name:      cmName,
                                 ReadOnly:  true,
                                 MountPath: "/etc/nova/nova.conf",
                                 SubPath:   "nova.conf",
@@ -309,12 +380,24 @@ func newDaemonset(cr *novav1.NovaCompute) *appsv1.DaemonSet {
                 SecurityContext: &corev1.SecurityContext{
                         Privileged:  &trueVar,
                 },
+                Env: []corev1.EnvVar{
+                        {
+                                Name:  "CONFIG_HASH",
+                                Value: configHash,
+                        },
+                },
                 VolumeMounts: []corev1.VolumeMount{
                         {
-                                Name:      "nova-config",
+                                Name:      cmName,
                                 ReadOnly:  true,
                                 MountPath: "/etc/nova/nova.conf",
                                 SubPath:   "nova.conf",
+                        },
+                        {
+                                Name:      cmName,
+                                ReadOnly:  true,
+                                MountPath: "/etc/my.cnf.d/tripleo.cnf",
+                                SubPath:   "tripleo.cnf",
                         },
                         {
                                 Name:      "etc-libvirt-qemu-volume",
@@ -475,12 +558,12 @@ func newDaemonset(cr *novav1.NovaCompute) *appsv1.DaemonSet {
                         },
                 },
                 {
-                        Name: "nova-config",
+                        Name: cmName,
                         VolumeSource: corev1.VolumeSource{
                                 ConfigMap: &corev1.ConfigMapVolumeSource{
                                          DefaultMode: &configVolumeDefaultMode,
                                          LocalObjectReference: corev1.LocalObjectReference{
-                                                 Name: NOVA_CONFIGMAP,
+                                                 Name: cmName,
                                          },
                                 },
                         },

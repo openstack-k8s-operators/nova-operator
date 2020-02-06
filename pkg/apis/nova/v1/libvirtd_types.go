@@ -19,6 +19,8 @@ type LibvirtdSpec struct {
 type LibvirtdStatus struct {
         // Count is the number of nodes the daemon is deployed to
         Count int32 `json:"count"`
+        // Daemonset hash used to detect changes
+        DaemonsetHash string `json:"daemonsetHash"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
