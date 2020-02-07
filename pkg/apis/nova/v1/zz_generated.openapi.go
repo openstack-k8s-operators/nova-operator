@@ -13,15 +13,117 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
-		"github.com/nova-operator/pkg/apis/nova/v1.Libvirtd":          schema_pkg_apis_nova_v1_Libvirtd(ref),
-		"github.com/nova-operator/pkg/apis/nova/v1.LibvirtdSpec":      schema_pkg_apis_nova_v1_LibvirtdSpec(ref),
-		"github.com/nova-operator/pkg/apis/nova/v1.LibvirtdStatus":    schema_pkg_apis_nova_v1_LibvirtdStatus(ref),
-		"github.com/nova-operator/pkg/apis/nova/v1.NovaCompute":       schema_pkg_apis_nova_v1_NovaCompute(ref),
-		"github.com/nova-operator/pkg/apis/nova/v1.NovaComputeSpec":   schema_pkg_apis_nova_v1_NovaComputeSpec(ref),
-		"github.com/nova-operator/pkg/apis/nova/v1.NovaComputeStatus": schema_pkg_apis_nova_v1_NovaComputeStatus(ref),
-		"github.com/nova-operator/pkg/apis/nova/v1.Virtlogd":          schema_pkg_apis_nova_v1_Virtlogd(ref),
-		"github.com/nova-operator/pkg/apis/nova/v1.VirtlogdSpec":      schema_pkg_apis_nova_v1_VirtlogdSpec(ref),
-		"github.com/nova-operator/pkg/apis/nova/v1.VirtlogdStatus":    schema_pkg_apis_nova_v1_VirtlogdStatus(ref),
+		"github.com/openstack-k8s-operators/nova-operator/pkg/apis/nova/v1.Iscsid":            schema_pkg_apis_nova_v1_Iscsid(ref),
+		"github.com/openstack-k8s-operators/nova-operator/pkg/apis/nova/v1.IscsidSpec":        schema_pkg_apis_nova_v1_IscsidSpec(ref),
+		"github.com/openstack-k8s-operators/nova-operator/pkg/apis/nova/v1.IscsidStatus":      schema_pkg_apis_nova_v1_IscsidStatus(ref),
+		"github.com/openstack-k8s-operators/nova-operator/pkg/apis/nova/v1.Libvirtd":          schema_pkg_apis_nova_v1_Libvirtd(ref),
+		"github.com/openstack-k8s-operators/nova-operator/pkg/apis/nova/v1.LibvirtdSpec":      schema_pkg_apis_nova_v1_LibvirtdSpec(ref),
+		"github.com/openstack-k8s-operators/nova-operator/pkg/apis/nova/v1.LibvirtdStatus":    schema_pkg_apis_nova_v1_LibvirtdStatus(ref),
+		"github.com/openstack-k8s-operators/nova-operator/pkg/apis/nova/v1.NovaCompute":       schema_pkg_apis_nova_v1_NovaCompute(ref),
+		"github.com/openstack-k8s-operators/nova-operator/pkg/apis/nova/v1.NovaComputeSpec":   schema_pkg_apis_nova_v1_NovaComputeSpec(ref),
+		"github.com/openstack-k8s-operators/nova-operator/pkg/apis/nova/v1.NovaComputeStatus": schema_pkg_apis_nova_v1_NovaComputeStatus(ref),
+		"github.com/openstack-k8s-operators/nova-operator/pkg/apis/nova/v1.Virtlogd":          schema_pkg_apis_nova_v1_Virtlogd(ref),
+		"github.com/openstack-k8s-operators/nova-operator/pkg/apis/nova/v1.VirtlogdSpec":      schema_pkg_apis_nova_v1_VirtlogdSpec(ref),
+		"github.com/openstack-k8s-operators/nova-operator/pkg/apis/nova/v1.VirtlogdStatus":    schema_pkg_apis_nova_v1_VirtlogdStatus(ref),
+	}
+}
+
+func schema_pkg_apis_nova_v1_Iscsid(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "Iscsid is the Schema for the iscsids API",
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/openstack-k8s-operators/nova-operator/pkg/apis/nova/v1.IscsidSpec"),
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/openstack-k8s-operators/nova-operator/pkg/apis/nova/v1.IscsidStatus"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/openstack-k8s-operators/nova-operator/pkg/apis/nova/v1.IscsidSpec", "github.com/openstack-k8s-operators/nova-operator/pkg/apis/nova/v1.IscsidStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_pkg_apis_nova_v1_IscsidSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "IscsidSpec defines the desired state of Iscsid",
+				Properties: map[string]spec.Schema{
+					"label": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Label is the value of the 'daemon=' label to set on a node that should run the daemon",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"iscsidImage": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Image is the Docker image to run for the daemon",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"label", "iscsidImage"},
+			},
+		},
+		Dependencies: []string{},
+	}
+}
+
+func schema_pkg_apis_nova_v1_IscsidStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "IscsidStatus defines the observed state of Iscsid",
+				Properties: map[string]spec.Schema{
+					"count": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Count is the number of nodes the daemon is deployed to",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"daemonsetHash": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Daemonset hash used to detect changes",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"count", "daemonsetHash"},
+			},
+		},
+		Dependencies: []string{},
 	}
 }
 
@@ -52,19 +154,19 @@ func schema_pkg_apis_nova_v1_Libvirtd(ref common.ReferenceCallback) common.OpenA
 					},
 					"spec": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/nova-operator/pkg/apis/nova/v1.LibvirtdSpec"),
+							Ref: ref("github.com/openstack-k8s-operators/nova-operator/pkg/apis/nova/v1.LibvirtdSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/nova-operator/pkg/apis/nova/v1.LibvirtdStatus"),
+							Ref: ref("github.com/openstack-k8s-operators/nova-operator/pkg/apis/nova/v1.LibvirtdStatus"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/nova-operator/pkg/apis/nova/v1.LibvirtdSpec", "github.com/nova-operator/pkg/apis/nova/v1.LibvirtdStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"github.com/openstack-k8s-operators/nova-operator/pkg/apis/nova/v1.LibvirtdSpec", "github.com/openstack-k8s-operators/nova-operator/pkg/apis/nova/v1.LibvirtdStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 
@@ -151,19 +253,19 @@ func schema_pkg_apis_nova_v1_NovaCompute(ref common.ReferenceCallback) common.Op
 					},
 					"spec": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/nova-operator/pkg/apis/nova/v1.NovaComputeSpec"),
+							Ref: ref("github.com/openstack-k8s-operators/nova-operator/pkg/apis/nova/v1.NovaComputeSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/nova-operator/pkg/apis/nova/v1.NovaComputeStatus"),
+							Ref: ref("github.com/openstack-k8s-operators/nova-operator/pkg/apis/nova/v1.NovaComputeStatus"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/nova-operator/pkg/apis/nova/v1.NovaComputeSpec", "github.com/nova-operator/pkg/apis/nova/v1.NovaComputeStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"github.com/openstack-k8s-operators/nova-operator/pkg/apis/nova/v1.NovaComputeSpec", "github.com/openstack-k8s-operators/nova-operator/pkg/apis/nova/v1.NovaComputeStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 
@@ -306,19 +408,19 @@ func schema_pkg_apis_nova_v1_Virtlogd(ref common.ReferenceCallback) common.OpenA
 					},
 					"spec": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/nova-operator/pkg/apis/nova/v1.VirtlogdSpec"),
+							Ref: ref("github.com/openstack-k8s-operators/nova-operator/pkg/apis/nova/v1.VirtlogdSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/nova-operator/pkg/apis/nova/v1.VirtlogdStatus"),
+							Ref: ref("github.com/openstack-k8s-operators/nova-operator/pkg/apis/nova/v1.VirtlogdStatus"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/nova-operator/pkg/apis/nova/v1.VirtlogdSpec", "github.com/nova-operator/pkg/apis/nova/v1.VirtlogdStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"github.com/openstack-k8s-operators/nova-operator/pkg/apis/nova/v1.VirtlogdSpec", "github.com/openstack-k8s-operators/nova-operator/pkg/apis/nova/v1.VirtlogdStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 

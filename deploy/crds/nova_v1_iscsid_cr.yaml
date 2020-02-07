@@ -1,0 +1,7 @@
+apiVersion: nova.openstack.org/v1
+kind: Iscsid
+metadata:
+  name: iscsid
+spec:
+  iscsidImage: trunk.registry.rdoproject.org/tripleotrain/rhel-binary-iscsid:91b368add3a55f74b489925ce9d6e84c61d95334_42a57bc6
+  label: compute

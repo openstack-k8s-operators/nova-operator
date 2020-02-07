@@ -46,5 +46,6 @@ rules:
   - '*'
   - virtlogds
   - libvirtds
+  - iscsids
   verbs:
   - '*'

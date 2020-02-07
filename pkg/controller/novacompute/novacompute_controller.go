@@ -410,6 +410,11 @@ func newDaemonset(cr *novav1.NovaCompute, cmName string, configHash string) *app
                                 ReadOnly:  true,
                         },
                         {
+                                Name:      "etc-iscsi-volume",
+                                MountPath: "/etc/iscsi",
+                                ReadOnly:  true,
+                        },
+                        {
                                 Name:      "boot-volume",
                                 MountPath: "/boot",
                                 MountPropagation: &hostToContainer,
@@ -455,6 +460,11 @@ func newDaemonset(cr *novav1.NovaCompute, cmName string, configHash string) *app
                                 MountPropagation: &bidirectional,
                         },
                         {
+                                Name:      "var-lib-iscsi-volume",
+                                MountPath: "/var/lib/iscsi",
+                                MountPropagation: &bidirectional,
+                        },
+                        {
                                 Name:      "rendered-config-vol",
                                 MountPath: "/mnt",
                                 ReadOnly:  true,
@@ -478,6 +488,14 @@ func newDaemonset(cr *novav1.NovaCompute, cmName string, configHash string) *app
                                 HostPath: &corev1.HostPathVolumeSource{
                                         Path: "/opt/osp/etc/libvirt/qemu",
                                         Type: &dirOrCreate,
+                                },
+                        },
+                },
+                {
+                        Name: "etc-iscsi-volume",
+                        VolumeSource: corev1.VolumeSource{
+                                HostPath: &corev1.HostPathVolumeSource{
+                                        Path: "/etc/iscsi",
                                 },
                         },
                 },
@@ -545,6 +563,14 @@ func newDaemonset(cr *novav1.NovaCompute, cmName string, configHash string) *app
                                 HostPath: &corev1.HostPathVolumeSource{
                                         Path: "/var/lib/libvirt",
                                         Type: &dirOrCreate,
+                                },
+                        },
+                },
+                {
+                        Name: "var-lib-iscsi-volume",
+                        VolumeSource: corev1.VolumeSource{
+                                HostPath: &corev1.HostPathVolumeSource{
+                                        Path: "/var/lib/iscsi",
                                 },
                         },
                 },

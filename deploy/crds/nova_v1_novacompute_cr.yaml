@@ -16,7 +16,7 @@ spec:
   neutronPassword: HKCe8oWszT6brfYlJUPHH3moh
   placementPassword: 3e2CahSMAw8xMA576ORh0yaWc
 
-  novaComputeImage: trunk.registry.rdoproject.org/tripleotrain/rhel-binary-nova-compute:94b7298c65a2f7b7ba53b79ce1d0cf191d254e72_42a57bc6
+  novaComputeImage: trunk.registry.rdoproject.org/tripleotrain/rhel-binary-nova-compute:91b368add3a55f74b489925ce9d6e84c61d95334_42a57bc6
   label: compute
 
   #TODO:
