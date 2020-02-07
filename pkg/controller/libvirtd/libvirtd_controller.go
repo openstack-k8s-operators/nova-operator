@@ -5,11 +5,11 @@ import (
         "reflect"
         "time"
 
-	novav1 "github.com/nova-operator/pkg/apis/nova/v1"
+	novav1 "github.com/openstack-k8s-operators/nova-operator/pkg/apis/nova/v1"
         appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-        libvirtd "github.com/nova-operator/pkg/libvirtd"
-        util "github.com/nova-operator/pkg/util"
+        libvirtd "github.com/openstack-k8s-operators/nova-operator/pkg/libvirtd"
+        util "github.com/openstack-k8s-operators/nova-operator/pkg/util"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -217,7 +217,6 @@ func newDaemonset(cr *novav1.Libvirtd, cmName string, configHash string) *appsv1
                 },
                 ObjectMeta: metav1.ObjectMeta{
                         Name:      cmName,
-                        //Name:      fmt.Sprintf("%s-nova-%s",cr.Name, cr.Spec.NodeName),
                         Namespace: cr.Namespace,
                         //OwnerReferences: []metav1.OwnerReference{
                         //      *metav1.NewControllerRef(cr, schema.GroupVersionKind{

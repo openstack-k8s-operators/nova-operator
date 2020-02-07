@@ -1,8 +1,8 @@
 package virtlogd
 
 import (
-        util "github.com/nova-operator/pkg/util"
-        novav1 "github.com/nova-operator/pkg/apis/nova/v1"
+        util "github.com/openstack-k8s-operators/nova-operator/pkg/util"
+        novav1 "github.com/openstack-k8s-operators/nova-operator/pkg/apis/nova/v1"
         corev1 "k8s.io/api/core/v1"
         metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )

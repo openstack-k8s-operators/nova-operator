@@ -1,7 +1,7 @@
 package controller
 
 import (
-	"github.com/nova-operator/pkg/controller/libvirtd"
+	"github.com/openstack-k8s-operators/nova-operator/pkg/controller/libvirtd"
 )
 
 func init() {

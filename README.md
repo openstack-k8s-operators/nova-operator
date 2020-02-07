@@ -1,16 +1,17 @@
 # nova-operator
 
 NOTE: 
-- The current functionality is on install at the moment, no update/upgrades or other features.
+- The current functionality is on install at the moment, no update/upgrades.
 - At the moment only covers nova-compute related services (virtlogd/libvirtd/nova-compute)
 
 ## Pre Req:
 - OSP16 with OVS instead of OVN deployed
 - worker nodes have connection to internalapi and tenant network VLAN
 
-
 #### Clone it
 
+    mkdir openstack-k8s-operators
+    cd openstack-k8s-operators
     git clone https://github.com/openstack-k8s-operators/nova-operator.git
     cd nova-operator
 
@@ -43,24 +44,18 @@ Create CRDs
     oc create -f deploy/crds/nova_v1_libvirtd_crd.yaml
     oc create -f deploy/crds/nova_v1_novacompute_crd.yaml
 
+Create role, binding service_account
+
+    oc create -f deploy/role.yaml
+    oc create -f deploy/role_binding.yaml
+    oc create -f deploy/service_account.yaml
+
 Install the operator
 
     oc create -f deploy/operator.yaml
 
     POD=`oc get pods -l name=nova-operator --field-selector=status.phase=Running -o name | head -1 -`; echo $POD
     oc logs $POD -f
-
-Create CRDs
-
-    oc create -f deploy/crds/nova_v1_virtlogd_crd.yaml
-    oc create -f deploy/crds/nova_v1_libvirtd_crd.yaml
-    oc create -f deploy/crds/nova_v1_novacompute_crd.yaml
-
-Create role, binding service_account
-
-    oc create -f deploy/role.yaml
-    oc create -f deploy/role_binding.yaml
-    oc create -f deploy/service_account.yaml
 
 Create custom resource for a compute node which specifies the container images and the label
 get latest container images from rdo rhel8-train from https://trunk.rdoproject.org/rhel8-train/current-tripleo/commit.yaml

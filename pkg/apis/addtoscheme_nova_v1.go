@@ -1,7 +1,7 @@
 package apis
 
 import (
-	v1 "github.com/nova-operator/pkg/apis/nova/v1"
+	v1 "github.com/openstack-k8s-operators/nova-operator/pkg/apis/nova/v1"
 )
 
 func init() {

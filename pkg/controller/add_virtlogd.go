@@ -1,7 +1,7 @@
 package controller
 
 import (
-	"github.com/nova-operator/pkg/controller/virtlogd"
+	"github.com/openstack-k8s-operators/nova-operator/pkg/controller/virtlogd"
 )
 
 func init() {
