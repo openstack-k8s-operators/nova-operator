@@ -64,12 +64,12 @@ get latest container images from rdo rhel8-train from https://trunk.rdoproject.o
 or
 
     dnf install python2 python2-yaml
-    python -c 'import urllib2;import yaml;c=yaml.load(urllib2.urlopen("https://trunk.rdoproject.org/rhel8-train/current-tripleo/commit.yaml"))["commits"][0];print "%s_%s" % (c["commit_hash"],c["distro_hash"][0:8])'
+    python2 -c 'import urllib2;import yaml;c=yaml.load(urllib2.urlopen("https://trunk.rdoproject.org/rhel8-train/current-tripleo/commit.yaml"))["commits"][0];print "%s_%s" % (c["commit_hash"],c["distro_hash"][0:8])'
     f8b48998e5d600f24513848b600e84176ce90223_243bc231
 
 `deploy/crds/nova_v1_novacompute_cr.yaml` and `deploy/crds/nova_v1_virtlogd_cr.yaml` use a patched nova-libvirt image with added cgroups tools which are required for the libvirtd.sh wrapper script. 
 
-* `deploy/crds/nova_v1_virtlogd_cr.yaml` and `deploy/crds/nova_v1_libvirtd_cr.yaml`
+`deploy/crds/nova_v1_virtlogd_cr.yaml` and `deploy/crds/nova_v1_libvirtd_cr.yaml`:
 
     apiVersion: nova.openstack.org/v1
     kind: Virtlogd
@@ -79,7 +79,7 @@ or
       novaLibvirtImage: quay.io/openstack-k8s-operators/nova-libvirt:latest
       label: compute
 
-* `deploy/crds/nova_v1_libvirtd_cr.yaml`
+`deploy/crds/nova_v1_libvirtd_cr.yaml`:
 
     apiVersion: nova.openstack.org/v1
     kind: Libvirtd
@@ -90,11 +90,9 @@ or
       label: compute
 
 
-
-
 Update `deploy/crds/nova_v1_iscsid_cr.yaml`, `deploy/crds/nova_v1_novamigrationtarget_cr.yaml` and `deploy/crds/nova_v1_novacompute_cr.yaml` with the details of the images and OpenStack environment details.
 
-* `deploy/crds/nova_v1_iscsid_cr.yaml`
+`deploy/crds/nova_v1_iscsid_cr.yaml`:
 
     apiVersion: nova.openstack.org/v1
     kind: Iscsid
@@ -104,7 +102,7 @@ Update `deploy/crds/nova_v1_iscsid_cr.yaml`, `deploy/crds/nova_v1_novamigrationt
       iscsidImage: trunk.registry.rdoproject.org/tripleotrain/rhel-binary-iscsid:abd5bae62f019fa9cdde538a7638107508ea86ac_82fad431
       label: compute
 
-* `deploy/crds/nova_v1_novamigrationtarget_cr.yaml`
+`deploy/crds/nova_v1_novamigrationtarget_cr.yaml`:
 
     apiVersion: nova.openstack.org/v1
     kind: NovaMigrationTarget
@@ -115,7 +113,7 @@ Update `deploy/crds/nova_v1_iscsid_cr.yaml`, `deploy/crds/nova_v1_novamigrationt
       novaComputeImage: trunk.registry.rdoproject.org/tripleotrain/rhel-binary-nova-compute:91b368add3a55f74b489925ce9d6e84c61d95334_42a57bc6
       label: compute
 
-* `deploy/crds/nova_v1_novacompute_cr.yaml`
+`deploy/crds/nova_v1_novacompute_cr.yaml`:
 
     apiVersion: nova.openstack.org/v1
     kind: NovaCompute
