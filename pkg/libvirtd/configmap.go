@@ -20,8 +20,9 @@ func ConfigMap(cr *novav1.Libvirtd, cmName string) *corev1.ConfigMap {
                         Namespace: cr.Namespace,
                 },
                 Data: map[string]string{
-                        "libvirtd.conf":   util.ExecuteTemplateFile("libvirtd.conf", nil),
-                        "libvirtd.sh":     util.ExecuteTemplateFile("libvirtd.sh", nil),
+                        "libvirtd.conf":               util.ExecuteTemplateFile("libvirtd.conf", nil),
+                        "libvirtd.sh":                 util.ExecuteTemplateFile("libvirtd.sh", nil),
+                        "migration_ssh_identity":      util.ExecuteTemplateFile("migration_ssh_identity", nil),
                 },
         }
 

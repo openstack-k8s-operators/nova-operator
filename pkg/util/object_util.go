@@ -2,14 +2,18 @@ package util
 
 import (
         "fmt"
-        "hash/fnv"
         "k8s.io/apimachinery/pkg/util/rand"
-        hashutil "k8s.io/kubernetes/pkg/util/hash"
+        "crypto/sha256"
+	"encoding/json"
 )
 
 // create a deep object hash and return it as a safe encoded string
-func ObjectHash(i interface{}) string {
-        hf := fnv.New32()
-        hashutil.DeepHashObject(hf, i)
-        return rand.SafeEncodeString(fmt.Sprint(hf.Sum32()))
+func ObjectHash(i interface{}) (string, error) {
+        // Convert the hashSource to a byte slice so that it can be hashed
+        hashBytes, err := json.Marshal(i)
+	if err != nil {
+		return "", fmt.Errorf("unable to convert to JSON: %v", err)
+	}
+        hash := sha256.Sum256(hashBytes)
+        return rand.SafeEncodeString(fmt.Sprint(hash)), nil
 }

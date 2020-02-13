@@ -1,0 +1,6 @@
+Host *
+    Port {{.SshdPort}}
+    User nova_migration
+    StrictHostKeyChecking off
+    UserKnownHostsFile /dev/null
+    IdentityFile /etc/nova/migration/identity

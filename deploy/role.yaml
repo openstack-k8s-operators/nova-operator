@@ -47,5 +47,6 @@ rules:
   - virtlogds
   - libvirtds
   - iscsids
+  - novamigrationtargets
   verbs:
   - '*'

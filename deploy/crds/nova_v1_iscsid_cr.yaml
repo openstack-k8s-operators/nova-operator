@@ -3,5 +3,5 @@ kind: Iscsid
 metadata:
   name: iscsid
 spec:
-  iscsidImage: trunk.registry.rdoproject.org/tripleotrain/rhel-binary-iscsid:91b368add3a55f74b489925ce9d6e84c61d95334_42a57bc6
+  iscsidImage: trunk.registry.rdoproject.org/tripleotrain/rhel-binary-iscsid:abd5bae62f019fa9cdde538a7638107508ea86ac_82fad431
   label: compute

@@ -1,0 +1,27 @@
+AcceptEnv LANG LC_CTYPE LC_NUMERIC LC_TIME LC_COLLATE LC_MONETARY LC_MESSAGES
+AcceptEnv LC_PAPER LC_NAME LC_ADDRESS LC_TELEPHONE LC_MEASUREMENT
+AcceptEnv LC_IDENTIFICATION LC_ALL LANGUAGE
+AcceptEnv XMODIFIERS
+AuthorizedKeysFile .ssh/authorized_keys
+ChallengeResponseAuthentication no
+GSSAPIAuthentication yes
+GSSAPICleanupCredentials no
+HostKey /etc/ssh/ssh_host_rsa_key
+HostKey /etc/ssh/ssh_host_ecdsa_key
+HostKey /etc/ssh/ssh_host_ed25519_key
+PasswordAuthentication no
+PrintMotd no
+Subsystem sftp  /usr/libexec/openssh/sftp-server
+SyslogFacility AUTHPRIV
+UseDNS no
+UsePAM yes
+UsePrivilegeSeparation sandbox
+X11Forwarding yes
+Match LocalAddress POD_IP_INTERNALAPI User nova_migration
+    AllowTcpForwarding no
+    AuthorizedKeysFile /etc/nova/migration/authorized_keys
+    ForceCommand /bin/nova-migration-wrapper
+    PasswordAuthentication no
+    X11Forwarding no
+Match LocalAddress !POD_IP_INTERNALAPI
+    DenyUsers nova_migration

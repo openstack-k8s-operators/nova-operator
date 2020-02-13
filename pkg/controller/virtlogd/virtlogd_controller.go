@@ -2,13 +2,13 @@ package virtlogd
 
 import (
 	"context"
+        //"fmt"
         "reflect"
 
 	novav1 "github.com/openstack-k8s-operators/nova-operator/pkg/apis/nova/v1"
         appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
         virtlogd "github.com/openstack-k8s-operators/nova-operator/pkg/virtlogd"
-        util "github.com/openstack-k8s-operators/nova-operator/pkg/util"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -136,7 +136,7 @@ func (r *ReconcileVirtlogd) Reconcile(request reconcile.Request) (reconcile.Resu
                 if err != nil {
                         return reconcile.Result{}, err
                 }
-        } else if !reflect.DeepEqual(util.ObjectHash(configMap.Data), util.ObjectHash(foundConfigMap.Data)) {
+        } else if !reflect.DeepEqual(configMap.Data, foundConfigMap.Data) {
                 reqLogger.Info("Virtlogd ConfigMap got update, we do not restart virtlogd automatically as it won't reopen console.log files!")
         }
 

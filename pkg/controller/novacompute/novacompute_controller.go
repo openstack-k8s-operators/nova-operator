@@ -2,11 +2,11 @@ package novacompute
 
 import (
 	"context"
+        "fmt"
         "reflect"
         "regexp"
         "strings"
         "time"
- //       "fmt"
 
 	novav1 "github.com/openstack-k8s-operators/nova-operator/pkg/apis/nova/v1"
         appsv1 "k8s.io/api/apps/v1"
@@ -151,19 +151,26 @@ func (r *ReconcileNovaCompute) Reconcile(request reconcile.Request) (reconcile.R
                 if err != nil {
                         return reconcile.Result{}, err
                 }
-        } else if !reflect.DeepEqual(util.ObjectHash(configMap.Data), util.ObjectHash(foundConfigMap.Data)) {
+        } else if !reflect.DeepEqual(configMap.Data, foundConfigMap.Data) {
                 reqLogger.Info("Updating ConfigMap")
 
                 configMap.Data = foundConfigMap.Data
         }
 
-        configMapHash := util.ObjectHash(configMap)
-        reqLogger.Info("ConfigMapHash: ", "Data Hash:", configMapHash)
+        configMapHash, err := util.ObjectHash(configMap)
+        if err != nil {
+                return reconcile.Result{}, fmt.Errorf("error calculating configuration hash: %v", err)
+        } else {
+                reqLogger.Info("ConfigMapHash: ", "Data Hash:", configMapHash)                                                                      }
 
         // Define a new Daemonset object
         ds := newDaemonset(instance, instance.Name, configMapHash)
-        dsHash := util.ObjectHash(ds)
-        reqLogger.Info("DaemonsetHash: ", "Daemonset Hash:", dsHash)
+        dsHash, err := util.ObjectHash(ds)
+        if err != nil {
+                return reconcile.Result{}, fmt.Errorf("error calculating configuration hash: %v", err)
+        } else {
+                reqLogger.Info("DaemonsetHash: ", "Daemonset Hash:", dsHash)
+        }
 
 	// Set NovaCompute instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, ds, r.scheme); err != nil {
@@ -312,26 +319,7 @@ func newDaemonset(cr *novav1.NovaCompute, cmName string, configHash string) *app
                         Privileged:  &trueVar,
                 },
                 Command: []string{
-                        "/bin/bash", "-c", "export CTRL_IP_INTRENALAPI=$(getent hosts controller-0.internalapi | awk '{print $1}') && export POD_IP_INTERNALAPI=$(ip route get $CTRL_IP_INTRENALAPI | awk '{print $5}') && cp /etc/nova/nova.conf /mnt/nova.conf && crudini --set /mnt/nova.conf DEFAULT my_ip $POD_IP_INTERNALAPI && crudini --set /mnt/nova.conf vnc server_listen $POD_IP_INTERNALAPI && crudini --set /mnt/nova.conf vnc server_proxyclient_address $POD_IP_INTERNALAPI && echo $OSP_CTRL_HOST >> /mnt/ctrl_host",
-                },
-                Env: []corev1.EnvVar{
-                        {
-                                Name: "MY_POD_IP",
-                                ValueFrom: &corev1.EnvVarSource{
-                                        FieldRef: &corev1.ObjectFieldSelector{
-                                                FieldPath: "status.podIP",
-                                        },
-                                },
-                        },
-//                        {
-//                                Name: "OSP_CTRL_HOST",
-//                                ValueFrom: &corev1.EnvVarSource{
-//                                        ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
-//                                                Name: "common-config",
-//                                                Key: "osp_controller_hostname",
-//                                        },
-//                                },
-//                        },
+                        "/bin/bash", "-c", "export CTRL_IP_INTRENALAPI=$(getent hosts controller-0.internalapi | awk '{print $1}') && export POD_IP_INTERNALAPI=$(ip route get $CTRL_IP_INTRENALAPI | awk '{print $5}') && cp -a /etc/nova/* /tmp/nova/ && crudini --set /tmp/nova/nova.conf DEFAULT my_ip $POD_IP_INTERNALAPI && crudini --set /tmp/nova/nova.conf libvirt live_migration_inbound_addr $POD_IP_INTERNALAPI && crudini --set /tmp/nova/nova.conf vnc server_listen $POD_IP_INTERNALAPI && crudini --set /tmp/nova/nova.conf vnc server_proxyclient_address $POD_IP_INTERNALAPI",
                 },
                 VolumeMounts: []corev1.VolumeMount{
                         {
@@ -351,9 +339,8 @@ func newDaemonset(cr *novav1.NovaCompute, cmName string, configHash string) *app
                                 ReadOnly:  true,
                         },
                         {
-                                Name:      "rendered-config-vol",
-                                MountPath: "/mnt",
-                                ReadOnly:  false,
+                                Name:      "nova-config-vol",
+                                MountPath: "/tmp/nova",
                         },
                 },
         }
@@ -375,7 +362,7 @@ func newDaemonset(cr *novav1.NovaCompute, cmName string, configHash string) *app
                 //        TimeoutSeconds:      1,
                 //},
                 Command: []string{
-                        "/usr/bin/nova-compute", "--config-file", "/mnt/nova.conf",
+                        "/usr/bin/nova-compute", "--config-file", "/etc/nova/nova.conf",
                 },
                 SecurityContext: &corev1.SecurityContext{
                         Privileged:  &trueVar,
@@ -387,12 +374,6 @@ func newDaemonset(cr *novav1.NovaCompute, cmName string, configHash string) *app
                         },
                 },
                 VolumeMounts: []corev1.VolumeMount{
-                        {
-                                Name:      cmName,
-                                ReadOnly:  true,
-                                MountPath: "/etc/nova/nova.conf",
-                                SubPath:   "nova.conf",
-                        },
                         {
                                 Name:      cmName,
                                 ReadOnly:  true,
@@ -465,8 +446,8 @@ func newDaemonset(cr *novav1.NovaCompute, cmName string, configHash string) *app
                                 MountPropagation: &bidirectional,
                         },
                         {
-                                Name:      "rendered-config-vol",
-                                MountPath: "/mnt",
+                                Name:      "nova-config-vol",
+                                MountPath: "/etc/nova",
                                 ReadOnly:  true,
                         },
                 },
@@ -606,7 +587,7 @@ func newDaemonset(cr *novav1.NovaCompute, cmName string, configHash string) *app
                         },
                 },
                 {
-                        Name: "rendered-config-vol",
+                        Name: "nova-config-vol",
                         VolumeSource: corev1.VolumeSource{
                                 EmptyDir: &corev1.EmptyDirVolumeSource{},
                         },

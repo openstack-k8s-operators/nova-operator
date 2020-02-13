@@ -24,12 +24,12 @@ Create CRDs
     oc create -f deploy/crds/nova_v1_virtlogd_crd.yaml
     oc create -f deploy/crds/nova_v1_libvirtd_crd.yaml
     oc create -f deploy/crds/nova_v1_novacompute_crd.yaml
+    oc create -f deploy/crds/nova_v1_iscsid_cr.yaml
+    oc create -f deploy/crds/nova_v1_novamigrationtarget_cr.yaml
 
 Build the image, using your custom registry you have write access to
 
     operator-sdk build <image e.g quay.io/openstack-k8s-operators/nova-operator:v0.0.X>
-
-Note: Requires https://github.com/kubernetes/kubernetes.git somewhere in $GOLANG path, or in nova-operator/vendor/k8s.io/kubernetes.
 
 Replace `image:` in deploy/operator.yaml with your custom registry
 
@@ -43,6 +43,8 @@ Create CRDs
     oc create -f deploy/crds/nova_v1_virtlogd_crd.yaml
     oc create -f deploy/crds/nova_v1_libvirtd_crd.yaml
     oc create -f deploy/crds/nova_v1_novacompute_crd.yaml
+    oc create -f deploy/crds/nova_v1_iscsid_crd.yaml
+    oc create -f deploy/crds/nova_v1_novamigrationtarget_crd.yaml
 
 Create role, binding service_account
 
@@ -87,7 +89,31 @@ or
       novaLibvirtImage: quay.io/openstack-k8s-operators/nova-libvirt:latest
       label: compute
 
-Update `deploy/crds/nova_v1_novacompute_cr.yaml` with the details of the `novaComputeImage` images and OpenStack environmen details.
+
+
+
+Update `deploy/crds/nova_v1_iscsid_cr.yaml`, `deploy/crds/nova_v1_novamigrationtarget_cr.yaml` and `deploy/crds/nova_v1_novacompute_cr.yaml` with the details of the images and OpenStack environment details.
+
+* `deploy/crds/nova_v1_iscsid_cr.yaml`
+
+    apiVersion: nova.openstack.org/v1
+    kind: Iscsid
+    metadata:
+      name: iscsid
+    spec:
+      iscsidImage: trunk.registry.rdoproject.org/tripleotrain/rhel-binary-iscsid:abd5bae62f019fa9cdde538a7638107508ea86ac_82fad431
+      label: compute
+
+* `deploy/crds/nova_v1_novamigrationtarget_cr.yaml`
+
+    apiVersion: nova.openstack.org/v1
+    kind: NovaMigrationTarget
+    metadata:
+      name: nova-migration-target
+    spec:
+      sshdPort: 2022
+      novaComputeImage: trunk.registry.rdoproject.org/tripleotrain/rhel-binary-nova-compute:91b368add3a55f74b489925ce9d6e84c61d95334_42a57bc6
+      label: compute
 
 * `deploy/crds/nova_v1_novacompute_cr.yaml`
 
@@ -116,6 +142,8 @@ Apply the CRs:
 
     oc apply -f deploy/crds/nova_v1_virtlogd_cr.yaml
     oc apply -f deploy/crds/nova_v1_libvirtd_cr.yaml
+    oc apply -f deploy/crds/nova_v1_iscsid_cr.yaml
+    oc apply -f deploy/crds/nova_v1_novamigrationtarget_cr.yaml
     oc apply -f deploy/crds/nova_v1_novacompute_cr.yaml
 
     oc get pods
@@ -163,19 +191,24 @@ Label a worker node as compute
     node/worker-0 labeled
 
     oc get daemonset
-    NAME           DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR    AGE
-    libvirtd       1         1         1       1            1           daemon=compute   32m
-    nova-compute   1         1         1       1            1           daemon=compute   32m
-    virtlogd       1         1         1       1            1           daemon=compute   32m
+    NAME                    DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR    AGE
+    iscsid                  1         1         1       1            1           daemon=compute   69m
+    libvirtd                1         1         1       1            1           daemon=compute   43m
+    neutron-ovsagent        1         1         1       1            1           daemon=compute   5d23h
+    nova-compute            1         1         1       1            1           daemon=compute   54m
+    nova-migration-target   1         1         1       1            1           daemon=compute   54m
+    virtlogd                1         1         1       1            1           daemon=compute   68m
 
     oc get pods
-    NAME                               READY   STATUS    RESTARTS   AGE
-    libvirtd-2h76d                     1/1     Running   0          32m
-    nova-compute-dr6j5                 1/1     Running   0          32m
-    nova-operator-5d56d8459b-s2lwb     1/1     Running   1          33m
-    virtlogd-4d8ls                     1/1     Running   1          33m
+    NAME                                READY   STATUS    RESTARTS   AGE
+    iscsid-hq2h4                        1/1     Running   1          70m
+    libvirtd-6wtsb                      1/1     Running   0          44m
+    nova-compute-dlxdx                  1/1     Running   1          54m
+    nova-migration-target-kt4vq         1/1     Running   1          54m
+    nova-operator-57465b7dbf-rqrfn      1/1     Running   1          45m
+    virtlogd-5cz7f                      1/1     Running   1          69m
 
-    oc get pods nova-compute-dr6j5 -o yaml | grep nodeName
+    oc get pods nova-compute-dlxdx -o yaml | grep nodeName
       nodeName: worker-0
 
 Label 2nd worker node
@@ -184,25 +217,35 @@ Label 2nd worker node
     node/worker-1 labeled
 
     oc get daemonset
-    NAME           DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR    AGE
-    libvirtd       2         2         2       2            2           daemon=compute   34m
-    nova-compute   2         2         2       2            2           daemon=compute   34m
-    virtlogd       2         2         2       2            2           daemon=compute   34m
+    NAME                    DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR    AGE
+    iscsid                  2         2         2       2            2           daemon=compute   69m
+    libvirtd                2         2         2       2            2           daemon=compute   43m
+    neutron-ovsagent        2         2         2       2            2           daemon=compute   5d23h
+    nova-compute            2         2         2       2            2           daemon=compute   54m
+    nova-migration-target   2         2         2       2            2           daemon=compute   54m
+    virtlogd                2         2         2       2            2           daemon=compute   68m
 
     oc get pods
-    NAME                               READY   STATUS    RESTARTS   AGE
-    libvirtd-2h76d                     1/1     Running   0          32m
-    libvirtd-fdlrs                     1/1     Running   1          32m
-    nova-compute-dr6j5                 1/1     Running   0          32m
-    nova-compute-rj4kh                 1/1     Running   0          32m
-    nova-operator-5d56d8459b-s2lwb     1/1     Running   1          33m
-    virtlogd-4d8ls                     1/1     Running   1          33m
-    virtlogd-q57px                     1/1     Running   0          33m
+    NAME                                READY   STATUS    RESTARTS   AGE
+    iscsid-hq2h4                        1/1     Running   1          70m
+    iscsid-ltqxl                        1/1     Running   1          66m
+    libvirtd-6wtsb                      1/1     Running   0          44m
+    libvirtd-ddrr2                      1/1     Running   0          44m
+    neutron-operator-855c5b58bf-vhxvn   1/1     Running   4          5d2h
+    neutron-ovsagent-hs4ck              1/1     Running   8          5d23h
+    neutron-ovsagent-tqrfl              1/1     Running   9          5d23h
+    nova-compute-dlxdx                  1/1     Running   1          54m
+    nova-compute-zcczn                  1/1     Running   1          54m
+    nova-migration-target-kt4vq         1/1     Running   1          54m
+    nova-migration-target-tb9xt         1/1     Running   1          54m
+    nova-operator-57465b7dbf-rqrfn      1/1     Running   1          45m
+    virtlogd-5cz7f                      1/1     Running   1          69m
+    virtlogd-mpm6g                      1/1     Running   1          69m
 
     oc get pods -o custom-columns='NAME:metadata.name,NODE:spec.nodeName'
     NAME                   NODE
-    nova-compute-dr6j5     worker-0
-    nova-compute-rj4kh     worker-1
+    nova-compute-dlxdx     worker-0
+    nova-compute-zcczn     worker-1
     ...
 
 If need get into nova-compute container of daemonset via:
@@ -336,9 +379,13 @@ Note: If it fails it might be that you need to apply OpenStack security rules!
 
 ## Cleanup
 
+First delete all instances running on the OCP worker AZ
+
     oc delete -f deploy/crds/nova_v1_novacompute_cr.yaml
     oc delete -f deploy/crds/nova_v1_libvirtd_cr.yaml
     oc delete -f deploy/crds/nova_v1_virtlogd_cr.yaml
+    oc delete -f deploy/crds/nova_v1_iscsid_cr.yaml
+    oc delete -f deploy/crds/nova_v1_novamigrationtarget_cr.yaml
     oc delete -f deploy/operator.yaml
     oc delete -f deploy/role.yaml
     oc delete -f deploy/role_binding.yaml
@@ -346,3 +393,5 @@ Note: If it fails it might be that you need to apply OpenStack security rules!
     oc delete -f deploy/crds/nova_v1_novacompute_crd.yaml
     oc delete -f deploy/crds/nova_v1_libvirtd_crd.yaml
     oc delete -f deploy/crds/nova_v1_virtlogd_crd.yaml
+    oc delete -f deploy/crds/nova_v1_iscsid_crd.yaml
+    oc delete -f deploy/crds/nova_v1_novamigrationtarget_crd.yaml
