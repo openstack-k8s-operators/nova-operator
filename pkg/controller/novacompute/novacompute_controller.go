@@ -326,7 +326,7 @@ func newDaemonset(cr *novav1.NovaCompute, cmName string, configHash string) *app
                         Privileged:  &trueVar,
                 },
                 Command: []string{
-                        "/bin/bash", "-c", "export CTRL_IP_INTRENALAPI=$(getent hosts controller-0.internalapi | awk '{print $1}') && export POD_IP_INTERNALAPI=$(ip route get $CTRL_IP_INTRENALAPI | awk '{print $5}') && cp -a /etc/nova/* /tmp/nova/ && crudini --set /tmp/nova/nova.conf DEFAULT my_ip $POD_IP_INTERNALAPI && crudini --set /tmp/nova/nova.conf libvirt live_migration_inbound_addr $POD_IP_INTERNALAPI && crudini --set /tmp/nova/nova.conf vnc server_listen $POD_IP_INTERNALAPI && crudini --set /tmp/nova/nova.conf vnc server_proxyclient_address $POD_IP_INTERNALAPI",
+                        "/bin/bash", "-c", "export CTRL_IP_INTRENALAPI=$(getent hosts controller-0.internalapi | awk '{print $1}') && export POD_IP_INTERNALAPI=$(ip route get $CTRL_IP_INTRENALAPI | awk '{print $5}') && cp -a /etc/nova/* /tmp/nova/ && crudini --set /tmp/nova/nova.conf DEFAULT my_ip $POD_IP_INTERNALAPI && crudini --set /tmp/nova/nova.conf libvirt live_migration_inbound_addr $POD_IP_INTERNALAPI && crudini --set /tmp/nova/nova.conf vnc server_listen $POD_IP_INTERNALAPI && crudini --set /tmp/nova/nova.conf vnc server_proxyclient_address $POD_IP_INTERNALAPI && mkdir -p /var/lib/nova/instances",
                 },
                 VolumeMounts: []corev1.VolumeMount{
                         {
