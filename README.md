@@ -24,8 +24,8 @@ Create CRDs
     oc create -f deploy/crds/nova_v1_virtlogd_crd.yaml
     oc create -f deploy/crds/nova_v1_libvirtd_crd.yaml
     oc create -f deploy/crds/nova_v1_novacompute_crd.yaml
-    oc create -f deploy/crds/nova_v1_iscsid_cr.yaml
-    oc create -f deploy/crds/nova_v1_novamigrationtarget_cr.yaml
+    oc create -f deploy/crds/nova_v1_iscsid_crd.yaml
+    oc create -f deploy/crds/nova_v1_novamigrationtarget_crd.yaml
 
 Build the image, using your custom registry you have write access to
 
@@ -46,7 +46,7 @@ Create CRDs
     oc create -f deploy/crds/nova_v1_iscsid_crd.yaml
     oc create -f deploy/crds/nova_v1_novamigrationtarget_crd.yaml
 
-Create role, binding service_account
+Create role, role_binding and service_account
 
     oc create -f deploy/role.yaml
     oc create -f deploy/role_binding.yaml
@@ -55,6 +55,8 @@ Create role, binding service_account
 Install the operator
 
     oc create -f deploy/operator.yaml
+
+If necessary check logs with
 
     POD=`oc get pods -l name=nova-operator --field-selector=status.phase=Running -o name | head -1 -`; echo $POD
     oc logs $POD -f
@@ -90,7 +92,7 @@ or
       label: compute
 
 
-Update `deploy/crds/nova_v1_iscsid_cr.yaml`, `deploy/crds/nova_v1_novamigrationtarget_cr.yaml` and `deploy/crds/nova_v1_novacompute_cr.yaml` with the details of the images and OpenStack environment details.
+Update `deploy/crds/nova_v1_iscsid_cr.yaml`, `deploy/crds/nova_v1_novamigrationtarget_cr.yaml` and `deploy/crds/nova_v1_novacompute_cr.yaml` with the details of the images and the OpenStack environment.
 
 `deploy/crds/nova_v1_iscsid_cr.yaml`:
 
@@ -120,14 +122,14 @@ Update `deploy/crds/nova_v1_iscsid_cr.yaml`, `deploy/crds/nova_v1_novamigrationt
     metadata:
       name: nova-compute
     spec:
-      # Enpoint Information
+      # Public and internal VIP of the OSP controllers
       publicVip: 10.0.0.143
       internalApiVip: 172.17.1.29
       # Memcached server list
       memcacheServers: 172.17.1.83:11211
       # Rabbit transport url
       rabbitTransportUrl: rabbit://guest:eJNAlgHTTN8A6mclF6q6dBdL1@controller-0.internalapi.redhat.local:5672/?ssl=0
-      # User Passwords -> TODO: add as secrets and load into config from there
+      # User Passwords
       cinderPassword: kxtKYHKLdbEGzfGN6OTESU66t
       novaPassword: ytalxxwY2ovYx0FcQpjbfFeK1
       neutronPassword: HKCe8oWszT6brfYlJUPHH3moh
@@ -152,8 +154,7 @@ Apply the CRs:
     NAME           DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR    AGE
     nova-compute   0         0         0       0            0           daemon=compute   118s
 
-### Create required configMaps
-TODO: move passwords, connection urls, ... to Secret
+### Create required common-config configMap
 
 Get the following config from a compute node in the OSP env:
 - /etc/hosts
@@ -175,7 +176,7 @@ Note: if a later update is needed do e.g.
 
 Note: Right now the operator does not handle config updates to the common-config configMap. The pod needs to be recreated that the hosts file entries get updated
 
-!! Make sure we have the OSP needed network configs on the worker nodes. The workers need to be able to reach the internalapi and tenant network !!
+!! Make sure we have the OSP needed network configs on the worker nodes. The workers need to be able to reach the internalapi, storage and tenant network !!
 
     $ oc get nodes
     NAME       STATUS   ROLES    AGE   VERSION
@@ -313,7 +314,7 @@ If need get into nova-compute container of daemonset via:
 ## Start an instance and verify network connectivity works
 
 NOTE: install the ovs agent operator before start an instance!
-NOTE: selinux needs to be disable to start instance
+NOTE: selinux needs to be disabled on the compute worker nodes to start an instance
 
     2020-01-21 10:28:12.280 164015 ERROR nova.compute.manager [instance: fd1cf110-3921-4a65-b45d-807709fe5008] libvirt.libvirtError: internal error: process exited while connecting to monitor: libvirt:  error : cannot execute binary /usr/libexec/qemu-kvm: Permission denied
 
