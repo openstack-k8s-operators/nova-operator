@@ -148,7 +148,8 @@ func (r *ReconcileLibvirtd) Reconcile(request reconcile.Request) (reconcile.Resu
         if err != nil {
                 return reconcile.Result{}, fmt.Errorf("error calculating configuration hash: %v", err)
         } else {
-                reqLogger.Info("ConfigMapHash: ", "Data Hash:", configMapHash)                                                                      }
+                reqLogger.Info("ConfigMapHash: ", "Data Hash:", configMapHash)
+        }
 
         // Define a new Daemonset object
         ds := newDaemonset(instance, instance.Name, configMapHash)
@@ -249,10 +250,16 @@ func newDaemonset(cr *novav1.Libvirtd, cmName string, configHash string) *appsv1
                                         DNSPolicy:      "ClusterFirstWithHostNet",
                                         InitContainers: []corev1.Container{},
                                         Containers:     []corev1.Container{},
+                                        Tolerations:    []corev1.Toleration{},
                                 },
                         },
                 },
         }
+
+        tolerationSpec := corev1.Toleration{
+                Operator: "Exists",
+        }
+        daemonSet.Spec.Template.Spec.Tolerations = append(daemonSet.Spec.Template.Spec.Tolerations, tolerationSpec)
 
         initContainerSpec := corev1.Container{
                 Name:  "libvirtd-config-init",

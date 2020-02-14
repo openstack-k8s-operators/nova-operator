@@ -208,10 +208,17 @@ func newDaemonset(cr *novav1.Virtlogd, cmName string) *appsv1.DaemonSet {
                                         DNSPolicy:      "ClusterFirstWithHostNet",
                                         InitContainers: []corev1.Container{},
                                         Containers:     []corev1.Container{},
+                                        Tolerations:    []corev1.Toleration{},
                                 },
                         },
                 },
         }
+
+
+        tolerationSpec := corev1.Toleration{
+                Operator: "Exists",
+        }
+        daemonSet.Spec.Template.Spec.Tolerations = append(daemonSet.Spec.Template.Spec.Tolerations, tolerationSpec)
 
         virtlogdContainerSpec := corev1.Container{
                 Name:  "virtlogd",

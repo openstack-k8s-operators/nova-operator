@@ -161,7 +161,8 @@ func (r *ReconcileNovaCompute) Reconcile(request reconcile.Request) (reconcile.R
         if err != nil {
                 return reconcile.Result{}, fmt.Errorf("error calculating configuration hash: %v", err)
         } else {
-                reqLogger.Info("ConfigMapHash: ", "Data Hash:", configMapHash)                                                                      }
+                reqLogger.Info("ConfigMapHash: ", "Data Hash:", configMapHash)
+        }
 
         // Define a new Daemonset object
         ds := newDaemonset(instance, instance.Name, configMapHash)
@@ -299,10 +300,16 @@ func newDaemonset(cr *novav1.NovaCompute, cmName string, configHash string) *app
                                         HostAliases:    ospHostAliases,
                                         InitContainers: []corev1.Container{},
                                         Containers:     []corev1.Container{},
+                                        Tolerations:    []corev1.Toleration{},
                                 },
                         },
                 },
         }
+
+        tolerationSpec := corev1.Toleration{
+                Operator: "Exists",
+        }
+        daemonSet.Spec.Template.Spec.Tolerations = append(daemonSet.Spec.Template.Spec.Tolerations, tolerationSpec)
 
         // Add hosts entries rendered from the the config map to the hosts file of the containers in the pod
         // TODO:

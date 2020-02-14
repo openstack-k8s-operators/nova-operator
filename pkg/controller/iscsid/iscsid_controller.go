@@ -160,10 +160,17 @@ func newDaemonset(cr *novav1.Iscsid, cmName string) *appsv1.DaemonSet {
                                         HostPID:        true,
                                         DNSPolicy:      "ClusterFirstWithHostNet",
                                         Containers:     []corev1.Container{},
+                                        Tolerations:    []corev1.Toleration{},
                                 },
                         },
                 },
         }
+
+        tolerationSpec := corev1.Toleration{
+                Operator: "Exists",
+        }
+        daemonSet.Spec.Template.Spec.Tolerations = append(daemonSet.Spec.Template.Spec.Tolerations, tolerationSpec)
+
 
         iscsiContainerSpec := corev1.Container{
                 Name:  "iscsid",
