@@ -334,6 +334,20 @@ func schema_pkg_apis_nova_v1_NovaComputeSpec(ref common.ReferenceCallback) commo
 							Format:      "",
 						},
 					},
+					"novaComputeCpuSharedSet": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Mask of host CPUs that can be used for ``VCPU`` resources and offloaded emulator threads. For more information, refer to the documentation.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"novaComputeCpuDedicatedSet": {
+						SchemaProps: spec.SchemaProps{
+							Description: "A list or range of host CPU cores to which processes for pinned instance CPUs (PCPUs) can be scheduled. Ex. NovaComputeCpuDedicatedSet: [4-12,^8,15] will reserve cores from 4-12 and 15, excluding 8.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"neutronPassword": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Neutron API Admin Password",
@@ -349,7 +363,7 @@ func schema_pkg_apis_nova_v1_NovaComputeSpec(ref common.ReferenceCallback) commo
 						},
 					},
 				},
-				Required: []string{"label", "novaComputeImage", "internalApiVip", "rabbitTransportUrl", "cinderPassword", "novaPassword", "neutronPassword", "placementPassword"},
+				Required: []string{"label", "novaComputeImage", "publicVip", "internalApiVip", "rabbitTransportUrl", "cinderPassword", "novaPassword", "neutronPassword", "placementPassword"},
 			},
 		},
 		Dependencies: []string{},

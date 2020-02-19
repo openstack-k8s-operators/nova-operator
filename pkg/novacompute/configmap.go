@@ -8,14 +8,16 @@ import (
 )
 
 type novaComputeConfigOptions struct {
-        PublicVip          string
-        InternalApiVip     string
-        MemcacheServers    string
-        CinderPassword     string
-        NovaPassword       string
-        NeutronPassword    string
-        PlacementPassword  string
-        RabbitTransportUrl string
+        PublicVip                  string
+        InternalApiVip             string
+        MemcacheServers            string
+        CinderPassword             string
+        NovaPassword               string
+        NeutronPassword            string
+        PlacementPassword          string
+        RabbitTransportUrl         string
+        NovaComputeCpuDedicatedSet string
+        NovaComputeCpuSharedSet    string
 }
 
 // custom nova config map
@@ -27,7 +29,9 @@ func ConfigMap(cr *novav1.NovaCompute, cmName string) *corev1.ConfigMap {
                                          cr.Spec.NovaPassword,
                                          cr.Spec.NeutronPassword,
                                          cr.Spec.PlacementPassword,
-                                         cr.Spec.RabbitTransportUrl}
+                                         cr.Spec.RabbitTransportUrl,
+                                         cr.Spec.NovaComputeCpuDedicatedSet,
+                                         cr.Spec.NovaComputeCpuSharedSet}
 
         cm := &corev1.ConfigMap{
                 TypeMeta: metav1.TypeMeta{

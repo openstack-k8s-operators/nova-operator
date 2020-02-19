@@ -12,7 +12,7 @@ type NovaComputeSpec struct {
         // container image to run for the daemon
         NovaComputeImage string `json:"novaComputeImage"`
         // Control Plane public VIP String
-        PublicVip string `json:"publicVip,omitempty"`
+        PublicVip string `json:"publicVip"`
         // Control Plane internalAPI VIP String
         InternalApiVip string `json:"internalApiVip"`
         // Memcache Servers String
@@ -23,6 +23,14 @@ type NovaComputeSpec struct {
         CinderPassword string `json:"cinderPassword"`
         // Nova API Admin Password
         NovaPassword string `json:"novaPassword"`
+        // Mask of host CPUs that can be used for ``VCPU`` resources and offloaded
+        // emulator threads. For more information, refer to the documentation.
+        NovaComputeCpuSharedSet string `json:"novaComputeCpuSharedSet,omitempty"`
+        // A list or range of host CPU cores to which processes for pinned instance
+        // CPUs (PCPUs) can be scheduled.
+        // Ex. NovaComputeCpuDedicatedSet: [4-12,^8,15] will reserve cores from 4-12
+        // and 15, excluding 8.
+        NovaComputeCpuDedicatedSet string `json:"novaComputeCpuDedicatedSet,omitempty"`
         // Neutron API Admin Password
         NeutronPassword string `json:"neutronPassword"`
         // Placement API Admin Password

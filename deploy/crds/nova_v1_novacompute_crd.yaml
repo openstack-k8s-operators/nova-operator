@@ -45,6 +45,16 @@ spec:
             neutronPassword:
               description: Neutron API Admin Password
               type: string
+            novaComputeCpuDedicatedSet:
+              description: 'A list or range of host CPU cores to which processes for
+                pinned instance CPUs (PCPUs) can be scheduled. Ex. NovaComputeCpuDedicatedSet:
+                [4-12,^8,15] will reserve cores from 4-12 and 15, excluding 8.'
+              type: string
+            novaComputeCpuSharedSet:
+              description: Mask of host CPUs that can be used for ``VCPU`` resources
+                and offloaded emulator threads. For more information, refer to the
+                documentation.
+              type: string
             novaComputeImage:
               description: container image to run for the daemon
               type: string
@@ -63,6 +73,7 @@ spec:
           required:
           - label
           - novaComputeImage
+          - publicVip
           - internalApiVip
           - rabbitTransportUrl
           - cinderPassword
