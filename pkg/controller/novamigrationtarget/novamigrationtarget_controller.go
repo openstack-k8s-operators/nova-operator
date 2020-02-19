@@ -4,9 +4,7 @@ import (
 	"context"
 	"fmt"
         "reflect"
-        "regexp"
         "strconv"
-        "strings"
         "time"
 
 
@@ -128,16 +126,24 @@ func (r *ReconcileNovaMigrationTarget) Reconcile(request reconcile.Request) (rec
 	}
 
         commonConfigMap := &corev1.ConfigMap{}
-        // TODO: to update hosts infocheck configmap ResourceVersion and update if needed.                                                 
-        //currentConfigVersion := commonConfigMap.ResourceVersion
 
         reqLogger.Info("Creating host entries from config map:", "configMap: ", COMMON_CONFIGMAP)                                          
         err = r.client.Get(context.TODO(), types.NamespacedName{Name: COMMON_CONFIGMAP, Namespace: instance.Namespace}, commonConfigMap)   
 
+        if err != nil && errors.IsNotFound(err) {
+                reqLogger.Error(err, "common-config ConfigMap not found!", "Instance.Namespace", instance.Namespace, "Instance.Name", instance.Name)
+                return reconcile.Result{}, err
+        }
+
         if err := controllerutil.SetControllerReference(instance, commonConfigMap, r.scheme); err != nil {                                 
                 return reconcile.Result{}, err
         }
-        ospHostAliases = createOspHostsEntries(commonConfigMap)
+        // Create additional host entries added to the /etc/hosts file of the containers
+        ospHostAliases, err = util.CreateOspHostsEntries(commonConfigMap)
+        if err != nil {
+                reqLogger.Error(err, "Failed ospHostAliases", "Instance.Namespace", instance.Namespace, "Instance.Name", instance.Name)
+                return reconcile.Result{}, err
+        }
 
         // ConfigMap
         configMap := nova.ConfigMap(instance, instance.Name)
@@ -229,38 +235,6 @@ func (r *ReconcileNovaMigrationTarget) setDaemonsetHash(instance *novav1.NovaMig
         }
         return nil
 
-}
-
-func createOspHostsEntries(commonConfigMap *corev1.ConfigMap) []corev1.HostAlias{
-        hostAliases := []corev1.HostAlias{}
-
-        hostsFile := commonConfigMap.Data["hosts"]
-        re := regexp.MustCompile(`(?s).*BEGIN ANSIBLE MANAGED BLOCK\n(.*)# END ANSIBLE MANAGED BLOCK.*`)
-
-        hostsFile = re.FindStringSubmatch(hostsFile)[1]
-
-        for _, hostRecord := range strings.Split(hostsFile, "\n") {
-                if len(hostRecord) > 0 {
-                        var ip string
-                        var names []string
-
-                        for i, r := range strings.Fields(hostRecord) {
-                                if i == 0 {
-                                        ip = r
-                                } else {
-                                        names = append(names, r)
-                                }
-                        }
-
-                        hostAlias := corev1.HostAlias{
-                                IP: ip,
-                                Hostnames: names,
-                        }
-                        hostAliases = append(hostAliases, hostAlias)
-                }
-        }
-
-        return hostAliases
 }
 
 func newDaemonset(cr *novav1.NovaMigrationTarget, cmName string, configHash string) *appsv1.DaemonSet {
