@@ -134,9 +134,31 @@ Update `deploy/crds/nova_v1_iscsid_cr.yaml`, `deploy/crds/nova_v1_novamigrationt
       novaPassword: ytalxxwY2ovYx0FcQpjbfFeK1
       neutronPassword: HKCe8oWszT6brfYlJUPHH3moh
       placementPassword: 3e2CahSMAw8xMA576ORh0yaWc
+      # Optional parameters to configure cores to be used for pinned/non pinned instances
+      #novaComputeCpuDedicatedSet: 4-7
+      #novaComputeCpuSharedSet: 0-3
 
       novaComputeImage: trunk.registry.rdoproject.org/tripleotrain/rhel-binary-nova-compute:94b7298c65a2f7b7ba53b79ce1d0cf191d254e72_42a57bc6
       label: compute
+
+If instances with CPU pinning are used, the cores which are set for novaComputeCpuDedicatedSet should be excluded from
+the kernel scheduler. With this it is sure that the core is exclusive for the pinned instances.
+
+Using the machine configuartion operator additinal kernel parameters can be set like with the following yaml.
+In this example core range 4-7 are isolated using `isolcpus`:
+
+    apiVersion: machineconfiguration.openshift.io/v1
+    kind: MachineConfig
+    metadata:
+      labels:
+        machineconfiguration.openshift.io/role: worker
+      name: 05-compute-cpu-pinning
+    spec:
+      config:
+        ignition:
+          version: 2.2.0
+      kernelArguments:
+        - isolcpus=4-7
 
 Apply the CRs:
 
