@@ -45,6 +45,7 @@ func ConfigMap(cr *novav1.NovaCompute, cmName string) *corev1.ConfigMap {
                 Data: map[string]string{
                         "nova.conf":                   util.ExecuteTemplateFile("nova.conf", &opts),
                         "tripleo.cnf":                 util.ExecuteTemplateFile("tripleo.cnf", nil),
+                        "logging.conf":                util.ExecuteTemplateFile("logging.conf", nil),
                 },
         }
 

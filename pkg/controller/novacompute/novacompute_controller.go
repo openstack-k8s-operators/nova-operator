@@ -310,6 +310,12 @@ func newDaemonset(cr *novav1.NovaCompute, cmName string, configHash string) *app
                                 SubPath:   "nova.conf",
                         },
                         {
+                                Name:      cmName,
+                                ReadOnly:  true,
+                                MountPath: "/etc/nova/logging.conf",
+                                SubPath:   "logging.conf",
+                        },
+                        {
                                 Name:      "common-config",
                                 ReadOnly:  true,
                                 MountPath: "/common-config",
@@ -348,6 +354,7 @@ func newDaemonset(cr *novav1.NovaCompute, cmName string, configHash string) *app
                 //        TimeoutSeconds:      1,
                 //},
                 Command: []string{
+                        //"/bin/sleep", "86400",
                         "/usr/bin/nova-compute", "--config-file", "/etc/nova/nova.conf",
                 },
                 SecurityContext: &corev1.SecurityContext{
