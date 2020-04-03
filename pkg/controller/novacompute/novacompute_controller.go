@@ -7,7 +7,8 @@ import (
 	"time"
 
 	novav1 "github.com/openstack-k8s-operators/nova-operator/pkg/apis/nova/v1"
-	nova "github.com/openstack-k8s-operators/nova-operator/pkg/novacompute"
+	common "github.com/openstack-k8s-operators/nova-operator/pkg/common"
+	novacompute "github.com/openstack-k8s-operators/nova-operator/pkg/novacompute"
 	util "github.com/openstack-k8s-operators/nova-operator/pkg/util"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -143,35 +144,62 @@ func (r *ReconcileNovaCompute) Reconcile(request reconcile.Request) (reconcile.R
 		return reconcile.Result{}, err
 	}
 
-	// ConfigMap
-	configMap := nova.ConfigMap(instance, instance.Name)
-	if err := controllerutil.SetControllerReference(instance, configMap, r.scheme); err != nil {
+	// ScriptsConfigMap
+	scriptsConfigMap := novacompute.ScriptsConfigMap(instance, instance.Name+"-scripts")
+	if err := controllerutil.SetControllerReference(instance, scriptsConfigMap, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
-	// Check if this ConfigMap already exists
-	foundConfigMap := &corev1.ConfigMap{}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: configMap.Name, Namespace: configMap.Namespace}, foundConfigMap)
+	// Check if this ScriptsConfigMap already exists
+	foundScriptsConfigMap := &corev1.ConfigMap{}
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: scriptsConfigMap.Name, Namespace: scriptsConfigMap.Namespace}, foundScriptsConfigMap)
 	if err != nil && errors.IsNotFound(err) {
-		reqLogger.Info("Creating a new ConfigMap", "ConfigMap.Namespace", configMap.Namespace, "Job.Name", configMap.Name)
-		err = r.client.Create(context.TODO(), configMap)
+		reqLogger.Info("Creating a new ScriptsConfigMap", "ScriptsConfigMap.Namespace", scriptsConfigMap.Namespace, "Job.Name", scriptsConfigMap.Name)
+		err = r.client.Create(context.TODO(), scriptsConfigMap)
 		if err != nil {
 			return reconcile.Result{}, err
 		}
-	} else if !reflect.DeepEqual(configMap.Data, foundConfigMap.Data) {
-		reqLogger.Info("Updating ConfigMap")
+	} else if !reflect.DeepEqual(scriptsConfigMap.Data, foundScriptsConfigMap.Data) {
+		reqLogger.Info("Updating ScriptsConfigMap")
 
-		configMap.Data = foundConfigMap.Data
+		scriptsConfigMap.Data = foundScriptsConfigMap.Data
 	}
 
-	configMapHash, err := util.ObjectHash(configMap)
+	scriptsConfigMapHash, err := util.ObjectHash(scriptsConfigMap.Data)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("error calculating configuration hash: %v", err)
 	} else {
-		reqLogger.Info("ConfigMapHash: ", "Data Hash:", configMapHash)
+		reqLogger.Info("ScriptsConfigMapHash: ", "Data Hash:", scriptsConfigMapHash)
+	}
+
+	// TemplatesConfigMap
+	templatesConfigMap := novacompute.TemplatesConfigMap(instance, instance.Name+"-templates")
+	if err := controllerutil.SetControllerReference(instance, templatesConfigMap, r.scheme); err != nil {
+		return reconcile.Result{}, err
+	}
+	// Check if this TemplatesConfigMap already exists
+	foundTemplatesConfigMap := &corev1.ConfigMap{}
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: templatesConfigMap.Name, Namespace: templatesConfigMap.Namespace}, foundTemplatesConfigMap)
+	if err != nil && errors.IsNotFound(err) {
+		reqLogger.Info("Creating a new TemplatesConfigMap", "TemplatesConfigMap.Namespace", templatesConfigMap.Namespace, "Job.Name", templatesConfigMap.Name)
+		err = r.client.Create(context.TODO(), templatesConfigMap)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+	} else if !reflect.DeepEqual(templatesConfigMap.Data, foundTemplatesConfigMap.Data) {
+		reqLogger.Info("Updating TemplatesConfigMap")
+
+		templatesConfigMap.Data = foundTemplatesConfigMap.Data
+	}
+
+	templatesConfigMapHash, err := util.ObjectHash(templatesConfigMap.Data)
+	if err != nil {
+		return reconcile.Result{}, fmt.Errorf("error calculating configuration hash: %v", err)
+	} else {
+		reqLogger.Info("TemplatesConfigMapHash: ", "Data Hash:", templatesConfigMapHash)
 	}
 
 	// Define a new Daemonset object
-	ds := newDaemonset(instance, instance.Name, configMapHash)
+	ds := newDaemonset(instance, instance.Name, templatesConfigMapHash, scriptsConfigMapHash)
 	dsHash, err := util.ObjectHash(ds)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("error calculating configuration hash: %v", err)
@@ -235,11 +263,8 @@ func (r *ReconcileNovaCompute) setDaemonsetHash(instance *novav1.NovaCompute, ha
 
 }
 
-func newDaemonset(cr *novav1.NovaCompute, cmName string, configHash string) *appsv1.DaemonSet {
-	var bidirectional corev1.MountPropagationMode = corev1.MountPropagationBidirectional
+func newDaemonset(cr *novav1.NovaCompute, cmName string, templatesConfigHash string, scriptsConfigHash string) *appsv1.DaemonSet {
 	var trueVar bool = true
-	var configVolumeDefaultMode int32 = 0644
-	var dirOrCreate corev1.HostPathType = corev1.HostPathDirectoryOrCreate
 
 	daemonSet := appsv1.DaemonSet{
 		TypeMeta: metav1.TypeMeta{
@@ -294,50 +319,39 @@ func newDaemonset(cr *novav1.NovaCompute, cmName string, configHash string) *app
 	//}
 
 	initContainerSpec := corev1.Container{
-		Name:  "nova-compute-config-init",
+		Name:  "init",
 		Image: cr.Spec.NovaComputeImage,
 		SecurityContext: &corev1.SecurityContext{
 			Privileged: &trueVar,
 		},
 		Command: []string{
-			"/bin/bash", "-c", "export CTRL_IP_INTRENALAPI=$(getent hosts controller-0.internalapi | awk '{print $1}') && export POD_IP_INTERNALAPI=$(ip route get $CTRL_IP_INTRENALAPI | awk '{print $5}') && cp -a /etc/nova/* /tmp/nova/ && crudini --set /tmp/nova/nova.conf DEFAULT my_ip $POD_IP_INTERNALAPI && crudini --set /tmp/nova/nova.conf libvirt live_migration_inbound_addr $POD_IP_INTERNALAPI && crudini --set /tmp/nova/nova.conf vnc server_listen $POD_IP_INTERNALAPI && crudini --set /tmp/nova/nova.conf vnc server_proxyclient_address $POD_IP_INTERNALAPI && mkdir -p /var/lib/nova/instances",
+			"/bin/bash", "-c", "/tmp/container-scripts/init.sh",
 		},
-		VolumeMounts: []corev1.VolumeMount{
+		Env: []corev1.EnvVar{
 			{
-				Name:      cmName,
-				ReadOnly:  true,
-				MountPath: "/etc/nova/nova.conf",
-				SubPath:   "nova.conf",
+				Name:  "CONFIG_VOLUME",
+				Value: "/var/lib/kolla/config_files/src",
 			},
 			{
-				Name:      cmName,
-				ReadOnly:  true,
-				MountPath: "/etc/nova/logging.conf",
-				SubPath:   "logging.conf",
-			},
-			{
-				Name:      "common-config",
-				ReadOnly:  true,
-				MountPath: "/common-config",
-			},
-			{
-				Name:      "etc-machine-id",
-				MountPath: "/etc/machine-id",
-				ReadOnly:  true,
-			},
-			{
-				Name:      "var-lib-nova-volume",
-				MountPath: "/var/lib/nova",
-			},
-			{
-				Name:      "nova-config-vol",
-				MountPath: "/tmp/nova",
+				Name:  "TEMPLATES_VOLUME",
+				Value: "/tmp/container-templates",
 			},
 		},
+		VolumeMounts: []corev1.VolumeMount{},
+	}
+
+	// initContainer VolumeMounts
+	// add common VolumeMounts
+	for _, volMount := range common.GetVolumeMounts() {
+		initContainerSpec.VolumeMounts = append(initContainerSpec.VolumeMounts, volMount)
+	}
+	// add novacompute init specific VolumeMounts
+	for _, volMount := range novacompute.GetInitContainerVolumeMounts(cmName) {
+		initContainerSpec.VolumeMounts = append(initContainerSpec.VolumeMounts, volMount)
 	}
 	daemonSet.Spec.Template.Spec.InitContainers = append(daemonSet.Spec.Template.Spec.InitContainers, initContainerSpec)
 
-	novaContainerSpec := corev1.Container{
+	containerSpec := corev1.Container{
 		Name:  "nova-compute",
 		Image: cr.Spec.NovaComputeImage,
 		//ReadinessProbe: &corev1.Probe{
@@ -352,215 +366,45 @@ func newDaemonset(cr *novav1.NovaCompute, cmName string, configHash string) *app
 		//        PeriodSeconds:       30,
 		//        TimeoutSeconds:      1,
 		//},
-		Command: []string{
-			//"/bin/sleep", "86400",
-			"/usr/bin/nova-compute", "--config-file", "/etc/nova/nova.conf",
-		},
+		Command: []string{},
 		SecurityContext: &corev1.SecurityContext{
 			Privileged: &trueVar,
 		},
 		Env: []corev1.EnvVar{
 			{
-				Name:  "CONFIG_HASH",
-				Value: configHash,
+				Name:  "TEMPLATES_CONFIG_HASH",
+				Value: templatesConfigHash,
+			},
+			{
+				Name:  "SCRIPTS_CONFIG_HASH",
+				Value: scriptsConfigHash,
+			},
+			{
+				Name:  "KOLLA_CONFIG_STRATEGY",
+				Value: "COPY_ALWAYS",
 			},
 		},
-		VolumeMounts: []corev1.VolumeMount{
-			{
-				Name:      "etc-libvirt-qemu-volume",
-				MountPath: "/etc/libvirt/qemu",
-			},
-			{
-				Name:      "etc-machine-id",
-				MountPath: "/etc/machine-id",
-				ReadOnly:  true,
-			},
-			{
-				Name:      "etc-iscsi-volume",
-				MountPath: "/etc/iscsi",
-				ReadOnly:  true,
-			},
-			{
-				Name:      "boot-volume",
-				MountPath: "/boot",
-				ReadOnly:  true,
-			},
-			{
-				Name:      "dev-volume",
-				MountPath: "/dev",
-			},
-			{
-				Name:      "lib-modules-volume",
-				MountPath: "/lib/modules",
-				ReadOnly:  true,
-			},
-			{
-				Name:      "run-volume",
-				MountPath: "/run",
-			},
-			{
-				Name:      "sys-fs-cgroup-volume",
-				MountPath: "/sys/fs/cgroup",
-				ReadOnly:  true,
-			},
-			{
-				Name:      "nova-log-volume",
-				MountPath: "/var/log/nova",
-			},
-			{
-				Name:             "var-lib-nova-volume",
-				MountPath:        "/var/lib/nova",
-				MountPropagation: &bidirectional,
-			},
-			{
-				Name:             "var-lib-libvirt-volume",
-				MountPath:        "/var/lib/libvirt",
-				MountPropagation: &bidirectional,
-			},
-			{
-				Name:      "var-lib-iscsi-volume",
-				MountPath: "/var/lib/iscsi",
-			},
-			{
-				Name:      "nova-config-vol",
-				MountPath: "/etc/nova",
-				ReadOnly:  true,
-			},
-		},
+		VolumeMounts: []corev1.VolumeMount{},
 	}
-	daemonSet.Spec.Template.Spec.Containers = append(daemonSet.Spec.Template.Spec.Containers, novaContainerSpec)
 
-	volConfigs := []corev1.Volume{
-		{
-			Name: "boot-volume",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/boot",
-				},
-			},
-		},
-		{
-			Name: "etc-libvirt-qemu-volume",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/etc/libvirt/qemu",
-					Type: &dirOrCreate,
-				},
-			},
-		},
-		{
-			Name: "etc-iscsi-volume",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/etc/iscsi",
-				},
-			},
-		},
-		{
-			Name: "run-volume",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/run",
-				},
-			},
-		},
-		{
-			Name: "lib-modules-volume",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/lib/modules",
-				},
-			},
-		},
-		{
-			Name: "dev-volume",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/dev",
-				},
-			},
-		},
-		{
-			Name: "etc-machine-id",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/etc/machine-id",
-				},
-			},
-		},
-		{
-			Name: "sys-fs-cgroup-volume",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/sys/fs/cgroup",
-				},
-			},
-		},
-		{
-			Name: "var-lib-nova-volume",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/var/lib/nova",
-					Type: &dirOrCreate,
-				},
-			},
-		},
-		{
-			Name: "var-lib-libvirt-volume",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/var/lib/libvirt",
-					Type: &dirOrCreate,
-				},
-			},
-		},
-		{
-			Name: "var-lib-iscsi-volume",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/var/lib/iscsi",
-				},
-			},
-		},
-		{
-			Name: "nova-log-volume",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/var/log/containers/nova",
-					Type: &dirOrCreate,
-				},
-			},
-		},
-		{
-			Name: cmName,
-			VolumeSource: corev1.VolumeSource{
-				ConfigMap: &corev1.ConfigMapVolumeSource{
-					DefaultMode: &configVolumeDefaultMode,
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: cmName,
-					},
-				},
-			},
-		},
-		{
-			Name: "common-config",
-			VolumeSource: corev1.VolumeSource{
-				ConfigMap: &corev1.ConfigMapVolumeSource{
-					DefaultMode: &configVolumeDefaultMode,
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: COMMON_CONFIGMAP,
-					},
-				},
-			},
-		},
-		{
-			Name: "nova-config-vol",
-			VolumeSource: corev1.VolumeSource{
-				EmptyDir: &corev1.EmptyDirVolumeSource{},
-			},
-		},
+	// VolumeMounts
+	// add common VolumeMounts
+	for _, volMount := range common.GetVolumeMounts() {
+		containerSpec.VolumeMounts = append(containerSpec.VolumeMounts, volMount)
 	}
-	for _, volConfig := range volConfigs {
+	// add libvirtd specific VolumeMounts
+	for _, volMount := range novacompute.GetVolumeMounts(cmName) {
+		containerSpec.VolumeMounts = append(containerSpec.VolumeMounts, volMount)
+	}
+	daemonSet.Spec.Template.Spec.Containers = append(daemonSet.Spec.Template.Spec.Containers, containerSpec)
+
+	// Volume config
+	// add common Volumes
+	for _, volConfig := range common.GetVolumes(cmName) {
+		daemonSet.Spec.Template.Spec.Volumes = append(daemonSet.Spec.Template.Spec.Volumes, volConfig)
+	}
+	// add libvird Volumes
+	for _, volConfig := range novacompute.GetVolumes(cmName) {
 		daemonSet.Spec.Template.Spec.Volumes = append(daemonSet.Spec.Template.Spec.Volumes, volConfig)
 	}
 

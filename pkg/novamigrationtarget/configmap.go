@@ -13,8 +13,29 @@ type novaMigrationTargetConfigOptions struct {
 	SshdPort string
 }
 
+// scripts config map
+func ScriptsConfigMap(cr *novav1.NovaMigrationTarget, cmName string) *corev1.ConfigMap {
+
+	cm := &corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "ConfigMap",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      cmName,
+			Namespace: cr.Namespace,
+		},
+		Data: map[string]string{
+			"common.sh": util.ExecuteTemplateFile("common/common.sh", nil),
+			"init.sh":   util.ExecuteTemplateFile(cr.Name+"/bin/init.sh", nil),
+		},
+	}
+
+	return cm
+}
+
 // custom nova config map
-func ConfigMap(cr *novav1.NovaMigrationTarget, cmName string) *corev1.ConfigMap {
+func TemplatesConfigMap(cr *novav1.NovaMigrationTarget, cmName string) *corev1.ConfigMap {
 	//var sshdPort string
 	sshdPort := strconv.FormatUint(uint64(cr.Spec.SshdPort), 10)
 	opts := novaMigrationTargetConfigOptions{sshdPort}
@@ -29,9 +50,9 @@ func ConfigMap(cr *novav1.NovaMigrationTarget, cmName string) *corev1.ConfigMap 
 			Namespace: cr.Namespace,
 		},
 		Data: map[string]string{
-			"migration_ssh_config":      util.ExecuteTemplateFile("migration_ssh_config", &opts),
-			"migration_sshd_config":     util.ExecuteTemplateFile("migration_sshd_config", nil),
-			"migration_authorized_keys": util.ExecuteTemplateFile("migration_authorized_keys", nil),
+			"config.json": util.ExecuteTemplateFile(cr.Name+"/kolla_config.json", &opts),
+			"ssh_config":  util.ExecuteTemplateFile(cr.Name+"/config/ssh_config", &opts),
+			"sshd_config": util.ExecuteTemplateFile(cr.Name+"/config/sshd_config", nil),
 		},
 	}
 

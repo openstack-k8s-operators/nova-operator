@@ -1,0 +1,18 @@
+{
+    "command": "/usr/local/sbin/libvirtd.sh",
+    "config_files": [
+        {
+            "dest": "/",
+            "merge": true,
+            "preserve_properties": true,
+            "source": "/var/lib/kolla/config_files/src/*"
+        }
+    ],
+    "permissions": [
+        {
+            "path": "/etc/nova/migration/identity",
+            "owner": "nova:nova",
+            "perm": "0600"
+        }
+    ]
+}

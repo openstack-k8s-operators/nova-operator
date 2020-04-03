@@ -7,6 +7,7 @@ import (
 	"time"
 
 	novav1 "github.com/openstack-k8s-operators/nova-operator/pkg/apis/nova/v1"
+	common "github.com/openstack-k8s-operators/nova-operator/pkg/common"
 	libvirtd "github.com/openstack-k8s-operators/nova-operator/pkg/libvirtd"
 	util "github.com/openstack-k8s-operators/nova-operator/pkg/util"
 	appsv1 "k8s.io/api/apps/v1"
@@ -124,35 +125,60 @@ func (r *ReconcileLibvirtd) Reconcile(request reconcile.Request) (reconcile.Resu
 		return reconcile.Result{}, err
 	}
 
-	// ConfigMap
-	configMap := libvirtd.ConfigMap(instance, instance.Name)
-	if err := controllerutil.SetControllerReference(instance, configMap, r.scheme); err != nil {
+	// ScriptsConfigMap
+	scriptsConfigMap := libvirtd.ScriptsConfigMap(instance, instance.Name+"-scripts")
+	if err := controllerutil.SetControllerReference(instance, scriptsConfigMap, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
-	// Check if this ConfigMap already exists
-	foundConfigMap := &corev1.ConfigMap{}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: configMap.Name, Namespace: configMap.Namespace}, foundConfigMap)
+	// Check if this ScriptsConfigMap already exists
+	foundScriptsConfigMap := &corev1.ConfigMap{}
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: scriptsConfigMap.Name, Namespace: scriptsConfigMap.Namespace}, foundScriptsConfigMap)
 	if err != nil && errors.IsNotFound(err) {
-		reqLogger.Info("Creating a new ConfigMap", "ConfigMap.Namespace", configMap.Namespace, "Job.Name", configMap.Name)
-		err = r.client.Create(context.TODO(), configMap)
+		reqLogger.Info("Creating a new ScriptsConfigMap", "ScriptsConfigMap.Namespace", scriptsConfigMap.Namespace, "Job.Name", scriptsConfigMap.Name)
+		err = r.client.Create(context.TODO(), scriptsConfigMap)
 		if err != nil {
 			return reconcile.Result{}, err
 		}
-	} else if !reflect.DeepEqual(configMap.Data, foundConfigMap.Data) {
-		reqLogger.Info("Updating ConfigMap")
-
-		configMap.Data = foundConfigMap.Data
+	} else if !reflect.DeepEqual(scriptsConfigMap.Data, foundScriptsConfigMap.Data) {
+		reqLogger.Info("Updating ScriptsConfigMap")
+		scriptsConfigMap.Data = foundScriptsConfigMap.Data
 	}
 
-	configMapHash, err := util.ObjectHash(configMap)
+	scriptsConfigMapHash, err := util.ObjectHash(scriptsConfigMap.Data)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("error calculating configuration hash: %v", err)
 	} else {
-		reqLogger.Info("ConfigMapHash: ", "Data Hash:", configMapHash)
+		reqLogger.Info("ScriptsConfigMapHash: ", "Data Hash:", scriptsConfigMapHash)
+	}
+
+	// TemplatesConfigMap
+	templatesConfigMap := libvirtd.TemplatesConfigMap(instance, instance.Name+"-templates")
+	if err := controllerutil.SetControllerReference(instance, templatesConfigMap, r.scheme); err != nil {
+		return reconcile.Result{}, err
+	}
+	// Check if this TemplatesConfigMap already exists
+	foundTemplatesConfigMap := &corev1.ConfigMap{}
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: templatesConfigMap.Name, Namespace: templatesConfigMap.Namespace}, foundTemplatesConfigMap)
+	if err != nil && errors.IsNotFound(err) {
+		reqLogger.Info("Creating a new TemplatesConfigMap", "TemplatesConfigMap.Namespace", templatesConfigMap.Namespace, "Job.Name", templatesConfigMap.Name)
+		err = r.client.Create(context.TODO(), templatesConfigMap)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+	} else if !reflect.DeepEqual(templatesConfigMap.Data, foundTemplatesConfigMap.Data) {
+		reqLogger.Info("Updating TemplatesConfigMap")
+		templatesConfigMap.Data = foundTemplatesConfigMap.Data
+	}
+
+	templatesConfigMapHash, err := util.ObjectHash(templatesConfigMap.Data)
+	if err != nil {
+		return reconcile.Result{}, fmt.Errorf("error calculating configuration hash: %v", err)
+	} else {
+		reqLogger.Info("TemplatesConfigMapHash: ", "Data Hash:", templatesConfigMapHash)
 	}
 
 	// Define a new Daemonset object
-	ds := newDaemonset(instance, instance.Name, configMapHash)
+	ds := newDaemonset(instance, instance.Name, templatesConfigMapHash)
 	dsHash, err := util.ObjectHash(ds)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("error calculating configuration hash: %v", err)
@@ -210,13 +236,9 @@ func (r *ReconcileLibvirtd) setDaemonsetHash(instance *novav1.Libvirtd, hashStr 
 
 }
 
-func newDaemonset(cr *novav1.Libvirtd, cmName string, configHash string) *appsv1.DaemonSet {
-	var bidirectional corev1.MountPropagationMode = corev1.MountPropagationBidirectional
+func newDaemonset(cr *novav1.Libvirtd, cmName string, templatesConfigHash string) *appsv1.DaemonSet {
 	var trueVar bool = true
 	var falseVar bool = false
-	var configVolumeDefaultMode int32 = 0644
-	var configVolumeBinMode int32 = 0755
-	var dirOrCreate corev1.HostPathType = corev1.HostPathDirectoryOrCreate
 
 	daemonSet := appsv1.DaemonSet{
 		TypeMeta: metav1.TypeMeta{
@@ -261,38 +283,7 @@ func newDaemonset(cr *novav1.Libvirtd, cmName string, configHash string) *appsv1
 	}
 	daemonSet.Spec.Template.Spec.Tolerations = append(daemonSet.Spec.Template.Spec.Tolerations, tolerationSpec)
 
-	initContainerSpec := corev1.Container{
-		Name:  "libvirtd-config-init",
-		Image: cr.Spec.NovaLibvirtImage,
-		SecurityContext: &corev1.SecurityContext{
-			Privileged: &trueVar,
-		},
-		Command: []string{
-			//Set correct owner/permissions for the ssh identity file
-			"/bin/bash", "-c", "cp -a /etc/nova/migration/* /tmp/nova/ && cp -f /tmp/identity /tmp/nova/ && chown nova:nova /tmp/nova/identity && chmod 600 /tmp/nova/identity",
-		},
-		VolumeMounts: []corev1.VolumeMount{
-			{
-				Name:      "etc-machine-id",
-				MountPath: "/etc/machine-id",
-				ReadOnly:  true,
-			},
-			{
-				// TODO: move to secret
-				Name:      cmName,
-				ReadOnly:  true,
-				MountPath: "/tmp/identity",
-				SubPath:   "migration_ssh_identity",
-			},
-			{
-				Name:      "nova-config",
-				MountPath: "/tmp/nova",
-			},
-		},
-	}
-	daemonSet.Spec.Template.Spec.InitContainers = append(daemonSet.Spec.Template.Spec.InitContainers, initContainerSpec)
-
-	libvirtContainerSpec := corev1.Container{
+	containerSpec := corev1.Container{
 		Name:  "libvirtd",
 		Image: cr.Spec.NovaLibvirtImage,
 		//ReadinessProbe: &corev1.Probe{
@@ -307,10 +298,6 @@ func newDaemonset(cr *novav1.Libvirtd, cmName string, configHash string) *appsv1
 		//        PeriodSeconds:       30,
 		//        TimeoutSeconds:      1,
 		//},
-		Command: []string{
-			//"/bin/sleep", "86400",
-			"bash", "-c", "/tmp/libvirtd.sh",
-		},
 		Lifecycle: &corev1.Lifecycle{
 			PreStop: &corev1.Handler{
 				Exec: &corev1.ExecAction{
@@ -320,203 +307,42 @@ func newDaemonset(cr *novav1.Libvirtd, cmName string, configHash string) *appsv1
 				},
 			},
 		},
+		Command: []string{},
 		SecurityContext: &corev1.SecurityContext{
 			Privileged:             &trueVar,
 			ReadOnlyRootFilesystem: &falseVar,
 		},
-		VolumeMounts: []corev1.VolumeMount{
+		Env: []corev1.EnvVar{
 			{
-				Name:      cmName,
-				ReadOnly:  true,
-				MountPath: "/etc/libvirt/libvirtd.conf",
-				SubPath:   "libvirtd.conf",
+				Name:  "TEMPLATES_CONFIG_HASH",
+				Value: templatesConfigHash,
 			},
 			{
-				Name:      cmName,
-				ReadOnly:  true,
-				MountPath: "/tmp/libvirtd.sh",
-				SubPath:   "libvirtd.sh",
-			},
-			{
-				Name:      "etc-machine-id",
-				MountPath: "/etc/machine-id",
-				ReadOnly:  true,
-			},
-			{
-				Name:      "etc-libvirt-qemu",
-				MountPath: "/etc/libvirt/qemu",
-			},
-			{
-				Name:      "lib-modules",
-				MountPath: "/lib/modules",
-				ReadOnly:  true,
-			},
-			{
-				Name:      "dev",
-				MountPath: "/dev",
-			},
-			{
-				Name:      "run",
-				MountPath: "/run",
-			},
-			{
-				Name:      "sys-fs-cgroup",
-				MountPath: "/sys/fs/cgroup",
-			},
-			{
-				Name:      "libvirt-log",
-				MountPath: "/var/log/libvirt",
-			},
-			{
-				Name:             "var-lib-nova",
-				MountPath:        "/var/lib/nova",
-				MountPropagation: &bidirectional,
-			},
-			{
-				Name:             "var-lib-libvirt",
-				MountPath:        "/var/lib/libvirt",
-				MountPropagation: &bidirectional,
-			},
-			{
-				Name:      "var-lib-vhost-sockets",
-				MountPath: "/var/lib/vhost_sockets",
-			},
-			{
-				Name:      "nova-config",
-				MountPath: "/etc/nova/migration",
-				ReadOnly:  true,
+				Name:  "KOLLA_CONFIG_STRATEGY",
+				Value: "COPY_ALWAYS",
 			},
 		},
+		VolumeMounts: []corev1.VolumeMount{},
 	}
-	daemonSet.Spec.Template.Spec.Containers = append(daemonSet.Spec.Template.Spec.Containers, libvirtContainerSpec)
 
-	volConfigs := []corev1.Volume{
-		{
-			Name: "etc-libvirt-qemu",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/etc/libvirt/qemu",
-					Type: &dirOrCreate,
-				},
-			},
-		},
-		{
-			Name: "etc-machine-id",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/etc/machine-id",
-				},
-			},
-		},
-		{
-			Name: "run",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/run",
-				},
-			},
-		},
-		{
-			Name: "dev",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/dev",
-				},
-			},
-		},
-		{
-			Name: "sys-fs-cgroup",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/sys/fs/cgroup",
-				},
-			},
-		},
-		{
-			Name: "var-run-libvirt",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/var/run/libvirt",
-					Type: &dirOrCreate,
-				},
-			},
-		},
-		{
-			Name: "var-lib-nova",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/var/lib/nova",
-					Type: &dirOrCreate,
-				},
-			},
-		},
-		{
-			Name: "var-lib-libvirt",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/var/lib/libvirt",
-					Type: &dirOrCreate,
-				},
-			},
-		},
-		{
-			Name: "var-lib-vhost-sockets",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/var/lib/vhost_sockets",
-					Type: &dirOrCreate,
-				},
-			},
-		},
-		{
-			Name: "lib-modules",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/lib/modules",
-				},
-			},
-		},
-		{
-			Name: "libvirt-log",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/var/log/containers/libvirt",
-					Type: &dirOrCreate,
-				},
-			},
-		},
-		{
-			Name: "nova-config",
-			VolumeSource: corev1.VolumeSource{
-				EmptyDir: &corev1.EmptyDirVolumeSource{},
-			},
-		},
-		{
-			Name: cmName,
-			VolumeSource: corev1.VolumeSource{
-				ConfigMap: &corev1.ConfigMapVolumeSource{
-					// otherwise the libvirtd.sh script can not be excecuted
-					// even with using bash -c
-					DefaultMode: &configVolumeBinMode,
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: cmName,
-					},
-				},
-			},
-		},
-		{
-			Name: "common-config",
-			VolumeSource: corev1.VolumeSource{
-				ConfigMap: &corev1.ConfigMapVolumeSource{
-					DefaultMode: &configVolumeDefaultMode,
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: COMMON_CONFIGMAP,
-					},
-				},
-			},
-		},
+	// VolumeMounts
+	// add common VolumeMounts
+	for _, volMount := range common.GetVolumeMounts() {
+		containerSpec.VolumeMounts = append(containerSpec.VolumeMounts, volMount)
 	}
-	for _, volConfig := range volConfigs {
+	// add libvirtd specific VolumeMounts
+	for _, volMount := range libvirtd.GetVolumeMounts(cmName) {
+		containerSpec.VolumeMounts = append(containerSpec.VolumeMounts, volMount)
+	}
+	daemonSet.Spec.Template.Spec.Containers = append(daemonSet.Spec.Template.Spec.Containers, containerSpec)
+
+	// Volume config
+	// add common Volumes
+	for _, volConfig := range common.GetVolumes(cmName) {
+		daemonSet.Spec.Template.Spec.Volumes = append(daemonSet.Spec.Template.Spec.Volumes, volConfig)
+	}
+	// add libvird Volumes
+	for _, volConfig := range libvirtd.GetVolumes(cmName) {
 		daemonSet.Spec.Template.Spec.Volumes = append(daemonSet.Spec.Template.Spec.Volumes, volConfig)
 	}
 

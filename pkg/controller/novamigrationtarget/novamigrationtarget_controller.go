@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 	"reflect"
-	"strconv"
 	"time"
 
 	novav1 "github.com/openstack-k8s-operators/nova-operator/pkg/apis/nova/v1"
-	nova "github.com/openstack-k8s-operators/nova-operator/pkg/novamigrationtarget"
+	common "github.com/openstack-k8s-operators/nova-operator/pkg/common"
+	novamigrationtarget "github.com/openstack-k8s-operators/nova-operator/pkg/novamigrationtarget"
 	util "github.com/openstack-k8s-operators/nova-operator/pkg/util"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -144,35 +144,89 @@ func (r *ReconcileNovaMigrationTarget) Reconcile(request reconcile.Request) (rec
 		return reconcile.Result{}, err
 	}
 
-	// ConfigMap
-	configMap := nova.ConfigMap(instance, instance.Name)
-	if err := controllerutil.SetControllerReference(instance, configMap, r.scheme); err != nil {
+	// ScriptsConfigMap
+	scriptsConfigMap := novamigrationtarget.ScriptsConfigMap(instance, instance.Name+"-scripts")
+	if err := controllerutil.SetControllerReference(instance, scriptsConfigMap, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
-	// Check if this ConfigMap already exists
-	foundConfigMap := &corev1.ConfigMap{}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: configMap.Name, Namespace: configMap.Namespace}, foundConfigMap)
+	// Check if this ScriptsConfigMap already exists
+	foundScriptsConfigMap := &corev1.ConfigMap{}
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: scriptsConfigMap.Name, Namespace: scriptsConfigMap.Namespace}, foundScriptsConfigMap)
 	if err != nil && errors.IsNotFound(err) {
-		reqLogger.Info("Creating a new ConfigMap", "ConfigMap.Namespace", configMap.Namespace, "Job.Name", configMap.Name)
-		err = r.client.Create(context.TODO(), configMap)
+		reqLogger.Info("Creating a new ScriptsConfigMap", "ScriptsConfigMap.Namespace", scriptsConfigMap.Namespace, "Job.Name", scriptsConfigMap.Name)
+		err = r.client.Create(context.TODO(), scriptsConfigMap)
 		if err != nil {
 			return reconcile.Result{}, err
 		}
-	} else if !reflect.DeepEqual(configMap.Data, foundConfigMap.Data) {
-		reqLogger.Info("Updating ConfigMap")
-
-		configMap.Data = foundConfigMap.Data
+	} else if !reflect.DeepEqual(scriptsConfigMap.Data, foundScriptsConfigMap.Data) {
+		reqLogger.Info("Updating ScriptsConfigMap")
+		scriptsConfigMap.Data = foundScriptsConfigMap.Data
 	}
 
-	configMapHash, err := util.ObjectHash(configMap)
+	scriptsConfigMapHash, err := util.ObjectHash(scriptsConfigMap.Data)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("error calculating configuration hash: %v", err)
 	} else {
-		reqLogger.Info("ConfigMapHash: ", "Data Hash:", configMapHash)
+		reqLogger.Info("ScriptsConfigMapHash: ", "Data Hash:", scriptsConfigMapHash)
+	}
+
+	// TemplatesConfigMap
+	templatesConfigMap := novamigrationtarget.TemplatesConfigMap(instance, instance.Name+"-templates")
+	if err := controllerutil.SetControllerReference(instance, templatesConfigMap, r.scheme); err != nil {
+		return reconcile.Result{}, err
+	}
+	// Check if this TemplatesConfigMap already exists
+	foundTemplatesConfigMap := &corev1.ConfigMap{}
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: templatesConfigMap.Name, Namespace: templatesConfigMap.Namespace}, foundTemplatesConfigMap)
+	if err != nil && errors.IsNotFound(err) {
+		reqLogger.Info("Creating a new TemplatesConfigMap", "TemplatesConfigMap.Namespace", templatesConfigMap.Namespace, "Job.Name", templatesConfigMap.Name)
+		err = r.client.Create(context.TODO(), templatesConfigMap)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+	} else if !reflect.DeepEqual(templatesConfigMap.Data, foundTemplatesConfigMap.Data) {
+		reqLogger.Info("Updating TemplatesConfigMap")
+		templatesConfigMap.Data = foundTemplatesConfigMap.Data
+	}
+
+	templatesConfigMapHash, err := util.ObjectHash(templatesConfigMap.Data)
+	if err != nil {
+		return reconcile.Result{}, fmt.Errorf("error calculating configuration hash: %v", err)
+	} else {
+		reqLogger.Info("TemplatesConfigMapHash: ", "Data Hash:", templatesConfigMapHash)
+	}
+
+	// Secret - compute worker
+	secret, err := novamigrationtarget.Secret(instance, instance.Name+"-ssh-keys")
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+	if err := controllerutil.SetControllerReference(instance, secret, r.scheme); err != nil {
+		return reconcile.Result{}, err
+	}
+	// Check if this Secret already exists
+	foundSecret := &corev1.Secret{}
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: secret.Name, Namespace: secret.Namespace}, foundSecret)
+	if err != nil && errors.IsNotFound(err) {
+		reqLogger.Info("Creating a new Secret", "Secret.Namespace", secret.Namespace, "Job.Name", secret.Name)
+		err = r.client.Create(context.TODO(), secret)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+	} else if !reflect.DeepEqual(secret.Data, foundSecret.Data) {
+		reqLogger.Info("Updating Secret")
+		secret.Data = foundSecret.Data
+	}
+
+	secretHash, err := util.ObjectHash(secret.Data)
+	if err != nil {
+		return reconcile.Result{}, fmt.Errorf("error calculating secret hash: %v", err)
+	} else {
+		reqLogger.Info("SecretHash: ", "Secret Hash:", secretHash)
 	}
 
 	// Define a new Daemonset object
-	ds := newDaemonset(instance, instance.Name, configMapHash)
+	ds := newDaemonset(instance, instance.Name, templatesConfigMapHash, scriptsConfigMapHash, secretHash)
 	dsHash, err := util.ObjectHash(ds)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("error calculating configuration hash: %v", err)
@@ -236,14 +290,9 @@ func (r *ReconcileNovaMigrationTarget) setDaemonsetHash(instance *novav1.NovaMig
 
 }
 
-func newDaemonset(cr *novav1.NovaMigrationTarget, cmName string, configHash string) *appsv1.DaemonSet {
-	var hostToContainer corev1.MountPropagationMode = corev1.MountPropagationHostToContainer
+func newDaemonset(cr *novav1.NovaMigrationTarget, cmName string, templatesConfigHash string, scriptsConfigHash string, secretHash string) *appsv1.DaemonSet {
 	var trueVar bool = true
 	var userId int64 = 0
-	var configVolumeDefaultMode int32 = 0600
-	var dirOrCreate corev1.HostPathType = corev1.HostPathDirectoryOrCreate
-
-	var sshdPort = strconv.FormatUint(uint64(cr.Spec.SshdPort), 10)
 
 	daemonSet := appsv1.DaemonSet{
 		TypeMeta: metav1.TypeMeta{
@@ -290,65 +339,40 @@ func newDaemonset(cr *novav1.NovaMigrationTarget, cmName string, configHash stri
 	daemonSet.Spec.Template.Spec.Tolerations = append(daemonSet.Spec.Template.Spec.Tolerations, tolerationSpec)
 
 	initContainerSpec := corev1.Container{
-		Name:  "nova-migration-target-init",
+		Name:  "init",
 		Image: cr.Spec.NovaComputeImage,
 		SecurityContext: &corev1.SecurityContext{
 			RunAsUser:  &userId,
 			Privileged: &trueVar,
 		},
 		Command: []string{
-			// * make sure /var/lib/nova/.ssh/config is owned by nova:nova
-			// * copy /etc/ssh to ssh-config-vol because the ssh_keys group IDs
-			//   don't match on host and container and sshd fail to start
-			// * /etc/nova/migration/authorized_keys -> group nova_migration
-			"/bin/bash", "-c", "export CTRL_IP_INTRENALAPI=$(getent hosts controller-0.internalapi | awk '{print $1}') && export POD_IP_INTERNALAPI=$(ip route get $CTRL_IP_INTRENALAPI | awk '{print $5}') && mkdir -p /var/lib/nova/.ssh && cp -f /tmp/ssh_config /var/lib/nova/.ssh/config && chown nova:nova /var/lib/nova/.ssh/config && cp -a /etc/ssh/* /tmp/ssh/ && chown -R root:root /tmp/ssh/ssh_host* && chmod 600 /tmp/ssh/ssh_host*_key && cp -f /tmp/sshd_config /tmp/ssh/ && sed -i \"s/POD_IP_INTERNALAPI/$POD_IP_INTERNALAPI/g\" /tmp/ssh/sshd_config && cp -a /etc/nova/migration/* /tmp/nova/ && cp -f /tmp/authorized_keys /tmp/nova/ && chown root:nova_migration /tmp/nova/authorized_keys && chmod 640 /tmp/nova/authorized_keys && chmod 755 /tmp/nova",
+			"/bin/bash", "-c", "/tmp/container-scripts/init.sh",
 		},
-		VolumeMounts: []corev1.VolumeMount{
+		Env: []corev1.EnvVar{
 			{
-				Name:      "etc-machine-id",
-				MountPath: "/etc/machine-id",
-				ReadOnly:  true,
+				Name:  "CONFIG_VOLUME",
+				Value: "/var/lib/kolla/config_files/src",
 			},
 			{
-				Name:      "etc-ssh",
-				MountPath: "/etc/ssh",
-				ReadOnly:  true,
-			},
-			{
-				Name:      "var-lib-nova",
-				MountPath: "/var/lib/nova",
-			},
-			{
-				Name:      cmName,
-				ReadOnly:  true,
-				MountPath: "/tmp/ssh_config",
-				SubPath:   "migration_ssh_config",
-			},
-			{
-				Name:      cmName,
-				ReadOnly:  true,
-				MountPath: "/tmp/sshd_config",
-				SubPath:   "migration_sshd_config",
-			},
-			{
-				Name: cmName,
-				//ReadOnly:  true,
-				MountPath: "/tmp/authorized_keys",
-				SubPath:   "migration_authorized_keys",
-			},
-			{
-				Name:      "ssh-config-vol",
-				MountPath: "/tmp/ssh",
-			},
-			{
-				Name:      "nova-config-vol",
-				MountPath: "/tmp/nova",
+				Name:  "TEMPLATES_VOLUME",
+				Value: "/tmp/container-templates",
 			},
 		},
+		VolumeMounts: []corev1.VolumeMount{},
+	}
+
+	// initContainer VolumeMounts
+	// add common VolumeMounts
+	for _, volMount := range common.GetVolumeMounts() {
+		initContainerSpec.VolumeMounts = append(initContainerSpec.VolumeMounts, volMount)
+	}
+	// add novamigrationtarget init specific VolumeMounts
+	for _, volMount := range novamigrationtarget.GetInitContainerVolumeMounts(cmName) {
+		initContainerSpec.VolumeMounts = append(initContainerSpec.VolumeMounts, volMount)
 	}
 	daemonSet.Spec.Template.Spec.InitContainers = append(daemonSet.Spec.Template.Spec.InitContainers, initContainerSpec)
 
-	novaMigrationTargetContainerSpec := corev1.Container{
+	containerSpec := corev1.Container{
 		Name:  "nova-migration-target",
 		Image: cr.Spec.NovaComputeImage,
 		//ReadinessProbe: &corev1.Probe{
@@ -363,122 +387,51 @@ func newDaemonset(cr *novav1.NovaMigrationTarget, cmName string, configHash stri
 		//        PeriodSeconds:       30,
 		//        TimeoutSeconds:      1,
 		//},
-		//Env: []corev1.EnvVar{
-		//        {
-		//                Name:  "SSHDPORT",
-		//                Value: sshdPort,
-		//        },
-		//},
 		SecurityContext: &corev1.SecurityContext{
 			RunAsUser:  &userId,
 			Privileged: &trueVar,
 		},
-		Command: []string{
-			//"/bin/sleep", "86400",
-			"/usr/sbin/sshd", "-D", "-p", sshdPort,
-		},
-		VolumeMounts: []corev1.VolumeMount{
+		Command: []string{},
+		Env: []corev1.EnvVar{
 			{
-				Name:      "etc-machine-id",
-				MountPath: "/etc/machine-id",
-				ReadOnly:  true,
+				Name:  "KOLLA_CONFIG_STRATEGY",
+				Value: "COPY_ALWAYS",
 			},
 			{
-				Name:      "etc-localtime",
-				MountPath: "/etc/localtime",
-				ReadOnly:  true,
+				Name:  "TEMPLATES_CONFIG_HASH",
+				Value: templatesConfigHash,
 			},
 			{
-				Name:             "var-lib-nova",
-				MountPath:        "/var/lib/nova",
-				MountPropagation: &hostToContainer,
+				Name:  "SCRIPTS_CONFIG_HASH",
+				Value: scriptsConfigHash,
 			},
 			{
-				Name:      "run-libvirt",
-				MountPath: "/run/libvirt",
-				ReadOnly:  true,
-			},
-			{
-				Name:      "ssh-config-vol",
-				MountPath: "/etc/ssh",
-				ReadOnly:  true,
-			},
-			{
-				Name:      "nova-config-vol",
-				MountPath: "/etc/nova/migration",
-				ReadOnly:  true,
+				Name:  "SECRET_HASH",
+				Value: secretHash,
 			},
 		},
+		VolumeMounts: []corev1.VolumeMount{},
 	}
-	daemonSet.Spec.Template.Spec.Containers = append(daemonSet.Spec.Template.Spec.Containers, novaMigrationTargetContainerSpec)
 
-	volConfigs := []corev1.Volume{
-		{
-			Name: "etc-machine-id",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/etc/machine-id",
-				},
-			},
-		},
-		{
-			Name: "etc-localtime",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/etc/localtime",
-				},
-			},
-		},
-		{
-			Name: "etc-ssh",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/etc/ssh",
-				},
-			},
-		},
-		{
-			Name: "run-libvirt",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/run/libvirt",
-				},
-			},
-		},
-		{
-			Name: "var-lib-nova",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/var/lib/nova",
-					Type: &dirOrCreate,
-				},
-			},
-		},
-		{
-			Name: "ssh-config-vol",
-			VolumeSource: corev1.VolumeSource{
-				EmptyDir: &corev1.EmptyDirVolumeSource{},
-			},
-		},
-		{
-			Name: "nova-config-vol",
-			VolumeSource: corev1.VolumeSource{
-				EmptyDir: &corev1.EmptyDirVolumeSource{},
-			},
-		},
-		{
-			Name: cmName,
-			VolumeSource: corev1.VolumeSource{
-				ConfigMap: &corev1.ConfigMapVolumeSource{
-					DefaultMode: &configVolumeDefaultMode,
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: cmName,
-					},
-				},
-			},
-		},
+	// VolumeMounts
+	// add common VolumeMounts
+	for _, volMount := range common.GetVolumeMounts() {
+		containerSpec.VolumeMounts = append(containerSpec.VolumeMounts, volMount)
 	}
-	for _, volConfig := range volConfigs {
+	// add novamigrationtarget specific VolumeMounts
+	for _, volMount := range novamigrationtarget.GetVolumeMounts(cmName) {
+		containerSpec.VolumeMounts = append(containerSpec.VolumeMounts, volMount)
+	}
+
+	daemonSet.Spec.Template.Spec.Containers = append(daemonSet.Spec.Template.Spec.Containers, containerSpec)
+
+	// Volume config
+	// add common Volumes
+	for _, volConfig := range common.GetVolumes(cmName) {
+		daemonSet.Spec.Template.Spec.Volumes = append(daemonSet.Spec.Template.Spec.Volumes, volConfig)
+	}
+	// add novamigrationtarget Volumes
+	for _, volConfig := range novamigrationtarget.GetVolumes(cmName) {
 		daemonSet.Spec.Template.Spec.Volumes = append(daemonSet.Spec.Template.Spec.Volumes, volConfig)
 	}
 

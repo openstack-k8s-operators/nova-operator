@@ -15,13 +15,12 @@ Subsystem sftp  /usr/libexec/openssh/sftp-server
 SyslogFacility AUTHPRIV
 UseDNS no
 UsePAM yes
-UsePrivilegeSeparation sandbox
 X11Forwarding yes
-Match LocalAddress POD_IP_INTERNALAPI User nova_migration
+Match LocalAddress LOCAL_IP User nova_migration
     AllowTcpForwarding no
     AuthorizedKeysFile /etc/nova/migration/authorized_keys
     ForceCommand /bin/nova-migration-wrapper
     PasswordAuthentication no
     X11Forwarding no
-Match LocalAddress !POD_IP_INTERNALAPI
+Match LocalAddress !LOCAL_IP
     DenyUsers nova_migration
