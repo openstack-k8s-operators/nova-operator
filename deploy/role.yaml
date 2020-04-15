@@ -3,6 +3,7 @@ kind: Role
 metadata:
   creationTimestamp: null
   name: nova-operator
+  namespace: openstack
 rules:
 - apiGroups:
   - ""
@@ -50,3 +51,11 @@ rules:
   - novamigrationtargets
   verbs:
   - '*'
+- apiGroups:
+  - security.openshift.io
+  resourceNames:
+  - nova-operator
+  resources:
+  - securitycontextconstraints
+  verbs:
+  - use

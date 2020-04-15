@@ -209,6 +209,7 @@ func newDaemonset(cr *novav1.Virtlogd, cmName string) *appsv1.DaemonSet {
                                         InitContainers: []corev1.Container{},
                                         Containers:     []corev1.Container{},
                                         Tolerations:    []corev1.Toleration{},
+                                        ServiceAccountName: cr.Spec.ServiceAccount,
                                 },
                         },
                 },

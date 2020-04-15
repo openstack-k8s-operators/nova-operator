@@ -70,6 +70,9 @@ spec:
             rabbitTransportUrl:
               description: RabbitMQ transport URL String
               type: string
+            serviceAccount:
+              description: service account used to create pods
+              type: string
           required:
           - label
           - novaComputeImage
@@ -80,6 +83,7 @@ spec:
           - novaPassword
           - neutronPassword
           - placementPassword
+          - serviceAccount
           type: object
         status:
           properties:

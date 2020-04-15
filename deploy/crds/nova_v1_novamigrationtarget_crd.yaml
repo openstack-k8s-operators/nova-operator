@@ -36,6 +36,9 @@ spec:
             novaComputeImage:
               description: container image to run for the daemon
               type: string
+            serviceAccount:
+              description: service account used to create pods
+              type: string
             sshdPort:
               description: SSHD port
               format: int32
@@ -44,6 +47,7 @@ spec:
           - label
           - novaComputeImage
           - sshdPort
+          - serviceAccount
           type: object
         status:
           properties:

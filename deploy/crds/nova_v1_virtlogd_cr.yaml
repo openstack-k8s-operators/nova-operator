@@ -2,6 +2,8 @@ apiVersion: nova.openstack.org/v1
 kind: Virtlogd
 metadata:
   name: virtlogd
+  namespace: openstack
 spec:
   novaLibvirtImage: quay.io/openstack-k8s-operators/nova-libvirt:latest
   label: compute
+  serviceAccount: nova-operator

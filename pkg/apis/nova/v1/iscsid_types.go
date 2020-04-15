@@ -13,6 +13,8 @@ type IscsidSpec struct {
         Label string `json:"label"`
         // Image is the Docker image to run for the daemon
         IscsidImage string `json:"iscsidImage"`
+        // service account used to create pods
+        ServiceAccount string `json:"serviceAccount"`
 }
 
 // IscsidStatus defines the observed state of Iscsid

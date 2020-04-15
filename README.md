@@ -46,11 +46,19 @@ Create CRDs
     oc create -f deploy/crds/nova_v1_iscsid_crd.yaml
     oc create -f deploy/crds/nova_v1_novamigrationtarget_crd.yaml
 
+Create namespace
+
+    oc create -f deploy/namespace.yaml
+
 Create role, role_binding and service_account
 
     oc create -f deploy/role.yaml
     oc create -f deploy/role_binding.yaml
     oc create -f deploy/service_account.yaml
+
+Create security context constraints
+
+    oc create -f deploy/scc.yaml
 
 Install the operator
 
@@ -77,9 +85,11 @@ or
     kind: Virtlogd
     metadata:
       name: virtlogd
+      namespace: openstack
     spec:
       novaLibvirtImage: quay.io/openstack-k8s-operators/nova-libvirt:latest
       label: compute
+      serviceAccount: nova-operator
 
 `deploy/crds/nova_v1_libvirtd_cr.yaml`:
 
@@ -87,9 +97,11 @@ or
     kind: Libvirtd
     metadata:
       name: libvirtd
+      namespace: openstack
     spec:
       novaLibvirtImage: quay.io/openstack-k8s-operators/nova-libvirt:latest
       label: compute
+      serviceAccount: nova-operator
 
 
 Update `deploy/crds/nova_v1_iscsid_cr.yaml`, `deploy/crds/nova_v1_novamigrationtarget_cr.yaml` and `deploy/crds/nova_v1_novacompute_cr.yaml` with the details of the images and the OpenStack environment.
@@ -100,9 +112,11 @@ Update `deploy/crds/nova_v1_iscsid_cr.yaml`, `deploy/crds/nova_v1_novamigrationt
     kind: Iscsid
     metadata:
       name: iscsid
+      namespace: openstack
     spec:
       iscsidImage: trunk.registry.rdoproject.org/tripleotrain/rhel-binary-iscsid:abd5bae62f019fa9cdde538a7638107508ea86ac_82fad431
       label: compute
+      serviceAccount: nova-operator
 
 `deploy/crds/nova_v1_novamigrationtarget_cr.yaml`:
 
@@ -110,10 +124,12 @@ Update `deploy/crds/nova_v1_iscsid_cr.yaml`, `deploy/crds/nova_v1_novamigrationt
     kind: NovaMigrationTarget
     metadata:
       name: nova-migration-target
+      namespace: openstack
     spec:
       sshdPort: 2022
       novaComputeImage: trunk.registry.rdoproject.org/tripleotrain/rhel-binary-nova-compute:91b368add3a55f74b489925ce9d6e84c61d95334_42a57bc6
       label: compute
+      serviceAccount: nova-operator
 
 `deploy/crds/nova_v1_novacompute_cr.yaml`:
 
@@ -121,6 +137,7 @@ Update `deploy/crds/nova_v1_iscsid_cr.yaml`, `deploy/crds/nova_v1_novamigrationt
     kind: NovaCompute
     metadata:
       name: nova-compute
+      namespace: openstack
     spec:
       # Public and internal VIP of the OSP controllers
       publicVip: 10.0.0.143
@@ -140,6 +157,7 @@ Update `deploy/crds/nova_v1_iscsid_cr.yaml`, `deploy/crds/nova_v1_novamigrationt
 
       novaComputeImage: trunk.registry.rdoproject.org/tripleotrain/rhel-binary-nova-compute:94b7298c65a2f7b7ba53b79ce1d0cf191d254e72_42a57bc6
       label: compute
+      serviceAccount: nova-operator
 
 If instances with CPU pinning are used, the cores which are set for novaComputeCpuDedicatedSet should be excluded from
 the kernel scheduler. With this it is sure that the core is exclusive for the pinned instances.
@@ -411,6 +429,8 @@ First delete all instances running on the OCP worker AZ
     oc delete -f deploy/role.yaml
     oc delete -f deploy/role_binding.yaml
     oc delete -f deploy/service_account.yaml
+    oc delete -f deploy/scc.yaml
+    oc delete -f deploy/namespace.yaml
     oc delete -f deploy/crds/nova_v1_novacompute_crd.yaml
     oc delete -f deploy/crds/nova_v1_libvirtd_crd.yaml
     oc delete -f deploy/crds/nova_v1_virtlogd_crd.yaml
