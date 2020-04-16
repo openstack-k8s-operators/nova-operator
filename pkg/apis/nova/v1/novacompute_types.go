@@ -35,6 +35,8 @@ type NovaComputeSpec struct {
         NeutronPassword string `json:"neutronPassword"`
         // Placement API Admin Password
         PlacementPassword string `json:"placementPassword"`
+        // service account used to create pods
+        ServiceAccount string `json:"serviceAccount"`
 }
 
 // NovaComputeStatus defines the observed state of NovaCompute

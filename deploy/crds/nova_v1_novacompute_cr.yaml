@@ -2,6 +2,7 @@ apiVersion: nova.openstack.org/v1
 kind: NovaCompute
 metadata:
   name: nova-compute
+  namespace: openstack
 spec:
   # Enpoint Information
   publicVip: 10.0.0.143
@@ -20,16 +21,4 @@ spec:
 
   novaComputeImage: trunk.registry.rdoproject.org/tripleotrain/rhel-binary-nova-compute:91b368add3a55f74b489925ce9d6e84c61d95334_42a57bc6
   label: compute
-
-  #TODO:
-  # host specific settings:
-  # nova.conf
-  # live_migration_inbound_addr=worker-X.internalapi.redhat.local
-  # server_proxyclient_address=POD_IP_INTERNALAPI
-  # my_ip=POD_IP_INTERNALAPI
-
-  # mysql tripleo.cnf:
-  # bind-address=172.17.1.146
-
-  # Additional configs needed to be mapped
-  # /etc/my.cnf.d/tripleo.cnf
+  serviceAccount: nova-operator

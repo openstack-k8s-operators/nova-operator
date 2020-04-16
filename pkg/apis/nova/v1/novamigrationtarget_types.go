@@ -13,6 +13,8 @@ type NovaMigrationTargetSpec struct {
         NovaComputeImage string `json:"novaComputeImage"`
         // SSHD port
         SshdPort int32 `json:"sshdPort"`
+        // service account used to create pods
+        ServiceAccount string `json:"serviceAccount"`
 }
 
 // NovaMigrationTargetStatus defines the observed state of NovaMigrationTarget

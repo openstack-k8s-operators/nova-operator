@@ -251,6 +251,7 @@ func newDaemonset(cr *novav1.Libvirtd, cmName string, configHash string) *appsv1
                                         InitContainers: []corev1.Container{},
                                         Containers:     []corev1.Container{},
                                         Tolerations:    []corev1.Toleration{},
+                                        ServiceAccountName: cr.Spec.ServiceAccount,
                                 },
                         },
                 },

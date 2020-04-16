@@ -2,6 +2,8 @@ apiVersion: nova.openstack.org/v1
 kind: Libvirtd
 metadata:
   name: libvirtd
+  namespace: openstack
 spec:
   novaLibvirtImage: quay.io/openstack-k8s-operators/nova-libvirt:latest
   label: compute
+  serviceAccount: nova-operator

@@ -279,6 +279,7 @@ func newDaemonset(cr *novav1.NovaMigrationTarget, cmName string, configHash stri
                                         InitContainers: []corev1.Container{},
                                         Containers:     []corev1.Container{},
                                         Tolerations:    []corev1.Toleration{},
+                                        ServiceAccountName: cr.Spec.ServiceAccount,
                                 },
                         },
                 },

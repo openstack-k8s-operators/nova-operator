@@ -275,6 +275,7 @@ func newDaemonset(cr *novav1.NovaCompute, cmName string, configHash string) *app
                                         InitContainers: []corev1.Container{},
                                         Containers:     []corev1.Container{},
                                         Tolerations:    []corev1.Toleration{},
+                                        ServiceAccountName: cr.Spec.ServiceAccount,
                                 },
                         },
                 },

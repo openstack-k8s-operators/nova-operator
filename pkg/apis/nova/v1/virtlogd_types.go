@@ -12,6 +12,9 @@ type VirtlogdSpec struct {
 
         // Image is the Docker image to run for the daemon
         NovaLibvirtImage string `json:"novaLibvirtImage"`
+
+        // service account used to create pods
+        ServiceAccount string `json:"serviceAccount"`
 }
 
 // VirtlogdStatus defines the observed state of Virtlogd

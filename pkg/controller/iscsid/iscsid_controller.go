@@ -161,6 +161,7 @@ func newDaemonset(cr *novav1.Iscsid, cmName string) *appsv1.DaemonSet {
                                         DNSPolicy:      "ClusterFirstWithHostNet",
                                         Containers:     []corev1.Container{},
                                         Tolerations:    []corev1.Toleration{},
+                                        ServiceAccountName: cr.Spec.ServiceAccount,
                                 },
                         },
                 },

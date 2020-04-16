@@ -2,6 +2,8 @@ apiVersion: nova.openstack.org/v1
 kind: Iscsid
 metadata:
   name: iscsid
+  namespace: openstack
 spec:
   iscsidImage: trunk.registry.rdoproject.org/tripleotrain/rhel-binary-iscsid:abd5bae62f019fa9cdde538a7638107508ea86ac_82fad431
   label: compute
+  serviceAccount: nova-operator

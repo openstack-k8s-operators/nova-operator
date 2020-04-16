@@ -36,9 +36,13 @@ spec:
             novaLibvirtImage:
               description: Image is the Docker image to run for the daemon
               type: string
+            serviceAccount:
+              description: service account used to create pods
+              type: string
           required:
           - label
           - novaLibvirtImage
+          - serviceAccount
           type: object
         status:
           properties:

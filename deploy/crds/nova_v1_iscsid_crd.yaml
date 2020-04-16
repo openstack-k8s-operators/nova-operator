@@ -36,9 +36,13 @@ spec:
               description: Label is the value of the 'daemon=' label to set on a node
                 that should run the daemon
               type: string
+            serviceAccount:
+              description: service account used to create pods
+              type: string
           required:
           - label
           - iscsidImage
+          - serviceAccount
           type: object
         status:
           properties:

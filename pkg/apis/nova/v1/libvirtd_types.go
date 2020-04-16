@@ -12,6 +12,9 @@ type LibvirtdSpec struct {
 
         // Image is the Docker image to run for the daemon
         NovaLibvirtImage string `json:"novaLibvirtImage"`
+
+        // service account used to create pods
+        ServiceAccount string `json:"serviceAccount"`
 }
 
 // LibvirtdStatus defines the observed state of Libvirtd
