@@ -69,13 +69,7 @@ If necessary check logs with
     POD=`oc get pods -l name=nova-operator --field-selector=status.phase=Running -o name | head -1 -`; echo $POD
     oc logs $POD -f
 
-Create custom resource for a compute node which specifies the container images and the label
-get latest container images from rdo rhel8-train from https://trunk.rdoproject.org/rhel8-train/current-tripleo/commit.yaml
-or
-
-    dnf install python2 python2-yaml
-    python2 -c 'import urllib2;import yaml;c=yaml.load(urllib2.urlopen("https://trunk.rdoproject.org/rhel8-train/current-tripleo/commit.yaml"))["commits"][0];print "%s_%s" % (c["commit_hash"],c["distro_hash"][0:8])'
-    f8b48998e5d600f24513848b600e84176ce90223_243bc231
+Create custom resource for a compute node
 
 `deploy/crds/nova_v1_novacompute_cr.yaml` and `deploy/crds/nova_v1_virtlogd_cr.yaml` use a patched nova-libvirt image with added cgroups tools which are required for the libvirtd.sh wrapper script. 
 
@@ -114,7 +108,7 @@ Update `deploy/crds/nova_v1_iscsid_cr.yaml`, `deploy/crds/nova_v1_novamigrationt
       name: iscsid
       namespace: openstack
     spec:
-      iscsidImage: trunk.registry.rdoproject.org/tripleotrain/rhel-binary-iscsid:abd5bae62f019fa9cdde538a7638107508ea86ac_82fad431
+      iscsidImage: docker.io/tripleotrain/rhel-binary-iscsid:current-tripleo
       label: compute
       serviceAccount: nova-operator
 
@@ -127,7 +121,7 @@ Update `deploy/crds/nova_v1_iscsid_cr.yaml`, `deploy/crds/nova_v1_novamigrationt
       namespace: openstack
     spec:
       sshdPort: 2022
-      novaComputeImage: trunk.registry.rdoproject.org/tripleotrain/rhel-binary-nova-compute:91b368add3a55f74b489925ce9d6e84c61d95334_42a57bc6
+      novaComputeImage: docker.io/tripleotrain/rhel-binary-nova-compute:current-tripleo
       label: compute
       serviceAccount: nova-operator
 
@@ -155,7 +149,7 @@ Update `deploy/crds/nova_v1_iscsid_cr.yaml`, `deploy/crds/nova_v1_novamigrationt
       #novaComputeCpuDedicatedSet: 4-7
       #novaComputeCpuSharedSet: 0-3
 
-      novaComputeImage: trunk.registry.rdoproject.org/tripleotrain/rhel-binary-nova-compute:94b7298c65a2f7b7ba53b79ce1d0cf191d254e72_42a57bc6
+      novaComputeImage: docker.io/tripleotrain/rhel-binary-nova-compute:current-tripleo
       label: compute
       serviceAccount: nova-operator
 
