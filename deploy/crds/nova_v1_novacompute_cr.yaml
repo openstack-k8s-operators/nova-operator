@@ -19,6 +19,6 @@ spec:
   novaComputeCpuDedicatedSet: 4-7
   novaComputeCpuSharedSet: 0-3
 
-  novaComputeImage: trunk.registry.rdoproject.org/tripleotrain/rhel-binary-nova-compute:91b368add3a55f74b489925ce9d6e84c61d95334_42a57bc6
+  novaComputeImage: docker.io/tripleotrain/rhel-binary-nova-compute:current-tripleo
   label: compute
   serviceAccount: nova-operator
