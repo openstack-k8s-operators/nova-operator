@@ -15,8 +15,14 @@ rules:
   - events
   - configmaps
   - secrets
-  verbs:
-  - '*'
+    verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
 - apiGroups:
   - apps
   resources:
@@ -24,8 +30,14 @@ rules:
   - daemonsets
   - replicasets
   - statefulsets
-  verbs:
-  - '*'
+    verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
 - apiGroups:
   - monitoring.coreos.com
   resources:
@@ -49,8 +61,14 @@ rules:
   - libvirtds
   - iscsids
   - novamigrationtargets
-  verbs:
-  - '*'
+    verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
 - apiGroups:
   - security.openshift.io
   resourceNames:

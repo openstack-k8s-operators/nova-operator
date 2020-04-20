@@ -40,7 +40,7 @@ func (in *Iscsid) DeepCopyObject() runtime.Object {
 func (in *IscsidList) DeepCopyInto(out *IscsidList) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
-	out.ListMeta = in.ListMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
 		*out = make([]Iscsid, len(*in))
@@ -133,7 +133,7 @@ func (in *Libvirtd) DeepCopyObject() runtime.Object {
 func (in *LibvirtdList) DeepCopyInto(out *LibvirtdList) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
-	out.ListMeta = in.ListMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
 		*out = make([]Libvirtd, len(*in))
@@ -226,7 +226,7 @@ func (in *NovaCompute) DeepCopyObject() runtime.Object {
 func (in *NovaComputeList) DeepCopyInto(out *NovaComputeList) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
-	out.ListMeta = in.ListMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
 		*out = make([]NovaCompute, len(*in))
@@ -319,7 +319,7 @@ func (in *NovaMigrationTarget) DeepCopyObject() runtime.Object {
 func (in *NovaMigrationTargetList) DeepCopyInto(out *NovaMigrationTargetList) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
-	out.ListMeta = in.ListMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
 		*out = make([]NovaMigrationTarget, len(*in))
@@ -412,7 +412,7 @@ func (in *Virtlogd) DeepCopyObject() runtime.Object {
 func (in *VirtlogdList) DeepCopyInto(out *VirtlogdList) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
-	out.ListMeta = in.ListMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
 		*out = make([]Virtlogd, len(*in))
