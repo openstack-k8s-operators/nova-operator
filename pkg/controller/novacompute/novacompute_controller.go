@@ -237,7 +237,6 @@ func (r *ReconcileNovaCompute) setDaemonsetHash(instance *novav1.NovaCompute, ha
 
 func newDaemonset(cr *novav1.NovaCompute, cmName string, configHash string) *appsv1.DaemonSet {
         var bidirectional corev1.MountPropagationMode = corev1.MountPropagationBidirectional
-        var hostToContainer corev1.MountPropagationMode = corev1.MountPropagationHostToContainer
         var trueVar bool = true
         var configVolumeDefaultMode int32 = 0644
         var dirOrCreate corev1.HostPathType = corev1.HostPathDirectoryOrCreate
@@ -329,7 +328,6 @@ func newDaemonset(cr *novav1.NovaCompute, cmName string, configHash string) *app
                         {
                                 Name:      "var-lib-nova-volume",
                                 MountPath: "/var/lib/nova",
-                                MountPropagation: &bidirectional,
                         },
                         {
                                 Name:      "nova-config-vol",
@@ -369,15 +367,8 @@ func newDaemonset(cr *novav1.NovaCompute, cmName string, configHash string) *app
                 },
                 VolumeMounts: []corev1.VolumeMount{
                         {
-                                Name:      cmName,
-                                ReadOnly:  true,
-                                MountPath: "/etc/my.cnf.d/tripleo.cnf",
-                                SubPath:   "tripleo.cnf",
-                        },
-                        {
                                 Name:      "etc-libvirt-qemu-volume",
                                 MountPath: "/etc/libvirt/qemu",
-                                MountPropagation: &bidirectional,
                         },
                         {
                                 Name:      "etc-machine-id",
@@ -392,22 +383,20 @@ func newDaemonset(cr *novav1.NovaCompute, cmName string, configHash string) *app
                         {
                                 Name:      "boot-volume",
                                 MountPath: "/boot",
-                                MountPropagation: &hostToContainer,
+                                ReadOnly:  true,
                         },
                         {
                                 Name:      "dev-volume",
                                 MountPath: "/dev",
-                                MountPropagation: &hostToContainer,
                         },
                         {
                                 Name:      "lib-modules-volume",
                                 MountPath: "/lib/modules",
-                                MountPropagation: &hostToContainer,
+                                ReadOnly:  true,
                         },
                         {
                                 Name:      "run-volume",
                                 MountPath: "/run",
-                                MountPropagation: &hostToContainer,
                         },
                         {
                                 Name:      "sys-fs-cgroup-volume",
@@ -415,14 +404,8 @@ func newDaemonset(cr *novav1.NovaCompute, cmName string, configHash string) *app
                                 ReadOnly:  true,
                         },
                         {
-                                Name:      "run-libvirt-volume",
-                                MountPath: "/var/run/libvirt",
-                                MountPropagation: &bidirectional,
-                        },
-                        {
                                 Name:      "nova-log-volume",
                                 MountPath: "/var/log/nova",
-                                MountPropagation: &bidirectional,
                         },
                         {
                                 Name:      "var-lib-nova-volume",
@@ -437,7 +420,6 @@ func newDaemonset(cr *novav1.NovaCompute, cmName string, configHash string) *app
                         {
                                 Name:      "var-lib-iscsi-volume",
                                 MountPath: "/var/lib/iscsi",
-                                MountPropagation: &bidirectional,
                         },
                         {
                                 Name:      "nova-config-vol",
@@ -461,7 +443,7 @@ func newDaemonset(cr *novav1.NovaCompute, cmName string, configHash string) *app
                         Name: "etc-libvirt-qemu-volume",
                         VolumeSource: corev1.VolumeSource{
                                 HostPath: &corev1.HostPathVolumeSource{
-                                        Path: "/opt/osp/etc/libvirt/qemu",
+                                        Path: "/etc/libvirt/qemu",
                                         Type: &dirOrCreate,
                                 },
                         },
@@ -511,15 +493,6 @@ func newDaemonset(cr *novav1.NovaCompute, cmName string, configHash string) *app
                         VolumeSource: corev1.VolumeSource{
                                 HostPath: &corev1.HostPathVolumeSource{
                                         Path: "/sys/fs/cgroup",
-                                },
-                        },
-                },
-                {
-                        Name: "run-libvirt-volume",
-                        VolumeSource: corev1.VolumeSource{
-                                HostPath: &corev1.HostPathVolumeSource{
-                                        Path: "/var/run/libvirt",
-                                        Type: &dirOrCreate,
                                 },
                         },
                 },

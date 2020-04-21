@@ -126,8 +126,6 @@ func (r *ReconcileIscsid) Reconcile(request reconcile.Request) (reconcile.Result
 }
 
 func newDaemonset(cr *novav1.Iscsid, cmName string) *appsv1.DaemonSet {
-        var bidirectional corev1.MountPropagationMode = corev1.MountPropagationBidirectional
-        var hostToContainer corev1.MountPropagationMode = corev1.MountPropagationHostToContainer
         var trueVar bool = true
 
         daemonSet := appsv1.DaemonSet{
@@ -208,7 +206,7 @@ func newDaemonset(cr *novav1.Iscsid, cmName string) *appsv1.DaemonSet {
                         {
                                 Name:      "lib-modules-volume",
                                 MountPath: "/lib/modules",
-                                MountPropagation: &hostToContainer,
+                                ReadOnly:  true,
                         },
                         {
                                 Name:      "dev-volume",
@@ -225,7 +223,6 @@ func newDaemonset(cr *novav1.Iscsid, cmName string) *appsv1.DaemonSet {
                         {
                                 Name:      "var-lib-iscsi-volume",
                                 MountPath: "/var/lib/iscsi",
-                                MountPropagation: &bidirectional,
                         },
                 },
         }

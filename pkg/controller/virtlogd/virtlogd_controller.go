@@ -170,8 +170,6 @@ func (r *ReconcileVirtlogd) Reconcile(request reconcile.Request) (reconcile.Resu
 }
 
 func newDaemonset(cr *novav1.Virtlogd, cmName string) *appsv1.DaemonSet {
-
-        var bidirectional corev1.MountPropagationMode = corev1.MountPropagationBidirectional
         var hostToContainer corev1.MountPropagationMode = corev1.MountPropagationHostToContainer
         var trueVar bool = true
         var configVolumeDefaultMode int32 = 0644
@@ -258,17 +256,15 @@ func newDaemonset(cr *novav1.Virtlogd, cmName string) *appsv1.DaemonSet {
                         {
                                 Name:      "etc-libvirt-qemu-volume",
                                 MountPath: "/etc/libvirt/qemu",
-                                MountPropagation: &bidirectional,
                         },
                         {
                                 Name:      "lib-modules-volume",
                                 MountPath: "/lib/modules",
-                                MountPropagation: &hostToContainer,
+                                ReadOnly:  true,
                         },
                         {
                                 Name:      "dev-volume",
                                 MountPath: "/dev",
-                                MountPropagation: &hostToContainer,
                         },
                         {
                                 Name:      "sys-fs-cgroup-volume",
@@ -278,27 +274,20 @@ func newDaemonset(cr *novav1.Virtlogd, cmName string) *appsv1.DaemonSet {
                         {
                                 Name:      "run-volume",
                                 MountPath: "/run",
-                                MountPropagation: &hostToContainer,
-                        },
-                        {
-                                Name:      "run-libvirt-volume",
-                                MountPath: "/var/run/libvirt",
-                                MountPropagation: &bidirectional,
                         },
                         {
                                 Name:      "libvirt-log-volume",
                                 MountPath: "/var/log/libvirt",
-                                MountPropagation: &bidirectional,
                         },
                         {
                                 Name:      "var-lib-nova-volume",
                                 MountPath: "/var/lib/nova",
-                                MountPropagation: &bidirectional,
+                                MountPropagation: &hostToContainer,
                         },
                         {
                                 Name:      "var-lib-libvirt-volume",
                                 MountPath: "/var/lib/libvirt",
-                                MountPropagation: &bidirectional,
+                                MountPropagation: &hostToContainer,
                         },
                 },
         }
