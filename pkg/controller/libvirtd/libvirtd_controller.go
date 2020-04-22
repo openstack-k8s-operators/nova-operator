@@ -212,7 +212,6 @@ func (r *ReconcileLibvirtd) setDaemonsetHash(instance *novav1.Libvirtd, hashStr 
 
 func newDaemonset(cr *novav1.Libvirtd, cmName string, configHash string) *appsv1.DaemonSet {
         var bidirectional corev1.MountPropagationMode = corev1.MountPropagationBidirectional
-        var hostToContainer corev1.MountPropagationMode = corev1.MountPropagationHostToContainer
         var trueVar bool = true
         var falseVar bool = false
         var configVolumeDefaultMode int32 = 0644
@@ -348,36 +347,27 @@ func newDaemonset(cr *novav1.Libvirtd, cmName string, configHash string) *appsv1
                         {
                                 Name:      "etc-libvirt-qemu",
                                 MountPath: "/etc/libvirt/qemu",
-                                MountPropagation: &bidirectional,
                         },
                         {
                                 Name:      "lib-modules",
                                 MountPath: "/lib/modules",
-                                MountPropagation: &hostToContainer,
+                                ReadOnly:  true,
                         },
                         {
                                 Name:      "dev",
                                 MountPath: "/dev",
-                                MountPropagation: &bidirectional,
                         },
                         {
                                 Name:      "run",
                                 MountPath: "/run",
-                                MountPropagation: &bidirectional,
                         },
                         {
                                 Name:      "sys-fs-cgroup",
                                 MountPath: "/sys/fs/cgroup",
                         },
                         {
-                                Name:      "var-run-libvirt",
-                                MountPath: "/var/run/libvirt",
-                                MountPropagation: &bidirectional,
-                        },
-                        {
                                 Name:      "libvirt-log",
                                 MountPath: "/var/log/libvirt",
-                                MountPropagation: &bidirectional,
                         },
                         {
                                 Name:      "var-lib-nova",
@@ -392,7 +382,6 @@ func newDaemonset(cr *novav1.Libvirtd, cmName string, configHash string) *appsv1
                         {
                                 Name:      "var-lib-vhost-sockets",
                                 MountPath: "/var/lib/vhost_sockets",
-                                MountPropagation: &bidirectional,
                         },
                         {
                                 Name:      "nova-config",
@@ -408,7 +397,7 @@ func newDaemonset(cr *novav1.Libvirtd, cmName string, configHash string) *appsv1
                         Name: "etc-libvirt-qemu",
                         VolumeSource: corev1.VolumeSource{
                                 HostPath: &corev1.HostPathVolumeSource{
-                                        Path: "/opt/osp/etc/libvirt/qemu",
+                                        Path: "/etc/libvirt/qemu",
                                         Type: &dirOrCreate,
                                 },
                         },

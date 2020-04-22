@@ -238,7 +238,7 @@ func (r *ReconcileNovaMigrationTarget) setDaemonsetHash(instance *novav1.NovaMig
 }
 
 func newDaemonset(cr *novav1.NovaMigrationTarget, cmName string, configHash string) *appsv1.DaemonSet {
-        var bidirectional corev1.MountPropagationMode = corev1.MountPropagationBidirectional
+        var hostToContainer corev1.MountPropagationMode = corev1.MountPropagationHostToContainer
         var trueVar bool = true
         var userId int64 = 0
         var configVolumeDefaultMode int32 = 0600
@@ -319,7 +319,6 @@ func newDaemonset(cr *novav1.NovaMigrationTarget, cmName string, configHash stri
                         {
                                 Name:      "var-lib-nova",
                                 MountPath: "/var/lib/nova",
-                                MountPropagation: &bidirectional,
                         },
                         {
                                 Name:      cmName,
@@ -394,22 +393,22 @@ func newDaemonset(cr *novav1.NovaMigrationTarget, cmName string, configHash stri
                         {
                                 Name:      "var-lib-nova",
                                 MountPath: "/var/lib/nova",
-                                MountPropagation: &bidirectional,
+                                MountPropagation: &hostToContainer,
                         },
                         {
                                 Name:      "run-libvirt",
                                 MountPath: "/run/libvirt",
-                                MountPropagation: &bidirectional,
+                                ReadOnly:  true,
                         },
                         {
                                 Name:      "ssh-config-vol",
                                 MountPath: "/etc/ssh",
-                                //ReadOnly:  true,
+                                ReadOnly:  true,
                         },
                         {
                                 Name:      "nova-config-vol",
                                 MountPath: "/etc/nova/migration",
-                                //ReadOnly:  true,
+                                ReadOnly:  true,
                         },
                 },
         }
