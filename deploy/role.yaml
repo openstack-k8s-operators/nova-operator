@@ -15,7 +15,7 @@ rules:
   - events
   - configmaps
   - secrets
-    verbs:
+  verbs:
   - create
   - delete
   - get
@@ -30,7 +30,7 @@ rules:
   - daemonsets
   - replicasets
   - statefulsets
-    verbs:
+  verbs:
   - create
   - delete
   - get
@@ -61,7 +61,7 @@ rules:
   - libvirtds
   - iscsids
   - novamigrationtargets
-    verbs:
+  verbs:
   - create
   - delete
   - get
