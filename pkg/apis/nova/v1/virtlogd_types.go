@@ -7,21 +7,21 @@ import (
 // VirtlogdSpec defines the desired state of Virtlogd
 // +k8s:openapi-gen=true
 type VirtlogdSpec struct {
-        // Label is the value of the 'daemon=' label to set on a node that should run the daemon
-        Label string `json:"label"`
+	// Label is the value of the 'daemon=' label to set on a node that should run the daemon
+	Label string `json:"label"`
 
-        // Image is the Docker image to run for the daemon
-        NovaLibvirtImage string `json:"novaLibvirtImage"`
+	// Image is the Docker image to run for the daemon
+	NovaLibvirtImage string `json:"novaLibvirtImage"`
 
-        // service account used to create pods
-        ServiceAccount string `json:"serviceAccount"`
+	// service account used to create pods
+	ServiceAccount string `json:"serviceAccount"`
 }
 
 // VirtlogdStatus defines the observed state of Virtlogd
 // +k8s:openapi-gen=true
 type VirtlogdStatus struct {
-        // Count is the number of nodes the daemon is deployed to
-        Count int32 `json:"count"`
+	// Count is the number of nodes the daemon is deployed to
+	Count int32 `json:"count"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

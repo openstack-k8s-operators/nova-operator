@@ -9,21 +9,21 @@ import (
 // IscsidSpec defines the desired state of Iscsid
 // +k8s:openapi-gen=true
 type IscsidSpec struct {
-        // Label is the value of the 'daemon=' label to set on a node that should run the daemon
-        Label string `json:"label"`
-        // Image is the Docker image to run for the daemon
-        IscsidImage string `json:"iscsidImage"`
-        // service account used to create pods
-        ServiceAccount string `json:"serviceAccount"`
+	// Label is the value of the 'daemon=' label to set on a node that should run the daemon
+	Label string `json:"label"`
+	// Image is the Docker image to run for the daemon
+	IscsidImage string `json:"iscsidImage"`
+	// service account used to create pods
+	ServiceAccount string `json:"serviceAccount"`
 }
 
 // IscsidStatus defines the observed state of Iscsid
 // +k8s:openapi-gen=true
 type IscsidStatus struct {
-        // Count is the number of nodes the daemon is deployed to
-        Count int32 `json:"count"`
-        // Daemonset hash used to detect changes
-        DaemonsetHash string `json:"daemonsetHash"`
+	// Count is the number of nodes the daemon is deployed to
+	Count int32 `json:"count"`
+	// Daemonset hash used to detect changes
+	DaemonsetHash string `json:"daemonsetHash"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

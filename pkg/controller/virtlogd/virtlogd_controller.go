@@ -2,13 +2,13 @@ package virtlogd
 
 import (
 	"context"
-        //"fmt"
-        "reflect"
+	//"fmt"
+	"reflect"
 
 	novav1 "github.com/openstack-k8s-operators/nova-operator/pkg/apis/nova/v1"
-        appsv1 "k8s.io/api/apps/v1"
+	virtlogd "github.com/openstack-k8s-operators/nova-operator/pkg/virtlogd"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-        virtlogd "github.com/openstack-k8s-operators/nova-operator/pkg/virtlogd"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -17,9 +17,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
@@ -27,7 +27,7 @@ var log = logf.Log.WithName("controller_virtlogd")
 
 // TODO move to spec like image urls?
 const (
-        COMMON_CONFIGMAP   string = "common-config"
+	COMMON_CONFIGMAP string = "common-config"
 )
 
 // Add creates a new Virtlogd Controller and adds it to the Manager. The Manager will set fields on the Controller
@@ -55,23 +55,23 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
-        // Watch ConfigMaps owned by Virtlogd
-        err = c.Watch(&source.Kind{Type: &corev1.ConfigMap{}}, &handler.EnqueueRequestForOwner{
-                IsController: false,
-                OwnerType:    &novav1.Virtlogd{},
-        })
-        if err != nil {
-                return err
-        }
+	// Watch ConfigMaps owned by Virtlogd
+	err = c.Watch(&source.Kind{Type: &corev1.ConfigMap{}}, &handler.EnqueueRequestForOwner{
+		IsController: false,
+		OwnerType:    &novav1.Virtlogd{},
+	})
+	if err != nil {
+		return err
+	}
 
-        // Watch Secrets owned by Virtlogd
-        err = c.Watch(&source.Kind{Type: &corev1.Secret{}}, &handler.EnqueueRequestForOwner{
-                IsController: false,
-                OwnerType:    &novav1.Virtlogd{},
-        })
-        if err != nil {
-                return err
-        }
+	// Watch Secrets owned by Virtlogd
+	err = c.Watch(&source.Kind{Type: &corev1.Secret{}}, &handler.EnqueueRequestForOwner{
+		IsController: false,
+		OwnerType:    &novav1.Virtlogd{},
+	})
+	if err != nil {
+		return err
+	}
 
 	// TODO(user): Modify this to be the types you create that are owned by the primary resource
 	// Watch for changes to secondary resource Pods and requeue the owner Virtlogd
@@ -122,26 +122,26 @@ func (r *ReconcileVirtlogd) Reconcile(request reconcile.Request) (reconcile.Resu
 		return reconcile.Result{}, err
 	}
 
-        // ConfigMap
-        configMap := virtlogd.ConfigMap(instance, instance.Name)
-        if err := controllerutil.SetControllerReference(instance, configMap, r.scheme); err != nil {
-                return reconcile.Result{}, err
-        }
-        // Check if this ConfigMap already exists
-        foundConfigMap := &corev1.ConfigMap{}
-        err = r.client.Get(context.TODO(), types.NamespacedName{Name: configMap.Name, Namespace: configMap.Namespace}, foundConfigMap)
-        if err != nil && errors.IsNotFound(err) {
-                reqLogger.Info("Creating a new ConfigMap", "ConfigMap.Namespace", configMap.Namespace, "Job.Name", configMap.Name)
-                err = r.client.Create(context.TODO(), configMap)
-                if err != nil {
-                        return reconcile.Result{}, err
-                }
-        } else if !reflect.DeepEqual(configMap.Data, foundConfigMap.Data) {
-                reqLogger.Info("Virtlogd ConfigMap got update, we do not restart virtlogd automatically as it won't reopen console.log files!")
-        }
+	// ConfigMap
+	configMap := virtlogd.ConfigMap(instance, instance.Name)
+	if err := controllerutil.SetControllerReference(instance, configMap, r.scheme); err != nil {
+		return reconcile.Result{}, err
+	}
+	// Check if this ConfigMap already exists
+	foundConfigMap := &corev1.ConfigMap{}
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: configMap.Name, Namespace: configMap.Namespace}, foundConfigMap)
+	if err != nil && errors.IsNotFound(err) {
+		reqLogger.Info("Creating a new ConfigMap", "ConfigMap.Namespace", configMap.Namespace, "Job.Name", configMap.Name)
+		err = r.client.Create(context.TODO(), configMap)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+	} else if !reflect.DeepEqual(configMap.Data, foundConfigMap.Data) {
+		reqLogger.Info("Virtlogd ConfigMap got update, we do not restart virtlogd automatically as it won't reopen console.log files!")
+	}
 
-        // Define a new Daemonset object
-        ds := newDaemonset(instance, instance.Name)
+	// Define a new Daemonset object
+	ds := newDaemonset(instance, instance.Name)
 
 	// Set Virtlogd instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, ds, r.scheme); err != nil {
@@ -150,10 +150,10 @@ func (r *ReconcileVirtlogd) Reconcile(request reconcile.Request) (reconcile.Resu
 
 	// Check if this Daemonset already exists
 	found := &appsv1.DaemonSet{}
-        err = r.client.Get(context.TODO(), types.NamespacedName{Name: ds.Name, Namespace: ds.Namespace}, found)
-        if err != nil && errors.IsNotFound(err) {
-                reqLogger.Info("Creating a new Daemonset", "Ds.Namespace", ds.Namespace, "Ds.Name", ds.Name)
-                err = r.client.Create(context.TODO(), ds)
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: ds.Name, Namespace: ds.Namespace}, found)
+	if err != nil && errors.IsNotFound(err) {
+		reqLogger.Info("Creating a new Daemonset", "Ds.Namespace", ds.Namespace, "Ds.Name", ds.Name)
+		err = r.client.Create(context.TODO(), ds)
 		if err != nil {
 			return reconcile.Result{}, err
 		}
@@ -164,237 +164,236 @@ func (r *ReconcileVirtlogd) Reconcile(request reconcile.Request) (reconcile.Resu
 		return reconcile.Result{}, err
 	}
 
-        // Daemonset already exists - don't requeue
-        reqLogger.Info("Skip reconcile: Daemonset already exists", "Ds.Namespace", found.Namespace, "Ds.Name", found.Name)
-        return reconcile.Result{}, nil
+	// Daemonset already exists - don't requeue
+	reqLogger.Info("Skip reconcile: Daemonset already exists", "Ds.Namespace", found.Namespace, "Ds.Name", found.Name)
+	return reconcile.Result{}, nil
 }
 
 func newDaemonset(cr *novav1.Virtlogd, cmName string) *appsv1.DaemonSet {
-        var hostToContainer corev1.MountPropagationMode = corev1.MountPropagationHostToContainer
-        var trueVar bool = true
-        var configVolumeDefaultMode int32 = 0644
-        var dirOrCreate corev1.HostPathType = corev1.HostPathDirectoryOrCreate
+	var hostToContainer corev1.MountPropagationMode = corev1.MountPropagationHostToContainer
+	var trueVar bool = true
+	var configVolumeDefaultMode int32 = 0644
+	var dirOrCreate corev1.HostPathType = corev1.HostPathDirectoryOrCreate
 
-        daemonSet := appsv1.DaemonSet{
-                TypeMeta: metav1.TypeMeta{
-                        Kind:       "DaemonSet",
-                        APIVersion: "apps/v1",
-                },
-                ObjectMeta: metav1.ObjectMeta{
-                        Name:      cmName,
-                        Namespace: cr.Namespace,
-                        //OwnerReferences: []metav1.OwnerReference{
-                        //      *metav1.NewControllerRef(cr, schema.GroupVersionKind{
-                        //              Group:   v1beta1.SchemeGroupVersion.Group,
-                        //              Version: v1beta1.SchemeGroupVersion.Version,
-                        //              Kind:    "GenericDaemon",
-                        //      }),
-                        //},
-                },
-                Spec: appsv1.DaemonSetSpec{
-                        Selector: &metav1.LabelSelector{
-                                MatchLabels: map[string]string{"daemonset": cr.Name + "-daemonset"},
-                        },
-                        Template: corev1.PodTemplateSpec{
-                                ObjectMeta: metav1.ObjectMeta{
-                                        Labels: map[string]string{"daemonset": cr.Name + "-daemonset"},
-                                },
-                                Spec: corev1.PodSpec{
-                                        NodeSelector:   map[string]string{"daemon": cr.Spec.Label},
-                                        HostNetwork:    true,
-                                        HostPID:        true,
-                                        DNSPolicy:      "ClusterFirstWithHostNet",
-                                        InitContainers: []corev1.Container{},
-                                        Containers:     []corev1.Container{},
-                                        Tolerations:    []corev1.Toleration{},
-                                        ServiceAccountName: cr.Spec.ServiceAccount,
-                                },
-                        },
-                },
-        }
+	daemonSet := appsv1.DaemonSet{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "DaemonSet",
+			APIVersion: "apps/v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      cmName,
+			Namespace: cr.Namespace,
+			//OwnerReferences: []metav1.OwnerReference{
+			//      *metav1.NewControllerRef(cr, schema.GroupVersionKind{
+			//              Group:   v1beta1.SchemeGroupVersion.Group,
+			//              Version: v1beta1.SchemeGroupVersion.Version,
+			//              Kind:    "GenericDaemon",
+			//      }),
+			//},
+		},
+		Spec: appsv1.DaemonSetSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"daemonset": cr.Name + "-daemonset"},
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"daemonset": cr.Name + "-daemonset"},
+				},
+				Spec: corev1.PodSpec{
+					NodeSelector:       map[string]string{"daemon": cr.Spec.Label},
+					HostNetwork:        true,
+					HostPID:            true,
+					DNSPolicy:          "ClusterFirstWithHostNet",
+					InitContainers:     []corev1.Container{},
+					Containers:         []corev1.Container{},
+					Tolerations:        []corev1.Toleration{},
+					ServiceAccountName: cr.Spec.ServiceAccount,
+				},
+			},
+		},
+	}
 
+	tolerationSpec := corev1.Toleration{
+		Operator: "Exists",
+	}
+	daemonSet.Spec.Template.Spec.Tolerations = append(daemonSet.Spec.Template.Spec.Tolerations, tolerationSpec)
 
-        tolerationSpec := corev1.Toleration{
-                Operator: "Exists",
-        }
-        daemonSet.Spec.Template.Spec.Tolerations = append(daemonSet.Spec.Template.Spec.Tolerations, tolerationSpec)
+	virtlogdContainerSpec := corev1.Container{
+		Name:  "virtlogd",
+		Image: cr.Spec.NovaLibvirtImage,
+		//NOTE: removed for now as after some time it left a lot of parallel lsof processes running, need to investigate
+		//ReadinessProbe: &corev1.Probe{
+		//        Handler: corev1.Handler{
+		//                Exec: &corev1.ExecAction{
+		//                        Command: []string{
+		//                                "/openstack/healthcheck", "virtlogd",
+		//                        },
+		//                },
+		//        },
+		//        InitialDelaySeconds: 30,
+		//        PeriodSeconds:       30,
+		//        TimeoutSeconds:      1,
+		//},
+		Command: []string{
+			"/usr/sbin/virtlogd", "--config", "/etc/libvirt/virtlogd.conf",
+		},
+		SecurityContext: &corev1.SecurityContext{
+			Privileged: &trueVar,
+		},
+		VolumeMounts: []corev1.VolumeMount{
+			{
+				Name:      cmName,
+				ReadOnly:  true,
+				MountPath: "/etc/libvirt/virtlogd.conf",
+				SubPath:   "virtlogd.conf",
+			},
+			{
+				Name:      "etc-machine-id",
+				MountPath: "/etc/machine-id",
+				ReadOnly:  true,
+			},
+			{
+				Name:      "etc-libvirt-qemu-volume",
+				MountPath: "/etc/libvirt/qemu",
+			},
+			{
+				Name:      "lib-modules-volume",
+				MountPath: "/lib/modules",
+				ReadOnly:  true,
+			},
+			{
+				Name:      "dev-volume",
+				MountPath: "/dev",
+			},
+			{
+				Name:      "sys-fs-cgroup-volume",
+				MountPath: "/sys/fs/cgroup",
+				ReadOnly:  true,
+			},
+			{
+				Name:      "run-volume",
+				MountPath: "/run",
+			},
+			{
+				Name:      "libvirt-log-volume",
+				MountPath: "/var/log/libvirt",
+			},
+			{
+				Name:             "var-lib-nova-volume",
+				MountPath:        "/var/lib/nova",
+				MountPropagation: &hostToContainer,
+			},
+			{
+				Name:             "var-lib-libvirt-volume",
+				MountPath:        "/var/lib/libvirt",
+				MountPropagation: &hostToContainer,
+			},
+		},
+	}
 
-        virtlogdContainerSpec := corev1.Container{
-                Name:  "virtlogd",
-                Image: cr.Spec.NovaLibvirtImage,
-                //NOTE: removed for now as after some time it left a lot of parallel lsof processes running, need to investigate
-                //ReadinessProbe: &corev1.Probe{
-                //        Handler: corev1.Handler{
-                //                Exec: &corev1.ExecAction{
-                //                        Command: []string{
-                //                                "/openstack/healthcheck", "virtlogd",
-                //                        },
-                //                },
-                //        },
-                //        InitialDelaySeconds: 30,
-                //        PeriodSeconds:       30,
-                //        TimeoutSeconds:      1,
-                //},
-                Command: []string{
-                        "/usr/sbin/virtlogd", "--config", "/etc/libvirt/virtlogd.conf",
-                },
-                SecurityContext: &corev1.SecurityContext{
-                        Privileged:  &trueVar,
-                },
-                VolumeMounts: []corev1.VolumeMount{
-                        {
-                                Name:      cmName,
-                                ReadOnly:  true,
-                                MountPath: "/etc/libvirt/virtlogd.conf",
-                                SubPath:   "virtlogd.conf",
-                        },
-                        {
-                                Name:      "etc-machine-id",
-                                MountPath: "/etc/machine-id",
-                                ReadOnly:  true,
-                        },
-                        {
-                                Name:      "etc-libvirt-qemu-volume",
-                                MountPath: "/etc/libvirt/qemu",
-                        },
-                        {
-                                Name:      "lib-modules-volume",
-                                MountPath: "/lib/modules",
-                                ReadOnly:  true,
-                        },
-                        {
-                                Name:      "dev-volume",
-                                MountPath: "/dev",
-                        },
-                        {
-                                Name:      "sys-fs-cgroup-volume",
-                                MountPath: "/sys/fs/cgroup",
-                                ReadOnly:  true,
-                        },
-                        {
-                                Name:      "run-volume",
-                                MountPath: "/run",
-                        },
-                        {
-                                Name:      "libvirt-log-volume",
-                                MountPath: "/var/log/libvirt",
-                        },
-                        {
-                                Name:      "var-lib-nova-volume",
-                                MountPath: "/var/lib/nova",
-                                MountPropagation: &hostToContainer,
-                        },
-                        {
-                                Name:      "var-lib-libvirt-volume",
-                                MountPath: "/var/lib/libvirt",
-                                MountPropagation: &hostToContainer,
-                        },
-                },
-        }
+	daemonSet.Spec.Template.Spec.Containers = append(daemonSet.Spec.Template.Spec.Containers, virtlogdContainerSpec)
 
-        daemonSet.Spec.Template.Spec.Containers = append(daemonSet.Spec.Template.Spec.Containers, virtlogdContainerSpec)
+	volConfigs := []corev1.Volume{
+		{
+			Name: "etc-libvirt-qemu-volume",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/opt/osp/etc/libvirt/qemu",
+					Type: &dirOrCreate,
+				},
+			},
+		},
+		{
+			Name: "etc-machine-id",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/etc/machine-id",
+				},
+			},
+		},
+		{
+			Name: "dev-volume",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/dev",
+				},
+			},
+		},
+		{
+			Name: "sys-fs-cgroup-volume",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/sys/fs/cgroup",
+				},
+			},
+		},
+		{
+			Name: "run-libvirt-volume",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/var/run/libvirt",
+					Type: &dirOrCreate,
+				},
+			},
+		},
+		{
+			Name: "run-volume",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/run",
+				},
+			},
+		},
+		{
+			Name: "var-lib-nova-volume",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/var/lib/nova",
+					Type: &dirOrCreate,
+				},
+			},
+		},
+		{
+			Name: "var-lib-libvirt-volume",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/var/lib/libvirt",
+					Type: &dirOrCreate,
+				},
+			},
+		},
+		{
+			Name: "lib-modules-volume",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/lib/modules",
+				},
+			},
+		},
+		{
+			Name: "libvirt-log-volume",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/var/log/containers/libvirt",
+					Type: &dirOrCreate,
+				},
+			},
+		},
+		{
+			Name: cmName,
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					DefaultMode: &configVolumeDefaultMode,
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: cmName,
+					},
+				},
+			},
+		},
+	}
+	for _, volConfig := range volConfigs {
+		daemonSet.Spec.Template.Spec.Volumes = append(daemonSet.Spec.Template.Spec.Volumes, volConfig)
+	}
 
-        volConfigs := []corev1.Volume{
-                {
-                        Name: "etc-libvirt-qemu-volume",
-                        VolumeSource: corev1.VolumeSource{
-                                HostPath: &corev1.HostPathVolumeSource{
-                                        Path: "/opt/osp/etc/libvirt/qemu",
-                                        Type: &dirOrCreate,
-                                },
-                        },
-                },
-                {
-                        Name: "etc-machine-id",
-                        VolumeSource: corev1.VolumeSource{
-                                HostPath: &corev1.HostPathVolumeSource{
-                                        Path: "/etc/machine-id",
-                                },
-                        },
-                },
-                {
-                        Name: "dev-volume",
-                        VolumeSource: corev1.VolumeSource{
-                                HostPath: &corev1.HostPathVolumeSource{
-                                        Path: "/dev",
-                                },
-                        },
-                },
-                {
-                        Name: "sys-fs-cgroup-volume",
-                        VolumeSource: corev1.VolumeSource{
-                                HostPath: &corev1.HostPathVolumeSource{
-                                        Path: "/sys/fs/cgroup",
-                                },
-                        },
-                },
-                {
-                        Name: "run-libvirt-volume",
-                        VolumeSource: corev1.VolumeSource{
-                                HostPath: &corev1.HostPathVolumeSource{
-                                        Path: "/var/run/libvirt",
-                                        Type: &dirOrCreate,
-                                },
-                        },
-                },
-                {
-                        Name: "run-volume",
-                        VolumeSource: corev1.VolumeSource{
-                                HostPath: &corev1.HostPathVolumeSource{
-                                        Path: "/run",
-                                },
-                        },
-                },
-                {
-                        Name: "var-lib-nova-volume",
-                        VolumeSource: corev1.VolumeSource{
-                                HostPath: &corev1.HostPathVolumeSource{
-                                        Path: "/var/lib/nova",
-                                        Type: &dirOrCreate,
-                                },
-                        },
-                },
-                {
-                        Name: "var-lib-libvirt-volume",
-                        VolumeSource: corev1.VolumeSource{
-                                HostPath: &corev1.HostPathVolumeSource{
-                                        Path: "/var/lib/libvirt",
-                                        Type: &dirOrCreate,
-                                },
-                        },
-                },
-                {
-                        Name: "lib-modules-volume",
-                        VolumeSource: corev1.VolumeSource{
-                                HostPath: &corev1.HostPathVolumeSource{
-                                        Path: "/lib/modules",
-                                },
-                        },
-                },
-                {
-                        Name: "libvirt-log-volume",
-                        VolumeSource: corev1.VolumeSource{
-                                HostPath: &corev1.HostPathVolumeSource{
-                                        Path: "/var/log/containers/libvirt",
-                                        Type: &dirOrCreate,
-                                },
-                        },
-                },
-                {
-                        Name: cmName,
-                        VolumeSource: corev1.VolumeSource{
-                                ConfigMap: &corev1.ConfigMapVolumeSource{
-                                         DefaultMode: &configVolumeDefaultMode,
-                                         LocalObjectReference: corev1.LocalObjectReference{
-                                                 Name: cmName,
-                                         },
-                                },
-                        },
-                },
-        }
-        for _, volConfig := range volConfigs {
-                daemonSet.Spec.Template.Spec.Volumes = append(daemonSet.Spec.Template.Spec.Volumes, volConfig)
-        }
-
-        return &daemonSet
+	return &daemonSet
 }

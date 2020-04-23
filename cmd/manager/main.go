@@ -37,8 +37,8 @@ import (
 
 // Change below variables to serve metrics on different host or port.
 var (
-	metricsHost       = "0.0.0.0"
-	metricsPort int32 = 8383
+	metricsHost               = "0.0.0.0"
+	metricsPort         int32 = 8383
 	operatorMetricsPort int32 = 8686
 )
 var log = logf.Log.WithName("cmd")
@@ -93,7 +93,6 @@ func main() {
 		log.Error(err, "")
 		os.Exit(1)
 	}
-
 
 	// Set default manager options
 	options := manager.Options{
