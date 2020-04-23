@@ -100,7 +100,7 @@ func (r *ReconcileIscsid) Reconcile(request reconcile.Request) (reconcile.Result
         ds := newDaemonset(instance, instance.Name)
 
         // Set Iscsid instance as the owner and controller
-        if err := controllerutil.SetControllerReference(instance, ds, r.scheme); err != nil {                                              
+        if err := controllerutil.SetControllerReference(instance, ds, r.scheme); err != nil {
                 return reconcile.Result{}, err
         }
 
@@ -292,4 +292,3 @@ func newDaemonset(cr *novav1.Iscsid, cmName string) *appsv1.DaemonSet {
 
         return &daemonSet
 }
-

@@ -61,7 +61,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	}
 
         // Watch ConfigMaps owned by NovaMigrationTarget
-        err = c.Watch(&source.Kind{Type: &corev1.ConfigMap{}}, &handler.EnqueueRequestForOwner{                                            
+        err = c.Watch(&source.Kind{Type: &corev1.ConfigMap{}}, &handler.EnqueueRequestForOwner{
                 IsController: false,
                 OwnerType:    &novav1.NovaMigrationTarget{},
         })
@@ -70,7 +70,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
         }
 
         // Watch Secrets owned by NovaMigrationTarget
-        err = c.Watch(&source.Kind{Type: &corev1.Secret{}}, &handler.EnqueueRequestForOwner{                                               
+        err = c.Watch(&source.Kind{Type: &corev1.Secret{}}, &handler.EnqueueRequestForOwner{
                 IsController: false,
                 OwnerType:    &novav1.NovaMigrationTarget{},
         })
@@ -127,15 +127,15 @@ func (r *ReconcileNovaMigrationTarget) Reconcile(request reconcile.Request) (rec
 
         commonConfigMap := &corev1.ConfigMap{}
 
-        reqLogger.Info("Creating host entries from config map:", "configMap: ", COMMON_CONFIGMAP)                                          
-        err = r.client.Get(context.TODO(), types.NamespacedName{Name: COMMON_CONFIGMAP, Namespace: instance.Namespace}, commonConfigMap)   
+        reqLogger.Info("Creating host entries from config map:", "configMap: ", COMMON_CONFIGMAP)
+        err = r.client.Get(context.TODO(), types.NamespacedName{Name: COMMON_CONFIGMAP, Namespace: instance.Namespace}, commonConfigMap)
 
         if err != nil && errors.IsNotFound(err) {
                 reqLogger.Error(err, "common-config ConfigMap not found!", "Instance.Namespace", instance.Namespace, "Instance.Name", instance.Name)
                 return reconcile.Result{}, err
         }
 
-        if err := controllerutil.SetControllerReference(instance, commonConfigMap, r.scheme); err != nil {                                 
+        if err := controllerutil.SetControllerReference(instance, commonConfigMap, r.scheme); err != nil {
                 return reconcile.Result{}, err
         }
         // Create additional host entries added to the /etc/hosts file of the containers
@@ -147,19 +147,19 @@ func (r *ReconcileNovaMigrationTarget) Reconcile(request reconcile.Request) (rec
 
         // ConfigMap
         configMap := nova.ConfigMap(instance, instance.Name)
-        if err := controllerutil.SetControllerReference(instance, configMap, r.scheme); err != nil {                                       
+        if err := controllerutil.SetControllerReference(instance, configMap, r.scheme); err != nil {
                 return reconcile.Result{}, err
         }
         // Check if this ConfigMap already exists
         foundConfigMap := &corev1.ConfigMap{}
-        err = r.client.Get(context.TODO(), types.NamespacedName{Name: configMap.Name, Namespace: configMap.Namespace}, foundConfigMap)     
+        err = r.client.Get(context.TODO(), types.NamespacedName{Name: configMap.Name, Namespace: configMap.Namespace}, foundConfigMap)
         if err != nil && errors.IsNotFound(err) {
-                reqLogger.Info("Creating a new ConfigMap", "ConfigMap.Namespace", configMap.Namespace, "Job.Name", configMap.Name)         
+                reqLogger.Info("Creating a new ConfigMap", "ConfigMap.Namespace", configMap.Namespace, "Job.Name", configMap.Name)
                 err = r.client.Create(context.TODO(), configMap)
                 if err != nil {
                         return reconcile.Result{}, err
                 }
-        } else if !reflect.DeepEqual(configMap.Data, foundConfigMap.Data) {                              
+        } else if !reflect.DeepEqual(configMap.Data, foundConfigMap.Data) {
                 reqLogger.Info("Updating ConfigMap")
 
                 configMap.Data = foundConfigMap.Data
@@ -188,9 +188,9 @@ func (r *ReconcileNovaMigrationTarget) Reconcile(request reconcile.Request) (rec
 
         // Check if this Daemonset already exists
         found := &appsv1.DaemonSet{}
-        err = r.client.Get(context.TODO(), types.NamespacedName{Name: ds.Name, Namespace: ds.Namespace}, found)                            
+        err = r.client.Get(context.TODO(), types.NamespacedName{Name: ds.Name, Namespace: ds.Namespace}, found)
         if err != nil && errors.IsNotFound(err) {
-                reqLogger.Info("Creating a new Daemonset", "Ds.Namespace", ds.Namespace, "Ds.Name", ds.Name)                               
+                reqLogger.Info("Creating a new Daemonset", "Ds.Namespace", ds.Namespace, "Ds.Name", ds.Name)
                 err = r.client.Create(context.TODO(), ds)
                 if err != nil {
                         return reconcile.Result{}, err
@@ -210,7 +210,7 @@ func (r *ReconcileNovaMigrationTarget) Reconcile(request reconcile.Request) (rec
                                 return reconcile.Result{}, err
                         }
                         r.setDaemonsetHash(instance, dsHash)
-                        return reconcile.Result{RequeueAfter: time.Second * 10}, err                                                       
+                        return reconcile.Result{RequeueAfter: time.Second * 10}, err
                 }
 //                if found.Status.ReadyNovaMigrationTargetStatus == instance.Spec.NovaMigrationTargetStatus {
 //                        reqLogger.Info("Daemonsets running:", "Daemonsets", found.Status.ReadyNovaMigrationTargetStatus)                         
@@ -221,15 +221,15 @@ func (r *ReconcileNovaMigrationTarget) Reconcile(request reconcile.Request) (rec
         }
 
         // Daemonset already exists - don't requeue
-        reqLogger.Info("Skip reconcile: Daemonset already exists", "Ds.Namespace", found.Namespace, "Ds.Name", found.Name)                 
+        reqLogger.Info("Skip reconcile: Daemonset already exists", "Ds.Namespace", found.Namespace, "Ds.Name", found.Name)
         return reconcile.Result{}, nil
 }
 
-func (r *ReconcileNovaMigrationTarget) setDaemonsetHash(instance *novav1.NovaMigrationTarget, hashStr string) error {                                      
+func (r *ReconcileNovaMigrationTarget) setDaemonsetHash(instance *novav1.NovaMigrationTarget, hashStr string) error {
 
         if hashStr != instance.Status.DaemonsetHash {
                 instance.Status.DaemonsetHash = hashStr
-                if err := r.client.Status().Update(context.TODO(), instance); err != nil {                                                 
+                if err := r.client.Status().Update(context.TODO(), instance); err != nil {
                         return err
                 }
         }
@@ -482,7 +482,7 @@ func newDaemonset(cr *novav1.NovaMigrationTarget, cmName string, configHash stri
                 },
         }
         for _, volConfig := range volConfigs {
-                daemonSet.Spec.Template.Spec.Volumes = append(daemonSet.Spec.Template.Spec.Volumes, volConfig)                             
+                daemonSet.Spec.Template.Spec.Volumes = append(daemonSet.Spec.Template.Spec.Volumes, volConfig)
         }
 
         return &daemonSet

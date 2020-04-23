@@ -19,7 +19,7 @@ func CreateOspHostsEntries(commonConfigMap *corev1.ConfigMap) ([]corev1.HostAlia
         if isset {
                 re := regexp.MustCompile(`(?s).*BEGIN ANSIBLE MANAGED BLOCK\n(.*)# END ANSIBLE MANAGED BLOCK.*`)
                 hostsEntries := re.FindStringSubmatch(hostsFile)
-               
+
                 if len(hostsEntries)>=1 {
                         for _, hostRecord := range strings.Split(hostsEntries[1], "\n") {
                                 if len(hostRecord) > 0 {
