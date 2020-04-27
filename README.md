@@ -29,6 +29,7 @@ Create CRDs
 
 Build the image, using your custom registry you have write access to
 
+    make # creates a custom csv-generator tool
     operator-sdk build --image-builder buildah <image e.g quay.io/openstack-k8s-operators/nova-operator:v0.0.X>
 
 Replace `image:` in deploy/operator.yaml with your custom registry
