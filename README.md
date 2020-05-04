@@ -430,3 +430,12 @@ First delete all instances running on the OCP worker AZ
     oc delete -f deploy/crds/nova_v1_virtlogd_crd.yaml
     oc delete -f deploy/crds/nova_v1_iscsid_crd.yaml
     oc delete -f deploy/crds/nova_v1_novamigrationtarget_crd.yaml
+
+## Formatting
+
+For code formatting we are using goimports. It based on go fmt but also adding missing imports and removing unreferenced ones.
+
+    go get golang.org/x/tools/cmd/goimports
+    export PATH=$PATH:$GOPATH/bin
+    goimports -w -v ./
+
