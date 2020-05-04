@@ -126,7 +126,7 @@ func (r *ReconcileIscsid) Reconcile(request reconcile.Request) (reconcile.Result
 }
 
 func newDaemonset(cr *novav1.Iscsid, cmName string) *appsv1.DaemonSet {
-	var trueVar bool = true
+	var trueVar = true
 
 	daemonSet := appsv1.DaemonSet{
 		TypeMeta: metav1.TypeMeta{

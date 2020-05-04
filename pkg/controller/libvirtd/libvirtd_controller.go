@@ -29,7 +29,7 @@ var log = logf.Log.WithName("controller_libvirtd")
 
 // TODO move to spec like image urls?
 const (
-	COMMON_CONFIGMAP string = "common-config"
+	CommonConfigMAP string = "common-config"
 )
 
 // Add creates a new Libvirtd Controller and adds it to the Manager. The Manager will set fields on the Controller
@@ -147,18 +147,16 @@ func (r *ReconcileLibvirtd) Reconcile(request reconcile.Request) (reconcile.Resu
 	configMapHash, err := util.ObjectHash(configMap)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("error calculating configuration hash: %v", err)
-	} else {
-		reqLogger.Info("ConfigMapHash: ", "Data Hash:", configMapHash)
-	}
+	} 
+  reqLogger.Info("ConfigMapHash: ", "Data Hash:", configMapHash)
 
 	// Define a new Daemonset object
 	ds := newDaemonset(instance, instance.Name, configMapHash)
 	dsHash, err := util.ObjectHash(ds)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("error calculating configuration hash: %v", err)
-	} else {
-		reqLogger.Info("DaemonsetHash: ", "Daemonset Hash:", dsHash)
 	}
+	reqLogger.Info("DaemonsetHash: ", "Daemonset Hash:", dsHash)
 
 	// Set Libvirtd instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, ds, r.scheme); err != nil {
@@ -211,12 +209,12 @@ func (r *ReconcileLibvirtd) setDaemonsetHash(instance *novav1.Libvirtd, hashStr 
 }
 
 func newDaemonset(cr *novav1.Libvirtd, cmName string, configHash string) *appsv1.DaemonSet {
-	var bidirectional corev1.MountPropagationMode = corev1.MountPropagationBidirectional
-	var trueVar bool = true
-	var falseVar bool = false
+	var bidirectional = corev1.MountPropagationBidirectional
+	var trueVar = true
+	var falseVar = false
 	var configVolumeDefaultMode int32 = 0644
 	var configVolumeBinMode int32 = 0755
-	var dirOrCreate corev1.HostPathType = corev1.HostPathDirectoryOrCreate
+	var dirOrCreate = corev1.HostPathDirectoryOrCreate
 
 	daemonSet := appsv1.DaemonSet{
 		TypeMeta: metav1.TypeMeta{
@@ -510,7 +508,7 @@ func newDaemonset(cr *novav1.Libvirtd, cmName string, configHash string) *appsv1
 				ConfigMap: &corev1.ConfigMapVolumeSource{
 					DefaultMode: &configVolumeDefaultMode,
 					LocalObjectReference: corev1.LocalObjectReference{
-						Name: COMMON_CONFIGMAP,
+						Name: CommonConfigMAP,
 					},
 				},
 			},

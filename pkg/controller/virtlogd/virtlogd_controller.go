@@ -27,7 +27,7 @@ var log = logf.Log.WithName("controller_virtlogd")
 
 // TODO move to spec like image urls?
 const (
-	COMMON_CONFIGMAP string = "common-config"
+	CommonConfigMAP string = "common-config"
 )
 
 // Add creates a new Virtlogd Controller and adds it to the Manager. The Manager will set fields on the Controller
@@ -170,10 +170,10 @@ func (r *ReconcileVirtlogd) Reconcile(request reconcile.Request) (reconcile.Resu
 }
 
 func newDaemonset(cr *novav1.Virtlogd, cmName string) *appsv1.DaemonSet {
-	var hostToContainer corev1.MountPropagationMode = corev1.MountPropagationHostToContainer
-	var trueVar bool = true
+	var hostToContainer = corev1.MountPropagationHostToContainer
+	var trueVar = true
 	var configVolumeDefaultMode int32 = 0644
-	var dirOrCreate corev1.HostPathType = corev1.HostPathDirectoryOrCreate
+	var dirOrCreate = corev1.HostPathDirectoryOrCreate
 
 	daemonSet := appsv1.DaemonSet{
 		TypeMeta: metav1.TypeMeta{

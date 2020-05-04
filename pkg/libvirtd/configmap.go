@@ -7,7 +7,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// custom libvirt config map
+// ConfigMap - custom libvirt config map
 func ConfigMap(cr *novav1.Libvirtd, cmName string) *corev1.ConfigMap {
 
 	cm := &corev1.ConfigMap{

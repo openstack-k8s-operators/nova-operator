@@ -13,7 +13,7 @@ type novaMigrationTargetConfigOptions struct {
 	SshdPort string
 }
 
-// custom nova config map
+// ConfigMap - custom nova config map
 func ConfigMap(cr *novav1.NovaMigrationTarget, cmName string) *corev1.ConfigMap {
 	//var sshdPort string
 	sshdPort := strconv.FormatUint(uint64(cr.Spec.SshdPort), 10)

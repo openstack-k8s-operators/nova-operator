@@ -7,7 +7,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// custom virtlogd config map
+// ConfigMap - custom virtlogd config map
 func ConfigMap(cr *novav1.Virtlogd, cmName string) *corev1.ConfigMap {
 
 	cm := &corev1.ConfigMap{

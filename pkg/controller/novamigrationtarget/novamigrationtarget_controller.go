@@ -31,7 +31,7 @@ var ospHostAliases = []corev1.HostAlias{}
 
 // TODO move to spec like image urls?
 const (
-	COMMON_CONFIGMAP string = "common-config"
+	CommonConfigMAP string = "common-config"
 )
 
 // Add creates a new NovaMigrationTarget Controller and adds it to the Manager. The Manager will set fields on the Controller
@@ -126,8 +126,8 @@ func (r *ReconcileNovaMigrationTarget) Reconcile(request reconcile.Request) (rec
 
 	commonConfigMap := &corev1.ConfigMap{}
 
-	reqLogger.Info("Creating host entries from config map:", "configMap: ", COMMON_CONFIGMAP)
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: COMMON_CONFIGMAP, Namespace: instance.Namespace}, commonConfigMap)
+	reqLogger.Info("Creating host entries from config map:", "configMap: ", CommonConfigMAP)
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: CommonConfigMAP, Namespace: instance.Namespace}, commonConfigMap)
 
 	if err != nil && errors.IsNotFound(err) {
 		reqLogger.Error(err, "common-config ConfigMap not found!", "Instance.Namespace", instance.Namespace, "Instance.Name", instance.Name)
@@ -167,18 +167,16 @@ func (r *ReconcileNovaMigrationTarget) Reconcile(request reconcile.Request) (rec
 	configMapHash, err := util.ObjectHash(configMap)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("error calculating configuration hash: %v", err)
-	} else {
-		reqLogger.Info("ConfigMapHash: ", "Data Hash:", configMapHash)
 	}
+	reqLogger.Info("ConfigMapHash: ", "Data Hash:", configMapHash)
 
 	// Define a new Daemonset object
 	ds := newDaemonset(instance, instance.Name, configMapHash)
 	dsHash, err := util.ObjectHash(ds)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("error calculating configuration hash: %v", err)
-	} else {
-		reqLogger.Info("DaemonsetHash: ", "Daemonset Hash:", dsHash)
 	}
+	reqLogger.Info("DaemonsetHash: ", "Daemonset Hash:", dsHash)
 
 	// Set NovaTargetMigration instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, ds, r.scheme); err != nil {
@@ -237,11 +235,11 @@ func (r *ReconcileNovaMigrationTarget) setDaemonsetHash(instance *novav1.NovaMig
 }
 
 func newDaemonset(cr *novav1.NovaMigrationTarget, cmName string, configHash string) *appsv1.DaemonSet {
-	var hostToContainer corev1.MountPropagationMode = corev1.MountPropagationHostToContainer
-	var trueVar bool = true
-	var userId int64 = 0
+	var hostToContainer = corev1.MountPropagationHostToContainer
+	var trueVar = true
+	var userID int64
 	var configVolumeDefaultMode int32 = 0600
-	var dirOrCreate corev1.HostPathType = corev1.HostPathDirectoryOrCreate
+	var dirOrCreate = corev1.HostPathDirectoryOrCreate
 
 	var sshdPort = strconv.FormatUint(uint64(cr.Spec.SshdPort), 10)
 
@@ -293,7 +291,7 @@ func newDaemonset(cr *novav1.NovaMigrationTarget, cmName string, configHash stri
 		Name:  "nova-migration-target-init",
 		Image: cr.Spec.NovaComputeImage,
 		SecurityContext: &corev1.SecurityContext{
-			RunAsUser:  &userId,
+			RunAsUser:  &userID,
 			Privileged: &trueVar,
 		},
 		Command: []string{
@@ -370,7 +368,7 @@ func newDaemonset(cr *novav1.NovaMigrationTarget, cmName string, configHash stri
 		//        },
 		//},
 		SecurityContext: &corev1.SecurityContext{
-			RunAsUser:  &userId,
+			RunAsUser:  &userID,
 			Privileged: &trueVar,
 		},
 		Command: []string{
