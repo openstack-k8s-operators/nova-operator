@@ -239,18 +239,31 @@ func newDaemonset(cr *novav1.Iscsid, cmName string, templatesConfigHash string) 
 	containerSpec := corev1.Container{
 		Name:  "iscsid",
 		Image: cr.Spec.IscsidImage,
-		//ReadinessProbe: &corev1.Probe{
-		//        Handler: corev1.Handler{
-		//                Exec: &corev1.ExecAction{
-		//                        Command: []string{
-		//                                "/openstack/healthcheck", "libvirtd",
-		//                        },
-		//                },
-		//        },
-		//        InitialDelaySeconds: 30,
-		//        PeriodSeconds:       30,
-		//        TimeoutSeconds:      1,
-		//},
+		ReadinessProbe: &corev1.Probe{
+			Handler: corev1.Handler{
+				Exec: &corev1.ExecAction{
+					Command: []string{
+						"/openstack/healthcheck",
+					},
+				},
+			},
+			InitialDelaySeconds: 5,
+			PeriodSeconds:       15,
+			TimeoutSeconds:      3,
+		},
+                LivenessProbe: &corev1.Probe{
+                        Handler: corev1.Handler{
+                               Exec: &corev1.ExecAction{
+                                       Command: []string{
+                                               "/openstack/healthcheck",
+                                       },
+                               },
+                       },
+                       InitialDelaySeconds: 30,
+                       PeriodSeconds:       60,
+                       TimeoutSeconds:      3,
+                       FailureThreshold:    5,
+                },
 		Command: []string{},
 		SecurityContext: &corev1.SecurityContext{
 			Privileged: &trueVar,

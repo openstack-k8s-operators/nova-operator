@@ -283,18 +283,31 @@ func newDaemonset(cr *novav1.Libvirtd, cmName string, templatesConfigHash string
 	containerSpec := corev1.Container{
 		Name:  "libvirtd",
 		Image: cr.Spec.NovaLibvirtImage,
-		//ReadinessProbe: &corev1.Probe{
-		//        Handler: corev1.Handler{
-		//                Exec: &corev1.ExecAction{
-		//                        Command: []string{
-		//                                "/openstack/healthcheck", "libvirtd",
-		//                        },
-		//                },
-		//        },
-		//        InitialDelaySeconds: 30,
-		//        PeriodSeconds:       30,
-		//        TimeoutSeconds:      1,
-		//},
+		ReadinessProbe: &corev1.Probe{
+			Handler: corev1.Handler{
+				Exec: &corev1.ExecAction{
+					Command: []string{
+						"/openstack/healthcheck", "libvirtd",
+					},
+				},
+			},
+			InitialDelaySeconds: 5,
+			PeriodSeconds:       15,
+			TimeoutSeconds:      3,
+		},
+                LivenessProbe: &corev1.Probe{
+                        Handler: corev1.Handler{
+                               Exec: &corev1.ExecAction{
+                                       Command: []string{
+                                               "/openstack/healthcheck", "libvirtd",
+                                       },
+                               },
+                       },
+                       InitialDelaySeconds: 30,
+                       PeriodSeconds:       60,
+                       TimeoutSeconds:      3,
+                       FailureThreshold:    5,
+                },
 		Lifecycle: &corev1.Lifecycle{
 			PreStop: &corev1.Handler{
 				Exec: &corev1.ExecAction{
