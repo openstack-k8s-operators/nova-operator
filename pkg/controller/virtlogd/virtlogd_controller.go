@@ -29,7 +29,7 @@ var log = logf.Log.WithName("controller_virtlogd")
 
 // TODO move to spec like image urls?
 const (
-	COMMON_CONFIGMAP string = "common-config"
+	CommonConfigMAP string = "common-config"
 )
 
 // Add creates a new Virtlogd Controller and adds it to the Manager. The Manager will set fields on the Controller
@@ -145,9 +145,8 @@ func (r *ReconcileVirtlogd) Reconcile(request reconcile.Request) (reconcile.Resu
 	templatesConfigMapHash, err := util.ObjectHash(templatesConfigMap.Data)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("error calculating configuration hash: %v", err)
-	} else {
-		reqLogger.Info("TemplatesConfigMapHash: ", "Data Hash:", templatesConfigMapHash)
 	}
+	reqLogger.Info("TemplatesConfigMapHash: ", "Data Hash:", templatesConfigMapHash)
 
 	// Define a new Daemonset object
 	ds := newDaemonset(instance, instance.Name, templatesConfigMapHash)
@@ -179,7 +178,7 @@ func (r *ReconcileVirtlogd) Reconcile(request reconcile.Request) (reconcile.Resu
 }
 
 func newDaemonset(cr *novav1.Virtlogd, cmName string, templatesConfigHash string) *appsv1.DaemonSet {
-	var trueVar bool = true
+	var trueVar = true
 
 	daemonSet := appsv1.DaemonSet{
 		TypeMeta: metav1.TypeMeta{

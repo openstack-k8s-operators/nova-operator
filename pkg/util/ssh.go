@@ -9,7 +9,7 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-// generatePrivateKey creates a RSA Private Key of specified byte size
+// GeneratePrivateKey creates a RSA Private Key of specified byte size
 func GeneratePrivateKey(bitSize int) (*rsa.PrivateKey, error) {
 	// Private Key generation
 	privateKey, err := rsa.GenerateKey(rand.Reader, bitSize)
@@ -26,7 +26,7 @@ func GeneratePrivateKey(bitSize int) (*rsa.PrivateKey, error) {
 	return privateKey, nil
 }
 
-// encodePrivateKeyToPEM encodes Private Key from RSA to PEM format
+// EncodePrivateKeyToPEM encodes Private Key from RSA to PEM format
 func EncodePrivateKeyToPEM(privateKey *rsa.PrivateKey) string {
 	// Get ASN.1 DER format
 	privDER := x509.MarshalPKCS1PrivateKey(privateKey)
@@ -44,7 +44,7 @@ func EncodePrivateKeyToPEM(privateKey *rsa.PrivateKey) string {
 	return string(privatePEM[:])
 }
 
-// generatePublicKey take a rsa.PublicKey and return bytes suitable for writing to .pub file
+// GeneratePublicKey take a rsa.PublicKey and return bytes suitable for writing to .pub file
 // returns in the format "ssh-rsa ..."
 func GeneratePublicKey(privatekey *rsa.PublicKey) (string, error) {
 	publicRsaKey, err := ssh.NewPublicKey(privatekey)

@@ -4,12 +4,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-// Volumes used by novacompute pod
+// GetVolumes - Volumes used by novacompute pod
 func GetVolumes(cmName string) []corev1.Volume {
 
 	var scriptsVolumeDefaultMode int32 = 0755
 	var config0640AccessMode int32 = 0640
-	var dirOrCreate corev1.HostPathType = corev1.HostPathDirectoryOrCreate
+	var dirOrCreate = corev1.HostPathDirectoryOrCreate
 
 	return []corev1.Volume{
 		{
@@ -139,7 +139,7 @@ func GetVolumes(cmName string) []corev1.Volume {
 
 }
 
-// novacompute initContainer VolumeMounts
+// GetInitContainerVolumeMounts - novacompute initContainer VolumeMounts
 func GetInitContainerVolumeMounts(cmName string) []corev1.VolumeMount {
 
 	return []corev1.VolumeMount{
@@ -161,10 +161,10 @@ func GetInitContainerVolumeMounts(cmName string) []corev1.VolumeMount {
 
 }
 
-// novacompute VolumeMounts
+// GetVolumeMounts - novacompute VolumeMounts
 func GetVolumeMounts(cmName string) []corev1.VolumeMount {
 
-	var bidirectional corev1.MountPropagationMode = corev1.MountPropagationBidirectional
+	var bidirectional = corev1.MountPropagationBidirectional
 
 	return []corev1.VolumeMount{
 		{

@@ -9,18 +9,18 @@ import (
 
 type novaComputeConfigOptions struct {
 	PublicVip                  string
-	InternalApiVip             string
+	InternalAPIVip             string
 	MemcacheServers            string
 	CinderPassword             string
 	NovaPassword               string
 	NeutronPassword            string
 	PlacementPassword          string
-	RabbitTransportUrl         string
-	NovaComputeCpuDedicatedSet string
-	NovaComputeCpuSharedSet    string
+	RabbitTransportURL         string
+	NovaComputeCPUDedicatedSet string
+	NovaComputeCPUSharedSet    string
 }
 
-// scripts config map
+// ScriptsConfigMap - scripts config map
 func ScriptsConfigMap(cr *novav1.NovaCompute, cmName string) *corev1.ConfigMap {
 
 	cm := &corev1.ConfigMap{
@@ -41,18 +41,18 @@ func ScriptsConfigMap(cr *novav1.NovaCompute, cmName string) *corev1.ConfigMap {
 	return cm
 }
 
-// mandatory settings config map
+// TemplatesConfigMap - mandatory settings config map
 func TemplatesConfigMap(cr *novav1.NovaCompute, cmName string) *corev1.ConfigMap {
 	opts := novaComputeConfigOptions{cr.Spec.PublicVip,
-		cr.Spec.InternalApiVip,
+		cr.Spec.InternalAPIVip,
 		cr.Spec.MemcacheServers,
 		cr.Spec.CinderPassword,
 		cr.Spec.NovaPassword,
 		cr.Spec.NeutronPassword,
 		cr.Spec.PlacementPassword,
-		cr.Spec.RabbitTransportUrl,
-		cr.Spec.NovaComputeCpuDedicatedSet,
-		cr.Spec.NovaComputeCpuSharedSet}
+		cr.Spec.RabbitTransportURL,
+		cr.Spec.NovaComputeCPUDedicatedSet,
+		cr.Spec.NovaComputeCPUSharedSet}
 
 	cm := &corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{

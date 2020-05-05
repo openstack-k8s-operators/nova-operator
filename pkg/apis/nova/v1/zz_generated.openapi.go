@@ -311,7 +311,7 @@ func schema_pkg_apis_nova_v1_NovaComputeSpec(ref common.ReferenceCallback) commo
 							Format:      "",
 						},
 					},
-					"internalApiVip": {
+					"internalAPIVip": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Control Plane internalAPI VIP String",
 							Type:        []string{"string"},
@@ -325,7 +325,7 @@ func schema_pkg_apis_nova_v1_NovaComputeSpec(ref common.ReferenceCallback) commo
 							Format:      "",
 						},
 					},
-					"rabbitTransportUrl": {
+					"rabbitTransportURL": {
 						SchemaProps: spec.SchemaProps{
 							Description: "RabbitMQ transport URL String",
 							Type:        []string{"string"},
@@ -346,16 +346,16 @@ func schema_pkg_apis_nova_v1_NovaComputeSpec(ref common.ReferenceCallback) commo
 							Format:      "",
 						},
 					},
-					"novaComputeCpuSharedSet": {
+					"novaComputeCPUSharedSet": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Mask of host CPUs that can be used for ``VCPU`` resources and offloaded emulator threads. For more information, refer to the documentation.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
-					"novaComputeCpuDedicatedSet": {
+					"novaComputeCPUDedicatedSet": {
 						SchemaProps: spec.SchemaProps{
-							Description: "A list or range of host CPU cores to which processes for pinned instance CPUs (PCPUs) can be scheduled. Ex. NovaComputeCpuDedicatedSet: [4-12,^8,15] will reserve cores from 4-12 and 15, excluding 8.",
+							Description: "A list or range of host CPU cores to which processes for pinned instance CPUs (PCPUs) can be scheduled. Ex. NovaComputeCPUDedicatedSet: [4-12,^8,15] will reserve cores from 4-12 and 15, excluding 8.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -382,7 +382,7 @@ func schema_pkg_apis_nova_v1_NovaComputeSpec(ref common.ReferenceCallback) commo
 						},
 					},
 				},
-				Required: []string{"label", "novaComputeImage", "publicVip", "internalApiVip", "rabbitTransportUrl", "cinderPassword", "novaPassword", "neutronPassword", "placementPassword", "serviceAccount"},
+				Required: []string{"label", "novaComputeImage", "publicVip", "internalAPIVip", "rabbitTransportURL", "cinderPassword", "novaPassword", "neutronPassword", "placementPassword", "serviceAccount"},
 			},
 		},
 		Dependencies: []string{},

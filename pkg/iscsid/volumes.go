@@ -4,7 +4,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-// Volumes used by iscsid pod
+// GetVolumes - Volumes used by iscsid pod
 func GetVolumes() []corev1.Volume {
 
 	return []corev1.Volume{
@@ -60,7 +60,7 @@ func GetVolumes() []corev1.Volume {
 
 }
 
-// scsid VolumeMounts
+// GetVolumeMounts - scsid VolumeMounts
 func GetVolumeMounts() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		{

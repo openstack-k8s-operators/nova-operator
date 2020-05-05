@@ -7,7 +7,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// scripts config map
+// ScriptsConfigMap - scripts config map
 func ScriptsConfigMap(cr *novav1.Libvirtd, cmName string) *corev1.ConfigMap {
 
 	cm := &corev1.ConfigMap{
@@ -27,7 +27,7 @@ func ScriptsConfigMap(cr *novav1.Libvirtd, cmName string) *corev1.ConfigMap {
 	return cm
 }
 
-// custom nova config map
+// TemplatesConfigMap - custom nova config map
 func TemplatesConfigMap(cr *novav1.Libvirtd, cmName string) *corev1.ConfigMap {
 
 	cm := &corev1.ConfigMap{

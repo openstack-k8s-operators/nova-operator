@@ -4,11 +4,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-// Volumes used by virtlogd pod
+// GetVolumes - Volumes used by virtlogd pod
 func GetVolumes(cmName string) []corev1.Volume {
 
 	var configVolumeDefaultMode int32 = 0644
-	var dirOrCreate corev1.HostPathType = corev1.HostPathDirectoryOrCreate
+	var dirOrCreate = corev1.HostPathDirectoryOrCreate
 
 	return []corev1.Volume{
 		{
@@ -94,10 +94,10 @@ func GetVolumes(cmName string) []corev1.Volume {
 
 }
 
-// virtlogd VolumeMounts
+// GetVolumeMounts - virtlogd VolumeMounts
 func GetVolumeMounts(cmName string) []corev1.VolumeMount {
 
-	var hostToContainer corev1.MountPropagationMode = corev1.MountPropagationHostToContainer
+	var hostToContainer = corev1.MountPropagationHostToContainer
 
 	return []corev1.VolumeMount{
 		{

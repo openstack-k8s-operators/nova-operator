@@ -135,25 +135,25 @@ Update `deploy/crds/nova_v1_iscsid_cr.yaml`, `deploy/crds/nova_v1_novamigrationt
     spec:
       # Public and internal VIP of the OSP controllers
       publicVip: 10.0.0.143
-      internalApiVip: 172.17.1.29
+      internalAPIVip: 172.17.1.29
       # Memcached server list
       memcacheServers: 172.17.1.83:11211
       # Rabbit transport url
-      rabbitTransportUrl: rabbit://guest:eJNAlgHTTN8A6mclF6q6dBdL1@controller-0.internalapi.redhat.local:5672/?ssl=0
+      rabbitTransportURL: rabbit://guest:eJNAlgHTTN8A6mclF6q6dBdL1@controller-0.internalapi.redhat.local:5672/?ssl=0
       # User Passwords
       cinderPassword: kxtKYHKLdbEGzfGN6OTESU66t
       novaPassword: ytalxxwY2ovYx0FcQpjbfFeK1
       neutronPassword: HKCe8oWszT6brfYlJUPHH3moh
       placementPassword: 3e2CahSMAw8xMA576ORh0yaWc
       # Optional parameters to configure cores to be used for pinned/non pinned instances
-      #novaComputeCpuDedicatedSet: 4-7
-      #novaComputeCpuSharedSet: 0-3
+      #novaComputeCPUDedicatedSet: 4-7
+      #novaComputeCPUSharedSet: 0-3
 
       novaComputeImage: docker.io/tripleotrain/rhel-binary-nova-compute:current-tripleo
       label: compute
       serviceAccount: nova-operator
 
-If instances with CPU pinning are used, the cores which are set for novaComputeCpuDedicatedSet should be excluded from
+If instances with CPU pinning are used, the cores which are set for novaComputeCPUDedicatedSet should be excluded from
 the kernel scheduler. With this it is sure that the core is exclusive for the pinned instances.
 
 Using the machine configuartion operator additinal kernel parameters can be set like with the following yaml.

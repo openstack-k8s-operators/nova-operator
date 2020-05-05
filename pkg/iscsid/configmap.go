@@ -7,7 +7,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// custom nova config map
+// TemplatesConfigMap - custom nova config map
 func TemplatesConfigMap(cr *novav1.Iscsid, cmName string) *corev1.ConfigMap {
 
 	cm := &corev1.ConfigMap{
