@@ -2,8 +2,14 @@ package iscsid
 
 import (
 	"context"
+	"fmt"
+	"reflect"
+	"time"
 
 	novav1 "github.com/openstack-k8s-operators/nova-operator/pkg/apis/nova/v1"
+	common "github.com/openstack-k8s-operators/nova-operator/pkg/common"
+	iscsid "github.com/openstack-k8s-operators/nova-operator/pkg/iscsid"
+	util "github.com/openstack-k8s-operators/nova-operator/pkg/util"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -43,6 +49,15 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 
 	// Watch for changes to primary resource Iscsid
 	err = c.Watch(&source.Kind{Type: &novav1.Iscsid{}}, &handler.EnqueueRequestForObject{})
+	if err != nil {
+		return err
+	}
+
+	// Watch ConfigMaps owned by NovaMigrationTarget
+	err = c.Watch(&source.Kind{Type: &corev1.ConfigMap{}}, &handler.EnqueueRequestForOwner{
+		IsController: false,
+		OwnerType:    &novav1.NovaMigrationTarget{},
+	})
 	if err != nil {
 		return err
 	}
@@ -96,8 +111,40 @@ func (r *ReconcileIscsid) Reconcile(request reconcile.Request) (reconcile.Result
 		return reconcile.Result{}, err
 	}
 
+	// TemplatesConfigMap
+	templatesConfigMap := iscsid.TemplatesConfigMap(instance, instance.Name+"-templates")
+	if err := controllerutil.SetControllerReference(instance, templatesConfigMap, r.scheme); err != nil {
+		return reconcile.Result{}, err
+	}
+	// Check if this TemplatesConfigMap already exists
+	foundTemplatesConfigMap := &corev1.ConfigMap{}
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: templatesConfigMap.Name, Namespace: templatesConfigMap.Namespace}, foundTemplatesConfigMap)
+	if err != nil && errors.IsNotFound(err) {
+		reqLogger.Info("Creating a new TemplatesConfigMap", "TemplatesConfigMap.Namespace", templatesConfigMap.Namespace, "Job.Name", templatesConfigMap.Name)
+		err = r.client.Create(context.TODO(), templatesConfigMap)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+	} else if !reflect.DeepEqual(templatesConfigMap.Data, foundTemplatesConfigMap.Data) {
+		reqLogger.Info("Updating TemplatesConfigMap")
+		templatesConfigMap.Data = foundTemplatesConfigMap.Data
+	}
+
+	templatesConfigMapHash, err := util.ObjectHash(templatesConfigMap.Data)
+	if err != nil {
+		return reconcile.Result{}, fmt.Errorf("error calculating configuration hash: %v", err)
+	} else {
+		reqLogger.Info("TemplatesConfigMapHash: ", "Data Hash:", templatesConfigMapHash)
+	}
+
 	// Define a new Daemonset object
-	ds := newDaemonset(instance, instance.Name)
+	ds := newDaemonset(instance, instance.Name, templatesConfigMapHash)
+	dsHash, err := util.ObjectHash(ds)
+	if err != nil {
+		return reconcile.Result{}, fmt.Errorf("error calculating configuration hash: %v", err)
+	} else {
+		reqLogger.Info("DaemonsetHash: ", "Daemonset Hash:", dsHash)
+	}
 
 	// Set Iscsid instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, ds, r.scheme); err != nil {
@@ -118,6 +165,17 @@ func (r *ReconcileIscsid) Reconcile(request reconcile.Request) (reconcile.Result
 		return reconcile.Result{}, nil
 	} else if err != nil {
 		return reconcile.Result{}, err
+	} else {
+		if instance.Status.DaemonsetHash != dsHash {
+			reqLogger.Info("Daemonset Updated")
+			found.Spec = ds.Spec
+			err = r.client.Update(context.TODO(), found)
+			if err != nil {
+				return reconcile.Result{}, err
+			}
+			r.setDaemonsetHash(instance, dsHash)
+			return reconcile.Result{RequeueAfter: time.Second * 10}, err
+		}
 	}
 
 	// Daemonset already exists - don't requeue
@@ -125,7 +183,17 @@ func (r *ReconcileIscsid) Reconcile(request reconcile.Request) (reconcile.Result
 	return reconcile.Result{}, nil
 }
 
-func newDaemonset(cr *novav1.Iscsid, cmName string) *appsv1.DaemonSet {
+func (r *ReconcileIscsid) setDaemonsetHash(instance *novav1.Iscsid, hashStr string) error {
+	if hashStr != instance.Status.DaemonsetHash {
+		instance.Status.DaemonsetHash = hashStr
+		if err := r.client.Status().Update(context.TODO(), instance); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func newDaemonset(cr *novav1.Iscsid, cmName string, templatesConfigHash string) *appsv1.DaemonSet {
 	var trueVar bool = true
 
 	daemonSet := appsv1.DaemonSet{
@@ -170,7 +238,7 @@ func newDaemonset(cr *novav1.Iscsid, cmName string) *appsv1.DaemonSet {
 	}
 	daemonSet.Spec.Template.Spec.Tolerations = append(daemonSet.Spec.Template.Spec.Tolerations, tolerationSpec)
 
-	iscsiContainerSpec := corev1.Container{
+	containerSpec := corev1.Container{
 		Name:  "iscsid",
 		Image: cr.Spec.IscsidImage,
 		//ReadinessProbe: &corev1.Probe{
@@ -185,107 +253,40 @@ func newDaemonset(cr *novav1.Iscsid, cmName string) *appsv1.DaemonSet {
 		//        PeriodSeconds:       30,
 		//        TimeoutSeconds:      1,
 		//},
-		Command: []string{
-			"/usr/sbin/iscsid", "-f",
-		},
+		Command: []string{},
 		SecurityContext: &corev1.SecurityContext{
 			Privileged: &trueVar,
 		},
-		VolumeMounts: []corev1.VolumeMount{
+		Env: []corev1.EnvVar{
 			{
-				Name:      "etc-iscsi-volume",
-				MountPath: "/etc/iscsi",
-				ReadOnly:  true,
+				Name:  "TEMPLATES_CONFIG_HASH",
+				Value: templatesConfigHash,
 			},
 			{
-				Name:      "etc-machine-id",
-				MountPath: "/etc/machine-id",
-				ReadOnly:  true,
-			},
-			{
-				Name:      "lib-modules-volume",
-				MountPath: "/lib/modules",
-				ReadOnly:  true,
-			},
-			{
-				Name:      "dev-volume",
-				MountPath: "/dev",
-			},
-			{
-				Name:      "run-volume",
-				MountPath: "/run",
-			},
-			{
-				Name:      "sys-volume",
-				MountPath: "/sys",
-			},
-			{
-				Name:      "var-lib-iscsi-volume",
-				MountPath: "/var/lib/iscsi",
+				Name:  "KOLLA_CONFIG_STRATEGY",
+				Value: "COPY_ALWAYS",
 			},
 		},
+		VolumeMounts: []corev1.VolumeMount{},
 	}
-	daemonSet.Spec.Template.Spec.Containers = append(daemonSet.Spec.Template.Spec.Containers, iscsiContainerSpec)
+	// add common VolumeMounts
+	for _, volMount := range common.GetVolumeMounts() {
+		containerSpec.VolumeMounts = append(containerSpec.VolumeMounts, volMount)
+	}
+	// add iscsid specific VolumeMounts
+	for _, volMount := range iscsid.GetVolumeMounts() {
+		containerSpec.VolumeMounts = append(containerSpec.VolumeMounts, volMount)
+	}
 
-	volConfigs := []corev1.Volume{
-		{
-			Name: "etc-machine-id",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/etc/machine-id",
-				},
-			},
-		},
-		{
-			Name: "etc-iscsi-volume",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/etc/iscsi",
-				},
-			},
-		},
-		{
-			Name: "run-volume",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/run",
-				},
-			},
-		},
-		{
-			Name: "dev-volume",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/dev",
-				},
-			},
-		},
-		{
-			Name: "sys-volume",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/sys",
-				},
-			},
-		},
-		{
-			Name: "lib-modules-volume",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/lib/modules",
-				},
-			},
-		},
-		{
-			Name: "var-lib-iscsi-volume",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/var/lib/iscsi",
-				},
-			},
-		},
+	daemonSet.Spec.Template.Spec.Containers = append(daemonSet.Spec.Template.Spec.Containers, containerSpec)
+
+	// Volume config
+	// add common Volumes
+	for _, volConfig := range common.GetVolumes(cmName) {
+		daemonSet.Spec.Template.Spec.Volumes = append(daemonSet.Spec.Template.Spec.Volumes, volConfig)
 	}
-	for _, volConfig := range volConfigs {
+	// add scsid Volumes
+	for _, volConfig := range iscsid.GetVolumes() {
 		daemonSet.Spec.Template.Spec.Volumes = append(daemonSet.Spec.Template.Spec.Volumes, volConfig)
 	}
 

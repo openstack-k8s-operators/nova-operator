@@ -20,8 +20,29 @@ type novaComputeConfigOptions struct {
 	NovaComputeCpuSharedSet    string
 }
 
-// custom nova config map
-func ConfigMap(cr *novav1.NovaCompute, cmName string) *corev1.ConfigMap {
+// scripts config map
+func ScriptsConfigMap(cr *novav1.NovaCompute, cmName string) *corev1.ConfigMap {
+
+	cm := &corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "ConfigMap",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      cmName,
+			Namespace: cr.Namespace,
+		},
+		Data: map[string]string{
+			"common.sh": util.ExecuteTemplateFile("common/common.sh", nil),
+			"init.sh":   util.ExecuteTemplateFile(cr.Name+"/bin/init.sh", nil),
+		},
+	}
+
+	return cm
+}
+
+// mandatory settings config map
+func TemplatesConfigMap(cr *novav1.NovaCompute, cmName string) *corev1.ConfigMap {
 	opts := novaComputeConfigOptions{cr.Spec.PublicVip,
 		cr.Spec.InternalApiVip,
 		cr.Spec.MemcacheServers,
@@ -43,9 +64,11 @@ func ConfigMap(cr *novav1.NovaCompute, cmName string) *corev1.ConfigMap {
 			Namespace: cr.Namespace,
 		},
 		Data: map[string]string{
-			"nova.conf":    util.ExecuteTemplateFile("nova.conf", &opts),
-			"tripleo.cnf":  util.ExecuteTemplateFile("tripleo.cnf", nil),
-			"logging.conf": util.ExecuteTemplateFile("logging.conf", nil),
+			"config.json": util.ExecuteTemplateFile(cr.Name+"/kolla_config.json", &opts),
+			// mschuppert: TODO run over all files in /configs subdir to have it more generic
+			"nova.conf":    util.ExecuteTemplateFile(cr.Name+"/config/nova.conf", &opts),
+			"logging.conf": util.ExecuteTemplateFile(cr.Name+"/config/logging.conf", nil),
+			"policy.json":  util.ExecuteTemplateFile(cr.Name+"/config/policy.json", nil),
 		},
 	}
 

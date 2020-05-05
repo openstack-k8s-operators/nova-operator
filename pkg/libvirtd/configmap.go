@@ -7,8 +7,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// custom libvirt config map
-func ConfigMap(cr *novav1.Libvirtd, cmName string) *corev1.ConfigMap {
+// scripts config map
+func ScriptsConfigMap(cr *novav1.Libvirtd, cmName string) *corev1.ConfigMap {
 
 	cm := &corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
@@ -20,9 +20,28 @@ func ConfigMap(cr *novav1.Libvirtd, cmName string) *corev1.ConfigMap {
 			Namespace: cr.Namespace,
 		},
 		Data: map[string]string{
-			"libvirtd.conf":          util.ExecuteTemplateFile("libvirtd.conf", nil),
-			"libvirtd.sh":            util.ExecuteTemplateFile("libvirtd.sh", nil),
-			"migration_ssh_identity": util.ExecuteTemplateFile("migration_ssh_identity", nil),
+			"libvirtd.sh": util.ExecuteTemplateFile(cr.Name+"/bin/libvirtd.sh", nil),
+		},
+	}
+
+	return cm
+}
+
+// custom nova config map
+func TemplatesConfigMap(cr *novav1.Libvirtd, cmName string) *corev1.ConfigMap {
+
+	cm := &corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "ConfigMap",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      cmName,
+			Namespace: cr.Namespace,
+		},
+		Data: map[string]string{
+			"libvirtd.conf": util.ExecuteTemplateFile(cr.Name+"/config/libvirtd.conf", nil),
+			"config.json":   util.ExecuteTemplateFile(cr.Name+"/kolla_config.json", nil),
 		},
 	}
 

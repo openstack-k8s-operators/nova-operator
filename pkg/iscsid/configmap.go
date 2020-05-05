@@ -1,4 +1,4 @@
-package virtlogd
+package iscsid
 
 import (
 	novav1 "github.com/openstack-k8s-operators/nova-operator/pkg/apis/nova/v1"
@@ -7,8 +7,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// custom virtlogd config map
-func TemplatesConfigMap(cr *novav1.Virtlogd, cmName string) *corev1.ConfigMap {
+// custom nova config map
+func TemplatesConfigMap(cr *novav1.Iscsid, cmName string) *corev1.ConfigMap {
 
 	cm := &corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
@@ -20,8 +20,8 @@ func TemplatesConfigMap(cr *novav1.Virtlogd, cmName string) *corev1.ConfigMap {
 			Namespace: cr.Namespace,
 		},
 		Data: map[string]string{
-			"virtlogd.conf": util.ExecuteTemplateFile(cr.Name+"/config/virtlogd.conf", nil),
-			"config.json":   util.ExecuteTemplateFile(cr.Name+"/kolla_config.json", nil),
+			"iscsid.conf": util.ExecuteTemplateFile(cr.Name+"/config/iscsid.conf", nil),
+			"config.json": util.ExecuteTemplateFile(cr.Name+"/kolla_config.json", nil),
 		},
 	}
 
