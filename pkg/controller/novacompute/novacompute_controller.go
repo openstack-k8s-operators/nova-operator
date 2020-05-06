@@ -351,18 +351,31 @@ func newDaemonset(cr *novav1.NovaCompute, cmName string, templatesConfigHash str
 	containerSpec := corev1.Container{
 		Name:  "nova-compute",
 		Image: cr.Spec.NovaComputeImage,
-		//ReadinessProbe: &corev1.Probe{
-		//        Handler: corev1.Handler{
-		//                Exec: &corev1.ExecAction{
-		//                        Command: []string{
-		//                                "/openstack/healthcheck",
-		//                        },
-		//                },
-		//        },
-		//        InitialDelaySeconds: 30,
-		//        PeriodSeconds:       30,
-		//        TimeoutSeconds:      1,
-		//},
+		ReadinessProbe: &corev1.Probe{
+			Handler: corev1.Handler{
+				Exec: &corev1.ExecAction{
+					Command: []string{
+						"/openstack/healthcheck",
+					},
+				},
+			},
+			InitialDelaySeconds: 30,
+			PeriodSeconds:       30,
+			TimeoutSeconds:      3,
+		},
+                LivenessProbe: &corev1.Probe{
+                        Handler: corev1.Handler{
+                               Exec: &corev1.ExecAction{
+                                       Command: []string{
+                                               "/openstack/healthcheck",
+                                       },
+                               },
+                       },
+                       InitialDelaySeconds: 30,
+                       PeriodSeconds:       60,
+                       TimeoutSeconds:      3,
+                       FailureThreshold:    5,
+                },
 		Command: []string{},
 		SecurityContext: &corev1.SecurityContext{
 			Privileged: &trueVar,
