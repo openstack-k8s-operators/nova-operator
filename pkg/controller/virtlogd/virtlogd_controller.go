@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"reflect"
 
+	util "github.com/openstack-k8s-operators/lib-common/pkg/util"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/pkg/apis/nova/v1"
 	common "github.com/openstack-k8s-operators/nova-operator/pkg/common"
-	util "github.com/openstack-k8s-operators/nova-operator/pkg/util"
 	virtlogd "github.com/openstack-k8s-operators/nova-operator/pkg/virtlogd"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -238,8 +238,8 @@ func newDaemonset(cr *novav1.Virtlogd, cmName string, templatesConfigHash string
 			PeriodSeconds:       15,
 			TimeoutSeconds:      3,
 		},
-                LivenessProbe: &corev1.Probe{
-                        Handler: corev1.Handler{
+		LivenessProbe: &corev1.Probe{
+			Handler: corev1.Handler{
 				Exec: &corev1.ExecAction{
 					Command: []string{
 						"/openstack/healthcheck", "virtlogd",
@@ -249,8 +249,8 @@ func newDaemonset(cr *novav1.Virtlogd, cmName string, templatesConfigHash string
 			InitialDelaySeconds: 30,
 			PeriodSeconds:       60,
 			TimeoutSeconds:      3,
-                        FailureThreshold:    5,
-                },
+			FailureThreshold:    5,
+		},
 		Command: []string{},
 		SecurityContext: &corev1.SecurityContext{
 			Privileged: &trueVar,

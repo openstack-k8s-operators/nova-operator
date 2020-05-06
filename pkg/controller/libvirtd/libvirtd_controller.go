@@ -6,10 +6,10 @@ import (
 	"reflect"
 	"time"
 
+	util "github.com/openstack-k8s-operators/lib-common/pkg/util"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/pkg/apis/nova/v1"
 	common "github.com/openstack-k8s-operators/nova-operator/pkg/common"
 	libvirtd "github.com/openstack-k8s-operators/nova-operator/pkg/libvirtd"
-	util "github.com/openstack-k8s-operators/nova-operator/pkg/util"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -295,19 +295,19 @@ func newDaemonset(cr *novav1.Libvirtd, cmName string, templatesConfigHash string
 			PeriodSeconds:       15,
 			TimeoutSeconds:      3,
 		},
-                LivenessProbe: &corev1.Probe{
-                        Handler: corev1.Handler{
-                               Exec: &corev1.ExecAction{
-                                       Command: []string{
-                                               "/openstack/healthcheck", "libvirtd",
-                                       },
-                               },
-                       },
-                       InitialDelaySeconds: 30,
-                       PeriodSeconds:       60,
-                       TimeoutSeconds:      3,
-                       FailureThreshold:    5,
-                },
+		LivenessProbe: &corev1.Probe{
+			Handler: corev1.Handler{
+				Exec: &corev1.ExecAction{
+					Command: []string{
+						"/openstack/healthcheck", "libvirtd",
+					},
+				},
+			},
+			InitialDelaySeconds: 30,
+			PeriodSeconds:       60,
+			TimeoutSeconds:      3,
+			FailureThreshold:    5,
+		},
 		Lifecycle: &corev1.Lifecycle{
 			PreStop: &corev1.Handler{
 				Exec: &corev1.ExecAction{

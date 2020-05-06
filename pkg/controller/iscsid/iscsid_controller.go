@@ -6,10 +6,10 @@ import (
 	"reflect"
 	"time"
 
+	util "github.com/openstack-k8s-operators/lib-common/pkg/util"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/pkg/apis/nova/v1"
 	common "github.com/openstack-k8s-operators/nova-operator/pkg/common"
 	iscsid "github.com/openstack-k8s-operators/nova-operator/pkg/iscsid"
-	util "github.com/openstack-k8s-operators/nova-operator/pkg/util"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -251,19 +251,19 @@ func newDaemonset(cr *novav1.Iscsid, cmName string, templatesConfigHash string) 
 			PeriodSeconds:       15,
 			TimeoutSeconds:      3,
 		},
-                LivenessProbe: &corev1.Probe{
-                        Handler: corev1.Handler{
-                               Exec: &corev1.ExecAction{
-                                       Command: []string{
-                                               "/openstack/healthcheck",
-                                       },
-                               },
-                       },
-                       InitialDelaySeconds: 30,
-                       PeriodSeconds:       60,
-                       TimeoutSeconds:      3,
-                       FailureThreshold:    5,
-                },
+		LivenessProbe: &corev1.Probe{
+			Handler: corev1.Handler{
+				Exec: &corev1.ExecAction{
+					Command: []string{
+						"/openstack/healthcheck",
+					},
+				},
+			},
+			InitialDelaySeconds: 30,
+			PeriodSeconds:       60,
+			TimeoutSeconds:      3,
+			FailureThreshold:    5,
+		},
 		Command: []string{},
 		SecurityContext: &corev1.SecurityContext{
 			Privileged: &trueVar,
