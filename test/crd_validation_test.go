@@ -2,13 +2,14 @@ package test
 
 import (
 	"fmt"
-	"github.com/RHsyseng/operator-utils/pkg/validation"
-	v1 "github.com/openstack-k8s-operators/nova-operator/pkg/apis/nova/v1"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/RHsyseng/operator-utils/pkg/validation"
+	v1 "github.com/openstack-k8s-operators/nova-operator/pkg/apis/nova/v1"
 
 	"github.com/ghodss/yaml"
 
