@@ -32,8 +32,8 @@ spec:
             cinderPassword:
               description: Cinder API Admin Password
               type: string
-            internalApiVip:
-              description: Control Plane internalAPI VIP String
+            internalAPIVip:
+              description: Control Plane InternalAPI VIP String
               type: string
             label:
               description: Label is the value of the 'daemon=' label to set on a node
@@ -45,12 +45,12 @@ spec:
             neutronPassword:
               description: Neutron API Admin Password
               type: string
-            novaComputeCpuDedicatedSet:
+            novaComputeCPUDedicatedSet:
               description: 'A list or range of host CPU cores to which processes for
-                pinned instance CPUs (PCPUs) can be scheduled. Ex. NovaComputeCpuDedicatedSet:
+                pinned instance CPUs (PCPUs) can be scheduled. Ex. NovaComputeCPUDedicatedSet:
                 [4-12,^8,15] will reserve cores from 4-12 and 15, excluding 8.'
               type: string
-            novaComputeCpuSharedSet:
+            novaComputeCPUSharedSet:
               description: Mask of host CPUs that can be used for ``VCPU`` resources
                 and offloaded emulator threads. For more information, refer to the
                 documentation.
@@ -67,7 +67,7 @@ spec:
             publicVip:
               description: Control Plane public VIP String
               type: string
-            rabbitTransportUrl:
+            rabbitTransportURL:
               description: RabbitMQ transport URL String
               type: string
             serviceAccount:
@@ -77,8 +77,8 @@ spec:
           - label
           - novaComputeImage
           - publicVip
-          - internalApiVip
-          - rabbitTransportUrl
+          - internalAPIVip
+          - rabbitTransportURL
           - cinderPassword
           - novaPassword
           - neutronPassword

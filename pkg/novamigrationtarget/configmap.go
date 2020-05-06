@@ -9,11 +9,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// SshdPort
 type novaMigrationTargetConfigOptions struct {
 	SshdPort string
 }
 
-// scripts config map
+// ScriptsConfigMap - scripts config map
 func ScriptsConfigMap(cr *novav1.NovaMigrationTarget, cmName string) *corev1.ConfigMap {
 
 	cm := &corev1.ConfigMap{
@@ -34,7 +35,7 @@ func ScriptsConfigMap(cr *novav1.NovaMigrationTarget, cmName string) *corev1.Con
 	return cm
 }
 
-// custom nova config map
+// TemplatesConfigMap - custom nova config map
 func TemplatesConfigMap(cr *novav1.NovaMigrationTarget, cmName string) *corev1.ConfigMap {
 	//var sshdPort string
 	sshdPort := strconv.FormatUint(uint64(cr.Spec.SshdPort), 10)

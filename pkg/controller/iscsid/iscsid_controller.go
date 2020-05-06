@@ -133,18 +133,16 @@ func (r *ReconcileIscsid) Reconcile(request reconcile.Request) (reconcile.Result
 	templatesConfigMapHash, err := util.ObjectHash(templatesConfigMap.Data)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("error calculating configuration hash: %v", err)
-	} else {
-		reqLogger.Info("TemplatesConfigMapHash: ", "Data Hash:", templatesConfigMapHash)
 	}
+	reqLogger.Info("TemplatesConfigMapHash: ", "Data Hash:", templatesConfigMapHash)
 
 	// Define a new Daemonset object
 	ds := newDaemonset(instance, instance.Name, templatesConfigMapHash)
 	dsHash, err := util.ObjectHash(ds)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("error calculating configuration hash: %v", err)
-	} else {
-		reqLogger.Info("DaemonsetHash: ", "Daemonset Hash:", dsHash)
 	}
+	reqLogger.Info("DaemonsetHash: ", "Daemonset Hash:", dsHash)
 
 	// Set Iscsid instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, ds, r.scheme); err != nil {
@@ -194,7 +192,7 @@ func (r *ReconcileIscsid) setDaemonsetHash(instance *novav1.Iscsid, hashStr stri
 }
 
 func newDaemonset(cr *novav1.Iscsid, cmName string, templatesConfigHash string) *appsv1.DaemonSet {
-	var trueVar bool = true
+	var trueVar = true
 
 	daemonSet := appsv1.DaemonSet{
 		TypeMeta: metav1.TypeMeta{

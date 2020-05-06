@@ -30,7 +30,7 @@ var log = logf.Log.WithName("controller_libvirtd")
 
 // TODO move to spec like image urls?
 const (
-	COMMON_CONFIGMAP string = "common-config"
+	CommonConfigMAP string = "common-config"
 )
 
 // Add creates a new Libvirtd Controller and adds it to the Manager. The Manager will set fields on the Controller
@@ -147,9 +147,8 @@ func (r *ReconcileLibvirtd) Reconcile(request reconcile.Request) (reconcile.Resu
 	scriptsConfigMapHash, err := util.ObjectHash(scriptsConfigMap.Data)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("error calculating configuration hash: %v", err)
-	} else {
-		reqLogger.Info("ScriptsConfigMapHash: ", "Data Hash:", scriptsConfigMapHash)
 	}
+	reqLogger.Info("ScriptsConfigMapHash: ", "Data Hash:", scriptsConfigMapHash)
 
 	// TemplatesConfigMap
 	templatesConfigMap := libvirtd.TemplatesConfigMap(instance, instance.Name+"-templates")
@@ -173,18 +172,16 @@ func (r *ReconcileLibvirtd) Reconcile(request reconcile.Request) (reconcile.Resu
 	templatesConfigMapHash, err := util.ObjectHash(templatesConfigMap.Data)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("error calculating configuration hash: %v", err)
-	} else {
-		reqLogger.Info("TemplatesConfigMapHash: ", "Data Hash:", templatesConfigMapHash)
 	}
+	reqLogger.Info("TemplatesConfigMapHash: ", "Data Hash:", templatesConfigMapHash)
 
 	// Define a new Daemonset object
 	ds := newDaemonset(instance, instance.Name, templatesConfigMapHash)
 	dsHash, err := util.ObjectHash(ds)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("error calculating configuration hash: %v", err)
-	} else {
-		reqLogger.Info("DaemonsetHash: ", "Daemonset Hash:", dsHash)
 	}
+	reqLogger.Info("DaemonsetHash: ", "Daemonset Hash:", dsHash)
 
 	// Set Libvirtd instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, ds, r.scheme); err != nil {
@@ -237,8 +234,8 @@ func (r *ReconcileLibvirtd) setDaemonsetHash(instance *novav1.Libvirtd, hashStr 
 }
 
 func newDaemonset(cr *novav1.Libvirtd, cmName string, templatesConfigHash string) *appsv1.DaemonSet {
-	var trueVar bool = true
-	var falseVar bool = false
+	var trueVar = true
+	var falseVar = false
 
 	daemonSet := appsv1.DaemonSet{
 		TypeMeta: metav1.TypeMeta{

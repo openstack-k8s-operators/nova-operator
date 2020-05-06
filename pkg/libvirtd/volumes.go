@@ -4,13 +4,13 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-// Volumes used by libvirtd pod
+// GetVolumes - Volumes used by libvirtd pod
 func GetVolumes(cmName string) []corev1.Volume {
 
 	var scriptsVolumeDefaultMode int32 = 0755
 	var configVolumeDefaultMode int32 = 0644
 	var config0600AccessMode int32 = 0600
-	var dirOrCreate corev1.HostPathType = corev1.HostPathDirectoryOrCreate
+	var dirOrCreate = corev1.HostPathDirectoryOrCreate
 
 	return []corev1.Volume{
 		{
@@ -140,10 +140,10 @@ func GetVolumes(cmName string) []corev1.Volume {
 
 }
 
-// libirtd VolumeMounts
+// GetVolumeMounts - libirtd VolumeMounts
 func GetVolumeMounts(cmName string) []corev1.VolumeMount {
 
-	var bidirectional corev1.MountPropagationMode = corev1.MountPropagationBidirectional
+	var bidirectional = corev1.MountPropagationBidirectional
 
 	return []corev1.VolumeMount{
 		{

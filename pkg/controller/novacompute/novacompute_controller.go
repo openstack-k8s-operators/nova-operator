@@ -31,7 +31,7 @@ var ospHostAliases = []corev1.HostAlias{}
 
 // TODO move to spec like image urls?
 const (
-	COMMON_CONFIGMAP string = "common-config"
+	CommonConfigMAP string = "common-config"
 )
 
 // Add creates a new NovaCompute Controller and adds it to the Manager. The Manager will set fields on the Controller
@@ -126,8 +126,8 @@ func (r *ReconcileNovaCompute) Reconcile(request reconcile.Request) (reconcile.R
 
 	commonConfigMap := &corev1.ConfigMap{}
 
-	reqLogger.Info("Creating host entries from config map:", "configMap: ", COMMON_CONFIGMAP)
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: COMMON_CONFIGMAP, Namespace: instance.Namespace}, commonConfigMap)
+	reqLogger.Info("Creating host entries from config map:", "configMap: ", CommonConfigMAP)
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: CommonConfigMAP, Namespace: instance.Namespace}, commonConfigMap)
 	if err != nil && errors.IsNotFound(err) {
 		reqLogger.Error(err, "common-config ConfigMap not found!", "Instance.Namespace", instance.Namespace, "Instance.Name", instance.Name)
 		return reconcile.Result{}, err
@@ -167,9 +167,8 @@ func (r *ReconcileNovaCompute) Reconcile(request reconcile.Request) (reconcile.R
 	scriptsConfigMapHash, err := util.ObjectHash(scriptsConfigMap.Data)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("error calculating configuration hash: %v", err)
-	} else {
-		reqLogger.Info("ScriptsConfigMapHash: ", "Data Hash:", scriptsConfigMapHash)
 	}
+	reqLogger.Info("ScriptsConfigMapHash: ", "Data Hash:", scriptsConfigMapHash)
 
 	// TemplatesConfigMap
 	templatesConfigMap := novacompute.TemplatesConfigMap(instance, instance.Name+"-templates")
@@ -194,18 +193,16 @@ func (r *ReconcileNovaCompute) Reconcile(request reconcile.Request) (reconcile.R
 	templatesConfigMapHash, err := util.ObjectHash(templatesConfigMap.Data)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("error calculating configuration hash: %v", err)
-	} else {
-		reqLogger.Info("TemplatesConfigMapHash: ", "Data Hash:", templatesConfigMapHash)
 	}
+	reqLogger.Info("TemplatesConfigMapHash: ", "Data Hash:", templatesConfigMapHash)
 
 	// Define a new Daemonset object
 	ds := newDaemonset(instance, instance.Name, templatesConfigMapHash, scriptsConfigMapHash)
 	dsHash, err := util.ObjectHash(ds)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("error calculating configuration hash: %v", err)
-	} else {
-		reqLogger.Info("DaemonsetHash: ", "Daemonset Hash:", dsHash)
 	}
+	reqLogger.Info("DaemonsetHash: ", "Daemonset Hash:", dsHash)
 
 	// Set NovaCompute instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, ds, r.scheme); err != nil {
@@ -264,7 +261,7 @@ func (r *ReconcileNovaCompute) setDaemonsetHash(instance *novav1.NovaCompute, ha
 }
 
 func newDaemonset(cr *novav1.NovaCompute, cmName string, templatesConfigHash string, scriptsConfigHash string) *appsv1.DaemonSet {
-	var trueVar bool = true
+	var trueVar = true
 
 	daemonSet := appsv1.DaemonSet{
 		TypeMeta: metav1.TypeMeta{

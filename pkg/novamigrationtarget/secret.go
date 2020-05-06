@@ -7,10 +7,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// BITSIZE
 const (
 	BITSIZE int = 4096
 )
 
+// Secret func
 func Secret(cr *novav1.NovaMigrationTarget, name string) (*corev1.Secret, error) {
 
 	privateKey, err := util.GeneratePrivateKey(BITSIZE)

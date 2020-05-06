@@ -4,7 +4,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-// common Volumes used by many service pods
+// GetVolumes - common Volumes used by many service pods
 func GetVolumes(cmName string) []corev1.Volume {
 
 	return []corev1.Volume{
@@ -50,7 +50,7 @@ func GetVolumes(cmName string) []corev1.Volume {
 
 }
 
-// common VolumeMounts
+// GetVolumeMounts - common VolumeMounts
 func GetVolumeMounts() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		{
