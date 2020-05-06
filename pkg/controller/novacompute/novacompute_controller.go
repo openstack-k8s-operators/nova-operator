@@ -6,10 +6,10 @@ import (
 	"reflect"
 	"time"
 
+	util "github.com/openstack-k8s-operators/lib-common/pkg/util"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/pkg/apis/nova/v1"
 	common "github.com/openstack-k8s-operators/nova-operator/pkg/common"
 	novacompute "github.com/openstack-k8s-operators/nova-operator/pkg/novacompute"
-	util "github.com/openstack-k8s-operators/nova-operator/pkg/util"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
