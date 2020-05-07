@@ -1,50 +1,52 @@
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
-  name: iscsids.nova.openstack.org
+  name: libvirtds.nova.openstack.org
 spec:
   group: nova.openstack.org
   names:
-    kind: Iscsid
-    listKind: IscsidList
-    plural: iscsids
-    singular: iscsid
+    kind: Libvirtd
+    listKind: LibvirtdList
+    plural: libvirtds
+    singular: libvirtd
   scope: Namespaced
   subresources:
     status: {}
   validation:
     openAPIV3Schema:
+      description: Libvirtd is the Schema for the libvirtds API
       properties:
         apiVersion:
           description: 'APIVersion defines the versioned schema of this representation
             of an object. Servers should convert recognized schemas to the latest
-            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources'
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
           type: string
         kind:
           description: 'Kind is a string value representing the REST resource this
             object represents. Servers may infer this from the endpoint the client
-            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
           type: string
         metadata:
           type: object
         spec:
+          description: LibvirtdSpec defines the desired state of Libvirtd
           properties:
-            iscsidImage:
+            novaLibvirtImage:
               description: Image is the Docker image to run for the daemon
               type: string
-            label:
-              description: Label is the value of the 'daemon=' label to set on a node
-                that should run the daemon
+            roleName:
+              description: Name of the worker role created for OSP computes
               type: string
             serviceAccount:
               description: service account used to create pods
               type: string
           required:
-          - label
-          - iscsidImage
+          - novaLibvirtImage
+          - roleName
           - serviceAccount
           type: object
         status:
+          description: LibvirtdStatus defines the observed state of Libvirtd
           properties:
             count:
               description: Count is the number of nodes the daemon is deployed to
@@ -57,6 +59,7 @@ spec:
           - count
           - daemonsetHash
           type: object
+      type: object
   version: v1
   versions:
   - name: v1

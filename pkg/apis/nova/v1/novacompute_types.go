@@ -7,8 +7,6 @@ import (
 // NovaComputeSpec defines the desired state of NovaCompute
 // +k8s:openapi-gen=true
 type NovaComputeSpec struct {
-	// Label is the value of the 'daemon=' label to set on a node that should run the daemon
-	Label string `json:"label"`
 	// container image to run for the daemon
 	NovaComputeImage string `json:"novaComputeImage"`
 	// Control Plane public VIP String
@@ -37,6 +35,8 @@ type NovaComputeSpec struct {
 	PlacementPassword string `json:"placementPassword"`
 	// service account used to create pods
 	ServiceAccount string `json:"serviceAccount"`
+        // Name of the worker role created for OSP computes
+        RoleName string `json:"roleName"`
 }
 
 // NovaComputeStatus defines the observed state of NovaCompute

@@ -219,7 +219,7 @@ func newDaemonset(cr *novav1.Iscsid, cmName string, templatesConfigHash string) 
 					Labels: map[string]string{"daemonset": cr.Name + "-daemonset"},
 				},
 				Spec: corev1.PodSpec{
-					NodeSelector:       map[string]string{"daemon": cr.Spec.Label},
+					NodeSelector:       common.GetComputeWorkerNodeSelector(cr.Spec.RoleName),
 					HostNetwork:        true,
 					HostPID:            true,
 					DNSPolicy:          "ClusterFirstWithHostNet",
@@ -231,10 +231,10 @@ func newDaemonset(cr *novav1.Iscsid, cmName string, templatesConfigHash string) 
 		},
 	}
 
-	tolerationSpec := corev1.Toleration{
-		Operator: "Exists",
+	// add compute worker nodes tolerations
+	for _, toleration := range common.GetComputeWorkerTolerations(cr.Spec.RoleName) {
+		daemonSet.Spec.Template.Spec.Tolerations = append(daemonSet.Spec.Template.Spec.Tolerations, toleration)
 	}
-	daemonSet.Spec.Template.Spec.Tolerations = append(daemonSet.Spec.Template.Spec.Tolerations, tolerationSpec)
 
 	containerSpec := corev1.Container{
 		Name:  "iscsid",

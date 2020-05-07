@@ -1,67 +1,61 @@
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
-  name: novamigrationtargets.nova.openstack.org
+  name: virtlogds.nova.openstack.org
 spec:
   group: nova.openstack.org
   names:
-    kind: NovaMigrationTarget
-    listKind: NovaMigrationTargetList
-    plural: novamigrationtargets
-    singular: novamigrationtarget
+    kind: Virtlogd
+    listKind: VirtlogdList
+    plural: virtlogds
+    singular: virtlogd
   scope: Namespaced
   subresources:
     status: {}
   validation:
     openAPIV3Schema:
+      description: Virtlogd is the Schema for the virtlogds API
       properties:
         apiVersion:
           description: 'APIVersion defines the versioned schema of this representation
             of an object. Servers should convert recognized schemas to the latest
-            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources'
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
           type: string
         kind:
           description: 'Kind is a string value representing the REST resource this
             object represents. Servers may infer this from the endpoint the client
-            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
           type: string
         metadata:
           type: object
         spec:
+          description: VirtlogdSpec defines the desired state of Virtlogd
           properties:
-            label:
-              description: Label is the value of the 'daemon=' label to set on a node
-                that should run the daemon
+            novaLibvirtImage:
+              description: Image is the Docker image to run for the daemon
               type: string
-            novaComputeImage:
-              description: container image to run for the daemon
+            roleName:
+              description: Name of the worker role created for OSP computes
               type: string
             serviceAccount:
               description: service account used to create pods
               type: string
-            sshdPort:
-              description: SSHD port
-              format: int32
-              type: integer
           required:
-          - label
-          - novaComputeImage
-          - sshdPort
+          - novaLibvirtImage
+          - roleName
           - serviceAccount
           type: object
         status:
+          description: VirtlogdStatus defines the observed state of Virtlogd
           properties:
             count:
               description: Count is the number of nodes the daemon is deployed to
               format: int32
               type: integer
-            daemonsetHash:
-              description: Daemonset hash used to detect changes
-              type: string
           required:
           - count
-          - daemonsetHash
           type: object
+      type: object
   version: v1
   versions:
   - name: v1

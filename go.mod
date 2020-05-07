@@ -9,8 +9,6 @@ require (
 	github.com/openstack-k8s-operators/lib-common v0.0.0-20200506095056-36244492b7a8
 	github.com/operator-framework/operator-sdk v0.17.0
 	github.com/spf13/pflag v1.0.5
-	golang.org/x/crypto v0.0.0-20200220183623-bac4c82f6975
-	golang.org/x/tools v0.0.0-20200504022951-6b6965ac5dd1 // indirect
 	k8s.io/api v0.17.4
 	k8s.io/apimachinery v0.17.4
 	k8s.io/client-go v12.0.0+incompatible

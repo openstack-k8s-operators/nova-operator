@@ -9,12 +9,12 @@ import (
 // IscsidSpec defines the desired state of Iscsid
 // +k8s:openapi-gen=true
 type IscsidSpec struct {
-	// Label is the value of the 'daemon=' label to set on a node that should run the daemon
-	Label string `json:"label"`
 	// Image is the Docker image to run for the daemon
 	IscsidImage string `json:"iscsidImage"`
 	// service account used to create pods
 	ServiceAccount string `json:"serviceAccount"`
+        // Name of the worker role created for OSP computes
+        RoleName string `json:"roleName"`
 }
 
 // IscsidStatus defines the observed state of Iscsid
