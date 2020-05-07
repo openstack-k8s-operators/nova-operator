@@ -1,11 +1,14 @@
 package novamigrationtarget
 
 import (
+	"strings"
+
+	novav1 "github.com/openstack-k8s-operators/nova-operator/pkg/apis/nova/v1"
 	corev1 "k8s.io/api/core/v1"
 )
 
 // GetVolumes - Volumes used by novamigrationtarget pod
-func GetVolumes(cmName string) []corev1.Volume {
+func GetVolumes(cr *novav1.NovaMigrationTarget, cmName string) []corev1.Volume {
 
 	var scriptsVolumeDefaultMode int32 = 0755
 	var configVolumeDefaultMode int32 = 0644
@@ -62,11 +65,11 @@ func GetVolumes(cmName string) []corev1.Volume {
 			},
 		},
 		{
-			Name: cmName + "-ssh-keys-authorized-keys",
+			Name: strings.ToLower(cr.Kind) + "-ssh-keys-authorized-keys",
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
 					DefaultMode: &config0640AccessMode,
-					SecretName:  cmName + "-ssh-keys",
+					SecretName:  strings.ToLower(cr.Kind) + "-ssh-keys",
 					Items: []corev1.KeyToPath{
 						{
 							Key:  "authorized_keys",
@@ -77,11 +80,11 @@ func GetVolumes(cmName string) []corev1.Volume {
 			},
 		},
 		{
-			Name: cmName + "-ssh-keys-identity",
+			Name: strings.ToLower(cr.Kind) + "-ssh-keys-identity",
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
 					DefaultMode: &config0600AccessMode,
-					SecretName:  cmName + "-ssh-keys",
+					SecretName:  strings.ToLower(cr.Kind) + "-ssh-keys",
 					Items: []corev1.KeyToPath{
 						{
 							Key:  "identity",
@@ -118,7 +121,7 @@ func GetInitContainerVolumeMounts(cmName string) []corev1.VolumeMount {
 }
 
 // GetVolumeMounts - novamigrationtarget VolumeMounts
-func GetVolumeMounts(cmName string) []corev1.VolumeMount {
+func GetVolumeMounts(cr *novav1.NovaMigrationTarget, cmName string) []corev1.VolumeMount {
 
 	var hostToContainer = corev1.MountPropagationHostToContainer
 
@@ -134,13 +137,13 @@ func GetVolumeMounts(cmName string) []corev1.VolumeMount {
 			ReadOnly:  true,
 		},
 		{
-			Name:      cmName + "-ssh-keys-authorized-keys",
+			Name:      strings.ToLower(cr.Kind) + "-ssh-keys-authorized-keys",
 			MountPath: "/var/lib/kolla/config_files/src/etc/nova/migration/authorized_keys",
 			SubPath:   "authorized_keys",
 			ReadOnly:  true,
 		},
 		{
-			Name:      cmName + "-ssh-keys-identity",
+			Name:      strings.ToLower(cr.Kind) + "-ssh-keys-identity",
 			MountPath: "/var/lib/kolla/config_files/src/etc/nova/migration/identity",
 			SubPath:   "identity",
 			ReadOnly:  true,

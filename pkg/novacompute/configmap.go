@@ -1,6 +1,8 @@
 package novacompute
 
 import (
+	"strings"
+
 	util "github.com/openstack-k8s-operators/lib-common/pkg/util"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/pkg/apis/nova/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -34,7 +36,7 @@ func ScriptsConfigMap(cr *novav1.NovaCompute, cmName string) *corev1.ConfigMap {
 		},
 		Data: map[string]string{
 			"common.sh": util.ExecuteTemplateFile("common/common.sh", nil),
-			"init.sh":   util.ExecuteTemplateFile(cr.Name+"/bin/init.sh", nil),
+			"init.sh":   util.ExecuteTemplateFile(strings.ToLower(cr.Kind)+"/bin/init.sh", nil),
 		},
 	}
 
@@ -64,11 +66,11 @@ func TemplatesConfigMap(cr *novav1.NovaCompute, cmName string) *corev1.ConfigMap
 			Namespace: cr.Namespace,
 		},
 		Data: map[string]string{
-			"config.json": util.ExecuteTemplateFile(cr.Name+"/kolla_config.json", &opts),
+			"config.json": util.ExecuteTemplateFile(strings.ToLower(cr.Kind)+"/kolla_config.json", &opts),
 			// mschuppert: TODO run over all files in /configs subdir to have it more generic
-			"nova.conf":    util.ExecuteTemplateFile(cr.Name+"/config/nova.conf", &opts),
-			"logging.conf": util.ExecuteTemplateFile(cr.Name+"/config/logging.conf", nil),
-			"policy.json":  util.ExecuteTemplateFile(cr.Name+"/config/policy.json", nil),
+			"nova.conf":    util.ExecuteTemplateFile(strings.ToLower(cr.Kind)+"/config/nova.conf", &opts),
+			"logging.conf": util.ExecuteTemplateFile(strings.ToLower(cr.Kind)+"/config/logging.conf", nil),
+			"policy.json":  util.ExecuteTemplateFile(strings.ToLower(cr.Kind)+"/config/policy.json", nil),
 		},
 	}
 

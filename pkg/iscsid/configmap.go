@@ -1,6 +1,8 @@
 package iscsid
 
 import (
+	"strings"
+
 	util "github.com/openstack-k8s-operators/lib-common/pkg/util"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/pkg/apis/nova/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -20,8 +22,8 @@ func TemplatesConfigMap(cr *novav1.Iscsid, cmName string) *corev1.ConfigMap {
 			Namespace: cr.Namespace,
 		},
 		Data: map[string]string{
-			"iscsid.conf": util.ExecuteTemplateFile(cr.Name+"/config/iscsid.conf", nil),
-			"config.json": util.ExecuteTemplateFile(cr.Name+"/kolla_config.json", nil),
+			"iscsid.conf": util.ExecuteTemplateFile(strings.ToLower(cr.Kind)+"/config/iscsid.conf", nil),
+			"config.json": util.ExecuteTemplateFile(strings.ToLower(cr.Kind)+"/kolla_config.json", nil),
 		},
 	}
 

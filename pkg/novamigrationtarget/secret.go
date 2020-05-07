@@ -1,6 +1,8 @@
 package novamigrationtarget
 
 import (
+	"strings"
+
 	util "github.com/openstack-k8s-operators/lib-common/pkg/util"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/pkg/apis/nova/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -13,7 +15,7 @@ const (
 )
 
 // Secret func
-func Secret(cr *novav1.NovaMigrationTarget, name string) (*corev1.Secret, error) {
+func Secret(cr *novav1.NovaMigrationTarget) (*corev1.Secret, error) {
 
 	privateKey, err := util.GeneratePrivateKey(BITSIZE)
 	if err != nil {
@@ -29,7 +31,7 @@ func Secret(cr *novav1.NovaMigrationTarget, name string) (*corev1.Secret, error)
 
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
+			Name:      strings.ToLower(cr.Kind) + "-ssh-keys",
 			Namespace: cr.Namespace,
 		},
 		Type: "Opaque",

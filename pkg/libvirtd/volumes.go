@@ -122,11 +122,11 @@ func GetVolumes(cmName string) []corev1.Volume {
 			},
 		},
 		{
-			Name: "nova-migration-target-ssh-keys-identity",
+			Name: "novamigrationtarget-ssh-keys-identity",
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
 					DefaultMode: &config0600AccessMode,
-					SecretName:  "nova-migration-target-ssh-keys",
+					SecretName:  "novamigrationtarget-ssh-keys",
 					Items: []corev1.KeyToPath{
 						{
 							Key:  "identity",
@@ -186,7 +186,7 @@ func GetVolumeMounts(cmName string) []corev1.VolumeMount {
 			MountPath: "/var/lib/vhost_sockets",
 		},
 		{
-			Name:      "nova-migration-target-ssh-keys-identity",
+			Name:      "novamigrationtarget-ssh-keys-identity",
 			MountPath: "/var/lib/kolla/config_files/src/etc/nova/migration/identity",
 			SubPath:   "identity",
 			ReadOnly:  true,
