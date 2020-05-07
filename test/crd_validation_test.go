@@ -19,11 +19,11 @@ import (
 func TestSampleCustomResources(t *testing.T) {
 	root := "./../deploy/crds"
 	crdCrMap := map[string]string{
-		"nova_v1_iscsid_crd.yaml":              "nova_v1_iscsid_cr",
-		"nova_v1_libvirtd_crd.yaml":            "nova_v1_libvirtd_cr",
-		"nova_v1_novacompute_crd.yaml":         "nova_v1_novacompute_cr",
-		"nova_v1_novamigrationtarget_crd.yaml": "nova_v1_novamigrationtarget_cr",
-		"nova_v1_virtlogd_crd.yaml":            "nova_v1_virtlogd_cr",
+		"nova.openstack.org_iscsids_crd.yaml":              "nova.openstack.org_iscsid_cr",
+		"nova.openstack.org_libvirtds_crd.yaml":            "nova.openstack.org_libvirtd_cr",
+		"nova.openstack.org_novacomputes_crd.yaml":         "nova.openstack.org_novacompute_cr",
+		"nova.openstack.org_novamigrationtargets_crd.yaml": "nova.openstack.org_novamigrationtarget_cr",
+		"nova.openstack.org_virtlogds_crd.yaml":            "nova.openstack.org_virtlogd_cr",
 	}
 	for crd, prefix := range crdCrMap {
 		validateCustomResources(t, root, crd, prefix)
@@ -54,11 +54,11 @@ func validateCustomResources(t *testing.T, root string, crd string, prefix strin
 func TestCompleteCRD(t *testing.T) {
 	root := "./../deploy/crds"
 	crdStructMap := map[string]interface{}{
-		"nova_v1_iscsid_crd.yaml":              &v1.Iscsid{},
-		"nova_v1_libvirtd_crd.yaml":            &v1.Libvirtd{},
-		"nova_v1_novacompute_crd.yaml":         &v1.NovaCompute{},
-		"nova_v1_novamigrationtarget_crd.yaml": &v1.NovaMigrationTarget{},
-		"nova_v1_virtlogd_crd.yaml":            &v1.Virtlogd{},
+		"nova.openstack.org_iscsids_crd.yaml":              &v1.Iscsid{},
+		"nova.openstack.org_libvirtds_crd.yaml":            &v1.Libvirtd{},
+		"nova.openstack.org_novacomputes_crd.yaml":         &v1.NovaCompute{},
+		"nova.openstack.org_novamigrationtargets_crd.yaml": &v1.NovaMigrationTarget{},
+		"nova.openstack.org_virtlogds_crd.yaml":            &v1.Virtlogd{},
 	}
 	for crd, obj := range crdStructMap {
 		schema := getSchema(t, fmt.Sprintf("%s/%s", root, crd))

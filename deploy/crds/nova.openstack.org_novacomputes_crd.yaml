@@ -14,30 +14,28 @@ spec:
     status: {}
   validation:
     openAPIV3Schema:
+      description: NovaCompute is the Schema for the novacomputes API
       properties:
         apiVersion:
           description: 'APIVersion defines the versioned schema of this representation
             of an object. Servers should convert recognized schemas to the latest
-            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources'
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
           type: string
         kind:
           description: 'Kind is a string value representing the REST resource this
             object represents. Servers may infer this from the endpoint the client
-            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
           type: string
         metadata:
           type: object
         spec:
+          description: NovaComputeSpec defines the desired state of NovaCompute
           properties:
             cinderPassword:
               description: Cinder API Admin Password
               type: string
             internalAPIVip:
               description: Control Plane InternalAPI VIP String
-              type: string
-            label:
-              description: Label is the value of the 'daemon=' label to set on a node
-                that should run the daemon
               type: string
             memcacheServers:
               description: Memcache Servers String
@@ -70,22 +68,26 @@ spec:
             rabbitTransportURL:
               description: RabbitMQ transport URL String
               type: string
+            roleName:
+              description: Name of the worker role created for OSP computes
+              type: string
             serviceAccount:
               description: service account used to create pods
               type: string
           required:
-          - label
-          - novaComputeImage
-          - publicVip
-          - internalAPIVip
-          - rabbitTransportURL
           - cinderPassword
-          - novaPassword
+          - internalAPIVip
           - neutronPassword
+          - novaComputeImage
+          - novaPassword
           - placementPassword
+          - publicVip
+          - rabbitTransportURL
+          - roleName
           - serviceAccount
           type: object
         status:
+          description: NovaComputeStatus defines the observed state of NovaCompute
           properties:
             count:
               description: Count is the number of nodes the daemon is deployed to
@@ -98,6 +100,7 @@ spec:
           - count
           - daemonsetHash
           type: object
+      type: object
   version: v1
   versions:
   - name: v1

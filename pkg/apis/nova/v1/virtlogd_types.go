@@ -7,14 +7,12 @@ import (
 // VirtlogdSpec defines the desired state of Virtlogd
 // +k8s:openapi-gen=true
 type VirtlogdSpec struct {
-	// Label is the value of the 'daemon=' label to set on a node that should run the daemon
-	Label string `json:"label"`
-
 	// Image is the Docker image to run for the daemon
 	NovaLibvirtImage string `json:"novaLibvirtImage"`
-
 	// service account used to create pods
 	ServiceAccount string `json:"serviceAccount"`
+        // Name of the worker role created for OSP computes
+        RoleName string `json:"roleName"`
 }
 
 // VirtlogdStatus defines the observed state of Virtlogd
