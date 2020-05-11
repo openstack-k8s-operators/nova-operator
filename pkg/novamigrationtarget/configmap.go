@@ -2,6 +2,7 @@ package novamigrationtarget
 
 import (
 	"strconv"
+	"strings"
 
 	util "github.com/openstack-k8s-operators/lib-common/pkg/util"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/pkg/apis/nova/v1"
@@ -28,7 +29,7 @@ func ScriptsConfigMap(cr *novav1.NovaMigrationTarget, cmName string) *corev1.Con
 		},
 		Data: map[string]string{
 			"common.sh": util.ExecuteTemplateFile("common/common.sh", nil),
-			"init.sh":   util.ExecuteTemplateFile(cr.Name+"/bin/init.sh", nil),
+			"init.sh":   util.ExecuteTemplateFile(strings.ToLower(cr.Kind)+"/bin/init.sh", nil),
 		},
 	}
 
@@ -51,9 +52,9 @@ func TemplatesConfigMap(cr *novav1.NovaMigrationTarget, cmName string) *corev1.C
 			Namespace: cr.Namespace,
 		},
 		Data: map[string]string{
-			"config.json": util.ExecuteTemplateFile(cr.Name+"/kolla_config.json", &opts),
-			"ssh_config":  util.ExecuteTemplateFile(cr.Name+"/config/ssh_config", &opts),
-			"sshd_config": util.ExecuteTemplateFile(cr.Name+"/config/sshd_config", nil),
+			"config.json": util.ExecuteTemplateFile(strings.ToLower(cr.Kind)+"/kolla_config.json", &opts),
+			"ssh_config":  util.ExecuteTemplateFile(strings.ToLower(cr.Kind)+"/config/ssh_config", &opts),
+			"sshd_config": util.ExecuteTemplateFile(strings.ToLower(cr.Kind)+"/config/sshd_config", nil),
 		},
 	}
 

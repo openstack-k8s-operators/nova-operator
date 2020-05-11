@@ -195,7 +195,7 @@ func (r *ReconcileNovaMigrationTarget) Reconcile(request reconcile.Request) (rec
 	reqLogger.Info("TemplatesConfigMapHash: ", "Data Hash:", templatesConfigMapHash)
 
 	// Secret - compute worker
-	secret, err := novamigrationtarget.Secret(instance, instance.Name+"-ssh-keys")
+	secret, err := novamigrationtarget.Secret(instance)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -428,7 +428,7 @@ func newDaemonset(cr *novav1.NovaMigrationTarget, cmName string, templatesConfig
 		containerSpec.VolumeMounts = append(containerSpec.VolumeMounts, volMount)
 	}
 	// add novamigrationtarget specific VolumeMounts
-	for _, volMount := range novamigrationtarget.GetVolumeMounts(cmName) {
+	for _, volMount := range novamigrationtarget.GetVolumeMounts(cr, cmName) {
 		containerSpec.VolumeMounts = append(containerSpec.VolumeMounts, volMount)
 	}
 
@@ -440,7 +440,7 @@ func newDaemonset(cr *novav1.NovaMigrationTarget, cmName string, templatesConfig
 		daemonSet.Spec.Template.Spec.Volumes = append(daemonSet.Spec.Template.Spec.Volumes, volConfig)
 	}
 	// add novamigrationtarget Volumes
-	for _, volConfig := range novamigrationtarget.GetVolumes(cmName) {
+	for _, volConfig := range novamigrationtarget.GetVolumes(cr, cmName) {
 		daemonSet.Spec.Template.Spec.Volumes = append(daemonSet.Spec.Template.Spec.Volumes, volConfig)
 	}
 

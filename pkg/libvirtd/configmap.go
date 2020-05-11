@@ -1,6 +1,8 @@
 package libvirtd
 
 import (
+	"strings"
+
 	util "github.com/openstack-k8s-operators/lib-common/pkg/util"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/pkg/apis/nova/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -20,7 +22,7 @@ func ScriptsConfigMap(cr *novav1.Libvirtd, cmName string) *corev1.ConfigMap {
 			Namespace: cr.Namespace,
 		},
 		Data: map[string]string{
-			"libvirtd.sh": util.ExecuteTemplateFile(cr.Name+"/bin/libvirtd.sh", nil),
+			"libvirtd.sh": util.ExecuteTemplateFile(strings.ToLower(cr.Kind)+"/bin/libvirtd.sh", nil),
 		},
 	}
 
@@ -40,8 +42,8 @@ func TemplatesConfigMap(cr *novav1.Libvirtd, cmName string) *corev1.ConfigMap {
 			Namespace: cr.Namespace,
 		},
 		Data: map[string]string{
-			"libvirtd.conf": util.ExecuteTemplateFile(cr.Name+"/config/libvirtd.conf", nil),
-			"config.json":   util.ExecuteTemplateFile(cr.Name+"/kolla_config.json", nil),
+			"libvirtd.conf": util.ExecuteTemplateFile(strings.ToLower(cr.Kind)+"/config/libvirtd.conf", nil),
+			"config.json":   util.ExecuteTemplateFile(strings.ToLower(cr.Kind)+"/kolla_config.json", nil),
 		},
 	}
 
