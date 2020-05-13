@@ -1,5 +1,5 @@
 # Version needed to share Travis build
-# configuration from external sources
+# configuration from external sources.
 version: ~> 1.0
 
 import:
