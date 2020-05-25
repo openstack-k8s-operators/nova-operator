@@ -262,6 +262,7 @@ func (r *ReconcileNovaCompute) setDaemonsetHash(instance *novav1.NovaCompute, ha
 
 func newDaemonset(cr *novav1.NovaCompute, cmName string, templatesConfigHash string, scriptsConfigHash string) *appsv1.DaemonSet {
 	var trueVar = true
+	var terminationGracePeriodSeconds int64 = 0
 
 	daemonSet := appsv1.DaemonSet{
 		TypeMeta: metav1.TypeMeta{
@@ -288,15 +289,16 @@ func newDaemonset(cr *novav1.NovaCompute, cmName string, templatesConfigHash str
 					Labels: map[string]string{"daemonset": cr.Name + "-daemonset"},
 				},
 				Spec: corev1.PodSpec{
-					NodeSelector:       common.GetComputeWorkerNodeSelector(cr.Spec.RoleName),
-					HostNetwork:        true,
-					HostPID:            true,
-					DNSPolicy:          "ClusterFirstWithHostNet",
-					HostAliases:        ospHostAliases,
-					InitContainers:     []corev1.Container{},
-					Containers:         []corev1.Container{},
-					Tolerations:        []corev1.Toleration{},
-					ServiceAccountName: cr.Spec.ServiceAccount,
+					NodeSelector:                  common.GetComputeWorkerNodeSelector(cr.Spec.RoleName),
+					HostNetwork:                   true,
+					HostPID:                       true,
+					DNSPolicy:                     "ClusterFirstWithHostNet",
+					HostAliases:                   ospHostAliases,
+					InitContainers:                []corev1.Container{},
+					Containers:                    []corev1.Container{},
+					Tolerations:                   []corev1.Toleration{},
+					ServiceAccountName:            cr.Spec.ServiceAccount,
+					TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
 				},
 			},
 		},
