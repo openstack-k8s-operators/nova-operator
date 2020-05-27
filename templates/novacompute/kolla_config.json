@@ -33,6 +33,11 @@
             "owner": "nova:nova",
             "path": "/etc/ceph/ceph.client.openstack.keyring",
             "perm": "0600"
+        },
+        {
+            "path": "/etc/nova/migration/identity",
+            "owner": "nova:nova",
+            "perm": "0600"
         }
     ]
 }
