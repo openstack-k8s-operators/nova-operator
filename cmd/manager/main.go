@@ -27,6 +27,8 @@ import (
 	"github.com/spf13/pflag"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
@@ -242,6 +244,8 @@ const sccName = "nova-operator"
 func ensureSCCExists(c client.Client, saNamespace, saName string) error {
 
 	userName := fmt.Sprintf("system:serviceaccount:%s:%s", saNamespace, saName)
+	trueVar := true
+	priority := int32(10)
 
 	scc := &secv1.SecurityContextConstraints{
 		ObjectMeta: metav1.ObjectMeta{
@@ -250,12 +254,12 @@ func ensureSCCExists(c client.Client, saNamespace, saName string) error {
 				"nova.openstack.org": "",
 			},
 		},
-		Priority: &[]int32{10}[0],
+		Priority: &priority,
 		FSGroup: secv1.FSGroupStrategyOptions{
 			Type: secv1.FSGroupStrategyRunAsAny,
 		},
 		AllowPrivilegedContainer: true,
-		AllowPrivilegeEscalation: &[]bool{true}[0],
+		AllowPrivilegeEscalation: &trueVar,
 		AllowHostDirVolumePlugin: true,
 		AllowHostIPC:             true,
 		AllowHostNetwork:         true,
@@ -285,6 +289,14 @@ func ensureSCCExists(c client.Client, saNamespace, saName string) error {
 		},
 	}
 
-	return c.Create(context.TODO(), scc)
+	// cache has not been started yet so we just attempt creation(no query). If it fails we handle accordingly
+	err := c.Create(context.TODO(), scc)
+	if meta.IsNoMatchError(err) {
+		log.Info("No match error for SecurityContextConstraints API, skipping SCC configuration.")
+		return nil
+	} else if apierrors.IsAlreadyExists(err) {
+		return nil
+	}
+	return err
 
 }
