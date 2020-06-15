@@ -17,6 +17,7 @@ import (
 	"github.com/openstack-k8s-operators/nova-operator/pkg/controller"
 	"github.com/openstack-k8s-operators/nova-operator/version"
 
+	secv1 "github.com/openshift/api/security/v1"
 	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
 	kubemetrics "github.com/operator-framework/operator-sdk/pkg/kube-metrics"
 	"github.com/operator-framework/operator-sdk/pkg/leader"
@@ -24,9 +25,14 @@ import (
 	"github.com/operator-framework/operator-sdk/pkg/metrics"
 	sdkVersion "github.com/operator-framework/operator-sdk/version"
 	"github.com/spf13/pflag"
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -130,6 +136,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	// add SecurityContextConstraint API to scheme
+	if err := secv1.AddToScheme(mgr.GetScheme()); err != nil {
+		log.Error(err, "")
+		os.Exit(1)
+	}
+
 	// Setup all Controllers
 	if err := controller.AddToManager(mgr); err != nil {
 		log.Error(err, "")
@@ -139,6 +151,13 @@ func main() {
 	// Add the Metrics Service
 	addMetrics(ctx, cfg)
 
+	log.Info("Creating SCC for nova-operator.")
+	err = ensureSCCExists(mgr.GetClient(), "", "nova-operator")
+	if err != nil {
+		log.Error(err, "Failed to create SCC for nova-operator.")
+		os.Exit(1)
+	}
+
 	log.Info("Starting the Cmd.")
 
 	// Start the Cmd
@@ -146,6 +165,7 @@ func main() {
 		log.Error(err, "Manager exited non-zero")
 		os.Exit(1)
 	}
+
 }
 
 // addMetrics will create the Services and Service Monitors to allow the operator export the metrics by using
@@ -216,4 +236,67 @@ func serveCRMetrics(cfg *rest.Config, operatorNs string) error {
 		return err
 	}
 	return nil
+}
+
+const sccName = "nova-operator"
+
+// EnsureSCCExists ensures the security context constraint for nova-operator exists
+func ensureSCCExists(c client.Client, saNamespace, saName string) error {
+
+	userName := fmt.Sprintf("system:serviceaccount:%s:%s", saNamespace, saName)
+	trueVar := true
+	priority := int32(10)
+
+	scc := &secv1.SecurityContextConstraints{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: sccName,
+			Labels: map[string]string{
+				"nova.openstack.org": "",
+			},
+		},
+		Priority: &priority,
+		FSGroup: secv1.FSGroupStrategyOptions{
+			Type: secv1.FSGroupStrategyRunAsAny,
+		},
+		AllowPrivilegedContainer: true,
+		AllowPrivilegeEscalation: &trueVar,
+		AllowHostDirVolumePlugin: true,
+		AllowHostIPC:             true,
+		AllowHostNetwork:         true,
+		AllowHostPID:             true,
+		AllowHostPorts:           true,
+		ReadOnlyRootFilesystem:   false,
+		AllowedCapabilities: []corev1.Capability{
+			"*",
+		},
+		DefaultAddCapabilities:   []corev1.Capability{},
+		RequiredDropCapabilities: []corev1.Capability{},
+		RunAsUser: secv1.RunAsUserStrategyOptions{
+			Type: secv1.RunAsUserStrategyRunAsAny,
+		},
+		SELinuxContext: secv1.SELinuxContextStrategyOptions{
+			Type: secv1.SELinuxStrategyRunAsAny,
+		},
+		SupplementalGroups: secv1.SupplementalGroupsStrategyOptions{
+			Type: secv1.SupplementalGroupsStrategyRunAsAny,
+		},
+		SeccompProfiles: []string{"*"},
+		Volumes: []secv1.FSType{
+			secv1.FSTypeAll,
+		},
+		Users: []string{
+			userName,
+		},
+	}
+
+	// cache has not been started yet so we just attempt creation(no query). If it fails we handle accordingly
+	err := c.Create(context.TODO(), scc)
+	if meta.IsNoMatchError(err) {
+		log.Info("No match error for SecurityContextConstraints API, skipping SCC configuration.")
+		return nil
+	} else if apierrors.IsAlreadyExists(err) {
+		return nil
+	}
+	return err
+
 }

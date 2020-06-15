@@ -642,7 +642,9 @@ github.com/opencontainers/runc v0.0.0-20190115041553-12f6a991201f/go.mod h1:qT5X
 github.com/opencontainers/runc v0.1.1/go.mod h1:qT5XzbpPznkRYVz/mWwUaVBUv2rmF59PVA73FjuZG0U=
 github.com/opencontainers/runtime-spec v0.1.2-0.20190507144316-5b71a03e2700/go.mod h1:jwyrGlmzljRJv/Fgzds9SsS/C5hL+LL3ko9hs6T5lQ0=
 github.com/opencontainers/runtime-tools v0.0.0-20181011054405-1d69bd0f9c39/go.mod h1:r3f7wjNzSs2extwzU3Y+6pKfobzPh+kKFJ3ofN+3nfs=
+github.com/openshift/api v0.0.0-20200205133042-34f0ec8dab87 h1:L/fZlWB7DdYCd09r9LvBa44xRH42Dx80ybxfN1h5C8Y=
 github.com/openshift/api v0.0.0-20200205133042-34f0ec8dab87/go.mod h1:fT6U/JfG8uZzemTRwZA2kBDJP5nWz7v05UHnty/D+pk=
+github.com/openshift/client-go v0.0.0-20190923180330-3b6373338c9b h1:E++qQ7W1/EdvuMo+YGVbMPn4HihEp7YT5Rghh0VmA9A=
 github.com/openshift/client-go v0.0.0-20190923180330-3b6373338c9b/go.mod h1:6rzn+JTr7+WYS2E1TExP4gByoABxMznR6y2SnUIkmxk=
 github.com/openshift/cluster-api v0.0.0-20191129101638-b09907ac6668 h1:IDZyg/Kye98ptqpc9j9rzPjZJlijjEDe8g7TZ67CmLU=
 github.com/openshift/cluster-api v0.0.0-20191129101638-b09907ac6668/go.mod h1:T18COkr6nLh9RyZKPMP7YjnwBME7RX8P2ar1SQbBltM=
@@ -658,7 +660,6 @@ github.com/openzipkin/zipkin-go v0.1.6/go.mod h1:QgAqvLzwWbR/WpD4A3cGpPtJrZXNIiJ
 github.com/operator-framework/api v0.1.1/go.mod h1:yzNYR7qyJqRGOOp+bT6Z/iYSbSPNxeh3Si93Gx/3OBY=
 github.com/operator-framework/operator-lifecycle-manager v0.0.0-20200321030439-57b580e57e88 h1:ByKBik0i2aTEr7iKdSCmUGULydHwr6hA0h4INv9LkSA=
 github.com/operator-framework/operator-lifecycle-manager v0.0.0-20200321030439-57b580e57e88/go.mod h1:7Ut8p9jJ8C6RZyyhZfZypmlibCIJwK5Wcc+WZDgLkOA=
-github.com/operator-framework/operator-lifecycle-manager v3.11.0+incompatible h1:Po8C8RVLRWq7pNQ5pKonM9CXpC/osoBWbmsuf+HJnSI=
 github.com/operator-framework/operator-registry v1.5.3/go.mod h1:agrQlkWOo1q8U1SAaLSS2WQ+Z9vswNT2M2HFib9iuLY=
 github.com/operator-framework/operator-registry v1.6.1/go.mod h1:sx4wWMiZtYhlUiaKscg3QQUPPM/c1bkrAs4n4KipDb4=
 github.com/operator-framework/operator-registry v1.6.2-0.20200330184612-11867930adb5/go.mod h1:SHff373z8asEkPo6aWpN0qId4Y/feQTjZxRF8PRhti8=
@@ -1204,6 +1205,7 @@ k8s.io/apimachinery v0.17.2/go.mod h1:b9qmWdKlLuU9EBh+06BtLcSf/Mu89rWL33naRxs1uZ
 k8s.io/apimachinery v0.17.3/go.mod h1:gxLnyZcGNdZTCLnq3fgzyg2A5BVCHTNDFrw8AmuJ+0g=
 k8s.io/apimachinery v0.17.4 h1:UzM+38cPUJnzqSQ+E1PY4YxMHIzQyCg29LOoGfo79Zw=
 k8s.io/apimachinery v0.17.4/go.mod h1:gxLnyZcGNdZTCLnq3fgzyg2A5BVCHTNDFrw8AmuJ+0g=
+k8s.io/apimachinery v0.18.3 h1:pOGcbVAhxADgUYnjS08EFXs9QMl8qaH5U4fr5LGUrSk=
 k8s.io/apiserver v0.0.0-20190918160949-bfa5e2e684ad/go.mod h1:XPCXEwhjaFN29a8NldXA901ElnKeKLrLtREO9ZhFyhg=
 k8s.io/apiserver v0.16.7/go.mod h1:/5zSatF30/L9zYfMTl55jzzOnx7r/gGv5a5wtRp8yAw=
 k8s.io/apiserver v0.17.0/go.mod h1:ABM+9x/prjINN6iiffRVNCBR2Wk7uY4z+EtEGZD48cg=
