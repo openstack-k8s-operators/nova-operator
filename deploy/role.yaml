@@ -77,3 +77,12 @@ rules:
   - securitycontextconstraints
   verbs:
   - use
+- apiGroups:
+  - security.openshift.io
+  resources:
+  - securitycontextconstraints
+  verbs:
+  - list
+  - get
+  - watch
+  - create
