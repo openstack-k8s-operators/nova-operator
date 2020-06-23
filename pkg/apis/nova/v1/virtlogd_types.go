@@ -11,8 +11,8 @@ type VirtlogdSpec struct {
 	NovaLibvirtImage string `json:"novaLibvirtImage"`
 	// service account used to create pods
 	ServiceAccount string `json:"serviceAccount"`
-        // Name of the worker role created for OSP computes
-        RoleName string `json:"roleName"`
+	// Name of the worker role created for OSP computes
+	RoleName string `json:"roleName"`
 }
 
 // VirtlogdStatus defines the observed state of Virtlogd

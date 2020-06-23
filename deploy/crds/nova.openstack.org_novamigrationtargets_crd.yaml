@@ -32,6 +32,10 @@ spec:
         spec:
           description: NovaMigrationTargetSpec defines the desired state of NovaMigrationTarget
           properties:
+            commonConfigMap:
+              description: name of configmap which holds general information on the
+                OSP env
+              type: string
             novaComputeImage:
               description: container image to run for the daemon
               type: string
@@ -46,6 +50,7 @@ spec:
               format: int32
               type: integer
           required:
+          - commonConfigMap
           - novaComputeImage
           - roleName
           - serviceAccount

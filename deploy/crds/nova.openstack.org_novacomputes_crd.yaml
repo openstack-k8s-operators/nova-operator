@@ -31,17 +31,9 @@ spec:
         spec:
           description: NovaComputeSpec defines the desired state of NovaCompute
           properties:
-            cinderPassword:
-              description: Cinder API Admin Password
-              type: string
-            internalAPIVip:
-              description: Control Plane InternalAPI VIP String
-              type: string
-            memcacheServers:
-              description: Memcache Servers String
-              type: string
-            neutronPassword:
-              description: Neutron API Admin Password
+            commonConfigMap:
+              description: name of configmap which holds general information on the
+                OSP env
               type: string
             novaComputeCPUDedicatedSet:
               description: 'A list or range of host CPU cores to which processes for
@@ -56,17 +48,9 @@ spec:
             novaComputeImage:
               description: container image to run for the daemon
               type: string
-            novaPassword:
-              description: Nova API Admin Password
-              type: string
-            placementPassword:
-              description: Placement API Admin Password
-              type: string
-            publicVip:
-              description: Control Plane public VIP String
-              type: string
-            rabbitTransportURL:
-              description: RabbitMQ transport URL String
+            ospSecrets:
+              description: name of secret which holds sensitive information on the
+                OSP env
               type: string
             roleName:
               description: Name of the worker role created for OSP computes
@@ -75,14 +59,9 @@ spec:
               description: service account used to create pods
               type: string
           required:
-          - cinderPassword
-          - internalAPIVip
-          - neutronPassword
+          - commonConfigMap
           - novaComputeImage
-          - novaPassword
-          - placementPassword
-          - publicVip
-          - rabbitTransportURL
+          - ospSecrets
           - roleName
           - serviceAccount
           type: object

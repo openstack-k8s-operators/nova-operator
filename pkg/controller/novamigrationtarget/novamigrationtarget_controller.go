@@ -29,11 +29,6 @@ import (
 var log = logf.Log.WithName("controller_novamigrationtarget")
 var ospHostAliases = []corev1.HostAlias{}
 
-// TODO move to spec like image urls?
-const (
-	CommonConfigMAP string = "common-config"
-)
-
 // Add creates a new NovaMigrationTarget Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func Add(mgr manager.Manager) error {
@@ -124,19 +119,18 @@ func (r *ReconcileNovaMigrationTarget) Reconcile(request reconcile.Request) (rec
 		return reconcile.Result{}, err
 	}
 
+	// get instance.Spec.CommonConfigMap which holds general information on the OSP environment
+	// TODO: handle commonConfigMap data change
 	commonConfigMap := &corev1.ConfigMap{}
-
-	reqLogger.Info("Creating host entries from config map:", "configMap: ", CommonConfigMAP)
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: CommonConfigMAP, Namespace: instance.Namespace}, commonConfigMap)
-
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: instance.Spec.CommonConfigMap, Namespace: instance.Namespace}, commonConfigMap)
 	if err != nil && errors.IsNotFound(err) {
-		reqLogger.Error(err, "common-config ConfigMap not found!", "Instance.Namespace", instance.Namespace, "Instance.Name", instance.Name)
+		reqLogger.Error(err, instance.Spec.CommonConfigMap+" ConfigMap not found!", "Instance.Namespace", instance.Namespace, "Instance.Name", instance.Name)
 		return reconcile.Result{}, err
 	}
-
 	if err := controllerutil.SetControllerReference(instance, commonConfigMap, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
+
 	// Create additional host entries added to the /etc/hosts file of the containers
 	ospHostAliases, err = util.CreateOspHostsEntries(commonConfigMap)
 	if err != nil {

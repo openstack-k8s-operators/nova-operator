@@ -27,11 +27,6 @@ import (
 
 var log = logf.Log.WithName("controller_virtlogd")
 
-// TODO move to spec like image urls?
-const (
-	CommonConfigMAP string = "common-config"
-)
-
 // Add creates a new Virtlogd Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func Add(mgr manager.Manager) error {

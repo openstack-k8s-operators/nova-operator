@@ -4,18 +4,8 @@ metadata:
   name: nova-compute
   namespace: openstack
 spec:
-  # Enpoint Information
-  publicVip: 10.0.0.143
-  internalAPIVip: 172.17.1.29
-  # Memcached server list
-  memcacheServers: 172.17.1.83:11211
-  # Rabbit transport url
-  rabbitTransportURL: rabbit://guest:eJNAlgHTTN8A6mclF6q6dBdL1@controller-0.internalapi.redhat.local:5672/?ssl=0
-  # User Passwords -> TODO: add as secrets and load into config from there
-  cinderPassword: kxtKYHKLdbEGzfGN6OTESU66t
-  novaPassword: ytalxxwY2ovYx0FcQpjbfFeK1
-  neutronPassword: HKCe8oWszT6brfYlJUPHH3moh
-  placementPassword: 3e2CahSMAw8xMA576ORh0yaWc
+  commonConfigMap: common-config
+  ospSecrets: osp-secrets
   novaComputeCPUDedicatedSet: 4-7
   novaComputeCPUSharedSet: 0-3
 
