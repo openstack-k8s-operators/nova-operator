@@ -246,6 +246,7 @@ func getOperatorRules() *[]rbacv1.PolicyRule {
 			Resources: []string{
 				"pods",
 				"services",
+				"services/finalizers",
 				"endpoints",
 				"persistentvolumeclaims",
 				"events",
