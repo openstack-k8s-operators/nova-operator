@@ -152,7 +152,7 @@ func main() {
 	addMetrics(ctx, cfg)
 
 	log.Info("Creating SCC for nova-operator.")
-	err = ensureSCCExists(mgr.GetClient(), "", "nova-operator")
+	err = ensureSCCExists(mgr.GetClient(), namespace, "nova-operator")
 	if err != nil {
 		log.Error(err, "Failed to create SCC for nova-operator.")
 		os.Exit(1)

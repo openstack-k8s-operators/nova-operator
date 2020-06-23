@@ -455,10 +455,12 @@ func getOperatorClusterRules() *[]rbacv1.PolicyRule {
 				"securitycontextconstraints",
 			},
 			Verbs: []string{
-				"list",
-				"get",
-				"watch",
 				"create",
+				"get",
+				"list",
+				"watch",
+				"update",
+				"patch",
 			},
 		},
 		{
