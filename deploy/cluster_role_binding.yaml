@@ -1,0 +1,12 @@
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: nova-operator
+roleRef:
+  kind: ClusterRole
+  apiGroup: rbac.authorization.k8s.io
+  name: nova-operator
+subjects:
+- kind: ServiceAccount
+  name: nova-operator
+  namespace: openstack
