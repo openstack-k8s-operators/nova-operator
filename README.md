@@ -51,10 +51,12 @@ Create namespace
 
     oc create -f deploy/namespace.yaml
 
-Create role, role_binding and service_account
+Create role, role_binding, cluster_role, cluster_role_binding and service_account
 
     oc create -f deploy/role.yaml
     oc create -f deploy/role_binding.yaml
+    oc create -f deploy/cluster_role.yaml
+    oc create -f deploy/cluster_role_binding.yaml
     oc create -f deploy/service_account.yaml
 
 Create security context constraints
