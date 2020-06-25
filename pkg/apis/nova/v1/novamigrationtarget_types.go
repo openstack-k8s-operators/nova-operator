@@ -7,14 +7,16 @@ import (
 // NovaMigrationTargetSpec defines the desired state of NovaMigrationTarget
 // +k8s:openapi-gen=true
 type NovaMigrationTargetSpec struct {
+	// name of configmap which holds general information on the OSP env
+	CommonConfigMap string `json:"commonConfigMap"`
 	// container image to run for the daemon
 	NovaComputeImage string `json:"novaComputeImage"`
 	// SSHD port
 	SshdPort int32 `json:"sshdPort"`
 	// service account used to create pods
 	ServiceAccount string `json:"serviceAccount"`
-        // Name of the worker role created for OSP computes
-        RoleName string `json:"roleName"`
+	// Name of the worker role created for OSP computes
+	RoleName string `json:"roleName"`
 }
 
 // NovaMigrationTargetStatus defines the observed state of NovaMigrationTarget

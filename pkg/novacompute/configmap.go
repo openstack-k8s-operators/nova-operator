@@ -44,15 +44,16 @@ func ScriptsConfigMap(cr *novav1.NovaCompute, cmName string) *corev1.ConfigMap {
 }
 
 // TemplatesConfigMap - mandatory settings config map
-func TemplatesConfigMap(cr *novav1.NovaCompute, cmName string) *corev1.ConfigMap {
-	opts := novaComputeConfigOptions{cr.Spec.PublicVip,
-		cr.Spec.InternalAPIVip,
-		cr.Spec.MemcacheServers,
-		cr.Spec.CinderPassword,
-		cr.Spec.NovaPassword,
-		cr.Spec.NeutronPassword,
-		cr.Spec.PlacementPassword,
-		cr.Spec.RabbitTransportURL,
+func TemplatesConfigMap(cr *novav1.NovaCompute, commonConfigMap *corev1.ConfigMap, ospSecrets *corev1.Secret, cmName string) *corev1.ConfigMap {
+	opts := novaComputeConfigOptions{
+		commonConfigMap.Data["internalAPIVip"],
+		commonConfigMap.Data["publicVip"],
+		commonConfigMap.Data["memcacheServers"],
+		string(ospSecrets.Data["CinderPassword"]),
+		string(ospSecrets.Data["NovaPassword"]),
+		string(ospSecrets.Data["NeutronPassword"]),
+		string(ospSecrets.Data["PlacementPassword"]),
+		string(ospSecrets.Data["RabbitTransportURL"]),
 		cr.Spec.NovaComputeCPUDedicatedSet,
 		cr.Spec.NovaComputeCPUSharedSet}
 

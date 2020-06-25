@@ -29,11 +29,6 @@ import (
 var log = logf.Log.WithName("controller_novacompute")
 var ospHostAliases = []corev1.HostAlias{}
 
-// TODO move to spec like image urls?
-const (
-	CommonConfigMAP string = "common-config"
-)
-
 // Add creates a new NovaCompute Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func Add(mgr manager.Manager) error {
@@ -124,16 +119,27 @@ func (r *ReconcileNovaCompute) Reconcile(request reconcile.Request) (reconcile.R
 		return reconcile.Result{}, err
 	}
 
+	// get instance.Spec.CommonConfigMap which holds general information on the OSP environment
+	// TODO: handle commonConfigMap data change
 	commonConfigMap := &corev1.ConfigMap{}
-
-	reqLogger.Info("Creating host entries from config map:", "configMap: ", CommonConfigMAP)
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: CommonConfigMAP, Namespace: instance.Namespace}, commonConfigMap)
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: instance.Spec.CommonConfigMap, Namespace: instance.Namespace}, commonConfigMap)
 	if err != nil && errors.IsNotFound(err) {
-		reqLogger.Error(err, "common-config ConfigMap not found!", "Instance.Namespace", instance.Namespace, "Instance.Name", instance.Name)
+		reqLogger.Error(err, instance.Spec.CommonConfigMap+" ConfigMap not found!", "Instance.Namespace", instance.Namespace, "Instance.Name", instance.Name)
+		return reconcile.Result{}, err
+	}
+	if err := controllerutil.SetControllerReference(instance, commonConfigMap, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
 
-	if err := controllerutil.SetControllerReference(instance, commonConfigMap, r.scheme); err != nil {
+	// get insatnce.Spec.OspSecret which holds passwords and other sensitive information from the OSP environment
+	// TODO: handle secrets data change, like pwd change
+	ospSecrets := &corev1.Secret{}
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: instance.Spec.OspSecrets, Namespace: instance.Namespace}, ospSecrets)
+	if err != nil && errors.IsNotFound(err) {
+		reqLogger.Error(err, instance.Spec.OspSecrets+" Secret not found!", "Instance.Namespace", instance.Namespace, "Instance.Name", instance.Name)
+		return reconcile.Result{}, err
+	}
+	if err := controllerutil.SetControllerReference(instance, ospSecrets, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
 
@@ -170,8 +176,9 @@ func (r *ReconcileNovaCompute) Reconcile(request reconcile.Request) (reconcile.R
 	}
 	reqLogger.Info("ScriptsConfigMapHash: ", "Data Hash:", scriptsConfigMapHash)
 
-	// TemplatesConfigMap
-	templatesConfigMap := novacompute.TemplatesConfigMap(instance, instance.Name+"-templates")
+	// templatesConfigMap
+	// TODO: when config handling is set this needs to be changed!! Right now passwords get stored in the resulting CM
+	templatesConfigMap := novacompute.TemplatesConfigMap(instance, commonConfigMap, ospSecrets, instance.Name+"-templates")
 	if err := controllerutil.SetControllerReference(instance, templatesConfigMap, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
@@ -308,14 +315,6 @@ func newDaemonset(cr *novav1.NovaCompute, cmName string, templatesConfigHash str
 	for _, toleration := range common.GetComputeWorkerTolerations(cr.Spec.RoleName) {
 		daemonSet.Spec.Template.Spec.Tolerations = append(daemonSet.Spec.Template.Spec.Tolerations, toleration)
 	}
-
-	// Add hosts entries rendered from the the config map to the hosts file of the containers in the pod
-	// TODO:
-	//       - move to some common lib to be used from nova and neutron operator
-	//
-	//for _, ospHostAlias := range ospHostAliases {
-	//        daemonSet.Spec.Template.Spec.HostAliases = append(daemonSet.Spec.Template.Spec.HostAliases, ospHostAlias)
-	//}
 
 	initContainerSpec := corev1.Container{
 		Name:  "init",

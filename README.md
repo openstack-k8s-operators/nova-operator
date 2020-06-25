@@ -193,7 +193,9 @@ Apply the CRs:
     nova-migration-target   0         0         0       0            0           node-role.kubernetes.io/worker-osp=   12m
     virtlogd                0         0         0       0            0           node-role.kubernetes.io/worker-osp=   12m
 
-### Create required common-config configMap
+### Create required common-config configMap and osp-secrets secret
+
+#### common-config configMap
 
 Get the following config from a compute node in the OSP env:
 - /etc/hosts
@@ -201,22 +203,49 @@ Get the following config from a compute node in the OSP env:
 Place it in a config dir like:
 - common-conf
 
-Add OSP environment controller-0 short hostname in common-conf/osp_controller_hostname
+Add `internalAPIVip` file which holds the internal VIP IP of the control plane:
 
-    echo "SHORT OSP CTRL-0 HOSTNAME"> /root/common-conf/osp_controller_hostname
+    echo -n "192.168.25.100" > common-conf/internalAPIVip
+
+Add `publicVip` file which holds the public VIP IP of the control plane:
+
+    echo -n "192.168.25.100" > common-conf/publicVip
+
+Add `memcacheServers` file which holds the memcache server string:
+
+    echo -n "1192.168.25.20:11211" > common-conf/memcacheServers
 
 Create the configMap
 
-    oc create configmap common-config --from-file=/root/common-conf/
+    oc create -n openstack configmap common-config --from-file=/root/common-conf/
 
 Note: if a later update is needed do e.g.
 
-    oc create configmap common-config --from-file=./common-conf/ --dry-run -o yaml | oc apply -f -
+    oc create -n openstack configmap common-config --from-file=./common-conf/ --dry-run -o yaml | oc apply -f -
 
 Note: Right now the operator does not handle config updates to the common-config configMap. The pod needs to be recreated that the hosts file entries get updated
 
-!! Make sure we have the OSP needed network configs on the worker nodes. The workers need to be able to reach the internalapi, storage and tenant network !!
+#### osp-secrets secret
 
+Create a secrets yaml file like the following and add the base64 encoded information for the relevant parameters:
+
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: osp-secrets
+      namespace: openstack
+    data:
+      RabbitTransportURL: cmFiYml0Oi8vZ3Vlc3Q6cnBjLXBhc3N3b3JkQGNvbnRyb2xsZXItMC5pbnRlcm5hbGFwaS5vc3Rlc3Q6NTY3Mi8/c3NsPTA=
+      NovaPassword: bm92YS1wYXNzd29yZA==
+      CinderPassword: Y2luZGVyLXBhc3N3b3Jk
+      NeutronPassword: bmV1dHJvbi1wYXNzd29yZA==
+      PlacementPassword: cGxhY2VtZW50LXBhc3N3b3Jk
+
+**NOTE** The strings to encode must not have an ending line break. Use e.g. the following command to get the encoded string:
+
+    echo -n "nova-password" | base64
+
+!! Make sure we have the OSP needed network configs on the worker nodes. The workers need to be able to reach the internalapi, storage and tenant network !!
 
 Install the compute-node-operator from and create a machineset for the worker-osp role. When deployed the OSP worker is installed with additional worker-osp role:
 

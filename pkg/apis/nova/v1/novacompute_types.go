@@ -7,20 +7,12 @@ import (
 // NovaComputeSpec defines the desired state of NovaCompute
 // +k8s:openapi-gen=true
 type NovaComputeSpec struct {
+	// name of configmap which holds general information on the OSP env
+	CommonConfigMap string `json:"commonConfigMap"`
+	// name of secret which holds sensitive information on the OSP env
+	OspSecrets string `json:"ospSecrets"`
 	// container image to run for the daemon
 	NovaComputeImage string `json:"novaComputeImage"`
-	// Control Plane public VIP String
-	PublicVip string `json:"publicVip"`
-	// Control Plane InternalAPI VIP String
-	InternalAPIVip string `json:"internalAPIVip"`
-	// Memcache Servers String
-	MemcacheServers string `json:"memcacheServers,omitempty"`
-	// RabbitMQ transport URL String
-	RabbitTransportURL string `json:"rabbitTransportURL"`
-	// Cinder API Admin Password
-	CinderPassword string `json:"cinderPassword"`
-	// Nova API Admin Password
-	NovaPassword string `json:"novaPassword"`
 	// Mask of host CPUs that can be used for ``VCPU`` resources and offloaded
 	// emulator threads. For more information, refer to the documentation.
 	NovaComputeCPUSharedSet string `json:"novaComputeCPUSharedSet,omitempty"`
@@ -29,14 +21,10 @@ type NovaComputeSpec struct {
 	// Ex. NovaComputeCPUDedicatedSet: [4-12,^8,15] will reserve cores from 4-12
 	// and 15, excluding 8.
 	NovaComputeCPUDedicatedSet string `json:"novaComputeCPUDedicatedSet,omitempty"`
-	// Neutron API Admin Password
-	NeutronPassword string `json:"neutronPassword"`
-	// Placement API Admin Password
-	PlacementPassword string `json:"placementPassword"`
 	// service account used to create pods
 	ServiceAccount string `json:"serviceAccount"`
-        // Name of the worker role created for OSP computes
-        RoleName string `json:"roleName"`
+	// Name of the worker role created for OSP computes
+	RoleName string `json:"roleName"`
 }
 
 // NovaComputeStatus defines the observed state of NovaCompute
