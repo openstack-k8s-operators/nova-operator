@@ -54,7 +54,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 
 	// Watch ConfigMaps owned by Virtlogd
 	err = c.Watch(&source.Kind{Type: &corev1.ConfigMap{}}, &handler.EnqueueRequestForOwner{
-		IsController: false,
+		IsController: true,
 		OwnerType:    &novav1.Virtlogd{},
 	})
 	if err != nil {
@@ -63,16 +63,15 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 
 	// Watch Secrets owned by Virtlogd
 	err = c.Watch(&source.Kind{Type: &corev1.Secret{}}, &handler.EnqueueRequestForOwner{
-		IsController: false,
+		IsController: true,
 		OwnerType:    &novav1.Virtlogd{},
 	})
 	if err != nil {
 		return err
 	}
 
-	// TODO(user): Modify this to be the types you create that are owned by the primary resource
-	// Watch for changes to secondary resource Pods and requeue the owner Virtlogd
-	err = c.Watch(&source.Kind{Type: &corev1.Pod{}}, &handler.EnqueueRequestForOwner{
+	// Watch for changes to secondary resource Daemonset and requeue the owner Virtlogd
+	err = c.Watch(&source.Kind{Type: &appsv1.DaemonSet{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
 		OwnerType:    &novav1.Virtlogd{},
 	})
