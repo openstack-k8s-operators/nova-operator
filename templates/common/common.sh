@@ -21,7 +21,7 @@ function get_ip_address_from_network {
   # for now we expect that controller-0 is always there and has this hostname
   # format
   local controller_ip=$(getent -s hosts:files hosts controller-0.${network} | awk '{print $1}')
-  local ip=$(ip route get ${controller_ip} | awk '{print $5}')
+  local ip=$(ip route get ${controller_ip} | head -1 | awk '{print $5}')
   if [ -z "${ip}" ] ; then
     exit
   fi
