@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: SecurityContextConstraints
 metadata:
-  name: nova-operator
+  name: nova
 allowPrivilegedContainer: true
 allowPrivilegeEscalation: true
 allowHostDirVolumePlugin: true
@@ -28,7 +28,7 @@ seccompProfiles:
 supplementalGroups:
   type: RunAsAny
 users:
-- system:serviceaccount:openstack:nova-operator
+- system:serviceaccount:openstack:nova
 groups: []
 volumes:
 - '*'

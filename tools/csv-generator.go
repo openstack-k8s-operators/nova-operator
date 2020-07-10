@@ -88,6 +88,7 @@ Install and configure OpenStack Nova containers.
 
 	clusterRules := getOperatorClusterRules()
 	rules := getOperatorRules()
+	serviceRules := getServiceRules()
 
 	strategySpec := csvv1.StrategyDetailsDeployment{
 		ClusterPermissions: []csvv1.StrategyDeploymentPermissions{
@@ -100,6 +101,10 @@ Install and configure OpenStack Nova containers.
 			{
 				ServiceAccountName: "nova-operator",
 				Rules:              *rules,
+			},
+			{
+				ServiceAccountName: "nova",
+				Rules:              *serviceRules,
 			},
 		},
 		DeploymentSpecs: []csvv1.StrategyDeploymentSpec{
@@ -322,6 +327,22 @@ func getOperatorRules() *[]rbacv1.PolicyRule {
 				"libvirtds",
 				"iscsids",
 				"novamigrationtargets",
+			},
+			Verbs: []string{
+				"*",
+			},
+		},
+	}
+}
+
+func getServiceRules() *[]rbacv1.PolicyRule {
+	return &[]rbacv1.PolicyRule{
+		{
+			APIGroups: []string{
+				"",
+			},
+			Resources: []string{
+				"pods",
 			},
 			Verbs: []string{
 				"*",
