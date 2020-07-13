@@ -10,5 +10,5 @@ spec:
   novaComputeCPUSharedSet: 0-3
 
   novaComputeImage: docker.io/tripleotrain/rhel-binary-nova-compute:current-tripleo
-  serviceAccount: nova-operator
+  serviceAccount: nova
   roleName: worker-osp

@@ -152,9 +152,9 @@ func main() {
 	addMetrics(ctx, cfg)
 
 	log.Info("Creating SCC for nova-operator.")
-	err = ensureSCCExists(mgr.GetClient(), namespace, "nova-operator")
+	err = ensureSCCExists(mgr.GetClient(), namespace, "nova")
 	if err != nil {
-		log.Error(err, "Failed to create SCC for nova-operator.")
+		log.Error(err, "Failed to create SCC for nova.")
 		os.Exit(1)
 	}
 
@@ -238,7 +238,7 @@ func serveCRMetrics(cfg *rest.Config, operatorNs string) error {
 	return nil
 }
 
-const sccName = "nova-operator"
+const sccName = "nova"
 
 // EnsureSCCExists ensures the security context constraint for nova-operator exists
 func ensureSCCExists(c client.Client, saNamespace, saName string) error {
