@@ -463,7 +463,7 @@ func getOperatorClusterRules() *[]rbacv1.PolicyRule {
 				"deployments/finalizers",
 			},
 			ResourceNames: []string{
-				"nova-operator",
+				"nova",
 			},
 			Verbs: []string{
 				"update",
@@ -493,11 +493,10 @@ func getOperatorClusterRules() *[]rbacv1.PolicyRule {
 				"securitycontextconstraints",
 			},
 			ResourceNames: []string{
-				"nova-operator",
+				"nova",
 			},
 			Verbs: []string{
-				"delete",
-				"update",
+				"use",
 			},
 		},
 		{

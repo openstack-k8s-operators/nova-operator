@@ -73,7 +73,7 @@ rules:
 - apiGroups:
   - security.openshift.io
   resourceNames:
-  - nova-operator
+  - nova
   resources:
   - securitycontextconstraints
   verbs:
