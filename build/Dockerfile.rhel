@@ -1,18 +1,23 @@
 FROM openshift/golang-builder:1.13 AS build-env
 # Intended to build in OSBS using cachito external sources bundle
+ARG REMOTE_SOURCE
+ARG REMOTE_SOURCE_DIR
+ARG REMOTE_SOURCE_SUBDIR=app
+ARG DEST_ROOT=/dest-root
 
 COPY $REMOTE_SOURCE $REMOTE_SOURCE_DIR
-WORKDIR $REMOTE_SOURCE_DIR/app
-RUN mkdir -p /dest-root/usr/local/bin
+WORKDIR $REMOTE_SOURCE_DIR/$REMOTE_SOURCE_SUBDIR
+RUN mkdir -p $DEST_ROOT/usr/local/bin
 
-RUN go build -mod readonly -v -a -ldflags '-extldflags "-static"' -o /dest-root/csv-generator tools/csv-generator.go
-RUN go build -mod readonly -v -a -ldflags '-extldflags "-static"' -o /dest-root/operator cmd/manager/main.go
+RUN go build -mod readonly -v -a -ldflags '-extldflags "-static"' -o $DEST_ROOT/csv-generator tools/csv-generator.go
+RUN go build -mod readonly -v -a -ldflags '-extldflags "-static"' -o $DEST_ROOT/operator cmd/manager/main.go
 
-RUN cp -r build/bin/* /dest-root/usr/local/bin
-RUN cp -r templates /dest-root/templates
-RUN cp -r deploy/crds /dest-root/crds
+RUN cp -r build/bin/* $DEST_ROOT/usr/local/bin
+RUN cp -r templates $DEST_ROOT/templates
+RUN cp -r deploy/crds $DEST_ROOT/crds
 
 FROM ubi8-minimal:8.1-released
+ARG DEST_ROOT=/dest-root
 
 LABEL   com.redhat.component="nova-operator-container" \
         name="nova-operator" \
@@ -28,19 +33,19 @@ ENV OPERATOR=/usr/local/bin/nova-operator \
     OPERATOR_BUNDLE=/usr/share/nova-operator/bundle/
 
 # install operator binary
-COPY --from=build-env /dest-root/operator ${OPERATOR}
-COPY --from=build-env /dest-root/csv-generator /usr/local/bin/csv-generator
+COPY --from=build-env $DEST_ROOT/operator ${OPERATOR}
+COPY --from=build-env $DEST_ROOT/csv-generator /usr/local/bin/csv-generator
 
-COPY --from=build-env /dest-root/usr/local/bin/* /usr/local/bin
+COPY --from=build-env $DEST_ROOT/usr/local/bin/* /usr/local/bin
 RUN  /usr/local/bin/user_setup
 
 # install our templates
 RUN  mkdir -p ${OPERATOR_TEMPLATES}
-COPY --from=build-env /dest-root/templates ${OPERATOR_TEMPLATES}
+COPY --from=build-env $DEST_ROOT/templates ${OPERATOR_TEMPLATES}
 
 # install CRDs and required roles, services, etc
 RUN  mkdir -p ${OPERATOR_BUNDLE}
-COPY --from=build-env /dest-root/crds/*crd.yaml ${OPERATOR_BUNDLE}
+COPY --from=build-env $DEST_ROOT/crds/*crd.yaml ${OPERATOR_BUNDLE}
 
 ENTRYPOINT ["/usr/local/bin/entrypoint"]
 
