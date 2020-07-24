@@ -55,13 +55,7 @@ Create role, role_binding, cluster_role, cluster_role_binding and service_accoun
 
     oc create -f deploy/role.yaml
     oc create -f deploy/role_binding.yaml
-    oc create -f deploy/cluster_role.yaml
-    oc create -f deploy/cluster_role_binding.yaml
     oc create -f deploy/service_account.yaml
-
-Create security context constraints
-
-    oc create -f deploy/scc.yaml
 
 Install the operator
 
@@ -416,10 +410,7 @@ First delete all instances running on the OCP worker AZ
     oc delete -f deploy/operator.yaml
     oc delete -f deploy/role.yaml
     oc delete -f deploy/role_binding.yaml
-    oc delete -f deploy/cluster_role.yaml
-    oc delete -f deploy/cluster_role_binding.yaml
     oc delete -f deploy/service_account.yaml
-    oc delete -f deploy/scc.yaml
     oc delete -f deploy/namespace.yaml
     oc delete -f deploy/crds/nova.openstack.org_libvirtds_crd.yaml
     oc delete -f deploy/crds/nova.openstack.org_virtlogds_crd.yaml
