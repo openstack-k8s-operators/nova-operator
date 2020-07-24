@@ -86,17 +86,19 @@ Install and configure OpenStack Nova containers.
 		data.Verbosity,
 		data.ImagePullPolicy)
 
-	clusterRules := getOperatorClusterRules()
+	//clusterRules := getOperatorClusterRules()
 	rules := getOperatorRules()
 	serviceRules := getServiceRules()
 
 	strategySpec := csvv1.StrategyDetailsDeployment{
-		ClusterPermissions: []csvv1.StrategyDeploymentPermissions{
-			{
-				ServiceAccountName: "nova-operator",
-				Rules:              *clusterRules,
+		/*
+			ClusterPermissions: []csvv1.StrategyDeploymentPermissions{
+				{
+					ServiceAccountName: "nova-operator",
+					Rules:              *clusterRules,
+				},
 			},
-		},
+		*/
 		Permissions: []csvv1.StrategyDeploymentPermissions{
 			{
 				ServiceAccountName: "nova-operator",
@@ -348,143 +350,6 @@ func getServiceRules() *[]rbacv1.PolicyRule {
 				"*",
 			},
 		},
-	}
-}
-
-func getOperatorClusterRules() *[]rbacv1.PolicyRule {
-	return &[]rbacv1.PolicyRule{
-		{
-			APIGroups: []string{
-				"rbac.authorization.k8s.io",
-			},
-			Resources: []string{
-				"roles",
-				"rolebindings",
-			},
-			ResourceNames: []string{
-				"nova-operator",
-			},
-			Verbs: []string{
-				"*",
-			},
-		},
-		{
-			APIGroups: []string{
-				"",
-			},
-			Resources: []string{
-				"namespaces",
-			},
-			Verbs: []string{
-				"get",
-				"list",
-				"watch",
-				"patch",
-			},
-		},
-		{
-			APIGroups: []string{
-				"",
-			},
-			Resources: []string{
-				"events",
-			},
-			Verbs: []string{
-				"list",
-				"watch",
-				"create",
-				"patch",
-				"update",
-			},
-		},
-		{
-			APIGroups: []string{
-				"rbac.authorization.k8s.io",
-			},
-			Resources: []string{
-				"clusterrolebindings",
-			},
-			ResourceNames: []string{
-				"nova-operator",
-			},
-			Verbs: []string{
-				"update",
-				"delete",
-			},
-		},
-		{
-			APIGroups: []string{
-				"rbac.authorization.k8s.io",
-			},
-			Resources: []string{
-				"clusterrolebindings",
-			},
-			Verbs: []string{
-				"list",
-				"get",
-				"watch",
-				"create",
-			},
-		},
-		{
-			APIGroups: []string{
-				"rbac.authorization.k8s.io",
-			},
-			Resources: []string{
-				"clusterroles",
-			},
-			ResourceNames: []string{
-				"nova-operator",
-			},
-			Verbs: []string{
-				"update",
-				"delete",
-			},
-		},
-		{
-			APIGroups: []string{
-				"rbac.authorization.k8s.io",
-			},
-			Resources: []string{
-				"clusterroles",
-			},
-			Verbs: []string{
-				"list",
-				"get",
-				"watch",
-				"create",
-			},
-		},
-		{
-			APIGroups: []string{
-				"apps",
-			},
-			Resources: []string{
-				"deployments/finalizers",
-			},
-			ResourceNames: []string{
-				"nova",
-			},
-			Verbs: []string{
-				"update",
-			},
-		},
-		{
-			APIGroups: []string{
-				"security.openshift.io",
-			},
-			Resources: []string{
-				"securitycontextconstraints",
-			},
-			Verbs: []string{
-				"create",
-				"get",
-				"list",
-				"watch",
-				"update",
-				"patch",
-			},
-		},
 		{
 			APIGroups: []string{
 				"security.openshift.io",
@@ -493,34 +358,10 @@ func getOperatorClusterRules() *[]rbacv1.PolicyRule {
 				"securitycontextconstraints",
 			},
 			ResourceNames: []string{
-				"nova",
+				"privileged",
 			},
 			Verbs: []string{
 				"use",
-			},
-		},
-		{
-			APIGroups: []string{
-				"storage.k8s.io",
-			},
-			Resources: []string{
-				"storageclasses",
-			},
-			Verbs: []string{
-				"get",
-				"list",
-				"watch",
-			},
-		},
-		{
-			APIGroups: []string{
-				"",
-			},
-			Resources: []string{
-				"nodes",
-			},
-			Verbs: []string{
-				"get",
 			},
 		},
 	}
