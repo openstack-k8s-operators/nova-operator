@@ -14,6 +14,14 @@ func GetVolumes(cmName string) []corev1.Volume {
 
 	return []corev1.Volume{
 		{
+			Name: "etc-selinux-config",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/etc/selinux/config",
+				},
+			},
+		},
+		{
 			Name: "etc-libvirt-qemu",
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
@@ -47,6 +55,14 @@ func GetVolumes(cmName string) []corev1.Volume {
 			},
 		},
 		{
+			Name: "sys-fs-selinux",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/sys/fs/selinux",
+				},
+			},
+		},
+		{
 			Name: "var-run-libvirt",
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
@@ -69,6 +85,15 @@ func GetVolumes(cmName string) []corev1.Volume {
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: "/var/lib/libvirt",
+					Type: &dirOrCreate,
+				},
+			},
+		},
+		{
+			Name: "var-cache-libvirt",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/var/cache/libvirt",
 					Type: &dirOrCreate,
 				},
 			},
@@ -147,6 +172,11 @@ func GetVolumeMounts(cmName string) []corev1.VolumeMount {
 
 	return []corev1.VolumeMount{
 		{
+			Name:      "etc-selinux-config",
+			MountPath: "/etc/selinux/config",
+			ReadOnly:  true,
+		},
+		{
 			Name:      "etc-libvirt-qemu",
 			MountPath: "/etc/libvirt/qemu",
 		},
@@ -168,6 +198,10 @@ func GetVolumeMounts(cmName string) []corev1.VolumeMount {
 			MountPath: "/sys/fs/cgroup",
 		},
 		{
+			Name:      "sys-fs-selinux",
+			MountPath: "/sys/fs/selinux",
+		},
+		{
 			Name:      "libvirt-log",
 			MountPath: "/var/log/libvirt",
 		},
@@ -179,6 +213,11 @@ func GetVolumeMounts(cmName string) []corev1.VolumeMount {
 		{
 			Name:             "var-lib-libvirt",
 			MountPath:        "/var/lib/libvirt",
+			MountPropagation: &bidirectional,
+		},
+		{
+			Name:             "var-cache-libvirt",
+			MountPath:        "/var/cache/libvirt",
 			MountPropagation: &bidirectional,
 		},
 		{
