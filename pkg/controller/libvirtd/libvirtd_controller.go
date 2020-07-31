@@ -264,6 +264,12 @@ func newDaemonset(cr *novav1.Libvirtd, cmName string, templatesConfigHash string
 					Containers:         []corev1.Container{},
 					Tolerations:        []corev1.Toleration{},
 					ServiceAccountName: cr.Spec.ServiceAccount,
+					SecurityContext: &corev1.PodSecurityContext{
+						SELinuxOptions: &corev1.SELinuxOptions{
+							Type:  "spc_t",
+							Level: "s0",
+						},
+					},
 				},
 			},
 		},
@@ -311,7 +317,10 @@ func newDaemonset(cr *novav1.Libvirtd, cmName string, templatesConfigHash string
 				},
 			},
 		},
-		Command: []string{},
+		Command: []string{
+			"/bin/sleep", "86400",
+		},
+		//Command: []string{},
 		SecurityContext: &corev1.SecurityContext{
 			Privileged:             &trueVar,
 			ReadOnlyRootFilesystem: &falseVar,

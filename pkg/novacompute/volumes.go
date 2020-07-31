@@ -71,6 +71,22 @@ func GetVolumes(cmName string) []corev1.Volume {
 			},
 		},
 		{
+			Name: "sys-class-net",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/sys/class/net",
+				},
+			},
+		},
+		{
+			Name: "sys-bus-pci",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/sys/bus/pci",
+				},
+			},
+		},
+		{
 			Name: "var-lib-nova",
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
@@ -213,6 +229,16 @@ func GetVolumeMounts(cmName string) []corev1.VolumeMount {
 		{
 			Name:      "sys-fs-cgroup",
 			MountPath: "/sys/fs/cgroup",
+			ReadOnly:  true,
+		},
+		{
+			Name:      "sys-class-net",
+			MountPath: "/sys/class/net",
+			ReadOnly:  true,
+		},
+		{
+			Name:      "sys-bus-pci",
+			MountPath: "/sys/bus/pci",
 			ReadOnly:  true,
 		},
 		{
