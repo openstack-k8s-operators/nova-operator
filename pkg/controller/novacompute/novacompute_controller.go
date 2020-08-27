@@ -333,6 +333,17 @@ func newDaemonset(cr *novav1.NovaCompute, cmName string, templatesConfigHash str
 				Name:  "TEMPLATES_VOLUME",
 				Value: "/tmp/container-templates",
 			},
+			{
+				// TODO: mschuppert- change to get the info per route
+				// for now we get the keystoneAPI from common-config
+				Name: "CTRL_PLANE_ENDPOINT",
+				ValueFrom: &corev1.EnvVarSource{
+					ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{Name: "common-config"},
+						Key:                  "keystoneAPI",
+					},
+				},
+			},
 		},
 		VolumeMounts: []corev1.VolumeMount{},
 	}
@@ -392,6 +403,17 @@ func newDaemonset(cr *novav1.NovaCompute, cmName string, templatesConfigHash str
 			{
 				Name:  "KOLLA_CONFIG_STRATEGY",
 				Value: "COPY_ALWAYS",
+			},
+			{
+				// TODO: mschuppert- change to get the info per route
+				// for now we get the keystoneAPI from common-config
+				Name: "CTRL_PLANE_ENDPOINT",
+				ValueFrom: &corev1.EnvVarSource{
+					ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{Name: "common-config"},
+						Key:                  "keystoneAPI",
+					},
+				},
 			},
 		},
 		VolumeMounts: []corev1.VolumeMount{},

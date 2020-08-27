@@ -27,3 +27,18 @@ function get_ip_address_from_network {
   fi
   echo ${ip}
 }
+
+function get_ctrl_plane_ipaddress {
+  # get the host from the http url
+  local ctrl_plane_endpoint=$(echo $1 | awk -F[/:] '{print $4}')
+
+  # get ip from host
+  local ctrl_plane_ip=$(getent hosts ${ctrl_plane_endpoint} | awk '{print $1}')
+
+  # get local ip
+  local ip=$(ip route get ${ctrl_plane_ip} | head -1 | awk '{print $7}')
+  if [ -z "${ip}" ] ; then
+    exit
+  fi
+  echo ${ip}
+}

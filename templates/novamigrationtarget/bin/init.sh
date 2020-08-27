@@ -43,6 +43,6 @@ chown root:root ${CONFIG_VOLUME}/etc/ssh/*
 chmod 600 ${CONFIG_VOLUME}/etc/ssh/*
 
 # Set the local IP in sshd_config
-LOCAL_IP=$(get_ip_address_from_network "internalapi")
+LOCAL_IP=$(get_ctrl_plane_ipaddress ${CTRL_PLANE_ENDPOINT})
 sed -i "s/LOCAL_IP/$LOCAL_IP/g" ${CONFIG_VOLUME}/etc/ssh/sshd_config
 
