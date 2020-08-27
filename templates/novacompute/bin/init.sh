@@ -40,7 +40,7 @@ mkdir -p ${CONFIG_VOLUME}/etc/nova
 cp -L ${TEMPLATES_VOLUME}/* ${CONFIG_VOLUME}/etc/nova/
 
 # configure host specific mandatory settings
-LOCAL_IP=$(get_ip_address_from_network "internalapi")
+LOCAL_IP=$(get_ctrl_plane_ipaddress ${CTRL_PLANE_ENDPOINT})
 crudini --set ${CONFIG_VOLUME}/etc/nova/nova.conf DEFAULT my_ip ${LOCAL_IP}
 crudini --set ${CONFIG_VOLUME}/etc/nova/nova.conf libvirt live_migration_inbound_addr ${LOCAL_IP}
 crudini --set ${CONFIG_VOLUME}/etc/nova/nova.conf vnc server_listen ${LOCAL_IP}

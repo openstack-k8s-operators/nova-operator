@@ -10,8 +10,8 @@ import (
 )
 
 type novaComputeConfigOptions struct {
-	PublicVip                  string
-	InternalAPIVip             string
+	KeystoneAPI                string
+	GlanceAPI                  string
 	MemcacheServers            string
 	CinderPassword             string
 	NovaPassword               string
@@ -46,8 +46,8 @@ func ScriptsConfigMap(cr *novav1.NovaCompute, cmName string) *corev1.ConfigMap {
 // TemplatesConfigMap - mandatory settings config map
 func TemplatesConfigMap(cr *novav1.NovaCompute, commonConfigMap *corev1.ConfigMap, ospSecrets *corev1.Secret, cmName string) *corev1.ConfigMap {
 	opts := novaComputeConfigOptions{
-		commonConfigMap.Data["internalAPIVip"],
-		commonConfigMap.Data["publicVip"],
+		commonConfigMap.Data["keystoneAPI"],
+		commonConfigMap.Data["glanceAPI"],
 		commonConfigMap.Data["memcacheServers"],
 		string(ospSecrets.Data["CinderPassword"]),
 		string(ospSecrets.Data["NovaPassword"]),
