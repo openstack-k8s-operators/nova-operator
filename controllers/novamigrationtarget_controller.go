@@ -39,6 +39,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
+var ospEndpoints map[string]common.OSPEndpoint
+
 // NovaMigrationTargetReconciler reconciles a NovaMigrationTarget object
 type NovaMigrationTargetReconciler struct {
 	client.Client
@@ -72,22 +74,10 @@ func (r *NovaMigrationTargetReconciler) Reconcile(req ctrl.Request) (ctrl.Result
 		return ctrl.Result{}, err
 	}
 
-	// get instance.Spec.CommonConfigMap which holds general information on the OSP environment
-	// TODO: handle commonConfigMap data change
-	commonConfigMap := &corev1.ConfigMap{}
-	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: instance.Spec.CommonConfigMap, Namespace: instance.Namespace}, commonConfigMap)
-	if err != nil && errors.IsNotFound(err) {
-		r.Log.Error(err, instance.Spec.CommonConfigMap+" ConfigMap not found!", "Instance.Namespace", instance.Namespace, "Instance.Name", instance.Name)
-		return ctrl.Result{}, err
-	}
-	if err := controllerutil.SetControllerReference(instance, commonConfigMap, r.Scheme); err != nil {
-		return ctrl.Result{}, err
-	}
-
-	// Create additional host entries added to the /etc/hosts file of the containers
-	ospHostAliases, err = util.CreateOspHostsEntries(commonConfigMap)
+	// Get OSP endpoints
+	ospEndpoints, err = common.GetAllOspEndpoints(r.Client, instance.Namespace)
 	if err != nil {
-		r.Log.Error(err, "Failed ospHostAliases", "Instance.Namespace", instance.Namespace, "Instance.Name", instance.Name)
+		r.Log.Error(err, "Could not init OSP endpoints", "Instance.Namespace", instance.Namespace, "Instance.Name", instance.Name)
 		return ctrl.Result{}, err
 	}
 
@@ -274,7 +264,6 @@ func novamigrationDaemonset(cr *novav1beta1.NovaMigrationTarget, cmName string, 
 					HostNetwork:        true,
 					HostPID:            true,
 					DNSPolicy:          "ClusterFirstWithHostNet",
-					HostAliases:        ospHostAliases,
 					InitContainers:     []corev1.Container{},
 					Containers:         []corev1.Container{},
 					Tolerations:        []corev1.Toleration{},
@@ -309,15 +298,8 @@ func novamigrationDaemonset(cr *novav1beta1.NovaMigrationTarget, cmName string, 
 				Value: "/tmp/container-templates",
 			},
 			{
-				// TODO: mschuppert- change to get the info per route
-				// for now we get the keystoneAPI from common-config
-				Name: "CTRL_PLANE_ENDPOINT",
-				ValueFrom: &corev1.EnvVarSource{
-					ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{Name: "common-config"},
-						Key:                  "keystoneAPI",
-					},
-				},
+				Name:  "CTRL_PLANE_ENDPOINT",
+				Value: ospEndpoints[common.NovaAPIAppLabel].IP,
 			},
 		},
 		VolumeMounts: []corev1.VolumeMount{},
@@ -385,15 +367,8 @@ func novamigrationDaemonset(cr *novav1beta1.NovaMigrationTarget, cmName string, 
 				Value: secretHash,
 			},
 			{
-				// TODO: mschuppert- change to get the info per route
-				// for now we get the keystoneAPI from common-config
-				Name: "CTRL_PLANE_ENDPOINT",
-				ValueFrom: &corev1.EnvVarSource{
-					ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{Name: "common-config"},
-						Key:                  "keystoneAPI",
-					},
-				},
+				Name:  "CTRL_PLANE_ENDPOINT",
+				Value: ospEndpoints[common.NovaAPIAppLabel].IP,
 			},
 		},
 		VolumeMounts: []corev1.VolumeMount{},

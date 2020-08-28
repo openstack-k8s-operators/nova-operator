@@ -5,14 +5,15 @@ import (
 
 	util "github.com/openstack-k8s-operators/lib-common/pkg/util"
 	novav1beta1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
+	common "github.com/openstack-k8s-operators/nova-operator/pkg/common"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type novaComputeConfigOptions struct {
 	KeystoneAPI                string
 	GlanceAPI                  string
-	MemcacheServers            string
 	CinderPassword             string
 	NovaPassword               string
 	NeutronPassword            string
@@ -44,11 +45,16 @@ func ScriptsConfigMap(cr *novav1beta1.NovaCompute, cmName string) *corev1.Config
 }
 
 // TemplatesConfigMap - mandatory settings config map
-func TemplatesConfigMap(cr *novav1beta1.NovaCompute, commonConfigMap *corev1.ConfigMap, ospSecrets *corev1.Secret, cmName string) *corev1.ConfigMap {
+func TemplatesConfigMap(c client.Client, cr *novav1beta1.NovaCompute, ospSecrets *corev1.Secret, cmName string) (*corev1.ConfigMap, error) {
+	// Get OSP endpoints
+	OSPEndpoints, err := common.GetAllOspEndpoints(c, cr.Namespace)
+	if err != nil {
+		return nil, err
+	}
+
 	opts := novaComputeConfigOptions{
-		commonConfigMap.Data["keystoneAPI"],
-		commonConfigMap.Data["glanceAPI"],
-		commonConfigMap.Data["memcacheServers"],
+		OSPEndpoints[common.KeystoneAPIAppLabel].InternalURL,
+		OSPEndpoints[common.GlanceAPIAppLabel].InternalURL,
 		string(ospSecrets.Data["CinderPassword"]),
 		string(ospSecrets.Data["NovaPassword"]),
 		string(ospSecrets.Data["NeutronPassword"]),
@@ -75,5 +81,5 @@ func TemplatesConfigMap(cr *novav1beta1.NovaCompute, commonConfigMap *corev1.Con
 		},
 	}
 
-	return cm
+	return cm, nil
 }
