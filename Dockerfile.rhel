@@ -1,6 +1,11 @@
-FROM openshift/golang-builder:1.13 AS build-env
+# golang-builder is used in OSBS build
+ARG GOLANG_BUILDER=openshift/golang-builder:1.13
+ARG OPERATR_BASE_IMAGE=ubi8-minimal:8.1-released
+
+FROM ${GOLANG_BUILDER} AS build-env
+
 # Intended to build in OSBS using cachito external sources bundle
-ARG REMOTE_SOURCE
+ARG REMOTE_SOURCE=.
 ARG REMOTE_SOURCE_DIR
 ARG REMOTE_SOURCE_SUBDIR=app
 ARG DEST_ROOT=/dest-root
@@ -16,7 +21,7 @@ RUN cp -r build/bin/* $DEST_ROOT/usr/local/bin
 RUN cp -r templates $DEST_ROOT/templates
 RUN cp -r deploy/crds $DEST_ROOT/crds
 
-FROM ubi8-minimal:8.1-released
+FROM ${OPERATR_BASE_IMAGE}
 ARG DEST_ROOT=/dest-root
 
 LABEL   com.redhat.component="nova-operator-container" \
