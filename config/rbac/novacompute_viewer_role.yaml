@@ -1,0 +1,20 @@
+# permissions for end users to view novacomputes.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: novacompute-viewer-role
+rules:
+- apiGroups:
+  - nova.openstack.org
+  resources:
+  - novacomputes
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - nova.openstack.org
+  resources:
+  - novacomputes/status
+  verbs:
+  - get

@@ -1,0 +1,9 @@
+apiVersion: nova.openstack.org/v1beta1
+kind: Libvirtd
+metadata:
+  name: libvirtd-worker-osp
+  namespace: openstack
+spec:
+  novaLibvirtImage: quay.io/openstack-k8s-operators/nova-libvirt:latest
+  serviceAccount: nova
+  roleName: worker-osp

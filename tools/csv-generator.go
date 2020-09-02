@@ -203,21 +203,21 @@ Install and configure OpenStack Nova containers.
 				Owned: []csvv1.CRDDescription{
 					{
 						Name:        "iscsids.nova.openstack.org",
-						Version:     "v1",
+						Version:     "v1beta1",
 						Kind:        "Iscsid",
 						DisplayName: "Nova Iscsid",
 						Description: "Iscsid is the Schema for the iscsids API",
 					},
 					{
 						Name:        "libvirtds.nova.openstack.org",
-						Version:     "v1",
+						Version:     "v1beta1",
 						Kind:        "Libvirtd",
 						DisplayName: "Nova Libvirtd",
 						Description: "Libvirtd is the Schema for the libvirtds API",
 					},
 					{
 						Name:        "novacomputes.nova.openstack.org",
-						Version:     "v1",
+						Version:     "v1beta1",
 						Kind:        "NovaCompute",
 						DisplayName: "Nova Compute",
 						Description: "NovaCompute is the Schema for the novacomputes API",
@@ -225,7 +225,7 @@ Install and configure OpenStack Nova containers.
 
 					{
 						Name:        "novamigrationtargets.nova.openstack.org",
-						Version:     "v1",
+						Version:     "v1beta1",
 						Kind:        "NovaMigrationTarget",
 						DisplayName: "Nova Migration Target",
 						Description: "NovaMigrationTarget is the Schema for the novamigrationtargets API",
@@ -233,7 +233,7 @@ Install and configure OpenStack Nova containers.
 
 					{
 						Name:        "virtlogds.nova.openstack.org",
-						Version:     "v1",
+						Version:     "v1beta1",
 						Kind:        "Virtlogd",
 						DisplayName: "Virtlog Daemon",
 						Description: "Virtlogd is the Schema for the virtlogds API",

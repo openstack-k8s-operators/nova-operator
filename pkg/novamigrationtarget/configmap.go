@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	util "github.com/openstack-k8s-operators/lib-common/pkg/util"
-	novav1 "github.com/openstack-k8s-operators/nova-operator/pkg/apis/nova/v1"
+	novav1beta1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -16,7 +16,7 @@ type novaMigrationTargetConfigOptions struct {
 }
 
 // ScriptsConfigMap - scripts config map
-func ScriptsConfigMap(cr *novav1.NovaMigrationTarget, cmName string) *corev1.ConfigMap {
+func ScriptsConfigMap(cr *novav1beta1.NovaMigrationTarget, cmName string) *corev1.ConfigMap {
 
 	cm := &corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
@@ -37,7 +37,7 @@ func ScriptsConfigMap(cr *novav1.NovaMigrationTarget, cmName string) *corev1.Con
 }
 
 // TemplatesConfigMap - custom nova config map
-func TemplatesConfigMap(cr *novav1.NovaMigrationTarget, cmName string) *corev1.ConfigMap {
+func TemplatesConfigMap(cr *novav1beta1.NovaMigrationTarget, cmName string) *corev1.ConfigMap {
 	//var sshdPort string
 	sshdPort := strconv.FormatUint(uint64(cr.Spec.SshdPort), 10)
 	opts := novaMigrationTargetConfigOptions{sshdPort}

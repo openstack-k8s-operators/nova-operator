@@ -3,12 +3,12 @@ package novamigrationtarget
 import (
 	"strings"
 
-	novav1 "github.com/openstack-k8s-operators/nova-operator/pkg/apis/nova/v1"
+	novav1beta1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 )
 
 // GetVolumes - Volumes used by novamigrationtarget pod
-func GetVolumes(cr *novav1.NovaMigrationTarget, cmName string) []corev1.Volume {
+func GetVolumes(cr *novav1beta1.NovaMigrationTarget, cmName string) []corev1.Volume {
 
 	var scriptsVolumeDefaultMode int32 = 0755
 	var configVolumeDefaultMode int32 = 0644
@@ -121,7 +121,7 @@ func GetInitContainerVolumeMounts(cmName string) []corev1.VolumeMount {
 }
 
 // GetVolumeMounts - novamigrationtarget VolumeMounts
-func GetVolumeMounts(cr *novav1.NovaMigrationTarget, cmName string) []corev1.VolumeMount {
+func GetVolumeMounts(cr *novav1beta1.NovaMigrationTarget, cmName string) []corev1.VolumeMount {
 
 	var hostToContainer = corev1.MountPropagationHostToContainer
 
