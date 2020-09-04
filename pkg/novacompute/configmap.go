@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	util "github.com/openstack-k8s-operators/lib-common/pkg/util"
-	novav1 "github.com/openstack-k8s-operators/nova-operator/pkg/apis/nova/v1"
+	novav1beta1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -23,7 +23,7 @@ type novaComputeConfigOptions struct {
 }
 
 // ScriptsConfigMap - scripts config map
-func ScriptsConfigMap(cr *novav1.NovaCompute, cmName string) *corev1.ConfigMap {
+func ScriptsConfigMap(cr *novav1beta1.NovaCompute, cmName string) *corev1.ConfigMap {
 
 	cm := &corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
@@ -44,7 +44,7 @@ func ScriptsConfigMap(cr *novav1.NovaCompute, cmName string) *corev1.ConfigMap {
 }
 
 // TemplatesConfigMap - mandatory settings config map
-func TemplatesConfigMap(cr *novav1.NovaCompute, commonConfigMap *corev1.ConfigMap, ospSecrets *corev1.Secret, cmName string) *corev1.ConfigMap {
+func TemplatesConfigMap(cr *novav1beta1.NovaCompute, commonConfigMap *corev1.ConfigMap, ospSecrets *corev1.Secret, cmName string) *corev1.ConfigMap {
 	opts := novaComputeConfigOptions{
 		commonConfigMap.Data["keystoneAPI"],
 		commonConfigMap.Data["glanceAPI"],

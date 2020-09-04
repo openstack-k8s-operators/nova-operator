@@ -1,0 +1,11 @@
+apiVersion: nova.openstack.org/v1beta1
+kind: NovaMigrationTarget
+metadata:
+  name: nova-migration-target-worker-osp
+  namespace: openstack
+spec:
+  commonConfigMap: common-config
+  sshdPort: 2022
+  novaComputeImage: docker.io/tripleotrain/rhel-binary-nova-compute:current-tripleo
+  serviceAccount: nova
+  roleName: worker-osp

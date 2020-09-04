@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	util "github.com/openstack-k8s-operators/lib-common/pkg/util"
-	novav1 "github.com/openstack-k8s-operators/nova-operator/pkg/apis/nova/v1"
+	novav1beta1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -15,7 +15,7 @@ const (
 )
 
 // Secret func
-func Secret(cr *novav1.NovaMigrationTarget) (*corev1.Secret, error) {
+func Secret(cr *novav1beta1.NovaMigrationTarget) (*corev1.Secret, error) {
 
 	privateKey, err := util.GeneratePrivateKey(BITSIZE)
 	if err != nil {

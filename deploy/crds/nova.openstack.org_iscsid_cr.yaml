@@ -1,9 +1,0 @@
-apiVersion: nova.openstack.org/v1
-kind: Iscsid
-metadata:
-  name: iscsid
-  namespace: openstack
-spec:
-  iscsidImage: docker.io/tripleotrain/rhel-binary-iscsid:current-tripleo
-  serviceAccount: nova
-  roleName: worker-osp
