@@ -39,8 +39,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-var ospHostAliases = []corev1.HostAlias{}
-
 // NovaComputeReconciler reconciles a NovaCompute object
 type NovaComputeReconciler struct {
 	client.Client
@@ -74,15 +72,10 @@ func (r *NovaComputeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 		return ctrl.Result{}, err
 	}
 
-	// get instance.Spec.CommonConfigMap which holds general information on the OSP environment
-	// TODO: handle commonConfigMap data change
-	commonConfigMap := &corev1.ConfigMap{}
-	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: instance.Spec.CommonConfigMap, Namespace: instance.Namespace}, commonConfigMap)
-	if err != nil && errors.IsNotFound(err) {
-		r.Log.Error(err, instance.Spec.CommonConfigMap+" ConfigMap not found!", "Instance.Namespace", instance.Namespace, "Instance.Name", instance.Name)
-		return ctrl.Result{}, err
-	}
-	if err := controllerutil.SetControllerReference(instance, commonConfigMap, r.Scheme); err != nil {
+	// Get OSP endpoints
+	ospEndpoints, err = common.GetAllOspEndpoints(r.Client, instance.Namespace)
+	if err != nil {
+		r.Log.Error(err, "Could not init OSP endpoints", "Instance.Namespace", instance.Namespace, "Instance.Name", instance.Name)
 		return ctrl.Result{}, err
 	}
 
@@ -95,20 +88,6 @@ func (r *NovaComputeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 		return ctrl.Result{}, err
 	}
 	if err := controllerutil.SetControllerReference(instance, ospSecrets, r.Scheme); err != nil {
-		return ctrl.Result{}, err
-	}
-
-	// Create additional host entries added to the /etc/hosts file of the containers
-	ospHostAliases, err = util.CreateOspHostsEntries(commonConfigMap)
-	if err != nil {
-		r.Log.Error(err, "Failed ospHostAliases", "Instance.Namespace", instance.Namespace, "Instance.Name", instance.Name)
-		return ctrl.Result{}, err
-	}
-
-	// Create additional host entries added to the /etc/hosts file of the containers
-	ospHostAliases, err = util.CreateOspHostsEntries(commonConfigMap)
-	if err != nil {
-		r.Log.Error(err, "Failed ospHostAliases", "Instance.Namespace", instance.Namespace, "Instance.Name", instance.Name)
 		return ctrl.Result{}, err
 	}
 
@@ -139,7 +118,7 @@ func (r *NovaComputeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 
 	// templatesConfigMap
 	// TODO: when config handling is set this needs to be changed!! Right now passwords get stored in the resulting CM
-	templatesConfigMap := novacompute.TemplatesConfigMap(instance, commonConfigMap, ospSecrets, instance.Name+"-templates")
+	templatesConfigMap, err := novacompute.TemplatesConfigMap(r.Client, instance, ospSecrets, instance.Name+"-templates")
 	if err := controllerutil.SetControllerReference(instance, templatesConfigMap, r.Scheme); err != nil {
 		return ctrl.Result{}, err
 	}
@@ -269,7 +248,6 @@ func newDaemonset(cr *novav1beta1.NovaCompute, cmName string, templatesConfigHas
 					HostNetwork:                   true,
 					HostPID:                       true,
 					DNSPolicy:                     "ClusterFirstWithHostNet",
-					HostAliases:                   ospHostAliases,
 					InitContainers:                []corev1.Container{},
 					Containers:                    []corev1.Container{},
 					Tolerations:                   []corev1.Toleration{},
@@ -304,15 +282,8 @@ func newDaemonset(cr *novav1beta1.NovaCompute, cmName string, templatesConfigHas
 				Value: "/tmp/container-templates",
 			},
 			{
-				// TODO: mschuppert- change to get the info per route
-				// for now we get the keystoneAPI from common-config
-				Name: "CTRL_PLANE_ENDPOINT",
-				ValueFrom: &corev1.EnvVarSource{
-					ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{Name: "common-config"},
-						Key:                  "keystoneAPI",
-					},
-				},
+				Name:  "CTRL_PLANE_ENDPOINT",
+				Value: ospEndpoints[common.NovaAPIAppLabel].IP,
 			},
 		},
 		VolumeMounts: []corev1.VolumeMount{},
@@ -372,17 +343,6 @@ func newDaemonset(cr *novav1beta1.NovaCompute, cmName string, templatesConfigHas
 			{
 				Name:  "KOLLA_CONFIG_STRATEGY",
 				Value: "COPY_ALWAYS",
-			},
-			{
-				// TODO: mschuppert- change to get the info per route
-				// for now we get the keystoneAPI from common-config
-				Name: "CTRL_PLANE_ENDPOINT",
-				ValueFrom: &corev1.EnvVarSource{
-					ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{Name: "common-config"},
-						Key:                  "keystoneAPI",
-					},
-				},
 			},
 		},
 		VolumeMounts: []corev1.VolumeMount{},
