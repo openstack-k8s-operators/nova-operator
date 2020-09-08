@@ -1,0 +1,24 @@
+# permissions for end users to edit placementapis.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: placementapi-editor-role
+rules:
+- apiGroups:
+  - placement.openstack.org
+  resources:
+  - placementapis
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - placement.openstack.org
+  resources:
+  - placementapis/status
+  verbs:
+  - get

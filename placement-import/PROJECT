@@ -1,0 +1,11 @@
+domain: openstack.org
+layout: go.kubebuilder.io/v2
+projectName: placement-operator
+repo: github.com/openstack-k8s-operators/placement-operator
+resources:
+- group: placement
+  kind: PlacementAPI
+  version: v1beta1
+version: 3-alpha
+plugins:
+  go.sdk.operatorframework.io/v2-alpha: {}

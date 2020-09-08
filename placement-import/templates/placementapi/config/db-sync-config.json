@@ -1,0 +1,17 @@
+{
+  "command": "/usr/local/bin/container-scripts/bootstrap.sh",
+  "config_files": [
+    {
+      "source": "/var/lib/config-data/merged/placement.conf",
+      "dest": "/etc/placement/placement.conf",
+      "owner": "placement",
+      "perm": "0600"
+    },
+    {
+      "source": "/var/lib/config-data/merged/logging.conf",
+      "dest": "/etc/placement/logging.conf",
+      "owner": "placement",
+      "perm": "0600"
+    }
+  ]
+}
