@@ -7,8 +7,9 @@ require (
 	github.com/go-logr/logr v0.1.0
 	github.com/onsi/ginkgo v1.12.1
 	github.com/onsi/gomega v1.10.1
-	github.com/openstack-k8s-operators/lib-common v0.0.0-20200511145352-a17ab43c6b58
+	github.com/openstack-k8s-operators/lib-common v0.0.0-20200910130010-129482aabaf9
 	github.com/operator-framework/operator-lifecycle-manager v0.0.0-20200321030439-57b580e57e88
+	github.com/prometheus/common v0.7.0
 	github.com/stretchr/testify v1.4.0
 	k8s.io/api v0.18.6
 	k8s.io/apimachinery v0.18.6
