@@ -1,0 +1,123 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.3.0
+  creationTimestamp: null
+  name: novacells.nova.openstack.org
+spec:
+  group: nova.openstack.org
+  names:
+    kind: NovaCell
+    listKind: NovaCellList
+    plural: novacells
+    singular: novacell
+  scope: Namespaced
+  subresources:
+    status: {}
+  validation:
+    openAPIV3Schema:
+      description: NovaCell is the Schema for the novacells API
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          description: NovaCellSpec defines the desired state of NovaCell
+          properties:
+            cell:
+              description: Nova Cell name, e.g. cell0
+              type: string
+            databaseHostname:
+              description: Nova Database Hostname String
+              type: string
+            neutronSecret:
+              description: 'Secret containing: NeutronPassword'
+              type: string
+            novaConductorContainerImage:
+              description: Nova Conductor Container Image URL
+              type: string
+            novaConductorReplicas:
+              description: Nova Conductor Replicas
+              format: int32
+              type: integer
+            novaMetadataContainerImage:
+              description: Nova Metadata Container Image URL
+              type: string
+            novaMetadataReplicas:
+              description: Nova Metadata Replicas
+              format: int32
+              type: integer
+            novaNoVNCProxyContainerImage:
+              description: Nova noVnc Container Image URL
+              type: string
+            novaNoVNCProxyReplicas:
+              description: Nova NoVNC Replicas
+              format: int32
+              type: integer
+            novaSecret:
+              description: 'Secret containing: NovaPassword, TransportURL'
+              type: string
+            placementSecret:
+              description: 'Secret containing: PlacementPassword'
+              type: string
+            transportURLSecret:
+              description: 'Secret containing: cell transport_url'
+              type: string
+          required:
+          - novaConductorReplicas
+          - novaMetadataReplicas
+          - novaNoVNCProxyReplicas
+          type: object
+        status:
+          description: NovaCellStatus defines the observed state of NovaCell
+          properties:
+            createCellHash:
+              description: CreateCellHash sync hash
+              type: string
+            dbSyncHash:
+              description: DbSyncHash db sync hash
+              type: string
+            noVNCProxyEndpoint:
+              description: noVNC endpoint
+              type: string
+            novaConductorHash:
+              description: NovaConductor statefulset hash
+              type: string
+            novaMetadataHash:
+              description: NovaMetadata deployment hash
+              type: string
+            novaNoVNCProxyHash:
+              description: NovaNoVNCProxy deployment hash
+              type: string
+          required:
+          - createCellHash
+          - dbSyncHash
+          - noVNCProxyEndpoint
+          - novaConductorHash
+          - novaMetadataHash
+          - novaNoVNCProxyHash
+          type: object
+      type: object
+  version: v1beta1
+  versions:
+  - name: v1beta1
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

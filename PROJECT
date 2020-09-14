@@ -18,6 +18,27 @@ resources:
 - group: nova
   kind: NovaCompute
   version: v1beta1
+- group: nova
+  kind: NovaAPI
+  version: v1beta1
+- group: nova
+  kind: NovaScheduler
+  version: v1beta1
+- group: nova
+  kind: Nova
+  version: v1beta1
+- group: nova
+  kind: NovaConductor
+  version: v1beta1
+- group: nova
+  kind: NovaCell
+  version: v1beta1
+- group: nova
+  kind: NovaMetadata
+  version: v1beta1
+- group: nova
+  kind: NovaNoVNCProxy
+  version: v1beta1
 version: 3-alpha
 plugins:
   go.sdk.operatorframework.io/v2-alpha: {}

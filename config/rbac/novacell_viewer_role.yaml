@@ -1,0 +1,20 @@
+# permissions for end users to view novacells.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: novacell-viewer-role
+rules:
+- apiGroups:
+  - nova.openstack.org
+  resources:
+  - novacells
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - nova.openstack.org
+  resources:
+  - novacells/status
+  verbs:
+  - get

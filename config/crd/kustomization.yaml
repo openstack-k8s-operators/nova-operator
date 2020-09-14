@@ -7,6 +7,15 @@ resources:
 - bases/nova.openstack.org_libvirtds.yaml
 - bases/nova.openstack.org_novamigrationtargets.yaml
 - bases/nova.openstack.org_novacomputes.yaml
+- bases/nova.openstack.org_novaapis.yaml
+- bases/nova.openstack.org_novaschedulers.yaml
+- bases/nova.openstack.org_novasupercells.yaml
+- bases/nova.openstack.org_nova.yaml
+- bases/nova.openstack.org_novaconductors.yaml
+- bases/nova.openstack.org_novacells.yaml
+- bases/nova.openstack.org_novanovncs.yaml
+- bases/nova.openstack.org_novametadata.yaml
+- bases/nova.openstack.org_novanovncproxies.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 patchesStrategicMerge:
@@ -17,6 +26,15 @@ patchesStrategicMerge:
 #- patches/webhook_in_libvirtds.yaml
 #- patches/webhook_in_novamigrationtargets.yaml
 #- patches/webhook_in_novacomputes.yaml
+#- patches/webhook_in_novaapis.yaml
+#- patches/webhook_in_novaschedulers.yaml
+#- patches/webhook_in_novasupercells.yaml
+#- patches/webhook_in_nova.yaml
+#- patches/webhook_in_novaconductors.yaml
+#- patches/webhook_in_novacells.yaml
+#- patches/webhook_in_novanovncs.yaml
+#- patches/webhook_in_novametadata.yaml
+#- patches/webhook_in_novanovncproxies.yaml
 # +kubebuilder:scaffold:crdkustomizewebhookpatch
 
 # [CERTMANAGER] To enable webhook, uncomment all the sections with [CERTMANAGER] prefix.
@@ -26,6 +44,15 @@ patchesStrategicMerge:
 #- patches/cainjection_in_libvirtds.yaml
 #- patches/cainjection_in_novamigrationtargets.yaml
 #- patches/cainjection_in_novacomputes.yaml
+#- patches/cainjection_in_novaapis.yaml
+#- patches/cainjection_in_novaschedulers.yaml
+#- patches/cainjection_in_novasupercells.yaml
+#- patches/cainjection_in_nova.yaml
+#- patches/cainjection_in_novaconductors.yaml
+#- patches/cainjection_in_novacells.yaml
+#- patches/cainjection_in_novanovncs.yaml
+#- patches/cainjection_in_novametadata.yaml
+#- patches/cainjection_in_novanovncproxies.yaml
 # +kubebuilder:scaffold:crdkustomizecainjectionpatch
 
 # the following config is for teaching kustomize how to do kustomization for CRDs.

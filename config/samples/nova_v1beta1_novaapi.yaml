@@ -1,0 +1,18 @@
+apiVersion: nova.openstack.org/v1beta1
+kind: NovaAPI
+metadata:
+  name: nova-api
+  namespace: openstack
+spec:
+  cell: cell0
+  databaseHostname: mariadb
+  novaAPIReplicas: 1
+  novaSchedulerReplicas: 1
+  novaConductorReplicas: 1
+  novaSecret: nova-secret
+  placementSecret: placement-secret
+  neutronSecret: neutron-secret
+  transportURLSecret: rabbitmq-transport-url-api
+  novaAPIContainerImage: docker.io/tripleomaster/centos-binary-nova-api:current-tripleo
+  novaSchedulerContainerImage: docker.io/tripleomaster/centos-binary-nova-scheduler:current-tripleo
+  novaConductorContainerImage: docker.io/tripleomaster/centos-binary-nova-conductor:current-tripleo

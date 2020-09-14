@@ -1,0 +1,11 @@
+apiVersion: nova.openstack.org/v1beta1
+kind: NovaScheduler
+metadata:
+  name: nova-scheduler
+  namespace: openstack
+spec:
+  managingCrName: nova
+  replicas: 1
+  novaSecret: nova-secret
+  transportURLSecret: rabbitmq-transport-url-api
+  containerImage: docker.io/tripleomaster/centos-binary-nova-scheduler:current-tripleo
