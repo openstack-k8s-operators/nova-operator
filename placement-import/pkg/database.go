@@ -13,20 +13,20 @@ import (
 	"k8s.io/apimachinery/pkg/util/yaml"
 )
 
-type schemaOptions struct {
+type databaseOptions struct {
 	DatabaseHostname string
-	SchemaName       string
+	DatabaseName     string
 	Secret           string
 }
 
-// SchemaObject func
-func SchemaObject(cr *placementv1beta1.PlacementAPI) (unstructured.Unstructured, error) {
-	opts := schemaOptions{cr.Spec.DatabaseHostname, cr.Name, cr.Spec.Secret}
+// DatabaseObject func
+func DatabaseObject(cr *placementv1beta1.PlacementAPI) (unstructured.Unstructured, error) {
+	opts := databaseOptions{cr.Spec.DatabaseHostname, cr.Name, cr.Spec.Secret}
 
 	templatesPath := util.GetTemplatesPath()
 
-	mariadbSchemaTemplate := fmt.Sprintf("%s/%s/internal/mariadb_schema.yaml", templatesPath, strings.ToLower(cr.Kind))
-	decoder := yaml.NewYAMLOrJSONDecoder(strings.NewReader(util.ExecuteTemplate(mariadbSchemaTemplate, &opts)), 4096)
+	mariadbDatabaseTemplate := fmt.Sprintf("%s/%s/internal/mariadb_database.yaml", templatesPath, strings.ToLower(cr.Kind))
+	decoder := yaml.NewYAMLOrJSONDecoder(strings.NewReader(util.ExecuteTemplate(mariadbDatabaseTemplate, &opts)), 4096)
 	u := unstructured.Unstructured{}
 	err := decoder.Decode(&u)
 	u.SetNamespace(cr.Namespace)

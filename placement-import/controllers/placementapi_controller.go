@@ -42,6 +42,7 @@ import (
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 )
 
+// AppLabel -
 const AppLabel = "placement-api"
 
 // PlacementAPIReconciler reconciles a PlacementAPI object
@@ -155,23 +156,23 @@ func (r *PlacementAPIReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 	}
 
 	// Create the DB Schema (unstructured so we don't explicitly import mariadb-operator code)
-	schemaObj, err := placement.SchemaObject(instance)
+	databaseObj, err := placement.DatabaseObject(instance)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	foundSchema := &unstructured.Unstructured{}
-	foundSchema.SetGroupVersionKind(schemaObj.GroupVersionKind())
-	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: schemaObj.GetName(), Namespace: schemaObj.GetNamespace()}, foundSchema)
+	foundDatabase := &unstructured.Unstructured{}
+	foundDatabase.SetGroupVersionKind(databaseObj.GroupVersionKind())
+	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: databaseObj.GetName(), Namespace: databaseObj.GetNamespace()}, foundDatabase)
 	if err != nil && k8s_errors.IsNotFound(err) {
-		err := r.Client.Create(context.TODO(), &schemaObj)
+		err := r.Client.Create(context.TODO(), &databaseObj)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
 	} else if err != nil {
 		return ctrl.Result{}, err
 	} else {
-		completed, _, err := unstructured.NestedBool(foundSchema.UnstructuredContent(), "status", "completed")
+		completed, _, err := unstructured.NestedBool(foundDatabase.UnstructuredContent(), "status", "completed")
 		if !completed {
 			r.Log.Info("Waiting on DB to be created...")
 			return ctrl.Result{RequeueAfter: time.Second * 5}, err
