@@ -304,7 +304,7 @@ func getOperatorRules() *[]rbacv1.PolicyRule {
 				"database.openstack.org",
 			},
 			Resources: []string{
-				"mariadbschemas",
+				"mariadbdatabases",
 			},
 			Verbs: []string{
 				"get",
