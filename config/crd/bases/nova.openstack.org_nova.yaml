@@ -1,0 +1,166 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.3.0
+  creationTimestamp: null
+  name: nova.nova.openstack.org
+spec:
+  group: nova.openstack.org
+  names:
+    kind: Nova
+    listKind: NovaList
+    plural: nova
+    singular: nova
+  scope: Namespaced
+  subresources:
+    status: {}
+  validation:
+    openAPIV3Schema:
+      description: Nova is the Schema for the nova API
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          description: NovaSpec defines the desired state of Nova
+          properties:
+            cell:
+              description: Nova Cell name, e.g. cell0
+              type: string
+            cells:
+              description: Cells to create
+              items:
+                description: Cell defines nova cell configuration parameters
+                properties:
+                  databaseHostname:
+                    description: Hostname of Cell DB server, if not provided same
+                      as NovaSpec DatabaseHostname
+                    type: string
+                  name:
+                    description: Name of cell
+                    type: string
+                  novaConductorContainerImage:
+                    description: Nova Conductor Container Image URL
+                    type: string
+                  novaConductorReplicas:
+                    description: Nova Conductor Replicas
+                    format: int32
+                    type: integer
+                  novaMetadataContainerImage:
+                    description: Nova Metadata Container Image URL
+                    type: string
+                  novaMetadataReplicas:
+                    description: Nova Metadata Replicas
+                    format: int32
+                    type: integer
+                  novaNoVNCProxyContainerImage:
+                    description: Nova noVnc Container Image URL
+                    type: string
+                  novaNoVNCProxyReplicas:
+                    description: Nova NoVNC Replicas
+                    format: int32
+                    type: integer
+                  transportURLSecret:
+                    description: Name of secret which provides the cell transport
+                      url
+                    type: string
+                required:
+                - novaConductorReplicas
+                - novaMetadataReplicas
+                - novaNoVNCProxyReplicas
+                type: object
+              type: array
+            databaseHostname:
+              description: Nova Database Hostname String
+              type: string
+            neutronSecret:
+              description: 'Secret containing: NeutronPassword'
+              type: string
+            novaAPIContainerImage:
+              description: Nova API Container Image URL
+              type: string
+            novaAPIReplicas:
+              description: Nova API Replicas
+              format: int32
+              type: integer
+            novaConductorContainerImage:
+              description: Nova Conductor Container Image URL
+              type: string
+            novaConductorReplicas:
+              description: Nova Conductor Replicas
+              format: int32
+              type: integer
+            novaSchedulerContainerImage:
+              description: Nova Scheduler Container Image URL
+              type: string
+            novaSchedulerReplicas:
+              description: Nova Scheduler Replicas
+              format: int32
+              type: integer
+            novaSecret:
+              description: 'Secret containing: NovaPassword, TransportURL'
+              type: string
+            placementSecret:
+              description: 'Secret containing: PlacementPassword'
+              type: string
+            transportURLSecret:
+              description: 'Secret containing: cell transport_url'
+              type: string
+          required:
+          - novaAPIReplicas
+          - novaConductorReplicas
+          - novaSchedulerReplicas
+          type: object
+        status:
+          description: NovaStatus defines the observed state of Nova
+          properties:
+            apiEndpoint:
+              description: API endpoint
+              type: string
+            cellsHash:
+              description: Cells status hash
+              type: string
+            dbSyncHash:
+              description: DbSyncHash db sync hash
+              type: string
+            novaAPIHash:
+              description: NovaAPIHash deployment hash
+              type: string
+            novaConductorHash:
+              description: NovaConductor statefulset hash
+              type: string
+            novaSchedulerHash:
+              description: NovaScheduler statefulset hash
+              type: string
+          required:
+          - apiEndpoint
+          - cellsHash
+          - dbSyncHash
+          - novaAPIHash
+          - novaConductorHash
+          - novaSchedulerHash
+          type: object
+      type: object
+  version: v1beta1
+  versions:
+  - name: v1beta1
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

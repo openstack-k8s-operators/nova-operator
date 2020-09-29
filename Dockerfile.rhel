@@ -30,6 +30,13 @@ RUN cp config/crd/bases/nova.openstack.org_libvirtds.yaml ${DEST_ROOT}/bundle/no
 RUN cp config/crd/bases/nova.openstack.org_novacomputes.yaml ${DEST_ROOT}/bundle/nova.openstack.org_novacomputes_crd.yaml
 RUN cp config/crd/bases/nova.openstack.org_novamigrationtargets.yaml ${DEST_ROOT}/bundle/nova.openstack.org_novamigrationtargets_crd.yaml
 RUN cp config/crd/bases/nova.openstack.org_virtlogds.yaml ${DEST_ROOT}/bundle/nova.openstack.org_virtlogds_crd.yaml
+RUN cp config/crd/bases/nova.openstack.org_novaapis.yaml ${DEST_ROOT}/bundle/nova.openstack.org_novaapis_crd.yaml
+RUN cp config/crd/bases/nova.openstack.org_novacells.yaml ${DEST_ROOT}/bundle/nova.openstack.org_novacells_crd.yaml
+RUN cp config/crd/bases/nova.openstack.org_novaconductors.yaml ${DEST_ROOT}/bundle/nova.openstack.org_novaconductors_crd.yaml
+RUN cp config/crd/bases/nova.openstack.org_nova.yaml ${DEST_ROOT}/bundle/nova.openstack.org_nova_crd.yaml
+RUN cp config/crd/bases/nova.openstack.org_novametadata.yaml ${DEST_ROOT}/bundle/nova.openstack.org_novametadata_crd.yaml
+RUN cp config/crd/bases/nova.openstack.org_novanovncproxies.yaml ${DEST_ROOT}/bundle/nova.openstack.org_novanovncproxies_crd.yaml
+RUN cp config/crd/bases/nova.openstack.org_novaschedulers.yaml ${DEST_ROOT}/bundle/nova.openstack.org_novaschedulers_crd.yaml
 
 # strip top 2 lines (this resolves parsing in opm which handles this badly)
 RUN sed -i -e 1,2d ${DEST_ROOT}/bundle/*

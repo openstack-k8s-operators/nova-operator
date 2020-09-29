@@ -1,0 +1,24 @@
+# permissions for end users to edit nova.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: nova-editor-role
+rules:
+- apiGroups:
+  - nova.openstack.org
+  resources:
+  - nova
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - nova.openstack.org
+  resources:
+  - nova/status
+  verbs:
+  - get

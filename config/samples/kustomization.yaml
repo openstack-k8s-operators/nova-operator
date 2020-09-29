@@ -5,4 +5,11 @@ resources:
 - nova_v1beta1_libvirtd.yaml
 - nova_v1beta1_novamigrationtarget.yaml
 - nova_v1beta1_novacompute.yaml
+- nova_v1beta1_novaapi.yaml
+- nova_v1beta1_novascheduler.yaml
+- nova_v1beta1_nova.yaml
+- nova_v1beta1_novaconductor.yaml
+- nova_v1beta1_novacell.yaml
+- nova_v1beta1_novametadata.yaml
+- nova_v1beta1_novanovnc.yaml
 # +kubebuilder:scaffold:manifestskustomizesamples

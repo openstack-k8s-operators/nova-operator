@@ -1,0 +1,18 @@
+apiVersion: nova.openstack.org/v1beta1
+kind: NovaCell
+metadata:
+  name: novacell1
+  namespace: openstack
+spec:
+  cell: cell1
+  databaseHostname: mariadb
+  novaConductorReplicas: 1
+  novaMetadataReplicas: 1
+  novaNoVNCProxyReplicas: 1
+  novaSecret: nova-secret
+  placementSecret: placement-secret
+  neutronSecret: neutron-secret
+  transportURLSecret: rabbitmq-transport-url-cell1
+  novaConductorContainerImage: docker.io/tripleomaster/centos-binary-nova-conductor:current-tripleo
+  novaMetadataContainerImage: docker.io/tripleomaster/centos-binary-nova-api:current-tripleo
+  novaNoVNCProxyContainerImage: docker.io/tripleomaster/centos-binary-nova-novncproxy:current-tripleo

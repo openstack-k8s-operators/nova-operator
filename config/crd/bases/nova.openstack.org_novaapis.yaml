@@ -1,0 +1,88 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.3.0
+  creationTimestamp: null
+  name: novaapis.nova.openstack.org
+spec:
+  group: nova.openstack.org
+  names:
+    kind: NovaAPI
+    listKind: NovaAPIList
+    plural: novaapis
+    singular: novaapi
+  scope: Namespaced
+  subresources:
+    status: {}
+  validation:
+    openAPIV3Schema:
+      description: NovaAPI is the Schema for the novaapis API
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          description: NovaAPISpec defines the desired state of NovaAPI
+          properties:
+            containerImage:
+              description: Nova Scheduler Container Image URL
+              type: string
+            databaseHostname:
+              description: Nova Database Hostname String
+              type: string
+            managingCrName:
+              description: CR name of managing controller object to identify the config
+                maps
+              type: string
+            neutronSecret:
+              description: 'Secret containing: NeutronPassword'
+              type: string
+            novaSecret:
+              description: 'Secret containing: NovaPassword, TransportURL'
+              type: string
+            placementSecret:
+              description: 'Secret containing: PlacementPassword'
+              type: string
+            replicas:
+              description: Nova API Replicas
+              format: int32
+              type: integer
+            transportURLSecret:
+              description: 'Secret containing: cell transport_url'
+              type: string
+          required:
+          - replicas
+          type: object
+        status:
+          description: NovaAPIStatus defines the observed state of NovaAPI
+          properties:
+            novaAPIHash:
+              description: NovaAPIHash deployment hash
+              type: string
+          required:
+          - novaAPIHash
+          type: object
+      type: object
+  version: v1beta1
+  versions:
+  - name: v1beta1
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

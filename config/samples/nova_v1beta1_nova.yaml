@@ -1,0 +1,36 @@
+apiVersion: nova.openstack.org/v1beta1
+kind: Nova
+metadata:
+  name: nova
+  namespace: openstack
+spec:
+  databaseHostname: mariadb
+  novaAPIReplicas: 1
+  novaSchedulerReplicas: 1
+  novaConductorReplicas: 1
+  novaSecret: nova-secret
+  placementSecret: placement-secret
+  neutronSecret: neutron-secret
+  transportURLSecret: rabbitmq-transport-url-api
+  novaAPIContainerImage: docker.io/tripleomaster/centos-binary-nova-api:current-tripleo
+  novaSchedulerContainerImage: docker.io/tripleomaster/centos-binary-nova-scheduler:current-tripleo
+  novaConductorContainerImage: docker.io/tripleomaster/centos-binary-nova-conductor:current-tripleo
+  cells:
+  - name: cell1
+    databaseHostname: mariadb
+    transportURLSecret: rabbitmq-transport-url-cell1
+    novaConductorContainerImage: docker.io/tripleomaster/centos-binary-nova-conductor:current-tripleo
+    novaMetadataContainerImage: docker.io/tripleomaster/centos-binary-nova-api:current-tripleo
+    novaNoVNCProxyContainerImage: docker.io/tripleomaster/centos-binary-nova-novncproxy:current-tripleo
+    novaConductorReplicas: 1
+    novaMetadataReplicas: 1
+    novaNoVNCProxyReplicas: 1
+  - name: cell2
+    databaseHostname: mariadb
+    transportURLSecret: rabbitmq-transport-url-cell2
+    novaConductorContainerImage: docker.io/tripleomaster/centos-binary-nova-conductor:current-tripleo
+    novaMetadataContainerImage: docker.io/tripleomaster/centos-binary-nova-api:current-tripleo
+    novaNoVNCProxyContainerImage: docker.io/tripleomaster/centos-binary-nova-novncproxy:current-tripleo
+    novaConductorReplicas: 2
+    novaMetadataReplicas: 1
+    novaNoVNCProxyReplicas: 1

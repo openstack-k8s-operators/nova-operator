@@ -222,7 +222,6 @@ Install and configure OpenStack Nova containers.
 						DisplayName: "Nova Compute",
 						Description: "NovaCompute is the Schema for the novacomputes API",
 					},
-
 					{
 						Name:        "novamigrationtargets.nova.openstack.org",
 						Version:     "v1beta1",
@@ -230,13 +229,61 @@ Install and configure OpenStack Nova containers.
 						DisplayName: "Nova Migration Target",
 						Description: "NovaMigrationTarget is the Schema for the novamigrationtargets API",
 					},
-
 					{
 						Name:        "virtlogds.nova.openstack.org",
 						Version:     "v1beta1",
 						Kind:        "Virtlogd",
 						DisplayName: "Virtlog Daemon",
 						Description: "Virtlogd is the Schema for the virtlogds API",
+					},
+					{
+						Name:        "nova.nova.openstack.org",
+						Version:     "v1beta1",
+						Kind:        "Nova",
+						DisplayName: "Nova ctrplane",
+						Description: "Nova is the Schema for the nova API",
+					},
+					{
+						Name:        "novaapis.nova.openstack.org",
+						Version:     "v1beta1",
+						Kind:        "NovaAPI",
+						DisplayName: "NovaAPI Service",
+						Description: "NovaAPI is the Schema for the novaAPIs API",
+					},
+					{
+						Name:        "novacells.nova.openstack.org",
+						Version:     "v1beta1",
+						Kind:        "NovaCell",
+						DisplayName: "Nova Cell",
+						Description: "NovaCell is the Schema for the novaCells API",
+					},
+					{
+						Name:        "novaconductors.nova.openstack.org",
+						Version:     "v1beta1",
+						Kind:        "NovaConductor",
+						DisplayName: "Nova Condoctor service",
+						Description: "NovaConductor is the Schema for the novaConductors API",
+					},
+					{
+						Name:        "novametadata.nova.openstack.org",
+						Version:     "v1beta1",
+						Kind:        "NovaMetadata",
+						DisplayName: "Nova Metadata service",
+						Description: "NovaMetadata is the Schema for the novaMetadatas API",
+					},
+					{
+						Name:        "novanovncproxies.nova.openstack.org",
+						Version:     "v1beta1",
+						Kind:        "NovaNoVNCProxy",
+						DisplayName: "Nova NoVNCProxy service",
+						Description: "NovaNoVNCProxy is the Schema for the novaNoVNCProxies API",
+					},
+					{
+						Name:        "novaschedulers.nova.openstack.org",
+						Version:     "v1beta1",
+						Kind:        "NovaScheduler",
+						DisplayName: "Nova Scheduler service",
+						Description: "NovaScheduler is the Schema for the novaSchedulers API",
 					},
 				},
 			},
@@ -280,6 +327,17 @@ func getOperatorRules() *[]rbacv1.PolicyRule {
 		},
 		{
 			APIGroups: []string{
+				"batch",
+			},
+			Resources: []string{
+				"jobs",
+			},
+			Verbs: []string{
+				"*",
+			},
+		},
+		{
+			APIGroups: []string{
 				"apps",
 			},
 			Resources: []string{
@@ -307,6 +365,21 @@ func getOperatorRules() *[]rbacv1.PolicyRule {
 		},
 		{
 			APIGroups: []string{
+				"route.openshift.io",
+			},
+			Resources: []string{
+				"routes",
+			},
+			Verbs: []string{
+				"list",
+				"watch",
+				"create",
+				"patch",
+				"update",
+			},
+		},
+		{
+			APIGroups: []string{
 				"apps",
 			},
 			Resources: []string{
@@ -329,9 +402,28 @@ func getOperatorRules() *[]rbacv1.PolicyRule {
 				"libvirtds",
 				"iscsids",
 				"novamigrationtargets",
+				"nova",
+				"novaapis",
+				"novacells",
+				"novaconductors",
+				"novamedata",
+				"novanovncproxies",
+				"novaschedulers",
 			},
 			Verbs: []string{
 				"*",
+			},
+		},
+		{
+			APIGroups: []string{
+				"database.openstack.org",
+			},
+			Resources: []string{
+				"mariadbdatabases",
+			},
+			Verbs: []string{
+				"get",
+				"create",
 			},
 		},
 	}
@@ -359,6 +451,7 @@ func getServiceRules() *[]rbacv1.PolicyRule {
 			},
 			ResourceNames: []string{
 				"privileged",
+				"anyuid",
 			},
 			Verbs: []string{
 				"use",
