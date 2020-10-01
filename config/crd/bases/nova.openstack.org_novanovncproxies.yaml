@@ -71,11 +71,19 @@ spec:
         status:
           description: NovaNoVNCProxyStatus defines the observed state of NovaNoVNCProxy
           properties:
-            novaNoVNCProxyHash:
-              description: NovaNoVNCProxy statefulset hash
-              type: string
-          required:
-          - novaNoVNCProxyHash
+            hashes:
+              description: hashes of Secrets, CMs
+              items:
+                description: Hash - struct to add hashes to status
+                properties:
+                  hash:
+                    description: Hash
+                    type: string
+                  name:
+                    description: Name of hash referencing the parameter
+                    type: string
+                type: object
+              type: array
           type: object
       type: object
   version: v1beta1

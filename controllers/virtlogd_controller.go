@@ -1,5 +1,5 @@
 /*
-
+Copyright 2020 Red Hat
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,16 +19,13 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"reflect"
 
-	util "github.com/openstack-k8s-operators/lib-common/pkg/util"
 	common "github.com/openstack-k8s-operators/nova-operator/pkg/common"
 	virtlogd "github.com/openstack-k8s-operators/nova-operator/pkg/virtlogd"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/go-logr/logr"
@@ -37,6 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
+	util "github.com/openstack-k8s-operators/lib-common/pkg/util"
 	novav1beta1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 )
 
@@ -46,6 +44,21 @@ type VirtlogdReconciler struct {
 	Kclient kubernetes.Interface
 	Log     logr.Logger
 	Scheme  *runtime.Scheme
+}
+
+// GetClient -
+func (r *VirtlogdReconciler) GetClient() client.Client {
+	return r.Client
+}
+
+// GetLogger -
+func (r *VirtlogdReconciler) GetLogger() logr.Logger {
+	return r.Log
+}
+
+// GetScheme -
+func (r *VirtlogdReconciler) GetScheme() *runtime.Scheme {
+	return r.Scheme
 }
 
 // +kubebuilder:rbac:groups=core,namespace=openstack,resources=pods;services;services/finalizers;endpoints;persistentvolumeclaims;events;configmaps;secrets,verbs=create;delete;get;list;patch;update;watch
@@ -75,56 +88,56 @@ func (r *VirtlogdReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return ctrl.Result{}, err
 	}
 
-	// TemplatesConfigMap
-	templatesConfigMap := virtlogd.TemplatesConfigMap(instance, instance.Name+"-templates")
-	if err := controllerutil.SetControllerReference(instance, templatesConfigMap, r.Scheme); err != nil {
-		return ctrl.Result{}, err
-	}
-	// Check if this TemplatesConfigMap already exists
-	foundTemplatesConfigMap := &corev1.ConfigMap{}
-	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: templatesConfigMap.Name, Namespace: templatesConfigMap.Namespace}, foundTemplatesConfigMap)
-	if err != nil && errors.IsNotFound(err) {
-		r.Log.Info("Creating a new TemplatesConfigMap", "TemplatesConfigMap.Namespace", templatesConfigMap.Namespace, "Job.Name", templatesConfigMap.Name)
-		err = r.Client.Create(context.TODO(), templatesConfigMap)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
-	} else if !reflect.DeepEqual(templatesConfigMap.Data, foundTemplatesConfigMap.Data) {
-		r.Log.Info("Virtlogd ConfigMap got update, we do not restart virtlogd automatically as it won't reopen console.log files!")
-	}
+	// Create/update configmaps from templates
+	cmLabels := common.GetLabels(instance.Name, virtlogd.AppLabel)
+	cmLabels["upper-cr"] = instance.Name
 
-	templatesConfigMapHash, err := util.ObjectHash(templatesConfigMap.Data)
+	cms := []common.ConfigMap{
+		// ScriptsConfigMap
+		{
+			Name:           fmt.Sprintf("%s-scripts", instance.Name),
+			Namespace:      instance.Namespace,
+			CMType:         common.CMTypeScripts,
+			InstanceType:   instance.Kind,
+			AdditionalData: map[string]string{"common.sh": "/common/common.sh"},
+			Labels:         cmLabels,
+		},
+		// ConfigMap
+		{
+			Name:           fmt.Sprintf("%s-config-data", instance.Name),
+			Namespace:      instance.Namespace,
+			CMType:         common.CMTypeConfig,
+			InstanceType:   instance.Kind,
+			AdditionalData: map[string]string{},
+			Labels:         cmLabels,
+		},
+		// CustomConfigMap
+		{
+			Name:      fmt.Sprintf("%s-config-data-custom", instance.Name),
+			Namespace: instance.Namespace,
+			CMType:    common.CMTypeCustom,
+			Labels:    cmLabels,
+		},
+	}
+	// don't add the CM hashes, virtlogd must not be restarted automatically when config changes
+	// as the console.logs won't get reopenend and we'll loose messages
+	err = common.EnsureConfigMaps(r, instance, cms, nil)
 	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("error calculating configuration hash: %v", err)
-	}
-	r.Log.Info("TemplatesConfigMapHash: ", "Data Hash:", templatesConfigMapHash)
-
-	// Define a new Daemonset object
-	ds := virtlogdDaemonset(instance, instance.Name, templatesConfigMapHash)
-
-	// Set Virtlogd instance as the owner and controller
-	if err := controllerutil.SetControllerReference(instance, ds, r.Scheme); err != nil {
-		return ctrl.Result{}, err
-	}
-
-	// Check if this Daemonset already exists
-	found := &appsv1.DaemonSet{}
-	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: ds.Name, Namespace: ds.Namespace}, found)
-	if err != nil && errors.IsNotFound(err) {
-		r.Log.Info("Creating a new Daemonset", "Ds.Namespace", ds.Namespace, "Ds.Name", ds.Name)
-		err = r.Client.Create(context.TODO(), ds)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
-
-		// Pod created successfully - don't requeue
 		return ctrl.Result{}, nil
-	} else if err != nil {
-		return ctrl.Result{}, err
 	}
 
-	// Daemonset already exists - don't requeue
-	r.Log.Info("Skip reconcile: Daemonset already exists", "Ds.Namespace", found.Namespace, "Ds.Name", found.Name)
+	envVars := make(map[string]util.EnvSetter)
+
+	// Create or update the Daemonset object
+	op, err := r.daemonsetCreateOrUpdate(instance, envVars)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	if op != controllerutil.OperationResultNone {
+		r.Log.Info(fmt.Sprintf("DaemonSet %s successfully reconciled - operation: %s", instance.Name, string(op)))
+		return ctrl.Result{}, nil
+	}
+
 	return ctrl.Result{}, nil
 }
 
@@ -137,117 +150,143 @@ func (r *VirtlogdReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func virtlogdDaemonset(cr *novav1beta1.Virtlogd, cmName string, templatesConfigHash string) *appsv1.DaemonSet {
+func (r *VirtlogdReconciler) daemonsetCreateOrUpdate(instance *novav1beta1.Virtlogd, envVars map[string]util.EnvSetter) (controllerutil.OperationResult, error) {
+	var runAsUser = int64(0)
 	var trueVar = true
+	var falseVar = false
 
-	daemonSet := appsv1.DaemonSet{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "DaemonSet",
-			APIVersion: "apps/v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      cmName,
-			Namespace: cr.Namespace,
-			//OwnerReferences: []metav1.OwnerReference{
-			//      *metav1.NewControllerRef(cr, schema.GroupVersionKind{
-			//              Group:   v1beta1.SchemeGroupVersion.Group,
-			//              Version: v1beta1.SchemeGroupVersion.Version,
-			//              Kind:    "GenericDaemon",
-			//      }),
-			//},
-		},
-		Spec: appsv1.DaemonSetSpec{
-			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{"daemonset": cr.Name + "-daemonset"},
-			},
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{"daemonset": cr.Name + "-daemonset"},
-				},
-				Spec: corev1.PodSpec{
-					NodeSelector:       common.GetComputeWorkerNodeSelector(cr.Spec.RoleName),
-					HostNetwork:        true,
-					HostPID:            true,
-					DNSPolicy:          "ClusterFirstWithHostNet",
-					InitContainers:     []corev1.Container{},
-					Containers:         []corev1.Container{},
-					Tolerations:        []corev1.Toleration{},
-					ServiceAccountName: cr.Spec.ServiceAccount,
+	// set KOLLA_CONFIG env vars
+	envVars["KOLLA_CONFIG_FILE"] = util.EnvValue(virtlogd.KollaConfig)
+	envVars["KOLLA_CONFIG_STRATEGY"] = util.EnvValue("COPY_ALWAYS")
+
+	// Todo: make command in lib-common []string
+	// get readinessProbes
+	//readinessProbe := util.Probe{ProbeType: "readiness"}
+	//livenessProbe := util.Probe{ProbeType: "liveness"}
+
+	readinessProbe := &corev1.Probe{
+		Handler: corev1.Handler{
+			Exec: &corev1.ExecAction{
+				Command: []string{
+					"/openstack/healthcheck", "virtlogd",
 				},
 			},
 		},
+		InitialDelaySeconds: 5,
+		PeriodSeconds:       15,
+		TimeoutSeconds:      3,
 	}
 
-	// add compute worker nodes tolerations
-	for _, toleration := range common.GetComputeWorkerTolerations(cr.Spec.RoleName) {
-		daemonSet.Spec.Template.Spec.Tolerations = append(daemonSet.Spec.Template.Spec.Tolerations, toleration)
-	}
-
-	containerSpec := corev1.Container{
-		Name:  "virtlogd",
-		Image: cr.Spec.NovaLibvirtImage,
-		ReadinessProbe: &corev1.Probe{
-			Handler: corev1.Handler{
-				Exec: &corev1.ExecAction{
-					Command: []string{
-						"/openstack/healthcheck", "virtlogd",
-					},
+	livenessProbe := &corev1.Probe{
+		Handler: corev1.Handler{
+			Exec: &corev1.ExecAction{
+				Command: []string{
+					"/openstack/healthcheck", "virtlogd",
 				},
 			},
-			InitialDelaySeconds: 5,
-			PeriodSeconds:       15,
-			TimeoutSeconds:      3,
 		},
-		LivenessProbe: &corev1.Probe{
-			Handler: corev1.Handler{
-				Exec: &corev1.ExecAction{
-					Command: []string{
-						"/openstack/healthcheck", "virtlogd",
-					},
-				},
-			},
-			InitialDelaySeconds: 30,
-			PeriodSeconds:       60,
-			TimeoutSeconds:      3,
-			FailureThreshold:    5,
-		},
-		Command: []string{},
-		SecurityContext: &corev1.SecurityContext{
-			Privileged: &trueVar,
-		},
-		Env: []corev1.EnvVar{
-			{
-				Name:  "KOLLA_CONFIG_STRATEGY",
-				Value: "COPY_ALWAYS",
-			},
-			{
-				Name:  "TEMPLATES_CONFIG_HASH",
-				Value: templatesConfigHash,
-			},
-		},
-		VolumeMounts: []corev1.VolumeMount{},
+		InitialDelaySeconds: 30,
+		PeriodSeconds:       60,
+		TimeoutSeconds:      3,
+		FailureThreshold:    5,
 	}
 
-	// add common VolumeMounts
-	for _, volMount := range common.GetVolumeMounts() {
-		containerSpec.VolumeMounts = append(containerSpec.VolumeMounts, volMount)
-	}
+	// get volumes
+	initVolumeMounts := common.GetInitVolumeMounts()
+	volumeMounts := common.GetVolumeMounts()
 	// add virtlogd specific VolumeMounts
-	for _, volMount := range virtlogd.GetVolumeMounts(cmName) {
-		containerSpec.VolumeMounts = append(containerSpec.VolumeMounts, volMount)
+	for _, volMount := range virtlogd.GetVolumeMounts(instance.Name) {
+		volumeMounts = append(volumeMounts, volMount)
 	}
-
-	daemonSet.Spec.Template.Spec.Containers = append(daemonSet.Spec.Template.Spec.Containers, containerSpec)
-
-	// Volume config
-	// add common Volumes
-	for _, volConfig := range common.GetVolumes(cmName) {
-		daemonSet.Spec.Template.Spec.Volumes = append(daemonSet.Spec.Template.Spec.Volumes, volConfig)
-	}
+	volumes := common.GetVolumes(instance.Name)
 	// add virtlogd Volumes
-	for _, volConfig := range virtlogd.GetVolumes(cmName) {
-		daemonSet.Spec.Template.Spec.Volumes = append(daemonSet.Spec.Template.Spec.Volumes, volConfig)
+	for _, vol := range virtlogd.GetVolumes(instance.Name) {
+		volumes = append(volumes, vol)
 	}
 
-	return &daemonSet
+	// tolerations
+	tolerations := []corev1.Toleration{}
+	// add compute worker nodes tolerations
+	for _, toleration := range common.GetComputeWorkerTolerations(instance.Spec.RoleName) {
+		tolerations = append(tolerations, toleration)
+	}
+
+	daemonSet := &appsv1.DaemonSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      instance.Name,
+			Namespace: instance.Namespace,
+		},
+	}
+
+	op, err := controllerutil.CreateOrUpdate(context.TODO(), r.Client, daemonSet, func() error {
+
+		// Daemonset selector is immutable so we set this value only if
+		// a new object is going to be created
+		if daemonSet.ObjectMeta.CreationTimestamp.IsZero() {
+			daemonSet.Spec.Selector = &metav1.LabelSelector{
+				MatchLabels: common.GetLabels(instance.Name, virtlogd.AppLabel),
+			}
+		}
+
+		if len(daemonSet.Spec.Template.Spec.Containers) != 1 {
+			daemonSet.Spec.Template.Spec.Containers = make([]corev1.Container, 1)
+		}
+		envs := util.MergeEnvs(daemonSet.Spec.Template.Spec.Containers[0].Env, envVars)
+
+		// labels
+		common.InitLabelMap(&daemonSet.Spec.Template.Labels)
+		for k, v := range common.GetLabels(instance.Name, virtlogd.AppLabel) {
+			daemonSet.Spec.Template.Labels[k] = v
+		}
+
+		daemonSet.Spec.Template.Spec = corev1.PodSpec{
+			ServiceAccountName: serviceAccountName,
+			NodeSelector:       common.GetComputeWorkerNodeSelector(instance.Spec.RoleName),
+			HostIPC:            true,
+			HostNetwork:        true,
+			DNSPolicy:          "ClusterFirstWithHostNet",
+			Volumes:            volumes,
+			Tolerations:        tolerations,
+			InitContainers: []corev1.Container{
+				{
+					Name:  "init",
+					Image: instance.Spec.NovaLibvirtImage,
+					SecurityContext: &corev1.SecurityContext{
+						RunAsUser:  &runAsUser,
+						Privileged: &trueVar,
+					},
+					Command: []string{
+						"/bin/bash", "-c", "/usr/local/bin/container-scripts/init.sh",
+					},
+					Env:          []corev1.EnvVar{},
+					VolumeMounts: initVolumeMounts,
+				},
+			},
+			Containers: []corev1.Container{
+				{
+					Name:           "virtlogd",
+					Image:          instance.Spec.NovaLibvirtImage,
+					ReadinessProbe: readinessProbe,
+					LivenessProbe:  livenessProbe,
+					SecurityContext: &corev1.SecurityContext{
+						Privileged:             &trueVar,
+						ReadOnlyRootFilesystem: &falseVar,
+					},
+					// don't add the CM hashes, virtlogd must not be restarted automatically when config changes
+					// as the console.logs won't get reopenend and we'll loose messages
+					Env:          envs,
+					VolumeMounts: volumeMounts,
+				},
+			},
+		}
+
+		err := controllerutil.SetControllerReference(instance, daemonSet, r.Scheme)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	return op, err
 }

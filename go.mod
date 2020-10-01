@@ -8,7 +8,10 @@ require (
 	github.com/onsi/ginkgo v1.12.1
 	github.com/onsi/gomega v1.10.1
 	github.com/openshift/api v0.0.0-20200205133042-34f0ec8dab87
-	github.com/openstack-k8s-operators/lib-common v0.0.0-20200910130010-129482aabaf9
+	github.com/openstack-k8s-operators/cinder-operator v0.0.0-20201014122125-8dfff57510fc // indirect
+	github.com/openstack-k8s-operators/keystone-operator v0.0.0-20201012214326-7b0b20e9777b
+	github.com/openstack-k8s-operators/lib-common v0.0.0-20201012132655-247b83b2fafa
+	github.com/openstack-k8s-operators/neutron-operator v0.0.0-20201007084323-fd2c6dd27f5c // indirect
 	github.com/operator-framework/operator-lifecycle-manager v0.0.0-20200321030439-57b580e57e88
 	github.com/prometheus/common v0.7.0
 	github.com/stretchr/testify v1.4.0

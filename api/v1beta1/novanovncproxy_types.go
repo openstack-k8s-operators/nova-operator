@@ -1,5 +1,5 @@
 /*
-
+Copyright 2020 Red Hat
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -44,8 +44,8 @@ type NovaNoVNCProxySpec struct {
 
 // NovaNoVNCProxyStatus defines the observed state of NovaNoVNCProxy
 type NovaNoVNCProxyStatus struct {
-	// NovaNoVNCProxy statefulset hash
-	NovaNoVNCProxyHash string `json:"novaNoVNCProxyHash"`
+	// hashes of Secrets, CMs
+	Hashes []Hash `json:"hashes,omitempty"`
 }
 
 // +kubebuilder:object:root=true

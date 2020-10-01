@@ -1,5 +1,5 @@
 /*
-
+Copyright 2020 Red Hat
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -42,8 +42,8 @@ type NovaAPISpec struct {
 
 // NovaAPIStatus defines the observed state of NovaAPI
 type NovaAPIStatus struct {
-	// NovaAPIHash deployment hash
-	NovaAPIHash string `json:"novaAPIHash"`
+	// hashes of Secrets, CMs
+	Hashes []Hash `json:"hashes,omitempty"`
 }
 
 // +kubebuilder:object:root=true

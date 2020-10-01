@@ -53,7 +53,7 @@ spec:
               description: 'Secret containing: NeutronPassword'
               type: string
             novaSecret:
-              description: 'Secret containing: NovaPassword, TransportURL'
+              description: 'Secret containing: NovaPassword'
               type: string
             placementSecret:
               description: 'Secret containing: PlacementPassword'
@@ -71,11 +71,19 @@ spec:
         status:
           description: NovaConductorStatus defines the observed state of NovaConductor
           properties:
-            novaConductorHash:
-              description: NovaConductor statefulset hash
-              type: string
-          required:
-          - novaConductorHash
+            hashes:
+              description: hashes of Secrets, CMs
+              items:
+                description: Hash - struct to add hashes to status
+                properties:
+                  hash:
+                    description: Hash
+                    type: string
+                  name:
+                    description: Name of hash referencing the parameter
+                    type: string
+                type: object
+              type: array
           type: object
       type: object
   version: v1beta1

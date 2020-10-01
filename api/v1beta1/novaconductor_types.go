@@ -1,5 +1,5 @@
 /*
-
+Copyright 2020 Red Hat
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -32,7 +32,7 @@ type NovaConductorSpec struct {
 	ContainerImage string `json:"containerImage,omitempty"`
 	// Nova API Replicas
 	Replicas int32 `json:"replicas"`
-	// Secret containing: NovaPassword, TransportURL
+	// Secret containing: NovaPassword
 	NovaSecret string `json:"novaSecret,omitempty"`
 	// Secret containing: PlacementPassword
 	PlacementSecret string `json:"placementSecret,omitempty"`
@@ -44,8 +44,8 @@ type NovaConductorSpec struct {
 
 // NovaConductorStatus defines the observed state of NovaConductor
 type NovaConductorStatus struct {
-	// NovaConductor statefulset hash
-	NovaConductorHash string `json:"novaConductorHash"`
+	// hashes of Secrets, CMs
+	Hashes []Hash `json:"hashes,omitempty"`
 }
 
 // +kubebuilder:object:root=true

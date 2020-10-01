@@ -196,7 +196,6 @@ Update `config/samples/nova_v1beta1_iscsid.yaml`, `config/samples/nova_v1beta1_n
       name: nova-compute-worker-osp
       namespace: openstack
     spec:
-      commonConfigMap: common-config
       ospSecrets: osp-secrets
       novaComputeCPUDedicatedSet: 4-7
       novaComputeCPUSharedSet: 0-3

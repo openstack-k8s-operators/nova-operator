@@ -1,3 +1,19 @@
+/*
+Copyright 2020 Red Hat
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package virtlogd
 
 import (
@@ -6,8 +22,6 @@ import (
 
 // GetVolumes - Volumes used by virtlogd pod
 func GetVolumes(cmName string) []corev1.Volume {
-
-	var configVolumeDefaultMode int32 = 0644
 	var dirOrCreate = corev1.HostPathDirectoryOrCreate
 
 	return []corev1.Volume{
@@ -79,17 +93,6 @@ func GetVolumes(cmName string) []corev1.Volume {
 				},
 			},
 		},
-		{
-			Name: cmName + "-templates",
-			VolumeSource: corev1.VolumeSource{
-				ConfigMap: &corev1.ConfigMapVolumeSource{
-					DefaultMode: &configVolumeDefaultMode,
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: cmName + "-templates",
-					},
-				},
-			},
-		},
 	}
 
 }
@@ -135,12 +138,6 @@ func GetVolumeMounts(cmName string) []corev1.VolumeMount {
 			Name:             "var-lib-libvirt",
 			MountPath:        "/var/lib/libvirt",
 			MountPropagation: &hostToContainer,
-		},
-		{
-			Name:      cmName + "-templates",
-			MountPath: "/var/lib/kolla/config_files/src//etc/libvirt/virtlogd.conf",
-			SubPath:   "virtlogd.conf",
-			ReadOnly:  true,
 		},
 	}
 

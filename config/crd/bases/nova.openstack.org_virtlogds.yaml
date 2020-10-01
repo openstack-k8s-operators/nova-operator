@@ -42,13 +42,9 @@ spec:
             roleName:
               description: Name of the worker role created for OSP computes
               type: string
-            serviceAccount:
-              description: service account used to create pods
-              type: string
           required:
           - novaLibvirtImage
           - roleName
-          - serviceAccount
           type: object
         status:
           description: VirtlogdStatus defines the observed state of Virtlogd
@@ -57,6 +53,19 @@ spec:
               description: Count is the number of nodes the daemon is deployed to
               format: int32
               type: integer
+            hashes:
+              description: hashes of Secrets, CMs
+              items:
+                description: Hash - struct to add hashes to status
+                properties:
+                  hash:
+                    description: Hash
+                    type: string
+                  name:
+                    description: Name of hash referencing the parameter
+                    type: string
+                type: object
+              type: array
           required:
           - count
           type: object

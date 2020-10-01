@@ -1,3 +1,19 @@
+/*
+Copyright 2020 Red Hat
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package novacell
 
 import (
@@ -16,10 +32,13 @@ import (
 func CreateCellJob(cr *novav1beta1.NovaCell, scheme *runtime.Scheme) *batchv1.Job {
 
 	runAsUser := int64(0)
+	initVolumeMounts := common.GetInitVolumeMounts()
+	volumeMounts := common.GetVolumeMounts()
+	volumes := common.GetVolumes(cr.Name)
 
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-create-cell-%s", cr.Name, cr.Spec.Cell),
+			Name:      fmt.Sprintf("%s-create-cell", cr.Name),
 			Namespace: cr.Namespace,
 			Labels:    common.GetLabels(cr.Name, AppLabel),
 		},
@@ -28,6 +47,7 @@ func CreateCellJob(cr *novav1beta1.NovaCell, scheme *runtime.Scheme) *batchv1.Jo
 				Spec: corev1.PodSpec{
 					RestartPolicy:      "OnFailure",
 					ServiceAccountName: "nova",
+					Volumes:            volumes,
 					Containers: []corev1.Container{
 						{
 							Name:  cr.Name + "-create-cell",
@@ -38,7 +58,7 @@ func CreateCellJob(cr *novav1beta1.NovaCell, scheme *runtime.Scheme) *batchv1.Jo
 							Env: []corev1.EnvVar{
 								{
 									Name:  "KOLLA_CONFIG_FILE",
-									Value: "/var/lib/config-data/merged/create-cell-config.json",
+									Value: CreateCellKollaConfig,
 								},
 								{
 									Name:  "KOLLA_CONFIG_STRATEGY",
@@ -83,7 +103,7 @@ func CreateCellJob(cr *novav1beta1.NovaCell, scheme *runtime.Scheme) *batchv1.Jo
 									},
 								},
 							},
-							VolumeMounts: common.GetCtrlVolumeMounts(),
+							VolumeMounts: volumeMounts,
 						},
 					},
 				},
@@ -99,9 +119,9 @@ func CreateCellJob(cr *novav1beta1.NovaCell, scheme *runtime.Scheme) *batchv1.Jo
 		NovaSecret:         cr.Spec.NovaSecret,
 		NeutronSecret:      cr.Spec.NeutronSecret,
 		PlacementSecret:    cr.Spec.PlacementSecret,
+		VolumeMounts:       initVolumeMounts,
 	}
 	job.Spec.Template.Spec.InitContainers = common.GetCtrlInitContainer(initContainerDetails)
-	job.Spec.Template.Spec.Volumes = common.GetCtrlVolumes(cr.Name)
 	controllerutil.SetControllerReference(cr, job, scheme)
 	return job
 }

@@ -129,28 +129,16 @@ spec:
             apiEndpoint:
               description: API endpoint
               type: string
-            cellsHash:
-              description: Cells status hash
-              type: string
             dbSyncHash:
               description: DbSyncHash db sync hash
               type: string
-            novaAPIHash:
-              description: NovaAPIHash deployment hash
-              type: string
-            novaConductorHash:
-              description: NovaConductor statefulset hash
-              type: string
-            novaSchedulerHash:
-              description: NovaScheduler statefulset hash
+            dbSyncStatus:
+              description: DbSyncStatus db sync status
               type: string
           required:
           - apiEndpoint
-          - cellsHash
           - dbSyncHash
-          - novaAPIHash
-          - novaConductorHash
-          - novaSchedulerHash
+          - dbSyncStatus
           type: object
       type: object
   version: v1beta1

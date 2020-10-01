@@ -1,14 +1,30 @@
+/*
+Copyright 2020 Red Hat
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package novacompute
 
 import (
+	"strings"
+
+	"github.com/openstack-k8s-operators/nova-operator/pkg/novamigrationtarget"
 	corev1 "k8s.io/api/core/v1"
 )
 
 // GetVolumes - Volumes used by novacompute pod
 func GetVolumes(cmName string) []corev1.Volume {
-
-	var scriptsVolumeDefaultMode int32 = 0755
-	var config0640AccessMode int32 = 0640
 	var config0600AccessMode int32 = 0600
 	var dirOrCreate = corev1.HostPathDirectoryOrCreate
 
@@ -115,33 +131,11 @@ func GetVolumes(cmName string) []corev1.Volume {
 			},
 		},
 		{
-			Name: cmName + "-scripts",
-			VolumeSource: corev1.VolumeSource{
-				ConfigMap: &corev1.ConfigMapVolumeSource{
-					DefaultMode: &scriptsVolumeDefaultMode,
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: cmName + "-scripts",
-					},
-				},
-			},
-		},
-		{
-			Name: cmName + "-templates",
-			VolumeSource: corev1.VolumeSource{
-				ConfigMap: &corev1.ConfigMapVolumeSource{
-					DefaultMode: &config0640AccessMode,
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: cmName + "-templates",
-					},
-				},
-			},
-		},
-		{
 			Name: "novamigrationtarget-ssh-keys-identity",
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
 					DefaultMode: &config0600AccessMode,
-					SecretName:  "novamigrationtarget-ssh-keys",
+					SecretName:  strings.ToLower(novamigrationtarget.AppLabel) + "-ssh-keys",
 					Items: []corev1.KeyToPath{
 						{
 							Key:  "identity",
@@ -155,20 +149,10 @@ func GetVolumes(cmName string) []corev1.Volume {
 
 }
 
-// GetInitContainerVolumeMounts - novacompute initContainer VolumeMounts
-func GetInitContainerVolumeMounts(cmName string) []corev1.VolumeMount {
+// GetInitVolumeMounts - novacompute initContainer VolumeMounts
+func GetInitVolumeMounts() []corev1.VolumeMount {
 
 	return []corev1.VolumeMount{
-		{
-			Name:      cmName + "-scripts",
-			ReadOnly:  true,
-			MountPath: "/tmp/container-scripts",
-		},
-		{
-			Name:      cmName + "-templates",
-			ReadOnly:  true,
-			MountPath: "/tmp/container-templates",
-		},
 		{
 			Name:      "var-lib-nova",
 			MountPath: "/var/lib/nova",
@@ -239,7 +223,7 @@ func GetVolumeMounts(cmName string) []corev1.VolumeMount {
 		},
 		{
 			Name:      "novamigrationtarget-ssh-keys-identity",
-			MountPath: "/var/lib/kolla/config_files/src/etc/nova/migration/identity",
+			MountPath: "/var/lib/config-data/merged/identity",
 			SubPath:   "identity",
 			ReadOnly:  true,
 		},

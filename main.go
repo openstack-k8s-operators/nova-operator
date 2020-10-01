@@ -34,6 +34,7 @@ import (
 
 	routev1 "github.com/openshift/api/route/v1"
 
+	keystonev1beta1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	novav1beta1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/nova-operator/controllers"
 	// +kubebuilder:scaffold:imports
@@ -49,6 +50,7 @@ func init() {
 
 	utilruntime.Must(novav1beta1.AddToScheme(scheme))
 	utilruntime.Must(routev1.AddToScheme(scheme))
+	utilruntime.Must(keystonev1beta1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 

@@ -16,11 +16,11 @@ SyslogFacility AUTHPRIV
 UseDNS no
 UsePAM yes
 X11Forwarding yes
-Match LocalAddress LOCAL_IP User nova_migration
+Match LocalAddress PodIP User nova_migration
     AllowTcpForwarding no
     AuthorizedKeysFile /etc/nova/migration/authorized_keys
     ForceCommand /bin/nova-migration-wrapper
     PasswordAuthentication no
     X11Forwarding no
-Match LocalAddress !LOCAL_IP
+Match LocalAddress !PodIP
     DenyUsers nova_migration

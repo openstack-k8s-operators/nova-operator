@@ -1,5 +1,5 @@
 /*
-
+Copyright 2020 Red Hat
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,10 +22,6 @@ import (
 
 // NovaComputeSpec defines the desired state of NovaCompute
 type NovaComputeSpec struct {
-	// name of configmap which holds general information on the OSP env
-	CommonConfigMap string `json:"commonConfigMap"`
-	// name of secret which holds sensitive information on the OSP env
-	OspSecrets string `json:"ospSecrets"`
 	// container image to run for the daemon
 	NovaComputeImage string `json:"novaComputeImage"`
 	// Mask of host CPUs that can be used for ``VCPU`` resources and offloaded
@@ -36,18 +32,26 @@ type NovaComputeSpec struct {
 	// Ex. NovaComputeCPUDedicatedSet: [4-12,^8,15] will reserve cores from 4-12
 	// and 15, excluding 8.
 	NovaComputeCPUDedicatedSet string `json:"novaComputeCPUDedicatedSet,omitempty"`
-	// service account used to create pods
-	ServiceAccount string `json:"serviceAccount"`
 	// Name of the worker role created for OSP computes
 	RoleName string `json:"roleName"`
+	// Name of the cell, e.g. cell1
+	Cell string `json:"cell,omitempty"`
+	// Secret containing: NovaPassword, TransportURL
+	NovaSecret string `json:"novaSecret,omitempty"`
+	// Secret containing: PlacementPassword
+	PlacementSecret string `json:"placementSecret,omitempty"`
+	// Secret containing: NeutronPassword
+	NeutronSecret string `json:"neutronSecret,omitempty"`
+	// Secret containing: cell transport_url
+	TransportURLSecret string `json:"transportURLSecret,omitempty"`
 }
 
 // NovaComputeStatus defines the observed state of NovaCompute
 type NovaComputeStatus struct {
 	// Count is the number of nodes the daemon is deployed to
 	Count int32 `json:"count"`
-	// Daemonset hash used to detect changes
-	DaemonsetHash string `json:"daemonsetHash"`
+	// hashes of Secrets, CMs
+	Hashes []Hash `json:"hashes,omitempty"`
 }
 
 // +kubebuilder:object:root=true
