@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"reflect"
-	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -33,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	routev1 "github.com/openshift/api/route/v1"
+	keystonev1beta1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	util "github.com/openstack-k8s-operators/lib-common/pkg/util"
 	placementv1beta1 "github.com/openstack-k8s-operators/placement-operator/api/v1beta1"
 	placement "github.com/openstack-k8s-operators/placement-operator/pkg"
@@ -40,6 +40,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 // AppLabel -
@@ -288,13 +290,32 @@ func (r *PlacementAPIReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 		return ctrl.Result{}, err
 	}
 
-	var apiEndpoint string
-	if !strings.HasPrefix(foundRoute.Spec.Host, "http") {
-		apiEndpoint = fmt.Sprintf("http://%s", foundRoute.Spec.Host)
-	} else {
-		apiEndpoint = foundRoute.Spec.Host
+	r.Log.Info("Reconciling placement KeystoneService")
+	placementKeystoneService := &keystonev1beta1.KeystoneService{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      instance.Name,
+			Namespace: instance.Namespace,
+		},
 	}
-	r.setAPIEndpoint(instance, apiEndpoint)
+
+	_, err = controllerutil.CreateOrUpdate(context.TODO(), r.Client, placementKeystoneService, func() error {
+		placementKeystoneService.Spec.ServiceType = "placement"
+		placementKeystoneService.Spec.ServiceName = "placement"
+		placementKeystoneService.Spec.ServiceDescription = "placement"
+		placementKeystoneService.Spec.Enabled = true
+		placementKeystoneService.Spec.Region = "regionOne"
+		placementKeystoneService.Spec.AdminURL = fmt.Sprintf("http://%s", foundRoute.Spec.Host)
+		placementKeystoneService.Spec.PublicURL = fmt.Sprintf("http://%s", foundRoute.Spec.Host)
+		placementKeystoneService.Spec.InternalURL = "http://placement.openstack.svc:8778"
+
+		return nil
+	})
+
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	r.setAPIEndpoint(instance, placementKeystoneService.Spec.PublicURL)
 
 	return ctrl.Result{}, nil
 }

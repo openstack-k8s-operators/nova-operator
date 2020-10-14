@@ -34,6 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	keystonev1beta1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	placementv1beta1 "github.com/openstack-k8s-operators/placement-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/placement-operator/controllers"
 	// +kubebuilder:scaffold:imports
@@ -49,6 +50,7 @@ func init() {
 
 	utilruntime.Must(placementv1beta1.AddToScheme(scheme))
 	utilruntime.Must(routev1.AddToScheme(scheme))
+	utilruntime.Must(keystonev1beta1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 
