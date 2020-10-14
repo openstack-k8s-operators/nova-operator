@@ -19,7 +19,6 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -34,6 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
+	keystonev1beta1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	util "github.com/openstack-k8s-operators/lib-common/pkg/util"
 	novav1beta1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	common "github.com/openstack-k8s-operators/nova-operator/pkg/common"
@@ -375,19 +375,38 @@ func (r *NovaReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return ctrl.Result{}, err
 	}
 
-	err = common.CreateOrUpdateRoute(r.Client, r.Log, route)
+	foundRoute, err := common.CreateOrUpdateRoute(r.Client, r.Log, route)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	// update status with endpoint information
-	var apiEndpoint string
-	if !strings.HasPrefix(route.Spec.Host, "http") {
-		apiEndpoint = fmt.Sprintf("http://%s", route.Spec.Host)
-	} else {
-		apiEndpoint = route.Spec.Host
+	r.Log.Info("Setting up nova KeystoneService")
+	// Keystone setup
+	novaKeystoneService := &keystonev1beta1.KeystoneService{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      instance.Name,
+			Namespace: instance.Namespace,
+		},
 	}
-	r.setAPIEndpoint(instance, apiEndpoint)
+
+	_, err = controllerutil.CreateOrUpdate(context.TODO(), r.Client, novaKeystoneService, func() error {
+		novaKeystoneService.Spec.ServiceType = "compute"
+		novaKeystoneService.Spec.ServiceName = "nova"
+		novaKeystoneService.Spec.ServiceDescription = "nova"
+		novaKeystoneService.Spec.Enabled = true
+		novaKeystoneService.Spec.Region = "regionOne"
+		novaKeystoneService.Spec.AdminURL = fmt.Sprintf("http://%s", foundRoute.Spec.Host)
+		novaKeystoneService.Spec.PublicURL = fmt.Sprintf("http://%s", foundRoute.Spec.Host)
+		novaKeystoneService.Spec.InternalURL = "http://novaapi.openstack.svc:8774/v2.1"
+
+		return nil
+	})
+
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	r.setAPIEndpoint(instance, novaKeystoneService.Spec.PublicURL)
 
 	// deploy cells
 	// calc Spec.Cells hash to verify if any of the cells changed
@@ -463,7 +482,7 @@ func (r *NovaReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			}
 		}
 
-		// setup sells completed
+		// setup cells completed
 		if err := r.setCellsHash(instance, cellsHash); err != nil {
 			return ctrl.Result{}, err
 		}

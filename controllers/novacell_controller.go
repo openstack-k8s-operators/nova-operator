@@ -376,7 +376,7 @@ func (r *NovaCellReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return ctrl.Result{}, err
 	}
 
-	err = common.CreateOrUpdateRoute(r.Client, r.Log, route)
+	_, err = common.CreateOrUpdateRoute(r.Client, r.Log, route)
 	if err != nil {
 		return ctrl.Result{}, err
 	}

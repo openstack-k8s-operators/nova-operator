@@ -46,28 +46,29 @@ func Route(routeInfo RouteDetails) *routev1.Route {
 }
 
 // CreateOrUpdateRoute -
-func CreateOrUpdateRoute(c client.Client, log logr.Logger, route *routev1.Route) error {
+func CreateOrUpdateRoute(c client.Client, log logr.Logger, route *routev1.Route) (*routev1.Route, error) {
 	// Check if this Route already exists
 	foundRoute := &routev1.Route{}
 	err := c.Get(context.TODO(), types.NamespacedName{Name: route.Name, Namespace: route.Namespace}, foundRoute)
 	if err != nil && !k8s_errors.IsNotFound(err) {
-		return fmt.Errorf("error getting route object: %v", err)
+		return foundRoute, fmt.Errorf("error getting route object: %v", err)
 	}
 
 	if k8s_errors.IsNotFound(err) {
 		log.Info("Creating a new Route", "Route.Namespace", route.Namespace, "Route.Name", route.Name)
 		err = c.Create(context.TODO(), route)
 		if err != nil {
-			return fmt.Errorf("error creating route object: %v", err)
+			return foundRoute, fmt.Errorf("error creating route object: %v", err)
 		}
 	} else {
+		log.Info("Updating the Route", "Route.Namespace", route.Namespace, "Route.Name", route.Name)
 		route.ResourceVersion = foundRoute.ResourceVersion
 		err = c.Update(context.TODO(), route)
 		if err != nil && !k8s_errors.IsNotFound(err) {
-			return fmt.Errorf("error updating route object: %v", err)
+			return foundRoute, fmt.Errorf("error updating route object: %v", err)
 		}
-		return err
+		return foundRoute, err
 	}
 
-	return nil
+	return foundRoute, nil
 }

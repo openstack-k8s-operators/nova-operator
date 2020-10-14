@@ -287,6 +287,7 @@ github.com/googleapis/gnostic v0.2.0/go.mod h1:sJBsCZ4ayReDTBIg8b9dl28c5xFWyhBTV
 github.com/googleapis/gnostic v0.3.1 h1:WeAefnSUHlBb0iJKwxFDZdbfGwkd7xRNuV+IpXMJhYk=
 github.com/googleapis/gnostic v0.3.1/go.mod h1:on+2t9HRStVgn95RSsFWFz+6Q0Snyqv1awfrALZdbtU=
 github.com/gophercloud/gophercloud v0.1.0/go.mod h1:vxM41WHh5uqHVBMZHzuwNOHh8XEoIEcSTewFxm1c5g8=
+github.com/gophercloud/gophercloud v0.6.0/go.mod h1:GICNByuaEBibcjmjvI7QvYJSZEbGkcYwAR7EZK2WMqM=
 github.com/gopherjs/gopherjs v0.0.0-20181017120253-0766667cb4d1/go.mod h1:wJfORRmW1u3UXTncJ5qlYoELFm8eSnnEO6hX4iZ3EWY=
 github.com/gorilla/context v1.1.1/go.mod h1:kBGZzfjB9CEq2AlWe17Uuf7NDRt0dE0s8S51q0aT7Yg=
 github.com/gorilla/handlers v0.0.0-20150720190736-60c7bfde3e33/go.mod h1:Qkdc/uu4tH4g6mTK6auzZ766c4CA0Ng8+o/OAirnOIQ=
@@ -427,6 +428,8 @@ github.com/opencontainers/runtime-tools v0.0.0-20181011054405-1d69bd0f9c39/go.mo
 github.com/openshift/api v0.0.0-20200205133042-34f0ec8dab87 h1:L/fZlWB7DdYCd09r9LvBa44xRH42Dx80ybxfN1h5C8Y=
 github.com/openshift/api v0.0.0-20200205133042-34f0ec8dab87/go.mod h1:fT6U/JfG8uZzemTRwZA2kBDJP5nWz7v05UHnty/D+pk=
 github.com/openshift/client-go v0.0.0-20190923180330-3b6373338c9b/go.mod h1:6rzn+JTr7+WYS2E1TExP4gByoABxMznR6y2SnUIkmxk=
+github.com/openstack-k8s-operators/keystone-operator v0.0.0-20201012214326-7b0b20e9777b h1:owtzrv8bd2Zvg9iTkM1F7DEmFqV93/y5Cnv2KNYO4qQ=
+github.com/openstack-k8s-operators/keystone-operator v0.0.0-20201012214326-7b0b20e9777b/go.mod h1:gmsa6IfJelj3kxQrVexYsTvG6a7TqO1/UVAQO26jlXY=
 github.com/openstack-k8s-operators/lib-common v0.0.0-20200511145352-a17ab43c6b58 h1:mwz+MUZL1e3jzlk5SIBnUdEgoW4Z8AlESnZZMjpDR1c=
 github.com/openstack-k8s-operators/lib-common v0.0.0-20200511145352-a17ab43c6b58/go.mod h1:z+L8M6jzTiUzAwJPKJqtVkdcZJnIRWIXvzkaawicWrk=
 github.com/openstack-k8s-operators/lib-common v0.0.0-20200910130010-129482aabaf9 h1:vT6OF5Q3Ej/f78nZSg3rjE2B4f1q/ZKdtc61Ay7f3zU=
