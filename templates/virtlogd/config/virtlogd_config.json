@@ -1,0 +1,11 @@
+{
+    "command": "/usr/sbin/virtlogd --config /etc/libvirt/virtlogd.conf",
+    "config_files": [
+        {
+            "dest": "/etc/libvirt/virtlogd.conf",
+            "owner": "root:root",
+            "perm": "0644",
+            "source": "/var/lib/config-data/merged/virtlogd.conf"
+        }
+    ]
+}

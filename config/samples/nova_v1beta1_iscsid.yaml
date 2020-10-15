@@ -4,6 +4,6 @@ metadata:
   name: iscsid-worker-osp
   namespace: openstack
 spec:
-  iscsidImage: docker.io/tripleotrain/rhel-binary-iscsid:current-tripleo
+  iscsidImage: docker.io/tripleomaster/centos-binary-iscsid:current-tripleo
   serviceAccount: nova
   roleName: worker-osp

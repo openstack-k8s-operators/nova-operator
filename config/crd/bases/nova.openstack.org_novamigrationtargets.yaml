@@ -37,28 +37,19 @@ spec:
         spec:
           description: NovaMigrationTargetSpec defines the desired state of NovaMigrationTarget
           properties:
-            commonConfigMap:
-              description: name of configmap which holds general information on the
-                OSP env
-              type: string
             novaComputeImage:
               description: container image to run for the daemon
               type: string
             roleName:
               description: Name of the worker role created for OSP computes
               type: string
-            serviceAccount:
-              description: service account used to create pods
-              type: string
             sshdPort:
               description: SSHD port
               format: int32
               type: integer
           required:
-          - commonConfigMap
           - novaComputeImage
           - roleName
-          - serviceAccount
           - sshdPort
           type: object
         status:
@@ -68,12 +59,21 @@ spec:
               description: Count is the number of nodes the daemon is deployed to
               format: int32
               type: integer
-            daemonsetHash:
-              description: Daemonset hash used to detect changes
-              type: string
+            hashes:
+              description: hashes of Secrets, CMs
+              items:
+                description: Hash - struct to add hashes to status
+                properties:
+                  hash:
+                    description: Hash
+                    type: string
+                  name:
+                    description: Name of hash referencing the parameter
+                    type: string
+                type: object
+              type: array
           required:
           - count
-          - daemonsetHash
           type: object
       type: object
   version: v1beta1

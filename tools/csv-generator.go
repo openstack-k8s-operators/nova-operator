@@ -416,6 +416,20 @@ func getOperatorRules() *[]rbacv1.PolicyRule {
 		},
 		{
 			APIGroups: []string{
+				"keystone.openstack.org",
+			},
+			Resources: []string{
+				"keystoneservices",
+			},
+			Verbs: []string{
+				"list",
+				"create",
+				"update",
+				"watch",
+			},
+		},
+		{
+			APIGroups: []string{
 				"database.openstack.org",
 			},
 			Resources: []string{

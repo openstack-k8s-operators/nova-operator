@@ -1,5 +1,5 @@
 /*
-
+Copyright 2020 Red Hat
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -42,8 +42,8 @@ type NovaSchedulerSpec struct {
 
 // NovaSchedulerStatus defines the observed state of NovaScheduler
 type NovaSchedulerStatus struct {
-	// NovaScheduler statefulset hash
-	NovaSchedulerHash string `json:"novaSchedulerHash"`
+	// hashes of Secrets, CMs
+	Hashes []Hash `json:"hashes,omitempty"`
 }
 
 // +kubebuilder:object:root=true

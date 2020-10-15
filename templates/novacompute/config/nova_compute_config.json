@@ -1,0 +1,35 @@
+{
+    "command": "/usr/bin/nova-compute --config-file /etc/nova/nova.conf --config-dir /etc/nova/nova.conf.d",
+    "config_files": [
+        {
+            "dest": "/etc/nova/nova.conf",
+            "owner": "root:nova",
+            "perm": "0640",
+            "source": "/var/lib/config-data/merged/nova.conf"
+        },
+        {
+            "source": "/var/lib/config-data/merged/logging.conf",
+            "dest": "/etc/nova/logging.conf",
+            "owner": "root:nova",
+            "perm": "0644"
+        },
+        {
+            "dest": "/etc/nova/migration/identity",
+            "owner": "nova:nova",
+            "perm": "0600",
+            "source": "/var/lib/config-data/merged/identity"
+        }
+    ],
+    "permissions": [
+        {
+            "owner": "nova:nova",
+            "path": "/var/log/nova",
+            "recurse": true
+        },
+        {
+            "owner": "nova:nova",
+            "path": "/etc/ceph/ceph.client.openstack.keyring",
+            "perm": "0600"
+        }
+    ]
+}

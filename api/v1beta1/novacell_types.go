@@ -1,5 +1,5 @@
 /*
-
+Copyright 2020 Red Hat
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -50,16 +50,12 @@ type NovaCellSpec struct {
 
 // NovaCellStatus defines the observed state of NovaCell
 type NovaCellStatus struct {
+	// hashes of Secrets, CMs
+	Hashes []Hash `json:"hashes,omitempty"`
 	// DbSyncHash db sync hash
 	DbSyncHash string `json:"dbSyncHash"`
 	// CreateCellHash sync hash
 	CreateCellHash string `json:"createCellHash"`
-	// NovaConductor statefulset hash
-	NovaConductorHash string `json:"novaConductorHash"`
-	// NovaMetadata deployment hash
-	NovaMetadataHash string `json:"novaMetadataHash"`
-	// NovaNoVNCProxy deployment hash
-	NovaNoVNCProxyHash string `json:"novaNoVNCProxyHash"`
 	// noVNC endpoint
 	NoVNCProxyEndpoint string `json:"noVNCProxyEndpoint"`
 }

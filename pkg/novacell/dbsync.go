@@ -17,6 +17,10 @@ func DbSyncJob(cr *novav1beta1.NovaCell, scheme *runtime.Scheme) *batchv1.Job {
 
 	runAsUser := int64(0)
 
+	initVolumeMounts := common.GetInitVolumeMounts()
+	volumeMounts := common.GetVolumeMounts()
+	volumes := common.GetVolumes(cr.Name)
+
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      cr.Name + "-db-sync",
@@ -28,6 +32,7 @@ func DbSyncJob(cr *novav1beta1.NovaCell, scheme *runtime.Scheme) *batchv1.Job {
 				Spec: corev1.PodSpec{
 					RestartPolicy:      "OnFailure",
 					ServiceAccountName: "nova",
+					Volumes:            volumes,
 					Containers: []corev1.Container{
 						{
 							Name:  cr.Name + "-db-sync",
@@ -38,7 +43,7 @@ func DbSyncJob(cr *novav1beta1.NovaCell, scheme *runtime.Scheme) *batchv1.Job {
 							Env: []corev1.EnvVar{
 								{
 									Name:  "KOLLA_CONFIG_FILE",
-									Value: "/var/lib/config-data/merged/db-sync-config.json",
+									Value: DBSyncKollaConfig,
 								},
 								{
 									Name:  "KOLLA_CONFIG_STRATEGY",
@@ -87,7 +92,7 @@ func DbSyncJob(cr *novav1beta1.NovaCell, scheme *runtime.Scheme) *batchv1.Job {
 									},
 								},
 							},
-							VolumeMounts: common.GetCtrlVolumeMounts(),
+							VolumeMounts: volumeMounts,
 						},
 					},
 				},
@@ -103,9 +108,9 @@ func DbSyncJob(cr *novav1beta1.NovaCell, scheme *runtime.Scheme) *batchv1.Job {
 		NovaSecret:         cr.Spec.NovaSecret,
 		NeutronSecret:      cr.Spec.NeutronSecret,
 		PlacementSecret:    cr.Spec.PlacementSecret,
+		VolumeMounts:       initVolumeMounts,
 	}
 	job.Spec.Template.Spec.InitContainers = common.GetCtrlInitContainer(initContainerDetails)
-	job.Spec.Template.Spec.Volumes = common.GetCtrlVolumes(cr.Name)
 	controllerutil.SetControllerReference(cr, job, scheme)
 	return job
 }

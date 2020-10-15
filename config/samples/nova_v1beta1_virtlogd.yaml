@@ -4,6 +4,6 @@ metadata:
   name: virtlogd-worker-osp
   namespace: openstack
 spec:
-  novaLibvirtImage: quay.io/openstack-k8s-operators/nova-libvirt:latest
+  novaLibvirtImage: docker.io/tripleomaster/centos-binary-nova-libvirt:current-tripleo
   serviceAccount: nova
   roleName: worker-osp

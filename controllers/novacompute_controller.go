@@ -1,5 +1,5 @@
 /*
-
+Copyright 2020 Red Hat
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,14 +19,12 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"reflect"
+	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -36,8 +34,10 @@ import (
 	novav1beta1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	common "github.com/openstack-k8s-operators/nova-operator/pkg/common"
 	"github.com/openstack-k8s-operators/nova-operator/pkg/novacompute"
+	"github.com/openstack-k8s-operators/nova-operator/pkg/novamigrationtarget"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var ospHostAliases = []corev1.HostAlias{}
@@ -48,6 +48,21 @@ type NovaComputeReconciler struct {
 	Kclient kubernetes.Interface
 	Log     logr.Logger
 	Scheme  *runtime.Scheme
+}
+
+// GetClient -
+func (r *NovaComputeReconciler) GetClient() client.Client {
+	return r.Client
+}
+
+// GetLogger -
+func (r *NovaComputeReconciler) GetLogger() logr.Logger {
+	return r.Log
+}
+
+// GetScheme -
+func (r *NovaComputeReconciler) GetScheme() *runtime.Scheme {
+	return r.Scheme
 }
 
 // +kubebuilder:rbac:groups=core,namespace=openstack,resources=pods;services;services/finalizers;endpoints;persistentvolumeclaims;events;configmaps;secrets,verbs=create;delete;get;list;patch;update;watch
@@ -76,141 +91,84 @@ func (r *NovaComputeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 		return ctrl.Result{}, err
 	}
 
-	// get instance.Spec.CommonConfigMap which holds general information on the OSP environment
-	// TODO: handle commonConfigMap data change
-	commonConfigMap := &corev1.ConfigMap{}
-	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: instance.Spec.CommonConfigMap, Namespace: instance.Namespace}, commonConfigMap)
-	if err != nil && errors.IsNotFound(err) {
-		r.Log.Error(err, instance.Spec.CommonConfigMap+" ConfigMap not found!", "Instance.Namespace", instance.Namespace, "Instance.Name", instance.Name)
-		return ctrl.Result{}, err
-	}
-	if err := controllerutil.SetControllerReference(instance, commonConfigMap, r.Scheme); err != nil {
-		return ctrl.Result{}, err
-	}
+	envVars := make(map[string]util.EnvSetter)
 
-	// get insatnce.Spec.OspSecret which holds passwords and other sensitive information from the OSP environment
-	// TODO: handle secrets data change, like pwd change
-	ospSecrets := &corev1.Secret{}
-	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: instance.Spec.OspSecrets, Namespace: instance.Namespace}, ospSecrets)
-	if err != nil && errors.IsNotFound(err) {
-		r.Log.Error(err, instance.Spec.OspSecrets+" Secret not found!", "Instance.Namespace", instance.Namespace, "Instance.Name", instance.Name)
-		return ctrl.Result{}, err
-	}
-	if err := controllerutil.SetControllerReference(instance, ospSecrets, r.Scheme); err != nil {
-		return ctrl.Result{}, err
-	}
-
-	// Create additional host entries added to the /etc/hosts file of the containers
-	ospHostAliases, err = util.CreateOspHostsEntries(commonConfigMap)
+	// check for required secrets
+	_, hash, err := common.GetSecret(r.Client, instance.Spec.NovaSecret, instance.Namespace)
 	if err != nil {
-		r.Log.Error(err, "Failed ospHostAliases", "Instance.Namespace", instance.Namespace, "Instance.Name", instance.Name)
-		return ctrl.Result{}, err
+		return ctrl.Result{RequeueAfter: time.Second * 10}, err
 	}
+	envVars[instance.Spec.NovaSecret] = util.EnvValue(hash)
 
-	// Create additional host entries added to the /etc/hosts file of the containers
-	ospHostAliases, err = util.CreateOspHostsEntries(commonConfigMap)
+	_, hash, err = common.GetSecret(r.Client, instance.Spec.PlacementSecret, instance.Namespace)
 	if err != nil {
-		r.Log.Error(err, "Failed ospHostAliases", "Instance.Namespace", instance.Namespace, "Instance.Name", instance.Name)
-		return ctrl.Result{}, err
+		return ctrl.Result{RequeueAfter: time.Second * 10}, err
 	}
+	envVars[instance.Spec.PlacementSecret] = util.EnvValue(hash)
 
-	// ScriptsConfigMap
-	scriptsConfigMap := novacompute.ScriptsConfigMap(instance, instance.Name+"-scripts")
-	if err := controllerutil.SetControllerReference(instance, scriptsConfigMap, r.Scheme); err != nil {
-		return ctrl.Result{}, err
-	}
-	// Check if this ScriptsConfigMap already exists
-	foundScriptsConfigMap := &corev1.ConfigMap{}
-	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: scriptsConfigMap.Name, Namespace: scriptsConfigMap.Namespace}, foundScriptsConfigMap)
-	if err != nil && errors.IsNotFound(err) {
-		r.Log.Info("Creating a new ScriptsConfigMap", "ScriptsConfigMap.Namespace", scriptsConfigMap.Namespace, "Job.Name", scriptsConfigMap.Name)
-		err = r.Client.Create(context.TODO(), scriptsConfigMap)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
-	} else if !reflect.DeepEqual(scriptsConfigMap.Data, foundScriptsConfigMap.Data) {
-		r.Log.Info("Updating ScriptsConfigMap")
-
-		scriptsConfigMap.Data = foundScriptsConfigMap.Data
-	}
-	scriptsConfigMapHash, err := util.ObjectHash(scriptsConfigMap.Data)
+	_, hash, err = common.GetSecret(r.Client, instance.Spec.NeutronSecret, instance.Namespace)
 	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("error calculating configuration hash: %v", err)
+		return ctrl.Result{RequeueAfter: time.Second * 10}, err
 	}
-	r.Log.Info("ScriptsConfigMapHash: ", "Data Hash:", scriptsConfigMapHash)
+	envVars[instance.Spec.NeutronSecret] = util.EnvValue(hash)
 
-	// templatesConfigMap
-	// TODO: when config handling is set this needs to be changed!! Right now passwords get stored in the resulting CM
-	templatesConfigMap := novacompute.TemplatesConfigMap(instance, commonConfigMap, ospSecrets, instance.Name+"-templates")
-	if err := controllerutil.SetControllerReference(instance, templatesConfigMap, r.Scheme); err != nil {
-		return ctrl.Result{}, err
-	}
-	// Check if this TemplatesConfigMap already exists
-	foundTemplatesConfigMap := &corev1.ConfigMap{}
-	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: templatesConfigMap.Name, Namespace: templatesConfigMap.Namespace}, foundTemplatesConfigMap)
-	if err != nil && errors.IsNotFound(err) {
-		r.Log.Info("Creating a new TemplatesConfigMap", "TemplatesConfigMap.Namespace", templatesConfigMap.Namespace, "Job.Name", templatesConfigMap.Name)
-		err = r.Client.Create(context.TODO(), templatesConfigMap)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
-	} else if !reflect.DeepEqual(templatesConfigMap.Data, foundTemplatesConfigMap.Data) {
-		r.Log.Info("Updating TemplatesConfigMap")
-
-		templatesConfigMap.Data = foundTemplatesConfigMap.Data
-	}
-
-	templatesConfigMapHash, err := util.ObjectHash(templatesConfigMap.Data)
+	secretName := strings.ToLower(novamigrationtarget.AppLabel) + "-ssh-keys"
+	_, hash, err = common.GetSecret(r.Client, secretName, instance.Namespace)
 	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("error calculating configuration hash: %v", err)
+		return ctrl.Result{RequeueAfter: time.Second * 10}, err
 	}
-	r.Log.Info("TemplatesConfigMapHash: ", "Data Hash:", templatesConfigMapHash)
+	envVars[secretName] = util.EnvValue(hash)
 
-	// Define a new Daemonset object
-	ds := newDaemonset(instance, instance.Name, templatesConfigMapHash, scriptsConfigMapHash)
-	dsHash, err := util.ObjectHash(ds)
+	// Create/update configmaps from templates
+	cmLabels := common.GetLabels(instance.Name, novacompute.AppLabel)
+	cmLabels["upper-cr"] = instance.Name
+
+	templateParameters := make(map[string]string)
+	templateParameters["NovaComputeCPUDedicatedSet"] = instance.Spec.NovaComputeCPUDedicatedSet
+	templateParameters["NovaComputeCPUSharedSet"] = instance.Spec.NovaComputeCPUSharedSet
+
+	cms := []common.ConfigMap{
+		// ScriptsConfigMap
+		{
+			Name:           fmt.Sprintf("%s-scripts", instance.Name),
+			Namespace:      instance.Namespace,
+			CMType:         common.CMTypeScripts,
+			InstanceType:   instance.Kind,
+			AdditionalData: map[string]string{"common.sh": "/common/common.sh"},
+			Labels:         cmLabels,
+		},
+		// ConfigMap
+		{
+			Name:           fmt.Sprintf("%s-config-data", instance.Name),
+			Namespace:      instance.Namespace,
+			CMType:         common.CMTypeConfig,
+			InstanceType:   instance.Kind,
+			AdditionalData: map[string]string{},
+			Labels:         cmLabels,
+			// TODO: add global endpoints to redered into template
+			ConfigOptions: templateParameters,
+		},
+		// CustomConfigMap
+		{
+			Name:      fmt.Sprintf("%s-config-data-custom", instance.Name),
+			Namespace: instance.Namespace,
+			CMType:    common.CMTypeCustom,
+			Labels:    cmLabels,
+		},
+	}
+	err = common.EnsureConfigMaps(r, instance, cms, &envVars)
 	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("error calculating configuration hash: %v", err)
-	}
-	r.Log.Info("DaemonsetHash: ", "Daemonset Hash:", dsHash)
-
-	// Set NovaCompute instance as the owner and controller
-	if err := controllerutil.SetControllerReference(instance, ds, r.Scheme); err != nil {
-		return ctrl.Result{}, err
-	}
-
-	// Check if this Daemonset already exists
-	found := &appsv1.DaemonSet{}
-	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: ds.Name, Namespace: ds.Namespace}, found)
-	if err != nil && errors.IsNotFound(err) {
-		r.Log.Info("Creating a new Daemonset", "Ds.Namespace", ds.Namespace, "Ds.Name", ds.Name)
-		err = r.Client.Create(context.TODO(), ds)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
-
-		// Daemonset created successfully - don't requeue
 		return ctrl.Result{}, nil
-	} else if err != nil {
-		return ctrl.Result{}, err
-	} else {
+	}
 
-		if instance.Status.DaemonsetHash != dsHash {
-			r.Log.Info("Daemonset Updated")
-			found.Spec = ds.Spec
-			err = r.Client.Update(context.TODO(), found)
-			if err != nil {
-				return ctrl.Result{}, err
-			}
-			r.setDaemonsetHash(instance, dsHash)
-			return ctrl.Result{RequeueAfter: time.Second * 10}, err
-		}
-		//                if found.Status.ReadyNovaComputeStatus == instance.Spec.NovaComputeStatus {
-		//                        reqLogger.Info("Daemonsets running:", "Daemonsets", found.Status.ReadyNovaComputeStatus)
-		//                } else {
-		//                        reqLogger.Info("Waiting on Nova Compute Daemonset...")
-		//                        return ctrl.Result{RequeueAfter: time.Second * 5}, err
-		//                }
+	// Create or update the Daemonset object
+	op, err := r.daemonsetCreateOrUpdate(instance, envVars)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	if op != controllerutil.OperationResultNone {
+		r.Log.Info(fmt.Sprintf("DaemonSet %s successfully reconciled - operation: %s", instance.Name, string(op)))
+		return ctrl.Result{}, nil
 	}
 
 	return ctrl.Result{}, nil
@@ -226,190 +184,121 @@ func (r *NovaComputeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func (r *NovaComputeReconciler) setDaemonsetHash(instance *novav1beta1.NovaCompute, hashStr string) error {
+func (r *NovaComputeReconciler) daemonsetCreateOrUpdate(instance *novav1beta1.NovaCompute, envVars map[string]util.EnvSetter) (controllerutil.OperationResult, error) {
+	var trueVar = true
+	var runAsUser = int64(0)
 
-	if hashStr != instance.Status.DaemonsetHash {
-		instance.Status.DaemonsetHash = hashStr
-		if err := r.Client.Status().Update(context.TODO(), instance); err != nil {
+	// set KOLLA_CONFIG env vars
+	envVars["KOLLA_CONFIG_FILE"] = util.EnvValue(novacompute.KollaConfig)
+	envVars["KOLLA_CONFIG_STRATEGY"] = util.EnvValue("COPY_ALWAYS")
+
+	// get readinessProbes
+	readinessProbe := util.Probe{ProbeType: "readiness"}
+	livenessProbe := util.Probe{ProbeType: "liveness"}
+
+	// get volumes
+	initVolumeMounts := common.GetInitVolumeMounts()
+	// add novamigrationtarget init specific VolumeMounts
+	for _, volMount := range novacompute.GetInitVolumeMounts() {
+		initVolumeMounts = append(initVolumeMounts, volMount)
+	}
+	volumeMounts := common.GetVolumeMounts()
+	// add novamigrationtarget specific VolumeMounts
+	for _, volMount := range novacompute.GetVolumeMounts(instance.Name) {
+		volumeMounts = append(volumeMounts, volMount)
+	}
+	volumes := common.GetVolumes(instance.Name)
+	// add novamigrationtarget Volumes
+	for _, vol := range novacompute.GetVolumes(instance.Name) {
+		volumes = append(volumes, vol)
+	}
+
+	// tolerations
+	tolerations := []corev1.Toleration{}
+	// add compute worker nodes tolerations
+	for _, toleration := range common.GetComputeWorkerTolerations(instance.Spec.RoleName) {
+		tolerations = append(tolerations, toleration)
+	}
+
+	daemonSet := &appsv1.DaemonSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      instance.Name,
+			Namespace: instance.Namespace,
+		},
+	}
+
+	op, err := controllerutil.CreateOrUpdate(context.TODO(), r.Client, daemonSet, func() error {
+
+		// Daemonset selector is immutable so we set this value only if
+		// a new object is going to be created
+		if daemonSet.ObjectMeta.CreationTimestamp.IsZero() {
+			daemonSet.Spec.Selector = &metav1.LabelSelector{
+				MatchLabels: common.GetLabels(instance.Name, novacompute.AppLabel),
+			}
+		}
+
+		if len(daemonSet.Spec.Template.Spec.Containers) != 1 {
+			daemonSet.Spec.Template.Spec.Containers = make([]corev1.Container, 1)
+		}
+		envs := util.MergeEnvs(daemonSet.Spec.Template.Spec.Containers[0].Env, envVars)
+
+		// labels
+		common.InitLabelMap(&daemonSet.Spec.Template.Labels)
+		for k, v := range common.GetLabels(instance.Name, novacompute.AppLabel) {
+			daemonSet.Spec.Template.Labels[k] = v
+		}
+
+		// add PodIP to init container to set local ip in nova.conf
+		initEnvVars := util.MergeEnvs(novacompute.GetInitEnvVars(instance), util.EnvSetterMap{
+			"PodIP": util.EnvDownwardAPI("status.podIP"),
+		})
+
+		daemonSet.Spec.Template.Spec = corev1.PodSpec{
+			ServiceAccountName: serviceAccountName,
+			NodeSelector:       common.GetComputeWorkerNodeSelector(instance.Spec.RoleName),
+			HostIPC:            true,
+			HostNetwork:        true,
+			DNSPolicy:          "ClusterFirstWithHostNet",
+			Volumes:            volumes,
+			Tolerations:        tolerations,
+			InitContainers: []corev1.Container{
+				{
+					Name:  "init",
+					Image: instance.Spec.NovaComputeImage,
+					SecurityContext: &corev1.SecurityContext{
+						RunAsUser:  &runAsUser,
+						Privileged: &trueVar,
+					},
+					Command: []string{
+						"/bin/bash", "-c", "/usr/local/bin/container-scripts/init.sh",
+					},
+					Env:          initEnvVars,
+					VolumeMounts: initVolumeMounts,
+				},
+			},
+			Containers: []corev1.Container{
+				{
+					Name:           "nova-compute",
+					Image:          instance.Spec.NovaComputeImage,
+					ReadinessProbe: readinessProbe.GetProbe(),
+					LivenessProbe:  livenessProbe.GetProbe(),
+					SecurityContext: &corev1.SecurityContext{
+						Privileged: &trueVar,
+						RunAsUser:  &runAsUser,
+					},
+					Env:          envs,
+					VolumeMounts: volumeMounts,
+				},
+			},
+		}
+
+		err := controllerutil.SetControllerReference(instance, daemonSet, r.Scheme)
+		if err != nil {
 			return err
 		}
-	}
-	return nil
 
-}
+		return nil
+	})
 
-func newDaemonset(cr *novav1beta1.NovaCompute, cmName string, templatesConfigHash string, scriptsConfigHash string) *appsv1.DaemonSet {
-	var trueVar = true
-	var terminationGracePeriodSeconds int64 = 0
-
-	daemonSet := appsv1.DaemonSet{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "DaemonSet",
-			APIVersion: "apps/v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      cmName,
-			Namespace: cr.Namespace,
-			//OwnerReferences: []metav1.OwnerReference{
-			//      *metav1.NewControllerRef(cr, schema.GroupVersionKind{
-			//              Group:   v1beta1.SchemeGroupVersion.Group,
-			//              Version: v1beta1.SchemeGroupVersion.Version,
-			//              Kind:    "GenericDaemon",
-			//      }),
-			//},
-		},
-		Spec: appsv1.DaemonSetSpec{
-			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{"daemonset": cr.Name + "-daemonset"},
-			},
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{"daemonset": cr.Name + "-daemonset"},
-				},
-				Spec: corev1.PodSpec{
-					NodeSelector:                  common.GetComputeWorkerNodeSelector(cr.Spec.RoleName),
-					HostNetwork:                   true,
-					HostPID:                       true,
-					DNSPolicy:                     "ClusterFirstWithHostNet",
-					HostAliases:                   ospHostAliases,
-					InitContainers:                []corev1.Container{},
-					Containers:                    []corev1.Container{},
-					Tolerations:                   []corev1.Toleration{},
-					ServiceAccountName:            cr.Spec.ServiceAccount,
-					TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
-				},
-			},
-		},
-	}
-
-	// add compute worker nodes tolerations
-	for _, toleration := range common.GetComputeWorkerTolerations(cr.Spec.RoleName) {
-		daemonSet.Spec.Template.Spec.Tolerations = append(daemonSet.Spec.Template.Spec.Tolerations, toleration)
-	}
-
-	initContainerSpec := corev1.Container{
-		Name:  "init",
-		Image: cr.Spec.NovaComputeImage,
-		SecurityContext: &corev1.SecurityContext{
-			Privileged: &trueVar,
-		},
-		Command: []string{
-			"/bin/bash", "-c", "/tmp/container-scripts/init.sh",
-		},
-		Env: []corev1.EnvVar{
-			{
-				Name:  "CONFIG_VOLUME",
-				Value: "/var/lib/kolla/config_files/src",
-			},
-			{
-				Name:  "TEMPLATES_VOLUME",
-				Value: "/tmp/container-templates",
-			},
-			{
-				// TODO: mschuppert- change to get the info per route
-				// for now we get the keystoneAPI from common-config
-				Name: "CTRL_PLANE_ENDPOINT",
-				ValueFrom: &corev1.EnvVarSource{
-					ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{Name: "common-config"},
-						Key:                  "keystoneAPI",
-					},
-				},
-			},
-		},
-		VolumeMounts: []corev1.VolumeMount{},
-	}
-	// initContainer VolumeMounts
-	// add common VolumeMounts
-	for _, volMount := range common.GetVolumeMounts() {
-		initContainerSpec.VolumeMounts = append(initContainerSpec.VolumeMounts, volMount)
-	}
-	// add novacompute init specific VolumeMounts
-	for _, volMount := range novacompute.GetInitContainerVolumeMounts(cmName) {
-		initContainerSpec.VolumeMounts = append(initContainerSpec.VolumeMounts, volMount)
-	}
-	daemonSet.Spec.Template.Spec.InitContainers = append(daemonSet.Spec.Template.Spec.InitContainers, initContainerSpec)
-
-	containerSpec := corev1.Container{
-		Name:  "nova-compute",
-		Image: cr.Spec.NovaComputeImage,
-		ReadinessProbe: &corev1.Probe{
-			Handler: corev1.Handler{
-				Exec: &corev1.ExecAction{
-					Command: []string{
-						"/openstack/healthcheck",
-					},
-				},
-			},
-			InitialDelaySeconds: 30,
-			PeriodSeconds:       30,
-			TimeoutSeconds:      3,
-		},
-		LivenessProbe: &corev1.Probe{
-			Handler: corev1.Handler{
-				Exec: &corev1.ExecAction{
-					Command: []string{
-						"/openstack/healthcheck",
-					},
-				},
-			},
-			InitialDelaySeconds: 30,
-			PeriodSeconds:       60,
-			TimeoutSeconds:      3,
-			FailureThreshold:    5,
-		},
-		Command: []string{},
-		SecurityContext: &corev1.SecurityContext{
-			Privileged: &trueVar,
-		},
-		Env: []corev1.EnvVar{
-			{
-				Name:  "TEMPLATES_CONFIG_HASH",
-				Value: templatesConfigHash,
-			},
-			{
-				Name:  "SCRIPTS_CONFIG_HASH",
-				Value: scriptsConfigHash,
-			},
-			{
-				Name:  "KOLLA_CONFIG_STRATEGY",
-				Value: "COPY_ALWAYS",
-			},
-			{
-				// TODO: mschuppert- change to get the info per route
-				// for now we get the keystoneAPI from common-config
-				Name: "CTRL_PLANE_ENDPOINT",
-				ValueFrom: &corev1.EnvVarSource{
-					ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{Name: "common-config"},
-						Key:                  "keystoneAPI",
-					},
-				},
-			},
-		},
-		VolumeMounts: []corev1.VolumeMount{},
-	}
-
-	// VolumeMounts
-	// add common VolumeMounts
-	for _, volMount := range common.GetVolumeMounts() {
-		containerSpec.VolumeMounts = append(containerSpec.VolumeMounts, volMount)
-	}
-	// add libvirtd specific VolumeMounts
-	for _, volMount := range novacompute.GetVolumeMounts(cmName) {
-		containerSpec.VolumeMounts = append(containerSpec.VolumeMounts, volMount)
-	}
-	daemonSet.Spec.Template.Spec.Containers = append(daemonSet.Spec.Template.Spec.Containers, containerSpec)
-
-	// Volume config
-	// add common Volumes
-	for _, volConfig := range common.GetVolumes(cmName) {
-		daemonSet.Spec.Template.Spec.Volumes = append(daemonSet.Spec.Template.Spec.Volumes, volConfig)
-	}
-	// add libvird Volumes
-	for _, volConfig := range novacompute.GetVolumes(cmName) {
-		daemonSet.Spec.Template.Spec.Volumes = append(daemonSet.Spec.Template.Spec.Volumes, volConfig)
-	}
-
-	return &daemonSet
+	return op, err
 }

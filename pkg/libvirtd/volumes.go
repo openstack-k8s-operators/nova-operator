@@ -1,14 +1,14 @@
 package libvirtd
 
 import (
+	"strings"
+
+	"github.com/openstack-k8s-operators/nova-operator/pkg/novamigrationtarget"
 	corev1 "k8s.io/api/core/v1"
 )
 
 // GetVolumes - Volumes used by libvirtd pod
 func GetVolumes(cmName string) []corev1.Volume {
-
-	var scriptsVolumeDefaultMode int32 = 0755
-	var configVolumeDefaultMode int32 = 0644
 	var config0600AccessMode int32 = 0600
 	var dirOrCreate = corev1.HostPathDirectoryOrCreate
 
@@ -90,6 +90,7 @@ func GetVolumes(cmName string) []corev1.Volume {
 				},
 			},
 		},
+		// TODO - log to stdout
 		{
 			Name: "libvirt-log",
 			VolumeSource: corev1.VolumeSource{
@@ -100,33 +101,11 @@ func GetVolumes(cmName string) []corev1.Volume {
 			},
 		},
 		{
-			Name: cmName + "-scripts",
-			VolumeSource: corev1.VolumeSource{
-				ConfigMap: &corev1.ConfigMapVolumeSource{
-					DefaultMode: &scriptsVolumeDefaultMode,
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: cmName + "-scripts",
-					},
-				},
-			},
-		},
-		{
-			Name: cmName + "-templates",
-			VolumeSource: corev1.VolumeSource{
-				ConfigMap: &corev1.ConfigMapVolumeSource{
-					DefaultMode: &configVolumeDefaultMode,
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: cmName + "-templates",
-					},
-				},
-			},
-		},
-		{
 			Name: "novamigrationtarget-ssh-keys-identity",
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
 					DefaultMode: &config0600AccessMode,
-					SecretName:  "novamigrationtarget-ssh-keys",
+					SecretName:  strings.ToLower(novamigrationtarget.AppLabel) + "-ssh-keys",
 					Items: []corev1.KeyToPath{
 						{
 							Key:  "identity",
@@ -187,21 +166,9 @@ func GetVolumeMounts(cmName string) []corev1.VolumeMount {
 		},
 		{
 			Name:      "novamigrationtarget-ssh-keys-identity",
-			MountPath: "/var/lib/kolla/config_files/src/etc/nova/migration/identity",
+			MountPath: "/var/lib/config-data/merged/identity",
 			SubPath:   "identity",
 			ReadOnly:  true,
-		},
-		{
-			Name:      cmName + "-templates",
-			MountPath: "/var/lib/kolla/config_files/src/etc/libvirt/libvirtd.conf",
-			SubPath:   "libvirtd.conf",
-			ReadOnly:  true,
-		},
-		{
-			Name:      cmName + "-scripts",
-			ReadOnly:  true,
-			MountPath: "/usr/local/sbin/libvirtd.sh",
-			SubPath:   "libvirtd.sh",
 		},
 	}
 

@@ -68,11 +68,19 @@ spec:
         status:
           description: NovaAPIStatus defines the observed state of NovaAPI
           properties:
-            novaAPIHash:
-              description: NovaAPIHash deployment hash
-              type: string
-          required:
-          - novaAPIHash
+            hashes:
+              description: hashes of Secrets, CMs
+              items:
+                description: Hash - struct to add hashes to status
+                properties:
+                  hash:
+                    description: Hash
+                    type: string
+                  name:
+                    description: Name of hash referencing the parameter
+                    type: string
+                type: object
+              type: array
           type: object
       type: object
   version: v1beta1

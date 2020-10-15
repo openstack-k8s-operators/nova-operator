@@ -28,24 +28,9 @@ export DatabasePassword=${DatabasePassword:?"Please specify a DatabasePassword v
 export TransportURL=${TransportURL:?"Please specify a TransportURL variable."}
 export NovaKeystoneAuthPassword=${NovaKeystoneAuthPassword:?"Please specify a NovaKeystoneAuthPassword variable."}
 
-function merge_config_dir {
-  echo merge config dir $1
-  for conf in $(find $1 -type f)
-  do
-    conf_base=$(basename $conf)
-
-    # If CFG already exist in ../merged and is not a json file,
-    # we expect for now it can be merged using crudini.
-    # Else, just copy the full file.
-    if [[ -f /var/lib/config-data/merged/${conf_base} && ${conf_base} != *.json ]]; then
-      echo merging ${conf} into /var/lib/config-data/merged/${conf_base}
-      crudini --merge /var/lib/config-data/merged/${conf_base} < ${conf}
-    else
-      echo copy ${conf} to /var/lib/config-data/merged/
-      cp -f ${conf} /var/lib/config-data/merged/
-    fi
-  done
-}
+# expect that the common.sh is in the same dir as the calling script
+SCRIPTPATH="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
+. ${SCRIPTPATH}/common.sh --source-only
 
 # Copy default service config from container image as base
 cp -a /etc/nova/nova.conf /var/lib/config-data/merged/nova.conf

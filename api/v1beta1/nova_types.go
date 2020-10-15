@@ -1,5 +1,5 @@
 /*
-
+Copyright 2020 Red Hat
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -76,14 +76,8 @@ type Cell struct {
 type NovaStatus struct {
 	// DbSyncHash db sync hash
 	DbSyncHash string `json:"dbSyncHash"`
-	// NovaAPIHash deployment hash
-	NovaAPIHash string `json:"novaAPIHash"`
-	// NovaScheduler statefulset hash
-	NovaSchedulerHash string `json:"novaSchedulerHash"`
-	// NovaConductor statefulset hash
-	NovaConductorHash string `json:"novaConductorHash"`
-	// Cells status hash
-	CellsHash string `json:"cellsHash"`
+	// DbSyncStatus db sync status
+	DbSyncStatus string `json:"dbSyncStatus"`
 	// API endpoint
 	APIEndpoint string `json:"apiEndpoint"`
 }

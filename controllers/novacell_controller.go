@@ -1,5 +1,5 @@
 /*
-
+Copyright 2020 Red Hat
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -50,6 +50,21 @@ type NovaCellReconciler struct {
 	Scheme  *runtime.Scheme
 }
 
+// GetClient -
+func (r *NovaCellReconciler) GetClient() client.Client {
+	return r.Client
+}
+
+// GetLogger -
+func (r *NovaCellReconciler) GetLogger() logr.Logger {
+	return r.Log
+}
+
+// GetScheme -
+func (r *NovaCellReconciler) GetScheme() *runtime.Scheme {
+	return r.Scheme
+}
+
 // +kubebuilder:rbac:groups=nova.openstack.org,resources=novacells,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=nova.openstack.org,resources=novacells/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=nova.openstack.org,resources=novaconductors,verbs=get;list;watch;create;update;patch;delete
@@ -81,30 +96,71 @@ func (r *NovaCellReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	// b) wait for all cell computes to be deleted before. Since we don't
 	//    own the compute-node CRs just wait
 
-	// ScriptsConfigMap - create if not exist, update if changed manually
-	scriptsConfigMap := novacell.ScriptsConfigMap(instance, r.Scheme, r.Log)
-	err = common.CreateOrUpdateConfigMap(r.Client, r.Log, scriptsConfigMap)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
+	envVars := make(map[string]util.EnvSetter)
 
-	// ConfigMap - create if not exist, update if changed manually
-	configMap := novacell.ConfigMap(instance, r.Scheme)
-	err = common.CreateOrUpdateConfigMap(r.Client, r.Log, configMap)
+	// check for required secrets
+	_, hash, err := common.GetSecret(r.Client, instance.Spec.NovaSecret, instance.Namespace)
 	if err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{RequeueAfter: time.Second * 10}, err
 	}
+	envVars[instance.Spec.NovaSecret] = util.EnvValue(hash)
 
-	// CustomConfigMap - only create create if not exist
-	customConfigMap := novacell.CustomConfigMap(instance, r.Scheme)
-	err = common.CreateOrGetCustomConfigMap(r.Client, r.Log, customConfigMap)
+	_, hash, err = common.GetSecret(r.Client, instance.Spec.PlacementSecret, instance.Namespace)
 	if err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{RequeueAfter: time.Second * 10}, err
+	}
+	envVars[instance.Spec.PlacementSecret] = util.EnvValue(hash)
+
+	_, hash, err = common.GetSecret(r.Client, instance.Spec.NeutronSecret, instance.Namespace)
+	if err != nil {
+		return ctrl.Result{RequeueAfter: time.Second * 10}, err
+	}
+	envVars[instance.Spec.NeutronSecret] = util.EnvValue(hash)
+
+	// Create/update configmaps from templates
+	cmLabels := common.GetLabels(instance.Name, novacell.AppLabel)
+	cmLabels["upper-cr"] = instance.Name
+
+	cms := []common.ConfigMap{
+		// ScriptsConfigMap
+		{
+			Name:           fmt.Sprintf("%s-scripts", instance.Name),
+			Namespace:      instance.Namespace,
+			CMType:         common.CMTypeScripts,
+			InstanceType:   instance.Kind,
+			AdditionalData: map[string]string{"common.sh": "/common/common.sh"},
+			Labels:         cmLabels,
+		},
+		// ConfigMap
+		{
+			Name:           fmt.Sprintf("%s-config-data", instance.Name),
+			Namespace:      instance.Namespace,
+			CMType:         common.CMTypeConfig,
+			InstanceType:   instance.Kind,
+			AdditionalData: map[string]string{},
+			Labels:         cmLabels,
+		},
+		// CustomConfigMap
+		{
+			Name:      fmt.Sprintf("%s-config-data-custom", instance.Name),
+			Namespace: instance.Namespace,
+			CMType:    common.CMTypeCustom,
+			Labels:    cmLabels,
+		},
+	}
+	err = common.EnsureConfigMaps(r, instance, cms, &envVars)
+	if err != nil {
+		return ctrl.Result{}, nil
 	}
 
 	// Create the cell DB
 	dbName := fmt.Sprintf("nova_%s", instance.Spec.Cell)
-	databaseObj, err := novacell.DatabaseObject(instance, dbName)
+	db := common.Database{
+		DatabaseName:     dbName,
+		DatabaseHostname: instance.Spec.DatabaseHostname,
+		Secret:           instance.Spec.NovaSecret,
+	}
+	databaseObj, err := common.DatabaseObject(r, instance, db)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -160,184 +216,35 @@ func (r *NovaCellReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return ctrl.Result{}, err
 	}
 
-	// deploy cell nova-conductor
-	novaConductor := &novav1beta1.NovaConductor{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-conductor", instance.Name),
-			Namespace: instance.Namespace,
-		},
-		Spec: novav1beta1.NovaConductorSpec{
-			ManagingCrName:     instance.Name,
-			Cell:               instance.Spec.Cell,
-			DatabaseHostname:   instance.Spec.DatabaseHostname,
-			NovaSecret:         instance.Spec.NovaSecret,
-			NeutronSecret:      instance.Spec.NeutronSecret,
-			PlacementSecret:    instance.Spec.PlacementSecret,
-			TransportURLSecret: instance.Spec.TransportURLSecret,
-			Replicas:           instance.Spec.NovaConductorReplicas,
-			ContainerImage:     instance.Spec.NovaConductorContainerImage,
-		},
-	}
-
-	// Set owner reference
-	if err := controllerutil.SetControllerReference(instance, novaConductor, r.Scheme); err != nil {
-		return ctrl.Result{}, err
-	}
-
-	// calc hash
-	novaConductorHash, err := util.ObjectHash(novaConductor)
+	// Create or update the nova-conductor Deployment object
+	op, err := r.conductorDeploymentCreateOrUpdate(instance)
 	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("error statefulSet hash: %v", err)
-	}
-	r.Log.Info("NovaConductorHash: ", "NovaConductor Hash:", novaConductorHash)
-
-	foundNovaConductor := &novav1beta1.NovaConductor{}
-	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: novaConductor.Name, Namespace: novaConductor.Namespace}, foundNovaConductor)
-	if err != nil && k8s_errors.IsNotFound(err) {
-		r.Log.Info("Creating a new NovaConductor", "NovaConductor.Namespace", novaConductor.Namespace, "NovaConductor.Name", novaConductor.Name)
-		err = r.Client.Create(context.TODO(), novaConductor)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
-
-		return ctrl.Result{RequeueAfter: time.Second * 10}, err
-
-	} else if err != nil {
-		return ctrl.Result{}, err
-	} else {
-		if instance.Status.NovaConductorHash != novaConductorHash {
-			r.Log.Info("NovaConductor Updated")
-			foundNovaConductor.Spec = novaConductor.Spec
-			err = r.Client.Update(context.TODO(), foundNovaConductor)
-			if err != nil {
-				return ctrl.Result{}, err
-			}
-			if err := r.setNovaConductorHash(instance, novaConductorHash); err != nil {
-				return ctrl.Result{}, err
-			}
-
-			return ctrl.Result{RequeueAfter: time.Second * 10}, err
-		}
-	}
-
-	// deploy cell nova-matadata
-	novaMetadata := &novav1beta1.NovaMetadata{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-metadata", instance.Name),
-			Namespace: instance.Namespace,
-		},
-		Spec: novav1beta1.NovaMetadataSpec{
-			ManagingCrName:     instance.Name,
-			Cell:               instance.Spec.Cell,
-			DatabaseHostname:   instance.Spec.DatabaseHostname,
-			NovaSecret:         instance.Spec.NovaSecret,
-			NeutronSecret:      instance.Spec.NeutronSecret,
-			PlacementSecret:    instance.Spec.PlacementSecret,
-			TransportURLSecret: instance.Spec.TransportURLSecret,
-			Replicas:           instance.Spec.NovaMetadataReplicas,
-			ContainerImage:     instance.Spec.NovaMetadataContainerImage,
-		},
-	}
-
-	// Set owner reference
-	if err := controllerutil.SetControllerReference(instance, novaMetadata, r.Scheme); err != nil {
 		return ctrl.Result{}, err
 	}
+	if op != controllerutil.OperationResultNone {
+		r.Log.Info(fmt.Sprintf("Deployment %s successfully reconciled - operation: %s", instance.Name, string(op)))
+		return ctrl.Result{}, nil
+	}
 
-	// calc hash
-	novaMetadataHash, err := util.ObjectHash(novaMetadata)
+	// Create or update the nova-matadata Deployment object
+	op, err = r.metadataDeploymentCreateOrUpdate(instance)
 	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("error statefulSet hash: %v", err)
-	}
-	r.Log.Info("NovaMetadataHash: ", "NovaMetadata Hash:", novaMetadataHash)
-
-	foundNovaMetadata := &novav1beta1.NovaMetadata{}
-	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: novaMetadata.Name, Namespace: novaMetadata.Namespace}, foundNovaMetadata)
-	if err != nil && k8s_errors.IsNotFound(err) {
-		r.Log.Info("Creating a new NovaMetadata", "NovaMetadata.Namespace", novaMetadata.Namespace, "NovaMetadata.Name", novaMetadata.Name)
-		err = r.Client.Create(context.TODO(), novaMetadata)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
-
-		return ctrl.Result{RequeueAfter: time.Second * 10}, err
-
-	} else if err != nil {
 		return ctrl.Result{}, err
-	} else {
-		if instance.Status.NovaMetadataHash != novaMetadataHash {
-			r.Log.Info("NovaMetadata Updated")
-			foundNovaMetadata.Spec = novaMetadata.Spec
-			err = r.Client.Update(context.TODO(), foundNovaMetadata)
-			if err != nil {
-				return ctrl.Result{}, err
-			}
-			if err := r.setNovaMetadataHash(instance, novaMetadataHash); err != nil {
-				return ctrl.Result{}, err
-			}
-
-			return ctrl.Result{RequeueAfter: time.Second * 10}, err
-		}
+	}
+	if op != controllerutil.OperationResultNone {
+		r.Log.Info(fmt.Sprintf("Deployment %s successfully reconciled - operation: %s", instance.Name, string(op)))
+		return ctrl.Result{}, nil
 	}
 
 	// deploy cell nova-novncproxy
-	novaNoVNCProxy := &novav1beta1.NovaNoVNCProxy{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-novncproxy", instance.Name),
-			Namespace: instance.Namespace,
-		},
-		Spec: novav1beta1.NovaNoVNCProxySpec{
-			ManagingCrName:     instance.Name,
-			Cell:               instance.Spec.Cell,
-			DatabaseHostname:   instance.Spec.DatabaseHostname,
-			NovaSecret:         instance.Spec.NovaSecret,
-			NeutronSecret:      instance.Spec.NeutronSecret,
-			PlacementSecret:    instance.Spec.PlacementSecret,
-			TransportURLSecret: instance.Spec.TransportURLSecret,
-			Replicas:           instance.Spec.NovaNoVNCProxyReplicas,
-			ContainerImage:     instance.Spec.NovaNoVNCProxyContainerImage,
-		},
-	}
-
-	// Set owner reference
-	if err := controllerutil.SetControllerReference(instance, novaNoVNCProxy, r.Scheme); err != nil {
-		return ctrl.Result{}, err
-	}
-
-	// calc hash
-	novaNoVNCProxyHash, err := util.ObjectHash(novaNoVNCProxy)
+	// Create or update the nova-novncproxy Deployment object
+	op, err = r.novncproxyDeploymentCreateOrUpdate(instance)
 	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("error statefulSet hash: %v", err)
-	}
-	r.Log.Info("NovaNoVNCProxyHash: ", "NovaNoVNCProxy Hash:", novaNoVNCProxyHash)
-
-	foundNovaNoVNCProxy := &novav1beta1.NovaNoVNCProxy{}
-	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: novaNoVNCProxy.Name, Namespace: novaNoVNCProxy.Namespace}, foundNovaNoVNCProxy)
-	if err != nil && k8s_errors.IsNotFound(err) {
-		r.Log.Info("Creating a new NovaNoVNCProxy", "NovaNoVNCProxy.Namespace", novaNoVNCProxy.Namespace, "NovaNoVNCProxy.Name", novaNoVNCProxy.Name)
-		err = r.Client.Create(context.TODO(), novaNoVNCProxy)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
-
-		return ctrl.Result{RequeueAfter: time.Second * 10}, err
-
-	} else if err != nil {
 		return ctrl.Result{}, err
-	} else {
-		if instance.Status.NovaNoVNCProxyHash != novaNoVNCProxyHash {
-			r.Log.Info("NovaNoVNCProxy Updated")
-			foundNovaNoVNCProxy.Spec = novaNoVNCProxy.Spec
-			err = r.Client.Update(context.TODO(), foundNovaNoVNCProxy)
-			if err != nil {
-				return ctrl.Result{}, err
-			}
-			if err := r.setNovaNoVNCProxyHash(instance, novaNoVNCProxyHash); err != nil {
-				return ctrl.Result{}, err
-			}
-
-			return ctrl.Result{RequeueAfter: time.Second * 10}, err
-		}
+	}
+	if op != controllerutil.OperationResultNone {
+		r.Log.Info(fmt.Sprintf("Deployment %s successfully reconciled - operation: %s", instance.Name, string(op)))
+		return ctrl.Result{}, nil
 	}
 	// nova noVNC service
 	selector := make(map[string]string)
@@ -358,7 +265,7 @@ func (r *NovaCellReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return ctrl.Result{}, err
 	}
 
-	service, op, err := common.CreateOrUpdateService(r.Client, r.Log, service, &serviceInfo)
+	service, op, err = common.CreateOrUpdateService(r.Client, r.Log, service, &serviceInfo)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -469,39 +376,6 @@ func (r *NovaCellReconciler) setCreateCellHash(api *novav1beta1.NovaCell, hashSt
 	return nil
 }
 
-func (r *NovaCellReconciler) setNovaConductorHash(instance *novav1beta1.NovaCell, hashStr string) error {
-
-	if hashStr != instance.Status.NovaConductorHash {
-		instance.Status.NovaConductorHash = hashStr
-		if err := r.Client.Status().Update(context.TODO(), instance); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (r *NovaCellReconciler) setNovaMetadataHash(instance *novav1beta1.NovaCell, hashStr string) error {
-
-	if hashStr != instance.Status.NovaMetadataHash {
-		instance.Status.NovaMetadataHash = hashStr
-		if err := r.Client.Status().Update(context.TODO(), instance); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (r *NovaCellReconciler) setNovaNoVNCProxyHash(instance *novav1beta1.NovaCell, hashStr string) error {
-
-	if hashStr != instance.Status.NovaNoVNCProxyHash {
-		instance.Status.NovaNoVNCProxyHash = hashStr
-		if err := r.Client.Status().Update(context.TODO(), instance); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func (r *NovaCellReconciler) setNoVNCProxyEndpoint(instance *novav1beta1.NovaCell, endpoint string) error {
 
 	if endpoint != instance.Status.NoVNCProxyEndpoint {
@@ -512,4 +386,100 @@ func (r *NovaCellReconciler) setNoVNCProxyEndpoint(instance *novav1beta1.NovaCel
 	}
 	return nil
 
+}
+
+func (r *NovaCellReconciler) conductorDeploymentCreateOrUpdate(instance *novav1beta1.NovaCell) (controllerutil.OperationResult, error) {
+	deployment := &novav1beta1.NovaConductor{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("%s-conductor", instance.Name),
+			Namespace: instance.Namespace,
+		},
+	}
+
+	op, err := controllerutil.CreateOrUpdate(context.TODO(), r.Client, deployment, func() error {
+		deployment.Spec = novav1beta1.NovaConductorSpec{
+			ManagingCrName:     instance.Name,
+			Cell:               instance.Spec.Cell,
+			DatabaseHostname:   instance.Spec.DatabaseHostname,
+			NovaSecret:         instance.Spec.NovaSecret,
+			NeutronSecret:      instance.Spec.NeutronSecret,
+			PlacementSecret:    instance.Spec.PlacementSecret,
+			TransportURLSecret: instance.Spec.TransportURLSecret,
+			Replicas:           instance.Spec.NovaConductorReplicas,
+			ContainerImage:     instance.Spec.NovaConductorContainerImage,
+		}
+
+		err := controllerutil.SetControllerReference(instance, deployment, r.Scheme)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	return op, err
+}
+
+func (r *NovaCellReconciler) metadataDeploymentCreateOrUpdate(instance *novav1beta1.NovaCell) (controllerutil.OperationResult, error) {
+	deployment := &novav1beta1.NovaMetadata{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("%s-metadata", instance.Name),
+			Namespace: instance.Namespace,
+		},
+	}
+
+	op, err := controllerutil.CreateOrUpdate(context.TODO(), r.Client, deployment, func() error {
+		deployment.Spec = novav1beta1.NovaMetadataSpec{
+			ManagingCrName:     instance.Name,
+			Cell:               instance.Spec.Cell,
+			DatabaseHostname:   instance.Spec.DatabaseHostname,
+			NovaSecret:         instance.Spec.NovaSecret,
+			NeutronSecret:      instance.Spec.NeutronSecret,
+			PlacementSecret:    instance.Spec.PlacementSecret,
+			TransportURLSecret: instance.Spec.TransportURLSecret,
+			Replicas:           instance.Spec.NovaMetadataReplicas,
+			ContainerImage:     instance.Spec.NovaMetadataContainerImage,
+		}
+
+		err := controllerutil.SetControllerReference(instance, deployment, r.Scheme)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	return op, err
+}
+
+func (r *NovaCellReconciler) novncproxyDeploymentCreateOrUpdate(instance *novav1beta1.NovaCell) (controllerutil.OperationResult, error) {
+	deployment := &novav1beta1.NovaNoVNCProxy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("%s-novncproxy", instance.Name),
+			Namespace: instance.Namespace,
+		},
+	}
+
+	op, err := controllerutil.CreateOrUpdate(context.TODO(), r.Client, deployment, func() error {
+		deployment.Spec = novav1beta1.NovaNoVNCProxySpec{
+			ManagingCrName:     instance.Name,
+			Cell:               instance.Spec.Cell,
+			DatabaseHostname:   instance.Spec.DatabaseHostname,
+			NovaSecret:         instance.Spec.NovaSecret,
+			NeutronSecret:      instance.Spec.NeutronSecret,
+			PlacementSecret:    instance.Spec.PlacementSecret,
+			TransportURLSecret: instance.Spec.TransportURLSecret,
+			Replicas:           instance.Spec.NovaNoVNCProxyReplicas,
+			ContainerImage:     instance.Spec.NovaNoVNCProxyContainerImage,
+		}
+
+		err := controllerutil.SetControllerReference(instance, deployment, r.Scheme)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	return op, err
 }

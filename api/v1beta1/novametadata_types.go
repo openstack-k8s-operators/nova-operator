@@ -1,5 +1,5 @@
 /*
-
+Copyright 2020 Red Hat
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -44,8 +44,8 @@ type NovaMetadataSpec struct {
 
 // NovaMetadataStatus defines the observed state of NovaMetadata
 type NovaMetadataStatus struct {
-	// NovaMetadata statefulset hash
-	NovaMetadataHash string `json:"novaMetadataHash"`
+	// hashes of Secrets, CMs
+	Hashes []Hash `json:"hashes,omitempty"`
 }
 
 // +kubebuilder:object:root=true

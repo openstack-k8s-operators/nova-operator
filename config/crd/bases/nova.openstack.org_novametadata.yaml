@@ -71,11 +71,19 @@ spec:
         status:
           description: NovaMetadataStatus defines the observed state of NovaMetadata
           properties:
-            novaMetadataHash:
-              description: NovaMetadata statefulset hash
-              type: string
-          required:
-          - novaMetadataHash
+            hashes:
+              description: hashes of Secrets, CMs
+              items:
+                description: Hash - struct to add hashes to status
+                properties:
+                  hash:
+                    description: Hash
+                    type: string
+                  name:
+                    description: Name of hash referencing the parameter
+                    type: string
+                type: object
+              type: array
           type: object
       type: object
   version: v1beta1

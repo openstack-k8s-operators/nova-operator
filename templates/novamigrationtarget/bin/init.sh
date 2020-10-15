@@ -13,36 +13,24 @@
 # WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 # License for the specific language governing permissions and limitations
 # under the License.
-
 set -ex
+
+export PodIP=${PodIP:?"Please specify a PodIP variable."}
 
 # expect that the common.sh is in the same dir as the calling script
 SCRIPTPATH="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 . ${SCRIPTPATH}/common.sh --source-only
 
-if [ -z "${CONFIG_VOLUME}" ] ; then
-  echo "No config volume specified!"
-  exit 1
-fi
-
-if [ -z "${TEMPLATES_VOLUME}" ] ; then
-  echo "No templates volume specified!"
-  exit 1
-fi
+# Merge all templates from config-data and config-data-custom CMs
+for dir in /var/lib/config-data/default /var/lib/config-data/custom
+do
+  merge_config_dir ${dir}
+done
 
 # Create .ssh directory inside /var/lib/nova which gets bind
 # mounted into the container
 mkdir -p /var/lib/nova/.ssh
-chmod 700 /var/lib/nova/.ssh
-chown nova:nova /var/lib/nova/.ssh
-
-# Copy the sshd_config file used for migration to the config volume
-mkdir -p ${CONFIG_VOLUME}/etc/ssh
-cp -L ${TEMPLATES_VOLUME}/sshd_config ${CONFIG_VOLUME}/etc/ssh/
-chown root:root ${CONFIG_VOLUME}/etc/ssh/*
-chmod 600 ${CONFIG_VOLUME}/etc/ssh/*
 
 # Set the local IP in sshd_config
-LOCAL_IP=$(get_ctrl_plane_ipaddress ${CTRL_PLANE_ENDPOINT})
-sed -i "s/LOCAL_IP/$LOCAL_IP/g" ${CONFIG_VOLUME}/etc/ssh/sshd_config
+sed -i "s/PodIP/${PodIP}/g" /var/lib/config-data/merged/sshd_config
 

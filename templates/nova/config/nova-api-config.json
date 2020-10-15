@@ -4,13 +4,13 @@
     {
       "source": "/var/lib/config-data/merged/nova.conf",
       "dest": "/etc/nova/nova.conf",
-      "owner": "nova",
-      "perm": "0600"
+      "owner": "root:nova",
+      "perm": "0640"
     },
     {
       "source": "/var/lib/config-data/merged/logging.conf",
       "dest": "/etc/nova/logging.conf",
-      "owner": "nova",
+      "owner": "root:nova",
       "perm": "0644"
     },
     {

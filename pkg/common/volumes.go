@@ -1,77 +1,112 @@
+/*
+Copyright 2020 Red Hat
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package common
 
 import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-// GetVolumes - common Volumes used by many service pods
-func GetVolumes(cmName string) []corev1.Volume {
+// GetVolumes - general Nova service volumes
+func GetVolumes(name string) []corev1.Volume {
+	var scriptsVolumeDefaultMode int32 = 0755
+	var config0640AccessMode int32 = 0640
 
 	return []corev1.Volume{
 		{
-			Name: "etc-machine-id",
+			Name: "scripts",
 			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/etc/machine-id",
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					DefaultMode: &scriptsVolumeDefaultMode,
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: name + "-scripts",
+					},
 				},
 			},
 		},
 		{
-			Name: "etc-localtime",
+			Name: "config-data",
 			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/etc/localtime",
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					DefaultMode: &config0640AccessMode,
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: name + "-config-data",
+					},
 				},
 			},
 		},
 		{
-			Name: "kolla-config-src",
-			VolumeSource: corev1.VolumeSource{
-				EmptyDir: &corev1.EmptyDirVolumeSource{},
-			},
-		},
-		{
-			Name: "kolla-config",
+			Name: "config-data-custom",
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
 					LocalObjectReference: corev1.LocalObjectReference{
-						Name: cmName + "-templates",
-					},
-					Items: []corev1.KeyToPath{
-						{
-							Key:  "config.json",
-							Path: "config.json",
-						},
+						Name: name + "-config-data-custom",
 					},
 				},
+			},
+		},
+		{
+			Name: "config-data-merged",
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{Medium: ""},
 			},
 		},
 	}
 
 }
 
-// GetVolumeMounts - common VolumeMounts
+// GetInitVolumeMounts - general init task VolumeMounts
+func GetInitVolumeMounts() []corev1.VolumeMount {
+	return []corev1.VolumeMount{
+		{
+			Name:      "scripts",
+			MountPath: "/usr/local/bin/container-scripts",
+			ReadOnly:  true,
+		},
+		{
+			Name:      "config-data",
+			MountPath: "/var/lib/config-data/default",
+			ReadOnly:  true,
+		},
+		{
+			Name:      "config-data-custom",
+			MountPath: "/var/lib/config-data/custom",
+			ReadOnly:  true,
+		},
+		{
+			Name:      "config-data-merged",
+			MountPath: "/var/lib/config-data/merged",
+			ReadOnly:  false,
+		},
+	}
+
+}
+
+// GetVolumeMounts - general VolumeMounts
 func GetVolumeMounts() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		{
-			Name:      "etc-machine-id",
-			MountPath: "/etc/machine-id",
+			Name:      "scripts",
+			MountPath: "/usr/local/bin/container-scripts",
 			ReadOnly:  true,
 		},
 		{
-			Name:      "etc-localtime",
-			MountPath: "/etc/localtime",
-			ReadOnly:  true,
-		},
-		{
-			Name:      "kolla-config",
-			MountPath: "/var/lib/kolla/config_files/config.json",
-			SubPath:   "config.json",
-			ReadOnly:  true,
-		},
-		{
-			Name:      "kolla-config-src",
-			MountPath: "/var/lib/kolla/config_files/src",
+			Name:      "config-data-merged",
+			MountPath: "/var/lib/config-data/merged",
+			ReadOnly:  false,
 		},
 	}
 

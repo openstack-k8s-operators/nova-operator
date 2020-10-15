@@ -89,25 +89,26 @@ spec:
             dbSyncHash:
               description: DbSyncHash db sync hash
               type: string
+            hashes:
+              description: hashes of Secrets, CMs
+              items:
+                description: Hash - struct to add hashes to status
+                properties:
+                  hash:
+                    description: Hash
+                    type: string
+                  name:
+                    description: Name of hash referencing the parameter
+                    type: string
+                type: object
+              type: array
             noVNCProxyEndpoint:
               description: noVNC endpoint
-              type: string
-            novaConductorHash:
-              description: NovaConductor statefulset hash
-              type: string
-            novaMetadataHash:
-              description: NovaMetadata deployment hash
-              type: string
-            novaNoVNCProxyHash:
-              description: NovaNoVNCProxy deployment hash
               type: string
           required:
           - createCellHash
           - dbSyncHash
           - noVNCProxyEndpoint
-          - novaConductorHash
-          - novaMetadataHash
-          - novaNoVNCProxyHash
           type: object
       type: object
   version: v1beta1

@@ -1,5 +1,5 @@
 /*
-
+Copyright 2020 Red Hat
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,14 +22,10 @@ import (
 
 // NovaMigrationTargetSpec defines the desired state of NovaMigrationTarget
 type NovaMigrationTargetSpec struct {
-	// name of configmap which holds general information on the OSP env
-	CommonConfigMap string `json:"commonConfigMap"`
 	// container image to run for the daemon
 	NovaComputeImage string `json:"novaComputeImage"`
 	// SSHD port
 	SshdPort int32 `json:"sshdPort"`
-	// service account used to create pods
-	ServiceAccount string `json:"serviceAccount"`
 	// Name of the worker role created for OSP computes
 	RoleName string `json:"roleName"`
 }
@@ -38,8 +34,8 @@ type NovaMigrationTargetSpec struct {
 type NovaMigrationTargetStatus struct {
 	// Count is the number of nodes the daemon is deployed to
 	Count int32 `json:"count"`
-	// Daemonset hash used to detect changes
-	DaemonsetHash string `json:"daemonsetHash"`
+	// hashes of Secrets, CMs
+	Hashes []Hash `json:"hashes,omitempty"`
 }
 
 // +kubebuilder:object:root=true

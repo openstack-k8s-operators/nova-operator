@@ -11,26 +11,17 @@ spec:
   novaSecret: nova-secret
   placementSecret: placement-secret
   neutronSecret: neutron-secret
-  transportURLSecret: rabbitmq-transport-url-api
+  transportURLSecret: nova-transport-url
   novaAPIContainerImage: docker.io/tripleomaster/centos-binary-nova-api:current-tripleo
   novaSchedulerContainerImage: docker.io/tripleomaster/centos-binary-nova-scheduler:current-tripleo
   novaConductorContainerImage: docker.io/tripleomaster/centos-binary-nova-conductor:current-tripleo
   cells:
   - name: cell1
     databaseHostname: mariadb
-    transportURLSecret: rabbitmq-transport-url-cell1
+    transportURLSecret: nova-cell1-transport-url
     novaConductorContainerImage: docker.io/tripleomaster/centos-binary-nova-conductor:current-tripleo
     novaMetadataContainerImage: docker.io/tripleomaster/centos-binary-nova-api:current-tripleo
     novaNoVNCProxyContainerImage: docker.io/tripleomaster/centos-binary-nova-novncproxy:current-tripleo
     novaConductorReplicas: 1
-    novaMetadataReplicas: 1
-    novaNoVNCProxyReplicas: 1
-  - name: cell2
-    databaseHostname: mariadb
-    transportURLSecret: rabbitmq-transport-url-cell2
-    novaConductorContainerImage: docker.io/tripleomaster/centos-binary-nova-conductor:current-tripleo
-    novaMetadataContainerImage: docker.io/tripleomaster/centos-binary-nova-api:current-tripleo
-    novaNoVNCProxyContainerImage: docker.io/tripleomaster/centos-binary-nova-novncproxy:current-tripleo
-    novaConductorReplicas: 2
     novaMetadataReplicas: 1
     novaNoVNCProxyReplicas: 1

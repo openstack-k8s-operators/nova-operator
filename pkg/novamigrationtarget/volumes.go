@@ -1,3 +1,19 @@
+/*
+Copyright 2020 Red Hat
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package novamigrationtarget
 
 import (
@@ -8,10 +24,7 @@ import (
 )
 
 // GetVolumes - Volumes used by novamigrationtarget pod
-func GetVolumes(cr *novav1beta1.NovaMigrationTarget, cmName string) []corev1.Volume {
-
-	var scriptsVolumeDefaultMode int32 = 0755
-	var configVolumeDefaultMode int32 = 0644
+func GetVolumes(cr *novav1beta1.NovaMigrationTarget) []corev1.Volume {
 	var config0640AccessMode int32 = 0640
 	var config0600AccessMode int32 = 0600
 	var dirOrCreate = corev1.HostPathDirectoryOrCreate
@@ -43,33 +56,11 @@ func GetVolumes(cr *novav1beta1.NovaMigrationTarget, cmName string) []corev1.Vol
 			},
 		},
 		{
-			Name: cmName + "-scripts",
-			VolumeSource: corev1.VolumeSource{
-				ConfigMap: &corev1.ConfigMapVolumeSource{
-					DefaultMode: &scriptsVolumeDefaultMode,
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: cmName + "-scripts",
-					},
-				},
-			},
-		},
-		{
-			Name: cmName + "-templates",
-			VolumeSource: corev1.VolumeSource{
-				ConfigMap: &corev1.ConfigMapVolumeSource{
-					DefaultMode: &configVolumeDefaultMode,
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: cmName + "-templates",
-					},
-				},
-			},
-		},
-		{
 			Name: strings.ToLower(cr.Kind) + "-ssh-keys-authorized-keys",
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
 					DefaultMode: &config0640AccessMode,
-					SecretName:  strings.ToLower(cr.Kind) + "-ssh-keys",
+					SecretName:  strings.ToLower(AppLabel) + "-ssh-keys",
 					Items: []corev1.KeyToPath{
 						{
 							Key:  "authorized_keys",
@@ -84,7 +75,7 @@ func GetVolumes(cr *novav1beta1.NovaMigrationTarget, cmName string) []corev1.Vol
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
 					DefaultMode: &config0600AccessMode,
-					SecretName:  strings.ToLower(cr.Kind) + "-ssh-keys",
+					SecretName:  strings.ToLower(AppLabel) + "-ssh-keys",
 					Items: []corev1.KeyToPath{
 						{
 							Key:  "identity",
@@ -98,30 +89,19 @@ func GetVolumes(cr *novav1beta1.NovaMigrationTarget, cmName string) []corev1.Vol
 
 }
 
-// GetInitContainerVolumeMounts - novamigrationtarget initContainer VolumeMounts
-func GetInitContainerVolumeMounts(cmName string) []corev1.VolumeMount {
+// GetInitVolumeMounts - novamigrationtarget initContainer VolumeMounts
+func GetInitVolumeMounts(cmName string) []corev1.VolumeMount {
 
 	return []corev1.VolumeMount{
-		{
-			Name:      cmName + "-scripts",
-			ReadOnly:  true,
-			MountPath: "/tmp/container-scripts",
-		},
-		{
-			Name:      cmName + "-templates",
-			ReadOnly:  true,
-			MountPath: "/tmp/container-templates",
-		},
 		{
 			Name:      "var-lib-nova",
 			MountPath: "/var/lib/nova",
 		},
 	}
-
 }
 
 // GetVolumeMounts - novamigrationtarget VolumeMounts
-func GetVolumeMounts(cr *novav1beta1.NovaMigrationTarget, cmName string) []corev1.VolumeMount {
+func GetVolumeMounts(cr *novav1beta1.NovaMigrationTarget) []corev1.VolumeMount {
 
 	var hostToContainer = corev1.MountPropagationHostToContainer
 
@@ -138,27 +118,20 @@ func GetVolumeMounts(cr *novav1beta1.NovaMigrationTarget, cmName string) []corev
 		},
 		{
 			Name:      strings.ToLower(cr.Kind) + "-ssh-keys-authorized-keys",
-			MountPath: "/var/lib/kolla/config_files/src/etc/nova/migration/authorized_keys",
+			MountPath: "/var/lib/config-data/merged/authorized_keys",
 			SubPath:   "authorized_keys",
 			ReadOnly:  true,
 		},
 		{
 			Name:      strings.ToLower(cr.Kind) + "-ssh-keys-identity",
-			MountPath: "/var/lib/kolla/config_files/src/etc/nova/migration/identity",
+			MountPath: "/var/lib/config-data/merged/identity",
 			SubPath:   "identity",
 			ReadOnly:  true,
 		},
 		{
-			Name:      cmName + "-templates",
-			MountPath: "/var/lib/kolla/config_files/src/var/lib/nova/.ssh/config",
-			SubPath:   "ssh_config",
-			ReadOnly:  true,
-		},
-		{
 			Name:      "etc-ssh",
-			MountPath: "/var/lib/kolla/config_files/host-ssh",
+			MountPath: "/var/lib/config-data/host-ssh",
 			ReadOnly:  true,
 		},
 	}
-
 }

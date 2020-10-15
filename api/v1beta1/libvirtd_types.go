@@ -1,5 +1,5 @@
 /*
-
+Copyright 2020 Red Hat
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -24,8 +24,6 @@ import (
 type LibvirtdSpec struct {
 	// Image is the Docker image to run for the daemon
 	NovaLibvirtImage string `json:"novaLibvirtImage"`
-	// service account used to create pods
-	ServiceAccount string `json:"serviceAccount"`
 	// Name of the worker role created for OSP computes
 	RoleName string `json:"roleName"`
 }
@@ -34,8 +32,8 @@ type LibvirtdSpec struct {
 type LibvirtdStatus struct {
 	// Count is the number of nodes the daemon is deployed to
 	Count int32 `json:"count"`
-	// Daemonset hash used to detect changes
-	DaemonsetHash string `json:"daemonsetHash"`
+	// hashes of Secrets, CMs
+	Hashes []Hash `json:"hashes,omitempty"`
 }
 
 // +kubebuilder:object:root=true
