@@ -311,7 +311,7 @@ func (r *NovaReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		novaKeystoneService.Spec.Region = "regionOne"
 		novaKeystoneService.Spec.AdminURL = fmt.Sprintf("http://%s/v2.1", route.Spec.Host)
 		novaKeystoneService.Spec.PublicURL = fmt.Sprintf("http://%s/v2.1", route.Spec.Host)
-		novaKeystoneService.Spec.InternalURL = "http://novaapi.openstack.svc:8774/v2.1"
+		novaKeystoneService.Spec.InternalURL = fmt.Sprintf("http://%s.openstack.svc:8774/v2.1", instance.Name)
 
 		return nil
 	})
