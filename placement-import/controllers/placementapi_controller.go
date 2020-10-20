@@ -36,6 +36,7 @@ import (
 	util "github.com/openstack-k8s-operators/lib-common/pkg/util"
 	placementv1beta1 "github.com/openstack-k8s-operators/placement-operator/api/v1beta1"
 	placement "github.com/openstack-k8s-operators/placement-operator/pkg"
+	common "github.com/openstack-k8s-operators/placement-operator/pkg/common"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -79,6 +80,13 @@ func (r *PlacementAPIReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 		}
 		// Error reading the object - requeue the request.
 		return ctrl.Result{}, err
+	}
+
+	// check for required secrets
+	// TODO: mschuppe handle secret update using hash like e.g. nova-operator. for now ignore it
+	placementSecret, _, err := common.GetSecret(r.Client, instance.Spec.Secret, instance.Namespace)
+	if err != nil {
+		return ctrl.Result{RequeueAfter: time.Second * 10}, err
 	}
 
 	service := placement.Service(instance, r.Scheme)
@@ -299,6 +307,8 @@ func (r *PlacementAPIReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 	}
 
 	_, err = controllerutil.CreateOrUpdate(context.TODO(), r.Client, placementKeystoneService, func() error {
+		placementKeystoneService.Spec.Username = "placement"
+		placementKeystoneService.Spec.Password = string(placementSecret.Data["PlacementKeystoneAuthPassword"])
 		placementKeystoneService.Spec.ServiceType = "placement"
 		placementKeystoneService.Spec.ServiceName = "placement"
 		placementKeystoneService.Spec.ServiceDescription = "placement"
