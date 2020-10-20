@@ -58,6 +58,18 @@ spec:
             novaSecret:
               description: 'Secret containing: NovaPassword, TransportURL'
               type: string
+            passthroughWhitelist:
+              description: List of map of PCI passthrough devices for SRIOV
+              items:
+                description: PciPassthrough contains device and network information
+                  for SRIOV considerations
+                properties:
+                  deviceName:
+                    type: string
+                  physicalNetwork:
+                    type: string
+                type: object
+              type: array
             placementSecret:
               description: 'Secret containing: PlacementPassword'
               type: string

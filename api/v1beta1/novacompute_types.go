@@ -44,6 +44,8 @@ type NovaComputeSpec struct {
 	NeutronSecret string `json:"neutronSecret,omitempty"`
 	// Secret containing: cell transport_url
 	TransportURLSecret string `json:"transportURLSecret,omitempty"`
+	// List of map of PCI passthrough devices for SRIOV
+	PassthroughWhitelist []PciPassthrough `json:"passthroughWhitelist,omitempty"`
 }
 
 // NovaComputeStatus defines the observed state of NovaCompute
@@ -73,6 +75,12 @@ type NovaComputeList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []NovaCompute `json:"items"`
+}
+
+// PciPassthrough contains device and network information for SRIOV considerations
+type PciPassthrough struct {
+	DeviceName      string `json:"deviceName,omitempty"`
+	PhysicalNetwork string `json:"physicalNetwork,omitempty"`
 }
 
 func init() {
