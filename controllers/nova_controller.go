@@ -99,7 +99,7 @@ func (r *NovaReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	envVars := make(map[string]util.EnvSetter)
 
 	// check for required secrets
-	_, hash, err := common.GetSecret(r.Client, instance.Spec.NovaSecret, instance.Namespace)
+	novaSecret, hash, err := common.GetSecret(r.Client, instance.Spec.NovaSecret, instance.Namespace)
 	if err != nil {
 		return ctrl.Result{RequeueAfter: time.Second * 10}, err
 	}
@@ -304,6 +304,8 @@ func (r *NovaReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	_, err = controllerutil.CreateOrUpdate(context.TODO(), r.Client, novaKeystoneService, func() error {
+		novaKeystoneService.Spec.Username = "nova"
+		novaKeystoneService.Spec.Password = string(novaSecret.Data["NovaKeystoneAuthPassword"])
 		novaKeystoneService.Spec.ServiceType = "compute"
 		novaKeystoneService.Spec.ServiceName = "nova"
 		novaKeystoneService.Spec.ServiceDescription = "nova"
