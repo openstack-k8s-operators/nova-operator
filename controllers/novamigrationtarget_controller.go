@@ -94,7 +94,7 @@ func (r *NovaMigrationTargetReconciler) Reconcile(req ctrl.Request) (ctrl.Result
 	cmLabels := common.GetLabels(instance.Name, novamigrationtarget.AppLabel)
 	cmLabels["upper-cr"] = instance.Name
 
-	templateParameters := make(map[string]string)
+	templateParameters := make(map[string]interface{})
 	templateParameters["SshdPort"] = strconv.Itoa(int(instance.Spec.SshdPort))
 
 	cms := []common.ConfigMap{

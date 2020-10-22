@@ -53,7 +53,7 @@ type ConfigMap struct {
 	InstanceType   string
 	AdditionalData map[string]string
 	Labels         map[string]string
-	ConfigOptions  map[string]string
+	ConfigOptions  map[string]interface{}
 }
 
 // getConfigMapData -

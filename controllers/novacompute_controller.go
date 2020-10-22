@@ -123,9 +123,10 @@ func (r *NovaComputeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 	cmLabels := common.GetLabels(instance.Name, novacompute.AppLabel)
 	cmLabels["upper-cr"] = instance.Name
 
-	templateParameters := make(map[string]string)
+	templateParameters := make(map[string]interface{})
 	templateParameters["NovaComputeCPUDedicatedSet"] = instance.Spec.NovaComputeCPUDedicatedSet
 	templateParameters["NovaComputeCPUSharedSet"] = instance.Spec.NovaComputeCPUSharedSet
+	templateParameters["PassthroughWhitelist"] = instance.Spec.PassthroughWhitelist
 
 	cms := []common.ConfigMap{
 		// ScriptsConfigMap
