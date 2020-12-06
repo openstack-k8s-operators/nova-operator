@@ -44,8 +44,8 @@ FROM ${OPERATOR_BASE_IMAGE}
 ARG DEST_ROOT=/dest-root
 
 LABEL   com.redhat.component="nova-operator-container" \
-        name="nova-operator" \
-        version="1.0" \
+        name="cn-osp/nova-operator" \
+        version="0.0.1" \
         summary="Nova Operator" \
         io.k8s.name="nova-operator" \
         io.k8s.description="This image includes the nova-operator"
