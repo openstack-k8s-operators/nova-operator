@@ -74,6 +74,18 @@ rules:
   - list
   - watch
 - apiGroups:
+  - keystone.openstack.org
+  resources:
+  - keystoneservices
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
   - mariadb.openstack.org
   resources:
   - mariadbdatabases
