@@ -1,5 +1,5 @@
 {
-    "command": "/usr/sbin/httpd",
+    "command": "/usr/sbin/httpd -DFOREGROUND",
     "config_files": [
         {
             "source": "/var/lib/config-data/merged/placement.conf",
