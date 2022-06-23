@@ -34,6 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	placementv1 "github.com/openstack-k8s-operators/placement-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/placement-operator/controllers"
@@ -50,6 +51,7 @@ func init() {
 
 	utilruntime.Must(placementv1.AddToScheme(scheme))
 	utilruntime.Must(mariadbv1.AddToScheme(scheme))
+	utilruntime.Must(keystonev1.AddToScheme(scheme))
 	utilruntime.Must(routev1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
@@ -99,7 +101,7 @@ func main() {
 		Client:  mgr.GetClient(),
 		Scheme:  mgr.GetScheme(),
 		Kclient: kclient,
-		Log:     ctrl.Log.WithName("controllers").WithName("KeystoneAPI"),
+		Log:     ctrl.Log.WithName("controllers").WithName("PlacementAPI"),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "PlacementAPI")
 		os.Exit(1)

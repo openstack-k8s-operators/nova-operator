@@ -42,9 +42,5 @@ do
 done
 
 # set secrets
-crudini --set ${SVC_CFG_MERGED} DEFAULT admin_token ${PASSWORD}
-crudini --set ${SVC_CFG_MERGED} database connection mysql+pymysql://${DBUSER}:${DBPASSWORD}@${DBHOST}/${DB}
-
-# set secrets
-crudini --set ${SVC_CFG_MERGED} placement_database connection mysql+pymysql://$DatabaseUser:$DatabasePassword@$DatabaseHost/$DatabaseSchema
-crudini --set ${SVC_CFG_MERGED} keystone_authtoken password $PlacementKeystoneAuthPassword
+crudini --set ${SVC_CFG_MERGED} placement_database connection mysql+pymysql://${DBUSER}:${DBPASSWORD}@${DBHOST}/${DB}
+crudini --set ${SVC_CFG_MERGED} keystone_authtoken password $PASSWORD
