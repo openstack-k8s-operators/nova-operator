@@ -287,9 +287,9 @@ func (r *PlacementAPIReconciler) reconcileInit(
 		placementKeystoneService.Spec.Enabled = true
 		// TODO: get from keystone object
 		placementKeystoneService.Spec.Region = "regionOne"
-		placementKeystoneService.Spec.AdminURL = fmt.Sprintf("http://%s", apiEndpoints["admin"])
-		placementKeystoneService.Spec.PublicURL = fmt.Sprintf("http://%s", apiEndpoints["public"])
-		placementKeystoneService.Spec.InternalURL = fmt.Sprintf("http://%s", apiEndpoints["internal"])
+		placementKeystoneService.Spec.AdminURL = apiEndpoints["admin"]
+		placementKeystoneService.Spec.PublicURL = apiEndpoints["public"]
+		placementKeystoneService.Spec.InternalURL = apiEndpoints["internal"]
 
 		return nil
 	})
