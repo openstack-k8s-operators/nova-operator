@@ -1,0 +1,18 @@
+apiVersion: placement.openstack.org/v1beta1
+kind: PlacementAPI
+metadata:
+  name: placement
+spec:
+  serviceUser: placement
+  containerImage: quay.io/tripleotraincentos8/centos-binary-placement-api:current-tripleo
+  customServiceConfig: |
+    [DEFAULT]
+    debug = true
+  databaseInstance: openstack
+  databaseUser: placement
+  debug:
+    dbSync: false
+    service: false
+  preserveJobs: false
+  replicas: 1
+  secret: placement-secret
