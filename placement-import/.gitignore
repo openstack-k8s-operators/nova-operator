@@ -6,6 +6,10 @@
 *.so
 *.dylib
 bin
+<<<<<<< HEAD
+=======
+testbin/*
+>>>>>>> 300f8e7 (init)
 
 # Test binary, build with `go test -c`
 *.test
