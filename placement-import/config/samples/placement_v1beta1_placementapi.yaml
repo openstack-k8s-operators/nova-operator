@@ -16,3 +16,7 @@ spec:
   preserveJobs: false
   replicas: 1
   secret: placement-secret
+  #resources:
+  #  requests:
+  #    memory: "500Mi"
+  #    cpu: "1.0"
