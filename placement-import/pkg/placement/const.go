@@ -27,9 +27,6 @@ const (
 	// PlacementPassword - ref name to get the placement password from osp-secret
 	PlacementPassword = "PlacementPassword"
 
-	// InputHashName -Name of the hash of hashes of all resources used to indentify an input change
-	InputHashName = "input"
-
 	// PlacementAdminPort -
 	PlacementAdminPort int32 = 8778
 	// PlacementPublicPort -
@@ -37,11 +34,6 @@ const (
 	// PlacementInternalPort -
 	PlacementInternalPort int32 = 8778
 
-	// AppSelector -
-	AppSelector = "app"
-
 	// KollaConfig -
 	KollaConfig = "/var/lib/config-data/merged/placement-api-config.json"
-	// DebugCommand -
-	DebugCommand = "/usr/local/bin/kolla_set_configs && /bin/sleep infinity"
 )
