@@ -17,6 +17,9 @@ limitations under the License.
 package v1beta1
 
 import (
+	"fmt"
+
+	common "github.com/openstack-k8s-operators/lib-common/pkg/common"
 	condition "github.com/openstack-k8s-operators/lib-common/pkg/condition"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -154,4 +157,12 @@ type PlacementAPIList struct {
 
 func init() {
 	SchemeBuilder.Register(&PlacementAPI{}, &PlacementAPIList{})
+}
+
+// GetEndpoint - returns OpenStack endpoint url for type
+func (instance PlacementAPI) GetEndpoint(endpointType common.Endpoint) (string, error) {
+	if url, found := instance.Status.APIEndpoints[string(endpointType)]; found {
+		return url, nil
+	}
+	return "", fmt.Errorf("%s endpoint not found", string(endpointType))
 }
