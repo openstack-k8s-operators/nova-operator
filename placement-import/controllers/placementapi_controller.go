@@ -31,6 +31,7 @@ import (
 	"github.com/go-logr/logr"
 	routev1 "github.com/openshift/api/route/v1"
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
+	keystone "github.com/openstack-k8s-operators/keystone-operator/pkg/external"
 	common "github.com/openstack-k8s-operators/lib-common/pkg/common"
 	condition "github.com/openstack-k8s-operators/lib-common/pkg/condition"
 	database "github.com/openstack-k8s-operators/lib-common/pkg/database"
@@ -75,9 +76,9 @@ type PlacementAPIReconciler struct {
 	Scheme  *runtime.Scheme
 }
 
-//+kubebuilder:rbac:groups=placement.openstack.org,resources=placementapis,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=placement.openstack.org,resources=placementapis/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=placement.openstack.org,resources=placementapis/finalizers,verbs=update
+// +kubebuilder:rbac:groups=placement.openstack.org,resources=placementapis,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=placement.openstack.org,resources=placementapis/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=placement.openstack.org,resources=placementapis/finalizers,verbs=update
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete;
@@ -185,7 +186,7 @@ func (r *PlacementAPIReconciler) reconcileInit(
 	ctx context.Context,
 	instance *placementv1.PlacementAPI,
 	helper *helper.Helper,
-	endpointLabels map[string]string,
+	serviceLabels map[string]string,
 ) (ctrl.Result, error) {
 	r.Log.Info("Reconciling Service init")
 
@@ -231,17 +232,17 @@ func (r *PlacementAPIReconciler) reconcileInit(
 	//
 	// expose the service (create service, route and return the created endpoint URLs)
 	//
-	var ports = map[string]int32{
-		"admin":    placement.PlacementAdminPort,
-		"public":   placement.PlacementPublicPort,
-		"internal": placement.PlacementInternalPort,
+	var ports = map[common.Endpoint]int32{
+		common.EndpointAdmin:    placement.PlacementAdminPort,
+		common.EndpointPublic:   placement.PlacementPublicPort,
+		common.EndpointInternal: placement.PlacementInternalPort,
 	}
 
 	apiEndpoints, ctrlResult, err := common.ExposeEndpoints(
 		ctx,
 		helper,
 		placement.ServiceName,
-		endpointLabels,
+		serviceLabels,
 		ports,
 	)
 	if err != nil {
@@ -304,7 +305,7 @@ func (r *PlacementAPIReconciler) reconcileInit(
 	// run placement db sync
 	//
 	dbSyncHash := instance.Status.Hash[placementv1.DbSyncHash]
-	jobDef := placement.DbSyncJob(instance)
+	jobDef := placement.DbSyncJob(instance, serviceLabels)
 	dbSyncjob := common.NewJob(
 		jobDef,
 		placementv1.DbSyncHash,
@@ -393,7 +394,7 @@ func (r *PlacementAPIReconciler) reconcileNormal(ctx context.Context, instance *
 	// - %-config configmap holding minimal placement config required to get the service up, user can add additional files to be added to the service
 	// - parameters which has passwords gets added from the OpenStack secret via the init container
 	//
-	err = r.generateServiceConfigMaps(ctx, instance, &configMapVars)
+	err = r.generateServiceConfigMaps(ctx, helper, instance, &configMapVars)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -412,12 +413,12 @@ func (r *PlacementAPIReconciler) reconcileNormal(ctx context.Context, instance *
 	// TODO check when/if Init, Update, or Upgrade should/could be skipped
 	//
 
-	endpointLabels := map[string]string{
-		placement.AppSelector: placement.ServiceName,
+	serviceLabels := map[string]string{
+		common.AppSelector: placement.ServiceName,
 	}
 
 	// Handle service init
-	ctrlResult, err := r.reconcileInit(ctx, instance, helper, endpointLabels)
+	ctrlResult, err := r.reconcileInit(ctx, instance, helper, serviceLabels)
 	if err != nil {
 		return ctrlResult, err
 	} else if (ctrlResult != ctrl.Result{}) {
@@ -446,7 +447,7 @@ func (r *PlacementAPIReconciler) reconcileNormal(ctx context.Context, instance *
 
 	// Define a new Deployment object
 	depl := common.NewDeployment(
-		placement.Deployment(instance, inputHash, endpointLabels),
+		placement.Deployment(instance, inputHash, serviceLabels),
 		5,
 	)
 
@@ -468,6 +469,7 @@ func (r *PlacementAPIReconciler) reconcileNormal(ctx context.Context, instance *
 //
 func (r *PlacementAPIReconciler) generateServiceConfigMaps(
 	ctx context.Context,
+	h *helper.Helper,
 	instance *placementv1.PlacementAPI,
 	envVars *map[string]common.EnvSetter,
 ) error {
@@ -484,12 +486,22 @@ func (r *PlacementAPIReconciler) generateServiceConfigMaps(
 	// custom.conf is going to /etc/<service>/<service>.conf.d
 	// all other files get placed into /etc/<service> to allow overwrite of e.g. logging.conf or policy.json
 	// TODO: make sure custom.conf can not be overwritten
-	customData := map[string]string{"custom.conf": instance.Spec.CustomServiceConfig}
+	customData := map[string]string{common.CustomServiceConfigFileName: instance.Spec.CustomServiceConfig}
 	for key, data := range instance.Spec.DefaultConfigOverwrite {
 		customData[key] = data
 	}
 
+	keystoneAPI, err := keystone.GetKeystoneAPI(ctx, h, instance.Namespace, map[string]string{})
+	if err != nil {
+		return err
+	}
+	authURL, err := keystoneAPI.GetEndpoint(common.EndpointPublic)
+	if err != nil {
+		return err
+	}
 	templateParameters := make(map[string]interface{})
+	templateParameters["ServiceUser"] = instance.Spec.ServiceUser
+	templateParameters["KeystonePublicURL"] = authURL
 
 	cms := []common.Template{
 		// ScriptsConfigMap
@@ -512,7 +524,7 @@ func (r *PlacementAPIReconciler) generateServiceConfigMaps(
 			Labels:        cmLabels,
 		},
 	}
-	err := common.EnsureConfigMaps(ctx, r, instance, cms, envVars)
+	err = common.EnsureConfigMaps(ctx, r, instance, cms, envVars)
 	if err != nil {
 		return nil
 	}
@@ -534,12 +546,12 @@ func (r *PlacementAPIReconciler) createHashOfInputHashes(
 	if err != nil {
 		return hash, err
 	}
-	if hashMap, changed := common.SetHash(instance.Status.Hash, placement.InputHashName, hash); changed {
+	if hashMap, changed := common.SetHash(instance.Status.Hash, common.InputHashName, hash); changed {
 		instance.Status.Hash = hashMap
 		if err := r.Client.Status().Update(ctx, instance); err != nil {
 			return hash, err
 		}
-		r.Log.Info(fmt.Sprintf("Input maps hash %s - %s", placement.InputHashName, hash))
+		r.Log.Info(fmt.Sprintf("Input maps hash %s - %s", common.InputHashName, hash))
 	}
 	return hash, nil
 }
