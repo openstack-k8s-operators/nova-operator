@@ -68,7 +68,7 @@ type PlacementAPISpec struct {
 	Replicas int32 `json:"replicas"`
 
 	// +kubebuilder:validation:Required
-	// Secret containing OpenStack password information for keystone PlacementDatabasePassword, AdminPassword
+	// Secret containing OpenStack password information for placement PlacementDatabasePassword, AdminPassword
 	Secret string `json:"secret,omitempty"`
 
 	// +kubebuilder:validation:Optional
@@ -118,7 +118,7 @@ type PlacementAPIDebug struct {
 
 // PlacementAPIStatus defines the observed state of PlacementAPI
 type PlacementAPIStatus struct {
-	// ReadyCount of keystone API instances
+	// ReadyCount of placement API instances
 	ReadyCount int `json:"readyCount,omitempty"`
 
 	// Map of hashes to track e.g. job status
@@ -130,7 +130,7 @@ type PlacementAPIStatus struct {
 	// Conditions
 	Conditions condition.List `json:"conditions,omitempty" optional:"true"`
 
-	// Keystone Database Hostname
+	// Placement Database Hostname
 	DatabaseHostname string `json:"databaseHostname,omitempty"`
 }
 

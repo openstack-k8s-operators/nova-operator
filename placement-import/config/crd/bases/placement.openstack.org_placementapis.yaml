@@ -126,7 +126,7 @@ spec:
                 type: object
               secret:
                 description: Secret containing OpenStack password information for
-                  keystone PlacementDatabasePassword, AdminPassword
+                  placement PlacementDatabasePassword, AdminPassword
                 type: string
               serviceUser:
                 default: placement
@@ -171,7 +171,7 @@ spec:
                   type: object
                 type: array
               databaseHostname:
-                description: Keystone Database Hostname
+                description: Placement Database Hostname
                 type: string
               hash:
                 additionalProperties:
@@ -179,7 +179,7 @@ spec:
                 description: Map of hashes to track e.g. job status
                 type: object
               readyCount:
-                description: ReadyCount of keystone API instances
+                description: ReadyCount of placement API instances
                 type: integer
             type: object
         type: object
