@@ -1,2 +1,0 @@
-# placement-operator
-placement-operator
