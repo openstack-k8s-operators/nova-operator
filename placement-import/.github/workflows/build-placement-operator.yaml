@@ -170,7 +170,7 @@ jobs:
         source: github
         opm: 'latest'
 
-    - name: Log in to Red Hat Registry
+    - name: Log in to Quay Registry
       uses: redhat-actions/podman-login@v1
       with:
         registry: ${{ env.imageregistry }}
