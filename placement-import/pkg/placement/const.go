@@ -22,10 +22,6 @@ const (
 	ServiceAccount = "placement-operator-placement"
 	// DatabaseName -
 	DatabaseName = "placement"
-	// PlacementDatabasePassword - ref name to get the placement db password from osp-secret
-	PlacementDatabasePassword = "PlacementDatabasePassword"
-	// PlacementPassword - ref name to get the placement password from osp-secret
-	PlacementPassword = "PlacementPassword"
 
 	// PlacementAdminPort -
 	PlacementAdminPort int32 = 8778

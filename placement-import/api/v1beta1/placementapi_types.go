@@ -72,6 +72,10 @@ type PlacementAPISpec struct {
 	Secret string `json:"secret,omitempty"`
 
 	// +kubebuilder:validation:Optional
+	// PasswordSelectors - Selectors to identify the DB and ServiceUser password from the Secret
+	PasswordSelectors PasswordSelector `json:"passwordSelectors,omitempty"`
+
+	// +kubebuilder:validation:Optional
 	// NodeSelector to target subset of worker nodes running this service
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 
@@ -104,6 +108,19 @@ type PlacementAPISpec struct {
 	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
 }
 
+// PasswordSelector to identify the DB and AdminUser password from the Secret
+type PasswordSelector struct {
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default="PlacementDatabasePassword"
+	// Database - Selector to get the Database user password from the Secret
+	// TODO: not used, need change in mariadb-operator
+	Database string `json:"database,omitempty"`
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default="PlacementPassword"
+	// Service - Selector to get the service user password from the Secret
+	Service string `json:"service,omitempty"`
+}
+
 // PlacementAPIDebug defines the observed state of PlacementAPIDebug
 type PlacementAPIDebug struct {
 	// +kubebuilder:validation:Optional
@@ -132,6 +149,9 @@ type PlacementAPIStatus struct {
 
 	// Placement Database Hostname
 	DatabaseHostname string `json:"databaseHostname,omitempty"`
+
+	// ServiceID - the ID of the registered service in keystone
+	ServiceID string `json:"serviceID,omitempty"`
 }
 
 //+kubebuilder:object:root=true

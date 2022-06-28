@@ -85,6 +85,21 @@ spec:
                 description: NodeSelector to target subset of worker nodes running
                   this service
                 type: object
+              passwordSelectors:
+                description: PasswordSelectors - Selectors to identify the DB and
+                  ServiceUser password from the Secret
+                properties:
+                  database:
+                    default: PlacementDatabasePassword
+                    description: 'Database - Selector to get the Database user password
+                      from the Secret TODO: not used, need change in mariadb-operator'
+                    type: string
+                  service:
+                    default: PlacementPassword
+                    description: Service - Selector to get the service user password
+                      from the Secret
+                    type: string
+                type: object
               preserveJobs:
                 default: false
                 description: PreserveJobs - do not delete jobs after they finished
@@ -181,6 +196,9 @@ spec:
               readyCount:
                 description: ReadyCount of placement API instances
                 type: integer
+              serviceID:
+                description: ServiceID - the ID of the registered service in keystone
+                type: string
             type: object
         type: object
     served: true
