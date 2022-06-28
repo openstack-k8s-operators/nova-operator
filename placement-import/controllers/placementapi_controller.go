@@ -45,7 +45,6 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // GetClient -
@@ -173,6 +172,26 @@ func (r *PlacementAPIReconciler) SetupWithManager(mgr ctrl.Manager) error {
 func (r *PlacementAPIReconciler) reconcileDelete(ctx context.Context, instance *placementv1.PlacementAPI, helper *helper.Helper) (ctrl.Result, error) {
 	r.Log.Info("Reconciling Service delete")
 
+	//
+	// delete KeystoneService
+	//
+	ksSvcSpec := keystonev1.KeystoneServiceSpec{
+		ServiceType:        placement.ServiceName,
+		ServiceName:        placement.ServiceName,
+		ServiceDescription: "Placement Service",
+		Enabled:            true,
+		APIEndpoints:       instance.Status.APIEndpoints,
+		ServiceUser:        instance.Spec.ServiceUser,
+		Secret:             instance.Spec.Secret,
+		PasswordSelector:   instance.Spec.PasswordSelectors.Service,
+	}
+	ksSvc := keystone.NewKeystoneService(ksSvcSpec, instance.Namespace, map[string]string{}, 10)
+
+	err := ksSvc.Delete(ctx, helper)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
 	// Service is deleted so remove the finalizer.
 	controllerutil.RemoveFinalizer(instance, helper.GetFinalizer())
 	r.Log.Info("Reconciled Service delete successfully")
@@ -264,42 +283,26 @@ func (r *PlacementAPIReconciler) reconcileInit(
 
 	//
 	// create users and endpoints - https://docs.openstack.org/placement/latest/install/install-rdo.html#configure-user-and-endpoints
-	// TODO: rework this
 	//
-	ospSecret, _, err := common.GetSecret(ctx, helper, instance.Spec.Secret, instance.Namespace)
+	ksSvcSpec := keystonev1.KeystoneServiceSpec{
+		ServiceType:        placement.ServiceName,
+		ServiceName:        placement.ServiceName,
+		ServiceDescription: "Placement Service",
+		Enabled:            true,
+		APIEndpoints:       instance.Status.APIEndpoints,
+		ServiceUser:        instance.Spec.ServiceUser,
+		Secret:             instance.Spec.Secret,
+		PasswordSelector:   instance.Spec.PasswordSelectors.Service,
+	}
+	ksSvc := keystone.NewKeystoneService(ksSvcSpec, instance.Namespace, serviceLabels, 10)
+	ctrlResult, err = ksSvc.CreateOrPatch(ctx, helper)
 	if err != nil {
-		if k8s_errors.IsNotFound(err) {
-			return ctrl.Result{RequeueAfter: time.Second * 10}, fmt.Errorf("OpenStack secret %s not found", instance.Spec.Secret)
-		}
-		return ctrl.Result{}, err
+		return ctrlResult, err
+	} else if (ctrlResult != ctrl.Result{}) {
+		return ctrlResult, nil
 	}
 
-	placementKeystoneService := &keystonev1.KeystoneService{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      instance.Name,
-			Namespace: instance.Namespace,
-		},
-	}
-
-	_, err = controllerutil.CreateOrPatch(context.TODO(), r.Client, placementKeystoneService, func() error {
-		placementKeystoneService.Spec.Username = instance.Spec.ServiceUser
-		placementKeystoneService.Spec.Password = string(ospSecret.Data["PlacementPassword"])
-		placementKeystoneService.Spec.ServiceType = placement.ServiceName
-		placementKeystoneService.Spec.ServiceName = placement.ServiceName
-		placementKeystoneService.Spec.ServiceDescription = placement.ServiceName
-		placementKeystoneService.Spec.Enabled = true
-		// TODO: get from keystone object
-		placementKeystoneService.Spec.Region = "regionOne"
-		placementKeystoneService.Spec.AdminURL = apiEndpoints["admin"]
-		placementKeystoneService.Spec.PublicURL = apiEndpoints["public"]
-		placementKeystoneService.Spec.InternalURL = apiEndpoints["internal"]
-
-		return nil
-	})
-
-	if err != nil {
-		return ctrl.Result{}, err
-	}
+	instance.Status.ServiceID = ksSvc.GetServiceID()
 
 	//
 	// run placement db sync
