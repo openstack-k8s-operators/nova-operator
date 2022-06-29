@@ -1,5 +1,5 @@
 /*
-
+Copyright 2022.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -15,8 +15,8 @@ limitations under the License.
 */
 
 // Package v1beta1 contains API Schema definitions for the placement v1beta1 API group
-// +kubebuilder:object:generate=true
-// +groupName=placement.openstack.org
+//+kubebuilder:object:generate=true
+//+groupName=placement.openstack.org
 package v1beta1
 
 import (

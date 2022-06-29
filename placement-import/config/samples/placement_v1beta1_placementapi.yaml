@@ -2,10 +2,21 @@ apiVersion: placement.openstack.org/v1beta1
 kind: PlacementAPI
 metadata:
   name: placement
-  namespace: openstack
 spec:
-  # Add fields here
-  databaseHostname: mariadb
+  serviceUser: placement
+  containerImage: quay.io/tripleotraincentos8/centos-binary-placement-api:current-tripleo
+  customServiceConfig: |
+    [DEFAULT]
+    debug = true
+  databaseInstance: openstack
+  databaseUser: placement
+  debug:
+    dbSync: false
+    service: false
+  preserveJobs: false
   replicas: 1
-  containerImage: docker.io/tripleomaster/centos-binary-placement-api:current-tripleo
   secret: placement-secret
+  #resources:
+  #  requests:
+  #    memory: "500Mi"
+  #    cpu: "1.0"

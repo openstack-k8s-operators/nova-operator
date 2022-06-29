@@ -1,10 +1,9 @@
-
 ---
-apiVersion: apiextensions.k8s.io/v1beta1
+apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.3.0
+    controller-gen.kubebuilder.io/version: v0.8.0
   creationTimestamp: null
   name: placementapis.placement.openstack.org
 spec:
@@ -15,66 +14,179 @@ spec:
     plural: placementapis
     singular: placementapi
   scope: Namespaced
-  subresources:
-    status: {}
-  validation:
-    openAPIV3Schema:
-      description: PlacementAPI is the Schema for the placementapis API
-      properties:
-        apiVersion:
-          description: 'APIVersion defines the versioned schema of this representation
-            of an object. Servers should convert recognized schemas to the latest
-            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
-          type: string
-        kind:
-          description: 'Kind is a string value representing the REST resource this
-            object represents. Servers may infer this from the endpoint the client
-            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
-          type: string
-        metadata:
-          type: object
-        spec:
-          description: PlacementAPISpec defines the desired state of PlacementAPI
-          properties:
-            containerImage:
-              description: Placement Container Image URL
-              type: string
-            databaseHostname:
-              description: Placement Database Hostname String
-              type: string
-            replicas:
-              description: Replicas
-              format: int32
-              type: integer
-            secret:
-              description: 'Secret containing: PlacementPassword, TransportURL'
-              type: string
-          required:
-          - replicas
-          type: object
-        status:
-          description: PlacementAPIStatus defines the observed state of PlacementAPI
-          properties:
-            apiEndpoint:
-              description: API endpoint
-              type: string
-            dbSyncHash:
-              description: DbSyncHash db sync hash
-              type: string
-            deploymentHash:
-              description: DeploymentHash deployment hash
-              type: string
-          required:
-          - apiEndpoint
-          - dbSyncHash
-          - deploymentHash
-          type: object
-      type: object
-  version: v1beta1
   versions:
   - name: v1beta1
+    schema:
+      openAPIV3Schema:
+        description: PlacementAPI is the Schema for the placementapis API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: PlacementAPISpec defines the desired state of PlacementAPI
+            properties:
+              containerImage:
+                description: PlacementAPI Container Image URL
+                type: string
+              customServiceConfig:
+                default: '# add your customization here'
+                description: CustomServiceConfig - customize the service config using
+                  this parameter to change service defaults, or overwrite rendered
+                  information using raw OpenStack config format. The content gets
+                  added to to /etc/<service>/<service>.conf.d directory as custom.conf
+                  file.
+                type: string
+              databaseInstance:
+                description: MariaDB instance name Right now required by the maridb-operator
+                  to get the credentials from the instance to create the DB Might
+                  not be required in future
+                type: string
+              databaseUser:
+                default: placement
+                description: 'DatabaseUser - optional username used for placement
+                  DB, defaults to placement TODO: -> implement needs work in mariadb-operator,
+                  right now only placement'
+                type: string
+              debug:
+                description: Debug - enable debug for different deploy stages. If
+                  an init container is used, it runs and the actual action pod gets
+                  started with sleep infinity
+                properties:
+                  dbSync:
+                    default: false
+                    description: DBSync enable debug
+                    type: boolean
+                  service:
+                    default: false
+                    description: Service enable debug
+                    type: boolean
+                type: object
+              defaultConfigOverwrite:
+                additionalProperties:
+                  type: string
+                description: 'ConfigOverwrite - interface to overwrite default config
+                  files like e.g. logging.conf or policy.json. But can also be used
+                  to add additional files. Those get added to the service config dir
+                  in /etc/<service> . TODO: -> implement'
+                type: object
+              nodeSelector:
+                additionalProperties:
+                  type: string
+                description: NodeSelector to target subset of worker nodes running
+                  this service
+                type: object
+              preserveJobs:
+                default: false
+                description: PreserveJobs - do not delete jobs after they finished
+                  e.g. to check logs
+                type: boolean
+              replicas:
+                default: 1
+                description: Replicas of placement API to run
+                format: int32
+                maximum: 32
+                minimum: 0
+                type: integer
+              resources:
+                description: Resources - Compute Resources required by this service
+                  (Limits/Requests). https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+                properties:
+                  limits:
+                    additionalProperties:
+                      anyOf:
+                      - type: integer
+                      - type: string
+                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                      x-kubernetes-int-or-string: true
+                    description: 'Limits describes the maximum amount of compute resources
+                      allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                    type: object
+                  requests:
+                    additionalProperties:
+                      anyOf:
+                      - type: integer
+                      - type: string
+                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                      x-kubernetes-int-or-string: true
+                    description: 'Requests describes the minimum amount of compute
+                      resources required. If Requests is omitted for a container,
+                      it defaults to Limits if that is explicitly specified, otherwise
+                      to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                    type: object
+                type: object
+              secret:
+                description: Secret containing OpenStack password information for
+                  placement PlacementDatabasePassword, AdminPassword
+                type: string
+              serviceUser:
+                default: placement
+                description: ServiceUser - optional username used for this service
+                  to register in keystone
+                type: string
+            type: object
+          status:
+            description: PlacementAPIStatus defines the observed state of PlacementAPI
+            properties:
+              apiEndpoint:
+                additionalProperties:
+                  type: string
+                description: API endpoint
+                type: object
+              conditions:
+                description: Conditions
+                items:
+                  description: Condition - A particular overall condition of a certain
+                    resource
+                  properties:
+                    lastHearbeatTime:
+                      format: date-time
+                      type: string
+                    lastTransitionTime:
+                      format: date-time
+                      type: string
+                    message:
+                      type: string
+                    reason:
+                      description: Reason - Why a particular condition is true, false
+                        or unknown
+                      type: string
+                    status:
+                      type: string
+                    type:
+                      description: Type - A summarizing name for a given condition
+                      type: string
+                  required:
+                  - status
+                  - type
+                  type: object
+                type: array
+              databaseHostname:
+                description: Placement Database Hostname
+                type: string
+              hash:
+                additionalProperties:
+                  type: string
+                description: Map of hashes to track e.g. job status
+                type: object
+              readyCount:
+                description: ReadyCount of placement API instances
+                type: integer
+            type: object
+        type: object
     served: true
     storage: true
+    subresources:
+      status: {}
 status:
   acceptedNames:
     kind: ""

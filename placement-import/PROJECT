@@ -1,11 +1,19 @@
 domain: openstack.org
-layout: go.kubebuilder.io/v2
+layout:
+- go.kubebuilder.io/v3
+plugins:
+  manifests.sdk.operatorframework.io/v2: {}
+  scorecard.sdk.operatorframework.io/v2: {}
 projectName: placement-operator
 repo: github.com/openstack-k8s-operators/placement-operator
 resources:
-- group: placement
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: openstack.org
+  group: placement
   kind: PlacementAPI
+  path: github.com/openstack-k8s-operators/placement-operator/api/v1beta1
   version: v1beta1
-version: 3-alpha
-plugins:
-  go.sdk.operatorframework.io/v2-alpha: {}
+version: "3"

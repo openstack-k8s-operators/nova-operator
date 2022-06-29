@@ -19,40 +19,28 @@ set -ex
 # copies the result to the ephemeral /var/lib/config-data/merged volume.
 #
 # Secrets are obtained from ENV variables.
-export DatabasePassword=${DatabasePassword:?"Please specify a DatabasePassword variable."}
-export PlacementKeystoneAuthPassword=${PlacementKeystoneAuthPassword:?"Please specify a PlacementKeystoneAuthPassword variable."}
-export DatabaseHost=${DatabaseHost:?"Please specify a DatabaseHost variable."}
-export DatabaseUser=${DatabaseUser:-"placement"}
-export DatabaseSchema=${DatabaseSchema:-"placement"}
+export PASSWORD=${PlacementPassword:?"Please specify a PlacementPassword variable."}
+export DBHOST=${DatabaseHost:?"Please specify a DatabaseHost variable."}
+export DBUSER=${DatabaseUser:?"Please specify a DatabaseUser variable."}
+export DBPASSWORD=${DatabasePassword:?"Please specify a DatabasePassword variable."}
+export DB=${DatabaseName:-"placement"}
 
-function merge_config_dir {
-  echo merge config dir $1
-  for conf in $(find $1 -type f)
-  do
-    conf_base=$(basename $conf)
+SVC_CFG=/etc/placement/placement.conf
+SVC_CFG_MERGED=/var/lib/config-data/merged/placement.conf
 
-    # If CFG already exist in ../merged and is not a json file,
-    # we expect for now it can be merged using crudini.
-    # Else, just copy the full file.
-    if [[ -f /var/lib/config-data/merged/${conf_base} && ${conf_base} != *.json ]]; then
-      echo merging ${conf} into /var/lib/config-data/merged/${conf_base}
-      crudini --merge /var/lib/config-data/merged/${conf_base} < ${conf}
-    else
-      echo copy ${conf} to /var/lib/config-data/merged/
-      cp -f ${conf} /var/lib/config-data/merged/
-    fi
-  done
-}
+# expect that the common.sh is in the same dir as the calling script
+SCRIPTPATH="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
+. ${SCRIPTPATH}/common.sh --source-only
 
 # Copy default service config from container image as base
-cp -a /etc/placement/placement.conf /var/lib/config-data/merged/placement.conf
+cp -a ${SVC_CFG} ${SVC_CFG_MERGED}
 
-# Merge all templates from config-data and config-data-custom CMs
-for dir in /var/lib/config-data/default /var/lib/config-data/custom
+# Merge all templates from config CM
+for dir in /var/lib/config-data/default
 do
   merge_config_dir ${dir}
 done
 
 # set secrets
-crudini --set /var/lib/config-data/merged/placement.conf placement_database connection mysql+pymysql://$DatabaseUser:$DatabasePassword@$DatabaseHost/$DatabaseSchema
-crudini --set /var/lib/config-data/merged/placement.conf keystone_authtoken password $PlacementKeystoneAuthPassword
+crudini --set ${SVC_CFG_MERGED} placement_database connection mysql+pymysql://${DBUSER}:${DBPASSWORD}@${DBHOST}/${DB}
+crudini --set ${SVC_CFG_MERGED} keystone_authtoken password $PASSWORD
