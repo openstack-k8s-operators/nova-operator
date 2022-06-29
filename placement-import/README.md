@@ -26,3 +26,18 @@ spec:
 
 # Design
 *TBD*
+
+# Testing
+The repository uses [EnvTest](https://book.kubebuilder.io/reference/envtest.html) to validate the operator in a self
+contained environment.
+
+The test can be run in the terminal with:
+```shell
+make test
+```
+or in Visual Studio Code by defining the following in your settings.json:
+```json
+"go.testEnvVars": {
+    "KUBEBUILDER_ASSETS":"<location of kubebuilder-envtest installation>"
+},
+```

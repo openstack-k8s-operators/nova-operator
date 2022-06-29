@@ -22,8 +22,11 @@ jobs:
         run: ./openstack-k8s-operators-ci/test-runner/govet.sh
       - name: Run golint.sh
         run: ./openstack-k8s-operators-ci/test-runner/golint.sh
+      - name: Setup envtest
+        run: make envtest
+      # TODO(gibi): change openstack-k8s-operators-ci/test-runner/gotest.sh to run the make test target directly
       - name: Run gotest.sh
-        run: ./openstack-k8s-operators-ci/test-runner/gotest.sh
+        run: KUBEBUILDER_ASSETS=$(./bin/setup-envtest use 1.23 -p path) ./openstack-k8s-operators-ci/test-runner/gotest.sh
 
   golangci:
     name: github (golangci)
