@@ -266,7 +266,7 @@ func (r *PlacementAPIReconciler) reconcileInit(
 	// create users and endpoints - https://docs.openstack.org/placement/latest/install/install-rdo.html#configure-user-and-endpoints
 	// TODO: rework this
 	//
-	ospSecret, _, err := common.GetSecret(ctx, r, instance.Spec.Secret, instance.Namespace)
+	ospSecret, _, err := common.GetSecret(ctx, helper, instance.Spec.Secret, instance.Namespace)
 	if err != nil {
 		if k8s_errors.IsNotFound(err) {
 			return ctrl.Result{RequeueAfter: time.Second * 10}, fmt.Errorf("OpenStack secret %s not found", instance.Spec.Secret)
@@ -374,7 +374,7 @@ func (r *PlacementAPIReconciler) reconcileNormal(ctx context.Context, instance *
 	//
 	// check for required OpenStack secret holding passwords for service/admin user and add hash to the vars map
 	//
-	ospSecret, hash, err := common.GetSecret(ctx, r, instance.Spec.Secret, instance.Namespace)
+	ospSecret, hash, err := common.GetSecret(ctx, helper, instance.Spec.Secret, instance.Namespace)
 	if err != nil {
 		if k8s_errors.IsNotFound(err) {
 			return ctrl.Result{RequeueAfter: time.Second * 10}, fmt.Errorf("OpenStack secret %s not found", instance.Spec.Secret)
