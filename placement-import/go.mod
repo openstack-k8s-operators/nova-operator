@@ -6,7 +6,7 @@ require (
 	github.com/go-logr/logr v1.2.0
 	github.com/openshift/api v3.9.0+incompatible
 	github.com/openstack-k8s-operators/keystone-operator v0.0.0-20220627061212-1cb72024240c
-	github.com/openstack-k8s-operators/lib-common v0.0.0-20220624143132-2e80876a59f9
+	github.com/openstack-k8s-operators/lib-common v0.0.0-20220630111354-9f8383d4a2ea
 	github.com/openstack-k8s-operators/mariadb-operator v0.0.0-20220516121356-119f8d825a71
 	k8s.io/api v0.23.6
 	k8s.io/apimachinery v0.23.6
