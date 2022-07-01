@@ -23,10 +23,12 @@ import (
 	"github.com/google/uuid"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
+	condition "github.com/openstack-k8s-operators/lib-common/pkg/condition"
 	placementv1 "github.com/openstack-k8s-operators/placement-operator/api/v1beta1"
 )
 
@@ -45,6 +47,25 @@ func GetPlacementAPIInstance(lookupKey types.NamespacedName) *placementv1.Placem
 		return err == nil
 	}, timeout, interval).Should(BeTrue())
 	return instance
+}
+
+func GetCondition(
+	lookupKey types.NamespacedName,
+	conditionType condition.Type,
+	reason condition.Reason,
+) condition.Condition {
+	instance := GetPlacementAPIInstance(lookupKey)
+
+	if instance.Status.Conditions == nil {
+		return condition.Condition{}
+	}
+
+	for i, cond := range instance.Status.Conditions {
+		if cond.Type == conditionType && cond.Reason == reason {
+			return instance.Status.Conditions[i]
+		}
+	}
+	return condition.Condition{}
 }
 
 var _ = Describe("PlacementAPI controller", func() {
@@ -106,6 +127,11 @@ var _ = Describe("PlacementAPI controller", func() {
 				return GetPlacementAPIInstance(placementAPILookupKey).ObjectMeta.Finalizers
 			}, timeout, interval).Should(ContainElement("PlacementAPI"))
 		})
-	})
 
+		It("should be in a state of waiting for the secret as it is not create yet", func() {
+			Eventually(func() condition.Condition {
+				return GetCondition(placementAPILookupKey, condition.TypeWaiting, condition.ReasonSecretMissing)
+			}, timeout, interval).Should(HaveField("Status", corev1.ConditionTrue))
+		})
+	})
 })

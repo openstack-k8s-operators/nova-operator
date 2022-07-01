@@ -377,6 +377,12 @@ func (r *PlacementAPIReconciler) reconcileNormal(ctx context.Context, instance *
 	ospSecret, hash, err := common.GetSecret(ctx, helper, instance.Spec.Secret, instance.Namespace)
 	if err != nil {
 		if k8s_errors.IsNotFound(err) {
+			instance.Status.Conditions.UpdateCurrentCondition(
+				condition.NewCondition(
+					condition.TypeWaiting,
+					corev1.ConditionTrue,
+					condition.ReasonSecretMissing,
+					fmt.Sprintf("OpenStack secret %s not found", instance.Spec.Secret)))
 			return ctrl.Result{RequeueAfter: time.Second * 10}, fmt.Errorf("OpenStack secret %s not found", instance.Spec.Secret)
 		}
 		return ctrl.Result{}, err
