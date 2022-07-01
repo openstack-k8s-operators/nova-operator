@@ -18,20 +18,32 @@ package controllers
 
 import (
 	"context"
+	"fmt"
+	"go/build"
+	"os"
 	"path/filepath"
 	"testing"
 
-	ctrl "sigs.k8s.io/controller-runtime"
-
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"golang.org/x/mod/modfile"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	"sigs.k8s.io/controller-runtime/pkg/envtest/printer"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	routev1 "github.com/openshift/api/route/v1"
+	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
+
+	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
+	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	placementv1beta1 "github.com/openstack-k8s-operators/placement-operator/api/v1beta1"
 	//+kubebuilder:scaffold:imports
 )
@@ -40,6 +52,7 @@ import (
 // http://onsi.github.io/ginkgo/ to learn more about Ginkgo.
 
 var (
+	cfg       *rest.Config
 	k8sClient client.Client // You'll be using this client in your tests.
 	testEnv   *envtest.Environment
 	ctx       context.Context
@@ -54,6 +67,34 @@ func TestAPIs(t *testing.T) {
 		[]Reporter{printer.NewlineReporter{}})
 }
 
+func GetDependencyVersion(moduleName string) (string, error) {
+	content, err := os.ReadFile("../go.mod")
+	if err != nil {
+		return "", err
+	}
+
+	f, err := modfile.Parse("go.mod", content, nil)
+	if err != nil {
+		return "", err
+	}
+
+	for _, r := range f.Require {
+		if r.Mod.Path == moduleName {
+			return r.Mod.Version, nil
+		}
+	}
+	return "", fmt.Errorf("Cannot find %s in our go.mod file", moduleName)
+
+}
+
+func GetCRDDirFromModule(moduleName string) string {
+	version, err := GetDependencyVersion(moduleName)
+	Expect(err).NotTo(HaveOccurred())
+	versionedModule := fmt.Sprintf("%s@%s", moduleName, version)
+	path := filepath.Join(build.Default.GOPATH, "pkg", "mod", versionedModule, "config", "crd", "bases")
+	return path
+}
+
 var _ = BeforeSuite(func() {
 	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
 
@@ -61,17 +102,41 @@ var _ = BeforeSuite(func() {
 
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
-		CRDDirectoryPaths:     []string{filepath.Join("..", "config", "crd", "bases")},
+		CRDDirectoryPaths: []string{
+			filepath.Join("..", "config", "crd", "bases"),
+			// NOTE(gibi): we need to list all the external CRDs our operator depends on
+			GetCRDDirFromModule("github.com/openstack-k8s-operators/keystone-operator"),
+			GetCRDDirFromModule("github.com/openstack-k8s-operators/mariadb-operator"),
+			// NOTE(gibi): OpenShift CRDs are even trickier as they are not directly published.
+			// For now we store a copy of the needed ones locally
+			filepath.Join("..", "openshift_crds", "route", "v1"),
+		},
 		ErrorIfCRDPathMissing: true,
 	}
 
-	cfg, err := testEnv.Start()
+	var err error
+	cfg, err = testEnv.Start()
 	Expect(err).NotTo(HaveOccurred())
 	Expect(cfg).NotTo(BeNil())
 
+	// NOTE(gibi): Need to add all API schemas our operator can own.
+	// Keep this in synch with PlacementAPIReconciler.SetupWithManager,
+	// otherwise the reconciler loop will silently not start
+	// in the test env.
 	err = placementv1beta1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
-
+	err = mariadbv1.AddToScheme(scheme.Scheme)
+	Expect(err).NotTo(HaveOccurred())
+	err = keystonev1.AddToScheme(scheme.Scheme)
+	Expect(err).NotTo(HaveOccurred())
+	err = batchv1.AddToScheme(scheme.Scheme)
+	Expect(err).NotTo(HaveOccurred())
+	err = corev1.AddToScheme(scheme.Scheme)
+	Expect(err).NotTo(HaveOccurred())
+	err = appsv1.AddToScheme(scheme.Scheme)
+	Expect(err).NotTo(HaveOccurred())
+	err = routev1.AddToScheme(scheme.Scheme)
+	Expect(err).NotTo(HaveOccurred())
 	//+kubebuilder:scaffold:scheme
 
 	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
@@ -84,9 +149,13 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).ToNot(HaveOccurred())
 
+	kclient, err := kubernetes.NewForConfig(cfg)
+	Expect(err).ToNot(HaveOccurred(), "failed to create kclient")
 	err = (&PlacementAPIReconciler{
-		Client: k8sManager.GetClient(),
-		Scheme: k8sManager.GetScheme(),
+		Client:  k8sManager.GetClient(),
+		Scheme:  k8sManager.GetScheme(),
+		Kclient: kclient,
+		Log:     ctrl.Log.WithName("controllers").WithName("PlacementAPI"),
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 

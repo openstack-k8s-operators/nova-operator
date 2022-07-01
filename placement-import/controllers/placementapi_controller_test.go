@@ -20,60 +20,91 @@ import (
 	"context"
 	"time"
 
+	"github.com/google/uuid"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	placementv1beta1 "github.com/openstack-k8s-operators/placement-operator/api/v1beta1"
+	placementv1 "github.com/openstack-k8s-operators/placement-operator/api/v1beta1"
 )
+
+const (
+	// TODO(gibi): Do we want to test in a realistic namespace like "openstack"?
+	PlacementAPINamespace = "default"
+
+	timeout  = time.Second * 2
+	interval = time.Millisecond * 200
+)
+
+func GetPlacementAPIInstance(lookupKey types.NamespacedName) *placementv1.PlacementAPI {
+	instance := &placementv1.PlacementAPI{}
+	Eventually(func() bool {
+		err := k8sClient.Get(ctx, lookupKey, instance)
+		return err == nil
+	}, timeout, interval).Should(BeTrue())
+	return instance
+}
 
 var _ = Describe("PlacementAPI controller", func() {
 
-	const (
-		PlacementAPIName = "test-placementapi"
-		// TODO(gibi): Do we want to test in a realistic namespace like "openstack"?
-		PlacementAPINamespace = "default"
-		JobName               = "test-job"
+	var placementAPILookupKey types.NamespacedName
 
-		timeout  = time.Second * 1
-		interval = time.Millisecond * 200
-	)
+	BeforeEach(func() {
+		ctx := context.Background()
 
-	Context("When PlacementAPI is created", func() {
-		It("Should have all the spec fields initialized", func() {
-			By("By creating a new PlacementAPI")
-			ctx := context.Background()
-			placementAPI := &placementv1beta1.PlacementAPI{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "placement.openstack.org/v1beta1",
-					Kind:       "PlacementAPI",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      PlacementAPIName,
-					Namespace: PlacementAPINamespace,
-				},
-				Spec: placementv1beta1.PlacementAPISpec{
-					DatabaseInstance: "test-db-instance",
-					ContainerImage:   "test-placement-container-image",
-					Secret:           "test-secret",
-				},
-			}
-			Expect(k8sClient.Create(ctx, placementAPI)).Should(Succeed())
+		// If we want to support parallel spec execution we have to make
+		// sure that the placementAPI instance are unique for each test
+		placementAPIName := uuid.New().String()
+		placementAPI := &placementv1.PlacementAPI{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "placement.openstack.org/v1beta1",
+				Kind:       "PlacementAPI",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      placementAPIName,
+				Namespace: PlacementAPINamespace,
+			},
+			Spec: placementv1.PlacementAPISpec{
+				DatabaseInstance: "test-db-instance",
+				ContainerImage:   "test-placement-container-image",
+				Secret:           "test-secret",
+			},
+		}
+		Expect(k8sClient.Create(ctx, placementAPI)).Should(Succeed())
 
-			placementAPILookupKey := types.NamespacedName{Name: PlacementAPIName, Namespace: PlacementAPINamespace}
-			createdPlacementAPI := &placementv1beta1.PlacementAPI{}
+		placementAPILookupKey = types.NamespacedName{Name: placementAPIName, Namespace: PlacementAPINamespace}
+		GetPlacementAPIInstance(placementAPILookupKey)
+	})
 
-			// We'll need to retry getting this newly created placementAPI, given that creation may not immediately happen.
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, placementAPILookupKey, createdPlacementAPI)
-				return err == nil
-			}, timeout, interval).Should(BeTrue())
-			// Let's make sure our placementAPI spec has proper default values
-			// TODO(gibi): match the rest of the fields
-			Expect(createdPlacementAPI.Spec.DatabaseInstance).Should(Equal("test-db-instance"))
+	AfterEach(func() {
+		placementAPIInstance := GetPlacementAPIInstance(placementAPILookupKey)
+		// Delete the PlacementAPI instance
+		Expect(k8sClient.Delete(ctx, placementAPIInstance)).Should(Succeed())
+		// We have to wait for the PlacementAPI instance to be fully deleted
+		// by the controller
+		Eventually(func() bool {
+			err := k8sClient.Get(ctx, placementAPILookupKey, placementAPIInstance)
+			return k8s_errors.IsNotFound(err)
+		}, timeout, interval).Should(BeTrue())
+	})
+
+	When("A PlacementAPI instance is created", func() {
+
+		It("should have the Spec and Status fields initialized", func() {
+			placementAPIInstance := GetPlacementAPIInstance(placementAPILookupKey)
+			Expect(placementAPIInstance.Spec.DatabaseInstance).Should(Equal("test-db-instance"))
 			// TODO(gibi): Why defaulting does not work?
 			// Expect(createdPlacementAPI.Spec.ServiceUser).Should(Equal("placement"))
+		})
+
+		It("should have a finalizer", func() {
+			// the reconciler loop adds the finalizer so we have to wait for
+			// it to run
+			Eventually(func() []string {
+				return GetPlacementAPIInstance(placementAPILookupKey).ObjectMeta.Finalizers
+			}, timeout, interval).Should(ContainElement("PlacementAPI"))
 		})
 	})
 
