@@ -148,7 +148,7 @@ func (r *PlacementAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	// Handle service delete
 	if !instance.DeletionTimestamp.IsZero() {
-		return r.reconcileDelete(ctx, instance)
+		return r.reconcileDelete(ctx, instance, helper)
 	}
 
 	// Handle non-deleted clusters
@@ -170,11 +170,11 @@ func (r *PlacementAPIReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func (r *PlacementAPIReconciler) reconcileDelete(ctx context.Context, instance *placementv1.PlacementAPI) (ctrl.Result, error) {
+func (r *PlacementAPIReconciler) reconcileDelete(ctx context.Context, instance *placementv1.PlacementAPI, helper *helper.Helper) (ctrl.Result, error) {
 	r.Log.Info("Reconciling Service delete")
 
 	// Service is deleted so remove the finalizer.
-	controllerutil.RemoveFinalizer(instance, placementv1.PlacementFinalizer)
+	controllerutil.RemoveFinalizer(instance, helper.GetFinalizer())
 	r.Log.Info("Reconciled Service delete successfully")
 	if err := r.Update(ctx, instance); err != nil && !k8s_errors.IsNotFound(err) {
 		return ctrl.Result{}, err
@@ -266,7 +266,7 @@ func (r *PlacementAPIReconciler) reconcileInit(
 	// create users and endpoints - https://docs.openstack.org/placement/latest/install/install-rdo.html#configure-user-and-endpoints
 	// TODO: rework this
 	//
-	ospSecret, _, err := common.GetSecret(ctx, r, instance.Spec.Secret, instance.Namespace)
+	ospSecret, _, err := common.GetSecret(ctx, helper, instance.Spec.Secret, instance.Namespace)
 	if err != nil {
 		if k8s_errors.IsNotFound(err) {
 			return ctrl.Result{RequeueAfter: time.Second * 10}, fmt.Errorf("OpenStack secret %s not found", instance.Spec.Secret)
@@ -361,7 +361,7 @@ func (r *PlacementAPIReconciler) reconcileNormal(ctx context.Context, instance *
 	r.Log.Info("Reconciling Service")
 
 	// If the service object doesn't have our finalizer, add it.
-	controllerutil.AddFinalizer(instance, placementv1.PlacementFinalizer)
+	controllerutil.AddFinalizer(instance, helper.GetFinalizer())
 	// Register the finalizer immediately to avoid orphaning resources on delete
 	//if err := patchHelper.Patch(ctx, openStackCluster); err != nil {
 	if err := r.Update(ctx, instance); err != nil {
@@ -374,7 +374,7 @@ func (r *PlacementAPIReconciler) reconcileNormal(ctx context.Context, instance *
 	//
 	// check for required OpenStack secret holding passwords for service/admin user and add hash to the vars map
 	//
-	ospSecret, hash, err := common.GetSecret(ctx, r, instance.Spec.Secret, instance.Namespace)
+	ospSecret, hash, err := common.GetSecret(ctx, helper, instance.Spec.Secret, instance.Namespace)
 	if err != nil {
 		if k8s_errors.IsNotFound(err) {
 			return ctrl.Result{RequeueAfter: time.Second * 10}, fmt.Errorf("OpenStack secret %s not found", instance.Spec.Secret)

@@ -26,10 +26,6 @@ import (
 )
 
 const (
-	// PlacementFinalizer allows PlacementAPIReconciler to clean up resources associated with PlacementAPI before
-	// removing it from the apiserver.
-	PlacementFinalizer = "placementapi.osp-director.openstack.org"
-
 	// DbSyncHash hash
 	DbSyncHash = "dbsync"
 
