@@ -5,7 +5,7 @@ go 1.17
 require (
 	github.com/go-logr/logr v1.2.0
 	github.com/openshift/api v3.9.0+incompatible
-	github.com/openstack-k8s-operators/keystone-operator v0.0.0-20220627061212-1cb72024240c
+	github.com/openstack-k8s-operators/keystone-operator v0.0.0-20220630115540-85705ca340e4
 	github.com/openstack-k8s-operators/lib-common v0.0.0-20220630111354-9f8383d4a2ea
 	github.com/openstack-k8s-operators/mariadb-operator v0.0.0-20220516121356-119f8d825a71
 	k8s.io/api v0.23.6
@@ -36,6 +36,7 @@ require (
 	github.com/google/gofuzz v1.1.0 // indirect
 	github.com/google/uuid v1.1.2 // indirect
 	github.com/googleapis/gnostic v0.5.5 // indirect
+	github.com/gophercloud/gophercloud v0.24.0 // indirect
 	github.com/imdario/mergo v0.3.12 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.2-0.20181231171920-c182affec369 // indirect
