@@ -36,6 +36,8 @@ const (
 	// TODO(gibi): Do we want to test in a realistic namespace like "openstack"?
 	PlacementAPINamespace = "default"
 
+	SecretName = "test-secret"
+
 	timeout  = time.Second * 2
 	interval = time.Millisecond * 200
 )
@@ -90,7 +92,7 @@ var _ = Describe("PlacementAPI controller", func() {
 			Spec: placementv1.PlacementAPISpec{
 				DatabaseInstance: "test-db-instance",
 				ContainerImage:   "test-placement-container-image",
-				Secret:           "test-secret",
+				Secret:           SecretName,
 			},
 		}
 		Expect(k8sClient.Create(ctx, placementAPI)).Should(Succeed())
@@ -132,6 +134,36 @@ var _ = Describe("PlacementAPI controller", func() {
 			Eventually(func() condition.Condition {
 				return GetCondition(placementAPILookupKey, condition.TypeWaiting, condition.ReasonSecretMissing)
 			}, timeout, interval).Should(HaveField("Status", corev1.ConditionTrue))
+		})
+	})
+
+	When("an unrelated secret is provided", func() {
+		It("should remain in a state of waiting for the proper secret", func() {
+			secret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "an-unrelated-secret",
+					Namespace: PlacementAPINamespace,
+				},
+			}
+			Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
+			Eventually(func() condition.Condition {
+				return GetCondition(placementAPILookupKey, condition.TypeWaiting, condition.ReasonSecretMissing)
+			}, timeout, interval).Should(HaveField("Status", corev1.ConditionTrue))
+		})
+	})
+
+	When("the proper secret is provided", func() {
+		It("should not be in a state of waiting for the secret", func() {
+			secret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      SecretName,
+					Namespace: PlacementAPINamespace,
+				},
+			}
+			Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
+			Eventually(func() condition.Condition {
+				return GetCondition(placementAPILookupKey, condition.TypeWaiting, condition.ReasonSecretMissing)
+			}, timeout, interval).Should(HaveField("Status", corev1.ConditionFalse))
 		})
 	})
 })

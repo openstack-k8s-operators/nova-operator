@@ -387,6 +387,19 @@ func (r *PlacementAPIReconciler) reconcileNormal(ctx context.Context, instance *
 		}
 		return ctrl.Result{}, err
 	}
+	// TODO(gibi): It would be nicer to create the condition in Unknown state
+	// at the start of the reconciliation and only set the status of it here
+	// and above in the error case.
+	// Also we should support multiple conditions in True status. However
+	// the current lib-common code will set the status of this condition back
+	// to False as soon as a new condition with True state is added.
+	instance.Status.Conditions.UpdateCurrentCondition(
+		condition.NewCondition(
+			condition.TypeWaiting,
+			corev1.ConditionFalse,
+			condition.ReasonSecretMissing,
+			fmt.Sprintf("OpenStack secret %s has been found", instance.Spec.Secret)))
+
 	configMapVars[ospSecret.Name] = common.EnvValue(hash)
 	// run check OpenStack secret - end
 
