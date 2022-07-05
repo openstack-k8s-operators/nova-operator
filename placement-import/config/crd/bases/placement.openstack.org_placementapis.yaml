@@ -195,6 +195,7 @@ spec:
                 type: object
               readyCount:
                 description: ReadyCount of placement API instances
+                format: int32
                 type: integer
               serviceID:
                 description: ServiceID - the ID of the registered service in keystone
