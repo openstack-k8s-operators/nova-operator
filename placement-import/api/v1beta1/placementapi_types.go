@@ -132,7 +132,7 @@ type PlacementAPIDebug struct {
 // PlacementAPIStatus defines the observed state of PlacementAPI
 type PlacementAPIStatus struct {
 	// ReadyCount of placement API instances
-	ReadyCount int `json:"readyCount,omitempty"`
+	ReadyCount int32 `json:"readyCount,omitempty"`
 
 	// Map of hashes to track e.g. job status
 	Hash map[string]string `json:"hash,omitempty"`
@@ -181,4 +181,14 @@ func (instance PlacementAPI) GetEndpoint(endpointType common.Endpoint) (string, 
 		return url, nil
 	}
 	return "", fmt.Errorf("%s endpoint not found", string(endpointType))
+}
+
+// IsReady - returns true if service is ready to server requests
+func (instance PlacementAPI) IsReady() bool {
+
+	// Ready when:
+	// the service is registered in keystone
+	// AND
+	// there is at least a single pod service the placement service
+	return instance.Status.ServiceID != "" && instance.Status.ReadyCount >= 1
 }
