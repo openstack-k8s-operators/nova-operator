@@ -18,6 +18,8 @@ package controllers
 
 import (
 	"context"
+	"fmt"
+	"os"
 	"time"
 
 	"github.com/google/uuid"
@@ -27,7 +29,9 @@ import (
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	placementv1 "github.com/openstack-k8s-operators/placement-operator/api/v1beta1"
 )
@@ -70,11 +74,99 @@ func GetCondition(
 	return condition.Condition{}
 }
 
+func NewKeystoneAPI() *keystonev1.KeystoneAPI {
+	ctx := context.Background()
+
+	keystoneAPIName := uuid.New().String()
+	keystoneAPI := &keystonev1.KeystoneAPI{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "keystone.openstack.org/v1beta1",
+			Kind:       "KeystoneAPI",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      keystoneAPIName,
+			Namespace: PlacementAPINamespace,
+		},
+		Spec: keystonev1.KeystoneAPISpec{
+			DatabaseUser: "foo-bar-baz",
+		},
+		Status: keystonev1.KeystoneAPIStatus{
+			APIEndpoints:     map[string]string{"public": "fake-keystone-public-endpoint"},
+			DatabaseHostname: "fake-database-hostname",
+		},
+	}
+	// NOTE(gibi): the Create call will update keysteneAPI so we pass a copy
+	// to preserve our input
+	Expect(k8sClient.Create(ctx, keystoneAPI.DeepCopy())).Should(Succeed())
+
+	keystoneAPILookupKey := types.NamespacedName{Name: keystoneAPIName, Namespace: PlacementAPINamespace}
+	keystoneAPIInstance := GetKeystoneAPIInstance(keystoneAPILookupKey)
+	// the Status needs to be written via a separate client
+	keystoneAPIInstance.Status = keystoneAPI.Status
+	k8sClient.Status().Update(ctx, keystoneAPIInstance)
+
+	keystoneAPIInstance = GetKeystoneAPIInstance(keystoneAPILookupKey)
+
+	return keystoneAPIInstance
+}
+
+func GetKeystoneAPIInstance(lookupKey types.NamespacedName) *keystonev1.KeystoneAPI {
+	instance := &keystonev1.KeystoneAPI{}
+	Eventually(func() bool {
+		err := k8sClient.Get(ctx, lookupKey, instance)
+		return err == nil
+	}, timeout, interval).Should(BeTrue())
+	return instance
+}
+
+func DeleteKeystoneAPI(lookupKey types.NamespacedName) {
+	keystoneAPI := GetKeystoneAPIInstance(lookupKey)
+	Expect(k8sClient.Delete(ctx, keystoneAPI)).Should(Succeed())
+	Eventually(func() bool {
+		err := k8sClient.Get(ctx, lookupKey, keystoneAPI)
+		return k8s_errors.IsNotFound(err)
+	}, timeout, interval).Should(BeTrue())
+}
+
+func GetConfigMap(namespace string, configMapName string) *corev1.ConfigMap {
+	configList := &corev1.ConfigMapList{}
+	listOpts := []client.ListOption{
+		client.InNamespace(namespace),
+	}
+
+	err := k8sClient.List(ctx, configList, listOpts...)
+	Expect(err).NotTo(HaveOccurred())
+
+	for _, c := range configList.Items {
+		if c.ObjectMeta.Name == configMapName {
+			return &c
+		}
+	}
+	return nil
+}
+
+func GetConfigDataConfigMap(ownerLookupKey types.NamespacedName) *corev1.ConfigMap {
+	name := fmt.Sprintf("%s-%s", ownerLookupKey.Name, "config-data")
+	return GetConfigMap(ownerLookupKey.Namespace, name)
+}
+
+func GetScriptsConfigMap(ownerLookupKey types.NamespacedName) *corev1.ConfigMap {
+	name := fmt.Sprintf("%s-%s", ownerLookupKey.Name, "scritps")
+	return GetConfigMap(ownerLookupKey.Namespace, name)
+}
+
 var _ = Describe("PlacementAPI controller", func() {
 
 	var placementAPILookupKey types.NamespacedName
 
 	BeforeEach(func() {
+
+		// lib-common uses OPERATOR_TEMPLATES env var to locate the "templates"
+		// directory of the operator. We need to set them othervise lib-common
+		// will fail to generate the ConfigMap as it does not find common.sh
+		err := os.Setenv("OPERATOR_TEMPLATES", "../templates")
+		Expect(err).NotTo(HaveOccurred())
+
 		ctx := context.Background()
 
 		// If we want to support parallel spec execution we have to make
@@ -165,6 +257,18 @@ var _ = Describe("PlacementAPI controller", func() {
 			Eventually(func() condition.Condition {
 				return GetCondition(placementAPILookupKey, condition.InputReadyCondition, condition.ReadyReason)
 			}, timeout, interval).Should(HaveField("Status", corev1.ConditionTrue))
+		})
+	})
+
+	When("keystoneAPI instance is available", func() {
+		It("should create a ConfigMap for placement.conf with the auth_url config option set based on the KeystoneAPI", func() {
+			// TODO(gibi): make sure that the KeystoneAPI instance is deleted AfterSuite
+			NewKeystoneAPI()
+			Eventually(func() *corev1.ConfigMap {
+				return GetConfigDataConfigMap(placementAPILookupKey)
+			}, timeout, interval).ShouldNot(BeNil())
+			configData := GetConfigDataConfigMap(placementAPILookupKey)
+			Expect(configData.Data["placement.conf"]).Should(ContainSubstring("auth_url = fake-keystone-public-endpoint"))
 		})
 	})
 })
