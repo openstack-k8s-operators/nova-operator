@@ -373,8 +373,9 @@ github.com/openshift/api v3.9.0+incompatible/go.mod h1:dh9o4Fs58gpFXGSYfnVxGR9Pn
 github.com/openstack-k8s-operators/keystone-operator v0.0.0-20220630115540-85705ca340e4 h1:IEyqT0LfCV4oUH8Cmy42ergF8H8jEhf++ZBnzIZl3OA=
 github.com/openstack-k8s-operators/keystone-operator v0.0.0-20220630115540-85705ca340e4/go.mod h1:TouCX9KEINUi6y3vG6IlqEsUTCTDERQbQ5fpojYG+U0=
 github.com/openstack-k8s-operators/lib-common v0.0.0-20220429114812-00cd552b97fa/go.mod h1:rdWrX7gVQF2bFvMDUu2iiy32p0e8jYDCMsu7fV2rBDk=
-github.com/openstack-k8s-operators/lib-common v0.0.0-20220630111354-9f8383d4a2ea h1:VDUbAuG4E4wxfAF2ElzSvE5XnrLHlsOjx7fXvQh3gzs=
 github.com/openstack-k8s-operators/lib-common v0.0.0-20220630111354-9f8383d4a2ea/go.mod h1:sjH9zj16njdfy4PedlQGbJlwu9EXM2ugHhPA/l0zddM=
+github.com/openstack-k8s-operators/lib-common v0.0.0-20220712152428-b5e222dbcf44 h1:H+Sh73Lbz0pSEgWqYzx2uPGezdbJqn1uek81exX65yc=
+github.com/openstack-k8s-operators/lib-common v0.0.0-20220712152428-b5e222dbcf44/go.mod h1:sjH9zj16njdfy4PedlQGbJlwu9EXM2ugHhPA/l0zddM=
 github.com/openstack-k8s-operators/mariadb-operator v0.0.0-20220516121356-119f8d825a71 h1:YdN/MEulSWdzc5KxBRkJ29gN0xTYqLri9FGvhkU5xk4=
 github.com/openstack-k8s-operators/mariadb-operator v0.0.0-20220516121356-119f8d825a71/go.mod h1:zdBCvR4p2D8PfyzVuUaXk1zIyo3kO6BPO8zTwSCWKBI=
 github.com/opentracing/opentracing-go v1.1.0/go.mod h1:UkNAQd3GIcIGf0SeVgPpRdFStlNbqXla1AfSYxPUl2o=
