@@ -17,7 +17,6 @@ limitations under the License.
 package controllers
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"time"
@@ -147,17 +146,25 @@ func (t TestPlacementAPI) GetConfigMap(suffix string) *corev1.ConfigMap {
 	return nil
 }
 
-func NewKeystoneAPI() *keystonev1.KeystoneAPI {
-	ctx := context.Background()
+type TestKeystoneAPI struct {
+	LookupKey types.NamespacedName
+	// The input data for creating a KeystoneAPI
+	Template *keystonev1.KeystoneAPI
+	Instance *keystonev1.KeystoneAPI
+}
 
-	keystoneAPIName := uuid.New().String()
-	keystoneAPI := &keystonev1.KeystoneAPI{
+// NewTestKeystoneAPI initializes the the input for a KeystoneAPI instance
+// but does not create it yet. So the client can finetuned the Template data
+// before calling Create()
+func NewTestKeystoneAPI(namespace string) *TestKeystoneAPI {
+	name := fmt.Sprintf("keystone-%s", uuid.New().String())
+	template := &keystonev1.KeystoneAPI{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "keystone.openstack.org/v1beta1",
 			Kind:       "KeystoneAPI",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      keystoneAPIName,
+			Name:      name,
 			Namespace: TestNamespace,
 		},
 		Spec: keystonev1.KeystoneAPISpec{
@@ -168,35 +175,31 @@ func NewKeystoneAPI() *keystonev1.KeystoneAPI {
 			DatabaseHostname: "fake-database-hostname",
 		},
 	}
-	// NOTE(gibi): the Create call will update keysteneAPI so we pass a copy
-	// to preserve our input
-	Expect(k8sClient.Create(ctx, keystoneAPI.DeepCopy())).Should(Succeed())
-
-	keystoneAPILookupKey := types.NamespacedName{Name: keystoneAPIName, Namespace: TestNamespace}
-	keystoneAPIInstance := GetKeystoneAPIInstance(keystoneAPILookupKey)
-	// the Status needs to be written via a separate client
-	keystoneAPIInstance.Status = keystoneAPI.Status
-	k8sClient.Status().Update(ctx, keystoneAPIInstance)
-
-	keystoneAPIInstance = GetKeystoneAPIInstance(keystoneAPILookupKey)
-
-	return keystoneAPIInstance
+	return &TestKeystoneAPI{
+		LookupKey: types.NamespacedName{Name: name, Namespace: namespace},
+		Template:  template,
+		Instance:  &keystonev1.KeystoneAPI{},
+	}
 }
 
-func GetKeystoneAPIInstance(lookupKey types.NamespacedName) *keystonev1.KeystoneAPI {
-	instance := &keystonev1.KeystoneAPI{}
-	Eventually(func() bool {
-		err := k8sClient.Get(ctx, lookupKey, instance)
-		return err == nil
-	}, timeout, interval).Should(BeTrue())
-	return instance
+// Creates the KeystoneAPI resource in k8s based on the Template. The Template
+// is not updated with the result of the create.
+func (t TestKeystoneAPI) Create() {
+	t.Instance = t.Template.DeepCopy()
+	Expect(k8sClient.Create(ctx, t.Instance)).Should(Succeed())
+
+	// the Status field needs to be written via a separate client
+	t.Instance.Status = t.Template.Status
+	Expect(k8sClient.Status().Update(ctx, t.Instance)).Should(Succeed())
 }
 
-func DeleteKeystoneAPI(lookupKey types.NamespacedName) {
-	keystoneAPI := GetKeystoneAPIInstance(lookupKey)
-	Expect(k8sClient.Delete(ctx, keystoneAPI)).Should(Succeed())
+// Deletes the KeystoneAPI resource from k8s and waits until it is deleted.
+func (t TestKeystoneAPI) Delete() {
+	Expect(k8sClient.Delete(ctx, t.Template.DeepCopy())).Should(Succeed())
+	// We have to wait for the instance to be fully deleted
+	// by the controller
 	Eventually(func() bool {
-		err := k8sClient.Get(ctx, lookupKey, keystoneAPI)
+		err := k8sClient.Get(ctx, t.LookupKey, t.Instance)
 		return k8s_errors.IsNotFound(err)
 	}, timeout, interval).Should(BeTrue())
 }
@@ -205,6 +208,7 @@ var _ = Describe("PlacementAPI controller", func() {
 
 	var placementAPI TestPlacementAPI
 	var secret *corev1.Secret
+	var keystoneAPI *TestKeystoneAPI
 
 	BeforeEach(func() {
 		// lib-common uses OPERATOR_TEMPLATES env var to locate the "templates"
@@ -222,6 +226,9 @@ var _ = Describe("PlacementAPI controller", func() {
 		placementAPI.Delete()
 		if secret != nil {
 			Expect(k8sClient.Delete(ctx, secret)).Should(Succeed())
+		}
+		if keystoneAPI != nil {
+			keystoneAPI.Delete()
 		}
 	})
 
@@ -289,13 +296,16 @@ var _ = Describe("PlacementAPI controller", func() {
 				},
 			}
 			Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
-			// TODO(gibi): make sure that the KeystoneAPI instance is deleted AfterSuite
-			NewKeystoneAPI()
+
+			keystoneAPI = NewTestKeystoneAPI(TestNamespace)
+			keystoneAPI.Create()
+
 			Eventually(func() *corev1.ConfigMap {
 				return placementAPI.GetConfigMap("config-data")
 			}, timeout, interval).ShouldNot(BeNil())
 			configData := placementAPI.GetConfigMap("config-data")
-			Expect(configData.Data["placement.conf"]).Should(ContainSubstring("auth_url = fake-keystone-public-endpoint"))
+			Expect(configData.Data["placement.conf"]).Should(
+				ContainSubstring("auth_url = %s", keystoneAPI.Template.Status.APIEndpoints["public"]))
 		})
 	})
 })
