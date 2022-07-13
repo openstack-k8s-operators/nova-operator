@@ -377,10 +377,29 @@ func (r *PlacementAPIReconciler) reconcileNormal(ctx context.Context, instance *
 	ospSecret, hash, err := common.GetSecret(ctx, helper, instance.Spec.Secret, instance.Namespace)
 	if err != nil {
 		if k8s_errors.IsNotFound(err) {
+			instance.Status.Conditions.UpdateCurrentCondition(
+				condition.NewCondition(
+					condition.TypeWaiting,
+					corev1.ConditionTrue,
+					condition.ReasonSecretMissing,
+					fmt.Sprintf("OpenStack secret %s not found", instance.Spec.Secret)))
 			return ctrl.Result{RequeueAfter: time.Second * 10}, fmt.Errorf("OpenStack secret %s not found", instance.Spec.Secret)
 		}
 		return ctrl.Result{}, err
 	}
+	// TODO(gibi): It would be nicer to create the condition in Unknown state
+	// at the start of the reconciliation and only set the status of it here
+	// and above in the error case.
+	// Also we should support multiple conditions in True status. However
+	// the current lib-common code will set the status of this condition back
+	// to False as soon as a new condition with True state is added.
+	instance.Status.Conditions.UpdateCurrentCondition(
+		condition.NewCondition(
+			condition.TypeWaiting,
+			corev1.ConditionFalse,
+			condition.ReasonSecretMissing,
+			fmt.Sprintf("OpenStack secret %s has been found", instance.Spec.Secret)))
+
 	configMapVars[ospSecret.Name] = common.EnvValue(hash)
 	// run check OpenStack secret - end
 
