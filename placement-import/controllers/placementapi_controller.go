@@ -133,14 +133,14 @@ func (r *PlacementAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	// Always patch the instance status when exiting this function so we can persist any changes.
 	defer func() {
 		if err := helper.SetAfter(instance); err != nil {
-			common.LogErrorForObject(r, err, "Set after and calc patch/diff", instance)
+			common.LogErrorForObject(helper, err, "Set after and calc patch/diff", instance)
 		}
 
 		if changed := helper.GetChanges()["status"]; changed {
 			patch := client.MergeFrom(helper.GetBeforeObject())
 
 			if err := r.Status().Patch(ctx, instance, patch); err != nil && !k8s_errors.IsNotFound(err) {
-				common.LogErrorForObject(r, err, "Update status", instance)
+				common.LogErrorForObject(helper, err, "Update status", instance)
 			}
 		}
 	}()
@@ -547,7 +547,7 @@ func (r *PlacementAPIReconciler) generateServiceConfigMaps(
 			Labels:        cmLabels,
 		},
 	}
-	err = common.EnsureConfigMaps(ctx, r, instance, cms, envVars)
+	err = common.EnsureConfigMaps(ctx, h, instance, cms, envVars)
 	if err != nil {
 		return nil
 	}
