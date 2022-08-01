@@ -32,10 +32,20 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	keystone "github.com/openstack-k8s-operators/keystone-operator/pkg/external"
-	common "github.com/openstack-k8s-operators/lib-common/pkg/common"
-	condition "github.com/openstack-k8s-operators/lib-common/pkg/condition"
-	database "github.com/openstack-k8s-operators/lib-common/pkg/database"
-	helper "github.com/openstack-k8s-operators/lib-common/pkg/helper"
+
+	common "github.com/openstack-k8s-operators/lib-common/modules/common"
+	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
+	configmap "github.com/openstack-k8s-operators/lib-common/modules/common/configmap"
+	deployment "github.com/openstack-k8s-operators/lib-common/modules/common/deployment"
+	endpoint "github.com/openstack-k8s-operators/lib-common/modules/common/endpoint"
+	env "github.com/openstack-k8s-operators/lib-common/modules/common/env"
+	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
+	job "github.com/openstack-k8s-operators/lib-common/modules/common/job"
+	labels "github.com/openstack-k8s-operators/lib-common/modules/common/labels"
+	oko_secret "github.com/openstack-k8s-operators/lib-common/modules/common/secret"
+	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
+
+	database "github.com/openstack-k8s-operators/lib-common/modules/database"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 
 	placementv1 "github.com/openstack-k8s-operators/placement-operator/api/v1beta1"
@@ -133,14 +143,14 @@ func (r *PlacementAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	// Always patch the instance status when exiting this function so we can persist any changes.
 	defer func() {
 		if err := helper.SetAfter(instance); err != nil {
-			common.LogErrorForObject(helper, err, "Set after and calc patch/diff", instance)
+			util.LogErrorForObject(helper, err, "Set after and calc patch/diff", instance)
 		}
 
 		if changed := helper.GetChanges()["status"]; changed {
 			patch := client.MergeFrom(helper.GetBeforeObject())
 
 			if err := r.Status().Patch(ctx, instance, patch); err != nil && !k8s_errors.IsNotFound(err) {
-				common.LogErrorForObject(helper, err, "Update status", instance)
+				util.LogErrorForObject(helper, err, "Update status", instance)
 			}
 		}
 	}()
@@ -251,13 +261,13 @@ func (r *PlacementAPIReconciler) reconcileInit(
 	//
 	// expose the service (create service, route and return the created endpoint URLs)
 	//
-	var ports = map[common.Endpoint]int32{
-		common.EndpointAdmin:    placement.PlacementAdminPort,
-		common.EndpointPublic:   placement.PlacementPublicPort,
-		common.EndpointInternal: placement.PlacementInternalPort,
+	var ports = map[endpoint.Endpoint]endpoint.EndpointData{
+		endpoint.EndpointAdmin:    {Port: placement.PlacementAdminPort},
+		endpoint.EndpointPublic:   {Port: placement.PlacementPublicPort},
+		endpoint.EndpointInternal: {Port: placement.PlacementInternalPort},
 	}
 
-	apiEndpoints, ctrlResult, err := common.ExposeEndpoints(
+	apiEndpoints, ctrlResult, err := endpoint.ExposeEndpoints(
 		ctx,
 		helper,
 		placement.ServiceName,
@@ -309,7 +319,7 @@ func (r *PlacementAPIReconciler) reconcileInit(
 	//
 	dbSyncHash := instance.Status.Hash[placementv1.DbSyncHash]
 	jobDef := placement.DbSyncJob(instance, serviceLabels)
-	dbSyncjob := common.NewJob(
+	dbSyncjob := job.NewJob(
 		jobDef,
 		placementv1.DbSyncHash,
 		instance.Spec.PreserveJobs,
@@ -372,12 +382,12 @@ func (r *PlacementAPIReconciler) reconcileNormal(ctx context.Context, instance *
 	}
 
 	// ConfigMap
-	configMapVars := make(map[string]common.EnvSetter)
+	configMapVars := make(map[string]env.Setter)
 
 	//
 	// check for required OpenStack secret holding passwords for service/admin user and add hash to the vars map
 	//
-	ospSecret, hash, err := common.GetSecret(ctx, helper, instance.Spec.Secret, instance.Namespace)
+	ospSecret, hash, err := oko_secret.GetSecret(ctx, helper, instance.Spec.Secret, instance.Namespace)
 	if err != nil {
 		if k8s_errors.IsNotFound(err) {
 			instance.Status.Conditions.UpdateCurrentCondition(
@@ -403,7 +413,7 @@ func (r *PlacementAPIReconciler) reconcileNormal(ctx context.Context, instance *
 			condition.ReasonSecretMissing,
 			fmt.Sprintf("OpenStack secret %s has been found", instance.Spec.Secret)))
 
-	configMapVars[ospSecret.Name] = common.EnvValue(hash)
+	configMapVars[ospSecret.Name] = env.SetValue(hash)
 	// run check OpenStack secret - end
 
 	//
@@ -468,7 +478,7 @@ func (r *PlacementAPIReconciler) reconcileNormal(ctx context.Context, instance *
 	//
 
 	// Define a new Deployment object
-	depl := common.NewDeployment(
+	depl := deployment.NewDeployment(
 		placement.Deployment(instance, inputHash, serviceLabels),
 		5,
 	)
@@ -494,7 +504,7 @@ func (r *PlacementAPIReconciler) generateServiceConfigMaps(
 	ctx context.Context,
 	h *helper.Helper,
 	instance *placementv1.PlacementAPI,
-	envVars *map[string]common.EnvSetter,
+	envVars *map[string]env.Setter,
 ) error {
 	//
 	// create Configmap/Secret required for placement input
@@ -503,7 +513,7 @@ func (r *PlacementAPIReconciler) generateServiceConfigMaps(
 	// - parameters which has passwords gets added from the ospSecret via the init container
 	//
 
-	cmLabels := common.GetLabels(instance, common.GetGroupLabel(placement.ServiceName), map[string]string{})
+	cmLabels := labels.GetLabels(instance, labels.GetGroupLabel(placement.ServiceName), map[string]string{})
 
 	// customData hold any customization for the service.
 	// custom.conf is going to /etc/<service>/<service>.conf.d
@@ -518,7 +528,7 @@ func (r *PlacementAPIReconciler) generateServiceConfigMaps(
 	if err != nil {
 		return err
 	}
-	authURL, err := keystoneAPI.GetEndpoint(common.EndpointPublic)
+	authURL, err := keystoneAPI.GetEndpoint(endpoint.EndpointPublic)
 	if err != nil {
 		return err
 	}
@@ -526,12 +536,12 @@ func (r *PlacementAPIReconciler) generateServiceConfigMaps(
 	templateParameters["ServiceUser"] = instance.Spec.ServiceUser
 	templateParameters["KeystonePublicURL"] = authURL
 
-	cms := []common.Template{
+	cms := []util.Template{
 		// ScriptsConfigMap
 		{
 			Name:               fmt.Sprintf("%s-scripts", instance.Name),
 			Namespace:          instance.Namespace,
-			Type:               common.TemplateTypeScripts,
+			Type:               util.TemplateTypeScripts,
 			InstanceType:       instance.Kind,
 			AdditionalTemplate: map[string]string{"common.sh": "/common/common.sh"},
 			Labels:             cmLabels,
@@ -540,14 +550,14 @@ func (r *PlacementAPIReconciler) generateServiceConfigMaps(
 		{
 			Name:          fmt.Sprintf("%s-config-data", instance.Name),
 			Namespace:     instance.Namespace,
-			Type:          common.TemplateTypeConfig,
+			Type:          util.TemplateTypeConfig,
 			InstanceType:  instance.Kind,
 			CustomData:    customData,
 			ConfigOptions: templateParameters,
 			Labels:        cmLabels,
 		},
 	}
-	err = common.EnsureConfigMaps(ctx, h, instance, cms, envVars)
+	err = configmap.EnsureConfigMaps(ctx, h, instance, cms, envVars)
 	if err != nil {
 		return nil
 	}
@@ -562,14 +572,14 @@ func (r *PlacementAPIReconciler) generateServiceConfigMaps(
 func (r *PlacementAPIReconciler) createHashOfInputHashes(
 	ctx context.Context,
 	instance *placementv1.PlacementAPI,
-	envVars map[string]common.EnvSetter,
+	envVars map[string]env.Setter,
 ) (string, error) {
-	mergedMapVars := common.MergeEnvs([]corev1.EnvVar{}, envVars)
-	hash, err := common.ObjectHash(mergedMapVars)
+	mergedMapVars := env.MergeEnvs([]corev1.EnvVar{}, envVars)
+	hash, err := util.ObjectHash(mergedMapVars)
 	if err != nil {
 		return hash, err
 	}
-	if hashMap, changed := common.SetHash(instance.Status.Hash, common.InputHashName, hash); changed {
+	if hashMap, changed := util.SetHash(instance.Status.Hash, common.InputHashName, hash); changed {
 		instance.Status.Hash = hashMap
 		if err := r.Client.Status().Update(ctx, instance); err != nil {
 			return hash, err
