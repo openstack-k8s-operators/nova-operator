@@ -28,7 +28,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	condition "github.com/openstack-k8s-operators/lib-common/pkg/condition"
+	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	placementv1 "github.com/openstack-k8s-operators/placement-operator/api/v1beta1"
 )
 
