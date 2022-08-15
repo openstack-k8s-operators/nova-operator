@@ -166,7 +166,7 @@ func (in *PlacementAPIStatus) DeepCopyInto(out *PlacementAPIStatus) {
 	}
 	if in.Conditions != nil {
 		in, out := &in.Conditions, &out.Conditions
-		*out = make(condition.List, len(*in))
+		*out = make(condition.Conditions, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}

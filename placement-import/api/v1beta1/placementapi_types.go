@@ -142,7 +142,7 @@ type PlacementAPIStatus struct {
 	APIEndpoints map[string]string `json:"apiEndpoint,omitempty"`
 
 	// Conditions
-	Conditions condition.List `json:"conditions,omitempty" optional:"true"`
+	Conditions condition.Conditions `json:"conditions,omitempty" optional:"true"`
 
 	// Placement Database Hostname
 	DatabaseHostname string `json:"databaseHostname,omitempty"`

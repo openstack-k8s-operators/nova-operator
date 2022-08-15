@@ -62,11 +62,11 @@ func GetCondition(
 		return condition.Condition{}
 	}
 
-	for i, cond := range instance.Status.Conditions {
-		if cond.Type == conditionType && cond.Reason == reason {
-			return instance.Status.Conditions[i]
-		}
+	cond := instance.Status.Conditions.Get(conditionType)
+	if cond != nil && cond.Reason == reason {
+		return *cond
 	}
+
 	return condition.Condition{}
 }
 
@@ -132,8 +132,9 @@ var _ = Describe("PlacementAPI controller", func() {
 
 		It("should be in a state of waiting for the secret as it is not create yet", func() {
 			Eventually(func() condition.Condition {
-				return GetCondition(placementAPILookupKey, condition.TypeWaiting, condition.ReasonSecretMissing)
-			}, timeout, interval).Should(HaveField("Status", corev1.ConditionTrue))
+				// TODO (mschuppert) change conditon package to be able to use haveSameStateOf Matcher here
+				return GetCondition(placementAPILookupKey, condition.InputReadyCondition, condition.RequestedReason)
+			}, timeout, interval).Should(HaveField("Status", corev1.ConditionFalse))
 		})
 	})
 
@@ -147,8 +148,8 @@ var _ = Describe("PlacementAPI controller", func() {
 			}
 			Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
 			Eventually(func() condition.Condition {
-				return GetCondition(placementAPILookupKey, condition.TypeWaiting, condition.ReasonSecretMissing)
-			}, timeout, interval).Should(HaveField("Status", corev1.ConditionTrue))
+				return GetCondition(placementAPILookupKey, condition.InputReadyCondition, condition.RequestedReason)
+			}, timeout, interval).Should(HaveField("Status", corev1.ConditionFalse))
 		})
 	})
 
@@ -162,8 +163,8 @@ var _ = Describe("PlacementAPI controller", func() {
 			}
 			Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
 			Eventually(func() condition.Condition {
-				return GetCondition(placementAPILookupKey, condition.TypeWaiting, condition.ReasonSecretMissing)
-			}, timeout, interval).Should(HaveField("Status", corev1.ConditionFalse))
+				return GetCondition(placementAPILookupKey, condition.InputReadyCondition, condition.ReadyReason)
+			}, timeout, interval).Should(HaveField("Status", corev1.ConditionTrue))
 		})
 	})
 })
