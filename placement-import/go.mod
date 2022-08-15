@@ -13,6 +13,7 @@ require (
 	github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20220815130650-292b685f89bc
 	github.com/openstack-k8s-operators/lib-common/modules/database v0.0.0-20220815130650-292b685f89bc
 	github.com/openstack-k8s-operators/mariadb-operator v0.0.0-20220714144434-169460573426
+	github.com/openstack-k8s-operators/placement-operator/api v0.0.0-00010101000000-000000000000
 	golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4
 	k8s.io/api v0.24.3
 	k8s.io/apimachinery v0.24.3
@@ -88,6 +89,8 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.2 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
+
+replace github.com/openstack-k8s-operators/placement-operator/api => ./api
 
 // Without this, the following error occurs:
 // ../go/pkg/mod/k8s.io/apimachinery@v0.24.3/pkg/util/managedfields/gvkparser.go:62:39: cannot use smdschema.Schema{…} (value of type "sigs.k8s.io/structured-merge-diff/v4/schema".Schema) as type *"sigs.k8s.io/structured-merge-diff/v4/schema".Schema in struct literal
