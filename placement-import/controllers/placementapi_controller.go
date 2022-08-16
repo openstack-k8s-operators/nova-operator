@@ -332,6 +332,7 @@ func (r *PlacementAPIReconciler) reconcileInit(
 			condition.ExposeServiceReadyRunningMessage))
 		return ctrlResult, nil
 	}
+	instance.Status.Conditions.MarkTrue(condition.ExposeServiceReadyCondition, condition.ExposeServiceReadyMessage)
 
 	//
 	// Update instance status with service endpoint url from route host information
