@@ -533,7 +533,9 @@ func (r *PlacementAPIReconciler) reconcileNormal(ctx context.Context, instance *
 		return ctrlResult, nil
 	}
 	instance.Status.ReadyCount = depl.GetDeployment().Status.ReadyReplicas
-	instance.Status.Conditions.MarkTrue(condition.DeploymentReadyCondition, condition.DeploymentReadyMessage)
+	if instance.Status.ReadyCount > 0 {
+		instance.Status.Conditions.MarkTrue(condition.DeploymentReadyCondition, condition.DeploymentReadyMessage)
+	}
 	// create Deployment - end
 
 	r.Log.Info("Reconciled Service successfully")
