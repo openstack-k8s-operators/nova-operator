@@ -121,9 +121,19 @@ func (r *PlacementAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	//
 	if instance.Status.Conditions == nil {
 		instance.Status.Conditions = condition.Conditions{}
-		// TODO (mschuppert) init conditions as unknown, when https://github.com/openstack-k8s-operators/lib-common/pull/45
-		// merged, which has the commit as part of the PR which introduce the init messages
-		instance.Status.Conditions.Init(nil)
+		// initialize conditions used later as Status=Unknown
+		cl := condition.CreateList(
+			condition.UnknownCondition(condition.DBReadyCondition, condition.InitReason, condition.DBReadyInitMessage),
+			condition.UnknownCondition(condition.DBSyncReadyCondition, condition.InitReason, condition.DBSyncReadyInitMessage),
+			condition.UnknownCondition(condition.ExposeServiceReadyCondition, condition.InitReason, condition.ExposeServiceReadyInitMessage),
+			condition.UnknownCondition(condition.InputReadyCondition, condition.InitReason, condition.InputReadyInitMessage),
+			condition.UnknownCondition(condition.ServiceConfigReadyCondition, condition.InitReason, condition.ServiceConfigReadyInitMessage),
+			condition.UnknownCondition(condition.DeploymentReadyCondition, condition.InitReason, condition.DeploymentReadyInitMessage),
+			// right now we have no dedicated KeystoneServiceReadyInitMessage
+			condition.UnknownCondition(condition.KeystoneServiceReadyCondition, condition.InitReason, ""),
+		)
+
+		instance.Status.Conditions.Init(&cl)
 
 		// Register overall status immediately to have an early feedback e.g. in the cli
 		if err := r.Status().Update(ctx, instance); err != nil {
@@ -322,6 +332,7 @@ func (r *PlacementAPIReconciler) reconcileInit(
 			condition.ExposeServiceReadyRunningMessage))
 		return ctrlResult, nil
 	}
+	instance.Status.Conditions.MarkTrue(condition.ExposeServiceReadyCondition, condition.ExposeServiceReadyMessage)
 
 	//
 	// Update instance status with service endpoint url from route host information
@@ -348,12 +359,18 @@ func (r *PlacementAPIReconciler) reconcileInit(
 		PasswordSelector:   instance.Spec.PasswordSelectors.Service,
 	}
 	ksSvc := keystone.NewKeystoneService(ksSvcSpec, instance.Namespace, serviceLabels, 10)
-	// TODO mirror keystoneservice condition when https://github.com/openstack-k8s-operators/lib-common/pull/43
-	// and condition for keystoneservice got added
 	ctrlResult, err = ksSvc.CreateOrPatch(ctx, helper)
 	if err != nil {
 		return ctrlResult, err
-	} else if (ctrlResult != ctrl.Result{}) {
+	}
+	// mirror the Status, Reason, Severity and Message of the latest keystoneservice condition
+	// into a local condition with the type condition.KeystoneServiceReadyCondition
+	c := ksSvc.GetConditions().Mirror(condition.KeystoneServiceReadyCondition)
+	if c != nil {
+		instance.Status.Conditions.Set(c)
+	}
+
+	if (ctrlResult != ctrl.Result{}) {
 		return ctrlResult, nil
 	}
 
