@@ -307,8 +307,19 @@ func (r *PlacementAPIReconciler) reconcileInit(
 		ports,
 	)
 	if err != nil {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.ExposeServiceReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.ExposeServiceReadyErrorMessage,
+			err.Error()))
 		return ctrlResult, err
 	} else if (ctrlResult != ctrl.Result{}) {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.ExposeServiceReadyCondition,
+			condition.RequestedReason,
+			condition.SeverityInfo,
+			condition.ExposeServiceReadyRunningMessage))
 		return ctrlResult, nil
 	}
 
@@ -337,6 +348,8 @@ func (r *PlacementAPIReconciler) reconcileInit(
 		PasswordSelector:   instance.Spec.PasswordSelectors.Service,
 	}
 	ksSvc := keystone.NewKeystoneService(ksSvcSpec, instance.Namespace, serviceLabels, 10)
+	// TODO mirror keystoneservice condition when https://github.com/openstack-k8s-operators/lib-common/pull/43
+	// and condition for keystoneservice got added
 	ctrlResult, err = ksSvc.CreateOrPatch(ctx, helper)
 	if err != nil {
 		return ctrlResult, err
@@ -363,9 +376,20 @@ func (r *PlacementAPIReconciler) reconcileInit(
 		helper,
 	)
 	if (ctrlResult != ctrl.Result{}) {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.DBSyncReadyCondition,
+			condition.RequestedReason,
+			condition.SeverityInfo,
+			condition.DBSyncReadyRunningMessage))
 		return ctrlResult, nil
 	}
 	if err != nil {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.DBSyncReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.DBSyncReadyErrorMessage,
+			err.Error()))
 		return ctrl.Result{}, err
 	}
 	if dbSyncjob.HasChanged() {
@@ -375,6 +399,7 @@ func (r *PlacementAPIReconciler) reconcileInit(
 		}
 		r.Log.Info(fmt.Sprintf("Job %s hash added - %s", jobDef.Name, instance.Status.Hash[placementv1.DbSyncHash]))
 	}
+	instance.Status.Conditions.MarkTrue(condition.DBSyncReadyCondition, condition.DBSyncReadyMessage)
 
 	// run placement db sync - end
 
