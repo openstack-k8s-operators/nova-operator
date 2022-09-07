@@ -1,9 +1,0 @@
-apiVersion: nova.openstack.org/v1beta1
-kind: Libvirtd
-metadata:
-  name: libvirtd-worker-osp
-  namespace: openstack
-spec:
-  novaLibvirtImage: docker.io/tripleomaster/centos-binary-nova-libvirt:current-tripleo
-  serviceAccount: nova
-  roleName: worker-osp

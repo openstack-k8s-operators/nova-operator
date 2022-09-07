@@ -1,9 +1,0 @@
-apiVersion: database.openstack.org/v1beta1
-kind: MariaDBDatabase
-metadata:
-  name: {{.Name}}
-  labels:
-    dbName: {{.DatabaseHostname}}
-spec:
-  name: {{.DatabaseName}}
-  secret: {{.Secret}}
