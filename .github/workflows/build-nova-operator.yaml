@@ -1,0 +1,197 @@
+name: Nova Operator image builder
+
+on:
+  push:
+    branches:
+      - '*'
+    paths-ignore:
+      - .gitignore
+      - .pull_request_pipeline
+      - changelog.txt
+      - LICENSE
+      - Makefile
+      - OWNERS
+      - PROJECT
+      - README.md
+      - .github/
+      - build/
+
+env:
+  imageregistry: 'quay.io'
+  imagenamespace: ${{ secrets.IMAGENAMESPACE || secrets.QUAY_USERNAME }}
+  latesttag: latest
+
+jobs:
+
+  check-secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check secrets are set
+        id: have-secrets
+        if: "${{ env.imagenamespace != '' }}"
+        run: echo "::set-output name=ok::true"
+    outputs:
+      have-secrets: ${{ steps.have-secrets.outputs.ok }}
+
+  build-nova-operator:
+    name: Build nova-operator image using buildah
+    runs-on: ubuntu-latest
+    needs: [check-secrets]
+    if: needs.check-secrets.outputs.have-secrets == 'true'
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Get branch name
+      id: branch-name
+      uses: tj-actions/branch-names@v5
+
+    - name: Set latest tag for non master branch
+      if: "${{ steps.branch-name.outputs.current_branch != 'master' }}"
+      run: |
+        echo "latesttag=${{ steps.branch-name.outputs.current_branch }}-latest" >> $GITHUB_ENV
+
+    - name: Buildah Action
+      id: build-nova-operator
+      uses: redhat-actions/buildah-build@v2
+      with:
+        image: nova-operator
+        tags: ${{ env.latesttag }} ${{ github.sha }}
+        containerfiles: |
+          ./Dockerfile
+
+    - name: Push nova-operator To ${{ env.imageregistry }}
+      uses: redhat-actions/push-to-registry@v2
+      with:
+        image: ${{ steps.build-nova-operator.outputs.image }}
+        tags: ${{ steps.build-nova-operator.outputs.tags }}
+        registry: ${{ env.imageregistry }}/${{ env.imagenamespace }}
+        username: ${{ secrets.QUAY_USERNAME }}
+        password: ${{ secrets.QUAY_PASSWORD }}
+
+  build-nova-operator-bundle:
+    needs: [ check-secrets, build-nova-operator ]
+    name: nova-operator-bundle
+    runs-on: ubuntu-latest
+    if: needs.check-secrets.outputs.have-secrets == 'true'
+
+    steps:
+    - name: Install Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.18.x
+
+    - name: Checkout nova-operator repository
+      uses: actions/checkout@v2
+
+    - name: Install operator-sdk
+      uses: redhat-actions/openshift-tools-installer@v1
+      with:
+        source: github
+        operator-sdk: '1.23.0'
+
+    - name: Log in to Quay Registry
+      uses: redhat-actions/podman-login@v1
+      with:
+        registry: ${{ env.imageregistry }}
+        username: ${{ secrets.QUAY_USERNAME }}
+        password: ${{ secrets.QUAY_PASSWORD }}
+
+    - name: Log in to Red Hat Registry
+      uses: redhat-actions/podman-login@v1
+      with:
+        registry: registry.redhat.io
+        username: ${{ secrets.REDHATIO_USERNAME }}
+        password: ${{ secrets.REDHATIO_PASSWORD }}
+
+    - name: Create bundle image
+      run: |
+        pushd "${GITHUB_WORKSPACE}"/.github/
+        chmod +x "create_bundle.sh"
+        "./create_bundle.sh"
+        popd
+      env:
+        REGISTRY:  ${{ env.imageregistry }}/${{ env.imagenamespace }}
+        GITHUB_SHA: ${{ github.sha }}
+        BASE_IMAGE: nova-operator
+
+    - name: Get branch name
+      id: branch-name
+      uses: tj-actions/branch-names@v5
+
+    - name: Set latest tag for non master branch
+      if: "${{ steps.branch-name.outputs.current_branch != 'master' }}"
+      run: |
+        echo "latesttag=${{ steps.branch-name.outputs.current_branch }}-latest" >> $GITHUB_ENV
+
+    - name: Build nova-operator-bundle using buildah
+      id: build-nova-operator-bundle
+      uses: redhat-actions/buildah-build@v2
+      with:
+        image: nova-operator-bundle
+        tags: ${{ env.latesttag }} ${{ github.sha }}
+        containerfiles: |
+          ./bundle.Dockerfile
+
+    - name: Push nova-operator To ${{ env.imageregistry }}
+      uses: redhat-actions/push-to-registry@v2
+      with:
+        image: ${{ steps.build-nova-operator-bundle.outputs.image }}
+        tags: ${{ steps.build-nova-operator-bundle.outputs.tags }}
+        registry:  ${{ env.imageregistry }}/${{ env.imagenamespace }}
+        username: ${{ secrets.QUAY_USERNAME }}
+        password: ${{ secrets.QUAY_PASSWORD }}
+
+  build-nova-operator-index:
+    needs: [ check-secrets, build-nova-operator-bundle ]
+    name: nova-operator-index
+    runs-on: ubuntu-latest
+    if: needs.check-secrets.outputs.have-secrets == 'true'
+
+    steps:
+    - name: Checkout nova-operator repository
+      uses: actions/checkout@v2
+
+    - name: Get branch name
+      id: branch-name
+      uses: tj-actions/branch-names@v5
+
+    - name: Set latest tag for non master branch
+      if: "${{ steps.branch-name.outputs.current_branch != 'master' }}"
+      run: |
+        echo "latesttag=${{ steps.branch-name.outputs.current_branch }}-latest" >> $GITHUB_ENV
+
+    - name: Install opm
+      uses: redhat-actions/openshift-tools-installer@v1
+      with:
+        source: github
+        opm: 'latest'
+
+    - name: Log in to Quay Registry
+      uses: redhat-actions/podman-login@v1
+      with:
+        registry: ${{ env.imageregistry }}
+        username: ${{ secrets.QUAY_USERNAME }}
+        password: ${{ secrets.QUAY_PASSWORD }}
+
+    - name: Create index image
+      run: |
+        pushd "${GITHUB_WORKSPACE}"/.github/
+        chmod +x "create_opm_index.sh"
+        "./create_opm_index.sh"
+        popd
+      env:
+        REGISTRY:  ${{ env.imageregistry }}/${{ env.imagenamespace }}
+        GITHUB_SHA: ${{ github.sha }}
+        BUNDLE_IMAGE: nova-operator-bundle
+        INDEX_IMAGE_TAG: ${{ env.latesttag }}
+        INDEX_IMAGE: nova-operator-index
+
+    - name: Push nova-operator-index To ${{ env.imageregistry }}
+      uses: redhat-actions/push-to-registry@v2
+      with:
+        image: nova-operator-index
+        tags: ${{ env.latesttag }} ${{ github.sha }}
+        registry:  ${{ env.imageregistry }}/${{ env.imagenamespace }}
+        username: ${{ secrets.QUAY_USERNAME }}
+        password: ${{ secrets.QUAY_PASSWORD }}
