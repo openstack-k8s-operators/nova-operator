@@ -1,4 +1,5 @@
 ## Append samples you want in your CSV to this file as resources ##
 resources:
 - nova_v1beta1_nova.yaml
+- nova_v1beta1_novaapi.yaml
 #+kubebuilder:scaffold:manifestskustomizesamples

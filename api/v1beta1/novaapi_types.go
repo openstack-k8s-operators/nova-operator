@@ -23,15 +23,14 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// NovaSpec defines the desired state of Nova
-type NovaSpec struct {
+// NovaAPISpec defines the desired state of NovaAPI
+type NovaAPISpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
-	NovaAPI NovaAPI `json:"novaapi,omitempty"`
 }
 
-// NovaStatus defines the observed state of Nova
-type NovaStatus struct {
+// NovaAPIStatus defines the observed state of NovaAPI
+type NovaAPIStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 }
@@ -39,24 +38,24 @@ type NovaStatus struct {
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 
-// Nova is the Schema for the nova API
-type Nova struct {
+// NovaAPI is the Schema for the novaapis API
+type NovaAPI struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   NovaSpec   `json:"spec,omitempty"`
-	Status NovaStatus `json:"status,omitempty"`
+	Spec   NovaAPISpec   `json:"spec,omitempty"`
+	Status NovaAPIStatus `json:"status,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 
-// NovaList contains a list of Nova
-type NovaList struct {
+// NovaAPIList contains a list of NovaAPI
+type NovaAPIList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []Nova `json:"items"`
+	Items           []NovaAPI `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&Nova{}, &NovaList{})
+	SchemeBuilder.Register(&NovaAPI{}, &NovaAPIList{})
 }
