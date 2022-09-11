@@ -6,14 +6,4 @@ plugins:
   scorecard.sdk.operatorframework.io/v2: {}
 projectName: nova-operator
 repo: github.com/openstack-k8s-operators/nova-operator
-resources:
-- api:
-    crdVersion: v1
-    namespaced: true
-  controller: true
-  domain: openstack.org
-  group: nova
-  kind: Nova
-  path: github.com/openstack-k8s-operators/nova-operator/api/v1beta1
-  version: v1beta1
 version: "3"
