@@ -254,16 +254,16 @@ gofmt: get-ci-tools
 
 # Run go vet against code
 govet: get-ci-tools
-	$(CI_TOOLS_REPO_DIR)/test-runner/govet.sh
+	GOWORK=off $(CI_TOOLS_REPO_DIR)/test-runner/govet.sh
 
 # Run go test against code
 gotest: get-ci-tools
-	$(CI_TOOLS_REPO_DIR)/test-runner/gotest.sh
+	GOWORK=off $(CI_TOOLS_REPO_DIR)/test-runner/gotest.sh
 
 # Run golangci-lint test against code
 golangci: get-ci-tools
-	$(CI_TOOLS_REPO_DIR)/test-runner/golangci.sh
+	GOWORK=off $(CI_TOOLS_REPO_DIR)/test-runner/golangci.sh
 
 # Run go lint against code
 golint: get-ci-tools
-	PATH=$(GOBIN):$(PATH); $(CI_TOOLS_REPO_DIR)/test-runner/golint.sh
+	export GOWORK=off && PATH=$(GOBIN):$(PATH); $(CI_TOOLS_REPO_DIR)/test-runner/golint.sh
