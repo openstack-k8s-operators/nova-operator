@@ -16,13 +16,4 @@ resources:
   kind: Nova
   path: github.com/openstack-k8s-operators/nova-operator/api/v1beta1
   version: v1beta1
-- api:
-    crdVersion: v1
-    namespaced: true
-  controller: true
-  domain: openstack.org
-  group: nova
-  kind: NovaAPI
-  path: github.com/openstack-k8s-operators/nova-operator/api/v1beta1
-  version: v1beta1
 version: "3"
