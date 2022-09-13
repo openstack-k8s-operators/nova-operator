@@ -31,7 +31,6 @@ import (
 	"github.com/go-logr/logr"
 	routev1 "github.com/openshift/api/route/v1"
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
-	keystone "github.com/openstack-k8s-operators/keystone-operator/pkg/external"
 
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
@@ -206,7 +205,7 @@ func (r *PlacementAPIReconciler) reconcileDelete(ctx context.Context, instance *
 	util.LogForObject(helper, "Reconciling Service delete", instance)
 
 	// Remove the finalizer from our KeystoneService CR
-	keystoneService, err := keystone.GetKeystoneServiceWithName(ctx, helper, placement.ServiceName, instance.Namespace)
+	keystoneService, err := keystonev1.GetKeystoneServiceWithName(ctx, helper, placement.ServiceName, instance.Namespace)
 	if err != nil && !k8s_errors.IsNotFound(err) {
 		return ctrl.Result{}, err
 	}
@@ -354,7 +353,7 @@ func (r *PlacementAPIReconciler) reconcileInit(
 		Secret:             instance.Spec.Secret,
 		PasswordSelector:   instance.Spec.PasswordSelectors.Service,
 	}
-	ksSvc := keystone.NewKeystoneService(ksSvcSpec, instance.Namespace, serviceLabels, 10)
+	ksSvc := keystonev1.NewKeystoneService(ksSvcSpec, instance.Namespace, serviceLabels, 10)
 	ctrlResult, err = ksSvc.CreateOrPatch(ctx, helper)
 	if err != nil {
 		return ctrlResult, err
@@ -608,7 +607,7 @@ func (r *PlacementAPIReconciler) generateServiceConfigMaps(
 		customData[key] = data
 	}
 
-	keystoneAPI, err := keystone.GetKeystoneAPI(ctx, h, instance.Namespace, map[string]string{})
+	keystoneAPI, err := keystonev1.GetKeystoneAPI(ctx, h, instance.Namespace, map[string]string{})
 	if err != nil {
 		return err
 	}

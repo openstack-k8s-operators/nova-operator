@@ -8,10 +8,9 @@ require (
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.20.0
 	github.com/openshift/api v3.9.0+incompatible
-	github.com/openstack-k8s-operators/keystone-operator v0.0.0-20220812060356-3949bac143d1
-	github.com/openstack-k8s-operators/keystone-operator/api v0.0.0-20220812060356-3949bac143d1
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20220816094529-135dc67c2cdf
-	github.com/openstack-k8s-operators/lib-common/modules/database v0.0.0-20220816094529-135dc67c2cdf
+	github.com/openstack-k8s-operators/keystone-operator/api v0.0.0-20220913134025-daee844b58f7
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20220909175216-e774739df18a
+	github.com/openstack-k8s-operators/lib-common/modules/database v0.0.0-20220909175216-e774739df18a
 	github.com/openstack-k8s-operators/mariadb-operator v0.0.0-20220714144434-169460573426
 	github.com/openstack-k8s-operators/placement-operator/api v0.0.0-00010101000000-000000000000
 	golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4
@@ -56,7 +55,7 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/nxadm/tail v1.4.8 // indirect
-	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.0.0-20220809134547-1a7f2be42190 // indirect
+	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.0.0-20220909175216-e774739df18a // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_golang v1.12.2 // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect

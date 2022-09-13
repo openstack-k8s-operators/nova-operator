@@ -105,7 +105,7 @@ var _ = BeforeSuite(func() {
 		CRDDirectoryPaths: []string{
 			filepath.Join("..", "config", "crd", "bases"),
 			// NOTE(gibi): we need to list all the external CRDs our operator depends on
-			GetCRDDirFromModule("github.com/openstack-k8s-operators/keystone-operator"),
+			GetCRDDirFromModule("github.com/openstack-k8s-operators/keystone-operator/api"),
 			GetCRDDirFromModule("github.com/openstack-k8s-operators/mariadb-operator"),
 			// NOTE(gibi): OpenShift CRDs are even trickier as they are not directly published.
 			// For now we store a copy of the needed ones locally
