@@ -8,11 +8,11 @@ require (
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.20.0
 	github.com/openshift/api v3.9.0+incompatible
-	github.com/openstack-k8s-operators/keystone-operator/api v0.0.0-20220913134025-daee844b58f7
+	github.com/openstack-k8s-operators/keystone-operator/api v0.0.0-20220913135835-6903bd5bc4e1
 	github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20220909175216-e774739df18a
 	github.com/openstack-k8s-operators/lib-common/modules/database v0.0.0-20220909175216-e774739df18a
-	github.com/openstack-k8s-operators/mariadb-operator v0.0.0-20220714144434-169460573426
-	github.com/openstack-k8s-operators/placement-operator/api v0.0.0-00010101000000-000000000000
+	github.com/openstack-k8s-operators/mariadb-operator/api v0.0.0-20220707171728-88a190b24296
+	github.com/openstack-k8s-operators/placement-operator/api v0.0.0-20220816132717-b1fe0c1140da
 	golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4
 	k8s.io/api v0.24.3
 	k8s.io/apimachinery v0.24.3
@@ -94,3 +94,7 @@ replace github.com/openstack-k8s-operators/placement-operator/api => ./api
 // Without this, the following error occurs:
 // ../go/pkg/mod/k8s.io/apimachinery@v0.24.3/pkg/util/managedfields/gvkparser.go:62:39: cannot use smdschema.Schema{…} (value of type "sigs.k8s.io/structured-merge-diff/v4/schema".Schema) as type *"sigs.k8s.io/structured-merge-diff/v4/schema".Schema in struct literal
 replace sigs.k8s.io/structured-merge-diff/v4 v4.2.2 => sigs.k8s.io/structured-merge-diff/v4 v4.2.1
+
+replace github.com/openstack-k8s-operators/keystone-operator/api => github.com/stuggi/keystone-operator/api v0.0.0-20220914142033-d4420a5554ad
+
+replace github.com/openstack-k8s-operators/mariadb-operator/api => github.com/stuggi/mariadb-operator/api v0.0.0-20220914142547-791e08999e32
