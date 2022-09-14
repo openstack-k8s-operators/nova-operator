@@ -8,6 +8,32 @@ rules:
 - apiGroups:
   - nova.openstack.org
   resources:
+  - nova
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - nova.openstack.org
+  resources:
+  - nova/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - nova.openstack.org
+  resources:
+  - nova/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - nova.openstack.org
+  resources:
   - novaapis
   verbs:
   - create
