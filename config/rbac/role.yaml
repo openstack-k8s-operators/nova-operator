@@ -60,6 +60,32 @@ rules:
 - apiGroups:
   - nova.openstack.org
   resources:
+  - novametadata
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - nova.openstack.org
+  resources:
+  - novametadata/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - nova.openstack.org
+  resources:
+  - novametadata/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - nova.openstack.org
+  resources:
   - novaschedulers
   verbs:
   - create
