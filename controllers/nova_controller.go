@@ -108,17 +108,22 @@ func (r *NovaReconciler) generateServiceConfigMaps(
 	customData := map[string]string{
 		"test": "42",
 	}
+	additionalTemplates := map[string]string{
+		"01-nova.conf":        "/nova.conf",
+		"02-nova-secret.conf": "/nova-secret.conf",
+	}
 	cms := []util.Template{
 		// ConfigMap
 		{
-			Name:          fmt.Sprintf("%s-config-data", instance.Name),
-			Namespace:     instance.Namespace,
-			Type:          util.TemplateTypeConfig,
-			InstanceType:  instance.Kind,
-			CustomData:    customData,
-			ConfigOptions: templateParameters,
-			Labels:        cmLabels,
-			Annotations:   map[string]string{},
+			Name:               fmt.Sprintf("%s-config-data", instance.Name),
+			Namespace:          instance.Namespace,
+			Type:               util.TemplateTypeConfig,
+			InstanceType:       instance.Kind,
+			CustomData:         customData,
+			ConfigOptions:      templateParameters,
+			Labels:             cmLabels,
+			Annotations:        map[string]string{},
+			AdditionalTemplate: additionalTemplates,
 		},
 	}
 	err := configmap.EnsureConfigMaps(ctx, h, instance, cms, envVars)
