@@ -3,4 +3,39 @@ kind: NovaAPI
 metadata:
   name: novaapi-sample
 spec:
-  # TODO(user): Add fields here
+  secret: osp-secret
+  passwordSelectors:
+    service: NovaPassword
+    apiDatabase: NovaAPIDatabasePassword
+    apiMessageBus: NovaAPIMessageBusPassword
+    cellDatabase: null
+    cellMessageBus: null
+  serviceUser: nova
+  keystoneAuthURL: http://keystone-internal-openstack.apps-crc.testing
+  apiDatabaseUser: nova
+  # This is the hostname of the default DB today
+  apiDatabaseHostname: openstack
+  apiMessageBusUser: nova
+  # Q: do we need db an rabbit port? it seems today we use the default port
+  # This is the hostname of the default Rabbit today
+  apiMessageBusHostname: default-security-context
+  customServiceConfig: >
+    # service config customization
+    debug=True
+  defaultConfigOverwrite:
+    policy.yaml: >
+      # my custom policy
+  containerImage: quay.io/tripleowallabycentos9/openstack-nova-api:current-tripleo
+  replicate: 3
+  nodeSelector: {}
+  resources:
+    limits:
+      cpu: 500m
+      memory: 128Mi
+    requests:
+      cpu: 10m
+      memory: 64Mi
+  debug:
+    stopDBSync: False
+    stopService: False
+    preserveJob: False
