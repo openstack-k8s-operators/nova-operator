@@ -1,0 +1,74 @@
+apiVersion: nova.openstack.org/v1beta1
+kind: NovaCell
+metadata:
+  name: novacell0-sample
+spec:
+  cellName: cell0
+  secret: osp-secret
+  # Here it make sense to have both api and cell passwords selectors
+  # as cell0 will have the super conductor using both
+  passwordSelectors:
+    service: NovaPassword
+    apiDatabase: NovaAPIDatabasePassword
+    apiMessageBus: NovaAPIMessageBusPassword
+    cellDatabase: NovaCell0DatabasePassword
+    cellMessageBus: NovaCell0MessageBusPassword
+  serviceUser: nova
+  keystoneAuthURL: http://keystone-internal-openstack.apps-crc.testing
+  apiDatabaseUser: nova
+  # This is the hostname of the default DB today
+  apiDatabaseHostname: openstack
+  apiMessageBusUser: nova
+  # Q: do we need db an rabbit port? it seems today we use the default port
+  # This is the hostname of the default Rabbit today
+  apiMessageBusHostname: default-security-context
+  cellDatabaseUser: nova
+  cellDatabaseHostname: openstack
+  cellMessageBusUser: nova
+  cellMessageBusHostname: default-security-context
+  conductorServiceTemplate:
+    cellName: cell0
+    passwordSelectors:
+      service: NovaPassword
+      apiDatabase: NovaAPIDatabasePassword
+      apiMessageBus: NovaAPIMessageBusPassword
+      cellDatabase: NovaCell0DatabasePassword
+      cellMessageBus: NovaCell0MessageBusPassword
+    serviceUser: nova
+    keystoneAuthURL: http://keystone-internal-openstack.apps-crc.testing
+    apiDatabaseUser: nova
+    # This is the hostname of the default DB today
+    apiDatabaseHostname: openstack
+    apiMessageBusUser: nova
+    # Q: do we need db an rabbit port? it seems today we use the default port
+    # This is the hostname of the default Rabbit today
+    apiMessageBusHostname: default-security-context
+    cellDatabaseUser: nova
+    cellDatabaseHostname: openstack
+    cellMessageBusUser: nova
+    cellMessageBusHostname: default-security-context
+    customServiceConfig: >
+      # service config customization
+      [DEFAULT]
+      debug=True
+    defaultConfigOverwrite:
+      logging.conf: >
+      # my custom logging configuration
+    containerImage: quay.io/tripleowallabycentos9/openstack-nova-conductor:current-tripleo
+    replicate: 3
+    nodeSelector: {}
+    resources:
+      limits:
+        cpu: 500m
+        memory: 128Mi
+      requests:
+        cpu: 10m
+        memory: 64Mi
+    debug:
+      stopDBSync: False
+      stopService: False
+      preserveJob: False
+  # we never need a metadata service in cell0 as there are no computes there
+  metadataServiceTemplate: null
+  # we never need a novncproxy service in cell0 as there are no computes there
+  noVNCProxyServiceTemplate: null
