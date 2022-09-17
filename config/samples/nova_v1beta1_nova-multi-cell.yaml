@@ -1,0 +1,410 @@
+apiVersion: nova.openstack.org/v1beta1
+kind: Nova
+metadata:
+  name: nova-multi-cell-sample
+spec:
+  apiDBSelector:
+    # This is how we point to the single global DB Service object today
+    cr: mariadb-openstack
+    # The lib-common query adds
+    #   app: mariadb
+    # to the labels selector when querying the Service
+  apiMessageBusSelector:
+    # This is how the current RabbitMqCluster operator labels the
+    # Service instance it creates.
+    app.kubernetes.io/component: rabbitmq
+    app.kubernetes.io/name: default-security-context
+  keystoneServiceSelector:
+    # This is how the current keystone operator labels the Service instances
+    # it creates.
+    service: keystone
+    internal: "true"
+  # This is the name of a Secret having fields according to the
+  # passwordSelectors directly below and the passwordSelectors in each
+  # NovaCellSpec instances
+  # Today all the passwords are stored in the same Secret object named
+  # osp-secret, but the openstack operator could create a nova specific
+  # secret and pass it here in the future.
+  secret: osp-secret
+  passwordSelectors:
+    service: NovaPassword
+    apiDatabase: NovaAPIDatabasePassword
+    apiMessageBus: NovaAPIMessageBusPassword
+  serviceUser: nova
+  apiDatabaseUser: nova
+  apiMessageBusUser: nova
+  debug:
+    stopDBSync: False
+    stopService: False
+    preserveJob: False
+  apiServiceTemplate:
+    secret: osp-secret
+    passwordSelectors:
+      service: NovaPassword
+      apiDatabase: NovaAPIDatabasePassword
+      apiMessageBus: NovaAPIMessageBusPassword
+    serviceUser: nova
+    apiDatabaseUser: nova
+    apiMessageBusUser: nova
+    customServiceConfig: >
+      # service config customization
+      debug=True
+    defaultConfigOverwrite:
+      policy.yaml: >
+        # my custom policy
+    containerImage: quay.io/tripleowallabycentos9/openstack-nova-api:current-tripleo
+    replicate: 3
+    nodeSelector: {}
+    resources:
+      limits:
+        cpu: 500m
+        memory: 128Mi
+      requests:
+        cpu: 10m
+        memory: 64Mi
+    debug:
+      stopDBSync: False
+      stopService: False
+      preserveJob: False
+  schedulerServiceTemplate:
+    secret: osp-secret
+    passwordSelectors:
+      service: NovaPassword
+      apiDatabase: NovaAPIDatabasePassword
+      apiMessageBus: NovaAPIMessageBusPassword
+    serviceUser: nova
+    apiDatabaseUser: nova
+    apiMessageBusUser: nova
+    customServiceConfig: >
+      # service config customization
+      debug=True
+    defaultConfigOverwrite:
+      policy.yaml: >
+        # my custom policy
+    containerImage: quay.io/tripleowallabycentos9/openstack-nova-scheduler:current-tripleo
+    replicate: 3
+    nodeSelector: {}
+    resources:
+      limits:
+        cpu: 500m
+        memory: 128Mi
+      requests:
+        cpu: 10m
+        memory: 64Mi
+    debug:
+      # TODO: nova-scheduler wont run dbsync, should we stop using a common
+      # Debug struct?
+      stopDBSync: False
+      stopService: False
+      preserveJob: False
+  metadataServiceTemplate:
+    # No cell name is provided as this nova-metadata service is expected
+    # to run on the top level
+    cellName: null
+    secret: osp-secret
+    passwordSelectors:
+      service: NovaPassword
+      apiDatabase: NovaAPIDatabasePassword
+      # We don't provider the cell DB password selector here as this
+      # nova-metadata service is expected to run on the top level
+      cellDatabase: null
+    serviceUser: nova
+    apiDatabaseUser: nova
+    cellDatabaseUser: null
+    customServiceConfig: >
+      # service config customization
+      [DEFAULT]
+      debug=True
+      [api]
+      # make sure this is in sync with the fact that this nova-metadata
+      # service is expected to run on the top level
+      local_metadata_per_cell = False
+    defaultConfigOverwrite:
+      logging.conf: >
+        # my custom logging configuration
+    # TODO: what is the name of the container for metadata?
+    containerImage: quay.io/tripleowallabycentos9/openstack-nova-metadata-api:current-tripleo
+    replicate: 3
+    nodeSelector: {}
+    resources:
+      limits:
+        cpu: 500m
+        memory: 128Mi
+      requests:
+        cpu: 10m
+        memory: 64Mi
+    debug:
+      # TODO: nova-metadata wont run dbsync, should we stop using a common
+      # Debug struct?
+      stopDBSync: False
+      stopService: False
+      preserveJob: False
+  cellTemplates:
+    cell0:
+      cellName: cell0
+      secret: osp-secret
+      # Here it make sense to have both api and cell passwords selectors
+      # as cell0 will have the super conductor using both
+      passwordSelectors:
+        service: NovaPassword
+        apiDatabase: NovaAPIDatabasePassword
+        apiMessageBus: NovaAPIMessageBusPassword
+        cellDatabase: NovaCell0DatabasePassword
+        cellMessageBus: NovaCell0MessageBusPassword
+      serviceUser: nova
+      apiDatabaseUser: nova
+      apiMessageBusUser: nova
+      cellDatabaseUser: nova
+      cellMessageBusUser: nova
+      conductorServiceTemplate:
+        cellName: cell0
+        passwordSelectors:
+          service: NovaPassword
+          apiDatabase: NovaAPIDatabasePassword
+          apiMessageBus: NovaAPIMessageBusPassword
+          cellDatabase: NovaCell0DatabasePassword
+          cellMessageBus: NovaCell0MessageBusPassword
+        serviceUser: nova
+        apiDatabaseUser: nova
+        apiMessageBusUser: nova
+        cellDatabaseUser: nova
+        cellMessageBusUser: nova
+        customServiceConfig: >
+          # service config customization
+          [DEFAULT]
+          debug=True
+        defaultConfigOverwrite:
+          logging.conf: >
+          # my custom logging configuration
+        containerImage: quay.io/tripleowallabycentos9/openstack-nova-conductor:current-tripleo
+        replicate: 3
+        nodeSelector: {}
+        resources:
+          limits:
+            cpu: 500m
+            memory: 128Mi
+          requests:
+            cpu: 10m
+            memory: 64Mi
+        debug:
+          stopDBSync: False
+          stopService: False
+          preserveJob: False
+      # we never need a metadata service in cell0 as there are no computes there
+      metadataServiceTemplate: null
+      # we never need novncproxy service in cell0
+      noVNCProxyServiceTemplate: null
+    cell1:
+      cellName: cell1
+      secret: osp-secret
+      # Here we add API DB and message bus selectors to make cell1 support
+      # upcalles
+      passwordSelectors:
+        service: NovaPassword
+        apiDatabase: NovaAPIDatabasePassword
+        apiMessageBus: NovaAPIMessageBusPassword
+        cellDatabase: NovaCell1DatabasePassword
+        cellMessageBus: NovaCell1MessageBusPassword
+      serviceUser: nova
+      apiDatabaseUser: nova
+      apiMessageBusUser: nova
+      cellDatabaseUser: nova
+      cellMessageBusUser: nova
+      conductorServiceTemplate:
+        cellName: cell1
+        secret: osp-secret
+        passwordSelectors:
+          service: NovaPassword
+          apiDatabase: NovaAPIDatabasePassword
+          apiMessageBus: NovaAPIMessageBusPassword
+          cellDatabase: NovaCell1DatabasePassword
+          cellMessageBus: NovaCell1MessageBusPassword
+        serviceUser: nova
+        apiDatabaseUser: nova
+        apiMessageBusUser: nova
+        cellDatabaseUser: nova
+        cellMessageBusUser: nova
+        customServiceConfig: >
+          # service config customization
+          [DEFAULT]
+          debug=True
+        defaultConfigOverwrite:
+          logging.conf: >
+          # my custom logging configuration
+        containerImage: quay.io/tripleowallabycentos9/openstack-nova-conductor:current-tripleo
+        replicate: 3
+        nodeSelector: {}
+        resources:
+          limits:
+            cpu: 500m
+            memory: 128Mi
+          requests:
+            cpu: 10m
+            memory: 64Mi
+        debug:
+          stopDBSync: False
+          stopService: False
+          preserveJob: False
+      # we could decide not to add metadata service to this cell as there
+      # is metadata at the top
+      metadataServiceTemplate: null
+      noVNCProxyServiceTemplate:
+        CellName: cell1
+        secret: osp-secret
+        passwordSelectors:
+          service: nova
+          apiDatabase: null
+          apiMessageBus: null
+          cellDatabase: NovaCell1DatabasePassword
+          cellMessageBus: null
+        serviceUser: nova
+        apiDatabaseUser: null
+        apiMessageBusUser: null
+        cellDatabaseUser: nova
+        cellMessageBusUser: null
+        customServiceConfig: >
+          # service config customization
+          [DEFAULT]
+          debug=True
+        defaultConfigOverwrite:
+          logging.conf: >
+          # my custom logging configuration
+        containerImage: quay.io/tripleowallabycentos9/openstack-nova-novncproxy:current-tripleo
+        replicate: 3
+        nodeSelector: {}
+        resources:
+          limits:
+            cpu: 500m
+            memory: 128Mi
+          requests:
+            cpu: 10m
+            memory: 64Mi
+        debug:
+          stopDBSync: False
+          stopService: False
+          preserveJob: False
+    cell2:
+      cellName: cell2
+      secret: osp-secret
+      # Here we do not provide API DB and message bus selectors so this
+      # cell will not support upcalls.
+      passwordSelectors:
+        service: NovaPassword
+        apiDatabase: null
+        apiMessageBus: null
+        cellDatabase: NovaCell2DatabasePassword
+        cellMessageBus: NovaCell2MessageBusPassword
+      serviceUser: nova
+      apiDatabaseUser: null
+      apiMessageBusUser: null
+      cellDatabaseUser: nova
+      cellMessageBusUser: nova
+      conductorServiceTemplate:
+        cellName: cell2
+        passwordSelectors:
+          service: NovaPassword
+          apiDatabase: null
+          apiMessageBus: null
+          cellDatabase: NovaCell1DatabasePassword
+          cellMessageBus: NovaCell1MessageBusPassword
+        serviceUser: nova
+        apiDatabaseUser: null
+        apiMessageBusUser: null
+        cellDatabaseUser: nova
+        cellMessageBusUser: nova
+        customServiceConfig: >
+          # service config customization
+          [DEFAULT]
+          debug=True
+        defaultConfigOverwrite:
+          logging.conf: >
+          # my custom logging configuration
+        containerImage: quay.io/tripleowallabycentos9/openstack-nova-conductor:current-tripleo
+        replicate: 3
+        nodeSelector: {}
+        resources:
+          limits:
+            cpu: 500m
+            memory: 128Mi
+          requests:
+            cpu: 10m
+            memory: 64Mi
+        debug:
+          stopDBSync: False
+          stopService: False
+          preserveJob: False
+      metadataServiceTemplate:
+        cellName: cell2
+        secret: osp-secret
+        passwordSelectors:
+          service: NovaPassword
+          # We don't provider the API DB password selector here as this
+          # nova-metadata service is expected to run within cell2.
+          apiDatabase: null
+          cellDatabase: NovaCell2DatabasePassword
+        serviceUser: nova
+        apiDatabaseUser: null
+        cellDatabaseUser: nova
+        customServiceConfig: >
+          # service config customization
+          [DEFAULT]
+          debug=True
+          [api]
+          # make sure this is in sync with the fact that this nova-metadata
+          # service is expected to run on the cell level
+          local_metadata_per_cell = True
+        defaultConfigOverwrite:
+          logging.conf: >
+            # my custom logging configuration
+        # TODO: what is the name of the container for metadata?
+        containerImage: quay.io/tripleowallabycentos9/openstack-nova-metadata-api:current-tripleo
+        replicate: 3
+        nodeSelector: {}
+        resources:
+          limits:
+            cpu: 500m
+            memory: 128Mi
+          requests:
+            cpu: 10m
+            memory: 64Mi
+        debug:
+          # TODO: nova-metadata wont run dbsync, should we stop using a common
+          # Debug struct?
+          stopDBSync: False
+          stopService: False
+          preserveJob: False
+      noVNCProxyServiceTemplate:
+        CellName: cell2
+        secret: osp-secret
+        passwordSelectors:
+          service: nova
+          apiDatabase: null
+          apiMessageBus: null
+          cellDatabase: NovaCell2DatabasePassword
+          cellMessageBus: null
+        serviceUser: nova
+        apiDatabaseUser: null
+        apiMessageBusUser: null
+        cellDatabaseUser: nova
+        cellMessageBusUser: null
+        customServiceConfig: >
+          # service config customization
+          [DEFAULT]
+          debug=True
+        defaultConfigOverwrite:
+          logging.conf: >
+          # my custom logging configuration
+        containerImage: quay.io/tripleowallabycentos9/openstack-nova-novncproxy:current-tripleo
+        replicate: 3
+        nodeSelector: {}
+        resources:
+          limits:
+            cpu: 500m
+            memory: 128Mi
+          requests:
+            cpu: 10m
+            memory: 64Mi
+        debug:
+          stopDBSync: False
+          stopService: False
+          preserveJob: False
