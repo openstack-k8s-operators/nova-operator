@@ -18,32 +18,16 @@ package controllers
 
 import (
 	"context"
-	"fmt"
 
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/log"
-
-	"github.com/go-logr/logr"
-	"github.com/openstack-k8s-operators/lib-common/modules/common/configmap"
-	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
-	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
-	labels "github.com/openstack-k8s-operators/lib-common/modules/common/labels"
-	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 
 	novav1beta1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
-
-	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
+	nova_common "github.com/openstack-k8s-operators/nova-operator/common"
 )
 
 // NovaReconciler reconciles a Nova object
 type NovaReconciler struct {
-	client.Client
-	Kclient kubernetes.Interface
-	Log     logr.Logger
-	Scheme  *runtime.Scheme
+	nova_common.ReconcilerBase
 }
 
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=nova,verbs=get;list;watch;create;update;patch;delete
@@ -61,77 +45,7 @@ type NovaReconciler struct {
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.2/pkg/reconcile
 func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	// TODO(user): your logic here
-	instance := &novav1beta1.Nova{}
-	err := r.Client.Get(ctx, req.NamespacedName, instance)
-	if err != nil {
-		if k8s_errors.IsNotFound(err) {
-			// Request object not found, could have been deleted after reconcile request.
-			// Owned objects are automatically garbage collected.
-			// For additional cleanup logic use finalizers. Return and don't requeue.
-			return ctrl.Result{}, nil
-		}
-		// Error reading the object - requeue the request.
-		return ctrl.Result{}, err
-	}
-
-	helper, err := helper.NewHelper(
-		instance,
-		r.Client,
-		r.Kclient,
-		r.Scheme,
-		r.Log,
-	)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-	// ConfigMap
-	configMapVars := make(map[string]env.Setter)
-	err = r.generateServiceConfigMaps(ctx, helper, instance, &configMapVars)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
 	return ctrl.Result{}, nil
-}
-
-func (r *NovaReconciler) generateServiceConfigMaps(
-	ctx context.Context, h *helper.Helper,
-	instance *novav1beta1.Nova, envVars *map[string]env.Setter,
-) error {
-	_ = log.FromContext(ctx)
-	r.Log.Info("Reconciling Service")
-
-	templateParameters := make(map[string]interface{})
-	templateParameters["fqdn"] = "nova.test.example.com"
-	templateParameters["debug"] = true
-
-	cmLabels := labels.GetLabels(instance, labels.GetGroupLabel("nova"), map[string]string{})
-	customData := map[string]string{
-		"test": "42",
-	}
-	additionalTemplates := map[string]string{
-		"01-nova.conf":        "/nova.conf",
-		"02-nova-secret.conf": "/nova-secret.conf",
-	}
-	cms := []util.Template{
-		// ConfigMap
-		{
-			Name:               fmt.Sprintf("%s-config-data", instance.Name),
-			Namespace:          instance.Namespace,
-			Type:               util.TemplateTypeConfig,
-			InstanceType:       instance.Kind,
-			CustomData:         customData,
-			ConfigOptions:      templateParameters,
-			Labels:             cmLabels,
-			Annotations:        map[string]string{},
-			AdditionalTemplate: additionalTemplates,
-		},
-	}
-	err := configmap.EnsureConfigMaps(ctx, h, instance, cms, envVars)
-	if err != nil {
-		return nil
-	}
-
-	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

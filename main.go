@@ -34,6 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	novav1beta1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
+	nova_common "github.com/openstack-k8s-operators/nova-operator/common"
 	"github.com/openstack-k8s-operators/nova-operator/controllers"
 	//+kubebuilder:scaffold:imports
 )
@@ -100,40 +101,59 @@ func main() {
 		setupLog.Error(err, "")
 		os.Exit(1)
 	}
+	// this is pretty repetitive, factor this out?
 	if err = (&controllers.NovaReconciler{
-		Client:  mgr.GetClient(),
-		Scheme:  mgr.GetScheme(),
-		Kclient: kclient,
-		Log:     ctrl.Log.WithName("controllers").WithName("Nova"),
+		ReconcilerBase: nova_common.ReconcilerBase{
+			Client:  mgr.GetClient(),
+			Scheme:  mgr.GetScheme(),
+			Kclient: kclient,
+			Log:     ctrl.Log.WithName("controllers").WithName("Nova"),
+		},
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Nova")
 		os.Exit(1)
 	}
 
 	if err = (&controllers.NovaAPIReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		ReconcilerBase: nova_common.ReconcilerBase{
+			Client:  mgr.GetClient(),
+			Scheme:  mgr.GetScheme(),
+			Kclient: kclient,
+			Log:     ctrl.Log.WithName("controllers").WithName("Nova"),
+		},
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "NovaAPI")
 		os.Exit(1)
 	}
 	if err = (&controllers.NovaSchedulerReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		ReconcilerBase: nova_common.ReconcilerBase{
+			Client:  mgr.GetClient(),
+			Scheme:  mgr.GetScheme(),
+			Kclient: kclient,
+			Log:     ctrl.Log.WithName("controllers").WithName("Nova"),
+		},
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "NovaScheduler")
 		os.Exit(1)
 	}
 	if err = (&controllers.NovaConductorReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		ReconcilerBase: nova_common.ReconcilerBase{
+			Client:  mgr.GetClient(),
+			Scheme:  mgr.GetScheme(),
+			Kclient: kclient,
+			Log:     ctrl.Log.WithName("controllers").WithName("Nova"),
+		},
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "NovaConductor")
 		os.Exit(1)
 	}
 	if err = (&controllers.NovaMetadataReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		ReconcilerBase: nova_common.ReconcilerBase{
+			Client:  mgr.GetClient(),
+			Scheme:  mgr.GetScheme(),
+			Kclient: kclient,
+			Log:     ctrl.Log.WithName("controllers").WithName("Nova"),
+		},
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "NovaMetadata")
 		os.Exit(1)
@@ -146,8 +166,12 @@ func main() {
 		os.Exit(1)
 	}
 	if err = (&controllers.NovaCellReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		ReconcilerBase: nova_common.ReconcilerBase{
+			Client:  mgr.GetClient(),
+			Scheme:  mgr.GetScheme(),
+			Kclient: kclient,
+			Log:     ctrl.Log.WithName("controllers").WithName("Nova"),
+		},
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "NovaNoVNCProxy")
 		os.Exit(1)

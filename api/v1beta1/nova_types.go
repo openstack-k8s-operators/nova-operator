@@ -127,9 +127,8 @@ type NovaStatus struct {
 type Nova struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-
-	Spec   NovaSpec   `json:"spec,omitempty"`
-	Status NovaStatus `json:"status,omitempty"`
+	Spec              NovaSpec   `json:"spec,omitempty"`
+	Status            NovaStatus `json:"status,omitempty"`
 }
 
 //+kubebuilder:object:root=true
