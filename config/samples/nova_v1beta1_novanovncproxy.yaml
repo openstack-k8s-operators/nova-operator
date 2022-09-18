@@ -1,0 +1,6 @@
+apiVersion: nova.openstack.org/v1beta1
+kind: NovaNoVNCProxy
+metadata:
+  name: novanovncproxy-sample
+spec:
+  # TODO(user): Add fields here

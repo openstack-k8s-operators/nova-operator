@@ -86,6 +86,32 @@ rules:
 - apiGroups:
   - nova.openstack.org
   resources:
+  - novanovncproxies
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - nova.openstack.org
+  resources:
+  - novanovncproxies/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - nova.openstack.org
+  resources:
+  - novanovncproxies/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - nova.openstack.org
+  resources:
   - novaschedulers
   verbs:
   - create

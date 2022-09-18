@@ -1,0 +1,24 @@
+# permissions for end users to edit novanovncproxies.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: novanovncproxy-editor-role
+rules:
+- apiGroups:
+  - nova.openstack.org
+  resources:
+  - novanovncproxies
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - nova.openstack.org
+  resources:
+  - novanovncproxies/status
+  verbs:
+  - get
