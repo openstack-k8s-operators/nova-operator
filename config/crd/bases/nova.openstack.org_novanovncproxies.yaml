@@ -35,13 +35,214 @@ spec:
           spec:
             description: NovaNoVNCProxySpec defines the desired state of NovaNoVNCProxy
             properties:
-              foo:
-                description: Foo is an example field of NovaNoVNCProxy. Edit novanovncproxy_types.go
-                  to remove/update
+              cellDatabaseHostname:
+                description: 'NOTE(gibi): This should be Required, see notes in KeystoneAuthURL
+                  CellDatabaseHostname - hostname to use when accessing the cell DB'
                 type: string
+              cellDatabaseUser:
+                default: nova
+                description: CellDatabaseUser - username to use when accessing the
+                  cell DB
+                type: string
+              cellName:
+                description: CellName is the name of the Nova Cell this novncproxy
+                  belongs to.
+                type: string
+              containerImage:
+                description: The service specific Container Image URL
+                type: string
+              customServiceConfig:
+                default: '# add your customization here'
+                description: CustomServiceConfig - customize the service config using
+                  this parameter to change service defaults, or overwrite rendered
+                  information using raw OpenStack config format. The content gets
+                  added to to /etc/<service>/<service>.conf.d directory as custom.conf
+                  file.
+                type: string
+              debug:
+                description: Debug - enable debug for different deploy stages. If
+                  an init container is used, it runs and the actual action pod gets
+                  started with sleep infinity
+                properties:
+                  preserveJobs:
+                    default: false
+                    description: PreserveJobs - do not delete jobs after they finished
+                      e.g. to check logs
+                    type: boolean
+                  stopDBSync:
+                    default: false
+                    description: 'StopDBSync allows stopping the init container before
+                      running db sync to apply the DB schema QUESTION(gibi): Not all
+                      CR will run dbsync, should we have per CR Debug struct or keep
+                      this generic one and ignore fields in the controller that are
+                      not applicable'
+                    type: boolean
+                  stopService:
+                    default: false
+                    description: 'StopService allows stopping the service container
+                      before staring the openstack service binary QUESTION(gibi):
+                      Not all CR will run a service, should we have per CR Debug struct
+                      or keep this generic one and ignore fields in the controller
+                      that are not applicable'
+                    type: boolean
+                type: object
+              defaultConfigOverwrite:
+                additionalProperties:
+                  type: string
+                description: ConfigOverwrite - interface to overwrite default config
+                  files like e.g. logging.conf or policy.json. But can also be used
+                  to add additional files. Those get added to the service config dir
+                  in /etc/<service> .
+                type: object
+              keystoneAuthURL:
+                description: 'KeystoneAuthURL - the URL that the nova-novncproxy service
+                  can use to talk to keystone NOTE(gibi): This is made optional here
+                  to allow reusing the NovaNoVNCProxySpec struct in the Nova CR via
+                  the NovaCell CR where this information is not yet known. We could
+                  make this required via multiple options: a) create a NovaNoVNCProxyTemplate
+                  that duplicates NovaNoVNCProxySpec without this field. Use NovaNoVNCProxyTemplate
+                  in NovaCellSpec. b) do a) but pull out a the fields to a base struct
+                  that are used in both NovaNoVNCPRoxySpec and NovaNoVNCProxyTemplate
+                  c) add a validating webhook here that runs only when NovaNoVNCProxy
+                  CR is created and does not run when Nova CR is created and make
+                  this field required via that webhook.'
+                type: string
+              nodeSelector:
+                additionalProperties:
+                  type: string
+                description: NodeSelector to target subset of worker nodes running
+                  this service
+                type: object
+              passwordSelectors:
+                description: PasswordSelectors - Field names to identify the passwords
+                  from the Secret
+                properties:
+                  apiDatabase:
+                    default: NovaAPIDatabasePassword
+                    description: APIDatabase - the name of the field to get the API
+                      DB password from the Secret
+                    type: string
+                  apiMessageBus:
+                    default: NovaAPIMessageBusPassword
+                    description: APIMessageBus - the name of the field to get the
+                      API message bus password from the Secret
+                    type: string
+                  cellDatabase:
+                    description: CellDatabase - the name of the field to get the Cell
+                      DB password from the Secret
+                    type: string
+                  cellMessageBus:
+                    description: CellMessageBus - the name of the field to get the
+                      API message bus password from the Secret
+                    type: string
+                  service:
+                    default: NovaPassword
+                    description: Service - Selector to get the keystone service user
+                      password from the Secret
+                    type: string
+                type: object
+              replicas:
+                default: 1
+                description: Replicas of the service to run
+                format: int32
+                maximum: 32
+                minimum: 0
+                type: integer
+              resources:
+                description: Resources - Compute Resources required by this service
+                  (Limits/Requests). https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+                properties:
+                  limits:
+                    additionalProperties:
+                      anyOf:
+                      - type: integer
+                      - type: string
+                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                      x-kubernetes-int-or-string: true
+                    description: 'Limits describes the maximum amount of compute resources
+                      allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                    type: object
+                  requests:
+                    additionalProperties:
+                      anyOf:
+                      - type: integer
+                      - type: string
+                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                      x-kubernetes-int-or-string: true
+                    description: 'Requests describes the minimum amount of compute
+                      resources required. If Requests is omitted for a container,
+                      it defaults to Limits if that is explicitly specified, otherwise
+                      to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                    type: object
+                type: object
+              secret:
+                description: Secret is the name of the Secret instance containing
+                  password information for the nova-conductor service.
+                type: string
+              serviceUser:
+                default: nova
+                description: ServiceUser - optional username used for this service
+                  to register in keystone
+                type: string
+            required:
+            - containerImage
             type: object
           status:
             description: NovaNoVNCProxyStatus defines the observed state of NovaNoVNCProxy
+            properties:
+              conditions:
+                description: Conditions
+                items:
+                  description: Condition defines an observation of a API resource
+                    operational state.
+                  properties:
+                    lastTransitionTime:
+                      description: Last time the condition transitioned from one status
+                        to another. This should be when the underlying condition changed.
+                        If that is not known, then using the time when the API field
+                        changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: A human readable message indicating details about
+                        the transition.
+                      type: string
+                    reason:
+                      description: The reason for the condition's last transition
+                        in CamelCase.
+                      type: string
+                    severity:
+                      description: Severity provides a classification of Reason code,
+                        so the current situation is immediately understandable and
+                        could act accordingly. It is meant for situations where Status=False
+                        and it should be indicated if it is just informational, warning
+                        (next reconciliation might fix it) or an error (e.g. DB create
+                        issue and no actions to automatically resolve the issue can/should
+                        be done). For conditions where Status=Unknown or Status=True
+                        the Severity should be SeverityNone.
+                      type: string
+                    status:
+                      description: Status of the condition, one of True, False, Unknown.
+                      type: string
+                    type:
+                      description: Type of condition in CamelCase.
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - status
+                  - type
+                  type: object
+                type: array
+              hash:
+                additionalProperties:
+                  type: string
+                description: Map of hashes to track e.g. job status
+                type: object
+              readyCount:
+                description: ReadyCount defines the number of replicas ready from
+                  nova-novncproxy
+                format: int32
+                type: integer
             type: object
         type: object
     served: true
