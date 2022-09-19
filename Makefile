@@ -63,6 +63,8 @@ endif
 SHELL = /usr/bin/env bash -o pipefail
 .SHELLFLAGS = -ec
 
+BUILD_HASH = "main.gitBuildHash=$(shell git describe --always --dirty 2>/dev/null || echo "<failed to generate>")"
+
 .PHONY: all
 all: build
 
@@ -109,11 +111,11 @@ test: manifests generate fmt vet envtest ## Run tests.
 
 .PHONY: build
 build: generate fmt vet ## Build manager binary.
-	go build -o bin/manager main.go
+	go build -ldflags "-X $(BUILD_HASH)" -o bin/manager main.go
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
-	go run ./main.go
+	go run -ldflags "-X $(BUILD_HASH)" ./main.go
 
 .PHONY: docker-build
 docker-build: test ## Build docker image with the manager.
