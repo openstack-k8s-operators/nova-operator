@@ -20,17 +20,26 @@ import (
 	"context"
 
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	novav1beta1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
+	"github.com/go-logr/logr"
+	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
+	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
+
+	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
+
+	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 // NovaAPIReconciler reconciles a NovaAPI object
 type NovaAPIReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Kclient kubernetes.Interface
+	Scheme  *runtime.Scheme
+	Log     logr.Logger
 }
 
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=novaapis,verbs=get;list;watch;create;update;patch;delete
@@ -47,9 +56,37 @@ type NovaAPIReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.2/pkg/reconcile
 func (r *NovaAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = log.FromContext(ctx)
+	l := log.FromContext(ctx)
+	l.Info("Reconciling ", "request", req)
 
-	// TODO(user): your logic here
+	// Fetch the NovaAPI instance that needs to be reconciled
+	instance := &novav1.NovaAPI{}
+	err := r.Client.Get(ctx, req.NamespacedName, instance)
+	if err != nil {
+		if k8s_errors.IsNotFound(err) {
+			// Request object not found, could have been deleted after reconcile request.
+			// Owned objects are automatically garbage collected.
+			// For additional cleanup logic use finalizers. Return and don't requeue.
+			l.Info("NovaAPI instance not found, probably deleted before reconciled. Nothing to do.", "request", req)
+			return ctrl.Result{}, nil
+		}
+		// Error reading the object - requeue the request.
+		l.Error(err, "Failed to read the NovaAPI instance. Requeuing", "request", req)
+		return ctrl.Result{}, err
+	}
+
+	helper, err := helper.NewHelper(
+		instance,
+		r.Client,
+		r.Kclient,
+		r.Scheme,
+		r.Log,
+	)
+	if err != nil {
+		l.Error(err, "Failed to create lib-common Helper", "request", req)
+		return ctrl.Result{}, err
+	}
+	util.LogForObject(helper, "Reconciling", instance)
 
 	return ctrl.Result{}, nil
 }
@@ -57,6 +94,6 @@ func (r *NovaAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 // SetupWithManager sets up the controller with the Manager.
 func (r *NovaAPIReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&novav1beta1.NovaAPI{}).
+		For(&novav1.NovaAPI{}).
 		Complete(r)
 }
