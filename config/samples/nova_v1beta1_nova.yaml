@@ -1,6 +1,70 @@
 apiVersion: nova.openstack.org/v1beta1
 kind: Nova
 metadata:
-  name: nova-sample
+  name: nova-minimal-example
 spec:
-  # TODO(user): Add fields here
+  apiDBSelector:
+    cr: mariadb-openstack
+  apiMessageBusSelector:
+    app.kubernetes.io/component: rabbitmq
+    app.kubernetes.io/name: default-security-context
+  keystoneServiceSelector:
+    service: keystone
+    internal: "true"
+  secret: osp-secret
+  apiServiceTemplate:
+    secret: osp-secret
+    containerImage: quay.io/tripleowallabycentos9/openstack-nova-api:current-tripleo
+  schedulerServiceTemplate:
+    secret: osp-secret
+    containerImage: quay.io/tripleowallabycentos9/openstack-nova-scheduler:current-tripleo
+  metadataServiceTemplate:
+    cellName: null
+    secret: osp-secret
+    customServiceConfig: >
+      # service config customization
+      [DEFAULT]
+      debug=True
+      [api]
+      # make sure this is in sync with the fact that this nova-metadata
+      # service is expected to run on the top level
+      local_metadata_per_cell = False
+    # TODO: what is the name of the container for metadata?
+    containerImage: quay.io/tripleowallabycentos9/openstack-nova-metadata-api:current-tripleo
+  cellTemplates:
+    cell0:
+      cellName: cell0
+      secret: osp-secret
+      passwordSelectors:
+        cellDatabase: NovaCell0DatabasePassword
+        cellMessageBus: NovaCell0MessageBusPassword
+      conductorServiceTemplate:
+        cellName: cell0
+        passwordSelectors:
+          cellDatabase: NovaCell0DatabasePassword
+          cellMessageBus: NovaCell0MessageBusPassword
+        containerImage: quay.io/tripleowallabycentos9/openstack-nova-conductor:current-tripleo
+      # we never need a metadata service in cell0 as there are no computes there
+      metadataServiceTemplate: null
+      # we never need novncproxy service in cell0
+      noVNCProxyServiceTemplate: null
+    cell1:
+      cellName: cell1
+      secret: osp-secret
+      passwordSelectors:
+        cellDatabase: NovaCell1DatabasePassword
+        cellMessageBus: NovaCell1MessageBusPassword
+      conductorServiceTemplate:
+        cellName: cell1
+        secret: osp-secret
+        passwordSelectors:
+          cellDatabase: NovaCell1DatabasePassword
+          cellMessageBus: NovaCell1MessageBusPassword
+        containerImage: quay.io/tripleowallabycentos9/openstack-nova-conductor:current-tripleo
+      metadataServiceTemplate: null
+      noVNCProxyServiceTemplate:
+        CellName: cell1
+        secret: osp-secret
+        passwordSelectors:
+          cellDatabase: NovaCell1DatabasePassword
+        containerImage: quay.io/tripleowallabycentos9/openstack-nova-novncproxy:current-tripleo
