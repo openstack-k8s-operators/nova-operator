@@ -17,7 +17,9 @@ limitations under the License.
 package controllers
 
 import (
+	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 
 	. "github.com/onsi/ginkgo"
@@ -54,7 +56,13 @@ var _ = BeforeSuite(func() {
 	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
 
 	By("bootstrapping test environment")
+	useExisting := false
+	val, found := os.LookupEnv("USE_EXISTING_CLUSTER")
+	if found {
+		useExisting, _ = strconv.ParseBool(val)
+	}
 	testEnv = &envtest.Environment{
+		UseExistingCluster:    &useExisting,
 		CRDDirectoryPaths:     []string{filepath.Join("..", "config", "crd", "bases")},
 		ErrorIfCRDPathMissing: true,
 	}
