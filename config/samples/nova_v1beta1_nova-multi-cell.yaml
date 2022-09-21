@@ -38,20 +38,13 @@ spec:
     stopService: False
     preserveJob: False
   apiServiceTemplate:
-    secret: osp-secret
-    passwordSelectors:
-      service: NovaPassword
-      apiDatabase: NovaAPIDatabasePassword
-      apiMessageBus: NovaAPIMessageBusPassword
-    serviceUser: nova
-    apiDatabaseUser: nova
-    apiMessageBusUser: nova
-    customServiceConfig: >
+    #NOTE(gibi): secret with users is automatically passed by Nova CR
+    customServiceConfig: |
       # service config customization
       debug=True
     defaultConfigOverwrite:
-      policy.yaml: >
-        # my custom policy
+      logging.conf: |
+        # my custom logging configuration
     containerImage: quay.io/tripleowallabycentos9/openstack-nova-api:current-tripleo
     replicate: 3
     nodeSelector: {}
@@ -62,10 +55,6 @@ spec:
       requests:
         cpu: 10m
         memory: 64Mi
-    debug:
-      stopDBSync: False
-      stopService: False
-      preserveJob: False
   schedulerServiceTemplate:
     secret: osp-secret
     passwordSelectors:
@@ -75,11 +64,11 @@ spec:
     serviceUser: nova
     apiDatabaseUser: nova
     apiMessageBusUser: nova
-    customServiceConfig: >
+    customServiceConfig: |
       # service config customization
       debug=True
     defaultConfigOverwrite:
-      policy.yaml: >
+      policy.yaml: |
         # my custom policy
     containerImage: quay.io/tripleowallabycentos9/openstack-nova-scheduler:current-tripleo
     replicate: 3
@@ -111,7 +100,7 @@ spec:
     serviceUser: nova
     apiDatabaseUser: nova
     cellDatabaseUser: null
-    customServiceConfig: >
+    customServiceConfig: |
       # service config customization
       [DEFAULT]
       debug=True
@@ -120,7 +109,7 @@ spec:
       # service is expected to run on the top level
       local_metadata_per_cell = False
     defaultConfigOverwrite:
-      logging.conf: >
+      logging.conf: |
         # my custom logging configuration
     # TODO: what is the name of the container for metadata?
     containerImage: quay.io/tripleowallabycentos9/openstack-nova-metadata-api:current-tripleo
@@ -169,12 +158,12 @@ spec:
         apiMessageBusUser: nova
         cellDatabaseUser: nova
         cellMessageBusUser: nova
-        customServiceConfig: >
+        customServiceConfig: |
           # service config customization
           [DEFAULT]
           debug=True
         defaultConfigOverwrite:
-          logging.conf: >
+          logging.conf: |
           # my custom logging configuration
         containerImage: quay.io/tripleowallabycentos9/openstack-nova-conductor:current-tripleo
         replicate: 3
@@ -224,12 +213,12 @@ spec:
         apiMessageBusUser: nova
         cellDatabaseUser: nova
         cellMessageBusUser: nova
-        customServiceConfig: >
+        customServiceConfig: |
           # service config customization
           [DEFAULT]
           debug=True
         defaultConfigOverwrite:
-          logging.conf: >
+          logging.conf: |
           # my custom logging configuration
         containerImage: quay.io/tripleowallabycentos9/openstack-nova-conductor:current-tripleo
         replicate: 3
@@ -262,12 +251,12 @@ spec:
         apiMessageBusUser: null
         cellDatabaseUser: nova
         cellMessageBusUser: null
-        customServiceConfig: >
+        customServiceConfig: |
           # service config customization
           [DEFAULT]
           debug=True
         defaultConfigOverwrite:
-          logging.conf: >
+          logging.conf: |
           # my custom logging configuration
         containerImage: quay.io/tripleowallabycentos9/openstack-nova-novncproxy:current-tripleo
         replicate: 3
@@ -312,12 +301,12 @@ spec:
         apiMessageBusUser: null
         cellDatabaseUser: nova
         cellMessageBusUser: nova
-        customServiceConfig: >
+        customServiceConfig: |
           # service config customization
           [DEFAULT]
           debug=True
         defaultConfigOverwrite:
-          logging.conf: >
+          logging.conf: |
           # my custom logging configuration
         containerImage: quay.io/tripleowallabycentos9/openstack-nova-conductor:current-tripleo
         replicate: 3
@@ -345,7 +334,7 @@ spec:
         serviceUser: nova
         apiDatabaseUser: null
         cellDatabaseUser: nova
-        customServiceConfig: >
+        customServiceConfig: |
           # service config customization
           [DEFAULT]
           debug=True
@@ -354,7 +343,7 @@ spec:
           # service is expected to run on the cell level
           local_metadata_per_cell = True
         defaultConfigOverwrite:
-          logging.conf: >
+          logging.conf: |
             # my custom logging configuration
         # TODO: what is the name of the container for metadata?
         containerImage: quay.io/tripleowallabycentos9/openstack-nova-metadata-api:current-tripleo
@@ -387,12 +376,12 @@ spec:
         apiMessageBusUser: null
         cellDatabaseUser: nova
         cellMessageBusUser: null
-        customServiceConfig: >
+        customServiceConfig: |
           # service config customization
           [DEFAULT]
           debug=True
         defaultConfigOverwrite:
-          logging.conf: >
+          logging.conf: |
           # my custom logging configuration
         containerImage: quay.io/tripleowallabycentos9/openstack-nova-novncproxy:current-tripleo
         replicate: 3

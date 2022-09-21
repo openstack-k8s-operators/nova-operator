@@ -19,11 +19,52 @@ package v1beta1
 import (
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
+
+// NovaAPITemplate defines the input parameters specified by the user to
+// create a NovaAPI via higher level CRDs.
+// NOTE(gibi): NovaAPITemplate has the same structure than NovaServiceBase BUT
+// we want to default ContainerImage for the template, therefore the structs
+// are duplicated.
+type NovaAPITemplate struct {
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default="quay.io/tripleowallabycentos9/openstack-nova-api:current-tripleo"
+	// The service specific Container Image URL
+	ContainerImage string `json:"containerImage"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=1
+	// +kubebuilder:validation:Maximum=32
+	// +kubebuilder:validation:Minimum=0
+	// Replicas of the service to run
+	Replicas int32 `json:"replicas"`
+
+	// +kubebuilder:validation:Optional
+	// NodeSelector to target subset of worker nodes running this service
+	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default="# add your customization here"
+	// CustomServiceConfig - customize the service config using this parameter to change service defaults,
+	// or overwrite rendered information using raw OpenStack config format. The content gets added to
+	// to /etc/<service>/<service>.conf.d directory as custom.conf file.
+	CustomServiceConfig string `json:"customServiceConfig,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// ConfigOverwrite - interface to overwrite default config files like e.g. logging.conf
+	// But can also be used to add additional files. Those get added to the service config dir in /etc/<service> .
+	DefaultConfigOverwrite map[string]string `json:"defaultConfigOverwrite,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// Resources - Compute Resources required by this service (Limits/Requests).
+	// https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
+}
 
 // NovaAPISpec defines the desired state of NovaAPI
 type NovaAPISpec struct {
@@ -46,21 +87,7 @@ type NovaAPISpec struct {
 	// keystone
 	ServiceUser string `json:"serviceUser"`
 
-	// +kubebuilder:validation:Optional
-	// KeystoneAuthURL - the URL that the nova-api service can use to talk to
-	// keystone
-	// NOTE(gibi): This is made optional here to allow reusing the NovaAPISpec
-	// struct in the Nova CR for the apiServiceTemplate field where this
-	// information is not yet known. We could make this required via multiple
-	// options:
-	// a) create a NovaAPITemplate that duplicates NovaAPISpec without this
-	//    field. Use NovaAPITemplate as type for apiServiceTemplate in
-	//    NovaSpec.
-	// b) do a) but pull out a the fields to a base struct that are used in
-	//    both NovaAPISpec and NovaAPITemplate
-	// c) add a validating webhook here that runs only when NovaAPI CR is
-	//    created and does not run when Nova CR is created and make this field
-	//    required via that webhook.
+	// +kubebuilder:validation:Required
 	KeystoneAuthURL string `json:"keystoneAuthURL"`
 
 	// +kubebuilder:validation:Optional
@@ -68,8 +95,7 @@ type NovaAPISpec struct {
 	// APIDatabaseUser - username to use when accessing the API DB
 	APIDatabaseUser string `json:"apiDatabaseUser"`
 
-	// +kubebuilder:validation:Optional
-	// NOTE(gibi): This should be Required, see notes in KeystoneAuthURL
+	// +kubebuilder:validation:Required
 	// APIDatabaseHostname - hostname to use when accessing the API DB
 	APIDatabaseHostname string `json:"apiDatabaseHostname"`
 
@@ -78,8 +104,7 @@ type NovaAPISpec struct {
 	// APIMessageBusUser - username to use when accessing the API message bus
 	APIMessageBusUser string `json:"apiMessageBusUser"`
 
-	// +kubebuilder:validation:Optional
-	// NOTE(gibi): This should be Required, see notes in KeystoneAuthURL
+	// +kubebuilder:validation:Required
 	// APIMessageBusHostname - hostname to use when accessing the API message
 	// bus
 	APIMessageBusHostname string `json:"apiMessageBusHostname"`
