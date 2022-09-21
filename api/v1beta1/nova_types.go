@@ -83,9 +83,10 @@ type NovaSpec struct {
 	// infinity
 	Debug Debug `json:"debug,omitempty"`
 
-	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default={}
 	// APIServiceTemplate - define the nova-api service
-	APIServiceTemplate NovaAPISpec `json:"apiServiceTemplate"`
+	APIServiceTemplate NovaAPITemplate `json:"apiServiceTemplate"`
 
 	// +kubebuilder:validation:Required
 	// SchedulerServiceTemplate- define the nova-scheduler service
