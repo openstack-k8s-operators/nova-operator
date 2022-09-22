@@ -3,22 +3,16 @@ kind: Nova
 metadata:
   name: nova-multi-cell-sample
 spec:
-  apiDBSelector:
-    # This is how we point to the single global DB Service object today
-    cr: mariadb-openstack
-    # The lib-common query adds
-    #   app: mariadb
-    # to the labels selector when querying the Service
-  apiMessageBusSelector:
-    # This is how the current RabbitMqCluster operator labels the
-    # Service instance it creates.
-    app.kubernetes.io/component: rabbitmq
-    app.kubernetes.io/name: default-security-context
-  keystoneServiceSelector:
-    # This is how the current keystone operator labels the Service instances
-    # it creates.
-    service: keystone
-    internal: "true"
+  # This is the name of the single MariaDB CR we deploy today
+  # The Service is labelled with app=mariadb,cr=mariadb-<MariaDB.Name>
+  apiDatabaseInstnace: openstack
+  # This is the name of the single RabbitMqCluster CR we deploy today
+  # The Service is labelled with
+  # app.kubernetes.io/component=rabbitmq, app.kubernetes.io/name=<RabbitMqCluster.Name>
+  apiMessageBusInstance: default-security-context
+  # This is the name of the KeystoneAPI CR we deploy today
+  # The Service is labelled with service=keystone,internal=true
+  keystoneInstance: keystone
   # This is the name of a Secret having fields according to the
   # passwordSelectors directly below and the passwordSelectors in each
   # NovaCellSpec instances

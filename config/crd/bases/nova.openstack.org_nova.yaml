@@ -35,26 +35,20 @@ spec:
           spec:
             description: NovaSpec defines the desired state of Nova
             properties:
-              apiDBSelector:
-                additionalProperties:
-                  type: string
-                description: APIDBSelector to select the DB Service instance used
-                  for the Nova API DB. If not provided the the default DB Service
-                  of the deployment will be used for the Nova API DB.
-                type: object
+              apiDatabaseInstance:
+                description: APIDatabaseInstance is the name of the MariaDB CR to
+                  select the DB Service instance used for the Nova API DB.
+                type: string
               apiDatabaseUser:
                 default: nova
                 description: APIDatabaseUser - username to use when accessing the
                   API DB
                 type: string
-              apiMessageBusSelector:
-                additionalProperties:
-                  type: string
-                description: APIMessageBusSelector to select the Message Bus Service
-                  instance used by the Nova top level services to communicate. If
-                  not provided then the deployment's default Message Bus instance
-                  will be used.
-                type: object
+              apiMessageBusInstance:
+                description: APIMessageBusInstance is the name of the RabbitMqCluster
+                  CR to select the Message Bus Service instance used by the Nova top
+                  level services to communicate.
+                type: string
               apiMessageBusUser:
                 default: nova
                 description: APIMessageBusUser - username to use when accessing the
@@ -926,12 +920,10 @@ spec:
                       that are not applicable'
                     type: boolean
                 type: object
-              keystoneServiceSelector:
-                additionalProperties:
-                  type: string
-                description: KeystoneServiceSelector to select the Keystone Service
-                  instance used by the Nova services to authenticate.
-                type: object
+              keystoneInstance:
+                description: KeystoneInstance to name of the KeystoneAPI CR to select
+                  the Service instance used by the Nova services to authenticate.
+                type: string
               metadataServiceTemplate:
                 description: MetadataServiceTemplate - defines the metadata service
                   that is global for the deployment serving all the cells.

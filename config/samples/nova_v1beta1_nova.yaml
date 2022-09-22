@@ -3,14 +3,9 @@ kind: Nova
 metadata:
   name: nova-minimal-example
 spec:
-  apiDBSelector:
-    cr: mariadb-openstack
-  apiMessageBusSelector:
-    app.kubernetes.io/component: rabbitmq
-    app.kubernetes.io/name: default-security-context
-  keystoneServiceSelector:
-    service: keystone
-    internal: "true"
+  apiDatabaseInstnace: openstack
+  apiMessageBusInstance: default-security-context
+  keystoneInstance: keystone
   secret: osp-secret
   apiServiceTemplate:
     secret: osp-secret
