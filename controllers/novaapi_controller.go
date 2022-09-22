@@ -26,6 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/go-logr/logr"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 
@@ -75,7 +76,7 @@ func (r *NovaAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, err
 	}
 
-	helper, err := helper.NewHelper(
+	h, err := helper.NewHelper(
 		instance,
 		r.Client,
 		r.Kclient,
@@ -86,9 +87,40 @@ func (r *NovaAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		l.Error(err, "Failed to create lib-common Helper", "request", req)
 		return ctrl.Result{}, err
 	}
-	util.LogForObject(helper, "Reconciling", instance)
+	util.LogForObject(h, "Reconciling", instance)
+
+	// initialize status fields
+	if err = r.initConditions(ctx, h, instance); err != nil {
+		return ctrl.Result{}, err
+	}
+	// TODO(gibi): Init the rest of the status fields here
 
 	return ctrl.Result{}, nil
+}
+
+func (r *NovaAPIReconciler) initConditions(
+	ctx context.Context, h *helper.Helper, instance *novav1.NovaAPI,
+) error {
+	if instance.Status.Conditions == nil {
+		instance.Status.Conditions = condition.Conditions{}
+		// initialize all conditions to Unknown
+		cl := condition.CreateList(
+		// TODO(gibi): Initilaize each condition the controller reports
+		// here to Unknown. By default only the top level Ready condition is
+		// created by Conditions.Init()
+		)
+
+		instance.Status.Conditions.Init(&cl)
+
+		// Register overall status immediately to have an early feedback e.g.
+		// in the cli
+		if err := r.Status().Update(ctx, instance); err != nil {
+			util.LogErrorForObject(
+				h, err, "Failed to initialize Conditions", instance)
+			return err
+		}
+	}
+	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
