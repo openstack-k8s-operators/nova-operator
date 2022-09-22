@@ -58,8 +58,8 @@ spec:
                   API message bus
                 type: string
               cellDatabaseHostname:
-                description: 'NOTE(gibi): This should be Required, see notes in KeystoneAuthURL
-                  CellDatabaseHostname - hostname to use when accessing the cell DB'
+                description: CellDatabaseHostname - hostname to use when accessing
+                  the cell DB
                 type: string
               cellDatabaseUser:
                 default: nova
@@ -67,9 +67,8 @@ spec:
                   cell DB
                 type: string
               cellMessageBusHostname:
-                description: 'NOTE(gibi): This should be Required, see notes in KeystoneAuthURL
-                  CellMessageBusHostname - hostname to use when accessing the cell
-                  message bus'
+                description: CellMessageBusHostname - hostname to use when accessing
+                  the cell message bus
                 type: string
               cellMessageBusUser:
                 default: nova
@@ -86,53 +85,8 @@ spec:
                 description: ConductorServiceTemplate - defines the cell conductor
                   deployment for the cell
                 properties:
-                  apiDatabaseHostname:
-                    description: 'APIDatabaseHostname - hostname to use when accessing
-                      the API DB. If not provided then upcalls will be disabled. This
-                      filed is Required for cell0. TODO(gibi): Add a webhook to validate
-                      cell0 constraint'
-                    type: string
-                  apiDatabaseUser:
-                    default: nova
-                    description: APIDatabaseUser - username to use when accessing
-                      the API DB
-                    type: string
-                  apiMessageBusHostname:
-                    description: 'APIMessageBusHostname - hostname to use when accessing
-                      the API message bus. If not provided then upcalls will be disabled.
-                      This filed is Required for cell0. TODO(gibi): Add a webhook
-                      to validate cell0 constraint.'
-                    type: string
-                  apiMessageBusUser:
-                    default: nova
-                    description: APIMessageBusUser - username to use when accessing
-                      the API message bus
-                    type: string
-                  cellDatabaseHostname:
-                    description: 'NOTE(gibi): This should be Required, see notes in
-                      KeystoneAuthURL CellDatabaseHostname - hostname to use when
-                      accessing the cell DB'
-                    type: string
-                  cellDatabaseUser:
-                    default: nova
-                    description: CellDatabaseUser - username to use when accessing
-                      the cell DB
-                    type: string
-                  cellMessageBusHostname:
-                    description: 'NOTE(gibi): This should be Required, see notes in
-                      KeystoneAuthURL CellMessageBusHostname - hostname to use when
-                      accessing the cell message bus'
-                    type: string
-                  cellMessageBusUser:
-                    default: nova
-                    description: CellMessageBusUser - username to use when accessing
-                      the cell message bus
-                    type: string
-                  cellName:
-                    description: CellName is the name of the Nova Cell this conductor
-                      belongs to.
-                    type: string
                   containerImage:
+                    default: quay.io/tripleowallabycentos9/openstack-nova-conductor:current-tripleo
                     description: The service specific Container Image URL
                     type: string
                   customServiceConfig:
@@ -143,88 +97,19 @@ spec:
                       content gets added to to /etc/<service>/<service>.conf.d directory
                       as custom.conf file.
                     type: string
-                  debug:
-                    description: Debug - enable debug for different deploy stages.
-                      If an init container is used, it runs and the actual action
-                      pod gets started with sleep infinity
-                    properties:
-                      preserveJobs:
-                        default: false
-                        description: PreserveJobs - do not delete jobs after they
-                          finished e.g. to check logs
-                        type: boolean
-                      stopDBSync:
-                        default: false
-                        description: 'StopDBSync allows stopping the init container
-                          before running db sync to apply the DB schema QUESTION(gibi):
-                          Not all CR will run dbsync, should we have per CR Debug
-                          struct or keep this generic one and ignore fields in the
-                          controller that are not applicable'
-                        type: boolean
-                      stopService:
-                        default: false
-                        description: 'StopService allows stopping the service container
-                          before staring the openstack service binary QUESTION(gibi):
-                          Not all CR will run a service, should we have per CR Debug
-                          struct or keep this generic one and ignore fields in the
-                          controller that are not applicable'
-                        type: boolean
-                    type: object
                   defaultConfigOverwrite:
                     additionalProperties:
                       type: string
                     description: ConfigOverwrite - interface to overwrite default
-                      config files like e.g. logging.conf or policy.json. But can
-                      also be used to add additional files. Those get added to the
-                      service config dir in /etc/<service> .
+                      config files like e.g. logging.conf But can also be used to
+                      add additional files. Those get added to the service config
+                      dir in /etc/<service> .
                     type: object
-                  keystoneAuthURL:
-                    description: 'KeystoneAuthURL - the URL that the nova-conductor
-                      service can use to talk to keystone NOTE(gibi): This is made
-                      optional here to allow reusing the NovaConductorSpec struct
-                      in the Nova CR via the NovaCell CR where this information is
-                      not yet known. We could make this required via multiple options:
-                      a) create a NovaConductorTemplate that duplicates NovaConductorSpec
-                      without this field. Use NovaCondcutorTemplate in NovaCellSpec.
-                      b) do a) but pull out a the fields to a base struct that are
-                      used in both NovaConductorSpec and NovaCondcutorTemplate c)
-                      add a validating webhook here that runs only when NovaConductor
-                      CR is created and does not run when Nova CR is created and make
-                      this field required via that webhook.'
-                    type: string
                   nodeSelector:
                     additionalProperties:
                       type: string
                     description: NodeSelector to target subset of worker nodes running
                       this service
-                    type: object
-                  passwordSelectors:
-                    description: PasswordSelectors - Field names to identify the passwords
-                      from the Secret
-                    properties:
-                      apiDatabase:
-                        default: NovaAPIDatabasePassword
-                        description: APIDatabase - the name of the field to get the
-                          API DB password from the Secret
-                        type: string
-                      apiMessageBus:
-                        default: NovaAPIMessageBusPassword
-                        description: APIMessageBus - the name of the field to get
-                          the API message bus password from the Secret
-                        type: string
-                      cellDatabase:
-                        description: CellDatabase - the name of the field to get the
-                          Cell DB password from the Secret
-                        type: string
-                      cellMessageBus:
-                        description: CellMessageBus - the name of the field to get
-                          the API message bus password from the Secret
-                        type: string
-                      service:
-                        default: NovaPassword
-                        description: Service - Selector to get the keystone service
-                          user password from the Secret
-                        type: string
                     type: object
                   replicas:
                     default: 1
@@ -260,17 +145,6 @@ spec:
                           to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
                         type: object
                     type: object
-                  secret:
-                    description: Secret is the name of the Secret instance containing
-                      password information for the nova-conductor service.
-                    type: string
-                  serviceUser:
-                    default: nova
-                    description: ServiceUser - optional username used for this service
-                      to register in keystone
-                    type: string
-                required:
-                - containerImage
                 type: object
               debug:
                 description: Debug - enable debug for different deploy stages. If
@@ -300,61 +174,15 @@ spec:
                     type: boolean
                 type: object
               keystoneAuthURL:
-                description: 'KeystoneAuthURL - the URL that the service in the cell
-                  can use to talk to keystone NOTE(gibi): This is made optional here
-                  to allow reusing the NovaCellSpec struct in the Nova CR for the
-                  cellTemplates field where this information is not yet known. We
-                  could make this required via multiple options: a) create a NovaCellTemplate
-                  that duplicates NovaCellSpec without this field. Use NovaCellTemplate
-                  as type for cellTemplates in NovaSpec. b) do a) but pull out a the
-                  fields to a base struct that are used in both NovaCellSpec and NovaCellTemplate
-                  c) add a validating webhook here that runs only when NovaCell CR
-                  is created and does not run when Nova CR is created and make this
-                  field required via that webhook.'
+                description: KeystoneAuthURL - the URL that the service in the cell
+                  can use to talk to keystone
                 type: string
               metadataServiceTemplate:
                 description: MetadataServiceTemplate - defines the metadata serive
                   dedicated for the cell.
                 properties:
-                  apiDatabaseHostname:
-                    description: 'APIDatabaseHostname - hostname to use when accessing
-                      the API DB. This filed is Required if the CellName is not provided
-                      TODO(gibi): Add a webhook to validate the CellName constraint'
-                    type: string
-                  apiDatabaseUser:
-                    default: nova
-                    description: APIDatabaseUser - username to use when accessing
-                      the API DB
-                    type: string
-                  cellDatabaseHostname:
-                    description: 'This is unused if CellName is not provided. But
-                      if it is provided then CellDatabaseHostName is also Required.
-                      TODO(gibi): add webhook to validate this CellName constraint
-                      CellDatabaseHostname - hostname to use when accessing the cell
-                      DB'
-                    type: string
-                  cellDatabaseUser:
-                    default: nova
-                    description: CellDatabaseUser - username to use when accessing
-                      the cell DB
-                    type: string
-                  cellMessageBusHostname:
-                    description: 'This is unused if CellName is not provided. But
-                      if it is provided then CellMessageBusHostname is required. TODO(gibi):
-                      add webhook to validate this CellName constraint CellMessageBusHostname
-                      - hostname to use when accessing the cell message bus'
-                    type: string
-                  cellMessageBusUser:
-                    default: nova
-                    description: CellMessageBusUser - username to use when accessing
-                      the cell message bus
-                    type: string
-                  cellName:
-                    description: CellName is the name of the Nova Cell this metadata
-                      service belongs to. If not provided then the metadata serving
-                      every cells in the deployment
-                    type: string
                   containerImage:
+                    default: quay.io/tripleowallabycentos9/openstack-nova-metadata:current-tripleo
                     description: The service specific Container Image URL
                     type: string
                   customServiceConfig:
@@ -365,89 +193,19 @@ spec:
                       content gets added to to /etc/<service>/<service>.conf.d directory
                       as custom.conf file.
                     type: string
-                  debug:
-                    description: Debug - enable debug for different deploy stages.
-                      If an init container is used, it runs and the actual action
-                      pod gets started with sleep infinity
-                    properties:
-                      preserveJobs:
-                        default: false
-                        description: PreserveJobs - do not delete jobs after they
-                          finished e.g. to check logs
-                        type: boolean
-                      stopDBSync:
-                        default: false
-                        description: 'StopDBSync allows stopping the init container
-                          before running db sync to apply the DB schema QUESTION(gibi):
-                          Not all CR will run dbsync, should we have per CR Debug
-                          struct or keep this generic one and ignore fields in the
-                          controller that are not applicable'
-                        type: boolean
-                      stopService:
-                        default: false
-                        description: 'StopService allows stopping the service container
-                          before staring the openstack service binary QUESTION(gibi):
-                          Not all CR will run a service, should we have per CR Debug
-                          struct or keep this generic one and ignore fields in the
-                          controller that are not applicable'
-                        type: boolean
-                    type: object
                   defaultConfigOverwrite:
                     additionalProperties:
                       type: string
                     description: ConfigOverwrite - interface to overwrite default
-                      config files like e.g. logging.conf or policy.json. But can
-                      also be used to add additional files. Those get added to the
-                      service config dir in /etc/<service> .
+                      config files like e.g. logging.conf But can also be used to
+                      add additional files. Those get added to the service config
+                      dir in /etc/<service> .
                     type: object
-                  keystoneAuthURL:
-                    description: 'KeystoneAuthURL - the URL that the nova-metadata
-                      service can use to talk to keystone NOTE(gibi): This is made
-                      optional here to allow reusing the NovaMetadataSpec struct in
-                      the Nova CR for the metadataServiceTemplate field where this
-                      information is not yet known. We could make this required via
-                      multiple options: a) create a NovaMetadataTemplate that duplicates
-                      NovaMetadataSpec without this field. Use NovaMetadataTemplate
-                      as type for metadataServiceTemplate in NovaSpec. b) do a) but
-                      pull out a the fields to a base struct that are used in both
-                      NovaMetadataSpec and NovaMetadataTemplate c) add a validating
-                      webhook here that runs only when NovaMetadata CR is created
-                      and does not run when Nova CR is created and make this field
-                      required via that webhook.'
-                    type: string
                   nodeSelector:
                     additionalProperties:
                       type: string
                     description: NodeSelector to target subset of worker nodes running
                       this service
-                    type: object
-                  passwordSelectors:
-                    description: PasswordSelectors - Field names to identify the passwords
-                      from the Secret
-                    properties:
-                      apiDatabase:
-                        default: NovaAPIDatabasePassword
-                        description: APIDatabase - the name of the field to get the
-                          API DB password from the Secret
-                        type: string
-                      apiMessageBus:
-                        default: NovaAPIMessageBusPassword
-                        description: APIMessageBus - the name of the field to get
-                          the API message bus password from the Secret
-                        type: string
-                      cellDatabase:
-                        description: CellDatabase - the name of the field to get the
-                          Cell DB password from the Secret
-                        type: string
-                      cellMessageBus:
-                        description: CellMessageBus - the name of the field to get
-                          the API message bus password from the Secret
-                        type: string
-                      service:
-                        default: NovaPassword
-                        description: Service - Selector to get the keystone service
-                          user password from the Secret
-                        type: string
                     type: object
                   replicas:
                     default: 1
@@ -483,37 +241,13 @@ spec:
                           to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
                         type: object
                     type: object
-                  secret:
-                    description: Secret is the name of the Secret instance containing
-                      password information for the nova-conductor service.
-                    type: string
-                  serviceUser:
-                    default: nova
-                    description: ServiceUser - optional username used for this service
-                      to register in keystone
-                    type: string
-                required:
-                - containerImage
                 type: object
               noVNCProxyServiceTemplate:
-                description: NoVNCProxyServiceTemplate - defines the novvncproxy serive
+                description: NoVNCProxyServiceTemplate - defines the novvncproxy service
                   dedicated for the cell.
                 properties:
-                  cellDatabaseHostname:
-                    description: 'NOTE(gibi): This should be Required, see notes in
-                      KeystoneAuthURL CellDatabaseHostname - hostname to use when
-                      accessing the cell DB'
-                    type: string
-                  cellDatabaseUser:
-                    default: nova
-                    description: CellDatabaseUser - username to use when accessing
-                      the cell DB
-                    type: string
-                  cellName:
-                    description: CellName is the name of the Nova Cell this novncproxy
-                      belongs to.
-                    type: string
                   containerImage:
+                    default: quay.io/tripleowallabycentos9/openstack-nova-novncproxy:current-tripleo
                     description: The service specific Container Image URL
                     type: string
                   customServiceConfig:
@@ -524,88 +258,19 @@ spec:
                       content gets added to to /etc/<service>/<service>.conf.d directory
                       as custom.conf file.
                     type: string
-                  debug:
-                    description: Debug - enable debug for different deploy stages.
-                      If an init container is used, it runs and the actual action
-                      pod gets started with sleep infinity
-                    properties:
-                      preserveJobs:
-                        default: false
-                        description: PreserveJobs - do not delete jobs after they
-                          finished e.g. to check logs
-                        type: boolean
-                      stopDBSync:
-                        default: false
-                        description: 'StopDBSync allows stopping the init container
-                          before running db sync to apply the DB schema QUESTION(gibi):
-                          Not all CR will run dbsync, should we have per CR Debug
-                          struct or keep this generic one and ignore fields in the
-                          controller that are not applicable'
-                        type: boolean
-                      stopService:
-                        default: false
-                        description: 'StopService allows stopping the service container
-                          before staring the openstack service binary QUESTION(gibi):
-                          Not all CR will run a service, should we have per CR Debug
-                          struct or keep this generic one and ignore fields in the
-                          controller that are not applicable'
-                        type: boolean
-                    type: object
                   defaultConfigOverwrite:
                     additionalProperties:
                       type: string
                     description: ConfigOverwrite - interface to overwrite default
-                      config files like e.g. logging.conf or policy.json. But can
-                      also be used to add additional files. Those get added to the
-                      service config dir in /etc/<service> .
+                      config files like e.g. logging.conf But can also be used to
+                      add additional files. Those get added to the service config
+                      dir in /etc/<service> .
                     type: object
-                  keystoneAuthURL:
-                    description: 'KeystoneAuthURL - the URL that the nova-novncproxy
-                      service can use to talk to keystone NOTE(gibi): This is made
-                      optional here to allow reusing the NovaNoVNCProxySpec struct
-                      in the Nova CR via the NovaCell CR where this information is
-                      not yet known. We could make this required via multiple options:
-                      a) create a NovaNoVNCProxyTemplate that duplicates NovaNoVNCProxySpec
-                      without this field. Use NovaNoVNCProxyTemplate in NovaCellSpec.
-                      b) do a) but pull out a the fields to a base struct that are
-                      used in both NovaNoVNCPRoxySpec and NovaNoVNCProxyTemplate c)
-                      add a validating webhook here that runs only when NovaNoVNCProxy
-                      CR is created and does not run when Nova CR is created and make
-                      this field required via that webhook.'
-                    type: string
                   nodeSelector:
                     additionalProperties:
                       type: string
                     description: NodeSelector to target subset of worker nodes running
                       this service
-                    type: object
-                  passwordSelectors:
-                    description: PasswordSelectors - Field names to identify the passwords
-                      from the Secret
-                    properties:
-                      apiDatabase:
-                        default: NovaAPIDatabasePassword
-                        description: APIDatabase - the name of the field to get the
-                          API DB password from the Secret
-                        type: string
-                      apiMessageBus:
-                        default: NovaAPIMessageBusPassword
-                        description: APIMessageBus - the name of the field to get
-                          the API message bus password from the Secret
-                        type: string
-                      cellDatabase:
-                        description: CellDatabase - the name of the field to get the
-                          Cell DB password from the Secret
-                        type: string
-                      cellMessageBus:
-                        description: CellMessageBus - the name of the field to get
-                          the API message bus password from the Secret
-                        type: string
-                      service:
-                        default: NovaPassword
-                        description: Service - Selector to get the keystone service
-                          user password from the Secret
-                        type: string
                     type: object
                   replicas:
                     default: 1
@@ -641,17 +306,6 @@ spec:
                           to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
                         type: object
                     type: object
-                  secret:
-                    description: Secret is the name of the Secret instance containing
-                      password information for the nova-conductor service.
-                    type: string
-                  serviceUser:
-                    default: nova
-                    description: ServiceUser - optional username used for this service
-                      to register in keystone
-                    type: string
-                required:
-                - containerImage
                 type: object
               passwordSelectors:
                 description: PasswordSelectors - Field names to identify the passwords
@@ -691,7 +345,11 @@ spec:
                   to register in keystone
                 type: string
             required:
+            - cellDatabaseHostname
+            - cellMessageBusHostname
             - conductorServiceTemplate
+            - keystoneAuthURL
+            - noVNCProxyServiceTemplate
             type: object
           status:
             description: NovaCellStatus defines the observed state of NovaCell

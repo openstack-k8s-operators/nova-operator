@@ -25,23 +25,6 @@ spec:
   cellMessageBusUser: nova
   cellMessageBusHostname: default-security-context
   conductorServiceTemplate:
-    cellName: cell2
-    passwordSelectors:
-      service: NovaPassword
-      apiDatabase: null
-      apiMessageBus: null
-      cellDatabase: NovaCell2DatabasePassword
-      cellMessageBus: NovaCell2MessageBusPassword
-    serviceUser: nova
-    keystoneAuthURL: http://keystone-internal-openstack.apps-crc.testing
-    apiDatabaseUser: null
-    apiDatabaseHostname: null
-    apiMessageBusUser: null
-    apiMessageBusHostname: null
-    cellDatabaseUser: nova
-    cellDatabaseHostname: openstack
-    cellMessageBusUser: nova
-    cellMessageBusHostname: default-security-context
     customServiceConfig: >
       # service config customization
       [DEFAULT]
@@ -59,27 +42,8 @@ spec:
       requests:
         cpu: 10m
         memory: 64Mi
-    debug:
-      stopDBSync: False
-      stopService: False
-      preserveJob: False
   # lets assume in this example that metadata is at cell level
   metadataServiceTemplate:
-    cellName: cell2
-    secret: osp-secret
-    passwordSelectors:
-      service: NovaPassword
-      # We don't provider the API DB password selector here as this
-      # nova-metadata service is expected to run within cell2.
-      apiDatabase: null
-      #TODO: add it to the definition
-      cellDatabase: NovaCell2DatabasePassword
-    serviceUser: nova
-    keystoneAuthURL: http://keystone-internal-openstack.apps-crc.testing
-    apiDatabaseUser: null
-    apiDatabaseHostname: null
-    cellDatabaseUser: nova
-    cellDatabaseHostname: default-security-context
     customServiceConfig: >
       # service config customization
       [DEFAULT]
@@ -102,31 +66,7 @@ spec:
       requests:
         cpu: 10m
         memory: 64Mi
-    debug:
-      # TODO: nova-metadata wont run dbsync, should we stop using a common
-      # Debug struct?
-      stopDBSync: False
-      stopService: False
-      preserveJob: False
   noVNCProxyServiceTemplate:
-    CellName: cell2
-    Secret: osp-secret
-    passwordSelectors:
-      service: NovaPassword
-      apiDatabase: null
-      apiMessageBus: null
-      cellDatabase: NovaCell2DatabasePassword
-      cellMessageBus: NovaCell2MessageBusPassword
-    serviceUser: nova
-    keystoneAuthURL: http://keystone-internal-openstack.apps-crc.testing
-    apiDatabaseUser: null
-    apiDatabaseHostname: null
-    apiMessageBusUser: null
-    apiMessageBusHostname: null
-    cellDatabaseUser: nova
-    cellDatabaseHostname: openstack
-    cellMessageBusUser: nova
-    cellMessageBusHostname: default-security-context
     customServiceConfig: >
       # service config customization
       [DEFAULT]
@@ -144,11 +84,6 @@ spec:
       requests:
         cpu: 10m
         memory: 64Mi
-    debug:
-      stopDBSync: False
-      stopService: False
-      preserveJob: False
-
 
 
 

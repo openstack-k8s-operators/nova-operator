@@ -81,19 +81,6 @@ spec:
       stopService: False
       preserveJob: False
   metadataServiceTemplate:
-    # No cell name is provided as this nova-metadata service is expected
-    # to run on the top level
-    cellName: null
-    secret: osp-secret
-    passwordSelectors:
-      service: NovaPassword
-      apiDatabase: NovaAPIDatabasePassword
-      # We don't provider the cell DB password selector here as this
-      # nova-metadata service is expected to run on the top level
-      cellDatabase: null
-    serviceUser: nova
-    apiDatabaseUser: nova
-    cellDatabaseUser: null
     customServiceConfig: |
       # service config customization
       [DEFAULT]
@@ -116,42 +103,15 @@ spec:
       requests:
         cpu: 10m
         memory: 64Mi
-    debug:
-      # TODO: nova-metadata wont run dbsync, should we stop using a common
-      # Debug struct?
-      stopDBSync: False
-      stopService: False
-      preserveJob: False
   cellTemplates:
     cell0:
-      cellName: cell0
-      secret: osp-secret
-      # Here it make sense to have both api and cell passwords selectors
-      # as cell0 will have the super conductor using both
-      passwordSelectors:
-        service: NovaPassword
-        apiDatabase: NovaAPIDatabasePassword
-        apiMessageBus: NovaAPIMessageBusPassword
-        cellDatabase: NovaCell0DatabasePassword
-        cellMessageBus: NovaCell0MessageBusPassword
-      serviceUser: nova
-      apiDatabaseUser: nova
-      apiMessageBusUser: nova
-      cellDatabaseUser: nova
-      cellMessageBusUser: nova
+      cellDatabaseInstance: mariadb-cell0
+      cellMessageBusInstance: rabbitmq-cell0
+      # cell0 alway needs access to the API DB and MQ as it hosts the super
+      # conductor. It will inherit the API DB and MQ access from the Nova CR
+      # that creates it.
+      hasAPIAccess: true
       conductorServiceTemplate:
-        cellName: cell0
-        passwordSelectors:
-          service: NovaPassword
-          apiDatabase: NovaAPIDatabasePassword
-          apiMessageBus: NovaAPIMessageBusPassword
-          cellDatabase: NovaCell0DatabasePassword
-          cellMessageBus: NovaCell0MessageBusPassword
-        serviceUser: nova
-        apiDatabaseUser: nova
-        apiMessageBusUser: nova
-        cellDatabaseUser: nova
-        cellMessageBusUser: nova
         customServiceConfig: |
           # service config customization
           [DEFAULT]
@@ -169,44 +129,17 @@ spec:
           requests:
             cpu: 10m
             memory: 64Mi
-        debug:
-          stopDBSync: False
-          stopService: False
-          preserveJob: False
       # we never need a metadata service in cell0 as there are no computes there
       metadataServiceTemplate: null
       # we never need novncproxy service in cell0
       noVNCProxyServiceTemplate: null
     cell1:
-      cellName: cell1
-      secret: osp-secret
-      # Here we add API DB and message bus selectors to make cell1 support
-      # upcalles
-      passwordSelectors:
-        service: NovaPassword
-        apiDatabase: NovaAPIDatabasePassword
-        apiMessageBus: NovaAPIMessageBusPassword
-        cellDatabase: NovaCell1DatabasePassword
-        cellMessageBus: NovaCell1MessageBusPassword
-      serviceUser: nova
-      apiDatabaseUser: nova
-      apiMessageBusUser: nova
-      cellDatabaseUser: nova
-      cellMessageBusUser: nova
+      cellDatabaseInstance: mariadb-cell1
+      cellMessageBusInstance: rabbitmq-cell1
+      # cell1 will have upcalls support. It will inherit the API DB and MQ
+      # access from the Nova CR that creates it.
+      hasAPIAccess: true
       conductorServiceTemplate:
-        cellName: cell1
-        secret: osp-secret
-        passwordSelectors:
-          service: NovaPassword
-          apiDatabase: NovaAPIDatabasePassword
-          apiMessageBus: NovaAPIMessageBusPassword
-          cellDatabase: NovaCell1DatabasePassword
-          cellMessageBus: NovaCell1MessageBusPassword
-        serviceUser: nova
-        apiDatabaseUser: nova
-        apiMessageBusUser: nova
-        cellDatabaseUser: nova
-        cellMessageBusUser: nova
         customServiceConfig: |
           # service config customization
           [DEFAULT]
@@ -224,27 +157,10 @@ spec:
           requests:
             cpu: 10m
             memory: 64Mi
-        debug:
-          stopDBSync: False
-          stopService: False
-          preserveJob: False
       # we could decide not to add metadata service to this cell as there
       # is metadata at the top
       metadataServiceTemplate: null
       noVNCProxyServiceTemplate:
-        CellName: cell1
-        secret: osp-secret
-        passwordSelectors:
-          service: nova
-          apiDatabase: null
-          apiMessageBus: null
-          cellDatabase: NovaCell1DatabasePassword
-          cellMessageBus: null
-        serviceUser: nova
-        apiDatabaseUser: null
-        apiMessageBusUser: null
-        cellDatabaseUser: nova
-        cellMessageBusUser: null
         customServiceConfig: |
           # service config customization
           [DEFAULT]
@@ -262,39 +178,12 @@ spec:
           requests:
             cpu: 10m
             memory: 64Mi
-        debug:
-          stopDBSync: False
-          stopService: False
-          preserveJob: False
     cell2:
-      cellName: cell2
-      secret: osp-secret
-      # Here we do not provide API DB and message bus selectors so this
-      # cell will not support upcalls.
-      passwordSelectors:
-        service: NovaPassword
-        apiDatabase: null
-        apiMessageBus: null
-        cellDatabase: NovaCell2DatabasePassword
-        cellMessageBus: NovaCell2MessageBusPassword
-      serviceUser: nova
-      apiDatabaseUser: null
-      apiMessageBusUser: null
-      cellDatabaseUser: nova
-      cellMessageBusUser: nova
+      cellDatabaseInstance: mariadb-cell2
+      cellMessageBusInstance: rabbitmq-cell2
+      # cell2 will not get the API DB and MQ connection if from the Nova CR
+      hasAPIAccess: false
       conductorServiceTemplate:
-        cellName: cell2
-        passwordSelectors:
-          service: NovaPassword
-          apiDatabase: null
-          apiMessageBus: null
-          cellDatabase: NovaCell1DatabasePassword
-          cellMessageBus: NovaCell1MessageBusPassword
-        serviceUser: nova
-        apiDatabaseUser: null
-        apiMessageBusUser: null
-        cellDatabaseUser: nova
-        cellMessageBusUser: nova
         customServiceConfig: |
           # service config customization
           [DEFAULT]
@@ -312,22 +201,7 @@ spec:
           requests:
             cpu: 10m
             memory: 64Mi
-        debug:
-          stopDBSync: False
-          stopService: False
-          preserveJob: False
       metadataServiceTemplate:
-        cellName: cell2
-        secret: osp-secret
-        passwordSelectors:
-          service: NovaPassword
-          # We don't provider the API DB password selector here as this
-          # nova-metadata service is expected to run within cell2.
-          apiDatabase: null
-          cellDatabase: NovaCell2DatabasePassword
-        serviceUser: nova
-        apiDatabaseUser: null
-        cellDatabaseUser: nova
         customServiceConfig: |
           # service config customization
           [DEFAULT]
@@ -350,26 +224,7 @@ spec:
           requests:
             cpu: 10m
             memory: 64Mi
-        debug:
-          # TODO: nova-metadata wont run dbsync, should we stop using a common
-          # Debug struct?
-          stopDBSync: False
-          stopService: False
-          preserveJob: False
       noVNCProxyServiceTemplate:
-        CellName: cell2
-        secret: osp-secret
-        passwordSelectors:
-          service: nova
-          apiDatabase: null
-          apiMessageBus: null
-          cellDatabase: NovaCell2DatabasePassword
-          cellMessageBus: null
-        serviceUser: nova
-        apiDatabaseUser: null
-        apiMessageBusUser: null
-        cellDatabaseUser: nova
-        cellMessageBusUser: null
         customServiceConfig: |
           # service config customization
           [DEFAULT]
@@ -387,7 +242,3 @@ spec:
           requests:
             cpu: 10m
             memory: 64Mi
-        debug:
-          stopDBSync: False
-          stopService: False
-          preserveJob: False

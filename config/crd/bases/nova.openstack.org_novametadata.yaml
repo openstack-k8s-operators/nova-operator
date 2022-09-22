@@ -46,10 +46,10 @@ spec:
                   API DB
                 type: string
               cellDatabaseHostname:
-                description: 'This is unused if CellName is not provided. But if it
+                description: 'CellDatabaseHostname - hostname to use when accessing
+                  the cell DB This is unused if CellName is not provided. But if it
                   is provided then CellDatabaseHostName is also Required. TODO(gibi):
-                  add webhook to validate this CellName constraint CellDatabaseHostname
-                  - hostname to use when accessing the cell DB'
+                  add webhook to validate this CellName constraint'
                 type: string
               cellDatabaseUser:
                 default: nova
@@ -57,10 +57,10 @@ spec:
                   cell DB
                 type: string
               cellMessageBusHostname:
-                description: 'This is unused if CellName is not provided. But if it
-                  is provided then CellMessageBusHostname is required. TODO(gibi):
-                  add webhook to validate this CellName constraint CellMessageBusHostname
-                  - hostname to use when accessing the cell message bus'
+                description: 'CellMessageBusHostname - hostname to use when accessing
+                  the cell message bus. This is unused if CellName is not provided.
+                  But if it is provided then CellMessageBusHostname is required. TODO(gibi):
+                  add webhook to validate this CellName constraint'
                 type: string
               cellMessageBusUser:
                 default: nova
@@ -119,18 +119,8 @@ spec:
                   in /etc/<service> .
                 type: object
               keystoneAuthURL:
-                description: 'KeystoneAuthURL - the URL that the nova-metadata service
-                  can use to talk to keystone NOTE(gibi): This is made optional here
-                  to allow reusing the NovaMetadataSpec struct in the Nova CR for
-                  the metadataServiceTemplate field where this information is not
-                  yet known. We could make this required via multiple options: a)
-                  create a NovaMetadataTemplate that duplicates NovaMetadataSpec without
-                  this field. Use NovaMetadataTemplate as type for metadataServiceTemplate
-                  in NovaSpec. b) do a) but pull out a the fields to a base struct
-                  that are used in both NovaMetadataSpec and NovaMetadataTemplate
-                  c) add a validating webhook here that runs only when NovaMetadata
-                  CR is created and does not run when Nova CR is created and make
-                  this field required via that webhook.'
+                description: KeystoneAuthURL - the URL that the nova-metadata service
+                  can use to talk to keystone
                 type: string
               nodeSelector:
                 additionalProperties:
@@ -211,6 +201,7 @@ spec:
                 type: string
             required:
             - containerImage
+            - keystoneAuthURL
             type: object
           status:
             description: NovaMetadataStatus defines the observed state of NovaMetadata

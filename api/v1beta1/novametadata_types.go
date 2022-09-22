@@ -18,11 +18,49 @@ package v1beta1
 
 import (
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
+
+// NovaMetadataTemplate defines the input parameters specified by the user to
+// create a NovaMetadata via higher level CRDs.
+type NovaMetadataTemplate struct {
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default="quay.io/tripleowallabycentos9/openstack-nova-metadata:current-tripleo"
+	// The service specific Container Image URL
+	ContainerImage string `json:"containerImage"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=1
+	// +kubebuilder:validation:Maximum=32
+	// +kubebuilder:validation:Minimum=0
+	// Replicas of the service to run
+	Replicas int32 `json:"replicas"`
+
+	// +kubebuilder:validation:Optional
+	// NodeSelector to target subset of worker nodes running this service
+	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default="# add your customization here"
+	// CustomServiceConfig - customize the service config using this parameter to change service defaults,
+	// or overwrite rendered information using raw OpenStack config format. The content gets added to
+	// to /etc/<service>/<service>.conf.d directory as custom.conf file.
+	CustomServiceConfig string `json:"customServiceConfig,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// ConfigOverwrite - interface to overwrite default config files like e.g. logging.conf
+	// But can also be used to add additional files. Those get added to the service config dir in /etc/<service> .
+	DefaultConfigOverwrite map[string]string `json:"defaultConfigOverwrite,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// Resources - Compute Resources required by this service (Limits/Requests).
+	// https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
+}
 
 // NovaMetadataSpec defines the desired state of NovaMetadata
 type NovaMetadataSpec struct {
@@ -50,21 +88,9 @@ type NovaMetadataSpec struct {
 	// keystone
 	ServiceUser string `json:"serviceUser"`
 
-	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Required
 	// KeystoneAuthURL - the URL that the nova-metadata service can use to talk
 	// to keystone
-	// NOTE(gibi): This is made optional here to allow reusing the
-	// NovaMetadataSpec struct in the Nova CR for the metadataServiceTemplate
-	// field where this information is not yet known. We could make this
-	// required via multiple options:
-	// a) create a NovaMetadataTemplate that duplicates NovaMetadataSpec
-	//    without this field. Use NovaMetadataTemplate as type for
-	//    metadataServiceTemplate in NovaSpec.
-	// b) do a) but pull out a the fields to a base struct that are used in
-	//    both NovaMetadataSpec and NovaMetadataTemplate
-	// c) add a validating webhook here that runs only when NovaMetadata CR is
-	//    created and does not run when Nova CR is created and make this field
-	//    required via that webhook.
 	KeystoneAuthURL string `json:"keystoneAuthURL"`
 
 	// +kubebuilder:validation:Optional
@@ -84,10 +110,10 @@ type NovaMetadataSpec struct {
 	CellDatabaseUser string `json:"cellDatabaseUser"`
 
 	// +kubebuilder:validation:Optional
+	// CellDatabaseHostname - hostname to use when accessing the cell DB
 	// This is unused if CellName is not provided. But if it is provided then
 	// CellDatabaseHostName is also Required.
 	// TODO(gibi): add webhook to validate this CellName constraint
-	// CellDatabaseHostname - hostname to use when accessing the cell DB
 	CellDatabaseHostname string `json:"cellDatabaseHostname"`
 
 	// +kubebuilder:validation:Optional
@@ -96,11 +122,10 @@ type NovaMetadataSpec struct {
 	CellMessageBusUser string `json:"cellMessageBusUser"`
 
 	// +kubebuilder:validation:Optional
-	// This is unused if CellName is not provided. But if it is provided then
-	// CellMessageBusHostname is required.
-	// TODO(gibi): add webhook to validate this CellName constraint
 	// CellMessageBusHostname - hostname to use when accessing the cell message
-	// bus
+	// bus. This is unused if CellName is not provided. But if it is provided
+	// then CellMessageBusHostname is required.
+	// TODO(gibi): add webhook to validate this CellName constraint
 	CellMessageBusHostname string `json:"cellMessageBusHostname"`
 
 	// +kubebuilder:validation:Optional
