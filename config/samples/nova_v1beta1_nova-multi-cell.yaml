@@ -50,14 +50,6 @@ spec:
         cpu: 10m
         memory: 64Mi
   schedulerServiceTemplate:
-    secret: osp-secret
-    passwordSelectors:
-      service: NovaPassword
-      apiDatabase: NovaAPIDatabasePassword
-      apiMessageBus: NovaAPIMessageBusPassword
-    serviceUser: nova
-    apiDatabaseUser: nova
-    apiMessageBusUser: nova
     customServiceConfig: |
       # service config customization
       debug=True
@@ -74,12 +66,6 @@ spec:
       requests:
         cpu: 10m
         memory: 64Mi
-    debug:
-      # TODO: nova-scheduler wont run dbsync, should we stop using a common
-      # Debug struct?
-      stopDBSync: False
-      stopService: False
-      preserveJob: False
   metadataServiceTemplate:
     customServiceConfig: |
       # service config customization

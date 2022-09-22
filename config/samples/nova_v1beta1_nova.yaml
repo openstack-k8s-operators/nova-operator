@@ -7,8 +7,9 @@ spec:
   apiMessageBusInstance: default-security-context
   keystoneInstance: keystone
   secret: osp-secret
-  # NOTE(gibi): if apiServiceTemplate is not specified still a NovaAPI CR
-  # created with default configuration.
+  # NOTE(gibi): if apiServiceTemplate and schedlerServiceTemplate is not
+  # specified still a CRs for those services are created with default
+  # configuration.
   # NOTE(gibi): We are not passing a Secret to the NovaAPI here any more. Nova
   # controller will push a Secret to NovaAPI CR automatically and NovaAPI will
   # hardcode which fields it will look at in that Secret.
@@ -21,9 +22,6 @@ spec:
   # CustomServiceConfig, DefaultConfigOverwrite, Resources are customizable
   # here but nothing else. Also all these fields has a meaningful default
   # value.
-  schedulerServiceTemplate:
-    secret: osp-secret
-    containerImage: quay.io/tripleowallabycentos9/openstack-nova-scheduler:current-tripleo
   cellTemplates:
     cell0:
       cellDatabaseInstance: mariadb-cell0

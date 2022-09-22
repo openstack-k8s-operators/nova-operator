@@ -775,9 +775,8 @@ spec:
                 description: SchedulerServiceTemplate- define the nova-scheduler service
                 properties:
                   apiDatabaseHostname:
-                    description: 'NOTE(gibi): This should be Required, see notes in
-                      KeystoneAuthURL APIDatabaseHostname - hostname to use when accessing
-                      the API DB'
+                    description: APIDatabaseHostname - hostname to use when accessing
+                      the API DB
                     type: string
                   apiDatabaseUser:
                     default: nova
@@ -785,9 +784,8 @@ spec:
                       the API DB
                     type: string
                   apiMessageBusHostname:
-                    description: 'NOTE(gibi): This should be Required, see notes in
-                      KeystoneAuthURL APIMessageBusHostname - hostname to use when
-                      accessing the API message bus'
+                    description: APIMessageBusHostname - hostname to use when accessing
+                      the API message bus
                     type: string
                   apiMessageBusUser:
                     default: nova
@@ -841,19 +839,8 @@ spec:
                       service config dir in /etc/<service> .
                     type: object
                   keystoneAuthURL:
-                    description: 'KeystoneAuthURL - the URL that the nova-scheduler
-                      service can use to talk to keystone NOTE(gibi): This is made
-                      optional here to allow reusing the NovaSchedulerSpec struct
-                      in the Nova CR for the schedulerServiceTemplate field where
-                      this information is not yet known. We could make this \ required
-                      via multiple options: a) create a NovaSchedulerTemplate that
-                      duplicates NovaSchedulerSpec without this field. Use NovaSchedulerTemplate
-                      as type for schedulerServiceTemplate in NovaSpec. b) do a) but
-                      pull out a the fields to a base struct that are used in both
-                      NovaSchedulerSpec and NovaSchedulerTemplate c) add a validating
-                      webhook here that runs only when NovaScheduler CR is created
-                      and does not run when Nova CR is created and make this field
-                      required via that webhook.'
+                    description: KeystoneAuthURL - the URL that the nova-scheduler
+                      service can use to talk to keystone
                     type: string
                   nodeSelector:
                     additionalProperties:
@@ -933,7 +920,10 @@ spec:
                       to register in keystone
                     type: string
                 required:
+                - apiDatabaseHostname
+                - apiMessageBusHostname
                 - containerImage
+                - keystoneAuthURL
                 type: object
               secret:
                 description: Secret is the name of the Secret instance containing
