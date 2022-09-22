@@ -30,21 +30,20 @@ type NovaSpec struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	// +kubebuilder:validation:Required
-	// KeystoneServiceSelector to select the Keystone Service instance used
-	// by the Nova services to authenticate.
-	KeystoneServiceSelector map[string]string `json:"keystoneServiceSelector,omitempty"`
+	// KeystoneInstance to name of the KeystoneAPI CR to select the Service
+	// instance used by the Nova services to authenticate.
+	KeystoneInstance string `json:"keystoneInstance,omitempty"`
 
-	// +kubebuilder:validation:Optional
-	// APIDBSelector to select the DB Service instance used for the Nova API
-	// DB. If not provided the the default DB Service of the deployment will
-	// be used for the Nova API DB.
-	APIDBSelector map[string]string `json:"apiDBSelector,omitempty"`
+	// +kubebuilder:validation:Required
+	// APIDatabaseInstance is the name of the MariaDB CR to select the DB
+	// Service instance used for the Nova API DB.
+	APIDatabaseInstance string `json:"apiDatabaseInstance,omitempty"`
 
-	// +kubebuilder:validation:Optional
-	// APIMessageBusSelector to select the Message Bus Service instance used
-	// by the Nova top level services to communicate. If not provided then
-	// the deployment's default Message Bus instance will be used.
-	APIMessageBusSelector map[string]string `json:"apiMessageBusSelector,omitempty"`
+	// +kubebuilder:validation:Required
+	// APIMessageBusInstance is the name of the RabbitMqCluster CR to select
+	// the Message Bus Service instance used by the Nova top level services to
+	// communicate.
+	APIMessageBusInstance string `json:"apiMessageBusInstance,omitempty"`
 
 	// +kubebuilder:validation:Required
 	// Cells is a mapping of cell names to NovaCell objects defining the cells
