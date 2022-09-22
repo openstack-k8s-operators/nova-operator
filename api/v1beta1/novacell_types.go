@@ -24,6 +24,42 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
+// NovaCellTemplate defines the input parameters specified by the user to
+// create a NovaCell via higher level CRDs.
+type NovaCellTemplate struct {
+	// +kubebuilder:validation:Required
+	// CellDatabaseInstance is the name of the MariaDB CR to select the DB
+	// Service instance used as the DB of this cell.
+	CellDatabaseInstance string `json:"cellDatabaseInstance"`
+
+	// +kubebuilder:validation:Required
+	// CellMessageBusInstance is the name of the RabbitMqCluster CR to select
+	// the Message Bus Service instance used by the nova services to
+	// communicate in this cell.
+	CellMessageBusInstance string `json:"cellMessageBusInstance"`
+
+	// +kubebuilder:validation:Required
+	// HasAPIAccess defines if this Cell is configured to have access to the
+	// API DB and message bus.
+	HasAPIAccess bool `json:"hasAPIAccess"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default={}
+	// ConductorServiceTemplate - defines the cell conductor deployment for the cell.
+	ConductorServiceTemplate NovaConductorTemplate `json:"conductorServiceTemplate"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default={}
+	// MetadataServiceTemplate - defines the metadata serive dedicated for the cell.
+	MetadataServiceTemplate NovaMetadataSpec `json:"metadataServiceTemplate"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default={}
+	// NoVNCProxyServiceTemplate - defines the novvncproxy serive dedicated for
+	// the cell.
+	NoVNCProxyServiceTemplate NovaNoVNCProxySpec `json:"noVNCProxyServiceTemplate"`
+}
+
 // NovaCellSpec defines the desired state of NovaCell
 type NovaCellSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
@@ -52,21 +88,9 @@ type NovaCellSpec struct {
 	// keystone
 	ServiceUser string `json:"serviceUser"`
 
-	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Required
 	// KeystoneAuthURL - the URL that the service in the cell can use to talk
 	// to keystone
-	// NOTE(gibi): This is made optional here to allow reusing the NovaCellSpec
-	// struct in the Nova CR for the cellTemplates field where this
-	// information is not yet known. We could make this required via multiple
-	// options:
-	// a) create a NovaCellTemplate that duplicates NovaCellSpec without this
-	//    field. Use NovaCellTemplate as type for cellTemplates in
-	//    NovaSpec.
-	// b) do a) but pull out a the fields to a base struct that are used in
-	//    both NovaCellSpec and NovaCellTemplate
-	// c) add a validating webhook here that runs only when NovaCell CR is
-	//    created and does not run when Nova CR is created and make this field
-	//    required via that webhook.
 	KeystoneAuthURL string `json:"keystoneAuthURL"`
 
 	// +kubebuilder:validation:Optional
@@ -98,8 +122,7 @@ type NovaCellSpec struct {
 	// CellDatabaseUser - username to use when accessing the cell DB
 	CellDatabaseUser string `json:"cellDatabaseUser"`
 
-	// +kubebuilder:validation:Optional
-	// NOTE(gibi): This should be Required, see notes in KeystoneAuthURL
+	// +kubebuilder:validation:Required
 	// CellDatabaseHostname - hostname to use when accessing the cell DB
 	CellDatabaseHostname string `json:"cellDatabaseHostname"`
 
@@ -108,8 +131,7 @@ type NovaCellSpec struct {
 	// CellMessageBusUser - username to use when accessing the cell message bus
 	CellMessageBusUser string `json:"cellMessageBusUser"`
 
-	// +kubebuilder:validation:Optional
-	// NOTE(gibi): This should be Required, see notes in KeystoneAuthURL
+	// +kubebuilder:validation:Required
 	// CellMessageBusHostname - hostname to use when accessing the cell message
 	// bus
 	CellMessageBusHostname string `json:"cellMessageBusHostname"`
@@ -122,16 +144,16 @@ type NovaCellSpec struct {
 
 	// +kubebuilder:validation:Required
 	// ConductorServiceTemplate - defines the cell conductor deployment for the cell
-	ConductorServiceTemplate NovaConductorSpec `json:"conductorServiceTemplate"`
+	ConductorServiceTemplate NovaConductorTemplate `json:"conductorServiceTemplate"`
 
 	// +kubebuilder:validation:Optional
 	// MetadataServiceTemplate - defines the metadata serive dedicated for the cell.
-	MetadataServiceTemplate NovaMetadataSpec `json:"metadataServiceTemplate"`
+	MetadataServiceTemplate NovaMetadataTemplate `json:"metadataServiceTemplate"`
 
-	// +kubebuilder:validation:Optional
-	// NoVNCProxyServiceTemplate - defines the novvncproxy serive dedicated for
+	// +kubebuilder:validation:Required
+	// NoVNCProxyServiceTemplate - defines the novvncproxy service dedicated for
 	// the cell.
-	NoVNCProxyServiceTemplate NovaNoVNCProxySpec `json:"noVNCProxyServiceTemplate"`
+	NoVNCProxyServiceTemplate NovaNoVNCProxyTemplate `json:"noVNCProxyServiceTemplate"`
 }
 
 // NovaCellStatus defines the observed state of NovaCell

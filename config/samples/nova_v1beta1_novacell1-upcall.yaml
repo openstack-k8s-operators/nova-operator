@@ -5,7 +5,7 @@ metadata:
 spec:
   cellName: cell1
   secret: osp-secret
-  # Here we have o have both api and cell passwords selectors
+  # Here we have to have both api and cell passwords selectors
   # as cell1 will support upcalls
   passwordSelectors:
     service: NovaPassword
@@ -27,26 +27,6 @@ spec:
   cellMessageBusUser: nova
   cellMessageBusHostname: default-security-context
   conductorServiceTemplate:
-    cellName: cell1
-    passwordSelectors:
-      service: NovaPassword
-      apiDatabase: NovaAPIDatabasePassword
-      apiMessageBus: NovaAPIMessageBusPassword
-      cellDatabase: NovaCell1DatabasePassword
-      cellMessageBus: NovaCell1MessageBusPassword
-    serviceUser: nova
-    keystoneAuthURL: http://keystone-internal-openstack.apps-crc.testing
-    apiDatabaseUser: nova
-    # This is the hostname of the default DB today
-    apiDatabaseHostname: openstack
-    apiMessageBusUser: nova
-    # Q: do we need db an rabbit port? it seems today we use the default port
-    # This is the hostname of the default Rabbit today
-    apiMessageBusHostname: default-security-context
-    cellDatabaseUser: nova
-    cellDatabaseHostname: openstack
-    cellMessageBusUser: nova
-    cellMessageBusHostname: default-security-context
     customServiceConfig: >
       # service config customization
       [DEFAULT]
@@ -64,31 +44,9 @@ spec:
       requests:
         cpu: 10m
         memory: 64Mi
-    debug:
-      stopDBSync: False
-      stopService: False
-      preserveJob: False
   # lets assume in this example that metadata is at the top
   metadataServiceTemplate: null
   noVNCProxyServiceTemplate:
-    CellName: cell1
-    Secret: osp-secret
-    passwordSelectors:
-      service: NovaPassword
-      apiDatabase: null
-      apiMessageBus: null
-      cellDatabase: NovaCell1DatabasePassword
-      cellMessageBus: NovaCell1MessageBusPassword
-    serviceUser: nova
-    keystoneAuthURL: http://keystone-internal-openstack.apps-crc.testing
-    apiDatabaseUser: null
-    apiDatabaseHostname: null
-    apiMessageBusUser: null
-    apiMessageBusHostname: null
-    cellDatabaseUser: nova
-    cellDatabaseHostname: openstack
-    cellMessageBusUser: nova
-    cellMessageBusHostname: default-security-context
     customServiceConfig: >
       # service config customization
       [DEFAULT]
@@ -106,8 +64,3 @@ spec:
       requests:
         cpu: 10m
         memory: 64Mi
-    debug:
-      stopDBSync: False
-      stopService: False
-      preserveJob: False
-

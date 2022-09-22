@@ -46,11 +46,11 @@ type NovaSpec struct {
 	APIMessageBusInstance string `json:"apiMessageBusInstance,omitempty"`
 
 	// +kubebuilder:validation:Required
-	// Cells is a mapping of cell names to NovaCell objects defining the cells
-	// in the deployment. The "cell0" cell is a mandatory cell in every
-	// deployment. Moreover any real deployment needs at least one additional
-	// normal cell as "cell0" cannot have any computes.
-	CellTemplates map[string]NovaCellSpec `json:"cellTemplates"`
+	// Cells is a mapping of cell names to NovaCellTemplate objects defining
+	// the cells in the deployment. The "cell0" cell is a mandatory cell in
+	// every deployment. Moreover any real deployment needs at least one
+	// additional normal cell as "cell0" cannot have any computes.
+	CellTemplates map[string]NovaCellTemplate `json:"cellTemplates"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=nova
