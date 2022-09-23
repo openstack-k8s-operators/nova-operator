@@ -63,10 +63,14 @@ var _ = Describe("NovaAPI controller", func() {
 
 		It("has empty Status fields", func() {
 			instance := GetNovaAPI(novaAPIName)
+			// NOTE(gibi): Hash and Endpoints have `omitempty` tags so while
+			// they are initialized to {} that value is omited from the output
+			// when sent to the client. So we see nils here.
 			Expect(instance.Status.Hash).To(BeEmpty())
 			Expect(instance.Status.APIEndpoints).To(BeEmpty())
 			Expect(instance.Status.ReadyCount).To(Equal(int32(0)))
 			Expect(instance.Status.ServiceID).To(Equal(""))
 		})
+
 	})
 })

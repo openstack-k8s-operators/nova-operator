@@ -90,12 +90,29 @@ func (r *NovaAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	util.LogForObject(h, "Reconciling", instance)
 
 	// initialize status fields
-	if err = r.initConditions(ctx, h, instance); err != nil {
+	if err = r.initStatus(ctx, h, instance); err != nil {
 		return ctrl.Result{}, err
 	}
-	// TODO(gibi): Init the rest of the status fields here
 
 	return ctrl.Result{}, nil
+}
+func (r *NovaAPIReconciler) initStatus(
+	ctx context.Context, h *helper.Helper, instance *novav1.NovaAPI,
+) error {
+	if err := r.initConditions(ctx, h, instance); err != nil {
+		return err
+	}
+
+	// NOTE(gibi): initialize the rest of the status fields here
+	// so that the reconcile loop later can assume they are not nil.
+	if instance.Status.Hash == nil {
+		instance.Status.Hash = map[string]string{}
+	}
+	if instance.Status.APIEndpoints == nil {
+		instance.Status.APIEndpoints = map[string]string{}
+	}
+
+	return nil
 }
 
 func (r *NovaAPIReconciler) initConditions(
@@ -119,6 +136,7 @@ func (r *NovaAPIReconciler) initConditions(
 				h, err, "Failed to initialize Conditions", instance)
 			return err
 		}
+
 	}
 	return nil
 }
