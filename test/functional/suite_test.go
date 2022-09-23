@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controllers
+package functional_test
 
 import (
 	"context"
@@ -35,6 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	novav1beta1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
+	"github.com/openstack-k8s-operators/nova-operator/controllers"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -64,7 +65,7 @@ var _ = BeforeSuite(func() {
 
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
-		CRDDirectoryPaths:     []string{filepath.Join("..", "config", "crd", "bases")},
+		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "config", "crd", "bases")},
 		ErrorIfCRDPathMissing: true,
 	}
 
@@ -95,7 +96,7 @@ var _ = BeforeSuite(func() {
 
 	kclient, err := kubernetes.NewForConfig(cfg)
 	Expect(err).ToNot(HaveOccurred(), "failed to create kclient")
-	err = (&NovaAPIReconciler{
+	err = (&controllers.NovaAPIReconciler{
 		Client:  k8sManager.GetClient(),
 		Scheme:  k8sManager.GetScheme(),
 		Kclient: kclient,
