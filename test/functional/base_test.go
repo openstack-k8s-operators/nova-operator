@@ -17,7 +17,6 @@ package functional_test
 
 import (
 	"github.com/google/uuid"
-	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -26,16 +25,17 @@ import (
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 )
 
-func CreateNamespace(name string) {
+func CreateNamespace(name string) (*corev1.Namespace, error) {
 	ns := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
 		},
 	}
-	Expect(k8sClient.Create(ctx, ns)).Should(Succeed())
+	err := k8sClient.Create(ctx, ns)
+	return ns, err
 }
 
-func CreateNovaAPI(spec novav1.NovaAPISpec) types.NamespacedName {
+func CreateNovaAPI(spec novav1.NovaAPISpec) (types.NamespacedName, error) {
 	novaAPIName := uuid.New().String()
 	novaAPI := &novav1.NovaAPI{
 		TypeMeta: metav1.TypeMeta{
@@ -49,28 +49,25 @@ func CreateNovaAPI(spec novav1.NovaAPISpec) types.NamespacedName {
 		Spec: spec,
 	}
 
-	Expect(k8sClient.Create(ctx, novaAPI)).Should(Succeed())
+	err := k8sClient.Create(ctx, novaAPI)
 
-	return types.NamespacedName{Name: novaAPIName, Namespace: Namespace}
+	return types.NamespacedName{Name: novaAPIName, Namespace: Namespace}, err
 }
 
-func GetNovaAPI(lookupKey types.NamespacedName) *novav1.NovaAPI {
+func GetNovaAPI(lookupKey types.NamespacedName) (*novav1.NovaAPI, error) {
 	instance := &novav1.NovaAPI{}
-	Eventually(func() bool {
-		err := k8sClient.Get(ctx, lookupKey, instance)
-		return err == nil
-	}, timeout, interval).Should(BeTrue())
-	return instance
+	err := k8sClient.Get(ctx, lookupKey, instance)
+	return instance, err
 }
 
 func GetConditionByType(
 	lookupKey types.NamespacedName,
 	conditionType condition.Type,
-) *condition.Condition {
-	instance := GetNovaAPI(lookupKey)
+) (*condition.Condition, error) {
+	instance, err := GetNovaAPI(lookupKey)
 
-	if instance.Status.Conditions == nil {
-		return nil
+	if err != nil || instance.Status.Conditions == nil {
+		return nil, err
 	}
-	return instance.Status.Conditions.Get(conditionType)
+	return instance.Status.Conditions.Get(conditionType), err
 }

@@ -38,20 +38,34 @@ const (
 
 var _ = Describe("NovaAPI controller", func() {
 	var novaAPILookupKey types.NamespacedName
+	var namespace *corev1.Namespace
+	var api *novav1.NovaAPI
+	var err error
 
 	BeforeEach(func() {
-		CreateNamespace(Namespace)
-		novaAPILookupKey = CreateNovaAPI(novav1.NovaAPISpec{})
+		namespace, err = CreateNamespace(Namespace)
+		Expect(err).Should(BeNil())
+		novaAPILookupKey, err = CreateNovaAPI(novav1.NovaAPISpec{})
+		Expect(err).Should(BeNil())
 		// this asserts that we can read back the CR
-		GetNovaAPI(novaAPILookupKey)
+		api, err = GetNovaAPI(novaAPILookupKey)
+		Expect(err).Should(BeNil())
+		Expect(api).ShouldNot(BeNil())
 	})
 
 	AfterEach(func() {
-		novaAPI := GetNovaAPI(novaAPILookupKey)
-		Expect(k8sClient.Delete(ctx, novaAPI)).Should(Succeed())
+		defer func() {
+			err := k8sClient.Delete(ctx, namespace)
+			Expect(err).Should(BeNil())
+		}()
+		api, err = GetNovaAPI(novaAPILookupKey)
+		Expect(err).Should(BeNil())
+		if api != nil {
+			Expect(k8sClient.Delete(ctx, api)).Should(Succeed())
+		}
 		// We have to wait for the controller to fully delete the instance
 		Eventually(func() bool {
-			err := k8sClient.Get(ctx, novaAPILookupKey, novaAPI)
+			err = k8sClient.Get(ctx, novaAPILookupKey, api)
 			return k8s_errors.IsNotFound(err)
 		}, timeout, interval).Should(BeTrue())
 
@@ -60,10 +74,12 @@ var _ = Describe("NovaAPI controller", func() {
 	When("A NovaAPI CR instance is created without any input", func() {
 		It("should not be Ready", func() {
 			Eventually(func() *condition.Condition {
-				return GetConditionByType(
+				con, err := GetConditionByType(
 					novaAPILookupKey,
 					condition.ReadyCondition,
 				)
+				Expect(err).Should(BeNil())
+				return con
 			}, timeout, interval).Should(
 				HaveField("Status", corev1.ConditionUnknown))
 		})
