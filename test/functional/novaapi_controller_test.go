@@ -36,26 +36,22 @@ const (
 )
 
 var _ = Describe("NovaAPI controller", func() {
-	var namespace string
 	var novaAPILookupKey types.NamespacedName
 
 	BeforeEach(func() {
 		// NOTE(gibi): We need to create a unique namespace for each test run
 		// as namespaces cannot be deleted in a locally running envtest. See
 		// https://book.kubebuilder.io/reference/envtest.html#namespace-usage-limitation
+		namespace := uuid.New().String()
+		CreateNamespace(namespace)
 		// We still request the delete of the Namespace in AfterEach to
 		// properly cleanup if we run the test in an existing cluster.
-		namespace = uuid.New().String()
-		CreateNamespace(namespace)
+		DeferCleanup(DeleteNamespace, namespace)
 
 		novaAPILookupKey = CreateNovaAPI(namespace, novav1.NovaAPISpec{})
 		// this asserts that we can read back the CR
 		GetNovaAPI(novaAPILookupKey)
-	})
-
-	AfterEach(func() {
-		DeleteNovaAPI(novaAPILookupKey)
-		DeleteNamespace(namespace)
+		DeferCleanup(DeleteNovaAPI, novaAPILookupKey)
 	})
 
 	When("A NovaAPI CR instance is created without any input", func() {
