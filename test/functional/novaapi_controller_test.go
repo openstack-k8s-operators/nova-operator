@@ -36,37 +36,37 @@ const (
 )
 
 var _ = Describe("NovaAPI controller", func() {
-	var novaAPILookupKey types.NamespacedName
+	var namespace string
+	var novaAPIName types.NamespacedName
 
 	BeforeEach(func() {
 		// NOTE(gibi): We need to create a unique namespace for each test run
 		// as namespaces cannot be deleted in a locally running envtest. See
 		// https://book.kubebuilder.io/reference/envtest.html#namespace-usage-limitation
-		namespace := uuid.New().String()
+		namespace = uuid.New().String()
 		CreateNamespace(namespace)
 		// We still request the delete of the Namespace in AfterEach to
 		// properly cleanup if we run the test in an existing cluster.
 		DeferCleanup(DeleteNamespace, namespace)
-
-		novaAPILookupKey = CreateNovaAPI(namespace, novav1.NovaAPISpec{})
-		// this asserts that we can read back the CR
-		GetNovaAPI(novaAPILookupKey)
-		DeferCleanup(DeleteNovaAPI, novaAPILookupKey)
 	})
 
 	When("A NovaAPI CR instance is created without any input", func() {
-		It("should not be Ready", func() {
-			Eventually(func() *condition.Condition {
-				return GetConditionByType(
-					novaAPILookupKey,
-					condition.ReadyCondition,
-				)
-			}, timeout, interval).Should(
-				HaveField("Status", corev1.ConditionUnknown))
+		BeforeEach(func() {
+			novaAPIName = CreateNovaAPI(namespace, novav1.NovaAPISpec{})
+			DeferCleanup(DeleteNovaAPI, novaAPIName)
 		})
 
-		It("...", func() {
-			Expect(true).To(BeTrue())
+		It("is not Ready", func() {
+			ExpectNovaAPICondition(
+				novaAPIName, condition.ReadyCondition, corev1.ConditionUnknown)
+		})
+
+		It("has empty Status fields", func() {
+			instance := GetNovaAPI(novaAPIName)
+			Expect(instance.Status.Hash).To(BeEmpty())
+			Expect(instance.Status.APIEndpoints).To(BeEmpty())
+			Expect(instance.Status.ReadyCount).To(Equal(int32(0)))
+			Expect(instance.Status.ServiceID).To(Equal(""))
 		})
 	})
 })

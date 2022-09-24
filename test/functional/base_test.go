@@ -64,33 +64,33 @@ func CreateNovaAPI(namespace string, spec novav1.NovaAPISpec) types.NamespacedNa
 	return types.NamespacedName{Name: novaAPIName, Namespace: namespace}
 }
 
-func DeleteNovaAPI(lookupKey types.NamespacedName) {
-	novaAPI := GetNovaAPI(lookupKey)
+func DeleteNovaAPI(name types.NamespacedName) {
+	novaAPI := GetNovaAPI(name)
 	Expect(k8sClient.Delete(ctx, novaAPI)).Should(Succeed())
 	// We have to wait for the controller to fully delete the instance
-	Eventually(func() bool {
-		err := k8sClient.Get(ctx, lookupKey, novaAPI)
-		return k8s_errors.IsNotFound(err)
-	}, timeout, interval).Should(BeTrue())
+	Eventually(func(g Gomega) {
+		err := k8sClient.Get(ctx, name, novaAPI)
+		g.Expect(k8s_errors.IsNotFound(err)).To(BeTrue())
+	}, timeout, interval).Should(Succeed())
 }
 
-func GetNovaAPI(lookupKey types.NamespacedName) *novav1.NovaAPI {
+func GetNovaAPI(name types.NamespacedName) *novav1.NovaAPI {
 	instance := &novav1.NovaAPI{}
-	Eventually(func() bool {
-		err := k8sClient.Get(ctx, lookupKey, instance)
-		return err == nil
-	}, timeout, interval).Should(BeTrue())
+	Eventually(func(g Gomega) {
+		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
+	}, timeout, interval).Should(Succeed())
 	return instance
 }
 
-func GetConditionByType(
-	lookupKey types.NamespacedName,
+func ExpectNovaAPICondition(
+	name types.NamespacedName,
 	conditionType condition.Type,
-) *condition.Condition {
-	instance := GetNovaAPI(lookupKey)
-
-	if instance.Status.Conditions == nil {
-		return nil
-	}
-	return instance.Status.Conditions.Get(conditionType)
+	expectedStatus corev1.ConditionStatus,
+) {
+	Eventually(func(g Gomega) {
+		instance := GetNovaAPI(name)
+		g.Expect(instance.Status.Conditions).NotTo(BeNil())
+		g.Expect(instance.Status.Conditions.Has(conditionType)).To(BeTrue())
+		g.Expect(instance.Status.Conditions.Get(conditionType).Status).To(Equal(expectedStatus))
+	}, timeout, interval).Should(Succeed())
 }
