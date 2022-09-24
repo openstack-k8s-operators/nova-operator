@@ -19,6 +19,7 @@ import (
 	"github.com/google/uuid"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -35,7 +36,16 @@ func CreateNamespace(name string) {
 	Expect(k8sClient.Create(ctx, ns)).Should(Succeed())
 }
 
-func CreateNovaAPI(spec novav1.NovaAPISpec) types.NamespacedName {
+func DeleteNamespace(name string) {
+	ns := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+	}
+	Expect(k8sClient.Delete(ctx, ns)).Should(Succeed())
+}
+
+func CreateNovaAPI(namespace string, spec novav1.NovaAPISpec) types.NamespacedName {
 	novaAPIName := uuid.New().String()
 	novaAPI := &novav1.NovaAPI{
 		TypeMeta: metav1.TypeMeta{
@@ -44,14 +54,24 @@ func CreateNovaAPI(spec novav1.NovaAPISpec) types.NamespacedName {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      novaAPIName,
-			Namespace: Namespace,
+			Namespace: namespace,
 		},
 		Spec: spec,
 	}
 
 	Expect(k8sClient.Create(ctx, novaAPI)).Should(Succeed())
 
-	return types.NamespacedName{Name: novaAPIName, Namespace: Namespace}
+	return types.NamespacedName{Name: novaAPIName, Namespace: namespace}
+}
+
+func DeleteNovaAPI(lookupKey types.NamespacedName) {
+	novaAPI := GetNovaAPI(lookupKey)
+	Expect(k8sClient.Delete(ctx, novaAPI)).Should(Succeed())
+	// We have to wait for the controller to fully delete the instance
+	Eventually(func() bool {
+		err := k8sClient.Get(ctx, lookupKey, novaAPI)
+		return k8s_errors.IsNotFound(err)
+	}, timeout, interval).Should(BeTrue())
 }
 
 func GetNovaAPI(lookupKey types.NamespacedName) *novav1.NovaAPI {

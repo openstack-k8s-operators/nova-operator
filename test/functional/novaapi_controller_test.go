@@ -18,10 +18,10 @@ package functional_test
 import (
 	"time"
 
+	"github.com/google/uuid"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
-	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
@@ -29,7 +29,6 @@ import (
 )
 
 const (
-	Namespace  = "test-namespace"
 	SecretName = "test-secret"
 
 	timeout  = time.Second * 2
@@ -37,24 +36,26 @@ const (
 )
 
 var _ = Describe("NovaAPI controller", func() {
+	var namespace string
 	var novaAPILookupKey types.NamespacedName
 
 	BeforeEach(func() {
-		CreateNamespace(Namespace)
-		novaAPILookupKey = CreateNovaAPI(novav1.NovaAPISpec{})
+		// NOTE(gibi): We need to create a unique namespace for each test run
+		// as namespaces cannot be deleted in a locally running envtest. See
+		// https://book.kubebuilder.io/reference/envtest.html#namespace-usage-limitation
+		// We still request the delete of the Namespace in AfterEach to
+		// properly cleanup if we run the test in an existing cluster.
+		namespace = uuid.New().String()
+		CreateNamespace(namespace)
+
+		novaAPILookupKey = CreateNovaAPI(namespace, novav1.NovaAPISpec{})
 		// this asserts that we can read back the CR
 		GetNovaAPI(novaAPILookupKey)
 	})
 
 	AfterEach(func() {
-		novaAPI := GetNovaAPI(novaAPILookupKey)
-		Expect(k8sClient.Delete(ctx, novaAPI)).Should(Succeed())
-		// We have to wait for the controller to fully delete the instance
-		Eventually(func() bool {
-			err := k8sClient.Get(ctx, novaAPILookupKey, novaAPI)
-			return k8s_errors.IsNotFound(err)
-		}, timeout, interval).Should(BeTrue())
-
+		DeleteNovaAPI(novaAPILookupKey)
+		DeleteNamespace(namespace)
 	})
 
 	When("A NovaAPI CR instance is created without any input", func() {
@@ -66,6 +67,10 @@ var _ = Describe("NovaAPI controller", func() {
 				)
 			}, timeout, interval).Should(
 				HaveField("Status", corev1.ConditionUnknown))
+		})
+
+		It("...", func() {
+			Expect(true).To(BeTrue())
 		})
 	})
 })
