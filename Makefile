@@ -269,3 +269,7 @@ golangci: get-ci-tools
 # Run go lint against code
 golint: get-ci-tools
 	export GOWORK=off && PATH=$(GOBIN):$(PATH); $(CI_TOOLS_REPO_DIR)/test-runner/golint.sh
+
+.PHONY: test_crc
+test_crc: manifests generate fmt vet envtest ## Run tests against a deployed CRC cluster
+	USE_EXISTING_CLUSTER=true go test ./... -coverpkg=./controllers -coverprofile cover.out
