@@ -89,8 +89,14 @@ func ExpectNovaAPICondition(
 ) {
 	Eventually(func(g Gomega) {
 		instance := GetNovaAPI(name)
-		g.Expect(instance.Status.Conditions).NotTo(BeNil())
-		g.Expect(instance.Status.Conditions.Has(conditionType)).To(BeTrue())
-		g.Expect(instance.Status.Conditions.Get(conditionType).Status).To(Equal(expectedStatus))
+		g.Expect(instance.Status.Conditions).NotTo(
+			BeNil(), "NovaAPI.Status.Conditions in nil")
+		g.Expect(instance.Status.Conditions.Has(conditionType)).To(
+			BeTrue(), "NovaAPI does not have condition type %s", conditionType)
+		actual := instance.Status.Conditions.Get(conditionType).Status
+		g.Expect(actual).To(
+			Equal(expectedStatus),
+			"NovaAPI %s condition is in an unexpected state. Expected: %s, Actual: %s",
+			conditionType, expectedStatus, actual)
 	}, timeout, interval).Should(Succeed())
 }

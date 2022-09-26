@@ -18,8 +18,12 @@ package controllers
 
 import (
 	"context"
+	"fmt"
+	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -27,6 +31,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 
@@ -94,8 +99,26 @@ func (r *NovaAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, err
 	}
 
-	return ctrl.Result{}, nil
+	// Always update the instance status when exiting this function so we can
+	// persist any changes happend during the current reconciliation.
+	defer func() {
+		// update the overall status condition if service is ready
+		if allSubConditionIsTrue(instance.Status) {
+			instance.Status.Conditions.MarkTrue(
+				condition.ReadyCondition, condition.ReadyMessage)
+		}
+		err := r.Status().Update(ctx, instance)
+		if err != nil && !k8s_errors.IsNotFound(err) {
+			util.LogErrorForObject(
+				h, err, "Failed to update status at the end of reconciliation", instance)
+		}
+		util.LogForObject(
+			h, "Updated status at the end of reconciliation", instance)
+	}()
+
+	return r.reconcileNormal(ctx, h, instance)
 }
+
 func (r *NovaAPIReconciler) initStatus(
 	ctx context.Context, h *helper.Helper, instance *novav1.NovaAPI,
 ) error {
@@ -122,9 +145,14 @@ func (r *NovaAPIReconciler) initConditions(
 		instance.Status.Conditions = condition.Conditions{}
 		// initialize all conditions to Unknown
 		cl := condition.CreateList(
-		// TODO(gibi): Initilaize each condition the controller reports
-		// here to Unknown. By default only the top level Ready condition is
-		// created by Conditions.Init()
+			// TODO(gibi): Initilaize each condition the controller reports
+			// here to Unknown. By default only the top level Ready condition is
+			// created by Conditions.Init()
+			condition.UnknownCondition(
+				condition.InputReadyCondition,
+				condition.InitReason,
+				condition.InputReadyInitMessage,
+			),
 		)
 
 		instance.Status.Conditions.Init(&cl)
@@ -139,6 +167,130 @@ func (r *NovaAPIReconciler) initConditions(
 
 	}
 	return nil
+}
+
+type conditionsGetter interface {
+	GetConditions() condition.Conditions
+}
+
+func allSubConditionIsTrue(conditionsGetter conditionsGetter) bool {
+	// It assumes that all of our conditions report success via the True status
+	for _, c := range conditionsGetter.GetConditions() {
+		if c.Type == condition.ReadyCondition {
+			continue
+		}
+		if c.Status != corev1.ConditionTrue {
+			return false
+		}
+	}
+	return true
+}
+
+func (r *NovaAPIReconciler) reconcileNormal(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *novav1.NovaAPI,
+) (ctrl.Result, error) {
+	secretHash, result, err := ensureSecret(
+		ctx,
+		types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.Secret},
+		// TODO(gibi): add keystoneAuthURL here is that is also passed via
+		// the Secret. Also add DB and MQ user name here too if those are
+		// passed via the Secret
+		[]string{
+			instance.Spec.PasswordSelectors.APIDatabase,
+			instance.Spec.PasswordSelectors.APIMessageBus,
+			instance.Spec.PasswordSelectors.Service,
+		},
+		h.GetClient(),
+		&instance.Status.Conditions,
+	)
+	if err != nil {
+		return result, err
+	}
+
+	// all our input checks out so report InputReady
+	instance.Status.Conditions.MarkTrue(condition.InputReadyCondition, condition.InputReadyMessage)
+
+	// TODO(gibi): Can we use a simple map[string][string] for hashes?
+	// Collect hashes of all the input we depend on so that we can easily
+	// detect if something is changed.
+	hashes := make(map[string]env.Setter)
+
+	hashes[instance.Spec.Secret] = env.SetValue(secretHash)
+
+	return ctrl.Result{}, nil
+}
+
+type conditionUpdater interface {
+	Set(c *condition.Condition)
+	MarkTrue(t condition.Type, messageFormat string, messageArgs ...interface{})
+}
+
+// ensureSecret - ensures that the Secret object exists and the expected fields
+// are in the Secret. It returns a hash of the values of the expected fields.
+func ensureSecret(
+	ctx context.Context,
+	secretName types.NamespacedName,
+	expectedFields []string,
+	reader client.Reader,
+	conditionUpdater conditionUpdater,
+) (string, ctrl.Result, error) {
+	secret := &corev1.Secret{}
+	err := reader.Get(ctx, secretName, secret)
+	if err != nil {
+		if k8s_errors.IsNotFound(err) {
+			// TODO(gibi): Change the message to state which input
+			// (i.e. Secret with a given name) is missing
+			conditionUpdater.Set(condition.FalseCondition(
+				condition.InputReadyCondition,
+				condition.RequestedReason,
+				condition.SeverityInfo,
+				condition.InputReadyWaitingMessage))
+			return "",
+				ctrl.Result{RequeueAfter: time.Second * 10},
+				fmt.Errorf("OpenStack secret %s not found", secretName)
+		}
+		conditionUpdater.Set(condition.FalseCondition(
+			condition.InputReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.InputReadyErrorMessage,
+			err.Error()))
+		return "", ctrl.Result{}, err
+	}
+
+	// collect the secret values the caller expects to exist
+	values := [][]byte{}
+	for _, field := range expectedFields {
+		if val, ok := secret.Data[field]; !ok {
+			err := fmt.Errorf("field %s not found in Secret %s", field, secretName)
+			conditionUpdater.Set(condition.FalseCondition(
+				condition.InputReadyCondition,
+				condition.ErrorReason,
+				condition.SeverityWarning,
+				condition.InputReadyErrorMessage,
+				err.Error()))
+			return "", ctrl.Result{}, err
+		} else {
+			values = append(values, val)
+		}
+	}
+
+	// TODO(gibi): Do we need to watch the Secret for changes?
+
+	hash, err := util.ObjectHash(values)
+	if err != nil {
+		conditionUpdater.Set(condition.FalseCondition(
+			condition.InputReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.InputReadyErrorMessage,
+			err.Error()))
+		return "", ctrl.Result{}, err
+	}
+
+	return hash, ctrl.Result{}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
