@@ -203,37 +203,33 @@ func (r *PlacementAPIReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func (r *PlacementAPIReconciler) reconcileDelete(ctx context.Context, instance *placementv1.PlacementAPI, helper *helper.Helper) (ctrl.Result, error) {
-	r.Log.Info("Reconciling Service delete")
+	util.LogForObject(helper, "Reconciling Service delete", instance)
 
-	//
-	// delete KeystoneService
-	//
-	ksSvcSpec := keystonev1.KeystoneServiceSpec{
-		ServiceType:        placement.ServiceName,
-		ServiceName:        placement.ServiceName,
-		ServiceDescription: "Placement Service",
-		Enabled:            true,
-		APIEndpoints:       instance.Status.APIEndpoints,
-		ServiceUser:        instance.Spec.ServiceUser,
-		Secret:             instance.Spec.Secret,
-		PasswordSelector:   instance.Spec.PasswordSelectors.Service,
-	}
-	ksSvc := keystone.NewKeystoneService(ksSvcSpec, instance.Namespace, map[string]string{}, 10)
-
-	err := ksSvc.Delete(ctx, helper)
-	if err != nil {
+	// Remove the finalizer from our KeystoneService CR
+	keystoneService, err := keystone.GetKeystoneServiceWithName(ctx, helper, placement.ServiceName, instance.Namespace)
+	if err != nil && !k8s_errors.IsNotFound(err) {
 		return ctrl.Result{}, err
 	}
 
-	// Service is deleted so remove the finalizer.
+	if err == nil {
+		controllerutil.RemoveFinalizer(keystoneService, helper.GetFinalizer())
+		if err = helper.GetClient().Update(ctx, keystoneService); err != nil && !k8s_errors.IsNotFound(err) {
+			return ctrl.Result{}, err
+		}
+		util.LogForObject(helper, "Removed finalizer from our KeystoneService", instance)
+	}
+
+	// We did all the cleanup on the objects we created so we can remove the
+	// finalizer from ourselves to allow the deletion
 	controllerutil.RemoveFinalizer(instance, helper.GetFinalizer())
-	r.Log.Info("Reconciled Service delete successfully")
 	if err := r.Update(ctx, instance); err != nil && !k8s_errors.IsNotFound(err) {
 		return ctrl.Result{}, err
 	}
 
+	util.LogForObject(helper, "Reconciled Service delete successfully", instance)
 	return ctrl.Result{}, nil
 }
+
 func (r *PlacementAPIReconciler) reconcileInit(
 	ctx context.Context,
 	instance *placementv1.PlacementAPI,
