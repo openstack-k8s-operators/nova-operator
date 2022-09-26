@@ -16,6 +16,8 @@ limitations under the License.
 package functional_test
 
 import (
+	"fmt"
+	"os"
 	"time"
 
 	"github.com/google/uuid"
@@ -49,6 +51,15 @@ var _ = Describe("NovaAPI controller", func() {
 		// We still request the delete of the Namespace in AfterEach to
 		// properly cleanup if we run the test in an existing cluster.
 		DeferCleanup(DeleteNamespace, namespace)
+		// NOTE(gibi): ConfigMap generation looks up the local templates
+		// directory via ENV, so provide it
+		DeferCleanup(os.Setenv, "OPERATOR_TEMPLATES", os.Getenv("OPERATOR_TEMPLATES"))
+		os.Setenv("OPERATOR_TEMPLATES", "../../templates")
+
+		// Uncomment this if you need the full output in the logs from gomega
+		// matchers
+		// format.MaxLength = 0
+
 	})
 
 	When("A NovaAPI CR instance is created without any input", func() {
@@ -159,15 +170,63 @@ var _ = Describe("NovaAPI controller", func() {
 				DeferCleanup(k8sClient.Delete, ctx, secret)
 			})
 
-			It("is Ready", func() {
-				ExpectNovaAPICondition(
-					novaAPIName, condition.ReadyCondition, corev1.ConditionTrue)
-			})
-
 			It("reports that input is ready", func() {
 				ExpectNovaAPICondition(
 					novaAPIName, condition.InputReadyCondition, corev1.ConditionTrue)
 			})
+
+			It("generated configs successfully", func() {
+				// NOTE(gibi): NovaAPI has no external dependency right now to
+				// generate the configs.
+				ExpectNovaAPICondition(
+					novaAPIName, condition.ServiceConfigReadyCondition, corev1.ConditionTrue)
+
+				configDataMap := GetConfigMap(
+					types.NamespacedName{
+						Namespace: namespace,
+						Name:      fmt.Sprintf("%s-config-data", novaAPIName.Name),
+					},
+				)
+				Expect(configDataMap.Data).Should(Equal(
+					map[string]string{"custom.conf": "# add your customization here"}))
+
+				scriptMap := GetConfigMap(
+					types.NamespacedName{
+						Namespace: namespace,
+						Name:      fmt.Sprintf("%s-scripts", novaAPIName.Name),
+					},
+				)
+				Expect(scriptMap.Data).Should(HaveKeyWithValue(
+					"common.sh", ContainSubstring("function merge_config_dir")))
+
+			})
+
+			It("stored the input hash in the Status", func() {
+				Eventually(func(g Gomega) {
+					novaAPI := GetNovaAPI(novaAPIName)
+					g.Expect(novaAPI.Status.Hash).Should(HaveKeyWithValue("input", Not(BeEmpty())))
+				}, timeout, interval).Should(Succeed())
+
+			})
+
+			It("isReady ", func() {
+				ExpectNovaAPICondition(
+					novaAPIName, condition.ReadyCondition, corev1.ConditionTrue)
+			})
+
+			When("the NovaAPI is deleted", func() {
+				It("deletes the generated ConfigMaps", func() {
+					ExpectNovaAPICondition(
+						novaAPIName, condition.ServiceConfigReadyCondition, corev1.ConditionTrue)
+
+					DeleteNovaAPI(novaAPIName)
+
+					Eventually(func() []corev1.ConfigMap {
+						return ListConfigMaps(novaAPIName.Name).Items
+					}, timeout, interval).Should(BeEmpty())
+				})
+			})
 		})
+
 	})
 })
