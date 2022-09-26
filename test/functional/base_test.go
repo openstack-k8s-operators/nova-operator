@@ -22,6 +22,7 @@ import (
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
@@ -65,11 +66,19 @@ func CreateNovaAPI(namespace string, spec novav1.NovaAPISpec) types.NamespacedNa
 }
 
 func DeleteNovaAPI(name types.NamespacedName) {
-	novaAPI := GetNovaAPI(name)
-	Expect(k8sClient.Delete(ctx, novaAPI)).Should(Succeed())
 	// We have to wait for the controller to fully delete the instance
 	Eventually(func(g Gomega) {
+		novaAPI := &novav1.NovaAPI{}
 		err := k8sClient.Get(ctx, name, novaAPI)
+		// if it is already gone that is OK
+		if k8s_errors.IsNotFound(err) {
+			return
+		}
+		Expect(err).Should(BeNil())
+
+		Expect(k8sClient.Delete(ctx, novaAPI)).Should(Succeed())
+
+		err = k8sClient.Get(ctx, name, novaAPI)
 		g.Expect(k8s_errors.IsNotFound(err)).To(BeTrue())
 	}, timeout, interval).Should(Succeed())
 }
@@ -99,4 +108,21 @@ func ExpectNovaAPICondition(
 			"NovaAPI %s condition is in an unexpected state. Expected: %s, Actual: %s",
 			conditionType, expectedStatus, actual)
 	}, timeout, interval).Should(Succeed())
+}
+
+func GetConfigMap(name types.NamespacedName) corev1.ConfigMap {
+	cm := &corev1.ConfigMap{}
+	Eventually(func(g Gomega) {
+		g.Expect(k8sClient.Get(ctx, name, cm)).Should(Succeed())
+	}, timeout, interval).Should(Succeed())
+	return *cm
+}
+
+func ListConfigMaps(namespace string) corev1.ConfigMapList {
+	cms := &corev1.ConfigMapList{}
+	Eventually(func(g Gomega) {
+		g.Expect(k8sClient.List(ctx, cms, client.InNamespace(namespace))).Should(Succeed())
+	}, timeout, interval).Should(Succeed())
+	return *cms
+
 }

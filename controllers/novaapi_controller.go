@@ -30,14 +30,22 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/go-logr/logr"
+	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/configmap"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/labels"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
+)
+
+const (
+	// ServiceName -
+	ServiceName = "nova-api"
 )
 
 // NovaAPIReconciler reconciles a NovaAPI object
@@ -153,6 +161,11 @@ func (r *NovaAPIReconciler) initConditions(
 				condition.InitReason,
 				condition.InputReadyInitMessage,
 			),
+			condition.UnknownCondition(
+				condition.ServiceConfigReadyCondition,
+				condition.InitReason,
+				condition.ServiceConfigReadyInitMessage,
+			),
 		)
 
 		instance.Status.Conditions.Init(&cl)
@@ -191,6 +204,11 @@ func (r *NovaAPIReconciler) reconcileNormal(
 	h *helper.Helper,
 	instance *novav1.NovaAPI,
 ) (ctrl.Result, error) {
+	// TODO(gibi): Can we use a simple map[string][string] for hashes?
+	// Collect hashes of all the input we depend on so that we can easily
+	// detect if something is changed.
+	hashes := make(map[string]env.Setter)
+
 	secretHash, result, err := ensureSecret(
 		ctx,
 		types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.Secret},
@@ -209,15 +227,41 @@ func (r *NovaAPIReconciler) reconcileNormal(
 		return result, err
 	}
 
+	hashes[instance.Spec.Secret] = env.SetValue(secretHash)
+
 	// all our input checks out so report InputReady
 	instance.Status.Conditions.MarkTrue(condition.InputReadyCondition, condition.InputReadyMessage)
 
-	// TODO(gibi): Can we use a simple map[string][string] for hashes?
-	// Collect hashes of all the input we depend on so that we can easily
-	// detect if something is changed.
-	hashes := make(map[string]env.Setter)
+	// create ConfigMaps required for nova-api service
+	// - %-scripts configmap holding scripts to e.g. bootstrap the service
+	// - %-config configmap holding minimal nova-api config required to get
+	//   the service up, user can add additional files to be added to the service
+	// - parameters which has passwords gets added from the OpenStack secret
+	//   via the init container
+	err = r.generateServiceConfigMaps(ctx, h, instance, &hashes)
+	if err != nil {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.ServiceConfigReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.ServiceConfigReadyErrorMessage,
+			err.Error()))
+		return ctrl.Result{}, err
+	}
 
-	hashes[instance.Spec.Secret] = env.SetValue(secretHash)
+	// create hash over all the different input resources to identify if any of
+	// those changed and a restart/recreate is required.
+	inputHash, err := r.hashOfInputHashes(ctx, hashes)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	if val, ok := instance.Status.Hash[common.InputHashName]; !ok || val != inputHash {
+		instance.Status.Hash[common.InputHashName] = inputHash
+		// TODO(gibi): Do we need to persist the change right away here? Or it
+		// is OK to let the our defered update at the end do the persisting.
+	}
+
+	instance.Status.Conditions.MarkTrue(condition.ServiceConfigReadyCondition, condition.ServiceConfigReadyMessage)
 
 	return ctrl.Result{}, nil
 }
@@ -263,7 +307,8 @@ func ensureSecret(
 	// collect the secret values the caller expects to exist
 	values := [][]byte{}
 	for _, field := range expectedFields {
-		if val, ok := secret.Data[field]; !ok {
+		val, ok := secret.Data[field]
+		if !ok {
 			err := fmt.Errorf("field %s not found in Secret %s", field, secretName)
 			conditionUpdater.Set(condition.FalseCondition(
 				condition.InputReadyCondition,
@@ -272,9 +317,8 @@ func ensureSecret(
 				condition.InputReadyErrorMessage,
 				err.Error()))
 			return "", ctrl.Result{}, err
-		} else {
-			values = append(values, val)
 		}
+		values = append(values, val)
 	}
 
 	// TODO(gibi): Do we need to watch the Secret for changes?
@@ -291,6 +335,87 @@ func ensureSecret(
 	}
 
 	return hash, ctrl.Result{}, nil
+}
+
+// TODO(gibi): Carried over from placement, Sean started working on this
+// so integrate Sean's work here
+//
+// generateServiceConfigMaps - create create configmaps which hold scripts and service configuration
+// TODO add DefaultConfigOverwrite
+//
+func (r *NovaAPIReconciler) generateServiceConfigMaps(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *novav1.NovaAPI,
+	envVars *map[string]env.Setter,
+) error {
+	//
+	// create Configmap/Secret required for nova-api input
+	// - %-scripts configmap holding scripts to e.g. bootstrap the service
+	// - %-config configmap holding minimal nova-api config required to get
+	//   the service up, user can add additional files to be added to the service
+	// - parameters which has passwords gets added from the ospSecret via the
+	//   init container
+	//
+
+	cmLabels := labels.GetLabels(
+		instance, labels.GetGroupLabel(ServiceName), map[string]string{})
+
+	// customData hold any customization for the service.
+	// custom.conf is going to /etc/<service>/<service>.conf.d
+	// all other files get placed into /etc/<service> to allow overwrite of
+	// e.g. logging.conf or policy.json
+	// TODO: make sure custom.conf can not be overwritten
+	customData := map[string]string{
+		common.CustomServiceConfigFileName: instance.Spec.CustomServiceConfig}
+	for key, data := range instance.Spec.DefaultConfigOverwrite {
+		customData[key] = data
+	}
+
+	templateParameters := make(map[string]interface{})
+	templateParameters["ServiceUser"] = instance.Spec.ServiceUser
+	templateParameters["KeystonePublicURL"] = instance.Spec.KeystoneAuthURL
+
+	cms := []util.Template{
+		// ScriptsConfigMap
+		{
+			Name:               fmt.Sprintf("%s-scripts", instance.Name),
+			Namespace:          instance.Namespace,
+			Type:               util.TemplateTypeScripts,
+			InstanceType:       instance.Kind,
+			AdditionalTemplate: map[string]string{"common.sh": "/common/common.sh"},
+			Labels:             cmLabels,
+		},
+		// ConfigMap
+		{
+			Name:          fmt.Sprintf("%s-config-data", instance.Name),
+			Namespace:     instance.Namespace,
+			Type:          util.TemplateTypeConfig,
+			InstanceType:  instance.Kind,
+			CustomData:    customData,
+			ConfigOptions: templateParameters,
+			Labels:        cmLabels,
+		},
+	}
+	err := configmap.EnsureConfigMaps(ctx, h, instance, cms, envVars)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// hashOfInputHashes - calculates the overal hash of all our inputs
+func (r *NovaAPIReconciler) hashOfInputHashes(
+	ctx context.Context,
+	hashes map[string]env.Setter,
+) (string, error) {
+	mergedMapVars := env.MergeEnvs([]corev1.EnvVar{}, hashes)
+	hash, err := util.ObjectHash(mergedMapVars)
+	if err != nil {
+		return hash, err
+	}
+	return hash, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
