@@ -165,3 +165,8 @@ type NovaAPIList struct {
 func init() {
 	SchemeBuilder.Register(&NovaAPI{}, &NovaAPIList{})
 }
+
+// GetConditions returns the list of conditions from the status
+func (s NovaAPIStatus) GetConditions() condition.Conditions {
+	return s.Conditions
+}
