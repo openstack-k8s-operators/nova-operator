@@ -207,6 +207,20 @@ func (r *PlacementAPIReconciler) SetupWithManager(mgr ctrl.Manager) error {
 func (r *PlacementAPIReconciler) reconcileDelete(ctx context.Context, instance *placementv1.PlacementAPI, helper *helper.Helper) (ctrl.Result, error) {
 	util.LogForObject(helper, "Reconciling Service delete", instance)
 
+	// Remove the finalizer from our KeystoneEndpoint CR
+	keystoneEndpoint, err := keystonev1.GetKeystoneEndpointWithName(ctx, helper, placement.ServiceName, instance.Namespace)
+	if err != nil && !k8s_errors.IsNotFound(err) {
+		return ctrl.Result{}, err
+	}
+
+	if err == nil {
+		controllerutil.RemoveFinalizer(keystoneEndpoint, helper.GetFinalizer())
+		if err = helper.GetClient().Update(ctx, keystoneEndpoint); err != nil && !k8s_errors.IsNotFound(err) {
+			return ctrl.Result{}, err
+		}
+		util.LogForObject(helper, "Removed finalizer from our KeystoneEndpoint", instance)
+	}
+
 	// Remove the finalizer from our KeystoneService CR
 	keystoneService, err := keystonev1.GetKeystoneServiceWithName(ctx, helper, placement.ServiceName, instance.Namespace)
 	if err != nil && !k8s_errors.IsNotFound(err) {
