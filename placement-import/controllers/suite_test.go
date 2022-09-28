@@ -67,31 +67,46 @@ func TestAPIs(t *testing.T) {
 		[]Reporter{printer.NewlineReporter{}})
 }
 
-func GetDependencyVersion(moduleName string) (string, error) {
+func GetDependencyVersion(moduleName string) (string, string, error) {
 	content, err := os.ReadFile("../go.mod")
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
 	f, err := modfile.Parse("go.mod", content, nil)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
+
+	version := ""
+	name := moduleName
 
 	for _, r := range f.Require {
 		if r.Mod.Path == moduleName {
-			return r.Mod.Version, nil
+			version = r.Mod.Version
 		}
 	}
-	return "", fmt.Errorf("Cannot find %s in our go.mod file", moduleName)
 
+	// check for replacement config in go.mod for the named module
+	for _, r := range f.Replace {
+		if r.Old.Path == moduleName {
+			version = r.New.Version
+			name = r.New.Path
+		}
+	}
+
+	if version != "" {
+		return name, version, nil
+	}
+
+	return name, "", fmt.Errorf("Cannot find %s in our go.mod file", moduleName)
 }
 
 func GetCRDDirFromModule(moduleName string) string {
-	version, err := GetDependencyVersion(moduleName)
+	moduleName, version, err := GetDependencyVersion(moduleName)
 	Expect(err).NotTo(HaveOccurred())
 	versionedModule := fmt.Sprintf("%s@%s", moduleName, version)
-	path := filepath.Join(build.Default.GOPATH, "pkg", "mod", versionedModule, "config", "crd", "bases")
+	path := filepath.Join(build.Default.GOPATH, "pkg", "mod", versionedModule, "bases")
 	return path
 }
 
@@ -105,8 +120,8 @@ var _ = BeforeSuite(func() {
 		CRDDirectoryPaths: []string{
 			filepath.Join("..", "config", "crd", "bases"),
 			// NOTE(gibi): we need to list all the external CRDs our operator depends on
-			GetCRDDirFromModule("github.com/openstack-k8s-operators/keystone-operator"),
-			GetCRDDirFromModule("github.com/openstack-k8s-operators/mariadb-operator"),
+			GetCRDDirFromModule("github.com/openstack-k8s-operators/keystone-operator/api"),
+			GetCRDDirFromModule("github.com/openstack-k8s-operators/mariadb-operator/api"),
 			// NOTE(gibi): OpenShift CRDs are even trickier as they are not directly published.
 			// For now we store a copy of the needed ones locally
 			filepath.Join("..", "openshift_crds", "route", "v1"),

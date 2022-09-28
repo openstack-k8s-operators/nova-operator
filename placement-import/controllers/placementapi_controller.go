@@ -31,7 +31,6 @@ import (
 	"github.com/go-logr/logr"
 	routev1 "github.com/openshift/api/route/v1"
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
-	keystone "github.com/openstack-k8s-operators/keystone-operator/pkg/external"
 
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
@@ -97,6 +96,7 @@ type PlacementAPIReconciler struct {
 // +kubebuilder:rbac:groups=mariadb.openstack.org,resources=mariadbdatabases,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneapis,verbs=get;list;watch;
 // +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneservices,verbs=get;list;watch;create;update;patch;delete;
+// +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneendpoints,verbs=get;list;watch;create;update;patch;delete;
 
 // Reconcile reconcile placement API requests
 func (r *PlacementAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -129,8 +129,9 @@ func (r *PlacementAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			condition.UnknownCondition(condition.InputReadyCondition, condition.InitReason, condition.InputReadyInitMessage),
 			condition.UnknownCondition(condition.ServiceConfigReadyCondition, condition.InitReason, condition.ServiceConfigReadyInitMessage),
 			condition.UnknownCondition(condition.DeploymentReadyCondition, condition.InitReason, condition.DeploymentReadyInitMessage),
-			// right now we have no dedicated KeystoneServiceReadyInitMessage
+			// right now we have no dedicated KeystoneServiceReadyInitMessage and KeystoneEndpointReadyInitMessage
 			condition.UnknownCondition(condition.KeystoneServiceReadyCondition, condition.InitReason, ""),
+			condition.UnknownCondition(condition.KeystoneEndpointReadyCondition, condition.InitReason, ""),
 		)
 
 		instance.Status.Conditions.Init(&cl)
@@ -193,6 +194,7 @@ func (r *PlacementAPIReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&placementv1.PlacementAPI{}).
 		Owns(&mariadbv1.MariaDBDatabase{}).
 		Owns(&keystonev1.KeystoneService{}).
+		Owns(&keystonev1.KeystoneEndpoint{}).
 		Owns(&batchv1.Job{}).
 		Owns(&corev1.Service{}).
 		Owns(&corev1.Secret{}).
@@ -205,8 +207,22 @@ func (r *PlacementAPIReconciler) SetupWithManager(mgr ctrl.Manager) error {
 func (r *PlacementAPIReconciler) reconcileDelete(ctx context.Context, instance *placementv1.PlacementAPI, helper *helper.Helper) (ctrl.Result, error) {
 	util.LogForObject(helper, "Reconciling Service delete", instance)
 
+	// Remove the finalizer from our KeystoneEndpoint CR
+	keystoneEndpoint, err := keystonev1.GetKeystoneEndpointWithName(ctx, helper, placement.ServiceName, instance.Namespace)
+	if err != nil && !k8s_errors.IsNotFound(err) {
+		return ctrl.Result{}, err
+	}
+
+	if err == nil {
+		controllerutil.RemoveFinalizer(keystoneEndpoint, helper.GetFinalizer())
+		if err = helper.GetClient().Update(ctx, keystoneEndpoint); err != nil && !k8s_errors.IsNotFound(err) {
+			return ctrl.Result{}, err
+		}
+		util.LogForObject(helper, "Removed finalizer from our KeystoneEndpoint", instance)
+	}
+
 	// Remove the finalizer from our KeystoneService CR
-	keystoneService, err := keystone.GetKeystoneServiceWithName(ctx, helper, placement.ServiceName, instance.Namespace)
+	keystoneService, err := keystonev1.GetKeystoneServiceWithName(ctx, helper, placement.ServiceName, instance.Namespace)
 	if err != nil && !k8s_errors.IsNotFound(err) {
 		return ctrl.Result{}, err
 	}
@@ -342,19 +358,18 @@ func (r *PlacementAPIReconciler) reconcileInit(
 	// expose service - end
 
 	//
-	// create users and endpoints - https://docs.openstack.org/placement/latest/install/install-rdo.html#configure-user-and-endpoints
+	// create service and user in keystone - https://docs.openstack.org/placement/latest/install/install-rdo.html#configure-user-and-endpoints
 	//
 	ksSvcSpec := keystonev1.KeystoneServiceSpec{
 		ServiceType:        placement.ServiceName,
 		ServiceName:        placement.ServiceName,
 		ServiceDescription: "Placement Service",
 		Enabled:            true,
-		APIEndpoints:       instance.Status.APIEndpoints,
 		ServiceUser:        instance.Spec.ServiceUser,
 		Secret:             instance.Spec.Secret,
 		PasswordSelector:   instance.Spec.PasswordSelectors.Service,
 	}
-	ksSvc := keystone.NewKeystoneService(ksSvcSpec, instance.Namespace, serviceLabels, 10)
+	ksSvc := keystonev1.NewKeystoneService(ksSvcSpec, instance.Namespace, serviceLabels, 10)
 	ctrlResult, err = ksSvc.CreateOrPatch(ctx, helper)
 	if err != nil {
 		return ctrlResult, err
@@ -371,6 +386,34 @@ func (r *PlacementAPIReconciler) reconcileInit(
 	}
 
 	instance.Status.ServiceID = ksSvc.GetServiceID()
+
+	//
+	// register endpoints
+	//
+	ksEndptSpec := keystonev1.KeystoneEndpointSpec{
+		ServiceName: placement.ServiceName,
+		Endpoints:   instance.Status.APIEndpoints,
+	}
+	ksEndpt := keystonev1.NewKeystoneEndpoint(
+		placement.ServiceName,
+		instance.Namespace,
+		ksEndptSpec,
+		serviceLabels,
+		10)
+	ctrlResult, err = ksEndpt.CreateOrPatch(ctx, helper)
+	if err != nil {
+		return ctrlResult, err
+	}
+	// mirror the Status, Reason, Severity and Message of the latest keystoneendpoint condition
+	// into a local condition with the type condition.KeystoneEndpointReadyCondition
+	c = ksEndpt.GetConditions().Mirror(condition.KeystoneEndpointReadyCondition)
+	if c != nil {
+		instance.Status.Conditions.Set(c)
+	}
+
+	if (ctrlResult != ctrl.Result{}) {
+		return ctrlResult, nil
+	}
 
 	//
 	// run placement db sync
@@ -608,7 +651,7 @@ func (r *PlacementAPIReconciler) generateServiceConfigMaps(
 		customData[key] = data
 	}
 
-	keystoneAPI, err := keystone.GetKeystoneAPI(ctx, h, instance.Namespace, map[string]string{})
+	keystoneAPI, err := keystonev1.GetKeystoneAPI(ctx, h, instance.Namespace, map[string]string{})
 	if err != nil {
 		return err
 	}

@@ -76,6 +76,18 @@ rules:
 - apiGroups:
   - keystone.openstack.org
   resources:
+  - keystoneendpoints
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - keystone.openstack.org
+  resources:
   - keystoneservices
   verbs:
   - create
