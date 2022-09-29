@@ -35,17 +35,24 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/configmap"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
+	job "github.com/openstack-k8s-operators/lib-common/modules/common/job"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/labels"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
+	"github.com/openstack-k8s-operators/nova-operator/pkg/nova"
+	"github.com/openstack-k8s-operators/nova-operator/pkg/novaapi"
 
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 const (
-	// ServiceName -
-	ServiceName = "nova-api"
+	// LabelPrefix - a unique, service binary specific prefix for the labeles
+	// this controller uses on children objects
+	LabelPrefix = "nova-api"
+	// DbSyncHash - the field name in Status.Hashes storing the has of the DB
+	// sync job
+	DbSyncHash = "dbsync"
 )
 
 // NovaAPIReconciler reconciles a NovaAPI object
@@ -59,6 +66,11 @@ type NovaAPIReconciler struct {
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=novaapis,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=novaapis/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=novaapis/finalizers,verbs=update
+// +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch;delete;
+// +kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;watch;create;update;patch;delete;
+// +kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete;
+// +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete;
+// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete;
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -166,6 +178,11 @@ func (r *NovaAPIReconciler) initConditions(
 				condition.InitReason,
 				condition.ServiceConfigReadyInitMessage,
 			),
+			condition.UnknownCondition(
+				condition.DBSyncReadyCondition,
+				condition.InitReason,
+				condition.DBSyncReadyInitMessage,
+			),
 		)
 
 		instance.Status.Conditions.Init(&cl)
@@ -263,6 +280,46 @@ func (r *NovaAPIReconciler) reconcileNormal(
 
 	instance.Status.Conditions.MarkTrue(condition.ServiceConfigReadyCondition, condition.ServiceConfigReadyMessage)
 
+	serviceLabels := map[string]string{
+		common.AppSelector: LabelPrefix,
+	}
+
+	dbSyncHash := instance.Status.Hash[DbSyncHash]
+	jobDef := novaapi.APIDBSyncJob(instance, serviceLabels)
+	dbSyncjob := job.NewJob(
+		jobDef,
+		"dbsync",
+		instance.Spec.Debug.PreserveJobs,
+		5,
+		dbSyncHash,
+	)
+	ctrlResult, err := dbSyncjob.DoJob(ctx, h)
+	if (ctrlResult != ctrl.Result{}) {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.DBSyncReadyCondition,
+			condition.RequestedReason,
+			condition.SeverityInfo,
+			condition.DBSyncReadyRunningMessage))
+		return ctrlResult, nil
+	}
+	if err != nil {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.DBSyncReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.DBSyncReadyErrorMessage,
+			err.Error()))
+		return ctrl.Result{}, err
+	}
+	if dbSyncjob.HasChanged() {
+		instance.Status.Hash[DbSyncHash] = dbSyncjob.GetHash()
+		// TODO(gibi): Do we need to call Status().Update() now or it is
+		// enough to let our deferred call do the update at the end of the
+		// reconcile loop?
+		r.Log.Info(fmt.Sprintf("Job %s hash added - %s", jobDef.Name, instance.Status.Hash[DbSyncHash]))
+	}
+	instance.Status.Conditions.MarkTrue(condition.DBSyncReadyCondition, condition.DBSyncReadyMessage)
+
 	return ctrl.Result{}, nil
 }
 
@@ -359,7 +416,7 @@ func (r *NovaAPIReconciler) generateServiceConfigMaps(
 	//
 
 	cmLabels := labels.GetLabels(
-		instance, labels.GetGroupLabel(ServiceName), map[string]string{})
+		instance, labels.GetGroupLabel(LabelPrefix), map[string]string{})
 
 	// customData hold any customization for the service.
 	// custom.conf is going to /etc/<service>/<service>.conf.d
@@ -379,7 +436,7 @@ func (r *NovaAPIReconciler) generateServiceConfigMaps(
 	cms := []util.Template{
 		// ScriptsConfigMap
 		{
-			Name:               fmt.Sprintf("%s-scripts", instance.Name),
+			Name:               nova.GetScriptConfigMapName(instance.Name),
 			Namespace:          instance.Namespace,
 			Type:               util.TemplateTypeScripts,
 			InstanceType:       instance.Kind,
@@ -388,7 +445,7 @@ func (r *NovaAPIReconciler) generateServiceConfigMaps(
 		},
 		// ConfigMap
 		{
-			Name:          fmt.Sprintf("%s-config-data", instance.Name),
+			Name:          nova.GetServiceConfigConfigMapName(instance.Name),
 			Namespace:     instance.Namespace,
 			Type:          util.TemplateTypeConfig,
 			InstanceType:  instance.Kind,
