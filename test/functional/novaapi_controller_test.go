@@ -23,6 +23,7 @@ import (
 	"github.com/google/uuid"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -32,9 +33,10 @@ import (
 )
 
 const (
-	SecretName = "test-secret"
+	SecretName     = "test-secret"
+	ContainerImage = "test://nova-api"
 
-	timeout  = time.Second * 2
+	timeout  = time.Second * 10
 	interval = time.Millisecond * 200
 )
 
@@ -155,19 +157,8 @@ var _ = Describe("NovaAPI controller", func() {
 
 		When("the Secret is created with all the expected fields", func() {
 			BeforeEach(func() {
-				secret := &corev1.Secret{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      SecretName,
-						Namespace: namespace,
-					},
-					Data: map[string][]byte{
-						"NovaPassword":              []byte("12345678"),
-						"NovaAPIDatabasePassword":   []byte("12345678"),
-						"NovaAPIMessageBusPassword": []byte("12345678"),
-					},
-				}
-				Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
-				DeferCleanup(k8sClient.Delete, ctx, secret)
+				DeferCleanup(
+					k8sClient.Delete, ctx, CreateNovaAPISecret(namespace, SecretName))
 			})
 
 			It("reports that input is ready", func() {
@@ -187,8 +178,8 @@ var _ = Describe("NovaAPI controller", func() {
 						Name:      fmt.Sprintf("%s-config-data", novaAPIName.Name),
 					},
 				)
-				Expect(configDataMap.Data).Should(Equal(
-					map[string]string{"custom.conf": "# add your customization here"}))
+				Expect(configDataMap.Data).Should(
+					HaveKeyWithValue("custom.conf", "# add your customization here"))
 
 				scriptMap := GetConfigMap(
 					types.NamespacedName{
@@ -196,9 +187,13 @@ var _ = Describe("NovaAPI controller", func() {
 						Name:      fmt.Sprintf("%s-scripts", novaAPIName.Name),
 					},
 				)
+				// This is explicitly added to the map by the controller
 				Expect(scriptMap.Data).Should(HaveKeyWithValue(
 					"common.sh", ContainSubstring("function merge_config_dir")))
-
+				// Everything under templates/novaapi are added automatically by
+				// lib-common
+				Expect(scriptMap.Data).Should(HaveKeyWithValue(
+					"init.sh", ContainSubstring("api_database connection mysql+pymysql")))
 			})
 
 			It("stored the input hash in the Status", func() {
@@ -207,11 +202,6 @@ var _ = Describe("NovaAPI controller", func() {
 					g.Expect(novaAPI.Status.Hash).Should(HaveKeyWithValue("input", Not(BeEmpty())))
 				}, timeout, interval).Should(Succeed())
 
-			})
-
-			It("isReady ", func() {
-				ExpectNovaAPICondition(
-					novaAPIName, condition.ReadyCondition, corev1.ConditionTrue)
 			})
 
 			When("the NovaAPI is deleted", func() {
@@ -227,6 +217,181 @@ var _ = Describe("NovaAPI controller", func() {
 				})
 			})
 		})
+	})
 
+	When("NovAPI is created with a proper Secret", func() {
+		var jobName types.NamespacedName
+
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateNovaAPISecret(namespace, SecretName))
+
+			novaAPIName = CreateNovaAPI(
+				namespace,
+				novav1.NovaAPISpec{
+					Secret: SecretName,
+					NovaServiceBase: novav1.NovaServiceBase{
+						ContainerImage: ContainerImage,
+					},
+				},
+			)
+			DeferCleanup(DeleteNovaAPI, novaAPIName)
+
+			ExpectNovaAPICondition(
+				novaAPIName, condition.InputReadyCondition, corev1.ConditionTrue)
+
+			jobName = types.NamespacedName{
+				Namespace: namespace,
+				Name:      fmt.Sprintf("%s-api-db-sync", novaAPIName.Name),
+			}
+
+		})
+
+		// NOTE(gibi): This could be racy when run against a real cluster
+		// as the job might finish / fail automatically before this test can
+		// assert the in progress state. Fortunately the real env is slow so
+		// this actually passes.
+		It("started the dbsync job and it reports waiting for that job to finish", func() {
+			ExpectNovaAPIConditionWithDetails(
+				novaAPIName,
+				condition.DBSyncReadyCondition,
+				corev1.ConditionFalse,
+				condition.RequestedReason,
+				condition.DBSyncReadyRunningMessage,
+			)
+			job := GetJob(jobName)
+			// TODO(gibi): We could verify a lot of fields but should we?
+			Expect(job.Spec.Template.Spec.Volumes).To(HaveLen(3))
+			Expect(job.Spec.Template.Spec.InitContainers).To(HaveLen(1))
+			initContainer := job.Spec.Template.Spec.InitContainers[0]
+			Expect(initContainer.VolumeMounts).To(HaveLen(3))
+			Expect(initContainer.Image).To(Equal(ContainerImage))
+
+			Expect(job.Spec.Template.Spec.Containers).To(HaveLen(1))
+			container := job.Spec.Template.Spec.Containers[0]
+			Expect(container.VolumeMounts).To(HaveLen(2))
+			Expect(container.Args[1]).To(ContainSubstring("nova-manage api_db sync"))
+			Expect(container.Image).To(Equal(ContainerImage))
+		})
+
+		When("DB sync fails", func() {
+			BeforeEach(func() {
+				SimulateJobFailure(jobName)
+			})
+
+			// NOTE(gibi): lib-common only deletes the job if the job succeeds
+			It("reports that DB sync is failed and the job is not deleted", func() {
+				ExpectNovaAPIConditionWithDetails(
+					novaAPIName,
+					condition.DBSyncReadyCondition,
+					corev1.ConditionFalse,
+					condition.ErrorReason,
+					"DBsync job error occured Internal error occurred: Job Failed. Check job logs",
+				)
+				// This would fail the test case if the job does not exists
+				GetJob(jobName)
+
+				// We don't store the failed job's hash.
+				novaAPI := GetNovaAPI(novaAPIName)
+				Expect(novaAPI.Status.Hash).ShouldNot(HaveKey("dbsync"))
+
+			})
+
+			When("NovaAPI is deleted", func() {
+				It("deletes the failed job", func() {
+					ExpectNovaAPIConditionWithDetails(
+						novaAPIName,
+						condition.DBSyncReadyCondition,
+						corev1.ConditionFalse,
+						condition.ErrorReason,
+						"DBsync job error occured Internal error occurred: Job Failed. Check job logs",
+					)
+
+					DeleteNovaAPI(novaAPIName)
+
+					Eventually(func() []batchv1.Job {
+						return ListJobs(novaAPIName.Name).Items
+					}, timeout, interval).Should(BeEmpty())
+				})
+			})
+		})
+
+		When("DB sync job finishes successfully", func() {
+			BeforeEach(func() {
+				SimulateJobSuccess(jobName)
+			})
+
+			It("reports that DB sync is ready and the job is deleted", func() {
+				ExpectNovaAPICondition(
+					novaAPIName, condition.DBSyncReadyCondition, corev1.ConditionTrue)
+
+				Expect(ListJobs(namespace).Items).To(BeEmpty())
+			})
+
+			It("isReady ", func() {
+				ExpectNovaAPICondition(
+					novaAPIName, condition.ReadyCondition, corev1.ConditionTrue)
+			})
+
+			It("stores the hash of the Job in the Status", func() {
+				Eventually(func(g Gomega) {
+					novaAPI := GetNovaAPI(novaAPIName)
+					g.Expect(novaAPI.Status.Hash).Should(HaveKeyWithValue("dbsync", Not(BeEmpty())))
+				}, timeout, interval).Should(Succeed())
+
+			})
+
+		})
+	})
+
+	When("NovAPI is configured to preserve jobs", func() {
+		var jobName types.NamespacedName
+
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateNovaAPISecret(namespace, SecretName))
+
+			novaAPIName = CreateNovaAPI(
+				namespace,
+				novav1.NovaAPISpec{
+					Secret: SecretName,
+					NovaServiceBase: novav1.NovaServiceBase{
+						ContainerImage: ContainerImage,
+					},
+					Debug: novav1.Debug{PreserveJobs: true},
+				},
+			)
+			DeferCleanup(DeleteNovaAPI, novaAPIName)
+
+			ExpectNovaAPICondition(
+				novaAPIName, condition.DBSyncReadyCondition, corev1.ConditionFalse)
+
+			jobName = types.NamespacedName{
+				Namespace: namespace,
+				Name:      fmt.Sprintf("%s-api-db-sync", novaAPIName.Name)}
+		})
+
+		It("does not delete the DB sync job after it finished", func() {
+			SimulateJobSuccess(jobName)
+
+			ExpectNovaAPICondition(
+				novaAPIName, condition.DBSyncReadyCondition, corev1.ConditionTrue)
+			// This would fail the test case if the job does not exists
+			GetJob(jobName)
+		})
+
+		It("does not delete the DB sync job after it failed", func() {
+			SimulateJobFailure(jobName)
+
+			ExpectNovaAPIConditionWithDetails(
+				novaAPIName,
+				condition.DBSyncReadyCondition,
+				corev1.ConditionFalse,
+				condition.ErrorReason,
+				"DBsync job error occured Internal error occurred: Job Failed. Check job logs",
+			)
+			// This would fail the test case if the job does not exists
+			GetJob(jobName)
+		})
 	})
 })

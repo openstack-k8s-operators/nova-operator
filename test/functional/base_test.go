@@ -18,6 +18,7 @@ package functional_test
 import (
 	"github.com/google/uuid"
 	. "github.com/onsi/gomega"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -110,6 +111,29 @@ func ExpectNovaAPICondition(
 	}, timeout, interval).Should(Succeed())
 }
 
+func ExpectNovaAPIConditionWithDetails(
+	name types.NamespacedName,
+	conditionType condition.Type,
+	expectedStatus corev1.ConditionStatus,
+	expectedReason condition.Reason,
+	expecteMessage string,
+) {
+	Eventually(func(g Gomega) {
+		instance := GetNovaAPI(name)
+		g.Expect(instance.Status.Conditions).NotTo(
+			BeNil(), "NovaAPI.Status.Conditions in nil")
+		g.Expect(instance.Status.Conditions.Has(conditionType)).To(
+			BeTrue(), "NovaAPI does not have condition type %s", conditionType)
+		actual_condition := instance.Status.Conditions.Get(conditionType)
+		g.Expect(actual_condition.Status).To(
+			Equal(expectedStatus),
+			"NovaAPI %s condition is in an unexpected state. Expected: %s, Actual: %s",
+			conditionType, expectedStatus, actual_condition.Status)
+		g.Expect(actual_condition.Reason).To(Equal(expectedReason))
+		g.Expect(actual_condition.Message).To(Equal(expecteMessage))
+	}, timeout, interval).Should(Succeed())
+}
+
 func GetConfigMap(name types.NamespacedName) corev1.ConfigMap {
 	cm := &corev1.ConfigMap{}
 	Eventually(func(g Gomega) {
@@ -125,4 +149,62 @@ func ListConfigMaps(namespace string) corev1.ConfigMapList {
 	}, timeout, interval).Should(Succeed())
 	return *cms
 
+}
+
+// CreateSecret creates a secret that has all the information NovaAPI needs
+func CreateNovaAPISecret(namespace string, name string) *corev1.Secret {
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Data: map[string][]byte{
+			"NovaPassword":              []byte("12345678"),
+			"NovaAPIDatabasePassword":   []byte("12345678"),
+			"NovaAPIMessageBusPassword": []byte("12345678"),
+		},
+	}
+	Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
+	return secret
+}
+
+func GetJob(name types.NamespacedName) *batchv1.Job {
+	job := &batchv1.Job{}
+	Eventually(func(g Gomega) {
+		g.Expect(k8sClient.Get(ctx, name, job)).Should(Succeed())
+	}, timeout, interval).Should(Succeed())
+	return job
+}
+
+func ListJobs(namespace string) *batchv1.JobList {
+	jobs := &batchv1.JobList{}
+	Expect(k8sClient.List(ctx, jobs, client.InNamespace(namespace))).Should(Succeed())
+	return jobs
+
+}
+
+func SimulateJobFailure(name types.NamespacedName) {
+	job := GetJob(name)
+
+	// NOTE(gibi) when run against a real env we need to find a
+	// better way to make the job fail. This works but it is unreal.
+
+	// Simulate that the job is failed
+	job.Status.Failed = 1
+	job.Status.Active = 0
+	Expect(k8sClient.Status().Update(ctx, job)).To(Succeed())
+}
+
+func SimulateJobSuccess(name types.NamespacedName) {
+	job := GetJob(name)
+	// NOTE(gibi): We don't need to do this when run against a real
+	// env as there the job could run successfully automatically if the
+	// database user is registered manually in the DB service. But for that
+	// we would need another set of test setup, i.e. deploying the
+	// mariadb-operator.
+
+	// Simulate that the job is succeeded
+	job.Status.Succeeded = 1
+	job.Status.Active = 0
+	Expect(k8sClient.Status().Update(ctx, job)).To(Succeed())
 }
