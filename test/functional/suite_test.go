@@ -18,11 +18,15 @@ package functional_test
 
 import (
 	"context"
+	"fmt"
+	"go/build"
+	"os"
 	"path/filepath"
 	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"golang.org/x/mod/modfile"
 
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -33,6 +37,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	novav1beta1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/nova-operator/controllers"
 	//+kubebuilder:scaffold:imports
@@ -49,6 +54,34 @@ var (
 	cancel    context.CancelFunc
 )
 
+func GetDependencyVersion(moduleName string) (string, error) {
+	content, err := os.ReadFile("../../go.mod")
+	if err != nil {
+		return "", err
+	}
+
+	f, err := modfile.Parse("go.mod", content, nil)
+	if err != nil {
+		return "", err
+	}
+
+	for _, r := range f.Require {
+		if r.Mod.Path == moduleName {
+			return r.Mod.Version, nil
+		}
+	}
+	return "", fmt.Errorf("Cannot find %s in our go.mod file", moduleName)
+
+}
+
+func GetCRDDirFromModule(moduleName string) string {
+	version, err := GetDependencyVersion(moduleName)
+	Expect(err).NotTo(HaveOccurred())
+	versionedModule := fmt.Sprintf("%s@%s", moduleName, version)
+	path := filepath.Join(build.Default.GOPATH, "pkg", "mod", versionedModule, "bases")
+	return path
+}
+
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Controller Suite")
@@ -61,7 +94,11 @@ var _ = BeforeSuite(func() {
 
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
-		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "config", "crd", "bases")},
+		CRDDirectoryPaths: []string{
+			filepath.Join("..", "..", "config", "crd", "bases"),
+			// NOTE(gibi): we need to list all the external CRDs our operator depends on
+			GetCRDDirFromModule("github.com/openstack-k8s-operators/mariadb-operator/api"),
+		},
 		ErrorIfCRDPathMissing: true,
 	}
 
@@ -76,6 +113,8 @@ var _ = BeforeSuite(func() {
 	// otherwise the reconciler loop will silently not start
 	// in the test env.
 	err = novav1beta1.AddToScheme(scheme.Scheme)
+	Expect(err).NotTo(HaveOccurred())
+	err = mariadbv1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 
 	//+kubebuilder:scaffold:scheme
