@@ -205,23 +205,6 @@ func (r *NovaAPIReconciler) initConditions(
 	return nil
 }
 
-type conditionsGetter interface {
-	GetConditions() condition.Conditions
-}
-
-func allSubConditionIsTrue(conditionsGetter conditionsGetter) bool {
-	// It assumes that all of our conditions report success via the True status
-	for _, c := range conditionsGetter.GetConditions() {
-		if c.Type == condition.ReadyCondition {
-			continue
-		}
-		if c.Status != corev1.ConditionTrue {
-			return false
-		}
-	}
-	return true
-}
-
 func (r *NovaAPIReconciler) reconcileNormal(
 	ctx context.Context,
 	h *helper.Helper,
