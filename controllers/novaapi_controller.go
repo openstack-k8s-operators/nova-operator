@@ -33,6 +33,7 @@ import (
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/configmap"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/deployment"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 	job "github.com/openstack-k8s-operators/lib-common/modules/common/job"
@@ -183,6 +184,11 @@ func (r *NovaAPIReconciler) initConditions(
 				condition.InitReason,
 				condition.DBSyncReadyInitMessage,
 			),
+			condition.UnknownCondition(
+				condition.DeploymentReadyCondition,
+				condition.InitReason,
+				condition.DeploymentReadyInitMessage,
+			),
 		)
 
 		instance.Status.Conditions.Init(&cl)
@@ -319,6 +325,44 @@ func (r *NovaAPIReconciler) reconcileNormal(
 		r.Log.Info(fmt.Sprintf("Job %s hash added - %s", jobDef.Name, instance.Status.Hash[DbSyncHash]))
 	}
 	instance.Status.Conditions.MarkTrue(condition.DBSyncReadyCondition, condition.DBSyncReadyMessage)
+
+	depl := deployment.NewDeployment(
+		novaapi.Deployment(instance, inputHash, serviceLabels),
+		5,
+	)
+	ctrlResult, err = depl.CreateOrPatch(ctx, h)
+	if err != nil {
+		util.LogErrorForObject(h, err, "Deployment failed", instance)
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.DeploymentReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.DeploymentReadyErrorMessage,
+			err.Error()))
+		return ctrlResult, err
+	} else if (ctrlResult != ctrl.Result{}) {
+		util.LogForObject(h, "Deployment in progress", instance)
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.DeploymentReadyCondition,
+			condition.RequestedReason,
+			condition.SeverityInfo,
+			condition.DeploymentReadyRunningMessage))
+		return ctrlResult, nil
+	}
+
+	instance.Status.ReadyCount = depl.GetDeployment().Status.ReadyReplicas
+	if instance.Status.ReadyCount > 0 {
+		util.LogForObject(h, "Deployment is ready", instance)
+		instance.Status.Conditions.MarkTrue(condition.DeploymentReadyCondition, condition.DeploymentReadyMessage)
+	} else {
+		util.LogForObject(h, "Deployment is not ready", instance, "Status", depl.GetDeployment().Status)
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.DeploymentReadyCondition,
+			condition.RequestedReason,
+			condition.SeverityInfo,
+			condition.DeploymentReadyRunningMessage))
+		return ctrl.Result{RequeueAfter: time.Duration(5) * time.Second}, nil
+	}
 
 	return ctrl.Result{}, nil
 }

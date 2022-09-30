@@ -328,11 +328,6 @@ var _ = Describe("NovaAPI controller", func() {
 				Expect(ListJobs(namespace).Items).To(BeEmpty())
 			})
 
-			It("isReady ", func() {
-				ExpectNovaAPICondition(
-					novaAPIName, condition.ReadyCondition, corev1.ConditionTrue)
-			})
-
 			It("stores the hash of the Job in the Status", func() {
 				Eventually(func(g Gomega) {
 					novaAPI := GetNovaAPI(novaAPIName)
@@ -392,6 +387,100 @@ var _ = Describe("NovaAPI controller", func() {
 			)
 			// This would fail the test case if the job does not exists
 			GetJob(jobName)
+		})
+	})
+	When("NovAPI is created and the DB sync run successfully", func() {
+		var jobName types.NamespacedName
+		var deploymentName types.NamespacedName
+
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateNovaAPISecret(namespace, SecretName))
+
+			novaAPIName = CreateNovaAPI(
+				namespace,
+				novav1.NovaAPISpec{
+					Secret: SecretName,
+					NovaServiceBase: novav1.NovaServiceBase{
+						ContainerImage: ContainerImage,
+						Replicas:       1,
+					},
+				},
+			)
+			DeferCleanup(DeleteNovaAPI, novaAPIName)
+
+			ExpectNovaAPICondition(
+				novaAPIName, condition.ServiceConfigReadyCondition, corev1.ConditionTrue)
+
+			jobName = types.NamespacedName{
+				Namespace: namespace,
+				Name:      fmt.Sprintf("%s-api-db-sync", novaAPIName.Name),
+			}
+
+			SimulateJobSuccess(jobName)
+
+			ExpectNovaAPICondition(
+				novaAPIName, condition.DBSyncReadyCondition, corev1.ConditionTrue)
+
+			deploymentName = types.NamespacedName{
+				Namespace: namespace,
+				Name:      novaAPIName.Name,
+			}
+		})
+
+		It("creates a Deployment for the nova-api service", func() {
+			ExpectNovaAPIConditionWithDetails(
+				novaAPIName,
+				condition.DeploymentReadyCondition,
+				corev1.ConditionFalse,
+				condition.RequestedReason,
+				condition.DeploymentReadyRunningMessage,
+			)
+
+			deployment := GetDeployment(deploymentName)
+			Expect(int(*deployment.Spec.Replicas)).To(Equal(1))
+
+			Expect(deployment.Spec.Template.Spec.Volumes).To(HaveLen(3))
+			Expect(deployment.Spec.Template.Spec.InitContainers).To(HaveLen(1))
+			initContainer := deployment.Spec.Template.Spec.InitContainers[0]
+			Expect(initContainer.VolumeMounts).To(HaveLen(3))
+			Expect(initContainer.Image).To(Equal(ContainerImage))
+
+			Expect(deployment.Spec.Template.Spec.Containers).To(HaveLen(1))
+			container := deployment.Spec.Template.Spec.Containers[0]
+			Expect(container.VolumeMounts).To(HaveLen(2))
+			Expect(container.Image).To(Equal(ContainerImage))
+
+		})
+
+		When("the Deployment has at least one Replica ready", func() {
+			BeforeEach(func() {
+				SkipInExistingCluster(
+					"Deployment never finishes in a real env as dependencies like" +
+						"ServiceAccount is missing",
+				)
+				ExpectNovaAPIConditionWithDetails(
+					novaAPIName,
+					condition.DeploymentReadyCondition,
+					corev1.ConditionFalse,
+					condition.RequestedReason,
+					condition.DeploymentReadyRunningMessage,
+				)
+				SimulateDeploymentReplicaReady(deploymentName)
+			})
+
+			It("reports that the depoyment is ready", func() {
+				ExpectNovaAPICondition(
+					novaAPIName, condition.DeploymentReadyCondition, corev1.ConditionTrue)
+
+				novaAPI := GetNovaAPI(novaAPIName)
+				Expect(novaAPI.Status.ReadyCount).To(BeNumerically(">", 0))
+			})
+
+			It("isReady ", func() {
+				ExpectNovaAPICondition(
+					novaAPIName, condition.ReadyCondition, corev1.ConditionTrue)
+			})
 		})
 	})
 })
