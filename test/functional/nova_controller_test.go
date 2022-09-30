@@ -56,7 +56,7 @@ var _ = Describe("Nova controller", func() {
 		BeforeEach(func() {
 			novaName = CreateNova(
 				namespace, novav1.NovaSpec{
-					CellTemplates: map[string]novav1.NovaCellSpec{},
+					CellTemplates: map[string]novav1.NovaCellTemplate{},
 				},
 			)
 			DeferCleanup(DeleteNova, novaName)
