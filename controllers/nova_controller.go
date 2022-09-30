@@ -31,6 +31,8 @@ import (
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
+
+	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 )
 
 // NovaReconciler reconciles a Nova object
@@ -44,6 +46,7 @@ type NovaReconciler struct {
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=nova,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=nova/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=nova/finalizers,verbs=update
+//+kubebuilder:rbac:groups=mariadb.openstack.org,resources=mariadbdatabases,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -160,5 +163,6 @@ func (r *NovaReconciler) reconcileNormal(
 func (r *NovaReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&novav1.Nova{}).
+		Owns(&mariadbv1.MariaDBDatabase{}).
 		Complete(r)
 }
