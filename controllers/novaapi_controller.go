@@ -59,9 +59,10 @@ const (
 // NovaAPIReconciler reconciles a NovaAPI object
 type NovaAPIReconciler struct {
 	client.Client
-	Kclient kubernetes.Interface
-	Scheme  *runtime.Scheme
-	Log     logr.Logger
+	Kclient               kubernetes.Interface
+	Scheme                *runtime.Scheme
+	Log                   logr.Logger
+	RequeueTimeoutSeconds int
 }
 
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=novaapis,verbs=get;list;watch;create;update;patch;delete
@@ -279,7 +280,7 @@ func (r *NovaAPIReconciler) reconcileNormal(
 		jobDef,
 		"dbsync",
 		instance.Spec.Debug.PreserveJobs,
-		5,
+		r.RequeueTimeoutSeconds,
 		dbSyncHash,
 	)
 	ctrlResult, err := dbSyncjob.DoJob(ctx, h)
@@ -311,7 +312,7 @@ func (r *NovaAPIReconciler) reconcileNormal(
 
 	depl := deployment.NewDeployment(
 		novaapi.Deployment(instance, inputHash, serviceLabels),
-		5,
+		r.RequeueTimeoutSeconds,
 	)
 	ctrlResult, err = depl.CreateOrPatch(ctx, h)
 	if err != nil {
@@ -344,7 +345,7 @@ func (r *NovaAPIReconciler) reconcileNormal(
 			condition.RequestedReason,
 			condition.SeverityInfo,
 			condition.DeploymentReadyRunningMessage))
-		return ctrl.Result{RequeueAfter: time.Duration(5) * time.Second}, nil
+		return ctrl.Result{RequeueAfter: time.Duration(r.RequeueTimeoutSeconds) * time.Second}, nil
 	}
 
 	return ctrl.Result{}, nil

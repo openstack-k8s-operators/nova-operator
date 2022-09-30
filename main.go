@@ -107,10 +107,11 @@ func main() {
 	}
 
 	if err = (&controllers.NovaAPIReconciler{
-		Client:  mgr.GetClient(),
-		Scheme:  mgr.GetScheme(),
-		Kclient: kclient,
-		Log:     ctrl.Log.WithName("controllers").WithName("NovaAPI"),
+		Client:                mgr.GetClient(),
+		Scheme:                mgr.GetScheme(),
+		Kclient:               kclient,
+		Log:                   ctrl.Log.WithName("controllers").WithName("NovaAPI"),
+		RequeueTimeoutSeconds: 5,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "NovaAPI")
 		os.Exit(1)
