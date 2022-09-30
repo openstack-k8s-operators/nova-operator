@@ -26,7 +26,7 @@ spec:
     policy.yaml: >
       # my custom policy
   containerImage: quay.io/tripleowallabycentos9/openstack-nova-api:current-tripleo
-  replicate: 3
+  replicas: 1
   nodeSelector: {}
   resources:
     limits:
