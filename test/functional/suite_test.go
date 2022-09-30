@@ -92,11 +92,20 @@ var _ = BeforeSuite(func() {
 
 	kclient, err := kubernetes.NewForConfig(cfg)
 	Expect(err).ToNot(HaveOccurred(), "failed to create kclient")
+
 	err = (&controllers.NovaAPIReconciler{
 		Client:  k8sManager.GetClient(),
 		Scheme:  k8sManager.GetScheme(),
 		Kclient: kclient,
 		Log:     ctrl.Log.WithName("controllers").WithName("NovaAPI"),
+	}).SetupWithManager(k8sManager)
+	Expect(err).ToNot(HaveOccurred())
+
+	err = (&controllers.NovaReconciler{
+		Client:  k8sManager.GetClient(),
+		Scheme:  k8sManager.GetScheme(),
+		Kclient: kclient,
+		Log:     ctrl.Log.WithName("controllers").WithName("Nova"),
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 

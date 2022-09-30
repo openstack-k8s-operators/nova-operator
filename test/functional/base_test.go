@@ -18,6 +18,7 @@ package functional_test
 import (
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/google/uuid"
 	. "github.com/onsi/ginkgo/v2"
@@ -32,6 +33,14 @@ import (
 
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
+)
+
+const (
+	SecretName     = "test-secret"
+	ContainerImage = "test://nova-api"
+
+	timeout  = time.Second * 10
+	interval = time.Millisecond * 200
 )
 
 func CreateNamespace(name string) {
@@ -249,4 +258,90 @@ func SkipInExistingCluster(message string) {
 		Skip("Skipped running against existing cluster. " + message)
 	}
 
+}
+
+func CreateNova(namespace string, spec novav1.NovaSpec) types.NamespacedName {
+	novaName := uuid.New().String()
+	nova := &novav1.Nova{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "nova.openstack.org/v1beta1",
+			Kind:       "Nova",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      novaName,
+			Namespace: namespace,
+		},
+		Spec: spec,
+	}
+
+	Expect(k8sClient.Create(ctx, nova)).Should(Succeed())
+
+	return types.NamespacedName{Name: novaName, Namespace: namespace}
+}
+
+func DeleteNova(name types.NamespacedName) {
+	// We have to wait for the controller to fully delete the instance
+	Eventually(func(g Gomega) {
+		nova := &novav1.Nova{}
+		err := k8sClient.Get(ctx, name, nova)
+		// if it is already gone that is OK
+		if k8s_errors.IsNotFound(err) {
+			return
+		}
+		Expect(err).Should(BeNil())
+
+		Expect(k8sClient.Delete(ctx, nova)).Should(Succeed())
+
+		err = k8sClient.Get(ctx, name, nova)
+		g.Expect(k8s_errors.IsNotFound(err)).To(BeTrue())
+	}, timeout, interval).Should(Succeed())
+}
+
+func GetNova(name types.NamespacedName) *novav1.Nova {
+	instance := &novav1.Nova{}
+	Eventually(func(g Gomega) {
+		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
+	}, timeout, interval).Should(Succeed())
+	return instance
+}
+
+type NovaUnderTest struct {
+}
+
+func (n NovaUnderTest) GetConditions(name types.NamespacedName) condition.Conditions {
+	return GetNova(name).Status.Conditions
+}
+
+type conditionsGetter interface {
+	GetConditions(name types.NamespacedName) condition.Conditions
+}
+
+type conditionGetterFunc func(name types.NamespacedName) condition.Conditions
+
+func (f conditionGetterFunc) GetConditions(name types.NamespacedName) condition.Conditions {
+	return f(name)
+}
+func NovaConditionGetter(name types.NamespacedName) condition.Conditions {
+	instance := GetNova(name)
+	return instance.Status.Conditions
+}
+
+func ExpectCondition(
+	name types.NamespacedName,
+	getter conditionsGetter,
+	conditionType condition.Type,
+	expectedStatus corev1.ConditionStatus,
+) {
+	Eventually(func(g Gomega) {
+		conditions := getter.GetConditions(name)
+		g.Expect(conditions).NotTo(
+			BeNil(), "Conditions in nil")
+		g.Expect(conditions.Has(conditionType)).To(
+			BeTrue(), "Does not have condition type %s", conditionType)
+		actual := conditions.Get(conditionType).Status
+		g.Expect(actual).To(
+			Equal(expectedStatus),
+			"%s condition is in an unexpected state. Expected: %s, Actual: %s",
+			conditionType, expectedStatus, actual)
+	}, timeout, interval).Should(Succeed())
 }
