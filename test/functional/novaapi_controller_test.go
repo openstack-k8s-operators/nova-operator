@@ -62,8 +62,12 @@ var _ = Describe("NovaAPI controller", func() {
 		})
 
 		It("is not Ready", func() {
-			ExpectNovaAPICondition(
-				novaAPIName, condition.ReadyCondition, corev1.ConditionUnknown)
+			ExpectCondition(
+				novaAPIName,
+				conditionGetterFunc(NovaAPIConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionUnknown,
+			)
 		})
 
 		It("has empty Status fields", func() {
@@ -87,13 +91,20 @@ var _ = Describe("NovaAPI controller", func() {
 		})
 
 		It("is not Ready", func() {
-			ExpectNovaAPICondition(
-				novaAPIName, condition.ReadyCondition, corev1.ConditionUnknown)
+			ExpectCondition(
+				novaAPIName,
+				conditionGetterFunc(NovaAPIConditionGetter),
+				condition.ReadyCondition, corev1.ConditionUnknown,
+			)
 		})
 
 		It("is missing the secret", func() {
-			ExpectNovaAPICondition(
-				novaAPIName, condition.InputReadyCondition, corev1.ConditionFalse)
+			ExpectCondition(
+				novaAPIName,
+				conditionGetterFunc(NovaAPIConditionGetter),
+				condition.InputReadyCondition,
+				corev1.ConditionFalse,
+			)
 		})
 
 		When("an unrealated Secret is created the CR state does not change", func() {
@@ -109,13 +120,21 @@ var _ = Describe("NovaAPI controller", func() {
 			})
 
 			It("is not Ready", func() {
-				ExpectNovaAPICondition(
-					novaAPIName, condition.ReadyCondition, corev1.ConditionUnknown)
+				ExpectCondition(
+					novaAPIName,
+					conditionGetterFunc(NovaAPIConditionGetter),
+					condition.ReadyCondition,
+					corev1.ConditionUnknown,
+				)
 			})
 
 			It("is missing the secret", func() {
-				ExpectNovaAPICondition(
-					novaAPIName, condition.InputReadyCondition, corev1.ConditionFalse)
+				ExpectCondition(
+					novaAPIName,
+					conditionGetterFunc(NovaAPIConditionGetter),
+					condition.InputReadyCondition,
+					corev1.ConditionFalse,
+				)
 			})
 
 		})
@@ -136,13 +155,21 @@ var _ = Describe("NovaAPI controller", func() {
 			})
 
 			It("is not Ready", func() {
-				ExpectNovaAPICondition(
-					novaAPIName, condition.ReadyCondition, corev1.ConditionUnknown)
+				ExpectCondition(
+					novaAPIName,
+					conditionGetterFunc(NovaAPIConditionGetter),
+					condition.ReadyCondition,
+					corev1.ConditionUnknown,
+				)
 			})
 
 			It("reports that the inputes are not ready", func() {
-				ExpectNovaAPICondition(
-					novaAPIName, condition.InputReadyCondition, corev1.ConditionFalse)
+				ExpectCondition(
+					novaAPIName,
+					conditionGetterFunc(NovaAPIConditionGetter),
+					condition.InputReadyCondition,
+					corev1.ConditionFalse,
+				)
 			})
 		})
 
@@ -153,15 +180,23 @@ var _ = Describe("NovaAPI controller", func() {
 			})
 
 			It("reports that input is ready", func() {
-				ExpectNovaAPICondition(
-					novaAPIName, condition.InputReadyCondition, corev1.ConditionTrue)
+				ExpectCondition(
+					novaAPIName,
+					conditionGetterFunc(NovaAPIConditionGetter),
+					condition.InputReadyCondition,
+					corev1.ConditionTrue,
+				)
 			})
 
 			It("generated configs successfully", func() {
 				// NOTE(gibi): NovaAPI has no external dependency right now to
 				// generate the configs.
-				ExpectNovaAPICondition(
-					novaAPIName, condition.ServiceConfigReadyCondition, corev1.ConditionTrue)
+				ExpectCondition(
+					novaAPIName,
+					conditionGetterFunc(NovaAPIConditionGetter),
+					condition.ServiceConfigReadyCondition,
+					corev1.ConditionTrue,
+				)
 
 				configDataMap := GetConfigMap(
 					types.NamespacedName{
@@ -197,8 +232,12 @@ var _ = Describe("NovaAPI controller", func() {
 
 			When("the NovaAPI is deleted", func() {
 				It("deletes the generated ConfigMaps", func() {
-					ExpectNovaAPICondition(
-						novaAPIName, condition.ServiceConfigReadyCondition, corev1.ConditionTrue)
+					ExpectCondition(
+						novaAPIName,
+						conditionGetterFunc(NovaAPIConditionGetter),
+						condition.ServiceConfigReadyCondition,
+						corev1.ConditionTrue,
+					)
 
 					DeleteNovaAPI(novaAPIName)
 
@@ -228,8 +267,12 @@ var _ = Describe("NovaAPI controller", func() {
 			)
 			DeferCleanup(DeleteNovaAPI, novaAPIName)
 
-			ExpectNovaAPICondition(
-				novaAPIName, condition.InputReadyCondition, corev1.ConditionTrue)
+			ExpectCondition(
+				novaAPIName,
+				conditionGetterFunc(NovaAPIConditionGetter),
+				condition.InputReadyCondition,
+				corev1.ConditionTrue,
+			)
 
 			jobName = types.NamespacedName{
 				Namespace: namespace,
@@ -243,8 +286,9 @@ var _ = Describe("NovaAPI controller", func() {
 		// assert the in progress state. Fortunately the real env is slow so
 		// this actually passes.
 		It("started the dbsync job and it reports waiting for that job to finish", func() {
-			ExpectNovaAPIConditionWithDetails(
+			ExpectConditionWithDetails(
 				novaAPIName,
+				conditionGetterFunc(NovaAPIConditionGetter),
 				condition.DBSyncReadyCondition,
 				corev1.ConditionFalse,
 				condition.RequestedReason,
@@ -272,8 +316,9 @@ var _ = Describe("NovaAPI controller", func() {
 
 			// NOTE(gibi): lib-common only deletes the job if the job succeeds
 			It("reports that DB sync is failed and the job is not deleted", func() {
-				ExpectNovaAPIConditionWithDetails(
+				ExpectConditionWithDetails(
 					novaAPIName,
+					conditionGetterFunc(NovaAPIConditionGetter),
 					condition.DBSyncReadyCondition,
 					corev1.ConditionFalse,
 					condition.ErrorReason,
@@ -290,8 +335,9 @@ var _ = Describe("NovaAPI controller", func() {
 
 			When("NovaAPI is deleted", func() {
 				It("deletes the failed job", func() {
-					ExpectNovaAPIConditionWithDetails(
+					ExpectConditionWithDetails(
 						novaAPIName,
+						conditionGetterFunc(NovaAPIConditionGetter),
 						condition.DBSyncReadyCondition,
 						corev1.ConditionFalse,
 						condition.ErrorReason,
@@ -313,8 +359,12 @@ var _ = Describe("NovaAPI controller", func() {
 			})
 
 			It("reports that DB sync is ready and the job is deleted", func() {
-				ExpectNovaAPICondition(
-					novaAPIName, condition.DBSyncReadyCondition, corev1.ConditionTrue)
+				ExpectCondition(
+					novaAPIName,
+					conditionGetterFunc(NovaAPIConditionGetter),
+					condition.DBSyncReadyCondition,
+					corev1.ConditionTrue,
+				)
 
 				Expect(ListJobs(namespace).Items).To(BeEmpty())
 			})
@@ -349,8 +399,12 @@ var _ = Describe("NovaAPI controller", func() {
 			)
 			DeferCleanup(DeleteNovaAPI, novaAPIName)
 
-			ExpectNovaAPICondition(
-				novaAPIName, condition.DBSyncReadyCondition, corev1.ConditionFalse)
+			ExpectCondition(
+				novaAPIName,
+				conditionGetterFunc(NovaAPIConditionGetter),
+				condition.DBSyncReadyCondition,
+				corev1.ConditionFalse,
+			)
 
 			jobName = types.NamespacedName{
 				Namespace: namespace,
@@ -360,8 +414,12 @@ var _ = Describe("NovaAPI controller", func() {
 		It("does not delete the DB sync job after it finished", func() {
 			SimulateJobSuccess(jobName)
 
-			ExpectNovaAPICondition(
-				novaAPIName, condition.DBSyncReadyCondition, corev1.ConditionTrue)
+			ExpectCondition(
+				novaAPIName,
+				conditionGetterFunc(NovaAPIConditionGetter),
+				condition.DBSyncReadyCondition,
+				corev1.ConditionTrue,
+			)
 			// This would fail the test case if the job does not exists
 			GetJob(jobName)
 		})
@@ -369,8 +427,9 @@ var _ = Describe("NovaAPI controller", func() {
 		It("does not delete the DB sync job after it failed", func() {
 			SimulateJobFailure(jobName)
 
-			ExpectNovaAPIConditionWithDetails(
+			ExpectConditionWithDetails(
 				novaAPIName,
+				conditionGetterFunc(NovaAPIConditionGetter),
 				condition.DBSyncReadyCondition,
 				corev1.ConditionFalse,
 				condition.ErrorReason,
@@ -400,8 +459,12 @@ var _ = Describe("NovaAPI controller", func() {
 			)
 			DeferCleanup(DeleteNovaAPI, novaAPIName)
 
-			ExpectNovaAPICondition(
-				novaAPIName, condition.ServiceConfigReadyCondition, corev1.ConditionTrue)
+			ExpectCondition(
+				novaAPIName,
+				conditionGetterFunc(NovaAPIConditionGetter),
+				condition.ServiceConfigReadyCondition,
+				corev1.ConditionTrue,
+			)
 
 			jobName = types.NamespacedName{
 				Namespace: namespace,
@@ -410,8 +473,12 @@ var _ = Describe("NovaAPI controller", func() {
 
 			SimulateJobSuccess(jobName)
 
-			ExpectNovaAPICondition(
-				novaAPIName, condition.DBSyncReadyCondition, corev1.ConditionTrue)
+			ExpectCondition(
+				novaAPIName,
+				conditionGetterFunc(NovaAPIConditionGetter),
+				condition.DBSyncReadyCondition,
+				corev1.ConditionTrue,
+			)
 
 			deploymentName = types.NamespacedName{
 				Namespace: namespace,
@@ -420,8 +487,9 @@ var _ = Describe("NovaAPI controller", func() {
 		})
 
 		It("creates a Deployment for the nova-api service", func() {
-			ExpectNovaAPIConditionWithDetails(
+			ExpectConditionWithDetails(
 				novaAPIName,
+				conditionGetterFunc(NovaAPIConditionGetter),
 				condition.DeploymentReadyCondition,
 				corev1.ConditionFalse,
 				condition.RequestedReason,
@@ -450,8 +518,9 @@ var _ = Describe("NovaAPI controller", func() {
 					"Deployment never finishes in a real env as dependencies like" +
 						"ServiceAccount is missing",
 				)
-				ExpectNovaAPIConditionWithDetails(
+				ExpectConditionWithDetails(
 					novaAPIName,
+					conditionGetterFunc(NovaAPIConditionGetter),
 					condition.DeploymentReadyCondition,
 					corev1.ConditionFalse,
 					condition.RequestedReason,
@@ -461,16 +530,24 @@ var _ = Describe("NovaAPI controller", func() {
 			})
 
 			It("reports that the depoyment is ready", func() {
-				ExpectNovaAPICondition(
-					novaAPIName, condition.DeploymentReadyCondition, corev1.ConditionTrue)
+				ExpectCondition(
+					novaAPIName,
+					conditionGetterFunc(NovaAPIConditionGetter),
+					condition.DeploymentReadyCondition,
+					corev1.ConditionTrue,
+				)
 
 				novaAPI := GetNovaAPI(novaAPIName)
 				Expect(novaAPI.Status.ReadyCount).To(BeNumerically(">", 0))
 			})
 
 			It("isReady ", func() {
-				ExpectNovaAPICondition(
-					novaAPIName, condition.ReadyCondition, corev1.ConditionTrue)
+				ExpectCondition(
+					novaAPIName,
+					conditionGetterFunc(NovaAPIConditionGetter),
+					condition.ReadyCondition,
+					corev1.ConditionTrue,
+				)
 			})
 		})
 	})
