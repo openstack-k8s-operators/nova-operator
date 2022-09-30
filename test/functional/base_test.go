@@ -106,39 +106,56 @@ func GetNovaAPI(name types.NamespacedName) *novav1.NovaAPI {
 	return instance
 }
 
-func ExpectNovaAPICondition(
+type conditionsGetter interface {
+	GetConditions(name types.NamespacedName) condition.Conditions
+}
+
+type conditionGetterFunc func(name types.NamespacedName) condition.Conditions
+
+func (f conditionGetterFunc) GetConditions(name types.NamespacedName) condition.Conditions {
+	return f(name)
+}
+
+func NovaAPIConditionGetter(name types.NamespacedName) condition.Conditions {
+	instance := GetNovaAPI(name)
+	return instance.Status.Conditions
+}
+
+func ExpectCondition(
 	name types.NamespacedName,
+	getter conditionsGetter,
 	conditionType condition.Type,
 	expectedStatus corev1.ConditionStatus,
 ) {
 	Eventually(func(g Gomega) {
-		instance := GetNovaAPI(name)
-		g.Expect(instance.Status.Conditions).NotTo(
-			BeNil(), "NovaAPI.Status.Conditions in nil")
-		g.Expect(instance.Status.Conditions.Has(conditionType)).To(
-			BeTrue(), "NovaAPI does not have condition type %s", conditionType)
-		actual := instance.Status.Conditions.Get(conditionType).Status
+		conditions := getter.GetConditions(name)
+		g.Expect(conditions).NotTo(
+			BeNil(), "Conditions in nil")
+		g.Expect(conditions.Has(conditionType)).To(
+			BeTrue(), "Does not have condition type %s", conditionType)
+		actual := conditions.Get(conditionType).Status
 		g.Expect(actual).To(
 			Equal(expectedStatus),
-			"NovaAPI %s condition is in an unexpected state. Expected: %s, Actual: %s",
+			"%s condition is in an unexpected state. Expected: %s, Actual: %s",
 			conditionType, expectedStatus, actual)
 	}, timeout, interval).Should(Succeed())
 }
 
-func ExpectNovaAPIConditionWithDetails(
+func ExpectConditionWithDetails(
 	name types.NamespacedName,
+	getter conditionsGetter,
 	conditionType condition.Type,
 	expectedStatus corev1.ConditionStatus,
 	expectedReason condition.Reason,
 	expecteMessage string,
 ) {
 	Eventually(func(g Gomega) {
-		instance := GetNovaAPI(name)
-		g.Expect(instance.Status.Conditions).NotTo(
+		conditions := getter.GetConditions(name)
+		g.Expect(conditions).NotTo(
 			BeNil(), "NovaAPI.Status.Conditions in nil")
-		g.Expect(instance.Status.Conditions.Has(conditionType)).To(
+		g.Expect(conditions.Has(conditionType)).To(
 			BeTrue(), "NovaAPI does not have condition type %s", conditionType)
-		actual_condition := instance.Status.Conditions.Get(conditionType)
+		actual_condition := conditions.Get(conditionType)
 		g.Expect(actual_condition.Status).To(
 			Equal(expectedStatus),
 			"NovaAPI %s condition is in an unexpected state. Expected: %s, Actual: %s",
@@ -305,43 +322,7 @@ func GetNova(name types.NamespacedName) *novav1.Nova {
 	return instance
 }
 
-type NovaUnderTest struct {
-}
-
-func (n NovaUnderTest) GetConditions(name types.NamespacedName) condition.Conditions {
-	return GetNova(name).Status.Conditions
-}
-
-type conditionsGetter interface {
-	GetConditions(name types.NamespacedName) condition.Conditions
-}
-
-type conditionGetterFunc func(name types.NamespacedName) condition.Conditions
-
-func (f conditionGetterFunc) GetConditions(name types.NamespacedName) condition.Conditions {
-	return f(name)
-}
 func NovaConditionGetter(name types.NamespacedName) condition.Conditions {
 	instance := GetNova(name)
 	return instance.Status.Conditions
-}
-
-func ExpectCondition(
-	name types.NamespacedName,
-	getter conditionsGetter,
-	conditionType condition.Type,
-	expectedStatus corev1.ConditionStatus,
-) {
-	Eventually(func(g Gomega) {
-		conditions := getter.GetConditions(name)
-		g.Expect(conditions).NotTo(
-			BeNil(), "Conditions in nil")
-		g.Expect(conditions.Has(conditionType)).To(
-			BeTrue(), "Does not have condition type %s", conditionType)
-		actual := conditions.Get(conditionType).Status
-		g.Expect(actual).To(
-			Equal(expectedStatus),
-			"%s condition is in an unexpected state. Expected: %s, Actual: %s",
-			conditionType, expectedStatus, actual)
-	}, timeout, interval).Should(Succeed())
 }
