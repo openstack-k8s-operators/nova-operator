@@ -40,7 +40,7 @@ const (
 	ContainerImage = "test://nova-api"
 
 	timeout  = time.Second * 10
-	interval = time.Millisecond * 200
+	interval = time.Millisecond * 50
 )
 
 func CreateNamespace(name string) {

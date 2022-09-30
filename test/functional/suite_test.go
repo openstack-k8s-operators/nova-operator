@@ -94,10 +94,11 @@ var _ = BeforeSuite(func() {
 	Expect(err).ToNot(HaveOccurred(), "failed to create kclient")
 
 	err = (&controllers.NovaAPIReconciler{
-		Client:  k8sManager.GetClient(),
-		Scheme:  k8sManager.GetScheme(),
-		Kclient: kclient,
-		Log:     ctrl.Log.WithName("controllers").WithName("NovaAPI"),
+		Client:                k8sManager.GetClient(),
+		Scheme:                k8sManager.GetScheme(),
+		Kclient:               kclient,
+		Log:                   ctrl.Log.WithName("controllers").WithName("NovaAPI"),
+		RequeueTimeoutSeconds: 1,
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
