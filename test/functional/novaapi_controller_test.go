@@ -18,7 +18,6 @@ package functional_test
 import (
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/google/uuid"
 	. "github.com/onsi/ginkgo/v2"
@@ -30,14 +29,6 @@ import (
 
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
-)
-
-const (
-	SecretName     = "test-secret"
-	ContainerImage = "test://nova-api"
-
-	timeout  = time.Second * 10
-	interval = time.Millisecond * 200
 )
 
 var _ = Describe("NovaAPI controller", func() {
