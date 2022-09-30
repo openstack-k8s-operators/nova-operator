@@ -16,8 +16,13 @@ limitations under the License.
 package functional_test
 
 import (
+	"os"
+	"strconv"
+
 	"github.com/google/uuid"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
@@ -207,4 +212,41 @@ func SimulateJobSuccess(name types.NamespacedName) {
 	job.Status.Succeeded = 1
 	job.Status.Active = 0
 	Expect(k8sClient.Status().Update(ctx, job)).To(Succeed())
+}
+
+func GetDeployment(name types.NamespacedName) *appsv1.Deployment {
+	deployment := &appsv1.Deployment{}
+	Eventually(func(g Gomega) {
+		g.Expect(k8sClient.Get(ctx, name, deployment)).Should(Succeed())
+	}, timeout, interval).Should(Succeed())
+	return deployment
+}
+
+func ListDeployments(namespace string) *appsv1.DeploymentList {
+	deployments := &appsv1.DeploymentList{}
+	Expect(k8sClient.List(ctx, deployments, client.InNamespace(namespace))).Should(Succeed())
+	return deployments
+
+}
+
+func SimulateDeploymentReplicaReady(name types.NamespacedName) {
+	deployment := GetDeployment(name)
+	// NOTE(gibi): We don't need to do this when run against a real
+	// env as there the deployment could reach the ready state automatically.
+	// But for that  we would need another set of test setup, i.e. deploying
+	// the mariadb-operator.
+
+	deployment.Status.Replicas = 1
+	deployment.Status.ReadyReplicas = 1
+	Expect(k8sClient.Status().Update(ctx, deployment)).To(Succeed())
+}
+
+func SkipInExistingCluster(message string) {
+	s := os.Getenv("USE_EXISTING_CLUSTER")
+	v, err := strconv.ParseBool(s)
+
+	if err == nil && v {
+		Skip("Skipped running against existing cluster. " + message)
+	}
+
 }

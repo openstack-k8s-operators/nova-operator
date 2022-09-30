@@ -20,4 +20,6 @@ const (
 	// MergedServiceConfigPath - The location of the merged configuration file
 	// for the service
 	MergedServiceConfigPath = "/var/lib/config-data/merged/nova-api-config.json"
+	//APIServicePort - The port the nova-api service is exposed on
+	APIServicePort = 8774
 )
