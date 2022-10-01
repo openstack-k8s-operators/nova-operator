@@ -40,7 +40,7 @@ const (
 	SecretName     = "test-secret"
 	ContainerImage = "test://nova-api"
 
-	timeout  = time.Second * 10
+	timeout  = time.Second * 20
 	interval = time.Millisecond * 50
 )
 
@@ -137,8 +137,8 @@ func ExpectCondition(
 		actual := conditions.Get(conditionType).Status
 		g.Expect(actual).To(
 			Equal(expectedStatus),
-			"%s condition is in an unexpected state. Expected: %s, Actual: %s",
-			conditionType, expectedStatus, actual)
+			"%s condition is in an unexpected state. Expected: %s, Actual: %s, instance name: %s, Conditions: %v",
+			conditionType, expectedStatus, actual, name, conditions)
 	}, timeout, interval).Should(Succeed())
 }
 
