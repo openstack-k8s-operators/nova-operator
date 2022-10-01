@@ -16,6 +16,7 @@ limitations under the License.
 package functional_test
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/google/uuid"
@@ -133,6 +134,121 @@ var _ = Describe("Nova controller", func() {
 						corev1.ConditionTrue,
 					)
 				})
+			})
+		})
+	})
+
+	When("Nova is created with NovaAPI definition", func() {
+		var mariaDBDatabaseName types.NamespacedName
+		var novaAPIName types.NamespacedName
+
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateNovaAPISecret(namespace, SecretName),
+			)
+
+			novaName = CreateNova(
+				namespace, novav1.NovaSpec{
+					Secret: SecretName,
+					APIServiceTemplate: novav1.NovaAPITemplate{
+						ContainerImage: ContainerImage,
+						Replicas:       1,
+					},
+					CellTemplates: map[string]novav1.NovaCellTemplate{},
+				},
+			)
+			DeferCleanup(DeleteNova, novaName)
+
+			DeferCleanup(
+				DeleteDBService,
+				CreateDBService(
+					namespace,
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+			mariaDBDatabaseName = types.NamespacedName{
+				Namespace: namespace,
+				Name:      novaName.Name,
+			}
+			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseName)
+			ExpectCondition(
+				novaName,
+				conditionGetterFunc(NovaConditionGetter),
+				condition.DBReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			novaAPIName = types.NamespacedName{
+				Namespace: namespace,
+				Name:      fmt.Sprintf("%s-api", novaName.Name),
+			}
+		})
+
+		It("creates the NovaAPI and tracks its readiness", func() {
+			GetNovaAPI(novaAPIName)
+			ExpectCondition(
+				novaName,
+				conditionGetterFunc(NovaConditionGetter),
+				novav1.NovaAPIReadyCondition,
+				corev1.ConditionFalse,
+			)
+			nova := GetNova(novaName)
+			Expect(nova.Status.APIServiceReadyCount).To(Equal(int32(0)))
+		})
+
+		When("NovaAPI is ready", func() {
+			var novaAPIDBSyncJobName types.NamespacedName
+			var novaAPIDeploymentName types.NamespacedName
+
+			BeforeEach(func() {
+				ExpectCondition(
+					novaAPIName,
+					conditionGetterFunc(NovaAPIConditionGetter),
+					condition.DBSyncReadyCondition,
+					corev1.ConditionFalse,
+				)
+				novaAPIDBSyncJobName = types.NamespacedName{
+					Namespace: namespace,
+					Name:      fmt.Sprintf("%s-api-db-sync", novaAPIName.Name)}
+				SimulateJobSuccess(novaAPIDBSyncJobName)
+
+				ExpectCondition(
+					novaAPIName,
+					conditionGetterFunc(NovaAPIConditionGetter),
+					condition.DeploymentReadyCondition,
+					corev1.ConditionFalse,
+				)
+				novaAPIDeploymentName = types.NamespacedName{
+					Namespace: namespace,
+					Name:      novaAPIName.Name,
+				}
+				SimulateDeploymentReplicaReady(novaAPIDeploymentName)
+
+			})
+
+			It("reports that NovaAPI is ready and mirrors its ReadyCount", func() {
+				ExpectCondition(
+					novaName,
+					conditionGetterFunc(NovaConditionGetter),
+					novav1.NovaAPIReadyCondition,
+					corev1.ConditionTrue,
+				)
+				nova := GetNova(novaName)
+				Expect(nova.Status.APIServiceReadyCount).To(Equal(int32(1)))
+
+			})
+
+			It("is Ready", func() {
+				ExpectCondition(
+					novaName,
+					conditionGetterFunc(NovaConditionGetter),
+					condition.ReadyCondition,
+					corev1.ConditionTrue,
+				)
 			})
 		})
 	})
