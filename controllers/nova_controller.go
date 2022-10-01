@@ -18,12 +18,15 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/go-logr/logr"
@@ -142,6 +145,11 @@ func (r *NovaReconciler) initConditions(
 				condition.InitReason,
 				condition.DBReadyInitMessage,
 			),
+			condition.UnknownCondition(
+				novav1.NovaAPIReadyCondition,
+				condition.InitReason,
+				novav1.NovaAPIReadyInitMessage,
+			),
 		)
 		instance.Status.Conditions.Init(&cl)
 
@@ -223,6 +231,92 @@ func (r *NovaReconciler) reconcileNormal(
 	}
 	instance.Status.Conditions.MarkTrue(condition.DBReadyCondition, condition.DBReadyMessage)
 
+	result, err := r.reconcileNovaAPI(ctx, h, instance, db.GetDatabaseHostname())
+	if err != nil {
+		return result, err
+	}
+
+	return ctrl.Result{}, nil
+}
+
+func newNovaAPISpec(
+	novaAPITemplate novav1.NovaAPITemplate,
+	secretName string,
+	apiDatabaseHostname string,
+	debug novav1.Debug,
+) novav1.NovaAPISpec {
+	apiSpec := novav1.NovaAPISpec{
+		// TODO(gibi): Pass down a narroved secret that only hold NovaAPI
+		// specific information but also holds user names
+		Secret: secretName,
+		// TODO(gibi): register service user in Keystone and get auth URL
+		// then we can pass those to NovaAPI here
+		// KeystoneAuthURL:
+		APIDatabaseHostname: apiDatabaseHostname,
+		// TODO(gibi): initialize API messag bus and pass it forward
+		// APIMessageBusHostname:
+		Debug: debug,
+		// NOTE(gibi): this is a coincidence that the NovaServiceBase
+		// has exactly the same fields as the NovaAPITemplate so we can convert
+		// between them directly. As soon as these two structs start to diverge
+		// we need to copy fields one by one here.
+		NovaServiceBase: novav1.NovaServiceBase(novaAPITemplate),
+	}
+	return apiSpec
+}
+
+func (r *NovaReconciler) reconcileNovaAPI(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *novav1.Nova,
+	apiDatabaseHostname string,
+) (ctrl.Result, error) {
+	api := &novav1.NovaAPI{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("%s-api", instance.Name),
+			Namespace: instance.Namespace,
+		},
+	}
+
+	op, err := controllerutil.CreateOrUpdate(ctx, r.Client, api, func() error {
+		api.Spec = newNovaAPISpec(
+			instance.Spec.APIServiceTemplate,
+			instance.Spec.Secret,
+			apiDatabaseHostname,
+			instance.Spec.Debug,
+		)
+
+		err := controllerutil.SetControllerReference(instance, api, r.Scheme)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		condition.FalseCondition(
+			novav1.NovaAPIReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityError,
+			novav1.NovaAPIReadyErrorMessage,
+			err.Error(),
+		)
+		return ctrl.Result{}, err
+	}
+
+	if op != controllerutil.OperationResultNone {
+		util.LogForObject(h, fmt.Sprintf("NovaAPI %s %s.", api.ObjectMeta.Name, string(op)), instance)
+	}
+
+	c := api.Status.Conditions.Mirror(novav1.NovaAPIReadyCondition)
+	// NOTE(gibi): it can be nil if the NovaAPI CR is created but no
+	// reconciliation is run on it to initialize the ReadyCondition yet.
+	if c != nil {
+		instance.Status.Conditions.Set(c)
+	}
+	instance.Status.APIServiceReadyCount = api.Status.ReadyCount
+
 	return ctrl.Result{}, nil
 }
 
@@ -231,5 +325,6 @@ func (r *NovaReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&novav1.Nova{}).
 		Owns(&mariadbv1.MariaDBDatabase{}).
+		Owns(&novav1.NovaAPI{}).
 		Complete(r)
 }
