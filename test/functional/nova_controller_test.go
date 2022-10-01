@@ -62,12 +62,12 @@ var _ = Describe("Nova controller", func() {
 			DeferCleanup(DeleteNova, novaName)
 		})
 
-		It("is Ready", func() {
+		It("is not Ready", func() {
 			ExpectCondition(
 				novaName,
 				conditionGetterFunc(NovaConditionGetter),
 				condition.ReadyCondition,
-				corev1.ConditionTrue,
+				corev1.ConditionUnknown,
 			)
 		})
 
@@ -79,5 +79,61 @@ var _ = Describe("Nova controller", func() {
 			Expect(instance.Status.MetadataServiceReadyCount).To(Equal(int32(0)))
 		})
 
+		It("is fails creating the API DB as MariaDB instance is missing", func() {
+			ExpectConditionWithDetails(
+				novaName,
+				conditionGetterFunc(NovaConditionGetter),
+				condition.DBReadyCondition,
+				corev1.ConditionFalse,
+				condition.ErrorReason,
+				"DBsync job error occured Error getting the DB service using "+
+					"label map[app:mariadb cr:mariadb-openstack]: %!w(<nil>)",
+			)
+		})
+
+		When("a DB Service is created", func() {
+			var mariaDBDatabaseName types.NamespacedName
+
+			BeforeEach(func() {
+				DeferCleanup(
+					DeleteDBService,
+					CreateDBService(
+						namespace,
+						corev1.ServiceSpec{
+							Ports: []corev1.ServicePort{{Port: 3306}},
+						},
+					),
+				)
+				mariaDBDatabaseName = types.NamespacedName{Namespace: namespace, Name: novaName.Name}
+			})
+
+			It("creates the MariaDBDatabase for the API DB and waits for it to be Ready", func() {
+				ExpectConditionWithDetails(
+					novaName,
+					conditionGetterFunc(NovaConditionGetter),
+					condition.DBReadyCondition,
+					corev1.ConditionFalse,
+					condition.RequestedReason,
+					condition.DBReadyRunningMessage,
+				)
+				// this would fail if the MariaDBDatabase does not exist
+				GetMariaDBDatabase(mariaDBDatabaseName)
+			})
+
+			When("the MariaDBDatabase instance becomes ready", func() {
+				BeforeEach(func() {
+					SimulateMariaDBDatabaseCompleted(mariaDBDatabaseName)
+				})
+
+				It("reports that the API Database is ready", func() {
+					ExpectCondition(
+						novaName,
+						conditionGetterFunc(NovaConditionGetter),
+						condition.DBReadyCondition,
+						corev1.ConditionTrue,
+					)
+				})
+			})
+		})
 	})
 })

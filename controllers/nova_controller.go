@@ -30,6 +30,7 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
+	database "github.com/openstack-k8s-operators/lib-common/modules/database"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
@@ -133,9 +134,14 @@ func (r *NovaReconciler) initConditions(
 		instance.Status.Conditions = condition.Conditions{}
 		// initialize all conditions to Unknown
 		cl := condition.CreateList(
-		// TODO(gibi): Initilaize each condition the controller reports
-		// here to Unknown. By default only the top level Ready condition is
-		// created by Conditions.Init()
+			// TODO(gibi): Initialize each condition the controller reports
+			// here to Unknown. By default only the top level Ready condition is
+			// created by Conditions.Init()
+			condition.UnknownCondition(
+				condition.DBReadyCondition,
+				condition.InitReason,
+				condition.DBReadyInitMessage,
+			),
 		)
 		instance.Status.Conditions.Init(&cl)
 
@@ -156,6 +162,67 @@ func (r *NovaReconciler) reconcileNormal(
 	h *helper.Helper,
 	instance *novav1.Nova,
 ) (ctrl.Result, error) {
+	db := database.NewDatabase(
+		// NOTE(gibi): We have to use the instance.Name as the name of the
+		// schema as lib-common faultly assuming tha the schema name and the
+		// instance name is the same. This is https://github.com/openstack-k8s-operators/lib-common/issues/65
+		// After #65 is fixed in lib-common we can use the more realistic
+		// "nova_api" schema name here. Or opt to use instance.Name + "_api" if
+		// we want to support that two Nova CRs using the same DB service.
+		instance.Name,
+		instance.Spec.APIDatabaseUser,
+		instance.Spec.Secret,
+		map[string]string{
+			"dbName": instance.Spec.APIDatabaseInstance,
+		},
+	)
+	// create or patch the DB
+	// TODO(gibi): use db.CreateOrPatchDBByName and passing in
+	// instance.Spec.APIDatabaseInstance after
+	// https://github.com/openstack-k8s-operators/lib-common/pull/63
+	// is merged
+	ctrlResult, err := db.CreateOrPatchDB(
+		ctx,
+		h,
+	)
+	if err != nil {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.DBReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.DBReadyErrorMessage,
+			err.Error()))
+		return ctrl.Result{}, err
+	}
+	if (ctrlResult != ctrl.Result{}) {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.DBReadyCondition,
+			condition.RequestedReason,
+			condition.SeverityInfo,
+			condition.DBReadyRunningMessage))
+		return ctrlResult, nil
+	}
+	// wait for the DB to be setup
+	ctrlResult, err = db.WaitForDBCreated(ctx, h)
+	if err != nil {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.DBReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.DBReadyErrorMessage,
+			err.Error()))
+		return ctrlResult, err
+	}
+	if (ctrlResult != ctrl.Result{}) {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.DBReadyCondition,
+			condition.RequestedReason,
+			condition.SeverityInfo,
+			condition.DBReadyRunningMessage))
+		return ctrlResult, nil
+	}
+	instance.Status.Conditions.MarkTrue(condition.DBReadyCondition, condition.DBReadyMessage)
+
 	return ctrl.Result{}, nil
 }
 

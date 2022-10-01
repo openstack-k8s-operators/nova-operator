@@ -32,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
+	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 )
 
@@ -325,4 +326,61 @@ func GetNova(name types.NamespacedName) *novav1.Nova {
 func NovaConditionGetter(name types.NamespacedName) condition.Conditions {
 	instance := GetNova(name)
 	return instance.Status.Conditions
+}
+
+// CreateDBService creates a k8s Service object that matches with the
+// expectations of lib-common database module as a Service for the MariaDB
+func CreateDBService(namespace string, spec corev1.ServiceSpec) types.NamespacedName {
+	// TODO(gibi): Do we depend on the name?
+	serviceName := "not-openstack"
+	service := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      serviceName,
+			Namespace: namespace,
+			// NOTE(gibi): The lib-common databvase module looks up the
+			// Service exposed by MariaDB via these labels.
+			Labels: map[string]string{"app": "mariadb", "cr": "mariadb-openstack"},
+		},
+		Spec: spec,
+	}
+	Expect(k8sClient.Create(ctx, service)).Should(Succeed())
+
+	return types.NamespacedName{Name: serviceName, Namespace: namespace}
+}
+
+func DeleteDBService(name types.NamespacedName) {
+	Eventually(func(g Gomega) {
+		service := &corev1.Service{}
+		err := k8sClient.Get(ctx, name, service)
+		// if it is already gone that is OK
+		if k8s_errors.IsNotFound(err) {
+			return
+		}
+		Expect(err).Should(BeNil())
+
+		Expect(k8sClient.Delete(ctx, service)).Should(Succeed())
+
+		err = k8sClient.Get(ctx, name, service)
+		g.Expect(k8s_errors.IsNotFound(err)).To(BeTrue())
+	}, timeout, interval).Should(Succeed())
+}
+
+func GetMariaDBDatabase(name types.NamespacedName) *mariadbv1.MariaDBDatabase {
+	instance := &mariadbv1.MariaDBDatabase{}
+	Eventually(func(g Gomega) {
+		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
+	}, timeout, interval).Should(Succeed())
+	return instance
+}
+
+func ListMariaDBDatabase(namespace string) *mariadbv1.MariaDBDatabaseList {
+	mariaDBDatabases := &mariadbv1.MariaDBDatabaseList{}
+	Expect(k8sClient.List(ctx, mariaDBDatabases, client.InNamespace(namespace))).Should(Succeed())
+	return mariaDBDatabases
+}
+
+func SimulateMariaDBDatabaseCompleted(name types.NamespacedName) {
+	db := GetMariaDBDatabase(name)
+	db.Status.Completed = true
+	Expect(k8sClient.Status().Update(ctx, db)).To(Succeed())
 }
