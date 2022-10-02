@@ -34,15 +34,15 @@ import (
 type NovaAPITemplate struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default="quay.io/tripleowallabycentos9/openstack-nova-api:current-tripleo"
-	// The service specific Container Image URL
-	ContainerImage string `json:"containerImage"`
+	// ContainerImage - The service specific Container Image URL
+	ContainerImage string `json:"containerImage,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=1
 	// +kubebuilder:validation:Maximum=32
 	// +kubebuilder:validation:Minimum=0
 	// Replicas of the service to run
-	Replicas int32 `json:"replicas"`
+	Replicas int32 `json:"replicas,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	// NodeSelector to target subset of worker nodes running this service
@@ -74,7 +74,7 @@ type NovaAPISpec struct {
 	// +kubebuilder:validation:Required
 	// Secret is the name of the Secret instance containing password
 	// information for the nova-api sevice.
-	Secret string `json:"secret,omitempty"`
+	Secret string `json:"secret"`
 
 	// +kubebuilder:validation:Optional
 	// PasswordSelectors - Field names to identify the passwords from the
@@ -82,27 +82,27 @@ type NovaAPISpec struct {
 	PasswordSelectors PasswordSelector `json:"passwordSelectors,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=nova
+	// +kubebuilder:default="nova"
 	// ServiceUser - optional username used for this service to register in
 	// keystone
-	ServiceUser string `json:"serviceUser"`
+	ServiceUser string `json:"serviceUser,omitempty"`
 
 	// +kubebuilder:validation:Required
 	KeystoneAuthURL string `json:"keystoneAuthURL"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=nova
+	// +kubebuilder:default="nova"
 	// APIDatabaseUser - username to use when accessing the API DB
-	APIDatabaseUser string `json:"apiDatabaseUser"`
+	APIDatabaseUser string `json:"apiDatabaseUser,omitempty"`
 
 	// +kubebuilder:validation:Required
 	// APIDatabaseHostname - hostname to use when accessing the API DB
 	APIDatabaseHostname string `json:"apiDatabaseHostname"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=nova
+	// +kubebuilder:default="nova"
 	// APIMessageBusUser - username to use when accessing the API message bus
-	APIMessageBusUser string `json:"apiMessageBusUser"`
+	APIMessageBusUser string `json:"apiMessageBusUser,omitempty"`
 
 	// +kubebuilder:validation:Required
 	// APIMessageBusHostname - hostname to use when accessing the API message
