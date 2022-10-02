@@ -59,7 +59,8 @@ spec:
                 properties:
                   containerImage:
                     default: quay.io/tripleowallabycentos9/openstack-nova-api:current-tripleo
-                    description: The service specific Container Image URL
+                    description: ContainerImage - The service specific Container Image
+                      URL
                     type: string
                   customServiceConfig:
                     default: '# add your customization here'
@@ -936,7 +937,11 @@ spec:
                   to register in keystone
                 type: string
             required:
+            - apiDatabaseInstance
+            - apiMessageBusInstance
             - cellTemplates
+            - keystoneInstance
+            - secret
             type: object
           status:
             description: NovaStatus defines the observed state of Nova

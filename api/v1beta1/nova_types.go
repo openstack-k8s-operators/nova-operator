@@ -32,18 +32,18 @@ type NovaSpec struct {
 	// +kubebuilder:validation:Required
 	// KeystoneInstance to name of the KeystoneAPI CR to select the Service
 	// instance used by the Nova services to authenticate.
-	KeystoneInstance string `json:"keystoneInstance,omitempty"`
+	KeystoneInstance string `json:"keystoneInstance"`
 
 	// +kubebuilder:validation:Required
 	// APIDatabaseInstance is the name of the MariaDB CR to select the DB
 	// Service instance used for the Nova API DB.
-	APIDatabaseInstance string `json:"apiDatabaseInstance,omitempty"`
+	APIDatabaseInstance string `json:"apiDatabaseInstance"`
 
 	// +kubebuilder:validation:Required
 	// APIMessageBusInstance is the name of the RabbitMqCluster CR to select
 	// the Message Bus Service instance used by the Nova top level services to
 	// communicate.
-	APIMessageBusInstance string `json:"apiMessageBusInstance,omitempty"`
+	APIMessageBusInstance string `json:"apiMessageBusInstance"`
 
 	// +kubebuilder:validation:Required
 	// Cells is a mapping of cell names to NovaCellTemplate objects defining
@@ -53,24 +53,24 @@ type NovaSpec struct {
 	CellTemplates map[string]NovaCellTemplate `json:"cellTemplates"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=nova
+	// +kubebuilder:default="nova"
 	// ServiceUser - optional username used for this service to register in keystone
-	ServiceUser string `json:"serviceUser"`
+	ServiceUser string `json:"serviceUser,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=nova
+	// +kubebuilder:default="nova"
 	// APIDatabaseUser - username to use when accessing the API DB
-	APIDatabaseUser string `json:"apiDatabaseUser"`
+	APIDatabaseUser string `json:"apiDatabaseUser,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=nova
+	// +kubebuilder:default="nova"
 	// APIMessageBusUser - username to use when accessing the API message bus
-	APIMessageBusUser string `json:"apiMessageBusUser"`
+	APIMessageBusUser string `json:"apiMessageBusUser,omitempty"`
 
 	// +kubebuilder:validation:Required
 	// Secret is the name of the Secret instance containing password
 	// information for nova like the keystone service password and DB passwords
-	Secret string `json:"secret,omitempty"`
+	Secret string `json:"secret"`
 
 	// +kubebuilder:validation:Optional
 	// PasswordSelectors - Selectors to identify the DB and ServiceUser
@@ -84,19 +84,18 @@ type NovaSpec struct {
 	Debug Debug `json:"debug,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default={}
+	// +kubebuilder:validation:type=NovaAPITemplate
 	// APIServiceTemplate - define the nova-api service
-	APIServiceTemplate NovaAPITemplate `json:"apiServiceTemplate"`
+	APIServiceTemplate NovaAPITemplate `json:"apiServiceTemplate,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default={}
 	// SchedulerServiceTemplate- define the nova-scheduler service
-	SchedulerServiceTemplate NovaSchedulerSpec `json:"schedulerServiceTemplate"`
+	SchedulerServiceTemplate NovaSchedulerSpec `json:"schedulerServiceTemplate,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	// MetadataServiceTemplate - defines the metadata service that is global for the
 	// deployment serving all the cells.
-	MetadataServiceTemplate NovaMetadataSpec `json:"metadataServiceTemplate"`
+	MetadataServiceTemplate NovaMetadataSpec `json:"metadataServiceTemplate,omitempty"`
 }
 
 // NovaStatus defines the observed state of Nova
