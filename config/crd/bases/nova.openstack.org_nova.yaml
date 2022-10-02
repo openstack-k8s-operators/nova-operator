@@ -937,7 +937,6 @@ spec:
                 type: string
             required:
             - cellTemplates
-            - schedulerServiceTemplate
             type: object
           status:
             description: NovaStatus defines the observed state of Nova
