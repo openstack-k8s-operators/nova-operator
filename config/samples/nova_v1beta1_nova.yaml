@@ -3,7 +3,7 @@ kind: Nova
 metadata:
   name: nova-minimal-example
 spec:
-  apiDatabaseInstnace: openstack
+  apiDatabaseInstance: openstack
   apiMessageBusInstance: default-security-context
   keystoneInstance: keystone
   secret: osp-secret

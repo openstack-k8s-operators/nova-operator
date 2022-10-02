@@ -5,7 +5,7 @@ metadata:
 spec:
   # This is the name of the single MariaDB CR we deploy today
   # The Service is labelled with app=mariadb,cr=mariadb-<MariaDB.Name>
-  apiDatabaseInstnace: openstack
+  apiDatabaseInstance: openstack
   # This is the name of the single RabbitMqCluster CR we deploy today
   # The Service is labelled with
   # app.kubernetes.io/component=rabbitmq, app.kubernetes.io/name=<RabbitMqCluster.Name>
