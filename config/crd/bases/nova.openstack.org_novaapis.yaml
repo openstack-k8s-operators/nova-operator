@@ -183,6 +183,7 @@ spec:
             - apiMessageBusHostname
             - containerImage
             - keystoneAuthURL
+            - secret
             type: object
           status:
             description: NovaAPIStatus defines the observed state of NovaAPI

@@ -10,6 +10,10 @@ spec:
   # NOTE(gibi): if apiServiceTemplate and schedlerServiceTemplate is not
   # specified still a CRs for those services are created with default
   # configuration.
+  # NOTE(gibi): I don't see a way to define the apiServiceTemplate field with
+  # kubebuilder to get a properly defaulted ApiServiceTemplate struct if the
+  # apiServiceTemplate is not provided here.
+  apiServiceTemplate: {}
   # NOTE(gibi): We are not passing a Secret to the NovaAPI here any more. Nova
   # controller will push a Secret to NovaAPI CR automatically and NovaAPI will
   # hardcode which fields it will look at in that Secret.
