@@ -88,7 +88,8 @@ type NovaSpec struct {
 	// APIServiceTemplate - define the nova-api service
 	APIServiceTemplate NovaAPITemplate `json:"apiServiceTemplate"`
 
-	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default={}
 	// SchedulerServiceTemplate- define the nova-scheduler service
 	SchedulerServiceTemplate NovaSchedulerSpec `json:"schedulerServiceTemplate"`
 
