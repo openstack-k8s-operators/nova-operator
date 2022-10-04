@@ -21,6 +21,7 @@ import (
 
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -28,6 +29,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
@@ -45,6 +47,7 @@ type NovaConductorReconciler struct {
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=novaconductors,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=novaconductors/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=novaconductors/finalizers,verbs=update
+//+kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch;delete;
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -136,9 +139,14 @@ func (r *NovaConductorReconciler) initConditions(
 		instance.Status.Conditions = condition.Conditions{}
 		// initialize all conditions to Unknown
 		cl := condition.CreateList(
-		// TODO(gibi): Initialize each condition the controller reports
-		// here to Unknown. By default only the top level Ready condition is
-		// created by Conditions.Init()
+			// TODO(gibi): Initialize each condition the controller reports
+			// here to Unknown. By default only the top level Ready condition is
+			// created by Conditions.Init()
+			condition.UnknownCondition(
+				condition.InputReadyCondition,
+				condition.InitReason,
+				condition.InputReadyInitMessage,
+			),
 		)
 
 		instance.Status.Conditions.Init(&cl)
@@ -160,6 +168,34 @@ func (r *NovaConductorReconciler) reconcileNormal(
 	h *helper.Helper,
 	instance *novav1.NovaConductor,
 ) (ctrl.Result, error) {
+
+	// TODO(gibi): Can we use a simple map[string][string] for hashes?
+	// Collect hashes of all the input we depend on so that we can easily
+	// detect if something is changed.
+	hashes := make(map[string]env.Setter)
+
+	secretHash, result, err := ensureSecret(
+		ctx,
+		types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.Secret},
+		// TODO(gibi): Add the rest of the secret fields here when they are
+		// needed for the controller to reconcile.
+		[]string{
+			// TODO(gibi): This is hardcode here until wil agree one the Secret
+			// handling tracked in issues/79
+			"NovaCellDatabasePassword",
+		},
+		h.GetClient(),
+		&instance.Status.Conditions,
+	)
+	if err != nil {
+		return result, err
+	}
+
+	hashes[instance.Spec.Secret] = env.SetValue(secretHash)
+
+	// all our input checks out so report InputReady
+	instance.Status.Conditions.MarkTrue(condition.InputReadyCondition, condition.InputReadyMessage)
+
 	return ctrl.Result{}, nil
 }
 
