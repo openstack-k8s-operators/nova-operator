@@ -13,6 +13,9 @@ limitations under the License.
 package functional_test
 
 import (
+	"fmt"
+	"os"
+
 	"github.com/google/uuid"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -37,6 +40,10 @@ var _ = Describe("NovaConductor controller", func() {
 		// We still request the delete of the Namespace in AfterEach to
 		// properly cleanup if we run the test in an existing cluster.
 		DeferCleanup(DeleteNamespace, namespace)
+		// NOTE(gibi): ConfigMap generation looks up the local templates
+		// directory via ENV, so provide it
+		DeferCleanup(os.Setenv, "OPERATOR_TEMPLATES", os.Getenv("OPERATOR_TEMPLATES"))
+		os.Setenv("OPERATOR_TEMPLATES", "../../templates")
 
 		// Uncomment this if you need the full output in the logs from gomega
 		// matchers
@@ -175,6 +182,64 @@ var _ = Describe("NovaConductor controller", func() {
 					condition.InputReadyCondition,
 					corev1.ConditionTrue,
 				)
+			})
+			It("generated configs successfully", func() {
+				// NOTE(gibi): NovaConductor has no external dependency right now to
+				// generate the configs.
+				ExpectCondition(
+					novaConductorName,
+					conditionGetterFunc(NovaConductorConditionGetter),
+					condition.ServiceConfigReadyCondition,
+					corev1.ConditionTrue,
+				)
+
+				configDataMap := GetConfigMap(
+					types.NamespacedName{
+						Namespace: namespace,
+						Name:      fmt.Sprintf("%s-config-data", novaConductorName.Name),
+					},
+				)
+				Expect(configDataMap.Data).Should(
+					HaveKeyWithValue("custom.conf", "# add your customization here"))
+
+				scriptMap := GetConfigMap(
+					types.NamespacedName{
+						Namespace: namespace,
+						Name:      fmt.Sprintf("%s-scripts", novaConductorName.Name),
+					},
+				)
+				// This is explicitly added to the map by the controller
+				Expect(scriptMap.Data).Should(HaveKeyWithValue(
+					"common.sh", ContainSubstring("function merge_config_dir")))
+				// Everything under templates/novaconductor are added automatically by
+				// lib-common
+				Expect(scriptMap.Data).Should(HaveKeyWithValue(
+					"init.sh", ContainSubstring("database connection mysql+pymysql")))
+			})
+
+			It("stored the input hash in the Status", func() {
+				Eventually(func(g Gomega) {
+					novaConductor := GetNovaConductor(novaConductorName)
+					g.Expect(novaConductor.Status.Hash).Should(HaveKeyWithValue("input", Not(BeEmpty())))
+				}, timeout, interval).Should(Succeed())
+
+			})
+
+			When("the NovaConductor is deleted", func() {
+				It("deletes the generated ConfigMaps", func() {
+					ExpectCondition(
+						novaConductorName,
+						conditionGetterFunc(NovaConductorConditionGetter),
+						condition.ServiceConfigReadyCondition,
+						corev1.ConditionTrue,
+					)
+
+					DeleteNovaConductor(novaConductorName)
+
+					Eventually(func() []corev1.ConfigMap {
+						return ListConfigMaps(novaConductorName.Name).Items
+					}, timeout, interval).Should(BeEmpty())
+				})
 			})
 		})
 	})
