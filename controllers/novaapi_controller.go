@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
@@ -45,15 +44,6 @@ import (
 	"github.com/openstack-k8s-operators/nova-operator/pkg/novaapi"
 
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
-)
-
-const (
-	// LabelPrefix - a unique, service binary specific prefix for the labeles
-	// this controller uses on children objects
-	LabelPrefix = "nova-api"
-	// DbSyncHash - the field name in Status.Hashes storing the has of the DB
-	// sync job
-	DbSyncHash = "dbsync"
 )
 
 // NovaAPIReconciler reconciles a NovaAPI object
@@ -258,7 +248,7 @@ func (r *NovaAPIReconciler) reconcileNormal(
 
 	// create hash over all the different input resources to identify if any of
 	// those changed and a restart/recreate is required.
-	inputHash, err := r.hashOfInputHashes(ctx, hashes)
+	inputHash, err := hashOfInputHashes(ctx, hashes)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -271,7 +261,7 @@ func (r *NovaAPIReconciler) reconcileNormal(
 	instance.Status.Conditions.MarkTrue(condition.ServiceConfigReadyCondition, condition.ServiceConfigReadyMessage)
 
 	serviceLabels := map[string]string{
-		common.AppSelector: LabelPrefix,
+		common.AppSelector: NovaAPILabelPrefix,
 	}
 
 	dbSyncHash := instance.Status.Hash[DbSyncHash]
@@ -373,7 +363,7 @@ func (r *NovaAPIReconciler) generateServiceConfigMaps(
 	//
 
 	cmLabels := labels.GetLabels(
-		instance, labels.GetGroupLabel(LabelPrefix), map[string]string{})
+		instance, labels.GetGroupLabel(NovaAPILabelPrefix), map[string]string{})
 
 	// customData hold any customization for the service.
 	// custom.conf is going to /etc/<service>/<service>.conf.d
@@ -417,19 +407,6 @@ func (r *NovaAPIReconciler) generateServiceConfigMaps(
 	}
 
 	return nil
-}
-
-// hashOfInputHashes - calculates the overal hash of all our inputs
-func (r *NovaAPIReconciler) hashOfInputHashes(
-	ctx context.Context,
-	hashes map[string]env.Setter,
-) (string, error) {
-	mergedMapVars := env.MergeEnvs([]corev1.EnvVar{}, hashes)
-	hash, err := util.ObjectHash(mergedMapVars)
-	if err != nil {
-		return hash, err
-	}
-	return hash, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

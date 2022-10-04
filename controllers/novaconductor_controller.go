@@ -28,11 +28,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/go-logr/logr"
+	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/configmap"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/labels"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
+	"github.com/openstack-k8s-operators/nova-operator/pkg/nova"
 )
 
 // NovaConductorReconciler reconciles a NovaConductor object
@@ -48,6 +52,7 @@ type NovaConductorReconciler struct {
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=novaconductors/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=novaconductors/finalizers,verbs=update
 //+kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch;delete;
+//+kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete;
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -147,6 +152,11 @@ func (r *NovaConductorReconciler) initConditions(
 				condition.InitReason,
 				condition.InputReadyInitMessage,
 			),
+			condition.UnknownCondition(
+				condition.ServiceConfigReadyCondition,
+				condition.InitReason,
+				condition.ServiceConfigReadyInitMessage,
+			),
 		)
 
 		instance.Status.Conditions.Init(&cl)
@@ -196,7 +206,106 @@ func (r *NovaConductorReconciler) reconcileNormal(
 	// all our input checks out so report InputReady
 	instance.Status.Conditions.MarkTrue(condition.InputReadyCondition, condition.InputReadyMessage)
 
+	// create ConfigMaps required for nova-conductor service
+	// - %-scripts configmap holding scripts to e.g. bootstrap the service
+	// - %-config configmap holding minimal nova-api config required to get
+	//   the service up, user can add additional files to be added to the service
+	// - parameters which has passwords gets added from the OpenStack secret
+	//   via the init container
+	err = r.generateServiceConfigMaps(ctx, h, instance, &hashes)
+	if err != nil {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.ServiceConfigReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.ServiceConfigReadyErrorMessage,
+			err.Error()))
+		return ctrl.Result{}, err
+	}
+
+	// create hash over all the different input resources to identify if any of
+	// those changed and a restart/recreate is required.
+	inputHash, err := hashOfInputHashes(ctx, hashes)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	if val, ok := instance.Status.Hash[common.InputHashName]; !ok || val != inputHash {
+		instance.Status.Hash[common.InputHashName] = inputHash
+		// TODO(gibi): Do we need to persist the change right away here? Or it
+		// is OK to let the our defered update at the end do the persisting.
+	}
+
+	instance.Status.Conditions.MarkTrue(condition.ServiceConfigReadyCondition, condition.ServiceConfigReadyMessage)
+
 	return ctrl.Result{}, nil
+}
+
+// TODO(gibi): Carried over from placement, Sean started working on this
+// so integrate Sean's work here
+//
+// generateServiceConfigMaps - create create configmaps which hold scripts and service configuration
+// TODO add DefaultConfigOverwrite
+//
+func (r *NovaConductorReconciler) generateServiceConfigMaps(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *novav1.NovaConductor,
+	envVars *map[string]env.Setter,
+) error {
+	//
+	// create Configmap/Secret required for nova-conductor input
+	// - %-scripts configmap holding scripts to e.g. bootstrap the service
+	// - %-config configmap holding minimal nova-api config required to get
+	//   the service up, user can add additional files to be added to the service
+	// - parameters which has passwords gets added from the ospSecret via the
+	//   init container
+	//
+
+	cmLabels := labels.GetLabels(
+		instance, labels.GetGroupLabel(NovaConductorLabelPrefix), map[string]string{})
+
+	// customData hold any customization for the service.
+	// custom.conf is going to /etc/<service>/<service>.conf.d
+	// all other files get placed into /etc/<service> to allow overwrite of
+	// e.g. logging.conf or policy.json
+	// TODO: make sure custom.conf can not be overwritten
+	customData := map[string]string{
+		common.CustomServiceConfigFileName: instance.Spec.CustomServiceConfig}
+	for key, data := range instance.Spec.DefaultConfigOverwrite {
+		customData[key] = data
+	}
+
+	templateParameters := make(map[string]interface{})
+	templateParameters["ServiceUser"] = instance.Spec.ServiceUser
+	templateParameters["KeystonePublicURL"] = instance.Spec.KeystoneAuthURL
+
+	cms := []util.Template{
+		// ScriptsConfigMap
+		{
+			Name:               nova.GetScriptConfigMapName(instance.Name),
+			Namespace:          instance.Namespace,
+			Type:               util.TemplateTypeScripts,
+			InstanceType:       instance.Kind,
+			AdditionalTemplate: map[string]string{"common.sh": "/common/common.sh"},
+			Labels:             cmLabels,
+		},
+		// ConfigMap
+		{
+			Name:          nova.GetServiceConfigConfigMapName(instance.Name),
+			Namespace:     instance.Namespace,
+			Type:          util.TemplateTypeConfig,
+			InstanceType:  instance.Kind,
+			CustomData:    customData,
+			ConfigOptions: templateParameters,
+			Labels:        cmLabels,
+		},
+	}
+	err := configmap.EnsureConfigMaps(ctx, h, instance, cms, envVars)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

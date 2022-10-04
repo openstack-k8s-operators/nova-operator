@@ -28,7 +28,20 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
+)
+
+const (
+	// NovaAPILabelPrefix - a unique, service binary specific prefix for the
+	// labeles the NovaAPI controller uses on children objects
+	NovaAPILabelPrefix = "nova-api"
+	// NovaConductorLabelPrefix - a unique, service binary specific prefix for
+	// the labeles the NovaConductor controller uses on children objects
+	NovaConductorLabelPrefix = "nova-conductor"
+	// DbSyncHash - the field name in Status.Hashes storing the has of the DB
+	// sync job
+	DbSyncHash = "dbsync"
 )
 
 type conditionsGetter interface {
@@ -117,4 +130,17 @@ func ensureSecret(
 	}
 
 	return hash, ctrl.Result{}, nil
+}
+
+// hashOfInputHashes - calculates the overal hash of all our inputs
+func hashOfInputHashes(
+	ctx context.Context,
+	hashes map[string]env.Setter,
+) (string, error) {
+	mergedMapVars := env.MergeEnvs([]corev1.EnvVar{}, hashes)
+	hash, err := util.ObjectHash(mergedMapVars)
+	if err != nil {
+		return hash, err
+	}
+	return hash, nil
 }
