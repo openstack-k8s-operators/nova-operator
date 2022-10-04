@@ -44,7 +44,7 @@ func Deployment(
 		Secret:                              instance.Spec.Secret,
 		DatabasePasswordSelector:            instance.Spec.PasswordSelectors.APIDatabase,
 		KeystoneServiceUserPasswordSelector: instance.Spec.PasswordSelectors.Service,
-		VolumeMounts:                        getAllVolumeMounts(),
+		VolumeMounts:                        nova.GetAllVolumeMounts(),
 	}
 
 	livenessProbe := &corev1.Probe{
@@ -131,8 +131,11 @@ func Deployment(
 				},
 				Spec: corev1.PodSpec{
 					ServiceAccountName: nova.ServiceAccount,
-					Volumes:            getVolumes(instance.Name),
-					InitContainers:     initContainer(initContainerDetails),
+					Volumes: nova.GetVolumes(
+						nova.GetScriptConfigMapName(instance.Name),
+						nova.GetServiceConfigConfigMapName(instance.Name),
+					),
+					InitContainers: initContainer(initContainerDetails),
 					Containers: []corev1.Container{
 						{
 							Name: instance.Name + "-api",
@@ -145,7 +148,7 @@ func Deployment(
 								RunAsUser: &runAsUser,
 							},
 							Env:            env,
-							VolumeMounts:   getServiceVolumeMounts(),
+							VolumeMounts:   nova.GetServiceVolumeMounts(),
 							Resources:      instance.Spec.Resources,
 							ReadinessProbe: readinessProbe,
 							LivenessProbe:  livenessProbe,

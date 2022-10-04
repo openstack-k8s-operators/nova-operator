@@ -47,7 +47,7 @@ func CellDBSyncJob(
 		Secret:                              instance.Spec.Secret,
 		DatabasePasswordSelector:            "NovaCellDatabasePassword",
 		KeystoneServiceUserPasswordSelector: instance.Spec.PasswordSelectors.Service,
-		VolumeMounts:                        getAllVolumeMounts(),
+		VolumeMounts:                        nova.GetAllVolumeMounts(),
 	}
 
 	runAsUser := int64(0)
@@ -76,7 +76,10 @@ func CellDBSyncJob(
 				Spec: corev1.PodSpec{
 					RestartPolicy:      "OnFailure",
 					ServiceAccountName: nova.ServiceAccount,
-					Volumes:            getVolumes(instance.Name),
+					Volumes: nova.GetVolumes(
+						nova.GetScriptConfigMapName(instance.Name),
+						nova.GetServiceConfigConfigMapName(instance.Name),
+					),
 					Containers: []corev1.Container{
 						{
 							Name: instance.Name + "-cell-db-sync",
@@ -89,7 +92,7 @@ func CellDBSyncJob(
 								RunAsUser: &runAsUser,
 							},
 							Env:          env,
-							VolumeMounts: getServiceVolumeMounts(),
+							VolumeMounts: nova.GetServiceVolumeMounts(),
 						},
 					},
 					InitContainers: initContainer(initContainerDetails),
