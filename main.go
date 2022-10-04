@@ -126,8 +126,11 @@ func main() {
 		os.Exit(1)
 	}
 	if err = (&controllers.NovaConductorReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:                mgr.GetClient(),
+		Scheme:                mgr.GetScheme(),
+		Kclient:               kclient,
+		Log:                   ctrl.Log.WithName("controllers").WithName("NovaAPI"),
+		RequeueTimeoutSeconds: 5,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "NovaConductor")
 		os.Exit(1)
