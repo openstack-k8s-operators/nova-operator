@@ -47,7 +47,7 @@ func APIDBSyncJob(
 		Secret:                              instance.Spec.Secret,
 		DatabasePasswordSelector:            instance.Spec.PasswordSelectors.APIDatabase,
 		KeystoneServiceUserPasswordSelector: instance.Spec.PasswordSelectors.Service,
-		VolumeMounts:                        getAllVolumeMounts(),
+		VolumeMounts:                        nova.GetAllVolumeMounts(),
 	}
 
 	runAsUser := int64(0)
@@ -76,7 +76,10 @@ func APIDBSyncJob(
 				Spec: corev1.PodSpec{
 					RestartPolicy:      "OnFailure",
 					ServiceAccountName: nova.ServiceAccount,
-					Volumes:            getVolumes(instance.Name),
+					Volumes: nova.GetVolumes(
+						nova.GetScriptConfigMapName(instance.Name),
+						nova.GetServiceConfigConfigMapName(instance.Name),
+					),
 					Containers: []corev1.Container{
 						{
 							Name: instance.Name + "-api-db-sync",
@@ -89,7 +92,7 @@ func APIDBSyncJob(
 								RunAsUser: &runAsUser,
 							},
 							Env:          env,
-							VolumeMounts: getServiceVolumeMounts(),
+							VolumeMounts: nova.GetServiceVolumeMounts(),
 						},
 					},
 					InitContainers: initContainer(initContainerDetails),
