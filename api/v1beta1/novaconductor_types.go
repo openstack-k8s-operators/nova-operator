@@ -198,3 +198,8 @@ type NovaConductorList struct {
 func init() {
 	SchemeBuilder.Register(&NovaConductor{}, &NovaConductorList{})
 }
+
+// GetConditions returns the list of conditions from the status
+func (s NovaConductorStatus) GetConditions() condition.Conditions {
+	return s.Conditions
+}
