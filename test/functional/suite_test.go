@@ -149,6 +149,16 @@ var _ = BeforeSuite(func() {
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
+	err = (&controllers.NovaConductorReconciler{
+		Client:  k8sManager.GetClient(),
+		Scheme:  k8sManager.GetScheme(),
+		Kclient: kclient,
+		Log: ctrl.Log.WithName(
+			"controllers").WithName("NovaConductor"),
+		RequeueTimeoutSeconds: 1,
+	}).SetupWithManager(k8sManager)
+	Expect(err).ToNot(HaveOccurred())
+
 	go func() {
 		defer GinkgoRecover()
 		err = k8sManager.Start(ctx)

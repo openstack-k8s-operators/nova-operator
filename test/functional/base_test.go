@@ -384,3 +384,53 @@ func SimulateMariaDBDatabaseCompleted(name types.NamespacedName) {
 	db.Status.Completed = true
 	Expect(k8sClient.Status().Update(ctx, db)).To(Succeed())
 }
+
+func CreateNovaConductor(namespace string, spec novav1.NovaConductorSpec) types.NamespacedName {
+	novaConductorName := uuid.New().String()
+	novaConductor := &novav1.NovaConductor{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "nova.openstack.org/v1beta1",
+			Kind:       "NovaConductor",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      novaConductorName,
+			Namespace: namespace,
+		},
+		Spec: spec,
+	}
+
+	Expect(k8sClient.Create(ctx, novaConductor)).Should(Succeed())
+
+	return types.NamespacedName{Name: novaConductorName, Namespace: namespace}
+}
+
+func DeleteNovaConductor(name types.NamespacedName) {
+	// We have to wait for the controller to fully delete the instance
+	Eventually(func(g Gomega) {
+		novaConductor := &novav1.NovaConductor{}
+		err := k8sClient.Get(ctx, name, novaConductor)
+		// if it is already gone that is OK
+		if k8s_errors.IsNotFound(err) {
+			return
+		}
+		Expect(err).Should(BeNil())
+
+		Expect(k8sClient.Delete(ctx, novaConductor)).Should(Succeed())
+
+		err = k8sClient.Get(ctx, name, novaConductor)
+		g.Expect(k8s_errors.IsNotFound(err)).To(BeTrue())
+	}, timeout, interval).Should(Succeed())
+}
+
+func GetNovaConductor(name types.NamespacedName) *novav1.NovaConductor {
+	instance := &novav1.NovaConductor{}
+	Eventually(func(g Gomega) {
+		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
+	}, timeout, interval).Should(Succeed())
+	return instance
+}
+
+func NovaConductorConditionGetter(name types.NamespacedName) condition.Conditions {
+	instance := GetNovaConductor(name)
+	return instance.Status.Conditions
+}
