@@ -17,6 +17,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
@@ -58,13 +59,123 @@ var _ = Describe("NovaConductor controller", func() {
 			Expect(instance.Status.ReadyCount).To(Equal(int32(0)))
 		})
 
-		It("is Ready", func() {
+		It("is not Ready", func() {
 			ExpectCondition(
 				novaConductorName,
 				conditionGetterFunc(NovaConductorConditionGetter),
 				condition.ReadyCondition,
-				corev1.ConditionTrue,
+				corev1.ConditionUnknown,
 			)
+		})
+	})
+
+	When("a NovaConductor CR is created pointing to a non existent Secret", func() {
+		BeforeEach(func() {
+			novaConductorName = CreateNovaConductor(
+				namespace, novav1.NovaConductorSpec{Secret: SecretName})
+			DeferCleanup(DeleteNovaConductor, novaConductorName)
+		})
+
+		It("is not Ready", func() {
+			ExpectCondition(
+				novaConductorName,
+				conditionGetterFunc(NovaConductorConditionGetter),
+				condition.ReadyCondition, corev1.ConditionUnknown,
+			)
+		})
+
+		It("is missing the secret", func() {
+			ExpectCondition(
+				novaConductorName,
+				conditionGetterFunc(NovaConductorConditionGetter),
+				condition.InputReadyCondition,
+				corev1.ConditionFalse,
+			)
+		})
+
+		When("an unrealated Secret is created the CR state does not change", func() {
+			BeforeEach(func() {
+				secret := &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "not-relevant-secret",
+						Namespace: namespace,
+					},
+				}
+				Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
+				DeferCleanup(k8sClient.Delete, ctx, secret)
+			})
+
+			It("is not Ready", func() {
+				ExpectCondition(
+					novaConductorName,
+					conditionGetterFunc(NovaConductorConditionGetter),
+					condition.ReadyCondition,
+					corev1.ConditionUnknown,
+				)
+			})
+
+			It("is missing the secret", func() {
+				ExpectCondition(
+					novaConductorName,
+					conditionGetterFunc(NovaConductorConditionGetter),
+					condition.InputReadyCondition,
+					corev1.ConditionFalse,
+				)
+			})
+
+		})
+
+		When("the Secret is created but some fields are missing", func() {
+			BeforeEach(func() {
+				secret := &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      SecretName,
+						Namespace: namespace,
+					},
+					Data: map[string][]byte{
+						"NovaPassword": []byte("12345678"),
+					},
+				}
+				Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
+				DeferCleanup(k8sClient.Delete, ctx, secret)
+			})
+
+			It("is not Ready", func() {
+				ExpectCondition(
+					novaConductorName,
+					conditionGetterFunc(NovaConductorConditionGetter),
+					condition.ReadyCondition,
+					corev1.ConditionUnknown,
+				)
+			})
+
+			It("reports that the inputes are not ready", func() {
+				ExpectCondition(
+					novaConductorName,
+					conditionGetterFunc(NovaConductorConditionGetter),
+					condition.InputReadyCondition,
+					corev1.ConditionFalse,
+				)
+			})
+		})
+
+		When("the Secret is created with all the expected fields", func() {
+			BeforeEach(func() {
+				DeferCleanup(
+					k8sClient.Delete,
+					ctx,
+					CreateNovaConductorSecret(namespace, SecretName),
+				)
+			})
+
+			It("reports that input is ready", func() {
+				ExpectCondition(
+					novaConductorName,
+					conditionGetterFunc(NovaConductorConditionGetter),
+					condition.InputReadyCondition,
+					corev1.ConditionTrue,
+				)
+			})
 		})
 	})
 })

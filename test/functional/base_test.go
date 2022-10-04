@@ -434,3 +434,19 @@ func NovaConductorConditionGetter(name types.NamespacedName) condition.Condition
 	instance := GetNovaConductor(name)
 	return instance.Status.Conditions
 }
+
+// CreateNovaConductorSecret creates a secret that has all the information
+// NovaConductor needs
+func CreateNovaConductorSecret(namespace string, name string) *corev1.Secret {
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Data: map[string][]byte{
+			"NovaCellDatabasePassword": []byte("12345678"),
+		},
+	}
+	Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
+	return secret
+}
