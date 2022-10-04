@@ -14,12 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package novaconductor
+package nova
 
 import (
 	corev1 "k8s.io/api/core/v1"
-
-	"github.com/openstack-k8s-operators/nova-operator/pkg/nova"
 )
 
 const (
@@ -28,9 +26,9 @@ const (
 	mergedConfigVolume = "config-data-merged"
 )
 
-// getVolumes - returns the volumes used for the service deployment and for
+// GetVolumes - returns the volumes used for the service deployment and for
 // any jobs needs access for the full service configuration
-func getVolumes(novaAPIName string) []corev1.Volume {
+func GetVolumes(scriptConfigMapName string, serviceConfigConfigMapName string) []corev1.Volume {
 	var scriptMode int32 = 0740
 	var configMode int32 = 0640
 
@@ -41,7 +39,7 @@ func getVolumes(novaAPIName string) []corev1.Volume {
 				ConfigMap: &corev1.ConfigMapVolumeSource{
 					DefaultMode: &scriptMode,
 					LocalObjectReference: corev1.LocalObjectReference{
-						Name: nova.GetScriptConfigMapName(novaAPIName),
+						Name: scriptConfigMapName,
 					},
 				},
 			},
@@ -52,7 +50,7 @@ func getVolumes(novaAPIName string) []corev1.Volume {
 				ConfigMap: &corev1.ConfigMapVolumeSource{
 					DefaultMode: &configMode,
 					LocalObjectReference: corev1.LocalObjectReference{
-						Name: nova.GetServiceConfigConfigMapName(novaAPIName),
+						Name: serviceConfigConfigMapName,
 					},
 				},
 			},
@@ -66,9 +64,9 @@ func getVolumes(novaAPIName string) []corev1.Volume {
 	}
 }
 
-// getAllVolumeMounts - VolumeMounts providing access to both the raw input
+// GetAllVolumeMounts - VolumeMounts providing access to both the raw input
 // configuration and the volume of the merged configuration
-func getAllVolumeMounts() []corev1.VolumeMount {
+func GetAllVolumeMounts() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		{
 			Name:      scriptVolume,
@@ -88,9 +86,9 @@ func getAllVolumeMounts() []corev1.VolumeMount {
 	}
 }
 
-// getServiceVolumeMounts - VolumeMounts to get access to the merged
+// GetServiceVolumeMounts - VolumeMounts to get access to the merged
 // configuration
-func getServiceVolumeMounts() []corev1.VolumeMount {
+func GetServiceVolumeMounts() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		{
 			Name:      scriptVolume,
