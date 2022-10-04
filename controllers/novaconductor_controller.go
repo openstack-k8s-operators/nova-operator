@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -33,10 +34,12 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/configmap"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
+	job "github.com/openstack-k8s-operators/lib-common/modules/common/job"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/labels"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/nova-operator/pkg/nova"
+	"github.com/openstack-k8s-operators/nova-operator/pkg/novaconductor"
 )
 
 // NovaConductorReconciler reconciles a NovaConductor object
@@ -53,6 +56,7 @@ type NovaConductorReconciler struct {
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=novaconductors/finalizers,verbs=update
 //+kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch;delete;
 //+kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete;
+//+kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete;
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -157,6 +161,11 @@ func (r *NovaConductorReconciler) initConditions(
 				condition.InitReason,
 				condition.ServiceConfigReadyInitMessage,
 			),
+			condition.UnknownCondition(
+				condition.DBSyncReadyCondition,
+				condition.InitReason,
+				condition.DBSyncReadyInitMessage,
+			),
 		)
 
 		instance.Status.Conditions.Init(&cl)
@@ -236,6 +245,46 @@ func (r *NovaConductorReconciler) reconcileNormal(
 	}
 
 	instance.Status.Conditions.MarkTrue(condition.ServiceConfigReadyCondition, condition.ServiceConfigReadyMessage)
+
+	serviceLabels := map[string]string{
+		common.AppSelector: NovaConductorLabelPrefix,
+	}
+
+	dbSyncHash := instance.Status.Hash[DbSyncHash]
+	jobDef := novaconductor.CellDBSyncJob(instance, serviceLabels)
+	dbSyncjob := job.NewJob(
+		jobDef,
+		"dbsync",
+		instance.Spec.Debug.PreserveJobs,
+		r.RequeueTimeoutSeconds,
+		dbSyncHash,
+	)
+	ctrlResult, err := dbSyncjob.DoJob(ctx, h)
+	if (ctrlResult != ctrl.Result{}) {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.DBSyncReadyCondition,
+			condition.RequestedReason,
+			condition.SeverityInfo,
+			condition.DBSyncReadyRunningMessage))
+		return ctrlResult, nil
+	}
+	if err != nil {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.DBSyncReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.DBSyncReadyErrorMessage,
+			err.Error()))
+		return ctrl.Result{}, err
+	}
+	if dbSyncjob.HasChanged() {
+		instance.Status.Hash[DbSyncHash] = dbSyncjob.GetHash()
+		// TODO(gibi): Do we need to call Status().Update() now or it is
+		// enough to let our deferred call do the update at the end of the
+		// reconcile loop?
+		r.Log.Info(fmt.Sprintf("Job %s hash added - %s", jobDef.Name, instance.Status.Hash[DbSyncHash]))
+	}
+	instance.Status.Conditions.MarkTrue(condition.DBSyncReadyCondition, condition.DBSyncReadyMessage)
 
 	return ctrl.Result{}, nil
 }

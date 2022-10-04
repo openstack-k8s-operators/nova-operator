@@ -19,6 +19,7 @@ import (
 	"github.com/google/uuid"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -243,4 +244,196 @@ var _ = Describe("NovaConductor controller", func() {
 			})
 		})
 	})
+
+	When("NovConductor is created with a proper Secret", func() {
+		var jobName types.NamespacedName
+
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateNovaConductorSecret(namespace, SecretName))
+
+			novaConductorName = CreateNovaConductor(
+				namespace,
+				novav1.NovaConductorSpec{
+					Secret: SecretName,
+					NovaServiceBase: novav1.NovaServiceBase{
+						ContainerImage: ContainerImage,
+					},
+				},
+			)
+			DeferCleanup(DeleteNovaConductor, novaConductorName)
+
+			ExpectCondition(
+				novaConductorName,
+				conditionGetterFunc(NovaConductorConditionGetter),
+				condition.InputReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			jobName = types.NamespacedName{
+				Namespace: namespace,
+				Name:      fmt.Sprintf("%s-cell-db-sync", novaConductorName.Name),
+			}
+
+		})
+
+		// NOTE(gibi): This could be racy when run against a real cluster
+		// as the job might finish / fail automatically before this test can
+		// assert the in progress state. Fortunately the real env is slow so
+		// this actually passes.
+		It("started the dbsync job and it reports waiting for that job to finish", func() {
+			ExpectConditionWithDetails(
+				novaConductorName,
+				conditionGetterFunc(NovaConductorConditionGetter),
+				condition.DBSyncReadyCondition,
+				corev1.ConditionFalse,
+				condition.RequestedReason,
+				condition.DBSyncReadyRunningMessage,
+			)
+			job := GetJob(jobName)
+			// TODO(gibi): We could verify a lot of fields but should we?
+			Expect(job.Spec.Template.Spec.Volumes).To(HaveLen(3))
+			Expect(job.Spec.Template.Spec.InitContainers).To(HaveLen(1))
+			initContainer := job.Spec.Template.Spec.InitContainers[0]
+			Expect(initContainer.VolumeMounts).To(HaveLen(3))
+			Expect(initContainer.Image).To(Equal(ContainerImage))
+
+			Expect(job.Spec.Template.Spec.Containers).To(HaveLen(1))
+			container := job.Spec.Template.Spec.Containers[0]
+			Expect(container.VolumeMounts).To(HaveLen(2))
+			Expect(container.Args[1]).To(ContainSubstring("dbsync.sh"))
+			Expect(container.Image).To(Equal(ContainerImage))
+		})
+
+		When("DB sync fails", func() {
+			BeforeEach(func() {
+				SimulateJobFailure(jobName)
+			})
+
+			// NOTE(gibi): lib-common only deletes the job if the job succeeds
+			It("reports that DB sync is failed and the job is not deleted", func() {
+				ExpectConditionWithDetails(
+					novaConductorName,
+					conditionGetterFunc(NovaConductorConditionGetter),
+					condition.DBSyncReadyCondition,
+					corev1.ConditionFalse,
+					condition.ErrorReason,
+					"DBsync job error occured Internal error occurred: Job Failed. Check job logs",
+				)
+				// This would fail the test case if the job does not exists
+				GetJob(jobName)
+
+				// We don't store the failed job's hash.
+				novaConductor := GetNovaConductor(novaConductorName)
+				Expect(novaConductor.Status.Hash).ShouldNot(HaveKey("dbsync"))
+
+			})
+
+			When("NovaConductor is deleted", func() {
+				It("deletes the failed job", func() {
+					ExpectConditionWithDetails(
+						novaConductorName,
+						conditionGetterFunc(NovaConductorConditionGetter),
+						condition.DBSyncReadyCondition,
+						corev1.ConditionFalse,
+						condition.ErrorReason,
+						"DBsync job error occured Internal error occurred: Job Failed. Check job logs",
+					)
+
+					DeleteNovaConductor(novaConductorName)
+
+					Eventually(func() []batchv1.Job {
+						return ListJobs(novaConductorName.Name).Items
+					}, timeout, interval).Should(BeEmpty())
+				})
+			})
+		})
+
+		When("DB sync job finishes successfully", func() {
+			BeforeEach(func() {
+				SimulateJobSuccess(jobName)
+			})
+
+			It("reports that DB sync is ready and the job is deleted", func() {
+				ExpectCondition(
+					novaConductorName,
+					conditionGetterFunc(NovaConductorConditionGetter),
+					condition.DBSyncReadyCondition,
+					corev1.ConditionTrue,
+				)
+
+				Expect(ListJobs(namespace).Items).To(BeEmpty())
+			})
+
+			It("stores the hash of the Job in the Status", func() {
+				Eventually(func(g Gomega) {
+					novaConductor := GetNovaConductor(novaConductorName)
+					g.Expect(novaConductor.Status.Hash).Should(HaveKeyWithValue("dbsync", Not(BeEmpty())))
+				}, timeout, interval).Should(Succeed())
+
+			})
+
+		})
+	})
+
+	When("NovConductor is configured to preserve jobs", func() {
+		var jobName types.NamespacedName
+
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateNovaConductorSecret(namespace, SecretName))
+
+			novaConductorName = CreateNovaConductor(
+				namespace,
+				novav1.NovaConductorSpec{
+					Secret: SecretName,
+					NovaServiceBase: novav1.NovaServiceBase{
+						ContainerImage: ContainerImage,
+					},
+					Debug: novav1.Debug{PreserveJobs: true},
+				},
+			)
+			DeferCleanup(DeleteNovaConductor, novaConductorName)
+
+			ExpectCondition(
+				novaConductorName,
+				conditionGetterFunc(NovaConductorConditionGetter),
+				condition.DBSyncReadyCondition,
+				corev1.ConditionFalse,
+			)
+
+			jobName = types.NamespacedName{
+				Namespace: namespace,
+				Name:      fmt.Sprintf("%s-cell-db-sync", novaConductorName.Name)}
+		})
+
+		It("does not delete the DB sync job after it finished", func() {
+			SimulateJobSuccess(jobName)
+
+			ExpectCondition(
+				novaConductorName,
+				conditionGetterFunc(NovaConductorConditionGetter),
+				condition.DBSyncReadyCondition,
+				corev1.ConditionTrue,
+			)
+			// This would fail the test case if the job does not exists
+			GetJob(jobName)
+		})
+
+		It("does not delete the DB sync job after it failed", func() {
+			SimulateJobFailure(jobName)
+
+			ExpectConditionWithDetails(
+				novaConductorName,
+				conditionGetterFunc(NovaConductorConditionGetter),
+				condition.DBSyncReadyCondition,
+				corev1.ConditionFalse,
+				condition.ErrorReason,
+				"DBsync job error occured Internal error occurred: Job Failed. Check job logs",
+			)
+			// This would fail the test case if the job does not exists
+			GetJob(jobName)
+		})
+	})
+
 })
