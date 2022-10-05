@@ -203,3 +203,8 @@ type NovaCellList struct {
 func init() {
 	SchemeBuilder.Register(&NovaCell{}, &NovaCellList{})
 }
+
+// GetConditions returns the list of conditions from the status
+func (s NovaCellStatus) GetConditions() condition.Conditions {
+	return s.Conditions
+}

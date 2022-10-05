@@ -450,3 +450,53 @@ func CreateNovaConductorSecret(namespace string, name string) *corev1.Secret {
 	Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
 	return secret
 }
+
+func CreateNovaCell(namespace string, spec novav1.NovaCellSpec) types.NamespacedName {
+	novaCellName := uuid.New().String()
+	novaCell := &novav1.NovaCell{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "nova.openstack.org/v1beta1",
+			Kind:       "NovaCell",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      novaCellName,
+			Namespace: namespace,
+		},
+		Spec: spec,
+	}
+
+	Expect(k8sClient.Create(ctx, novaCell)).Should(Succeed())
+
+	return types.NamespacedName{Name: novaCellName, Namespace: namespace}
+}
+
+func DeleteNovaCell(name types.NamespacedName) {
+	// We have to wait for the controller to fully delete the instance
+	Eventually(func(g Gomega) {
+		novaCell := &novav1.NovaCell{}
+		err := k8sClient.Get(ctx, name, novaCell)
+		// if it is already gone that is OK
+		if k8s_errors.IsNotFound(err) {
+			return
+		}
+		Expect(err).Should(BeNil())
+
+		Expect(k8sClient.Delete(ctx, novaCell)).Should(Succeed())
+
+		err = k8sClient.Get(ctx, name, novaCell)
+		g.Expect(k8s_errors.IsNotFound(err)).To(BeTrue())
+	}, timeout, interval).Should(Succeed())
+}
+
+func GetNovaCell(name types.NamespacedName) *novav1.NovaCell {
+	instance := &novav1.NovaCell{}
+	Eventually(func(g Gomega) {
+		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
+	}, timeout, interval).Should(Succeed())
+	return instance
+}
+
+func NovaCellConditionGetter(name types.NamespacedName) condition.Conditions {
+	instance := GetNovaCell(name)
+	return instance.Status.Conditions
+}
