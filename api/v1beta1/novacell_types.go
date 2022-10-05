@@ -51,13 +51,13 @@ type NovaCellTemplate struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default={}
 	// MetadataServiceTemplate - defines the metadata serive dedicated for the cell.
-	MetadataServiceTemplate NovaMetadataSpec `json:"metadataServiceTemplate"`
+	MetadataServiceTemplate NovaMetadataTemplate `json:"metadataServiceTemplate"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default={}
 	// NoVNCProxyServiceTemplate - defines the novvncproxy serive dedicated for
 	// the cell.
-	NoVNCProxyServiceTemplate NovaNoVNCProxySpec `json:"noVNCProxyServiceTemplate"`
+	NoVNCProxyServiceTemplate NovaNoVNCProxyTemplate `json:"noVNCProxyServiceTemplate"`
 }
 
 // NovaCellSpec defines the desired state of NovaCell
