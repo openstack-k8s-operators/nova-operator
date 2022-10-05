@@ -38,7 +38,7 @@ import (
 
 const (
 	SecretName     = "test-secret"
-	ContainerImage = "test://nova-api"
+	ContainerImage = "test://nova"
 
 	timeout  = time.Second * 20
 	interval = time.Millisecond * 50
