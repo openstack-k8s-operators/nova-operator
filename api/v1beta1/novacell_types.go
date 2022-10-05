@@ -70,12 +70,12 @@ type NovaCellSpec struct {
 	// meaning. The "cell0" Cell cannot have compute nodes associated and the
 	// conductor in this cell acts as the super conductor for all the cells in
 	// the deployment.
-	CellName string `json:"cellName,omitempty"`
+	CellName string `json:"cellName"`
 
 	// +kubebuilder:validation:Required
 	// Secret is the name of the Secret instance containing password
 	// information for the nova cell.
-	Secret string `json:"secret,omitempty"`
+	Secret string `json:"secret"`
 
 	// +kubebuilder:validation:Optional
 	// PasswordSelectors - Field names to identify the passwords from the

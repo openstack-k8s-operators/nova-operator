@@ -18,12 +18,15 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/go-logr/logr"
@@ -31,7 +34,6 @@ import (
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
-	novav1beta1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 )
 
 // NovaCellReconciler reconciles a NovaCell object
@@ -130,9 +132,14 @@ func (r *NovaCellReconciler) initConditions(
 		instance.Status.Conditions = condition.Conditions{}
 		// initialize all conditions to Unknown
 		cl := condition.CreateList(
-		// TODO(gibi): Initilaize each condition the controller reports
-		// here to Unknown. By default only the top level Ready condition is
-		// created by Conditions.Init()
+			// TODO(gibi): Initialize each condition the controller reports
+			// here to Unknown. By default only the top level Ready condition is
+			// created by Conditions.Init()
+			condition.UnknownCondition(
+				novav1.NovaConductorReadyCondition,
+				condition.InitReason,
+				novav1.NovaConductorReadyInitMessage,
+			),
 		)
 		instance.Status.Conditions.Init(&cl)
 
@@ -153,12 +160,109 @@ func (r *NovaCellReconciler) reconcile(
 	h *helper.Helper,
 	instance *novav1.NovaCell,
 ) (ctrl.Result, error) {
+
+	result, err := r.reconcileNovaConductor(
+		ctx, h, instance, instance.Spec.CellDatabaseHostname)
+	if err != nil {
+		return result, err
+	}
+
+	return ctrl.Result{}, nil
+}
+
+func newNovaConductorSpec(
+	novaConductorTemplate novav1.NovaConductorTemplate,
+	cellName string,
+	secretName string,
+	cellDatabaseHostname string,
+	cellDatabaseUser string,
+	apiDatabaseHostname string,
+	apiDatabaseUser string,
+	debug novav1.Debug,
+) novav1.NovaConductorSpec {
+	conductorSpec := novav1.NovaConductorSpec{
+		CellName: cellName,
+		// TODO(gibi): Pass down a narroved secret that only hold NovaAPI
+		// specific information but also holds user names
+		Secret:               secretName,
+		CellDatabaseHostname: cellDatabaseHostname,
+		CellDatabaseUser:     cellDatabaseUser,
+		APIDatabaseHostname:  apiDatabaseHostname,
+		APIDatabaseUser:      apiDatabaseUser,
+		// TODO(gibi): Pass the rest of the params when the NovaConductor
+		// starts using them.
+		Debug:           debug,
+		NovaServiceBase: novav1.NovaServiceBase(novaConductorTemplate),
+	}
+	return conductorSpec
+}
+
+func (r *NovaCellReconciler) reconcileNovaConductor(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *novav1.NovaCell,
+	cellDatabaseHostname string,
+) (ctrl.Result, error) {
+	conductor := &novav1.NovaConductor{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      instance.Name,
+			Namespace: instance.Namespace,
+		},
+	}
+
+	op, err := controllerutil.CreateOrUpdate(ctx, r.Client, conductor, func() error {
+		conductor.Spec = newNovaConductorSpec(
+			instance.Spec.ConductorServiceTemplate,
+			instance.Spec.CellName,
+			instance.Spec.Secret,
+			cellDatabaseHostname,
+			// TODO(gibi): this is a limitation of the current MariaDBDatabase
+			// implementation, it always assumes that the
+			// DatabaseUser == DatabaseName
+			"nova_"+instance.Spec.CellName,
+			instance.Spec.APIDatabaseHostname,
+			// ditto
+			"nova_api",
+			instance.Spec.Debug,
+		)
+
+		err := controllerutil.SetControllerReference(instance, conductor, r.Scheme)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		condition.FalseCondition(
+			novav1.NovaConductorReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityError,
+			novav1.NovaConductorReadyErrorMessage,
+			err.Error(),
+		)
+		return ctrl.Result{}, err
+	}
+
+	if op != controllerutil.OperationResultNone {
+		util.LogForObject(h, fmt.Sprintf("NovaConductor %s %s.", conductor.ObjectMeta.Name, string(op)), instance)
+	}
+
+	c := conductor.Status.Conditions.Mirror(novav1.NovaConductorReadyCondition)
+	// NOTE(gibi): it can be nil if the NovaConductor CR is created but no
+	// reconciliation is run on it to initialize the ReadyCondition yet.
+	if c != nil {
+		instance.Status.Conditions.Set(c)
+	}
+
 	return ctrl.Result{}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *NovaCellReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&novav1beta1.NovaCell{}).
+		For(&novav1.NovaCell{}).
+		Owns(&novav1.NovaConductor{}).
 		Complete(r)
 }

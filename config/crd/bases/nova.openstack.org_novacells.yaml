@@ -347,9 +347,11 @@ spec:
             required:
             - cellDatabaseHostname
             - cellMessageBusHostname
+            - cellName
             - conductorServiceTemplate
             - keystoneAuthURL
             - noVNCProxyServiceTemplate
+            - secret
             type: object
           status:
             description: NovaCellStatus defines the observed state of NovaCell

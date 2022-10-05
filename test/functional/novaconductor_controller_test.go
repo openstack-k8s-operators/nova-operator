@@ -255,7 +255,8 @@ var _ = Describe("NovaConductor controller", func() {
 			novaConductorName = CreateNovaConductor(
 				namespace,
 				novav1.NovaConductorSpec{
-					Secret: SecretName,
+					CellName: "cell0",
+					Secret:   SecretName,
 					NovaServiceBase: novav1.NovaServiceBase{
 						ContainerImage: ContainerImage,
 					},

@@ -16,6 +16,9 @@ limitations under the License.
 package functional_test
 
 import (
+	"fmt"
+	"os"
+
 	"github.com/google/uuid"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -39,6 +42,10 @@ var _ = Describe("NovaCell controller", func() {
 		// We still request the delete of the Namespace in AfterEach to
 		// properly cleanup if we run the test in an existing cluster.
 		DeferCleanup(DeleteNamespace, namespace)
+		// NOTE(gibi): ConfigMap generation looks up the local templates
+		// directory via ENV, so provide it
+		DeferCleanup(os.Setenv, "OPERATOR_TEMPLATES", os.Getenv("OPERATOR_TEMPLATES"))
+		os.Setenv("OPERATOR_TEMPLATES", "../../templates")
 
 		// Uncomment this if you need the full output in the logs from gomega
 		// matchers
@@ -52,12 +59,12 @@ var _ = Describe("NovaCell controller", func() {
 			DeferCleanup(DeleteNovaCell, novaCellName)
 		})
 
-		It("is Ready", func() {
+		It("is not Ready", func() {
 			ExpectCondition(
 				novaCellName,
 				conditionGetterFunc(NovaCellConditionGetter),
 				condition.ReadyCondition,
-				corev1.ConditionTrue,
+				corev1.ConditionUnknown,
 			)
 		})
 
@@ -67,6 +74,87 @@ var _ = Describe("NovaCell controller", func() {
 			Expect(instance.Status.ConductorServiceReadyCount).To(Equal(int32(0)))
 			Expect(instance.Status.MetadataServiceReadyCount).To(Equal(int32(0)))
 			Expect(instance.Status.NoVNCPRoxyServiceReadyCount).To(Equal(int32(0)))
+		})
+	})
+
+	When("A NovaCell CR instance is created", func() {
+		var novaConductorName types.NamespacedName
+
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateNovaConductorSecret(namespace, SecretName),
+			)
+
+			novaCellName = CreateNovaCell(
+				namespace,
+				novav1.NovaCellSpec{
+					CellName: "cell0",
+					Secret:   SecretName,
+					ConductorServiceTemplate: novav1.NovaConductorTemplate{
+						ContainerImage: ContainerImage,
+						Replicas:       1,
+					},
+				},
+			)
+			DeferCleanup(DeleteNovaCell, novaCellName)
+			novaConductorName = types.NamespacedName{
+				Namespace: namespace, Name: novaCellName.Name}
+		})
+
+		It("creates the NovaConductor and tracks its readiness", func() {
+			GetNovaConductor(novaConductorName)
+			ExpectCondition(
+				novaCellName,
+				conditionGetterFunc(NovaCellConditionGetter),
+				novav1.NovaConductorReadyCondition,
+				corev1.ConditionFalse,
+			)
+			novaCell := GetNovaCell(novaCellName)
+			Expect(novaCell.Status.ConductorServiceReadyCount).To(Equal(int32(0)))
+		})
+
+		When("NovaConductor is ready", func() {
+			var novaConductorDBSyncJobName types.NamespacedName
+
+			BeforeEach(func() {
+				ExpectCondition(
+					novaConductorName,
+					conditionGetterFunc(NovaConductorConditionGetter),
+					condition.DBSyncReadyCondition,
+					corev1.ConditionFalse,
+				)
+				novaConductorDBSyncJobName = types.NamespacedName{
+					Namespace: namespace,
+					Name:      fmt.Sprintf("%s-cell-db-sync", novaConductorName.Name)}
+				SimulateJobSuccess(novaConductorDBSyncJobName)
+
+				ExpectCondition(
+					novaConductorName,
+					conditionGetterFunc(NovaConductorConditionGetter),
+					condition.DBSyncReadyCondition,
+					corev1.ConditionTrue,
+				)
+			})
+
+			It("reports that NovaConductor is ready", func() {
+				ExpectCondition(
+					novaCellName,
+					conditionGetterFunc(NovaCellConditionGetter),
+					novav1.NovaConductorReadyCondition,
+					corev1.ConditionTrue,
+				)
+			})
+
+			It("is Ready", func() {
+				ExpectCondition(
+					novaCellName,
+					conditionGetterFunc(NovaCellConditionGetter),
+					condition.ReadyCondition,
+					corev1.ConditionTrue,
+				)
+			})
 		})
 	})
 })

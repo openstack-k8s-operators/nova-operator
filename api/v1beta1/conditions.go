@@ -26,6 +26,9 @@ import (
 const (
 	// NovaAPIReadyCondition indicates if the NovaAPI is operational
 	NovaAPIReadyCondition condition.Type = "NovaAPIReady"
+	// NovaConductorReadyCondition indicates if the NovaConductor is ready
+	// in a given cell.
+	NovaConductorReadyCondition condition.Type = "NovaConductorReady"
 )
 
 //
@@ -37,4 +40,10 @@ const (
 
 	// NovaAPIReadyErrorMessage
 	NovaAPIReadyErrorMessage = "NovaAPI error occured %s"
+
+	// NovaConductorReadyInitMessage
+	NovaConductorReadyInitMessage = "NovaConductor not started"
+
+	// NovaConductorReadyErrorMessage
+	NovaConductorReadyErrorMessage = "NovaConductor error occured %s"
 )
