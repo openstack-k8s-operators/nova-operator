@@ -32,6 +32,14 @@ import (
 var _ = Describe("Nova controller", func() {
 	var namespace string
 	var novaName types.NamespacedName
+	var mariaDBDatabaseNameForAPI types.NamespacedName
+	var mariaDBDatabaseNameForCell0 types.NamespacedName
+	var cell0Name types.NamespacedName
+	var cell0ConductorName types.NamespacedName
+	var cell0DBSyncJobName types.NamespacedName
+	var novaAPIName types.NamespacedName
+	var novaAPIDBSyncJobName types.NamespacedName
+	var novaAPIdeploymentName types.NamespacedName
 
 	BeforeEach(func() {
 		// NOTE(gibi): We need to create a unique namespace for each test run
@@ -51,12 +59,50 @@ var _ = Describe("Nova controller", func() {
 		// matchers
 		// format.MaxLength = 0
 
+		novaName = types.NamespacedName{
+			Namespace: namespace,
+			Name:      uuid.New().String(),
+		}
+		mariaDBDatabaseNameForAPI = types.NamespacedName{
+			Namespace: namespace,
+			Name:      "nova-api",
+		}
+		mariaDBDatabaseNameForCell0 = types.NamespacedName{
+			Namespace: namespace,
+			Name:      "nova-cell0",
+		}
+		cell0Name = types.NamespacedName{
+			Namespace: namespace,
+			Name:      novaName.Name + "-" + "cell0",
+		}
+		cell0ConductorName = types.NamespacedName{
+			Namespace: namespace,
+			Name:      cell0Name.Name,
+		}
+		cell0DBSyncJobName = types.NamespacedName{
+			Namespace: namespace,
+			Name:      fmt.Sprintf("%s-cell-db-sync", cell0ConductorName.Name),
+		}
+		novaAPIName = types.NamespacedName{
+			Namespace: namespace,
+			Name:      novaName.Name,
+		}
+		novaAPIDBSyncJobName = types.NamespacedName{
+			Namespace: namespace,
+			Name:      fmt.Sprintf("%s-api-db-sync", novaAPIName.Name),
+		}
+		novaAPIdeploymentName = types.NamespacedName{
+			Namespace: namespace,
+			Name:      novaAPIName.Name,
+		}
+
 	})
 
-	When("A Nova CR instance is created without any input", func() {
+	When("Nova CR instance is created without cell0", func() {
 		BeforeEach(func() {
-			novaName = CreateNova(
-				namespace, novav1.NovaSpec{
+			CreateNova(
+				novaName,
+				novav1.NovaSpec{
 					CellTemplates: map[string]novav1.NovaCellTemplate{},
 				},
 			)
@@ -80,118 +126,22 @@ var _ = Describe("Nova controller", func() {
 			Expect(instance.Status.MetadataServiceReadyCount).To(Equal(int32(0)))
 		})
 
-		It("is fails creating the API DB as MariaDB instance is missing", func() {
+		It("reports that cell0 is missing from the spec", func() {
 			ExpectConditionWithDetails(
 				novaName,
 				conditionGetterFunc(NovaConditionGetter),
-				novav1.NovaAPIDBReadyCondition,
+				novav1.NovaCell0ReadyCondition,
 				corev1.ConditionFalse,
 				condition.ErrorReason,
-				"DBsync job error occured Error getting the DB service using "+
-					"label map[app:mariadb cr:mariadb-openstack]: %!w(<nil>)",
+				"NovaCell0 error occured missing cell0 specification from Spec.CellTemplates",
 			)
-		})
-
-		When("a DB Service is created", func() {
-			var mariaDBDatabaseNameForAPI types.NamespacedName
-			var mariaDBDatabaseNameForCell0 types.NamespacedName
-
-			BeforeEach(func() {
-				DeferCleanup(
-					DeleteDBService,
-					CreateDBService(
-						namespace,
-						corev1.ServiceSpec{
-							Ports: []corev1.ServicePort{{Port: 3306}},
-						},
-					),
-				)
-				mariaDBDatabaseNameForAPI = types.NamespacedName{
-					Namespace: namespace, Name: "nova-api"}
-				mariaDBDatabaseNameForCell0 = types.NamespacedName{
-					Namespace: namespace, Name: "nova-cell0"}
-			})
-
-			It("creates the MariaDBDatabase for the API for it to be Ready", func() {
-				ExpectConditionWithDetails(
-					novaName,
-					conditionGetterFunc(NovaConditionGetter),
-					novav1.NovaAPIDBReadyCondition,
-					corev1.ConditionFalse,
-					condition.RequestedReason,
-					condition.DBReadyRunningMessage,
-				)
-				// this would fail if the MariaDBDatabase does not exist
-				GetMariaDBDatabase(mariaDBDatabaseNameForAPI)
-			})
-
-			When("the MariaDBDatabase instances for the API become ready", func() {
-				BeforeEach(func() {
-					SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
-				})
-
-				It("reports that the API Database is ready and creates the Cell0 DB", func() {
-					ExpectCondition(
-						novaName,
-						conditionGetterFunc(NovaConditionGetter),
-						novav1.NovaAPIDBReadyCondition,
-						corev1.ConditionTrue,
-					)
-					ExpectConditionWithDetails(
-						novaName,
-						conditionGetterFunc(NovaConditionGetter),
-						novav1.NovaCell0DBReadyCondition,
-						corev1.ConditionFalse,
-						condition.RequestedReason,
-						condition.DBReadyRunningMessage,
-					)
-					// this would fail if the MariaDBDatabase does not exist
-					GetMariaDBDatabase(mariaDBDatabaseNameForCell0)
-				})
-
-				When("the MariaDBDatabase instances for the Cell0 become ready", func() {
-					BeforeEach(func() {
-						SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForCell0)
-					})
-
-					It("reports that the API Database is ready", func() {
-						ExpectCondition(
-							novaName,
-							conditionGetterFunc(NovaConditionGetter),
-							novav1.NovaCell0DBReadyCondition,
-							corev1.ConditionTrue,
-						)
-					})
-				})
-
-			})
 		})
 	})
 
-	When("Nova is created with NovaAPI definition", func() {
-		var mariaDBDatabaseNameForAPI types.NamespacedName
-		var mariaDBDatabaseNameForCell0 types.NamespacedName
-		var novaAPIName types.NamespacedName
-
+	When("Nova CR instance is created", func() {
 		BeforeEach(func() {
 			DeferCleanup(
-				k8sClient.Delete,
-				ctx,
-				CreateNovaAPISecret(namespace, SecretName),
-			)
-
-			novaName = CreateNova(
-				namespace, novav1.NovaSpec{
-					Secret: SecretName,
-					APIServiceTemplate: novav1.NovaAPITemplate{
-						ContainerImage: ContainerImage,
-						Replicas:       1,
-					},
-					CellTemplates: map[string]novav1.NovaCellTemplate{},
-				},
-			)
-			DeferCleanup(DeleteNova, novaName)
-
+				k8sClient.Delete, ctx, CreateNovaSecret(namespace, SecretName))
 			DeferCleanup(
 				DeleteDBService,
 				CreateDBService(
@@ -201,115 +151,192 @@ var _ = Describe("Nova controller", func() {
 					},
 				),
 			)
-			mariaDBDatabaseNameForAPI = types.NamespacedName{
-				Namespace: namespace,
-				Name:      "nova-api",
-			}
-			mariaDBDatabaseNameForCell0 = types.NamespacedName{
-				Namespace: namespace,
-				Name:      "nova-cell0",
-			}
 
-			ExpectConditionWithDetails(
+			CreateNova(
 				novaName,
-				conditionGetterFunc(NovaConditionGetter),
-				novav1.NovaAPIDBReadyCondition,
-				corev1.ConditionFalse,
-				condition.RequestedReason,
-				condition.DBReadyRunningMessage,
+				novav1.NovaSpec{
+					Secret: SecretName,
+					CellTemplates: map[string]novav1.NovaCellTemplate{
+						"cell0": {
+							ConductorServiceTemplate: novav1.NovaConductorTemplate{
+								ContainerImage: ContainerImage,
+								Replicas:       1,
+							},
+						},
+					},
+					APIServiceTemplate: novav1.NovaAPITemplate{
+						ContainerImage: ContainerImage,
+						Replicas:       1,
+					},
+				},
 			)
-			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
-
-			ExpectConditionWithDetails(
-				novaName,
-				conditionGetterFunc(NovaConditionGetter),
-				novav1.NovaCell0DBReadyCondition,
-				corev1.ConditionFalse,
-				condition.RequestedReason,
-				condition.DBReadyRunningMessage,
-			)
-			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForCell0)
-			ExpectCondition(
-				novaName,
-				conditionGetterFunc(NovaConditionGetter),
-				novav1.NovaAPIDBReadyCondition,
-				corev1.ConditionTrue,
-			)
-			ExpectCondition(
-				novaName,
-				conditionGetterFunc(NovaConditionGetter),
-				novav1.NovaCell0DBReadyCondition,
-				corev1.ConditionTrue,
-			)
-
-			novaAPIName = types.NamespacedName{
-				Namespace: namespace,
-				Name:      novaName.Name,
-			}
+			DeferCleanup(DeleteNova, novaName)
 		})
 
-		It("creates the NovaAPI and tracks its readiness", func() {
+		It("creates nova_api DB", func() {
+			ExpectCondition(
+				novaName,
+				conditionGetterFunc(NovaConditionGetter),
+				novav1.NovaAPIDBReadyCondition,
+				corev1.ConditionFalse,
+			)
+			GetMariaDBDatabase(mariaDBDatabaseNameForAPI)
+
+			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
+			ExpectCondition(
+				novaName,
+				conditionGetterFunc(NovaConditionGetter),
+				novav1.NovaAPIDBReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
+
+		It("creates nova_cell0 DB", func() {
+			ExpectCondition(
+				novaName,
+				conditionGetterFunc(NovaConditionGetter),
+				novav1.NovaCell0DBReadyCondition,
+				corev1.ConditionUnknown,
+			)
+			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
+			GetMariaDBDatabase(mariaDBDatabaseNameForCell0)
+			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForCell0)
+
+			ExpectCondition(
+				novaName,
+				conditionGetterFunc(NovaConditionGetter),
+				novav1.NovaCell0DBReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
+
+		It("creates cell0 NovaCell", func() {
+			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
+			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForCell0)
+			// assert that cell related CRs are created
+			GetNovaCell(cell0Name)
+			GetNovaConductor(cell0ConductorName)
+
+			ExpectCondition(
+				cell0ConductorName,
+				conditionGetterFunc(NovaConductorConditionGetter),
+				condition.DBSyncReadyCondition,
+				corev1.ConditionFalse,
+			)
+
+			SimulateJobSuccess(cell0DBSyncJobName)
+			ExpectCondition(
+				cell0ConductorName,
+				conditionGetterFunc(NovaConductorConditionGetter),
+				condition.DBSyncReadyCondition,
+				corev1.ConditionTrue,
+			)
+			ExpectCondition(
+				cell0Name,
+				conditionGetterFunc(NovaCellConditionGetter),
+				novav1.NovaConductorReadyCondition,
+				corev1.ConditionTrue,
+			)
+			ExpectCondition(
+				novaName,
+				conditionGetterFunc(NovaConditionGetter),
+				novav1.NovaCell0ReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
+
+		It("create NovaAPI", func() {
+			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
+			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForCell0)
+			SimulateJobSuccess(cell0DBSyncJobName)
+
 			GetNovaAPI(novaAPIName)
+			SimulateJobSuccess(novaAPIDBSyncJobName)
+			SimulateDeploymentReplicaReady(novaAPIdeploymentName)
+
+			ExpectCondition(
+				novaAPIName,
+				conditionGetterFunc(NovaAPIConditionGetter),
+				condition.DeploymentReadyCondition,
+				corev1.ConditionTrue,
+			)
 			ExpectCondition(
 				novaName,
 				conditionGetterFunc(NovaConditionGetter),
 				novav1.NovaAPIReadyCondition,
-				corev1.ConditionFalse,
+				corev1.ConditionTrue,
 			)
-			nova := GetNova(novaName)
-			Expect(nova.Status.APIServiceReadyCount).To(Equal(int32(0)))
+			ExpectCondition(
+				novaName,
+				conditionGetterFunc(NovaConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
+	})
+
+	When("Nova CR instance is created but cell0 DB sync fails", func() {
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateNovaSecret(namespace, SecretName))
+			DeferCleanup(
+				DeleteDBService,
+				CreateDBService(
+					namespace,
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+
+			CreateNova(
+				novaName,
+				novav1.NovaSpec{
+					Secret: SecretName,
+					CellTemplates: map[string]novav1.NovaCellTemplate{
+						"cell0": {
+							ConductorServiceTemplate: novav1.NovaConductorTemplate{
+								ContainerImage: ContainerImage,
+								Replicas:       1,
+							},
+						},
+					},
+					APIServiceTemplate: novav1.NovaAPITemplate{
+						ContainerImage: ContainerImage,
+						Replicas:       1,
+					},
+				},
+			)
+			DeferCleanup(DeleteNova, novaName)
 		})
 
-		When("NovaAPI is ready", func() {
-			var novaAPIDBSyncJobName types.NamespacedName
-			var novaAPIDeploymentName types.NamespacedName
+		It("does not create NovaAPI", func() {
+			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
+			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForCell0)
+			GetNovaCell(cell0Name)
+			GetNovaConductor(cell0ConductorName)
 
-			BeforeEach(func() {
-				ExpectCondition(
-					novaAPIName,
-					conditionGetterFunc(NovaAPIConditionGetter),
-					condition.DBSyncReadyCondition,
-					corev1.ConditionFalse,
-				)
-				novaAPIDBSyncJobName = types.NamespacedName{
-					Namespace: namespace,
-					Name:      fmt.Sprintf("%s-api-db-sync", novaAPIName.Name)}
-				SimulateJobSuccess(novaAPIDBSyncJobName)
+			SimulateJobFailure(cell0DBSyncJobName)
+			ExpectCondition(
+				cell0ConductorName,
+				conditionGetterFunc(NovaConductorConditionGetter),
+				condition.DBSyncReadyCondition,
+				corev1.ConditionFalse,
+			)
+			ExpectCondition(
+				cell0Name,
+				conditionGetterFunc(NovaCellConditionGetter),
+				novav1.NovaConductorReadyCondition,
+				corev1.ConditionFalse,
+			)
+			ExpectCondition(
+				novaName,
+				conditionGetterFunc(NovaConditionGetter),
+				novav1.NovaCell0ReadyCondition,
+				corev1.ConditionFalse,
+			)
 
-				ExpectCondition(
-					novaAPIName,
-					conditionGetterFunc(NovaAPIConditionGetter),
-					condition.DeploymentReadyCondition,
-					corev1.ConditionFalse,
-				)
-				novaAPIDeploymentName = types.NamespacedName{
-					Namespace: namespace,
-					Name:      novaAPIName.Name,
-				}
-				SimulateDeploymentReplicaReady(novaAPIDeploymentName)
-
-			})
-
-			It("reports that NovaAPI is ready and mirrors its ReadyCount", func() {
-				ExpectCondition(
-					novaName,
-					conditionGetterFunc(NovaConditionGetter),
-					novav1.NovaAPIReadyCondition,
-					corev1.ConditionTrue,
-				)
-				nova := GetNova(novaName)
-				Expect(nova.Status.APIServiceReadyCount).To(Equal(int32(1)))
-
-			})
-
-			It("is Ready", func() {
-				ExpectCondition(
-					novaName,
-					conditionGetterFunc(NovaConditionGetter),
-					condition.ReadyCondition,
-					corev1.ConditionTrue,
-				)
-			})
+			NovaAPINotExists(novaAPIName)
 		})
 	})
 })

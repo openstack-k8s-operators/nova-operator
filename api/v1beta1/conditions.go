@@ -33,6 +33,8 @@ const (
 	NovaAPIDBReadyCondition condition.Type = "NovaAPIDBReady"
 	// NovaCell0DBReadyCondition indicates if the nova_cell0 DB is created
 	NovaCell0DBReadyCondition condition.Type = "NovaCell0DBReady"
+	// NovaCell0ReadyCondition indicates if the mandatory cell0 Cell is ready
+	NovaCell0ReadyCondition condition.Type = "NovaCell0Ready"
 )
 
 //
@@ -50,4 +52,10 @@ const (
 
 	// NovaConductorReadyErrorMessage
 	NovaConductorReadyErrorMessage = "NovaConductor error occured %s"
+
+	// NovaCell0ReadyInitMessage
+	NovaCell0ReadyInitMessage = "NovaCell0 not started"
+
+	// NovaCell0ReadyErrorMessage
+	NovaCell0ReadyErrorMessage = "NovaCell0 error occured %s"
 )

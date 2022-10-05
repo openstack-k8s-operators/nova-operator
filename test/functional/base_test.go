@@ -42,6 +42,10 @@ const (
 
 	timeout  = time.Second * 20
 	interval = time.Millisecond * 50
+	// consistencyTimeoutt is the amount of time we use to repeatedly check
+	// that a condition is still valid. This is intendet to be used in
+	// asserts using `Consistently`.
+	consistencyTimeout = time.Second
 )
 
 func CreateNamespace(name string) {
@@ -105,6 +109,14 @@ func GetNovaAPI(name types.NamespacedName) *novav1.NovaAPI {
 		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
 	}, timeout, interval).Should(Succeed())
 	return instance
+}
+
+func NovaAPINotExists(name types.NamespacedName) {
+	Consistently(func(g Gomega) {
+		instance := &novav1.NovaAPI{}
+		err := k8sClient.Get(ctx, name, instance)
+		g.Expect(k8s_errors.IsNotFound(err)).To(BeTrue())
+	}, consistencyTimeout, interval).Should(Succeed())
 }
 
 type conditionsGetter interface {
@@ -278,23 +290,20 @@ func SkipInExistingCluster(message string) {
 
 }
 
-func CreateNova(namespace string, spec novav1.NovaSpec) types.NamespacedName {
-	novaName := uuid.New().String()
+func CreateNova(name types.NamespacedName, spec novav1.NovaSpec) {
 	nova := &novav1.Nova{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "nova.openstack.org/v1beta1",
 			Kind:       "Nova",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      novaName,
-			Namespace: namespace,
+			Name:      name.Name,
+			Namespace: name.Namespace,
 		},
 		Spec: spec,
 	}
 
 	Expect(k8sClient.Create(ctx, nova)).Should(Succeed())
-
-	return types.NamespacedName{Name: novaName, Namespace: namespace}
 }
 
 func DeleteNova(name types.NamespacedName) {
@@ -499,4 +508,21 @@ func GetNovaCell(name types.NamespacedName) *novav1.NovaCell {
 func NovaCellConditionGetter(name types.NamespacedName) condition.Conditions {
 	instance := GetNovaCell(name)
 	return instance.Status.Conditions
+}
+
+func CreateNovaSecret(namespace string, name string) *corev1.Secret {
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Data: map[string][]byte{
+			"NovaPassword":              []byte("12345678"),
+			"NovaAPIDatabasePassword":   []byte("12345678"),
+			"NovaAPIMessageBusPassword": []byte("12345678"),
+			"NovaCellDatabasePassword":  []byte("12345678"),
+		},
+	}
+	Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
+	return secret
 }

@@ -19,7 +19,9 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -42,9 +44,10 @@ import (
 // NovaReconciler reconciles a Nova object
 type NovaReconciler struct {
 	client.Client
-	Kclient kubernetes.Interface
-	Scheme  *runtime.Scheme
-	Log     logr.Logger
+	Kclient        kubernetes.Interface
+	Scheme         *runtime.Scheme
+	Log            logr.Logger
+	RequeueTimeout time.Duration
 }
 
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=nova,verbs=get;list;watch;create;update;patch;delete
@@ -155,6 +158,11 @@ func (r *NovaReconciler) initConditions(
 				condition.InitReason,
 				novav1.NovaAPIReadyInitMessage,
 			),
+			condition.UnknownCondition(
+				novav1.NovaCell0ReadyCondition,
+				condition.InitReason,
+				novav1.NovaCell0ReadyInitMessage,
+			),
 		)
 		instance.Status.Conditions.Init(&cl)
 
@@ -175,6 +183,22 @@ func (r *NovaReconciler) reconcileNormal(
 	h *helper.Helper,
 	instance *novav1.Nova,
 ) (ctrl.Result, error) {
+	// TODO(gibi): This should be checked in a webhook and reject the CR
+	// creation instead of setting its status.
+	var cell0Template novav1.NovaCellTemplate
+	var ok bool
+
+	if cell0Template, ok = instance.Spec.CellTemplates["cell0"]; !ok {
+		err := fmt.Errorf("missing cell0 specification from Spec.CellTemplates")
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			novav1.NovaCell0ReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityError,
+			novav1.NovaCell0ReadyErrorMessage,
+			err.Error()))
+
+		return ctrl.Result{}, err
+	}
 
 	apiDB := database.NewDatabaseWithNamespace(
 		"nova_api",
@@ -193,10 +217,12 @@ func (r *NovaReconciler) reconcileNormal(
 
 	cell0DB := database.NewDatabaseWithNamespace(
 		"nova_cell0",
+		// TODO(gibi): This should be cell0.CellDatabaseUser or should be
+		// embedded into the Secret we passing down to the cell
 		instance.Spec.APIDatabaseUser,
 		instance.Spec.Secret,
 		map[string]string{
-			"dbName": instance.Spec.APIDatabaseInstance,
+			"dbName": cell0Template.CellDatabaseInstance,
 		},
 		"nova-cell0",
 		instance.Namespace,
@@ -204,6 +230,32 @@ func (r *NovaReconciler) reconcileNormal(
 	result, err = r.reconcileDB(ctx, h, instance, cell0DB, novav1.NovaCell0DBReadyCondition)
 	if (err != nil || result != ctrl.Result{}) {
 		return result, err
+	}
+
+	cell0, result, err := r.reconcileNovaCell0(
+		ctx,
+		h,
+		instance,
+		"cell0",
+		cell0Template,
+		cell0DB.GetDatabaseHostname(),
+		// TODO(gibi): this is a limitation of the current MariaDBDatabase
+		// implementation, it always assumes that the
+		// DatabaseUser == DatabaseName
+		"nova_cell0",
+		apiDB.GetDatabaseHostname(),
+		// ditto
+		"nova_api",
+	)
+	if err != nil {
+		return result, err
+	}
+
+	// Don't move forward with the other service creations like NovaAPI until
+	// cell0 is ready as top level services needs cell0 to register in
+	cell0ReadyCond := cell0.Status.Conditions.Get(condition.ReadyCondition)
+	if cell0ReadyCond == nil || cell0ReadyCond.Status != corev1.ConditionTrue {
+		return ctrl.Result{RequeueAfter: r.RequeueTimeout}, nil
 	}
 
 	result, err = r.reconcileNovaAPI(ctx, h, instance, apiDB.GetDatabaseHostname())
@@ -358,6 +410,96 @@ func (r *NovaReconciler) reconcileNovaAPI(
 	instance.Status.APIServiceReadyCount = api.Status.ReadyCount
 
 	return ctrl.Result{}, nil
+}
+
+func newNovaCellSpec(
+	cellName string,
+	cellTemplate novav1.NovaCellTemplate,
+	secretName string,
+	cellDatabaseHostname string,
+	cellDatabaseUser string,
+	apiDatabaseHostname string,
+	apiDatabaseUser string,
+	debug novav1.Debug,
+) novav1.NovaCellSpec {
+	cellSpec := novav1.NovaCellSpec{
+		CellName: cellName,
+		// TODO(gibi): Pass down a narroved secret that only hold
+		// specific information but also holds user names
+		Secret:                    secretName,
+		CellDatabaseHostname:      cellDatabaseHostname,
+		CellDatabaseUser:          cellDatabaseUser,
+		APIDatabaseHostname:       apiDatabaseHostname,
+		APIDatabaseUser:           apiDatabaseUser,
+		ConductorServiceTemplate:  cellTemplate.ConductorServiceTemplate,
+		MetadataServiceTemplate:   cellTemplate.MetadataServiceTemplate,
+		NoVNCProxyServiceTemplate: cellTemplate.NoVNCProxyServiceTemplate,
+		Debug:                     debug,
+	}
+	return cellSpec
+}
+
+func (r *NovaReconciler) reconcileNovaCell0(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *novav1.Nova,
+	cellName string,
+	cellTemplate novav1.NovaCellTemplate,
+	cellDatabaseHostname string,
+	cellDatabaseUser string,
+	apiDatabaseHostname string,
+	apiDatabaseUser string,
+) (*novav1.NovaCell, ctrl.Result, error) {
+	cell := &novav1.NovaCell{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      instance.Name + "-" + cellName,
+			Namespace: instance.Namespace,
+		},
+	}
+
+	op, err := controllerutil.CreateOrUpdate(ctx, r.Client, cell, func() error {
+		cell.Spec = newNovaCellSpec(
+			cellName,
+			cellTemplate,
+			instance.Spec.Secret,
+			cellDatabaseHostname,
+			cellDatabaseUser,
+			apiDatabaseHostname,
+			apiDatabaseUser,
+			instance.Spec.Debug,
+		)
+
+		err := controllerutil.SetControllerReference(instance, cell, r.Scheme)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		condition.FalseCondition(
+			novav1.NovaCell0ReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityError,
+			novav1.NovaCell0ReadyErrorMessage,
+			err.Error(),
+		)
+		return cell, ctrl.Result{}, err
+	}
+
+	if op != controllerutil.OperationResultNone {
+		util.LogForObject(h, fmt.Sprintf("NovaCell0 %s %s.", cell.ObjectMeta.Name, string(op)), instance)
+	}
+
+	c := cell.Status.Conditions.Mirror(novav1.NovaCell0ReadyCondition)
+	// NOTE(gibi): it can be nil if the NovaCell CR is created but no
+	// reconciliation is run on it to initialize the ReadyCondition yet.
+	if c != nil {
+		instance.Status.Conditions.Set(c)
+	}
+
+	return cell, ctrl.Result{}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
