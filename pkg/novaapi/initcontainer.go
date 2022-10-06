@@ -35,6 +35,10 @@ type ContainerInput struct {
 	Secret                              string
 	DatabasePasswordSelector            string
 	KeystoneServiceUserPasswordSelector string
+	Cell0DatabaseHostname               string
+	Cell0DatabaseUser                   string
+	Cell0DatabaseName                   string
+	Cell0DatabasePasswordSelector       string
 	VolumeMounts                        []corev1.VolumeMount
 }
 
@@ -52,9 +56,9 @@ func initContainer(init ContainerInput) []corev1.Container {
 	envVars["DatabaseHost"] = env.SetValue(init.DatabaseHostname)
 	envVars["DatabaseUser"] = env.SetValue(init.DatabaseUser)
 	envVars["DatabaseName"] = env.SetValue(init.DatabaseName)
-
-	envVars["Cell0DatabaseName"] = env.SetValue("nova_cell0")
-	envVars["Cell0DatabaseUser"] = env.SetValue("nova_cell0")
+	envVars["Cell0DatabaseHost"] = env.SetValue(init.Cell0DatabaseHostname)
+	envVars["Cell0DatabaseUser"] = env.SetValue(init.Cell0DatabaseUser)
+	envVars["Cell0DatabaseName"] = env.SetValue(init.Cell0DatabaseName)
 
 	envs := []corev1.EnvVar{
 		{
@@ -65,6 +69,17 @@ func initContainer(init ContainerInput) []corev1.Container {
 						Name: init.Secret,
 					},
 					Key: init.DatabasePasswordSelector,
+				},
+			},
+		},
+		{
+			Name: "Cell0DatabasePassword",
+			ValueFrom: &corev1.EnvVarSource{
+				SecretKeyRef: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: init.Secret,
+					},
+					Key: init.Cell0DatabasePasswordSelector,
 				},
 			},
 		},

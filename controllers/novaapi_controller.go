@@ -18,7 +18,6 @@ package controllers
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -35,7 +34,6 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/deployment"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
-	job "github.com/openstack-k8s-operators/lib-common/modules/common/job"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/labels"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 
@@ -171,11 +169,6 @@ func (r *NovaAPIReconciler) initConditions(
 				condition.ServiceConfigReadyInitMessage,
 			),
 			condition.UnknownCondition(
-				condition.DBSyncReadyCondition,
-				condition.InitReason,
-				condition.DBSyncReadyInitMessage,
-			),
-			condition.UnknownCondition(
 				condition.DeploymentReadyCondition,
 				condition.InitReason,
 				condition.DeploymentReadyInitMessage,
@@ -264,47 +257,11 @@ func (r *NovaAPIReconciler) reconcileNormal(
 		common.AppSelector: NovaAPILabelPrefix,
 	}
 
-	dbSyncHash := instance.Status.Hash[DbSyncHash]
-	jobDef := novaapi.APIDBSyncJob(instance, serviceLabels)
-	dbSyncjob := job.NewJob(
-		jobDef,
-		"dbsync",
-		instance.Spec.Debug.PreserveJobs,
-		r.RequeueTimeoutSeconds,
-		dbSyncHash,
-	)
-	ctrlResult, err := dbSyncjob.DoJob(ctx, h)
-	if (ctrlResult != ctrl.Result{}) {
-		instance.Status.Conditions.Set(condition.FalseCondition(
-			condition.DBSyncReadyCondition,
-			condition.RequestedReason,
-			condition.SeverityInfo,
-			condition.DBSyncReadyRunningMessage))
-		return ctrlResult, nil
-	}
-	if err != nil {
-		instance.Status.Conditions.Set(condition.FalseCondition(
-			condition.DBSyncReadyCondition,
-			condition.ErrorReason,
-			condition.SeverityWarning,
-			condition.DBSyncReadyErrorMessage,
-			err.Error()))
-		return ctrl.Result{}, err
-	}
-	if dbSyncjob.HasChanged() {
-		instance.Status.Hash[DbSyncHash] = dbSyncjob.GetHash()
-		// TODO(gibi): Do we need to call Status().Update() now or it is
-		// enough to let our deferred call do the update at the end of the
-		// reconcile loop?
-		r.Log.Info(fmt.Sprintf("Job %s hash added - %s", jobDef.Name, instance.Status.Hash[DbSyncHash]))
-	}
-	instance.Status.Conditions.MarkTrue(condition.DBSyncReadyCondition, condition.DBSyncReadyMessage)
-
 	depl := deployment.NewDeployment(
 		novaapi.Deployment(instance, inputHash, serviceLabels),
 		r.RequeueTimeoutSeconds,
 	)
-	ctrlResult, err = depl.CreateOrPatch(ctx, h)
+	ctrlResult, err := depl.CreateOrPatch(ctx, h)
 	if err != nil {
 		util.LogErrorForObject(h, err, "Deployment failed", instance)
 		instance.Status.Conditions.Set(condition.FalseCondition(
