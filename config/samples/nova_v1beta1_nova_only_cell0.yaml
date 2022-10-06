@@ -1,0 +1,37 @@
+apiVersion: nova.openstack.org/v1beta1
+kind: Nova
+metadata:
+  name: nova-only-cell0
+spec:
+  apiDatabaseInstance: openstack
+  apiMessageBusInstance: default-security-context
+  keystoneInstance: keystone
+  secret: osp-secret
+  # NOTE(gibi): if apiServiceTemplate and schedlerServiceTemplate is not
+  # specified still a CRs for those services are created with default
+  # configuration.
+  # NOTE(gibi): I don't see a way to define the apiServiceTemplate field with
+  # kubebuilder to get a properly defaulted ApiServiceTemplate struct if the
+  # apiServiceTemplate is not provided here.
+  apiServiceTemplate: {}
+  # NOTE(gibi): We are not passing a Secret to the NovaAPI here any more. Nova
+  # controller will push a Secret to NovaAPI CR automatically and NovaAPI will
+  # hardcode which fields it will look at in that Secret.
+  # TODO(gibi): Refactor secret handling that i) allows using Secret + field
+  # selectors on the Nova CR level, but the NovaAPI CR should only take a
+  # single Secret and no field selectors (i.e. field selectors will be
+  # hardcoded). ii) The Nova CR should generate a separate Secret object to
+  # NovaAPI. iii) Add usernames to the generated Secret.
+  # NOTE(gibi): The ContainerImage, Replicas, NodeSelector,
+  # CustomServiceConfig, DefaultConfigOverwrite, Resources are customizable
+  # here but nothing else. Also all these fields has a meaningful default
+  # value.
+  cellTemplates:
+    cell0:
+      cellDatabaseInstance: openstack
+      # NOTE(gibi): cell0 has no message bus but all the other cells requires
+      # message bus so it is a required field today.
+      cellMessageBusInstance: unused
+      # NOTE(gibi): it is unused today, we might not need it later either
+      hasAPIAccess: True
+      conductorServiceTemplate: {}
