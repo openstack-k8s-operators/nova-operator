@@ -37,6 +37,7 @@ import (
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	database "github.com/openstack-k8s-operators/lib-common/modules/database"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
+	"github.com/openstack-k8s-operators/nova-operator/pkg/nova"
 
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 )
@@ -201,7 +202,7 @@ func (r *NovaReconciler) reconcileNormal(
 	}
 
 	apiDB := database.NewDatabaseWithNamespace(
-		"nova_api",
+		nova.NovaAPIDatabaseName,
 		instance.Spec.APIDatabaseUser,
 		instance.Spec.Secret,
 		map[string]string{
@@ -216,7 +217,7 @@ func (r *NovaReconciler) reconcileNormal(
 	}
 
 	cell0DB := database.NewDatabaseWithNamespace(
-		"nova_cell0",
+		nova.NovaCell0DatabaseName,
 		// TODO(gibi): This should be cell0.CellDatabaseUser or should be
 		// embedded into the Secret we passing down to the cell
 		instance.Spec.APIDatabaseUser,
@@ -242,10 +243,10 @@ func (r *NovaReconciler) reconcileNormal(
 		// TODO(gibi): this is a limitation of the current MariaDBDatabase
 		// implementation, it always assumes that the
 		// DatabaseUser == DatabaseName
-		"nova_cell0",
+		nova.NovaCell0DatabaseName,
 		apiDB.GetDatabaseHostname(),
 		// ditto
-		"nova_api",
+		nova.NovaAPIDatabaseName,
 	)
 	if err != nil {
 		return result, err
@@ -375,7 +376,7 @@ func (r *NovaReconciler) reconcileNovaAPI(
 			// TODO(gibi): this is a limitation of the current MariaDBDatabase
 			// implementation, it always assumes that the
 			// DatabaseUser == DatabaseName
-			"nova_api",
+			nova.NovaAPIDatabaseName,
 		)
 
 		err := controllerutil.SetControllerReference(instance, api, r.Scheme)

@@ -201,7 +201,7 @@ func (r *NovaConductorReconciler) reconcileNormal(
 		[]string{
 			// TODO(gibi): This is hardcode here until wil agree one the Secret
 			// handling tracked in issues/79
-			"NovaCellDatabasePassword",
+			"NovaCell0DatabasePassword",
 		},
 		h.GetClient(),
 		&instance.Status.Conditions,

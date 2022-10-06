@@ -40,16 +40,23 @@ func CellDBSyncJob(
 ) *batchv1.Job {
 
 	initContainerDetails := ContainerInput{
-		ContainerImage:                      instance.Spec.ContainerImage,
-		DatabaseHostname:                    instance.Spec.CellDatabaseHostname,
-		DatabaseUser:                        instance.Spec.CellDatabaseUser,
-		DatabaseName:                        "nova_" + instance.Spec.CellName,
-		Secret:                              instance.Spec.Secret,
-		DatabasePasswordSelector:            "NovaCellDatabasePassword",
+		ContainerImage:       instance.Spec.ContainerImage,
+		CellDatabaseHostname: instance.Spec.CellDatabaseHostname,
+		CellDatabaseUser:     instance.Spec.CellDatabaseUser,
+		CellDatabaseName:     "nova_" + instance.Spec.CellName,
+		Secret:               instance.Spec.Secret,
+		// NOTE(gibi): this is a hack until we implement proper secret handling
+		// per cell
+		CellDatabasePasswordSelector:        "NovaCell0DatabasePassword",
 		KeystoneServiceUserPasswordSelector: instance.Spec.PasswordSelectors.Service,
-		VolumeMounts:                        nova.GetAllVolumeMounts(),
+		// NOTE(gibi): these might be empty if the conductor does not support
+		// upcalls but that is OK
+		APIDatabaseHostname:         instance.Spec.APIDatabaseHostname,
+		APIDatabaseUser:             instance.Spec.APIDatabaseUser,
+		APIDatabaseName:             nova.NovaAPIDatabaseName,
+		APIDatabasePasswordSelector: instance.Spec.PasswordSelectors.APIDatabase,
+		VolumeMounts:                nova.GetAllVolumeMounts(),
 	}
-
 	runAsUser := int64(0)
 
 	args := []string{"-c"}
@@ -63,6 +70,9 @@ func CellDBSyncJob(
 	envVars["KOLLA_CONFIG_FILE"] = env.SetValue(MergedServiceConfigPath)
 	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
 	envVars["KOLLA_BOOTSTRAP"] = env.SetValue("true")
+
+	envVars["CELL_NAME"] = env.SetValue(instance.Spec.CellName)
+
 	env := env.MergeEnvs([]corev1.EnvVar{}, envVars)
 
 	job := &batchv1.Job{

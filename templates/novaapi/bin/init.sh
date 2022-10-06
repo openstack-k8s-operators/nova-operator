@@ -20,15 +20,17 @@ set -ex
 #
 # Secrets are obtained from ENV variables.
 
-env
-
 export PASSWORD=${NovaPassword:?"Please specify a NovaPassword variable."}
+
 export DBHOST=${DatabaseHost:?"Please specify a DatabaseHost variable."}
 export DBUSER=${DatabaseUser:?"Please specify a DatabaseUser variable."}
 export DBPASSWORD=${DatabasePassword:?"Please specify a DatabasePassword variable."}
 export DB=${DatabaseName:?"Please specify a DatabaseName variable."}
-export CELL0DB=${Cell0DatabaseName:?"Please specify a Cell0DatabaseName variable."}
+
+export CELL0DBHOST=${Cell0DatabaseHost:?"Please specify a Cell0DatabaseHost variable."}
 export CELL0DBUSER=${Cell0DatabaseUser:?"Please specify a Cell0DatabaseUser variable."}
+export CELL0DBPASSWORD=${Cell0DatabasePassword:?"Please specify a Cell0DatabasePassword variable."}
+export CELL0DB=${Cell0DatabaseName:?"Please specify a Cell0DatabaseName variable."}
 
 SVC_CFG=/etc/nova/nova.conf
 SVC_CFG_MERGED=/var/lib/config-data/merged/nova.conf
@@ -49,4 +51,4 @@ done
 # set secrets
 crudini --set ${SVC_CFG_MERGED} api_database connection mysql+pymysql://${DBUSER}:${DBPASSWORD}@${DBHOST}/${DB}
 crudini --set ${SVC_CFG_MERGED} keystone_authtoken password $PASSWORD
-crudini --set ${SVC_CFG_MERGED} database connection mysql+pymysql://${CELL0DBUSER}:${DBPASSWORD}@${DBHOST}/${CELL0DB}
+crudini --set ${SVC_CFG_MERGED} database connection mysql+pymysql://${CELL0DBUSER}:${CELL0DBPASSWORD}@${CELL0DBHOST}/${CELL0DB}
