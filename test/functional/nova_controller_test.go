@@ -38,7 +38,6 @@ var _ = Describe("Nova controller", func() {
 	var cell0ConductorName types.NamespacedName
 	var cell0DBSyncJobName types.NamespacedName
 	var novaAPIName types.NamespacedName
-	var novaAPIDBSyncJobName types.NamespacedName
 	var novaAPIdeploymentName types.NamespacedName
 
 	BeforeEach(func() {
@@ -86,10 +85,6 @@ var _ = Describe("Nova controller", func() {
 		novaAPIName = types.NamespacedName{
 			Namespace: namespace,
 			Name:      novaName.Name,
-		}
-		novaAPIDBSyncJobName = types.NamespacedName{
-			Namespace: namespace,
-			Name:      fmt.Sprintf("%s-api-db-sync", novaAPIName.Name),
 		}
 		novaAPIdeploymentName = types.NamespacedName{
 			Namespace: namespace,
@@ -251,7 +246,6 @@ var _ = Describe("Nova controller", func() {
 			SimulateJobSuccess(cell0DBSyncJobName)
 
 			GetNovaAPI(novaAPIName)
-			SimulateJobSuccess(novaAPIDBSyncJobName)
 			SimulateDeploymentReplicaReady(novaAPIdeploymentName)
 
 			ExpectCondition(

@@ -20,13 +20,11 @@ set -ex
 #
 # Secrets are obtained from ENV variables.
 
-env
-
 export PASSWORD=${NovaPassword:?"Please specify a NovaPassword variable."}
-export DBHOST=${DatabaseHost:?"Please specify a DatabaseHost variable."}
-export DBUSER=${DatabaseUser:?"Please specify a DatabaseUser variable."}
-export DBPASSWORD=${DatabasePassword:?"Please specify a DatabasePassword variable."}
-export DB=${DatabaseName:?"Please specify a DatabaseName variable."}
+export CELLDBHOST=${CellDatabaseHost:?"Please specify a CellDatabaseHost variable."}
+export CELLDBUSER=${CellDatabaseUser:?"Please specify a CellDatabaseUser variable."}
+export CELLDBPASSWORD=${CellDatabasePassword:?"Please specify a CellDatabasePassword variable."}
+export CELLDB=${CellDatabaseName:?"Please specify a CellDatabaseName variable."}
 
 SVC_CFG=/etc/nova/nova.conf
 SVC_CFG_MERGED=/var/lib/config-data/merged/nova.conf
@@ -45,5 +43,11 @@ do
 done
 
 # set secrets
-crudini --set ${SVC_CFG_MERGED} database connection mysql+pymysql://${DBUSER}:${DBPASSWORD}@${DBHOST}/${DB}
+crudini --set ${SVC_CFG_MERGED} database connection mysql+pymysql://${CELLDBUSER}:${CELLDBPASSWORD}@${CELLDBHOST}/${CELLDB}
 crudini --set ${SVC_CFG_MERGED} keystone_authtoken password $PASSWORD
+
+# set api database connection if provided
+if [ ! -z "$APIDatabaseHost" ]
+then
+  crudini --set ${SVC_CFG_MERGED} api_database connection mysql+pymysql://${APIDatabaseUser}:${APIDatabasePassword}@${APIDatabaseHost}/${APIDatabaseName}
+fi

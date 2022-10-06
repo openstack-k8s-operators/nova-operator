@@ -40,11 +40,20 @@ func Deployment(
 		ContainerImage:                      instance.Spec.ContainerImage,
 		DatabaseHostname:                    instance.Spec.APIDatabaseHostname,
 		DatabaseUser:                        instance.Spec.APIDatabaseUser,
-		DatabaseName:                        "nova_api",
+		DatabaseName:                        nova.NovaAPIDatabaseName,
 		Secret:                              instance.Spec.Secret,
 		DatabasePasswordSelector:            instance.Spec.PasswordSelectors.APIDatabase,
 		KeystoneServiceUserPasswordSelector: instance.Spec.PasswordSelectors.Service,
-		VolumeMounts:                        nova.GetAllVolumeMounts(),
+		// TODO(gibi): this should come as a separate input from the Spec
+		// instead for reusing the API DB stuff for cell
+		Cell0DatabaseHostname: instance.Spec.APIDatabaseHostname,
+		// TODO(gibi): ditto. This is a hack now
+		Cell0DatabaseUser: nova.NovaCell0DatabaseName,
+		Cell0DatabaseName: nova.NovaCell0DatabaseName,
+		// TODO(gibi): this is a hack until we implement proper secret handling
+		// per cell.
+		Cell0DatabasePasswordSelector: "NovaCell0DatabasePassword",
+		VolumeMounts:                  nova.GetAllVolumeMounts(),
 	}
 
 	livenessProbe := &corev1.Probe{

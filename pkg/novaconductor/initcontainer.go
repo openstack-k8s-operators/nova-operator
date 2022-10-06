@@ -29,12 +29,16 @@ const (
 // ContainerInput - the data needed for the init container
 type ContainerInput struct {
 	ContainerImage                      string
-	DatabaseHostname                    string
-	DatabaseUser                        string
-	DatabaseName                        string
+	CellDatabaseHostname                string
+	CellDatabaseUser                    string
+	CellDatabaseName                    string
 	Secret                              string
-	DatabasePasswordSelector            string
+	CellDatabasePasswordSelector        string
 	KeystoneServiceUserPasswordSelector string
+	APIDatabaseHostname                 string
+	APIDatabaseUser                     string
+	APIDatabaseName                     string
+	APIDatabasePasswordSelector         string
 	VolumeMounts                        []corev1.VolumeMount
 }
 
@@ -49,19 +53,19 @@ func initContainer(init ContainerInput) []corev1.Container {
 	}
 
 	envVars := map[string]env.Setter{}
-	envVars["DatabaseHost"] = env.SetValue(init.DatabaseHostname)
-	envVars["DatabaseUser"] = env.SetValue(init.DatabaseUser)
-	envVars["DatabaseName"] = env.SetValue(init.DatabaseName)
+	envVars["CellDatabaseHost"] = env.SetValue(init.CellDatabaseHostname)
+	envVars["CellDatabaseUser"] = env.SetValue(init.CellDatabaseUser)
+	envVars["CellDatabaseName"] = env.SetValue(init.CellDatabaseName)
 
 	envs := []corev1.EnvVar{
 		{
-			Name: "DatabasePassword",
+			Name: "CellDatabasePassword",
 			ValueFrom: &corev1.EnvVarSource{
 				SecretKeyRef: &corev1.SecretKeySelector{
 					LocalObjectReference: corev1.LocalObjectReference{
 						Name: init.Secret,
 					},
-					Key: init.DatabasePasswordSelector,
+					Key: init.CellDatabasePasswordSelector,
 				},
 			},
 		},
@@ -77,6 +81,27 @@ func initContainer(init ContainerInput) []corev1.Container {
 			},
 		},
 	}
+
+	// These are optional depending on if the conductor supports upcall
+	// or not
+	if init.APIDatabaseHostname != "" {
+		envVars["APIDatabaseHost"] = env.SetValue(init.APIDatabaseHostname)
+		envVars["APIDatabaseUser"] = env.SetValue(init.APIDatabaseUser)
+		envVars["APIDatabaseName"] = env.SetValue(init.APIDatabaseName)
+
+		envs = append(envs, corev1.EnvVar{
+			Name: "APIDatabasePassword",
+			ValueFrom: &corev1.EnvVarSource{
+				SecretKeyRef: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: init.Secret,
+					},
+					Key: init.APIDatabasePasswordSelector,
+				},
+			},
+		})
+	}
+
 	envs = env.MergeEnvs(envs, envVars)
 
 	return []corev1.Container{

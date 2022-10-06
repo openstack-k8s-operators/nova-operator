@@ -216,6 +216,12 @@ var _ = Describe("NovaConductor controller", func() {
 				// lib-common
 				Expect(scriptMap.Data).Should(HaveKeyWithValue(
 					"init.sh", ContainSubstring("database connection mysql+pymysql")))
+				Expect(scriptMap.Data).Should(HaveKeyWithValue(
+					"dbsync.sh", ContainSubstring("nova-manage db sync")))
+				Expect(scriptMap.Data).Should(HaveKeyWithValue(
+					"dbsync.sh", ContainSubstring("nova-manage api_db sync")))
+				Expect(scriptMap.Data).Should(HaveKeyWithValue(
+					"dbsync.sh", ContainSubstring("nova-manage cell_v2 map_cell0")))
 			})
 
 			It("stored the input hash in the Status", func() {
@@ -377,7 +383,7 @@ var _ = Describe("NovaConductor controller", func() {
 		})
 	})
 
-	When("NovConductor is configured to preserve jobs", func() {
+	When("NovaConductor is configured to preserve jobs", func() {
 		var jobName types.NamespacedName
 
 		BeforeEach(func() {
