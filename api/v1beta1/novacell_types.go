@@ -32,6 +32,11 @@ type NovaCellTemplate struct {
 	// Service instance used as the DB of this cell.
 	CellDatabaseInstance string `json:"cellDatabaseInstance"`
 
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default="nova"
+	// CellDatabaseUser - username to use when accessing the give cell DB
+	CellDatabaseUser string `json:"cellDatabaseUser,omitempty"`
+
 	// +kubebuilder:validation:Required
 	// CellMessageBusInstance is the name of the RabbitMqCluster CR to select
 	// the Message Bus Service instance used by the nova services to

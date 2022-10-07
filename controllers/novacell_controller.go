@@ -31,7 +31,6 @@ import (
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
-	"github.com/openstack-k8s-operators/nova-operator/pkg/nova"
 )
 
 // NovaCellReconciler reconciles a NovaCell object
@@ -211,13 +210,9 @@ func (r *NovaCellReconciler) reconcileNovaConductor(
 			instance.Spec.CellName,
 			instance.Spec.Secret,
 			cellDatabaseHostname,
-			// TODO(gibi): this is a limitation of the current MariaDBDatabase
-			// implementation, it always assumes that the
-			// DatabaseUser == DatabaseName
-			"nova_"+instance.Spec.CellName,
+			instance.Spec.CellDatabaseUser,
 			instance.Spec.APIDatabaseHostname,
-			// ditto
-			nova.NovaAPIDatabaseName,
+			instance.Spec.APIDatabaseUser,
 			instance.Spec.Debug,
 		)
 

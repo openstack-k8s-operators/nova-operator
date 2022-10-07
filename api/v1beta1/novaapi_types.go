@@ -110,6 +110,15 @@ type NovaAPISpec struct {
 	APIMessageBusHostname string `json:"apiMessageBusHostname"`
 
 	// +kubebuilder:validation:Optional
+	// +kubebuilder:default="nova"
+	// APIDatabaseUser - username to use when accessing the cell0 DB
+	Cell0DatabaseUser string `json:"cell0DatabaseUser,omitempty"`
+
+	// +kubebuilder:validation:Required
+	// APIDatabaseHostname - hostname to use when accessing the cell0 DB
+	Cell0DatabaseHostname string `json:"cell0DatabaseHostname"`
+
+	// +kubebuilder:validation:Optional
 	// Debug - enable debug for different deploy stages. If an init container
 	// is used, it runs and the actual action pod gets started with sleep
 	// infinity

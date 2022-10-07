@@ -129,6 +129,11 @@ spec:
                         CR to select the DB Service instance used as the DB of this
                         cell.
                       type: string
+                    cellDatabaseUser:
+                      default: nova
+                      description: CellDatabaseUser - username to use when accessing
+                        the give cell DB
+                      type: string
                     cellMessageBusInstance:
                       description: CellMessageBusInstance is the name of the RabbitMqCluster
                         CR to select the Message Bus Service instance used by the

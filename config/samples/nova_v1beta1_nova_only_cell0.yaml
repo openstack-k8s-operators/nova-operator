@@ -4,6 +4,8 @@ metadata:
   name: nova-only-cell0
 spec:
   apiDatabaseInstance: openstack
+  # This is a MariaDB limitation that the DB user is always the name of the DB
+  apiDatabaseUser: nova_api
   apiMessageBusInstance: default-security-context
   keystoneInstance: keystone
   secret: osp-secret
@@ -29,6 +31,8 @@ spec:
   cellTemplates:
     cell0:
       cellDatabaseInstance: openstack
+      # This is a MariaDB limitation that the DB user is always the name of the DB
+      cellDatabaseUser: nova_cell0
       # NOTE(gibi): cell0 has no message bus but all the other cells requires
       # message bus so it is a required field today.
       cellMessageBusInstance: unused
