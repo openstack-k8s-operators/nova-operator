@@ -155,7 +155,7 @@ func (r *NovaAPIReconciler) initConditions(
 		instance.Status.Conditions = condition.Conditions{}
 		// initialize all conditions to Unknown
 		cl := condition.CreateList(
-			// TODO(gibi): Initilaize each condition the controller reports
+			// TODO(gibi): Initialize each condition the controller reports
 			// here to Unknown. By default only the top level Ready condition is
 			// created by Conditions.Init()
 			condition.UnknownCondition(
