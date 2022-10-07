@@ -141,7 +141,12 @@ func (r *NovaReconciler) initConditions(
 			// here to Unknown. By default only the top level Ready condition is
 			// created by Conditions.Init()
 			condition.UnknownCondition(
-				condition.DBReadyCondition,
+				novav1.NovaAPIDBReadyCondition,
+				condition.InitReason,
+				condition.DBReadyInitMessage,
+			),
+			condition.UnknownCondition(
+				novav1.NovaCell0DBReadyCondition,
 				condition.InitReason,
 				condition.DBReadyInitMessage,
 			),
@@ -170,20 +175,53 @@ func (r *NovaReconciler) reconcileNormal(
 	h *helper.Helper,
 	instance *novav1.Nova,
 ) (ctrl.Result, error) {
-	db := database.NewDatabase(
-		// NOTE(gibi): We have to use the instance.Name as the name of the
-		// schema as lib-common faultly assuming tha the schema name and the
-		// instance name is the same. This is https://github.com/openstack-k8s-operators/lib-common/issues/65
-		// After #65 is fixed in lib-common we can use the more realistic
-		// "nova_api" schema name here. Or opt to use instance.Name + "_api" if
-		// we want to support that two Nova CRs using the same DB service.
-		instance.Name,
+
+	apiDB := database.NewDatabaseWithNamespace(
+		"nova_api",
 		instance.Spec.APIDatabaseUser,
 		instance.Spec.Secret,
 		map[string]string{
 			"dbName": instance.Spec.APIDatabaseInstance,
 		},
+		"nova-api",
+		instance.Namespace,
 	)
+	result, err := r.reconcileDB(ctx, h, instance, apiDB, novav1.NovaAPIDBReadyCondition)
+	if (err != nil || result != ctrl.Result{}) {
+		return result, err
+	}
+
+	cell0DB := database.NewDatabaseWithNamespace(
+		"nova_cell0",
+		instance.Spec.APIDatabaseUser,
+		instance.Spec.Secret,
+		map[string]string{
+			"dbName": instance.Spec.APIDatabaseInstance,
+		},
+		"nova-cell0",
+		instance.Namespace,
+	)
+	result, err = r.reconcileDB(ctx, h, instance, cell0DB, novav1.NovaCell0DBReadyCondition)
+	if (err != nil || result != ctrl.Result{}) {
+		return result, err
+	}
+
+	result, err = r.reconcileNovaAPI(ctx, h, instance, apiDB.GetDatabaseHostname())
+	if err != nil {
+		return result, err
+	}
+
+	return ctrl.Result{}, nil
+}
+
+func (r *NovaReconciler) reconcileDB(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *novav1.Nova,
+	db *database.Database,
+	targetCondition condition.Type,
+) (ctrl.Result, error) {
+
 	// create or patch the DB
 	// TODO(gibi): use db.CreateOrPatchDBByName and passing in
 	// instance.Spec.APIDatabaseInstance after
@@ -195,7 +233,7 @@ func (r *NovaReconciler) reconcileNormal(
 	)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
-			condition.DBReadyCondition,
+			targetCondition,
 			condition.ErrorReason,
 			condition.SeverityWarning,
 			condition.DBReadyErrorMessage,
@@ -204,7 +242,7 @@ func (r *NovaReconciler) reconcileNormal(
 	}
 	if (ctrlResult != ctrl.Result{}) {
 		instance.Status.Conditions.Set(condition.FalseCondition(
-			condition.DBReadyCondition,
+			targetCondition,
 			condition.RequestedReason,
 			condition.SeverityInfo,
 			condition.DBReadyRunningMessage))
@@ -214,7 +252,7 @@ func (r *NovaReconciler) reconcileNormal(
 	ctrlResult, err = db.WaitForDBCreated(ctx, h)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
-			condition.DBReadyCondition,
+			targetCondition,
 			condition.ErrorReason,
 			condition.SeverityWarning,
 			condition.DBReadyErrorMessage,
@@ -223,18 +261,14 @@ func (r *NovaReconciler) reconcileNormal(
 	}
 	if (ctrlResult != ctrl.Result{}) {
 		instance.Status.Conditions.Set(condition.FalseCondition(
-			condition.DBReadyCondition,
+			targetCondition,
 			condition.RequestedReason,
 			condition.SeverityInfo,
 			condition.DBReadyRunningMessage))
 		return ctrlResult, nil
 	}
-	instance.Status.Conditions.MarkTrue(condition.DBReadyCondition, condition.DBReadyMessage)
 
-	result, err := r.reconcileNovaAPI(ctx, h, instance, db.GetDatabaseHostname())
-	if err != nil {
-		return result, err
-	}
+	instance.Status.Conditions.MarkTrue(targetCondition, condition.DBReadyMessage)
 
 	return ctrl.Result{}, nil
 }
@@ -244,6 +278,7 @@ func newNovaAPISpec(
 	secretName string,
 	apiDatabaseHostname string,
 	debug novav1.Debug,
+	apiDatabaseUser string,
 ) novav1.NovaAPISpec {
 	apiSpec := novav1.NovaAPISpec{
 		// TODO(gibi): Pass down a narroved secret that only hold NovaAPI
@@ -253,6 +288,7 @@ func newNovaAPISpec(
 		// then we can pass those to NovaAPI here
 		// KeystoneAuthURL:
 		APIDatabaseHostname: apiDatabaseHostname,
+		APIDatabaseUser:     apiDatabaseUser,
 		// TODO(gibi): initialize API messag bus and pass it forward
 		// APIMessageBusHostname:
 		Debug: debug,
@@ -273,7 +309,7 @@ func (r *NovaReconciler) reconcileNovaAPI(
 ) (ctrl.Result, error) {
 	api := &novav1.NovaAPI{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-api", instance.Name),
+			Name:      instance.Name,
 			Namespace: instance.Namespace,
 		},
 	}
@@ -284,6 +320,10 @@ func (r *NovaReconciler) reconcileNovaAPI(
 			instance.Spec.Secret,
 			apiDatabaseHostname,
 			instance.Spec.Debug,
+			// TODO(gibi): this is a limitation of the current MariaDBDatabase
+			// implementation, it always assumes that the
+			// DatabaseUser == DatabaseName
+			"nova_api",
 		)
 
 		err := controllerutil.SetControllerReference(instance, api, r.Scheme)
