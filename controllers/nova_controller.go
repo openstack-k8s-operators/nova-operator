@@ -202,16 +202,21 @@ func (r *NovaReconciler) reconcileNormal(
 		"nova-api",
 		instance.Namespace,
 	)
-	result, err := r.reconcileDB(ctx, h, instance, apiDB, novav1.NovaAPIDBReadyCondition)
+	result, err := r.reconcileDB(
+		ctx,
+		h,
+		instance,
+		apiDB,
+		instance.Spec.APIDatabaseInstance,
+		novav1.NovaAPIDBReadyCondition,
+	)
 	if (err != nil || result != ctrl.Result{}) {
 		return result, err
 	}
 
 	cell0DB := database.NewDatabaseWithNamespace(
 		nova.NovaCell0DatabaseName,
-		// TODO(gibi): This should be cell0.CellDatabaseUser or should be
-		// embedded into the Secret we passing down to the cell
-		instance.Spec.APIDatabaseUser,
+		cell0Template.CellDatabaseUser,
 		instance.Spec.Secret,
 		map[string]string{
 			"dbName": cell0Template.CellDatabaseInstance,
@@ -219,7 +224,14 @@ func (r *NovaReconciler) reconcileNormal(
 		"nova-cell0",
 		instance.Namespace,
 	)
-	result, err = r.reconcileDB(ctx, h, instance, cell0DB, novav1.NovaCell0DBReadyCondition)
+	result, err = r.reconcileDB(
+		ctx,
+		h,
+		instance,
+		cell0DB,
+		cell0Template.CellDatabaseInstance,
+		novav1.NovaCell0DBReadyCondition,
+	)
 	if (err != nil || result != ctrl.Result{}) {
 		return result, err
 	}
@@ -231,13 +243,9 @@ func (r *NovaReconciler) reconcileNormal(
 		"cell0",
 		cell0Template,
 		cell0DB.GetDatabaseHostname(),
-		// TODO(gibi): this is a limitation of the current MariaDBDatabase
-		// implementation, it always assumes that the
-		// DatabaseUser == DatabaseName
-		nova.NovaCell0DatabaseName,
+		cell0Template.CellDatabaseUser,
 		apiDB.GetDatabaseHostname(),
-		// ditto
-		nova.NovaAPIDatabaseName,
+		instance.Spec.APIDatabaseUser,
 	)
 	if err != nil {
 		return result, err
@@ -250,7 +258,14 @@ func (r *NovaReconciler) reconcileNormal(
 		return ctrl.Result{RequeueAfter: r.RequeueTimeout}, nil
 	}
 
-	result, err = r.reconcileNovaAPI(ctx, h, instance, apiDB.GetDatabaseHostname())
+	result, err = r.reconcileNovaAPI(
+		ctx,
+		h,
+		instance,
+		apiDB.GetDatabaseHostname(),
+		cell0DB.GetDatabaseHostname(),
+		cell0Template.CellDatabaseUser,
+	)
 	if err != nil {
 		return result, err
 	}
@@ -263,17 +278,14 @@ func (r *NovaReconciler) reconcileDB(
 	h *helper.Helper,
 	instance *novav1.Nova,
 	db *database.Database,
+	databaseServiceName string,
 	targetCondition condition.Type,
 ) (ctrl.Result, error) {
 
-	// create or patch the DB
-	// TODO(gibi): use db.CreateOrPatchDBByName and passing in
-	// instance.Spec.APIDatabaseInstance after
-	// https://github.com/openstack-k8s-operators/lib-common/pull/63
-	// is merged
-	ctrlResult, err := db.CreateOrPatchDB(
+	ctrlResult, err := db.CreateOrPatchDBByName(
 		ctx,
 		h,
+		databaseServiceName,
 	)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
@@ -321,8 +333,10 @@ func newNovaAPISpec(
 	novaAPITemplate novav1.NovaAPITemplate,
 	secretName string,
 	apiDatabaseHostname string,
-	debug novav1.Debug,
 	apiDatabaseUser string,
+	cell0DatabaseHostname string,
+	cell0DatabaseUser string,
+	debug novav1.Debug,
 ) novav1.NovaAPISpec {
 	apiSpec := novav1.NovaAPISpec{
 		// TODO(gibi): Pass down a narroved secret that only hold NovaAPI
@@ -331,8 +345,10 @@ func newNovaAPISpec(
 		// TODO(gibi): register service user in Keystone and get auth URL
 		// then we can pass those to NovaAPI here
 		// KeystoneAuthURL:
-		APIDatabaseHostname: apiDatabaseHostname,
-		APIDatabaseUser:     apiDatabaseUser,
+		APIDatabaseHostname:   apiDatabaseHostname,
+		APIDatabaseUser:       apiDatabaseUser,
+		Cell0DatabaseHostname: cell0DatabaseHostname,
+		Cell0DatabaseUser:     cell0DatabaseUser,
 		// TODO(gibi): initialize API messag bus and pass it forward
 		// APIMessageBusHostname:
 		Debug: debug,
@@ -350,6 +366,8 @@ func (r *NovaReconciler) reconcileNovaAPI(
 	h *helper.Helper,
 	instance *novav1.Nova,
 	apiDatabaseHostname string,
+	cell0DatabaseHostname string,
+	cell0DatabaseUser string,
 ) (ctrl.Result, error) {
 	api := &novav1.NovaAPI{
 		ObjectMeta: metav1.ObjectMeta{
@@ -363,11 +381,10 @@ func (r *NovaReconciler) reconcileNovaAPI(
 			instance.Spec.APIServiceTemplate,
 			instance.Spec.Secret,
 			apiDatabaseHostname,
+			instance.Spec.APIDatabaseUser,
+			cell0DatabaseHostname,
+			cell0DatabaseUser,
 			instance.Spec.Debug,
-			// TODO(gibi): this is a limitation of the current MariaDBDatabase
-			// implementation, it always assumes that the
-			// DatabaseUser == DatabaseName
-			nova.NovaAPIDatabaseName,
 		)
 
 		err := controllerutil.SetControllerReference(instance, api, r.Scheme)

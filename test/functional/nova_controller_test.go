@@ -141,6 +141,7 @@ var _ = Describe("Nova controller", func() {
 				DeleteDBService,
 				CreateDBService(
 					namespace,
+					"openstack",
 					corev1.ServiceSpec{
 						Ports: []corev1.ServicePort{{Port: 3306}},
 					},
@@ -150,9 +151,11 @@ var _ = Describe("Nova controller", func() {
 			CreateNova(
 				novaName,
 				novav1.NovaSpec{
-					Secret: SecretName,
+					Secret:              SecretName,
+					APIDatabaseInstance: "openstack",
 					CellTemplates: map[string]novav1.NovaCellTemplate{
 						"cell0": {
+							CellDatabaseInstance: "openstack",
 							ConductorServiceTemplate: novav1.NovaConductorTemplate{
 								ContainerImage: ContainerImage,
 								Replicas:       1,
@@ -277,6 +280,7 @@ var _ = Describe("Nova controller", func() {
 				DeleteDBService,
 				CreateDBService(
 					namespace,
+					"openstack",
 					corev1.ServiceSpec{
 						Ports: []corev1.ServicePort{{Port: 3306}},
 					},
@@ -286,9 +290,11 @@ var _ = Describe("Nova controller", func() {
 			CreateNova(
 				novaName,
 				novav1.NovaSpec{
-					Secret: SecretName,
+					APIDatabaseInstance: "openstack",
+					Secret:              SecretName,
 					CellTemplates: map[string]novav1.NovaCellTemplate{
 						"cell0": {
+							CellDatabaseInstance: "openstack",
 							ConductorServiceTemplate: novav1.NovaConductorTemplate{
 								ContainerImage: ContainerImage,
 								Replicas:       1,
@@ -331,6 +337,118 @@ var _ = Describe("Nova controller", func() {
 			)
 
 			NovaAPINotExists(novaAPIName)
+		})
+	})
+
+	When("Nova CR instance with different DB Services for nova_api and cell0 DBs", func() {
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateNovaSecret(namespace, SecretName))
+
+			DeferCleanup(
+				DeleteDBService,
+				CreateDBService(
+					namespace,
+					"db-for-cell0",
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+			DeferCleanup(
+				DeleteDBService,
+				CreateDBService(
+					namespace,
+					"db-for-api",
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+
+			CreateNova(
+				novaName,
+				novav1.NovaSpec{
+					Secret: SecretName,
+					CellTemplates: map[string]novav1.NovaCellTemplate{
+						"cell0": {
+							CellDatabaseInstance: "db-for-cell0",
+							ConductorServiceTemplate: novav1.NovaConductorTemplate{
+								ContainerImage: ContainerImage,
+								Replicas:       1,
+							},
+						},
+					},
+					APIDatabaseInstance: "db-for-api",
+					APIServiceTemplate: novav1.NovaAPITemplate{
+						ContainerImage: ContainerImage,
+						Replicas:       1,
+					},
+				},
+			)
+			DeferCleanup(DeleteNova, novaName)
+		})
+
+		It("uses the correct hostnames to access the different DB services", func() {
+			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
+			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForCell0)
+
+			cell0DBSync := GetJob(cell0DBSyncJobName)
+			cell0DBSyncJobEnv := cell0DBSync.Spec.Template.Spec.InitContainers[0].Env
+			Expect(cell0DBSyncJobEnv).To(
+				ContainElements(
+					[]corev1.EnvVar{
+						{Name: "CellDatabaseHost", Value: "hostname-for-db-for-cell0"},
+						{Name: "APIDatabaseHost", Value: "hostname-for-db-for-api"},
+					},
+				),
+			)
+
+			SimulateJobSuccess(cell0DBSyncJobName)
+
+			novaAPIDeployment := GetDeployment(novaAPIdeploymentName)
+			novaAPIDepEnv := novaAPIDeployment.Spec.Template.Spec.InitContainers[0].Env
+			Expect(novaAPIDepEnv).To(
+				ContainElements(
+					[]corev1.EnvVar{
+						{Name: "Cell0DatabaseHost", Value: "hostname-for-db-for-cell0"},
+						{Name: "DatabaseHost", Value: "hostname-for-db-for-api"},
+					},
+				),
+			)
+
+			SimulateDeploymentReplicaReady(novaAPIdeploymentName)
+
+			ExpectCondition(
+				cell0ConductorName,
+				conditionGetterFunc(NovaConductorConditionGetter),
+				condition.DBSyncReadyCondition,
+				corev1.ConditionTrue,
+			)
+			ExpectCondition(
+				cell0Name,
+				conditionGetterFunc(NovaCellConditionGetter),
+				novav1.NovaConductorReadyCondition,
+				corev1.ConditionTrue,
+			)
+			ExpectCondition(
+				novaName,
+				conditionGetterFunc(NovaConditionGetter),
+				novav1.NovaCell0ReadyCondition,
+				corev1.ConditionTrue,
+			)
+			ExpectCondition(
+				novaName,
+				conditionGetterFunc(NovaConditionGetter),
+				novav1.NovaAPIReadyCondition,
+				corev1.ConditionTrue,
+			)
+			ExpectCondition(
+				novaName,
+				conditionGetterFunc(NovaConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
 		})
 	})
 })

@@ -4,6 +4,7 @@ metadata:
   name: nova-minimal-example
 spec:
   apiDatabaseInstance: openstack
+  apiDatabaseUser: nova_api
   apiMessageBusInstance: default-security-context
   keystoneInstance: keystone
   secret: osp-secret
@@ -29,6 +30,7 @@ spec:
   cellTemplates:
     cell0:
       cellDatabaseInstance: mariadb-cell0
+      cellDatabaseUser: nova_cell0
       cellMessageBusInstance: rabbitmq-cell0
       # cell0 always needs API access as it hosts the super conductor
       hasAPIAccess: True
@@ -39,6 +41,7 @@ spec:
       noVNCProxyServiceTemplate: null
     cell1:
       cellDatabaseInstance: mariadb-cell1
+      cellDatabaseUser: nova_cell1
       cellMessageBusInstance: rabbitmq-cell1
       hasAPIAccess: True
       # In this example we have metadata at the top level

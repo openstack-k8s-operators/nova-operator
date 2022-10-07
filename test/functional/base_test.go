@@ -339,16 +339,21 @@ func NovaConditionGetter(name types.NamespacedName) condition.Conditions {
 
 // CreateDBService creates a k8s Service object that matches with the
 // expectations of lib-common database module as a Service for the MariaDB
-func CreateDBService(namespace string, spec corev1.ServiceSpec) types.NamespacedName {
-	// TODO(gibi): Do we depend on the name?
-	serviceName := "not-openstack"
+func CreateDBService(namespace string, mariadbCRName string, spec corev1.ServiceSpec) types.NamespacedName {
+	// The Name is used as the hostname to access the service. So
+	// we generate something unique for the MariaDB CR it represents
+	// so we can assert that the correct Service is selected.
+	serviceName := "hostname-for-" + mariadbCRName
 	service := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      serviceName,
 			Namespace: namespace,
 			// NOTE(gibi): The lib-common databvase module looks up the
 			// Service exposed by MariaDB via these labels.
-			Labels: map[string]string{"app": "mariadb", "cr": "mariadb-openstack"},
+			Labels: map[string]string{
+				"app": "mariadb",
+				"cr":  "mariadb-" + mariadbCRName,
+			},
 		},
 		Spec: spec,
 	}

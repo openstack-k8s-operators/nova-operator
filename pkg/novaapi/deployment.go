@@ -44,12 +44,9 @@ func Deployment(
 		Secret:                              instance.Spec.Secret,
 		DatabasePasswordSelector:            instance.Spec.PasswordSelectors.APIDatabase,
 		KeystoneServiceUserPasswordSelector: instance.Spec.PasswordSelectors.Service,
-		// TODO(gibi): this should come as a separate input from the Spec
-		// instead for reusing the API DB stuff for cell
-		Cell0DatabaseHostname: instance.Spec.APIDatabaseHostname,
-		// TODO(gibi): ditto. This is a hack now
-		Cell0DatabaseUser: nova.NovaCell0DatabaseName,
-		Cell0DatabaseName: nova.NovaCell0DatabaseName,
+		Cell0DatabaseHostname:               instance.Spec.Cell0DatabaseHostname,
+		Cell0DatabaseUser:                   instance.Spec.Cell0DatabaseUser,
+		Cell0DatabaseName:                   nova.NovaCell0DatabaseName,
 		// TODO(gibi): this is a hack until we implement proper secret handling
 		// per cell.
 		Cell0DatabasePasswordSelector: "NovaCell0DatabasePassword",
