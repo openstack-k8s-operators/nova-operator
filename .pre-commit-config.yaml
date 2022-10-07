@@ -1,3 +1,11 @@
+ci:
+  autofix_prs: false
+  skip:
+   - 'make-manifests'
+   - 'make-generate'
+   - 'go-vet'
+   - 'golangci-lint'
+
 repos:
 - repo: local
   hooks:
