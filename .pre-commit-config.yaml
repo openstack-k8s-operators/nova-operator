@@ -1,8 +1,22 @@
 repos:
+- repo: local
+  hooks:
+    - id: make-manifests
+      name: make-manifests
+      language: system
+      entry: make
+      args: ['manifests']
+    - id: make-generate
+      name: make-generate
+      language: system
+      entry: make
+      args: ['generate']
+
 - repo: https://github.com/dnephin/pre-commit-golang
   rev: v0.5.0
   hooks:
     - id: go-fmt
+      exclude: ^vendor
     - id: go-vet
     - id: go-mod-tidy
 
@@ -18,7 +32,9 @@ repos:
     - id: fix-byte-order-marker
     - id: check-case-conflict
     - id: check-executables-have-shebangs
+      exclude: ^vendor
     - id: check-shebang-scripts-are-executable
+      exclude: ^vendor
     - id: check-merge-conflict
     - id: check-symlinks
     - id: destroyed-symlinks
@@ -27,13 +43,7 @@ repos:
     - id: check-json
     - id: detect-private-key
     - id: end-of-file-fixer
+      exclude: ^vendor
     - id: no-commit-to-branch
     - id: trailing-whitespace
-
-- repo: local
-  hooks:
-    - id: make-manifests
-      name: make-manifests
-      language: system
-      entry: make
-      args: ['manifests']
+      exclude: ^vendor
