@@ -53,6 +53,9 @@ func initContainer(init ContainerInput) []corev1.Container {
 	envVars["DatabaseUser"] = env.SetValue(init.DatabaseUser)
 	envVars["DatabaseName"] = env.SetValue(init.DatabaseName)
 
+	envVars["Cell0DatabaseName"] = env.SetValue("nova_cell0")
+	envVars["Cell0DatabaseUser"] = env.SetValue("nova_cell0")
+
 	envs := []corev1.EnvVar{
 		{
 			Name: "DatabasePassword",

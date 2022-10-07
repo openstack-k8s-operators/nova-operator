@@ -29,6 +29,10 @@ const (
 	// NovaConductorReadyCondition indicates if the NovaConductor is ready
 	// in a given cell.
 	NovaConductorReadyCondition condition.Type = "NovaConductorReady"
+	// NovaAPIDBReadyCondition indicates if the nova_api DB is created
+	NovaAPIDBReadyCondition condition.Type = "NovaAPIDBReady"
+	// NovaCell0DBReadyCondition indicates if the nova_cell0 DB is created
+	NovaCell0DBReadyCondition condition.Type = "NovaCell0DBReady"
 )
 
 //

@@ -40,7 +40,7 @@ func Deployment(
 		ContainerImage:                      instance.Spec.ContainerImage,
 		DatabaseHostname:                    instance.Spec.APIDatabaseHostname,
 		DatabaseUser:                        instance.Spec.APIDatabaseUser,
-		DatabaseName:                        instance.Name,
+		DatabaseName:                        "nova_api",
 		Secret:                              instance.Spec.Secret,
 		DatabasePasswordSelector:            instance.Spec.PasswordSelectors.APIDatabase,
 		KeystoneServiceUserPasswordSelector: instance.Spec.PasswordSelectors.Service,
