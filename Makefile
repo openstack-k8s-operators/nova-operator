@@ -105,7 +105,7 @@ vet: ## Run go vet against code.
 
 .PHONY: test
 test: manifests generate fmt vet envtest ## Run tests.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./... -coverpkg=./controllers -coverprofile cover.out
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" ginkgo --trace --cover --coverpkg=../../pkg/nova,../../pkg/novaapi,../../pkg/novaconductor,../../controllers,../../api/v1beta1 --coverprofile cover.out --covermode=atomic -p --randomize-all ./...
 
 ##@ Build
 
