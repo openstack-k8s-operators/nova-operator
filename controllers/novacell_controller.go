@@ -136,15 +136,6 @@ func (r *NovaCellReconciler) initConditions(
 			),
 		)
 		instance.Status.Conditions.Init(&cl)
-
-		// Register overall status immediately to have an early feedback e.g.
-		// in the cli
-		if err := r.Client.Status().Update(ctx, instance); err != nil {
-			util.LogErrorForObject(
-				h, err, "Failed to initialize Conditions", instance)
-			return err
-		}
-
 	}
 	return nil
 }
