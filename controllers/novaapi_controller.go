@@ -256,7 +256,7 @@ func (r *NovaAPIReconciler) reconcileNormal(
 	depl := deployment.NewDeployment(novaapi.Deployment(instance, inputHash, serviceLabels), 1)
 	depl.SetTimeout(r.RequeueTimeout)
 	ctrlResult, err := depl.CreateOrPatch(ctx, h)
-	if err != nil {
+	if err != nil && !k8s_errors.IsNotFound(err) {
 		util.LogErrorForObject(h, err, "Deployment failed", instance)
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.DeploymentReadyCondition,
@@ -265,14 +265,15 @@ func (r *NovaAPIReconciler) reconcileNormal(
 			condition.DeploymentReadyErrorMessage,
 			err.Error()))
 		return ctrlResult, err
-	} else if (ctrlResult != ctrl.Result{}) {
+	} else if (ctrlResult != ctrl.Result{} || k8s_errors.IsNotFound(err)) {
 		util.LogForObject(h, "Deployment in progress", instance)
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.DeploymentReadyCondition,
 			condition.RequestedReason,
 			condition.SeverityInfo,
 			condition.DeploymentReadyRunningMessage))
-		return ctrlResult, nil
+		// It is OK to return success as we are watching for Deployment changes
+		return ctrl.Result{}, nil
 	}
 
 	instance.Status.ReadyCount = depl.GetDeployment().Status.ReadyReplicas
@@ -288,7 +289,6 @@ func (r *NovaAPIReconciler) reconcileNormal(
 			condition.DeploymentReadyRunningMessage))
 		// It is OK to return success as we are watching for Deployment changes
 		return ctrl.Result{}, nil
-
 	}
 
 	return ctrl.Result{}, nil
