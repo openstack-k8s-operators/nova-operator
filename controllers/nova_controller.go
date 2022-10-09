@@ -111,8 +111,10 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 			patch := client.MergeFrom(h.GetBeforeObject())
 
 			err := r.Client.Status().Patch(ctx, instance, patch)
-			if err != nil && !k8s_errors.IsNotFound(err) {
-				util.LogErrorForObject(h, err, "Update status", instance)
+			if k8s_errors.IsConflict(err) {
+				util.LogForObject(h, "Status update conflict", instance)
+			} else if err != nil && !k8s_errors.IsNotFound(err) {
+				util.LogErrorForObject(h, err, "Status update failed", instance)
 			}
 		}
 	}()
