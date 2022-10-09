@@ -23,6 +23,7 @@ import (
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
@@ -105,13 +106,18 @@ func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			instance.Status.Conditions.MarkTrue(
 				condition.ReadyCondition, condition.ReadyMessage)
 		}
-		err := r.Client.Status().Update(ctx, instance)
-		if err != nil && !k8s_errors.IsNotFound(err) {
-			util.LogErrorForObject(
-				h, err, "Failed to update status at the end of reconciliation", instance)
+		if err := h.SetAfter(instance); err != nil {
+			util.LogErrorForObject(h, err, "Set after and calc patch/diff", instance)
 		}
-		util.LogForObject(
-			h, "Updated status at the end of reconciliation", instance)
+
+		if changed := h.GetChanges()["status"]; changed {
+			patch := client.MergeFrom(h.GetBeforeObject())
+
+			err := r.Client.Status().Patch(ctx, instance, patch)
+			if err != nil && !k8s_errors.IsNotFound(err) {
+				util.LogErrorForObject(h, err, "Update status", instance)
+			}
+		}
 	}()
 
 	return r.reconcileNormal(ctx, h, instance)
@@ -224,8 +230,6 @@ func (r *NovaConductorReconciler) reconcileNormal(
 	}
 	if val, ok := instance.Status.Hash[common.InputHashName]; !ok || val != inputHash {
 		instance.Status.Hash[common.InputHashName] = inputHash
-		// TODO(gibi): Do we need to persist the change right away here? Or it
-		// is OK to let the our defered update at the end do the persisting.
 	}
 
 	instance.Status.Conditions.MarkTrue(condition.ServiceConfigReadyCondition, condition.ServiceConfigReadyMessage)
@@ -258,9 +262,6 @@ func (r *NovaConductorReconciler) reconcileNormal(
 	}
 	if dbSyncJob.HasChanged() {
 		instance.Status.Hash[DbSyncHash] = dbSyncJob.GetHash()
-		// TODO(gibi): Do we need to call Status().Update() now or it is
-		// enough to let our deferred call do the update at the end of the
-		// reconcile loop?
 		r.Log.Info(fmt.Sprintf("Job %s hash added - %s", jobDef.Name, instance.Status.Hash[DbSyncHash]))
 	}
 	instance.Status.Conditions.MarkTrue(condition.DBSyncReadyCondition, condition.DBSyncReadyMessage)
