@@ -23,6 +23,7 @@ import (
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -97,13 +98,18 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 			instance.Status.Conditions.MarkTrue(
 				condition.ReadyCondition, condition.ReadyMessage)
 		}
-		err := r.Client.Status().Update(ctx, instance)
-		if err != nil && !k8s_errors.IsNotFound(err) {
-			util.LogErrorForObject(
-				h, err, "Failed to update status at the end of reconciliation", instance)
+		if err := h.SetAfter(instance); err != nil {
+			util.LogErrorForObject(h, err, "Set after and calc patch/diff", instance)
 		}
-		util.LogForObject(
-			h, "Updated status at the end of reconciliation", instance)
+
+		if changed := h.GetChanges()["status"]; changed {
+			patch := client.MergeFrom(h.GetBeforeObject())
+
+			err := r.Client.Status().Patch(ctx, instance, patch)
+			if err != nil && !k8s_errors.IsNotFound(err) {
+				util.LogErrorForObject(h, err, "Update status", instance)
+			}
+		}
 	}()
 
 	return r.reconcile(ctx, h, instance)
@@ -168,7 +174,7 @@ func (r *NovaCellReconciler) reconcileNovaConductor(
 		},
 	}
 
-	op, err := controllerutil.CreateOrUpdate(ctx, r.Client, conductor, func() error {
+	op, err := controllerutil.CreateOrPatch(ctx, r.Client, conductor, func() error {
 		conductor.Spec = conductorSpec
 
 		err := controllerutil.SetControllerReference(instance, conductor, r.Scheme)

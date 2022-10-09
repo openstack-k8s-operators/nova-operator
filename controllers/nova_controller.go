@@ -24,6 +24,7 @@ import (
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
@@ -102,13 +103,18 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 			instance.Status.Conditions.MarkTrue(
 				condition.ReadyCondition, condition.ReadyMessage)
 		}
-		err := r.Client.Status().Update(ctx, instance)
-		if err != nil && !k8s_errors.IsNotFound(err) {
-			util.LogErrorForObject(
-				h, err, "Failed to update status at the end of reconciliation", instance)
+		if err := h.SetAfter(instance); err != nil {
+			util.LogErrorForObject(h, err, "Set after and calc patch/diff", instance)
 		}
-		util.LogForObject(
-			h, "Updated status at the end of reconciliation", instance)
+
+		if changed := h.GetChanges()["status"]; changed {
+			patch := client.MergeFrom(h.GetBeforeObject())
+
+			err := r.Client.Status().Patch(ctx, instance, patch)
+			if err != nil && !k8s_errors.IsNotFound(err) {
+				util.LogErrorForObject(h, err, "Update status", instance)
+			}
+		}
 	}()
 
 	return r.reconcileNormal(ctx, h, instance)
@@ -345,7 +351,7 @@ func (r *NovaReconciler) reconcileNovaAPI(
 		},
 	}
 
-	op, err := controllerutil.CreateOrUpdate(ctx, r.Client, api, func() error {
+	op, err := controllerutil.CreateOrPatch(ctx, r.Client, api, func() error {
 		api.Spec = apiSpec
 
 		err := controllerutil.SetControllerReference(instance, api, r.Scheme)
@@ -395,7 +401,7 @@ func (r *NovaReconciler) reconcileNovaCell0(
 		},
 	}
 
-	op, err := controllerutil.CreateOrUpdate(ctx, r.Client, cell, func() error {
+	op, err := controllerutil.CreateOrPatch(ctx, r.Client, cell, func() error {
 		// TODO(gibi): Pass down a narroved secret that only hold
 		// specific information but also holds user names
 		cell.Spec = cell0Spec
