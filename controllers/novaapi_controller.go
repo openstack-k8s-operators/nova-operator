@@ -66,7 +66,6 @@ type NovaAPIReconciler struct {
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.2/pkg/reconcile
 func (r *NovaAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, _err error) {
 	l := log.FromContext(ctx)
-	l.Info("Reconciling ", "request", req)
 
 	// Fetch the NovaAPI instance that needs to be reconciled
 	instance := &novav1.NovaAPI{}
@@ -80,7 +79,7 @@ func (r *NovaAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (re
 			return ctrl.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
-		l.Error(err, "Failed to read the NovaAPI instance. Requeuing", "request", req)
+		l.Error(err, "Failed to read the NovaAPI instance.", "request", req)
 		return ctrl.Result{}, err
 	}
 

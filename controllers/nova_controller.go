@@ -59,7 +59,6 @@ type NovaReconciler struct {
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.2/pkg/reconcile
 func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, _err error) {
 	l := log.FromContext(ctx)
-	l.Info("Reconciling ", "request", req)
 
 	// Fetch the NovaAPI instance that needs to be reconciled
 	instance := &novav1.Nova{}
@@ -73,7 +72,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 			return ctrl.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
-		l.Error(err, "Failed to read the Nova instance. Requeuing", "request", req)
+		l.Error(err, "Failed to read the Nova instance.", "request", req)
 		return ctrl.Result{}, err
 	}
 
@@ -384,7 +383,7 @@ func (r *NovaReconciler) reconcileNovaAPI(
 	}
 
 	if op != controllerutil.OperationResultNone {
-		util.LogForObject(h, fmt.Sprintf("NovaAPI %s %s.", api.ObjectMeta.Name, string(op)), instance)
+		util.LogForObject(h, fmt.Sprintf("NovaAPI %s.", string(op)), instance, "NovaAPI.Name", api.Name)
 	}
 
 	c := api.Status.Conditions.Mirror(novav1.NovaAPIReadyCondition)
@@ -436,7 +435,7 @@ func (r *NovaReconciler) reconcileNovaCell0(
 	}
 
 	if op != controllerutil.OperationResultNone {
-		util.LogForObject(h, fmt.Sprintf("NovaCell0 %s %s.", cell.ObjectMeta.Name, string(op)), instance)
+		util.LogForObject(h, fmt.Sprintf("NovaCell0 %s.", string(op)), instance, "NovaCell0.Name", cell.Name)
 	}
 
 	c := cell.Status.Conditions.Mirror(novav1.NovaCell0ReadyCondition)
