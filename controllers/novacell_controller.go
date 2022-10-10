@@ -54,7 +54,6 @@ type NovaCellReconciler struct {
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.2/pkg/reconcile
 func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, _err error) {
 	l := log.FromContext(ctx)
-	l.Info("Reconciling ", "request", req)
 
 	// Fetch the NovaAPI instance that needs to be reconciled
 	instance := &novav1.NovaCell{}
@@ -68,7 +67,7 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 			return ctrl.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
-		l.Error(err, "Failed to read the Nova instance. Requeuing", "request", req)
+		l.Error(err, "Failed to read the NovaCell instance.", "request", req)
 		return ctrl.Result{}, err
 	}
 
@@ -205,7 +204,7 @@ func (r *NovaCellReconciler) reconcileNovaConductor(
 	}
 
 	if op != controllerutil.OperationResultNone {
-		util.LogForObject(h, fmt.Sprintf("NovaConductor %s %s.", conductor.ObjectMeta.Name, string(op)), instance)
+		util.LogForObject(h, fmt.Sprintf("NovaConductor %s.", string(op)), instance, "NovaConductor.Name", conductor.Name)
 	}
 
 	c := conductor.Status.Conditions.Mirror(novav1.NovaConductorReadyCondition)

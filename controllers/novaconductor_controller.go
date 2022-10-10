@@ -62,7 +62,6 @@ type NovaConductorReconciler struct {
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.2/pkg/reconcile
 func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, _err error) {
 	l := log.FromContext(ctx)
-	l.Info("Reconciling ", "request", req)
 
 	// Fetch our instance that needs to be reconciled
 	instance := &novav1.NovaConductor{}
@@ -76,7 +75,7 @@ func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			return ctrl.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
-		l.Error(err, "Failed to read the NovaConductor instance. Requeuing", "request", req)
+		l.Error(err, "Failed to read the NovaConductor instance.", "request", req)
 		return ctrl.Result{}, err
 	}
 
