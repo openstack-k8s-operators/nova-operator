@@ -38,8 +38,8 @@ var _ = Describe("NovaConductor controller", func() {
 		// https://book.kubebuilder.io/reference/envtest.html#namespace-usage-limitation
 		namespace = uuid.New().String()
 		CreateNamespace(namespace)
-		// We still request the delete of the Namespace in AfterEach to
-		// properly cleanup if we run the test in an existing cluster.
+		// We still request the delete of the Namespace to properly cleanup if
+		// we run the test in an existing cluster.
 		DeferCleanup(DeleteNamespace, namespace)
 		// NOTE(gibi): ConfigMap generation looks up the local templates
 		// directory via ENV, so provide it
