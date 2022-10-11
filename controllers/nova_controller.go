@@ -120,7 +120,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 			h, "Updated status at the end of reconciliation", instance)
 	}()
 
-	return r.reconcileNormal(ctx, h, instance)
+	return r.reconcile(ctx, h, instance)
 
 }
 
@@ -179,7 +179,7 @@ func (r *NovaReconciler) initConditions(
 	return nil
 }
 
-func (r *NovaReconciler) reconcileNormal(
+func (r *NovaReconciler) reconcile(
 	ctx context.Context,
 	h *helper.Helper,
 	instance *novav1.Nova,
