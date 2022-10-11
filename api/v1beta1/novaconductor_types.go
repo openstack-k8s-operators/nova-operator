@@ -203,3 +203,20 @@ func init() {
 func (s NovaConductorStatus) GetConditions() condition.Conditions {
 	return s.Conditions
 }
+
+// NewNovaConductorSpec constructs a NovaConductorSpec
+func NewNovaConductorSpec(
+	novaCell NovaCellSpec,
+) NovaConductorSpec {
+	conductorSpec := NovaConductorSpec{
+		CellName:             novaCell.CellName,
+		Secret:               novaCell.Secret,
+		CellDatabaseHostname: novaCell.CellDatabaseHostname,
+		CellDatabaseUser:     novaCell.CellDatabaseUser,
+		APIDatabaseHostname:  novaCell.APIDatabaseHostname,
+		APIDatabaseUser:      novaCell.APIDatabaseUser,
+		Debug:                novaCell.Debug,
+		NovaServiceBase:      NovaServiceBase(novaCell.ConductorServiceTemplate),
+	}
+	return conductorSpec
+}
