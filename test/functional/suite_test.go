@@ -41,6 +41,7 @@ import (
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	novav1beta1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/nova-operator/controllers"
+	nova_common "github.com/openstack-k8s-operators/nova-operator/pkg/common"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -134,39 +135,47 @@ var _ = BeforeSuite(func() {
 	Expect(err).ToNot(HaveOccurred(), "failed to create kclient")
 
 	err = (&controllers.NovaAPIReconciler{
-		Client:                k8sManager.GetClient(),
-		Scheme:                k8sManager.GetScheme(),
-		Kclient:               kclient,
-		Log:                   ctrl.Log.WithName("controllers").WithName("NovaAPI"),
+		ReconcilerBase: nova_common.ReconcilerBase{
+			Client:  k8sManager.GetClient(),
+			Scheme:  k8sManager.GetScheme(),
+			Kclient: kclient,
+			Log:     ctrl.Log.WithName("controllers").WithName("NovaApi"),
+		},
 		RequeueTimeoutSeconds: 1,
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
 	err = (&controllers.NovaReconciler{
-		Client:         k8sManager.GetClient(),
-		Scheme:         k8sManager.GetScheme(),
-		Kclient:        kclient,
-		Log:            ctrl.Log.WithName("controllers").WithName("Nova"),
+		ReconcilerBase: nova_common.ReconcilerBase{
+			Client:  k8sManager.GetClient(),
+			Scheme:  k8sManager.GetScheme(),
+			Kclient: kclient,
+			Log:     ctrl.Log.WithName("controllers").WithName("Nova"),
+		},
 		RequeueTimeout: time.Duration(100) * time.Millisecond,
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
 	err = (&controllers.NovaConductorReconciler{
-		Client:  k8sManager.GetClient(),
-		Scheme:  k8sManager.GetScheme(),
-		Kclient: kclient,
-		Log: ctrl.Log.WithName(
-			"controllers").WithName("NovaConductor"),
+		ReconcilerBase: nova_common.ReconcilerBase{
+			Client:  k8sManager.GetClient(),
+			Scheme:  k8sManager.GetScheme(),
+			Kclient: kclient,
+			Log:     ctrl.Log.WithName("controllers").WithName("NovaConductor"),
+		},
 		RequeueTimeoutSeconds: 1,
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
 	err = (&controllers.NovaCellReconciler{
-		Client:  k8sManager.GetClient(),
-		Scheme:  k8sManager.GetScheme(),
-		Kclient: kclient,
-		Log:     ctrl.Log.WithName("controllers").WithName("NovaCell"),
+		ReconcilerBase: nova_common.ReconcilerBase{
+			Client:  k8sManager.GetClient(),
+			Scheme:  k8sManager.GetScheme(),
+			Kclient: kclient,
+			Log:     ctrl.Log.WithName("controllers").WithName("NovaApi"),
+		},
 	}).SetupWithManager(k8sManager)
+
 	Expect(err).ToNot(HaveOccurred())
 
 	go func() {

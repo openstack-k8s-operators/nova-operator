@@ -19,18 +19,16 @@ package controllers
 import (
 	"context"
 
-	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	novav1beta1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
+	nova_common "github.com/openstack-k8s-operators/nova-operator/pkg/common"
 )
 
 // NovaNoVNCProxyReconciler reconciles a NovaNoVNCProxy object
 type NovaNoVNCProxyReconciler struct {
-	client.Client
-	Scheme *runtime.Scheme
+	nova_common.ReconcilerBase
 }
 
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=novanovncproxies,verbs=get;list;watch;create;update;patch;delete

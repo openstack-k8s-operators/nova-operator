@@ -20,14 +20,10 @@ import (
 	"context"
 	"time"
 
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	"github.com/go-logr/logr"
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/configmap"
@@ -38,6 +34,7 @@ import (
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
+	nova_common "github.com/openstack-k8s-operators/nova-operator/pkg/common"
 	"github.com/openstack-k8s-operators/nova-operator/pkg/nova"
 	"github.com/openstack-k8s-operators/nova-operator/pkg/novaapi"
 
@@ -46,10 +43,7 @@ import (
 
 // NovaAPIReconciler reconciles a NovaAPI object
 type NovaAPIReconciler struct {
-	client.Client
-	Kclient               kubernetes.Interface
-	Scheme                *runtime.Scheme
-	Log                   logr.Logger
+	nova_common.ReconcilerBase
 	RequeueTimeoutSeconds int
 }
 
@@ -117,7 +111,7 @@ func (r *NovaAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			instance.Status.Conditions.MarkTrue(
 				condition.ReadyCondition, condition.ReadyMessage)
 		}
-		err := r.Status().Update(ctx, instance)
+		err := r.Client.Status().Update(ctx, instance)
 		if err != nil && !k8s_errors.IsNotFound(err) {
 			util.LogErrorForObject(
 				h, err, "Failed to update status at the end of reconciliation", instance)
@@ -179,7 +173,7 @@ func (r *NovaAPIReconciler) initConditions(
 
 		// Register overall status immediately to have an early feedback e.g.
 		// in the cli
-		if err := r.Status().Update(ctx, instance); err != nil {
+		if err := r.Client.Status().Update(ctx, instance); err != nil {
 			util.LogErrorForObject(
 				h, err, "Failed to initialize Conditions", instance)
 			return err
