@@ -131,65 +131,6 @@ func (r *NovaAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (re
 		}
 	}()
 
-	return r.reconcileNormal(ctx, h, instance)
-}
-
-func (r *NovaAPIReconciler) initStatus(
-	ctx context.Context, h *helper.Helper, instance *novav1.NovaAPI,
-) error {
-	if err := r.initConditions(ctx, h, instance); err != nil {
-		return err
-	}
-
-	// NOTE(gibi): initialize the rest of the status fields here
-	// so that the reconcile loop later can assume they are not nil.
-	if instance.Status.Hash == nil {
-		instance.Status.Hash = map[string]string{}
-	}
-	if instance.Status.APIEndpoints == nil {
-		instance.Status.APIEndpoints = map[string]string{}
-	}
-
-	return nil
-}
-
-func (r *NovaAPIReconciler) initConditions(
-	ctx context.Context, h *helper.Helper, instance *novav1.NovaAPI,
-) error {
-	if instance.Status.Conditions == nil {
-		instance.Status.Conditions = condition.Conditions{}
-		// initialize all conditions to Unknown
-		cl := condition.CreateList(
-			// TODO(gibi): Initialize each condition the controller reports
-			// here to Unknown. By default only the top level Ready condition is
-			// created by Conditions.Init()
-			condition.UnknownCondition(
-				condition.InputReadyCondition,
-				condition.InitReason,
-				condition.InputReadyInitMessage,
-			),
-			condition.UnknownCondition(
-				condition.ServiceConfigReadyCondition,
-				condition.InitReason,
-				condition.ServiceConfigReadyInitMessage,
-			),
-			condition.UnknownCondition(
-				condition.DeploymentReadyCondition,
-				condition.InitReason,
-				condition.DeploymentReadyInitMessage,
-			),
-		)
-
-		instance.Status.Conditions.Init(&cl)
-	}
-	return nil
-}
-
-func (r *NovaAPIReconciler) reconcileNormal(
-	ctx context.Context,
-	h *helper.Helper,
-	instance *novav1.NovaAPI,
-) (ctrl.Result, error) {
 	// TODO(gibi): Can we use a simple map[string][string] for hashes?
 	// Collect hashes of all the input we depend on so that we can easily
 	// detect if something is changed.
@@ -291,6 +232,57 @@ func (r *NovaAPIReconciler) reconcileNormal(
 	}
 
 	return ctrl.Result{}, nil
+}
+
+func (r *NovaAPIReconciler) initStatus(
+	ctx context.Context, h *helper.Helper, instance *novav1.NovaAPI,
+) error {
+	if err := r.initConditions(ctx, h, instance); err != nil {
+		return err
+	}
+
+	// NOTE(gibi): initialize the rest of the status fields here
+	// so that the reconcile loop later can assume they are not nil.
+	if instance.Status.Hash == nil {
+		instance.Status.Hash = map[string]string{}
+	}
+	if instance.Status.APIEndpoints == nil {
+		instance.Status.APIEndpoints = map[string]string{}
+	}
+
+	return nil
+}
+
+func (r *NovaAPIReconciler) initConditions(
+	ctx context.Context, h *helper.Helper, instance *novav1.NovaAPI,
+) error {
+	if instance.Status.Conditions == nil {
+		instance.Status.Conditions = condition.Conditions{}
+		// initialize all conditions to Unknown
+		cl := condition.CreateList(
+			// TODO(gibi): Initialize each condition the controller reports
+			// here to Unknown. By default only the top level Ready condition is
+			// created by Conditions.Init()
+			condition.UnknownCondition(
+				condition.InputReadyCondition,
+				condition.InitReason,
+				condition.InputReadyInitMessage,
+			),
+			condition.UnknownCondition(
+				condition.ServiceConfigReadyCondition,
+				condition.InitReason,
+				condition.ServiceConfigReadyInitMessage,
+			),
+			condition.UnknownCondition(
+				condition.DeploymentReadyCondition,
+				condition.InitReason,
+				condition.DeploymentReadyInitMessage,
+			),
+		)
+
+		instance.Status.Conditions.Init(&cl)
+	}
+	return nil
 }
 
 // TODO(gibi): Carried over from placement, Sean started working on this
