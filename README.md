@@ -1,18 +1,102 @@
 # nova-operator
-// TODO(user): Add simple overview of use/purpose
+
+[![pre-commit.ci status](https://results.pre-commit.ci/badge/github/openstack-k8s-operators/nova-operator/master.svg)](https://results.pre-commit.ci/latest/github/openstack-k8s-operators/nova-operator/master)
+
+A golang operator for openstack nova lifecycle management
 
 ## Description
-// TODO(user): An in-depth paragraph about your project and overview of use
+
+This operator is built using the operator-sdk framework to provide day one and day two
+lifecycle managment of the OpenStack nova service on an OpenShift cluster.
 
 ## Getting Started
-You’ll need a Kubernetes cluster to run against. You can use [KIND](https://sigs.k8s.io/kind) to get a local cluster for testing, or run against a remote cluster.
+
+You’ll need a Kubernetes cluster to run against.
+You can use [openshift-local](https://developers.redhat.com/products/openshift-local/overview) to get a local cluster for testing, or run against a remote cluster.
 **Note:** Your controller will automatically use the current context in your kubeconfig file (i.e. whatever cluster `kubectl cluster-info` shows).
 
+### golang
+
+this repo currently uses go 1.18
+
+### pre-commit
+
+This repo uses pre-commit to automate basic checks that should be run before pushing a PR for review.
+pre-commit is optional but recommend to ensure good git hygiene.
+
+#### install go if required
+
+```sh
+sudo dnf install -y golang
+```
+
+#### installing in a virutal env
+
+```sh
+python3 -m venv .venv
+. .venv/bin/activate
+python3 -m pip install pre-commit
+pre-commit install --install-hooks
+```
+
+#### golangci-lint
+
+pre-commit is configured to run golangci-lint on each commit
+
+```sh
+curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.50.0
+```
+
+add "$(go env GOPATH)/bin" to your path via ~/.bashrc
+
+```sh
+if ! [[ "$PATH" =~ "$(go env GOPATH)/bin" ]]
+then
+    export PATH=${PATH}:$(go env GOPATH)/bin
+fi
+```
+
+confirm golangci-lint is installed
+
+```sh
+[stack@crc nova-operator]$ golangci-lint --version
+golangci-lint has version 1.50.0 built from 704109c6 on 2022-10-04T10:25:07Z
+```
+
+#### confirm pre-commit is working
+
+**NOTE:** this might take some time on the first run as it need to build the operator
+
+```sh
+(.venv) [stack@crc nova-operator]$ pre-commit run -a
+make-manifests...........................................................Passed
+make-generate............................................................Passed
+go fmt...................................................................Passed
+go vet...................................................................Passed
+go-mod-tidy..............................................................Passed
+golangci-lint............................................................Passed
+check for added large files..............................................Passed
+fix utf-8 byte order marker..............................................Passed
+check for case conflicts.................................................Passed
+check that executables have shebangs.....................................Passed
+check that scripts with shebangs are executable..........................Passed
+check for merge conflicts................................................Passed
+check for broken symlinks............................(no files to check)Skipped
+detect destroyed symlinks................................................Passed
+check yaml...............................................................Passed
+check json...............................................................Passed
+detect private key.......................................................Passed
+fix end of files.........................................................Passed
+don't commit to branch...................................................Passed
+trim trailing whitespace.................................................Passed
+```
+
 ### Running on the cluster
+
 1. Install Instances of Custom Resources:
 
 ```sh
-kubectl apply -f config/samples/
+make install
 ```
 
 2. Build and push your image to the location specified by `IMG`:
@@ -28,6 +112,7 @@ make deploy IMG=<some-registry>/nova-operator:tag
 ```
 
 ### Uninstall CRDs
+
 To delete the CRDs from the cluster:
 
 ```sh
@@ -35,6 +120,7 @@ make uninstall
 ```
 
 ### Undeploy controller
+
 UnDeploy the controller to the cluster:
 
 ```sh
@@ -42,15 +128,18 @@ make undeploy
 ```
 
 ## Contributing
+
 // TODO(user): Add detailed information on how you would like others to contribute to this project
 
 ### How it works
+
 This project aims to follow the Kubernetes [Operator pattern](https://kubernetes.io/docs/concepts/extend-kubernetes/operator/)
 
 It uses [Controllers](https://kubernetes.io/docs/concepts/architecture/controller/)
 which provides a reconcile function responsible for synchronizing resources untile the desired state is reached on the cluster
 
 ### Test It Out
+
 1. Install the CRDs into the cluster:
 
 ```sh
@@ -66,6 +155,7 @@ make run
 **NOTE:** You can also run this in one step by running: `make install run`
 
 ### Modifying the API definitions
+
 If you are editing the API definitions, generate the manifests such as CRs or CRDs using:
 
 ```sh
