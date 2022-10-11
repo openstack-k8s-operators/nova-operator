@@ -1,0 +1,57 @@
+ci:
+  autofix_prs: false
+  skip:
+   - 'make-manifests'
+   - 'make-generate'
+   - 'go-vet'
+   - 'golangci-lint'
+
+repos:
+- repo: local
+  hooks:
+    - id: make-manifests
+      name: make-manifests
+      language: system
+      entry: make
+      args: ['manifests']
+    - id: make-generate
+      name: make-generate
+      language: system
+      entry: make
+      args: ['generate']
+
+- repo: https://github.com/dnephin/pre-commit-golang
+  rev: v0.5.0
+  hooks:
+    - id: go-fmt
+      exclude: ^vendor
+    - id: go-vet
+    - id: go-mod-tidy
+
+- repo: https://github.com/golangci/golangci-lint
+  rev: v1.49.0
+  hooks:
+    - id: golangci-lint
+
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v4.3.0
+  hooks:
+    - id: check-added-large-files
+    - id: fix-byte-order-marker
+    - id: check-case-conflict
+    - id: check-executables-have-shebangs
+      exclude: ^vendor
+    - id: check-shebang-scripts-are-executable
+      exclude: ^vendor
+    - id: check-merge-conflict
+    - id: check-symlinks
+    - id: destroyed-symlinks
+    - id: check-yaml
+      args: [-m]
+    - id: check-json
+    - id: detect-private-key
+    - id: end-of-file-fixer
+      exclude: ^vendor
+    - id: no-commit-to-branch
+    - id: trailing-whitespace
+      exclude: ^vendor
