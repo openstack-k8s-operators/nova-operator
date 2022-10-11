@@ -119,7 +119,13 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 		}
 	}()
 
-	return r.reconcile(ctx, h, instance)
+	conductorSpec := novav1.NewNovaConductorSpec(instance.Spec)
+	result, err = r.reconcileNovaConductor(ctx, h, instance, conductorSpec)
+	if err != nil {
+		return result, err
+	}
+
+	return ctrl.Result{}, nil
 }
 
 func (r *NovaCellReconciler) initStatus(
@@ -151,21 +157,6 @@ func (r *NovaCellReconciler) initConditions(
 		instance.Status.Conditions.Init(&cl)
 	}
 	return nil
-}
-
-func (r *NovaCellReconciler) reconcile(
-	ctx context.Context,
-	h *helper.Helper,
-	instance *novav1.NovaCell,
-) (ctrl.Result, error) {
-
-	conductorSpec := novav1.NewNovaConductorSpec(instance.Spec)
-	result, err := r.reconcileNovaConductor(ctx, h, instance, conductorSpec)
-	if err != nil {
-		return result, err
-	}
-
-	return ctrl.Result{}, nil
 }
 
 func (r *NovaCellReconciler) reconcileNovaConductor(

@@ -124,61 +124,6 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		}
 	}()
 
-	return r.reconcileNormal(ctx, h, instance)
-
-}
-
-func (r *NovaReconciler) initStatus(
-	ctx context.Context, h *helper.Helper, instance *novav1.Nova,
-) error {
-	if err := r.initConditions(ctx, h, instance); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (r *NovaReconciler) initConditions(
-	ctx context.Context, h *helper.Helper, instance *novav1.Nova,
-) error {
-	if instance.Status.Conditions == nil {
-		instance.Status.Conditions = condition.Conditions{}
-		// initialize all conditions to Unknown
-		cl := condition.CreateList(
-			// TODO(gibi): Initialize each condition the controller reports
-			// here to Unknown. By default only the top level Ready condition is
-			// created by Conditions.Init()
-			condition.UnknownCondition(
-				novav1.NovaAPIDBReadyCondition,
-				condition.InitReason,
-				condition.DBReadyInitMessage,
-			),
-			condition.UnknownCondition(
-				novav1.NovaCell0DBReadyCondition,
-				condition.InitReason,
-				condition.DBReadyInitMessage,
-			),
-			condition.UnknownCondition(
-				novav1.NovaAPIReadyCondition,
-				condition.InitReason,
-				novav1.NovaAPIReadyInitMessage,
-			),
-			condition.UnknownCondition(
-				novav1.NovaCell0ReadyCondition,
-				condition.InitReason,
-				novav1.NovaCell0ReadyInitMessage,
-			),
-		)
-		instance.Status.Conditions.Init(&cl)
-	}
-	return nil
-}
-
-func (r *NovaReconciler) reconcileNormal(
-	ctx context.Context,
-	h *helper.Helper,
-	instance *novav1.Nova,
-) (ctrl.Result, error) {
 	// TODO(gibi): This should be checked in a webhook and reject the CR
 	// creation instead of setting its status.
 	var cell0Template novav1.NovaCellTemplate
@@ -206,7 +151,7 @@ func (r *NovaReconciler) reconcileNormal(
 		"nova-api",
 		instance.Namespace,
 	)
-	result, err := r.reconcileDB(
+	result, err = r.reconcileDB(
 		ctx,
 		h,
 		instance,
@@ -289,6 +234,52 @@ func (r *NovaReconciler) reconcileNormal(
 	}
 
 	return ctrl.Result{}, nil
+}
+
+func (r *NovaReconciler) initStatus(
+	ctx context.Context, h *helper.Helper, instance *novav1.Nova,
+) error {
+	if err := r.initConditions(ctx, h, instance); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *NovaReconciler) initConditions(
+	ctx context.Context, h *helper.Helper, instance *novav1.Nova,
+) error {
+	if instance.Status.Conditions == nil {
+		instance.Status.Conditions = condition.Conditions{}
+		// initialize all conditions to Unknown
+		cl := condition.CreateList(
+			// TODO(gibi): Initialize each condition the controller reports
+			// here to Unknown. By default only the top level Ready condition is
+			// created by Conditions.Init()
+			condition.UnknownCondition(
+				novav1.NovaAPIDBReadyCondition,
+				condition.InitReason,
+				condition.DBReadyInitMessage,
+			),
+			condition.UnknownCondition(
+				novav1.NovaCell0DBReadyCondition,
+				condition.InitReason,
+				condition.DBReadyInitMessage,
+			),
+			condition.UnknownCondition(
+				novav1.NovaAPIReadyCondition,
+				condition.InitReason,
+				novav1.NovaAPIReadyInitMessage,
+			),
+			condition.UnknownCondition(
+				novav1.NovaCell0ReadyCondition,
+				condition.InitReason,
+				novav1.NovaCell0ReadyInitMessage,
+			),
+		)
+		instance.Status.Conditions.Init(&cl)
+	}
+	return nil
 }
 
 func (r *NovaReconciler) reconcileDB(
