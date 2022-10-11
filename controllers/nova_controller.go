@@ -236,17 +236,21 @@ func (r *NovaReconciler) reconcileNormal(
 		return result, err
 	}
 
-	cell0, result, err := r.reconcileNovaCell0(
-		ctx,
-		h,
-		instance,
-		"cell0",
-		cell0Template,
-		cell0DB.GetDatabaseHostname(),
-		cell0Template.CellDatabaseUser,
-		apiDB.GetDatabaseHostname(),
-		instance.Spec.APIDatabaseUser,
-	)
+	// TODO(gibi): Pass down a narroved secret that only hold
+	// specific information but also holds user names
+	cell0Spec := novav1.NovaCellSpec{
+		CellName:                  "cell0",
+		Secret:                    instance.Spec.Secret,
+		CellDatabaseHostname:      cell0DB.GetDatabaseHostname(),
+		CellDatabaseUser:          cell0Template.CellDatabaseUser,
+		APIDatabaseHostname:       apiDB.GetDatabaseHostname(),
+		APIDatabaseUser:           instance.Spec.APIDatabaseUser,
+		ConductorServiceTemplate:  cell0Template.ConductorServiceTemplate,
+		MetadataServiceTemplate:   cell0Template.MetadataServiceTemplate,
+		NoVNCProxyServiceTemplate: cell0Template.NoVNCProxyServiceTemplate,
+		Debug:                     instance.Spec.Debug,
+	}
+	cell0, result, err := r.reconcileNovaCell0(ctx, h, instance, cell0Spec)
 	if err != nil {
 		return result, err
 	}
@@ -258,14 +262,22 @@ func (r *NovaReconciler) reconcileNormal(
 		return ctrl.Result{RequeueAfter: r.RequeueTimeout}, nil
 	}
 
-	result, err = r.reconcileNovaAPI(
-		ctx,
-		h,
-		instance,
-		apiDB.GetDatabaseHostname(),
-		cell0DB.GetDatabaseHostname(),
-		cell0Template.CellDatabaseUser,
-	)
+	// TODO(gibi): Pass down a narroved secret that only hold
+	// specific information but also holds user names
+	apiSpec := novav1.NovaAPISpec{
+		Secret:                instance.Spec.Secret,
+		APIDatabaseHostname:   apiDB.GetDatabaseHostname(),
+		APIDatabaseUser:       instance.Spec.APIDatabaseUser,
+		Cell0DatabaseHostname: cell0DB.GetDatabaseHostname(),
+		Cell0DatabaseUser:     cell0Template.CellDatabaseUser,
+		Debug:                 instance.Spec.Debug,
+		// NOTE(gibi): this is a coincidence that the NovaServiceBase
+		// has exactly the same fields as the NovaAPITemplate so we can convert
+		// between them directly. As soon as these two structs start to diverge
+		// we need to copy fields one by one here.
+		NovaServiceBase: novav1.NovaServiceBase(instance.Spec.APIServiceTemplate),
+	}
+	result, err = r.reconcileNovaAPI(ctx, h, instance, apiSpec)
 	if err != nil {
 		return result, err
 	}
@@ -329,45 +341,11 @@ func (r *NovaReconciler) reconcileDB(
 	return ctrl.Result{}, nil
 }
 
-func newNovaAPISpec(
-	novaAPITemplate novav1.NovaAPITemplate,
-	secretName string,
-	apiDatabaseHostname string,
-	apiDatabaseUser string,
-	cell0DatabaseHostname string,
-	cell0DatabaseUser string,
-	debug novav1.Debug,
-) novav1.NovaAPISpec {
-	apiSpec := novav1.NovaAPISpec{
-		// TODO(gibi): Pass down a narroved secret that only hold NovaAPI
-		// specific information but also holds user names
-		Secret: secretName,
-		// TODO(gibi): register service user in Keystone and get auth URL
-		// then we can pass those to NovaAPI here
-		// KeystoneAuthURL:
-		APIDatabaseHostname:   apiDatabaseHostname,
-		APIDatabaseUser:       apiDatabaseUser,
-		Cell0DatabaseHostname: cell0DatabaseHostname,
-		Cell0DatabaseUser:     cell0DatabaseUser,
-		// TODO(gibi): initialize API messag bus and pass it forward
-		// APIMessageBusHostname:
-		Debug: debug,
-		// NOTE(gibi): this is a coincidence that the NovaServiceBase
-		// has exactly the same fields as the NovaAPITemplate so we can convert
-		// between them directly. As soon as these two structs start to diverge
-		// we need to copy fields one by one here.
-		NovaServiceBase: novav1.NovaServiceBase(novaAPITemplate),
-	}
-	return apiSpec
-}
-
 func (r *NovaReconciler) reconcileNovaAPI(
 	ctx context.Context,
 	h *helper.Helper,
 	instance *novav1.Nova,
-	apiDatabaseHostname string,
-	cell0DatabaseHostname string,
-	cell0DatabaseUser string,
+	apiSpec novav1.NovaAPISpec,
 ) (ctrl.Result, error) {
 	api := &novav1.NovaAPI{
 		ObjectMeta: metav1.ObjectMeta{
@@ -377,15 +355,7 @@ func (r *NovaReconciler) reconcileNovaAPI(
 	}
 
 	op, err := controllerutil.CreateOrUpdate(ctx, r.Client, api, func() error {
-		api.Spec = newNovaAPISpec(
-			instance.Spec.APIServiceTemplate,
-			instance.Spec.Secret,
-			apiDatabaseHostname,
-			instance.Spec.APIDatabaseUser,
-			cell0DatabaseHostname,
-			cell0DatabaseUser,
-			instance.Spec.Debug,
-		)
+		api.Spec = apiSpec
 
 		err := controllerutil.SetControllerReference(instance, api, r.Scheme)
 		if err != nil {
@@ -421,62 +391,23 @@ func (r *NovaReconciler) reconcileNovaAPI(
 	return ctrl.Result{}, nil
 }
 
-func newNovaCellSpec(
-	cellName string,
-	cellTemplate novav1.NovaCellTemplate,
-	secretName string,
-	cellDatabaseHostname string,
-	cellDatabaseUser string,
-	apiDatabaseHostname string,
-	apiDatabaseUser string,
-	debug novav1.Debug,
-) novav1.NovaCellSpec {
-	cellSpec := novav1.NovaCellSpec{
-		CellName: cellName,
-		// TODO(gibi): Pass down a narroved secret that only hold
-		// specific information but also holds user names
-		Secret:                    secretName,
-		CellDatabaseHostname:      cellDatabaseHostname,
-		CellDatabaseUser:          cellDatabaseUser,
-		APIDatabaseHostname:       apiDatabaseHostname,
-		APIDatabaseUser:           apiDatabaseUser,
-		ConductorServiceTemplate:  cellTemplate.ConductorServiceTemplate,
-		MetadataServiceTemplate:   cellTemplate.MetadataServiceTemplate,
-		NoVNCProxyServiceTemplate: cellTemplate.NoVNCProxyServiceTemplate,
-		Debug:                     debug,
-	}
-	return cellSpec
-}
-
 func (r *NovaReconciler) reconcileNovaCell0(
 	ctx context.Context,
 	h *helper.Helper,
 	instance *novav1.Nova,
-	cellName string,
-	cellTemplate novav1.NovaCellTemplate,
-	cellDatabaseHostname string,
-	cellDatabaseUser string,
-	apiDatabaseHostname string,
-	apiDatabaseUser string,
+	cell0Spec novav1.NovaCellSpec,
 ) (*novav1.NovaCell, ctrl.Result, error) {
 	cell := &novav1.NovaCell{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      instance.Name + "-" + cellName,
+			Name:      instance.Name + "-" + cell0Spec.CellName,
 			Namespace: instance.Namespace,
 		},
 	}
 
 	op, err := controllerutil.CreateOrUpdate(ctx, r.Client, cell, func() error {
-		cell.Spec = newNovaCellSpec(
-			cellName,
-			cellTemplate,
-			instance.Spec.Secret,
-			cellDatabaseHostname,
-			cellDatabaseUser,
-			apiDatabaseHostname,
-			apiDatabaseUser,
-			instance.Spec.Debug,
-		)
+		// TODO(gibi): Pass down a narroved secret that only hold
+		// specific information but also holds user names
+		cell.Spec = cell0Spec
 
 		err := controllerutil.SetControllerReference(instance, cell, r.Scheme)
 		if err != nil {

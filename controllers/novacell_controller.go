@@ -155,8 +155,8 @@ func (r *NovaCellReconciler) reconcile(
 	instance *novav1.NovaCell,
 ) (ctrl.Result, error) {
 
-	result, err := r.reconcileNovaConductor(
-		ctx, h, instance, instance.Spec.CellDatabaseHostname)
+	conductorSpec := novav1.NewNovaConductorSpec(instance.Spec)
+	result, err := r.reconcileNovaConductor(ctx, h, instance, conductorSpec)
 	if err != nil {
 		return result, err
 	}
@@ -164,38 +164,11 @@ func (r *NovaCellReconciler) reconcile(
 	return ctrl.Result{}, nil
 }
 
-func newNovaConductorSpec(
-	novaConductorTemplate novav1.NovaConductorTemplate,
-	cellName string,
-	secretName string,
-	cellDatabaseHostname string,
-	cellDatabaseUser string,
-	apiDatabaseHostname string,
-	apiDatabaseUser string,
-	debug novav1.Debug,
-) novav1.NovaConductorSpec {
-	conductorSpec := novav1.NovaConductorSpec{
-		CellName: cellName,
-		// TODO(gibi): Pass down a narroved secret that only hold NovaAPI
-		// specific information but also holds user names
-		Secret:               secretName,
-		CellDatabaseHostname: cellDatabaseHostname,
-		CellDatabaseUser:     cellDatabaseUser,
-		APIDatabaseHostname:  apiDatabaseHostname,
-		APIDatabaseUser:      apiDatabaseUser,
-		// TODO(gibi): Pass the rest of the params when the NovaConductor
-		// starts using them.
-		Debug:           debug,
-		NovaServiceBase: novav1.NovaServiceBase(novaConductorTemplate),
-	}
-	return conductorSpec
-}
-
 func (r *NovaCellReconciler) reconcileNovaConductor(
 	ctx context.Context,
 	h *helper.Helper,
 	instance *novav1.NovaCell,
-	cellDatabaseHostname string,
+	conductorSpec novav1.NovaConductorSpec,
 ) (ctrl.Result, error) {
 	conductor := &novav1.NovaConductor{
 		ObjectMeta: metav1.ObjectMeta{
@@ -205,16 +178,7 @@ func (r *NovaCellReconciler) reconcileNovaConductor(
 	}
 
 	op, err := controllerutil.CreateOrUpdate(ctx, r.Client, conductor, func() error {
-		conductor.Spec = newNovaConductorSpec(
-			instance.Spec.ConductorServiceTemplate,
-			instance.Spec.CellName,
-			instance.Spec.Secret,
-			cellDatabaseHostname,
-			instance.Spec.CellDatabaseUser,
-			instance.Spec.APIDatabaseHostname,
-			instance.Spec.APIDatabaseUser,
-			instance.Spec.Debug,
-		)
+		conductor.Spec = conductorSpec
 
 		err := controllerutil.SetControllerReference(instance, conductor, r.Scheme)
 		if err != nil {
