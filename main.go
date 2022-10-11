@@ -109,89 +109,71 @@ func main() {
 		setupLog.Error(err, "unable to create k8s client")
 		os.Exit(1)
 	}
-
-	// The nova controler is the primary public interface
-	if err = (&controllers.NovaReconciler{
-		ReconcilerBase: nova_common.ReconcilerBase{
-			Client:  mgr.GetClient(),
-			Scheme:  mgr.GetScheme(),
-			Kclient: kclient,
-			Log:     ctrl.Log.WithName("controllers").WithName("Nova"),
+	reconcilers := map[string]nova_common.Managable{
+		"nova": &controllers.NovaReconciler{
+			ReconcilerBase: nova_common.ReconcilerBase{
+				Client:  mgr.GetClient(),
+				Scheme:  mgr.GetScheme(),
+				Kclient: kclient,
+				Log:     ctrl.Log.WithName("controllers").WithName("Nova"),
+			},
 		},
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Nova")
-		os.Exit(1)
+		"NovaCell": &controllers.NovaCellReconciler{
+			ReconcilerBase: nova_common.ReconcilerBase{
+				Client:  mgr.GetClient(),
+				Scheme:  mgr.GetScheme(),
+				Kclient: kclient,
+				Log:     ctrl.Log.WithName("controllers").WithName("NovaCell"),
+			},
+		},
+		"NovaAPI": &controllers.NovaAPIReconciler{
+			ReconcilerBase: nova_common.ReconcilerBase{
+				Client:  mgr.GetClient(),
+				Scheme:  mgr.GetScheme(),
+				Kclient: kclient,
+				Log:     ctrl.Log.WithName("controllers").WithName("NovaAPI"),
+			},
+			RequeueTimeoutSeconds: 5,
+		},
+		"NovaScheduler": &controllers.NovaSchedulerReconciler{
+			ReconcilerBase: nova_common.ReconcilerBase{
+				Client:  mgr.GetClient(),
+				Scheme:  mgr.GetScheme(),
+				Kclient: kclient,
+				Log:     ctrl.Log.WithName("controllers").WithName("NovaScheduler"),
+			},
+		},
+		"NovaConductor": &controllers.NovaConductorReconciler{
+			ReconcilerBase: nova_common.ReconcilerBase{
+				Client:  mgr.GetClient(),
+				Scheme:  mgr.GetScheme(),
+				Kclient: kclient,
+				Log:     ctrl.Log.WithName("controllers").WithName("NovaConductor"),
+			},
+			RequeueTimeoutSeconds: 5,
+		},
+		"NovaMetadata": &controllers.NovaMetadataReconciler{
+			ReconcilerBase: nova_common.ReconcilerBase{
+				Client:  mgr.GetClient(),
+				Scheme:  mgr.GetScheme(),
+				Kclient: kclient,
+				Log:     ctrl.Log.WithName("controllers").WithName("NovaMetadata"),
+			},
+		},
+		"NovaNoVNCProxy": &controllers.NovaNoVNCProxyReconciler{
+			ReconcilerBase: nova_common.ReconcilerBase{
+				Client:  mgr.GetClient(),
+				Scheme:  mgr.GetScheme(),
+				Kclient: kclient,
+				Log:     ctrl.Log.WithName("controllers").WithName("NovaNoVNCProxy"),
+			},
+		},
 	}
-
-	// the rest of the controllers manage the internal sate of the operands deployed by the operator.
-	if err = (&controllers.NovaCellReconciler{
-		ReconcilerBase: nova_common.ReconcilerBase{
-			Client:  mgr.GetClient(),
-			Scheme:  mgr.GetScheme(),
-			Kclient: kclient,
-			Log:     ctrl.Log.WithName("controllers").WithName("NovaCell"),
-		},
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "NovaCell")
-		os.Exit(1)
-	}
-
-	if err = (&controllers.NovaAPIReconciler{
-		ReconcilerBase: nova_common.ReconcilerBase{
-			Client:  mgr.GetClient(),
-			Scheme:  mgr.GetScheme(),
-			Kclient: kclient,
-			Log:     ctrl.Log.WithName("controllers").WithName("NovaAPI"),
-		},
-		RequeueTimeoutSeconds: 5,
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "NovaAPI")
-		os.Exit(1)
-	}
-	if err = (&controllers.NovaSchedulerReconciler{
-		ReconcilerBase: nova_common.ReconcilerBase{
-			Client:  mgr.GetClient(),
-			Scheme:  mgr.GetScheme(),
-			Kclient: kclient,
-			Log:     ctrl.Log.WithName("controllers").WithName("NovaScheduler"),
-		},
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "NovaScheduler")
-		os.Exit(1)
-	}
-	if err = (&controllers.NovaConductorReconciler{
-		ReconcilerBase: nova_common.ReconcilerBase{
-			Client:  mgr.GetClient(),
-			Scheme:  mgr.GetScheme(),
-			Kclient: kclient,
-			Log:     ctrl.Log.WithName("controllers").WithName("NovaConductor"),
-		},
-		RequeueTimeoutSeconds: 5,
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "NovaConductor")
-		os.Exit(1)
-	}
-	if err = (&controllers.NovaMetadataReconciler{
-		ReconcilerBase: nova_common.ReconcilerBase{
-			Client:  mgr.GetClient(),
-			Scheme:  mgr.GetScheme(),
-			Kclient: kclient,
-			Log:     ctrl.Log.WithName("controllers").WithName("NovaMetadata"),
-		},
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "NovaMetadata")
-		os.Exit(1)
-	}
-	if err = (&controllers.NovaNoVNCProxyReconciler{
-		ReconcilerBase: nova_common.ReconcilerBase{
-			Client:  mgr.GetClient(),
-			Scheme:  mgr.GetScheme(),
-			Kclient: kclient,
-			Log:     ctrl.Log.WithName("controllers").WithName("NovaNoVNCProxy"),
-		},
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "NovaNoVNCProxy")
-		os.Exit(1)
+	for name, controller := range reconcilers {
+		if err = controller.SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", name)
+			os.Exit(1)
+		}
 	}
 	//+kubebuilder:scaffold:builder
 
