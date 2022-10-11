@@ -20,3 +20,16 @@ type ReconcilerBase struct {
 type Managable interface {
 	SetupWithManager(mgr ctrl.Manager) error
 }
+
+// NewReconcilerBase constructs a ReconcilerBase given a name manager and Kclient.
+func NewReconcilerBase(
+	name string, mgr ctrl.Manager, kclient kubernetes.Interface,
+) ReconcilerBase {
+	log := ctrl.Log.WithName("controllers").WithName(name)
+	return ReconcilerBase{
+		Client:  mgr.GetClient(),
+		Scheme:  mgr.GetScheme(),
+		Kclient: kclient,
+		Log:     log,
+	}
+}

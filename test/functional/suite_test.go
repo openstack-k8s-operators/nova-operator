@@ -23,13 +23,11 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"golang.org/x/mod/modfile"
 
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -41,7 +39,6 @@ import (
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	novav1beta1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/nova-operator/controllers"
-	nova_common "github.com/openstack-k8s-operators/nova-operator/pkg/common"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -111,9 +108,9 @@ var _ = BeforeSuite(func() {
 	Expect(cfg).NotTo(BeNil())
 
 	// NOTE(gibi): Need to add all API schemas our operator can own.
-	// Keep this in synch with NovaAPIReconciler.SetupWithManager,
-	// otherwise the reconciler loop will silently not start
-	// in the test env.
+	// this includes external scheme lke mariadb otherwise the
+	// reconciler loop will silently not start
+	// TODO(sean): factor this out to a common function.
 	err = novav1beta1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 	err = mariadbv1.AddToScheme(scheme.Scheme)
@@ -131,52 +128,7 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).ToNot(HaveOccurred())
 
-	kclient, err := kubernetes.NewForConfig(cfg)
-	Expect(err).ToNot(HaveOccurred(), "failed to create kclient")
-
-	err = (&controllers.NovaAPIReconciler{
-		ReconcilerBase: nova_common.ReconcilerBase{
-			Client:  k8sManager.GetClient(),
-			Scheme:  k8sManager.GetScheme(),
-			Kclient: kclient,
-			Log:     ctrl.Log.WithName("controllers").WithName("NovaApi"),
-		},
-		RequeueTimeoutSeconds: 1,
-	}).SetupWithManager(k8sManager)
-	Expect(err).ToNot(HaveOccurred())
-
-	err = (&controllers.NovaReconciler{
-		ReconcilerBase: nova_common.ReconcilerBase{
-			Client:  k8sManager.GetClient(),
-			Scheme:  k8sManager.GetScheme(),
-			Kclient: kclient,
-			Log:     ctrl.Log.WithName("controllers").WithName("Nova"),
-		},
-		RequeueTimeout: time.Duration(100) * time.Millisecond,
-	}).SetupWithManager(k8sManager)
-	Expect(err).ToNot(HaveOccurred())
-
-	err = (&controllers.NovaConductorReconciler{
-		ReconcilerBase: nova_common.ReconcilerBase{
-			Client:  k8sManager.GetClient(),
-			Scheme:  k8sManager.GetScheme(),
-			Kclient: kclient,
-			Log:     ctrl.Log.WithName("controllers").WithName("NovaConductor"),
-		},
-		RequeueTimeoutSeconds: 1,
-	}).SetupWithManager(k8sManager)
-	Expect(err).ToNot(HaveOccurred())
-
-	err = (&controllers.NovaCellReconciler{
-		ReconcilerBase: nova_common.ReconcilerBase{
-			Client:  k8sManager.GetClient(),
-			Scheme:  k8sManager.GetScheme(),
-			Kclient: kclient,
-			Log:     ctrl.Log.WithName("controllers").WithName("NovaApi"),
-		},
-	}).SetupWithManager(k8sManager)
-
-	Expect(err).ToNot(HaveOccurred())
+	controllers.SetupReconcilers(k8sManager, ctrl.Log.WithName("testSetup"), cfg)
 
 	go func() {
 		defer GinkgoRecover()

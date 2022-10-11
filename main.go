@@ -23,7 +23,7 @@ import (
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
-	"k8s.io/client-go/kubernetes"
+
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -36,7 +36,6 @@ import (
 
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	novav1beta1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
-	nova_common "github.com/openstack-k8s-operators/nova-operator/pkg/common"
 
 	"github.com/openstack-k8s-operators/nova-operator/controllers"
 	//+kubebuilder:scaffold:imports
@@ -104,79 +103,10 @@ func main() {
 		setupLog.Error(err, "unable to get config")
 		os.Exit(1)
 	}
-	kclient, err := kubernetes.NewForConfig(cfg)
-	if err != nil {
-		setupLog.Error(err, "unable to create k8s client")
-		os.Exit(1)
-	}
-	reconcilers := map[string]nova_common.Managable{
-		"nova": &controllers.NovaReconciler{
-			ReconcilerBase: nova_common.ReconcilerBase{
-				Client:  mgr.GetClient(),
-				Scheme:  mgr.GetScheme(),
-				Kclient: kclient,
-				Log:     ctrl.Log.WithName("controllers").WithName("Nova"),
-			},
-		},
-		"NovaCell": &controllers.NovaCellReconciler{
-			ReconcilerBase: nova_common.ReconcilerBase{
-				Client:  mgr.GetClient(),
-				Scheme:  mgr.GetScheme(),
-				Kclient: kclient,
-				Log:     ctrl.Log.WithName("controllers").WithName("NovaCell"),
-			},
-		},
-		"NovaAPI": &controllers.NovaAPIReconciler{
-			ReconcilerBase: nova_common.ReconcilerBase{
-				Client:  mgr.GetClient(),
-				Scheme:  mgr.GetScheme(),
-				Kclient: kclient,
-				Log:     ctrl.Log.WithName("controllers").WithName("NovaAPI"),
-			},
-			RequeueTimeoutSeconds: 5,
-		},
-		"NovaScheduler": &controllers.NovaSchedulerReconciler{
-			ReconcilerBase: nova_common.ReconcilerBase{
-				Client:  mgr.GetClient(),
-				Scheme:  mgr.GetScheme(),
-				Kclient: kclient,
-				Log:     ctrl.Log.WithName("controllers").WithName("NovaScheduler"),
-			},
-		},
-		"NovaConductor": &controllers.NovaConductorReconciler{
-			ReconcilerBase: nova_common.ReconcilerBase{
-				Client:  mgr.GetClient(),
-				Scheme:  mgr.GetScheme(),
-				Kclient: kclient,
-				Log:     ctrl.Log.WithName("controllers").WithName("NovaConductor"),
-			},
-			RequeueTimeoutSeconds: 5,
-		},
-		"NovaMetadata": &controllers.NovaMetadataReconciler{
-			ReconcilerBase: nova_common.ReconcilerBase{
-				Client:  mgr.GetClient(),
-				Scheme:  mgr.GetScheme(),
-				Kclient: kclient,
-				Log:     ctrl.Log.WithName("controllers").WithName("NovaMetadata"),
-			},
-		},
-		"NovaNoVNCProxy": &controllers.NovaNoVNCProxyReconciler{
-			ReconcilerBase: nova_common.ReconcilerBase{
-				Client:  mgr.GetClient(),
-				Scheme:  mgr.GetScheme(),
-				Kclient: kclient,
-				Log:     ctrl.Log.WithName("controllers").WithName("NovaNoVNCProxy"),
-			},
-		},
-	}
-	for name, controller := range reconcilers {
-		if err = controller.SetupWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create controller", "controller", name)
-			os.Exit(1)
-		}
-	}
-	//+kubebuilder:scaffold:builder
 
+	controllers.SetupReconcilers(mgr, setupLog, cfg)
+
+	//+kubebuilder:scaffold:builder
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up health check")
 		os.Exit(1)
