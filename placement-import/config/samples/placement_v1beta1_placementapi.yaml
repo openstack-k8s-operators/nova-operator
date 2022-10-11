@@ -4,7 +4,7 @@ metadata:
   name: placement
 spec:
   serviceUser: placement
-  containerImage: quay.io/tripleotraincentos8/centos-binary-placement-api:current-tripleo
+  containerImage: quay.io/tripleowallabycentos9/openstack-placement-api:current-tripleo
   customServiceConfig: |
     [DEFAULT]
     debug = true
