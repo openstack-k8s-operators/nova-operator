@@ -19,7 +19,7 @@ kind: PlacementAPI
 metadata:
   name: placement
 spec:
-  containerImage: quay.io/tripleotraincentos8/centos-binary-placement-api:current-tripleo
+  containerImage: quay.io/tripleowallabycentos9/openstack-placement-api:current-tripleo
   databaseInstance: openstack
   secret: placement-secret
 ```
