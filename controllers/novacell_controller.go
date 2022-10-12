@@ -119,8 +119,7 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 		}
 	}()
 
-	conductorSpec := novav1.NewNovaConductorSpec(instance.Spec)
-	result, err = r.reconcileNovaConductor(ctx, h, instance, conductorSpec)
+	result, err = r.ensureConductor(ctx, h, instance)
 	if err != nil {
 		return result, err
 	}
@@ -159,12 +158,12 @@ func (r *NovaCellReconciler) initConditions(
 	return nil
 }
 
-func (r *NovaCellReconciler) reconcileNovaConductor(
+func (r *NovaCellReconciler) ensureConductor(
 	ctx context.Context,
 	h *helper.Helper,
 	instance *novav1.NovaCell,
-	conductorSpec novav1.NovaConductorSpec,
 ) (ctrl.Result, error) {
+	conductorSpec := novav1.NewNovaConductorSpec(instance.Spec)
 	conductor := &novav1.NovaConductor{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      instance.Name + "-conductor",
