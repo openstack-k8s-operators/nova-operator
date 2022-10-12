@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 
-	corev1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -126,109 +125,35 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 
 	// TODO(gibi): This should be checked in a webhook and reject the CR
 	// creation instead of setting its status.
-	var cell0Template novav1.NovaCellTemplate
-	var ok bool
-
-	if cell0Template, ok = instance.Spec.CellTemplates["cell0"]; !ok {
-		err := fmt.Errorf("missing cell0 specification from Spec.CellTemplates")
-		instance.Status.Conditions.Set(condition.FalseCondition(
-			novav1.NovaCell0ReadyCondition,
-			condition.ErrorReason,
-			condition.SeverityError,
-			novav1.NovaCell0ReadyErrorMessage,
-			err.Error()))
-
+	cell0Template, err := r.getCell0Template(instance)
+	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	apiDB := database.NewDatabaseWithNamespace(
-		nova.NovaAPIDatabaseName,
-		instance.Spec.APIDatabaseUser,
-		instance.Spec.Secret,
-		map[string]string{
-			"dbName": instance.Spec.APIDatabaseInstance,
-		},
-		"nova-api",
-		instance.Namespace,
-	)
-	result, err = r.reconcileDB(
-		ctx,
-		h,
-		instance,
-		apiDB,
-		instance.Spec.APIDatabaseInstance,
-		novav1.NovaAPIDBReadyCondition,
-	)
+	apiDB, result, err := r.ensureAPIDB(ctx, h, instance)
 	if (err != nil || result != ctrl.Result{}) {
 		return result, err
 	}
 
-	cell0DB := database.NewDatabaseWithNamespace(
-		nova.NovaCell0DatabaseName,
-		cell0Template.CellDatabaseUser,
-		instance.Spec.Secret,
-		map[string]string{
-			"dbName": cell0Template.CellDatabaseInstance,
-		},
-		"nova-cell0",
-		instance.Namespace,
-	)
-	result, err = r.reconcileDB(
-		ctx,
-		h,
-		instance,
-		cell0DB,
-		cell0Template.CellDatabaseInstance,
-		novav1.NovaCell0DBReadyCondition,
-	)
+	cell0DB, result, err := r.ensureCell0DB(ctx, h, instance, cell0Template)
 	if (err != nil || result != ctrl.Result{}) {
 		return result, err
 	}
 
-	// TODO(gibi): Pass down a narroved secret that only hold
-	// specific information but also holds user names
-	cell0Spec := novav1.NovaCellSpec{
-		CellName:                  "cell0",
-		Secret:                    instance.Spec.Secret,
-		CellDatabaseHostname:      cell0DB.GetDatabaseHostname(),
-		CellDatabaseUser:          cell0Template.CellDatabaseUser,
-		APIDatabaseHostname:       apiDB.GetDatabaseHostname(),
-		APIDatabaseUser:           instance.Spec.APIDatabaseUser,
-		ConductorServiceTemplate:  cell0Template.ConductorServiceTemplate,
-		MetadataServiceTemplate:   cell0Template.MetadataServiceTemplate,
-		NoVNCProxyServiceTemplate: cell0Template.NoVNCProxyServiceTemplate,
-		Debug:                     instance.Spec.Debug,
-	}
-	cell0, result, err := r.reconcileNovaCell0(ctx, h, instance, cell0Spec)
+	cell0, result, err := r.ensureCell0(ctx, h, instance, cell0Template, cell0DB, apiDB)
 	if err != nil {
 		return result, err
 	}
 
 	// Don't move forward with the other service creations like NovaAPI until
 	// cell0 is ready as top level services needs cell0 to register in
-	cell0ReadyCond := cell0.Status.Conditions.Get(condition.ReadyCondition)
-	if cell0ReadyCond == nil || cell0ReadyCond.Status != corev1.ConditionTrue {
+	if !cell0.IsReady() {
 		// It is OK to return success as NovaCell expected to change to Ready
 		// and we are watching NovaCell
 		return ctrl.Result{}, nil
 	}
 
-	// TODO(gibi): Pass down a narroved secret that only hold
-	// specific information but also holds user names
-	apiSpec := novav1.NovaAPISpec{
-		Secret:                instance.Spec.Secret,
-		APIDatabaseHostname:   apiDB.GetDatabaseHostname(),
-		APIDatabaseUser:       instance.Spec.APIDatabaseUser,
-		Cell0DatabaseHostname: cell0DB.GetDatabaseHostname(),
-		Cell0DatabaseUser:     cell0Template.CellDatabaseUser,
-		Debug:                 instance.Spec.Debug,
-		// NOTE(gibi): this is a coincidence that the NovaServiceBase
-		// has exactly the same fields as the NovaAPITemplate so we can convert
-		// between them directly. As soon as these two structs start to diverge
-		// we need to copy fields one by one here.
-		NovaServiceBase: novav1.NovaServiceBase(instance.Spec.APIServiceTemplate),
-	}
-	result, err = r.reconcileNovaAPI(ctx, h, instance, apiSpec)
+	result, err = r.ensureAPI(ctx, h, instance, cell0Template, cell0DB, apiDB)
 	if err != nil {
 		return result, err
 	}
@@ -282,7 +207,7 @@ func (r *NovaReconciler) initConditions(
 	return nil
 }
 
-func (r *NovaReconciler) reconcileDB(
+func (r *NovaReconciler) ensureDB(
 	ctx context.Context,
 	h *helper.Helper,
 	instance *novav1.Nova,
@@ -338,62 +263,101 @@ func (r *NovaReconciler) reconcileDB(
 	return ctrl.Result{}, nil
 }
 
-func (r *NovaReconciler) reconcileNovaAPI(
-	ctx context.Context,
-	h *helper.Helper,
-	instance *novav1.Nova,
-	apiSpec novav1.NovaAPISpec,
-) (ctrl.Result, error) {
-	api := &novav1.NovaAPI{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      instance.Name + "-api",
-			Namespace: instance.Namespace,
-		},
-	}
+func (r *NovaReconciler) getCell0Template(instance *novav1.Nova) (novav1.NovaCellTemplate, error) {
+	var cell0Template novav1.NovaCellTemplate
+	var ok bool
 
-	op, err := controllerutil.CreateOrPatch(ctx, r.Client, api, func() error {
-		api.Spec = apiSpec
-
-		err := controllerutil.SetControllerReference(instance, api, r.Scheme)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		condition.FalseCondition(
-			novav1.NovaAPIReadyCondition,
+	if cell0Template, ok = instance.Spec.CellTemplates["cell0"]; !ok {
+		err := fmt.Errorf("missing cell0 specification from Spec.CellTemplates")
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			novav1.NovaCell0ReadyCondition,
 			condition.ErrorReason,
 			condition.SeverityError,
-			novav1.NovaAPIReadyErrorMessage,
-			err.Error(),
-		)
-		return ctrl.Result{}, err
+			novav1.NovaCell0ReadyErrorMessage,
+			err.Error()))
+
+		return cell0Template, err
 	}
 
-	if op != controllerutil.OperationResultNone {
-		util.LogForObject(h, fmt.Sprintf("NovaAPI %s.", string(op)), instance, "NovaAPI.Name", api.Name)
-	}
-
-	c := api.Status.Conditions.Mirror(novav1.NovaAPIReadyCondition)
-	// NOTE(gibi): it can be nil if the NovaAPI CR is created but no
-	// reconciliation is run on it to initialize the ReadyCondition yet.
-	if c != nil {
-		instance.Status.Conditions.Set(c)
-	}
-	instance.Status.APIServiceReadyCount = api.Status.ReadyCount
-
-	return ctrl.Result{}, nil
+	return cell0Template, nil
 }
 
-func (r *NovaReconciler) reconcileNovaCell0(
+func (r *NovaReconciler) ensureAPIDB(
 	ctx context.Context,
 	h *helper.Helper,
 	instance *novav1.Nova,
-	cell0Spec novav1.NovaCellSpec,
+) (*database.Database, ctrl.Result, error) {
+	apiDB := database.NewDatabaseWithNamespace(
+		nova.NovaAPIDatabaseName,
+		instance.Spec.APIDatabaseUser,
+		instance.Spec.Secret,
+		map[string]string{
+			"dbName": instance.Spec.APIDatabaseInstance,
+		},
+		"nova-api",
+		instance.Namespace,
+	)
+	result, err := r.ensureDB(
+		ctx,
+		h,
+		instance,
+		apiDB,
+		instance.Spec.APIDatabaseInstance,
+		novav1.NovaAPIDBReadyCondition,
+	)
+	return apiDB, result, err
+}
+
+func (r *NovaReconciler) ensureCell0DB(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *novav1.Nova,
+	cell0Template novav1.NovaCellTemplate,
+) (*database.Database, ctrl.Result, error) {
+	cell0DB := database.NewDatabaseWithNamespace(
+		nova.NovaCell0DatabaseName,
+		cell0Template.CellDatabaseUser,
+		instance.Spec.Secret,
+		map[string]string{
+			"dbName": cell0Template.CellDatabaseInstance,
+		},
+		"nova-cell0",
+		instance.Namespace,
+	)
+	result, err := r.ensureDB(
+		ctx,
+		h,
+		instance,
+		cell0DB,
+		cell0Template.CellDatabaseInstance,
+		novav1.NovaCell0DBReadyCondition,
+	)
+	return cell0DB, result, err
+}
+
+func (r *NovaReconciler) ensureCell0(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *novav1.Nova,
+	cell0Template novav1.NovaCellTemplate,
+	cell0DB *database.Database,
+	apiDB *database.Database,
 ) (*novav1.NovaCell, ctrl.Result, error) {
+	// TODO(gibi): Pass down a narrowed secret that only holds
+	// specific information but also holds user names
+	cell0Spec := novav1.NovaCellSpec{
+		CellName:                  "cell0",
+		Secret:                    instance.Spec.Secret,
+		CellDatabaseHostname:      cell0DB.GetDatabaseHostname(),
+		CellDatabaseUser:          cell0Template.CellDatabaseUser,
+		APIDatabaseHostname:       apiDB.GetDatabaseHostname(),
+		APIDatabaseUser:           instance.Spec.APIDatabaseUser,
+		ConductorServiceTemplate:  cell0Template.ConductorServiceTemplate,
+		MetadataServiceTemplate:   cell0Template.MetadataServiceTemplate,
+		NoVNCProxyServiceTemplate: cell0Template.NoVNCProxyServiceTemplate,
+		Debug:                     instance.Spec.Debug,
+	}
+
 	cell := &novav1.NovaCell{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      instance.Name + "-" + cell0Spec.CellName,
@@ -437,6 +401,73 @@ func (r *NovaReconciler) reconcileNovaCell0(
 	}
 
 	return cell, ctrl.Result{}, nil
+}
+
+func (r *NovaReconciler) ensureAPI(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *novav1.Nova,
+	cell0Template novav1.NovaCellTemplate,
+	cell0DB *database.Database,
+	apiDB *database.Database,
+) (ctrl.Result, error) {
+	// TODO(gibi): Pass down a narroved secret that only hold
+	// specific information but also holds user names
+	apiSpec := novav1.NovaAPISpec{
+		Secret:                instance.Spec.Secret,
+		APIDatabaseHostname:   apiDB.GetDatabaseHostname(),
+		APIDatabaseUser:       instance.Spec.APIDatabaseUser,
+		Cell0DatabaseHostname: cell0DB.GetDatabaseHostname(),
+		Cell0DatabaseUser:     cell0Template.CellDatabaseUser,
+		Debug:                 instance.Spec.Debug,
+		// NOTE(gibi): this is a coincidence that the NovaServiceBase
+		// has exactly the same fields as the NovaAPITemplate so we can convert
+		// between them directly. As soon as these two structs start to diverge
+		// we need to copy fields one by one here.
+		NovaServiceBase: novav1.NovaServiceBase(instance.Spec.APIServiceTemplate),
+	}
+	api := &novav1.NovaAPI{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      instance.Name + "-api",
+			Namespace: instance.Namespace,
+		},
+	}
+
+	op, err := controllerutil.CreateOrPatch(ctx, r.Client, api, func() error {
+		api.Spec = apiSpec
+
+		err := controllerutil.SetControllerReference(instance, api, r.Scheme)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		condition.FalseCondition(
+			novav1.NovaAPIReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityError,
+			novav1.NovaAPIReadyErrorMessage,
+			err.Error(),
+		)
+		return ctrl.Result{}, err
+	}
+
+	if op != controllerutil.OperationResultNone {
+		util.LogForObject(h, fmt.Sprintf("NovaAPI %s.", string(op)), instance, "NovaAPI.Name", api.Name)
+	}
+
+	c := api.Status.Conditions.Mirror(novav1.NovaAPIReadyCondition)
+	// NOTE(gibi): it can be nil if the NovaAPI CR is created but no
+	// reconciliation is run on it to initialize the ReadyCondition yet.
+	if c != nil {
+		instance.Status.Conditions.Set(c)
+	}
+	instance.Status.APIServiceReadyCount = api.Status.ReadyCount
+
+	return ctrl.Result{}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
