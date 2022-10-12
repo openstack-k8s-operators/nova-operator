@@ -160,20 +160,8 @@ func (r *NovaAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (re
 	// all our input checks out so report InputReady
 	instance.Status.Conditions.MarkTrue(condition.InputReadyCondition, condition.InputReadyMessage)
 
-	// create ConfigMaps required for nova-api service
-	// - %-scripts configmap holding scripts to e.g. bootstrap the service
-	// - %-config configmap holding minimal nova-api config required to get
-	//   the service up, user can add additional files to be added to the service
-	// - parameters which has passwords gets added from the OpenStack secret
-	//   via the init container
-	err = r.generateServiceConfigMaps(ctx, h, instance, &hashes)
+	err = r.ensureConfigMaps(ctx, h, instance, &hashes)
 	if err != nil {
-		instance.Status.Conditions.Set(condition.FalseCondition(
-			condition.ServiceConfigReadyCondition,
-			condition.ErrorReason,
-			condition.SeverityWarning,
-			condition.ServiceConfigReadyErrorMessage,
-			err.Error()))
 		return ctrl.Result{}, err
 	}
 
@@ -183,52 +171,14 @@ func (r *NovaAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (re
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-	if val, ok := instance.Status.Hash[common.InputHashName]; !ok || val != inputHash {
-		instance.Status.Hash[common.InputHashName] = inputHash
-	}
+
+	instance.Status.Hash[common.InputHashName] = inputHash
 
 	instance.Status.Conditions.MarkTrue(condition.ServiceConfigReadyCondition, condition.ServiceConfigReadyMessage)
 
-	serviceLabels := map[string]string{
-		common.AppSelector: NovaAPILabelPrefix,
-	}
-
-	depl := deployment.NewDeployment(novaapi.Deployment(instance, inputHash, serviceLabels), 1)
-	depl.SetTimeout(r.RequeueTimeout)
-	ctrlResult, err := depl.CreateOrPatch(ctx, h)
-	if err != nil && !k8s_errors.IsNotFound(err) {
-		util.LogErrorForObject(h, err, "Deployment failed", instance)
-		instance.Status.Conditions.Set(condition.FalseCondition(
-			condition.DeploymentReadyCondition,
-			condition.ErrorReason,
-			condition.SeverityWarning,
-			condition.DeploymentReadyErrorMessage,
-			err.Error()))
-		return ctrlResult, err
-	} else if (ctrlResult != ctrl.Result{} || k8s_errors.IsNotFound(err)) {
-		util.LogForObject(h, "Deployment in progress", instance)
-		instance.Status.Conditions.Set(condition.FalseCondition(
-			condition.DeploymentReadyCondition,
-			condition.RequestedReason,
-			condition.SeverityInfo,
-			condition.DeploymentReadyRunningMessage))
-		// It is OK to return success as we are watching for Deployment changes
-		return ctrl.Result{}, nil
-	}
-
-	instance.Status.ReadyCount = depl.GetDeployment().Status.ReadyReplicas
-	if instance.Status.ReadyCount > 0 {
-		util.LogForObject(h, "Deployment is ready", instance)
-		instance.Status.Conditions.MarkTrue(condition.DeploymentReadyCondition, condition.DeploymentReadyMessage)
-	} else {
-		util.LogForObject(h, "Deployment is not ready", instance, "Status", depl.GetDeployment().Status)
-		instance.Status.Conditions.Set(condition.FalseCondition(
-			condition.DeploymentReadyCondition,
-			condition.RequestedReason,
-			condition.SeverityInfo,
-			condition.DeploymentReadyRunningMessage))
-		// It is OK to return success as we are watching for Deployment changes
-		return ctrl.Result{}, nil
+	result, err = r.ensureDeployment(ctx, h, instance, inputHash)
+	if (err != nil || result != ctrl.Result{}) {
+		return result, err
 	}
 
 	return ctrl.Result{}, nil
@@ -281,6 +231,31 @@ func (r *NovaAPIReconciler) initConditions(
 		)
 
 		instance.Status.Conditions.Init(&cl)
+	}
+	return nil
+}
+
+func (r *NovaAPIReconciler) ensureConfigMaps(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *novav1.NovaAPI,
+	hashes *map[string]env.Setter,
+) error {
+	// create ConfigMaps required for nova-api service
+	// - %-scripts configmap holding scripts to e.g. bootstrap the service
+	// - %-config configmap holding minimal nova-api config required to get
+	//   the service up, user can add additional files to be added to the service
+	// - parameters which has passwords gets added from the OpenStack secret
+	//   via the init container
+	err := r.generateServiceConfigMaps(ctx, h, instance, hashes)
+	if err != nil {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.ServiceConfigReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.ServiceConfigReadyErrorMessage,
+			err.Error()))
+		return err
 	}
 	return nil
 }
@@ -351,6 +326,56 @@ func (r *NovaAPIReconciler) generateServiceConfigMaps(
 	}
 
 	return nil
+}
+
+func (r *NovaAPIReconciler) ensureDeployment(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *novav1.NovaAPI,
+	inputHash string,
+) (ctrl.Result, error) {
+	serviceLabels := map[string]string{
+		common.AppSelector: NovaAPILabelPrefix,
+	}
+
+	depl := deployment.NewDeployment(novaapi.Deployment(instance, inputHash, serviceLabels), 1)
+	depl.SetTimeout(r.RequeueTimeout)
+	ctrlResult, err := depl.CreateOrPatch(ctx, h)
+	if err != nil {
+		util.LogErrorForObject(h, err, "Deployment failed", instance)
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.DeploymentReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.DeploymentReadyErrorMessage,
+			err.Error()))
+		return ctrlResult, err
+	} else if (ctrlResult != ctrl.Result{}) {
+		util.LogForObject(h, "Deployment in progress", instance)
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.DeploymentReadyCondition,
+			condition.RequestedReason,
+			condition.SeverityInfo,
+			condition.DeploymentReadyRunningMessage))
+		// It is OK to return success as we are watching for Deployment changes
+		return ctrlResult, nil
+	}
+
+	instance.Status.ReadyCount = depl.GetDeployment().Status.ReadyReplicas
+	if instance.Status.ReadyCount > 0 {
+		util.LogForObject(h, "Deployment is ready", instance)
+		instance.Status.Conditions.MarkTrue(condition.DeploymentReadyCondition, condition.DeploymentReadyMessage)
+	} else {
+		util.LogForObject(h, "Deployment is not ready", instance, "Status", depl.GetDeployment().Status)
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.DeploymentReadyCondition,
+			condition.RequestedReason,
+			condition.SeverityInfo,
+			condition.DeploymentReadyRunningMessage))
+		// It is OK to return success as we are watching for Deployment changes
+		return ctrl.Result{}, nil
+	}
+	return ctrl.Result{}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
