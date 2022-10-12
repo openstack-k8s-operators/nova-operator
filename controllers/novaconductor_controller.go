@@ -155,20 +155,8 @@ func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	// all our input checks out so report InputReady
 	instance.Status.Conditions.MarkTrue(condition.InputReadyCondition, condition.InputReadyMessage)
 
-	// create ConfigMaps required for nova-conductor service
-	// - %-scripts configmap holding scripts to e.g. bootstrap the service
-	// - %-config configmap holding minimal nova-api config required to get
-	//   the service up, user can add additional files to be added to the service
-	// - parameters which has passwords gets added from the OpenStack secret
-	//   via the init container
-	err = r.generateServiceConfigMaps(ctx, h, instance, &hashes)
+	err = r.ensureConfigMaps(ctx, h, instance, &hashes)
 	if err != nil {
-		instance.Status.Conditions.Set(condition.FalseCondition(
-			condition.ServiceConfigReadyCondition,
-			condition.ErrorReason,
-			condition.SeverityWarning,
-			condition.ServiceConfigReadyErrorMessage,
-			err.Error()))
 		return ctrl.Result{}, err
 	}
 
@@ -178,43 +166,14 @@ func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-	if val, ok := instance.Status.Hash[common.InputHashName]; !ok || val != inputHash {
-		instance.Status.Hash[common.InputHashName] = inputHash
-	}
+	instance.Status.Hash[common.InputHashName] = inputHash
 
 	instance.Status.Conditions.MarkTrue(condition.ServiceConfigReadyCondition, condition.ServiceConfigReadyMessage)
 
-	serviceLabels := map[string]string{
-		common.AppSelector: NovaConductorLabelPrefix,
+	result, err = r.ensureCellDBSynced(ctx, h, instance)
+	if (err != nil || result != ctrl.Result{}) {
+		return result, err
 	}
-
-	dbSyncHash := instance.Status.Hash[DbSyncHash]
-	jobDef := novaconductor.CellDBSyncJob(instance, serviceLabels)
-	dbSyncJob := job.NewJob(jobDef, "dbsync", instance.Spec.Debug.PreserveJobs, 1, dbSyncHash)
-	dbSyncJob.SetTimeout(r.RequeueTimeout)
-	ctrlResult, err := dbSyncJob.DoJob(ctx, h)
-	if (ctrlResult != ctrl.Result{}) {
-		instance.Status.Conditions.Set(condition.FalseCondition(
-			condition.DBSyncReadyCondition,
-			condition.RequestedReason,
-			condition.SeverityInfo,
-			condition.DBSyncReadyRunningMessage))
-		return ctrlResult, nil
-	}
-	if err != nil {
-		instance.Status.Conditions.Set(condition.FalseCondition(
-			condition.DBSyncReadyCondition,
-			condition.ErrorReason,
-			condition.SeverityWarning,
-			condition.DBSyncReadyErrorMessage,
-			err.Error()))
-		return ctrl.Result{}, err
-	}
-	if dbSyncJob.HasChanged() {
-		instance.Status.Hash[DbSyncHash] = dbSyncJob.GetHash()
-		r.Log.Info(fmt.Sprintf("Job %s hash added - %s", jobDef.Name, instance.Status.Hash[DbSyncHash]))
-	}
-	instance.Status.Conditions.MarkTrue(condition.DBSyncReadyCondition, condition.DBSyncReadyMessage)
 
 	return ctrl.Result{}, nil
 }
@@ -263,6 +222,31 @@ func (r *NovaConductorReconciler) initConditions(
 		)
 
 		instance.Status.Conditions.Init(&cl)
+	}
+	return nil
+}
+
+func (r *NovaConductorReconciler) ensureConfigMaps(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *novav1.NovaConductor,
+	hashes *map[string]env.Setter,
+) error {
+	// create ConfigMaps required for nova-conductor service
+	// - %-scripts configmap holding scripts to e.g. bootstrap the service
+	// - %-config configmap holding minimal nova-api config required to get
+	//   the service up, user can add additional files to be added to the service
+	// - parameters which has passwords gets added from the OpenStack secret
+	//   via the init container
+	err := r.generateServiceConfigMaps(ctx, h, instance, hashes)
+	if err != nil {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.ServiceConfigReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.ServiceConfigReadyErrorMessage,
+			err.Error()))
+		return err
 	}
 	return nil
 }
@@ -333,6 +317,46 @@ func (r *NovaConductorReconciler) generateServiceConfigMaps(
 	}
 
 	return nil
+}
+
+func (r *NovaConductorReconciler) ensureCellDBSynced(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *novav1.NovaConductor,
+) (ctrl.Result, error) {
+	serviceLabels := map[string]string{
+		common.AppSelector: NovaConductorLabelPrefix,
+	}
+
+	dbSyncHash := instance.Status.Hash[DbSyncHash]
+	jobDef := novaconductor.CellDBSyncJob(instance, serviceLabels)
+	dbSyncJob := job.NewJob(jobDef, "dbsync", instance.Spec.Debug.PreserveJobs, 1, dbSyncHash)
+	dbSyncJob.SetTimeout(r.RequeueTimeout)
+	ctrlResult, err := dbSyncJob.DoJob(ctx, h)
+	if (ctrlResult != ctrl.Result{}) {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.DBSyncReadyCondition,
+			condition.RequestedReason,
+			condition.SeverityInfo,
+			condition.DBSyncReadyRunningMessage))
+		return ctrlResult, nil
+	}
+	if err != nil {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.DBSyncReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.DBSyncReadyErrorMessage,
+			err.Error()))
+		return ctrl.Result{}, err
+	}
+	if dbSyncJob.HasChanged() {
+		instance.Status.Hash[DbSyncHash] = dbSyncJob.GetHash()
+		r.Log.Info(fmt.Sprintf("Job %s hash added - %s", jobDef.Name, instance.Status.Hash[DbSyncHash]))
+	}
+	instance.Status.Conditions.MarkTrue(condition.DBSyncReadyCondition, condition.DBSyncReadyMessage)
+
+	return ctrl.Result{}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
