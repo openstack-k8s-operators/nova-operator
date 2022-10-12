@@ -9,11 +9,11 @@ require (
 	github.com/onsi/gomega v1.24.1
 	github.com/openshift/api v3.9.0+incompatible
 	github.com/openstack-k8s-operators/keystone-operator/api v0.0.0-20220927090553-6b3218c776f7
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20220923094431-9fca0c85a9dc
-	github.com/openstack-k8s-operators/lib-common/modules/database v0.0.0-20220923094431-9fca0c85a9dc
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20221124114404-c42a739be111
+	github.com/openstack-k8s-operators/lib-common/modules/database v0.0.0-20221124114404-c42a739be111
+	github.com/openstack-k8s-operators/lib-common/modules/test v0.0.0-20221124114404-c42a739be111
 	github.com/openstack-k8s-operators/mariadb-operator/api v0.0.0-20220927092716-25669bcdb523
 	github.com/openstack-k8s-operators/placement-operator/api v0.0.0-20220816132717-b1fe0c1140da
-	golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4
 	k8s.io/api v0.25.4
 	k8s.io/apimachinery v0.25.4
 	k8s.io/client-go v0.25.4
@@ -66,6 +66,7 @@ require (
 	go.uber.org/multierr v1.8.0 // indirect
 	go.uber.org/zap v1.21.0 // indirect
 	golang.org/x/crypto v0.0.0-20220722155217-630584e8d5aa // indirect
+	golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4 // indirect
 	golang.org/x/net v0.2.0 // indirect
 	golang.org/x/oauth2 v0.0.0-20220909003341-f21342109be1 // indirect
 	golang.org/x/sys v0.2.0 // indirect
