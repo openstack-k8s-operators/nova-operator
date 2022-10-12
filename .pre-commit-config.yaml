@@ -5,6 +5,7 @@ ci:
    - 'make-generate'
    - 'go-vet'
    - 'golangci-lint'
+   - 'go-lint'
 
 repos:
 - repo: local
@@ -27,6 +28,7 @@ repos:
       exclude: ^vendor
     - id: go-vet
     - id: go-mod-tidy
+    - id: go-lint
 
 - repo: https://github.com/golangci/golangci-lint
   rev: v1.49.0
