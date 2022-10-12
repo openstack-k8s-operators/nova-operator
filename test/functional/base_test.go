@@ -129,13 +129,13 @@ func ExpectNovaAPIConditionWithDetails(
 			BeNil(), "NovaAPI.Status.Conditions in nil")
 		g.Expect(instance.Status.Conditions.Has(conditionType)).To(
 			BeTrue(), "NovaAPI does not have condition type %s", conditionType)
-		actual_condition := instance.Status.Conditions.Get(conditionType)
-		g.Expect(actual_condition.Status).To(
+		actualCondition := instance.Status.Conditions.Get(conditionType)
+		g.Expect(actualCondition.Status).To(
 			Equal(expectedStatus),
 			"NovaAPI %s condition is in an unexpected state. Expected: %s, Actual: %s",
-			conditionType, expectedStatus, actual_condition.Status)
-		g.Expect(actual_condition.Reason).To(Equal(expectedReason))
-		g.Expect(actual_condition.Message).To(Equal(expecteMessage))
+			conditionType, expectedStatus, actualCondition.Status)
+		g.Expect(actualCondition.Reason).To(Equal(expectedReason))
+		g.Expect(actualCondition.Message).To(Equal(expecteMessage))
 	}, timeout, interval).Should(Succeed())
 }
 
