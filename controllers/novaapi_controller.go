@@ -18,7 +18,6 @@ package controllers
 
 import (
 	"context"
-	"time"
 
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -44,7 +43,6 @@ import (
 // NovaAPIReconciler reconciles a NovaAPI object
 type NovaAPIReconciler struct {
 	nova_common.ReconcilerBase
-	RequeueTimeoutSeconds int
 }
 
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=novaapis,verbs=get;list;watch;create;update;patch;delete
@@ -206,6 +204,7 @@ func (r *NovaAPIReconciler) reconcileNormal(
 		},
 		h.GetClient(),
 		&instance.Status.Conditions,
+		r.RequeueTimeout,
 	)
 	if err != nil {
 		return result, err
@@ -251,10 +250,8 @@ func (r *NovaAPIReconciler) reconcileNormal(
 		common.AppSelector: NovaAPILabelPrefix,
 	}
 
-	depl := deployment.NewDeployment(
-		novaapi.Deployment(instance, inputHash, serviceLabels),
-		r.RequeueTimeoutSeconds,
-	)
+	depl := deployment.NewDeployment(novaapi.Deployment(instance, inputHash, serviceLabels), 1)
+	depl.SetTimeout(r.RequeueTimeout)
 	ctrlResult, err := depl.CreateOrPatch(ctx, h)
 	if err != nil {
 		util.LogErrorForObject(h, err, "Deployment failed", instance)
@@ -286,7 +283,7 @@ func (r *NovaAPIReconciler) reconcileNormal(
 			condition.RequestedReason,
 			condition.SeverityInfo,
 			condition.DeploymentReadyRunningMessage))
-		return ctrl.Result{RequeueAfter: time.Duration(r.RequeueTimeoutSeconds) * time.Second}, nil
+		return ctrl.Result{RequeueAfter: r.RequeueTimeout}, nil
 	}
 
 	return ctrl.Result{}, nil

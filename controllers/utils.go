@@ -25,15 +25,13 @@ func SetupReconcilers(mgr ctrl.Manager, setupLog logr.Logger, cfg *rest.Config) 
 			ReconcilerBase: nova_common.NewReconcilerBase("NovaCell", mgr, kclient),
 		},
 		"NovaAPI": &NovaAPIReconciler{
-			ReconcilerBase:        nova_common.NewReconcilerBase("NovaAPI", mgr, kclient),
-			RequeueTimeoutSeconds: 5,
+			ReconcilerBase: nova_common.NewReconcilerBase("NovaAPI", mgr, kclient),
 		},
 		"NovaScheduler": &NovaSchedulerReconciler{
 			ReconcilerBase: nova_common.NewReconcilerBase("NovaScheduler", mgr, kclient),
 		},
 		"NovaConductor": &NovaConductorReconciler{
-			ReconcilerBase:        nova_common.NewReconcilerBase("NovaConductor", mgr, kclient),
-			RequeueTimeoutSeconds: 5,
+			ReconcilerBase: nova_common.NewReconcilerBase("NovaConductor", mgr, kclient),
 		},
 		"NovaMetadata": &NovaMetadataReconciler{
 			ReconcilerBase: nova_common.NewReconcilerBase("NovaMetadata", mgr, kclient),

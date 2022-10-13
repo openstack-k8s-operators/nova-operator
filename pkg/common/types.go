@@ -1,6 +1,8 @@
 package common
 
 import (
+	"time"
+
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
@@ -10,10 +12,11 @@ import (
 
 // ReconcilerBase provides a common set of clients scheme and loggers for all reconcilers.
 type ReconcilerBase struct {
-	Client  client.Client
-	Kclient kubernetes.Interface
-	Log     logr.Logger
-	Scheme  *runtime.Scheme
+	Client         client.Client
+	Kclient        kubernetes.Interface
+	Log            logr.Logger
+	Scheme         *runtime.Scheme
+	RequeueTimeout time.Duration
 }
 
 // Managable all types that conform to this interface can be setup with a controller-runtime manager.
@@ -27,9 +30,10 @@ func NewReconcilerBase(
 ) ReconcilerBase {
 	log := ctrl.Log.WithName("controllers").WithName(name)
 	return ReconcilerBase{
-		Client:  mgr.GetClient(),
-		Scheme:  mgr.GetScheme(),
-		Kclient: kclient,
-		Log:     log,
+		Client:         mgr.GetClient(),
+		Scheme:         mgr.GetScheme(),
+		Kclient:        kclient,
+		Log:            log,
+		RequeueTimeout: time.Duration(5) * time.Second,
 	}
 }
