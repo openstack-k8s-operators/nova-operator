@@ -33,7 +33,6 @@ import (
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
-	nova_common "github.com/openstack-k8s-operators/nova-operator/pkg/common"
 	"github.com/openstack-k8s-operators/nova-operator/pkg/nova"
 	"github.com/openstack-k8s-operators/nova-operator/pkg/novaapi"
 
@@ -42,7 +41,7 @@ import (
 
 // NovaAPIReconciler reconciles a NovaAPI object
 type NovaAPIReconciler struct {
-	nova_common.ReconcilerBase
+	ReconcilerBase
 }
 
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=novaapis,verbs=get;list;watch;create;update;patch;delete

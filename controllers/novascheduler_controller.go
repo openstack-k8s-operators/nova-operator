@@ -23,12 +23,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	novav1beta1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
-	nova_common "github.com/openstack-k8s-operators/nova-operator/pkg/common"
 )
 
 // NovaSchedulerReconciler reconciles a NovaScheduler object
 type NovaSchedulerReconciler struct {
-	nova_common.ReconcilerBase
+	ReconcilerBase
 }
 
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=novaschedulers,verbs=get;list;watch;create;update;patch;delete

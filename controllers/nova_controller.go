@@ -35,13 +35,11 @@ import (
 
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-
-	nova_common "github.com/openstack-k8s-operators/nova-operator/pkg/common"
 )
 
 // NovaReconciler reconciles a Nova object
 type NovaReconciler struct {
-	nova_common.ReconcilerBase
+	ReconcilerBase
 }
 
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=nova,verbs=get;list;watch;create;update;patch;delete

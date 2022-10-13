@@ -23,11 +23,13 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"golang.org/x/mod/modfile"
 
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -128,7 +130,16 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).ToNot(HaveOccurred())
 
-	controllers.SetupReconcilers(k8sManager, ctrl.Log.WithName("testSetup"), cfg)
+	kclient, err := kubernetes.NewForConfig(cfg)
+	Expect(err).ToNot(HaveOccurred(), "failed to create kclient")
+
+	reconcilers := controllers.NewReconcilers(k8sManager, kclient)
+	// NOTE(gibi): During envtest we simulate success of tasks (e.g Job,
+	// Deployment, DB) so we can speed up the test execution by reducing the
+	// time we wait before we reconcile when a task is running.
+	reconcilers.OverriedRequeueTimeout(time.Duration(10) * time.Millisecond)
+	err = reconcilers.Setup(k8sManager, ctrl.Log.WithName("testSetup"))
+	Expect(err).ToNot(HaveOccurred())
 
 	go func() {
 		defer GinkgoRecover()

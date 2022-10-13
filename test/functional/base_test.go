@@ -40,12 +40,12 @@ const (
 	SecretName     = "test-secret"
 	ContainerImage = "test://nova"
 
-	timeout  = time.Second * 20
-	interval = time.Millisecond * 50
-	// consistencyTimeoutt is the amount of time we use to repeatedly check
+	interval = time.Millisecond * 100
+	timeout  = interval * 15
+	// consistencyTimeout is the amount of time we use to repeatedly check
 	// that a condition is still valid. This is intendet to be used in
 	// asserts using `Consistently`.
-	consistencyTimeout = time.Second
+	consistencyTimeout = interval * 15
 )
 
 func CreateNamespace(name string) {
