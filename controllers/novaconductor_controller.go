@@ -34,14 +34,13 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/labels"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
-	nova_common "github.com/openstack-k8s-operators/nova-operator/pkg/common"
 	"github.com/openstack-k8s-operators/nova-operator/pkg/nova"
 	"github.com/openstack-k8s-operators/nova-operator/pkg/novaconductor"
 )
 
 // NovaConductorReconciler reconciles a NovaConductor object
 type NovaConductorReconciler struct {
-	nova_common.ReconcilerBase
+	ReconcilerBase
 }
 
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=novaconductors,verbs=get;list;watch;create;update;patch;delete

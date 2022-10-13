@@ -23,12 +23,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	novav1beta1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
-	nova_common "github.com/openstack-k8s-operators/nova-operator/pkg/common"
 )
 
 // NovaMetadataReconciler reconciles a NovaMetadata object
 type NovaMetadataReconciler struct {
-	nova_common.ReconcilerBase
+	ReconcilerBase
 }
 
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=novametadata,verbs=get;list;watch;create;update;patch;delete
