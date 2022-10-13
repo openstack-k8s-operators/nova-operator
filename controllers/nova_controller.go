@@ -19,7 +19,6 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
@@ -43,7 +42,6 @@ import (
 // NovaReconciler reconciles a Nova object
 type NovaReconciler struct {
 	nova_common.ReconcilerBase
-	RequeueTimeout time.Duration
 }
 
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=nova,verbs=get;list;watch;create;update;patch;delete
@@ -297,7 +295,7 @@ func (r *NovaReconciler) reconcileDB(
 		return ctrlResult, nil
 	}
 	// wait for the DB to be setup
-	ctrlResult, err = db.WaitForDBCreated(ctx, h)
+	ctrlResult, err = db.WaitForDBCreatedWithTimeout(ctx, h, r.RequeueTimeout)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			targetCondition,

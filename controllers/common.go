@@ -74,6 +74,7 @@ func ensureSecret(
 	expectedFields []string,
 	reader client.Reader,
 	conditionUpdater conditionUpdater,
+	requeueTimeout time.Duration,
 ) (string, ctrl.Result, error) {
 	secret := &corev1.Secret{}
 	err := reader.Get(ctx, secretName, secret)
@@ -87,7 +88,7 @@ func ensureSecret(
 				condition.SeverityInfo,
 				condition.InputReadyWaitingMessage))
 			return "",
-				ctrl.Result{RequeueAfter: time.Second * 10},
+				ctrl.Result{RequeueAfter: requeueTimeout},
 				fmt.Errorf("OpenStack secret %s not found", secretName)
 		}
 		conditionUpdater.Set(condition.FalseCondition(

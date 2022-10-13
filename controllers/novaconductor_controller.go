@@ -42,7 +42,6 @@ import (
 // NovaConductorReconciler reconciles a NovaConductor object
 type NovaConductorReconciler struct {
 	nova_common.ReconcilerBase
-	RequeueTimeoutSeconds int
 }
 
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=novaconductors,verbs=get;list;watch;create;update;patch;delete
@@ -199,6 +198,7 @@ func (r *NovaConductorReconciler) reconcileNormal(
 		},
 		h.GetClient(),
 		&instance.Status.Conditions,
+		r.RequeueTimeout,
 	)
 	if err != nil {
 		return result, err
@@ -246,14 +246,9 @@ func (r *NovaConductorReconciler) reconcileNormal(
 
 	dbSyncHash := instance.Status.Hash[DbSyncHash]
 	jobDef := novaconductor.CellDBSyncJob(instance, serviceLabels)
-	dbSyncjob := job.NewJob(
-		jobDef,
-		"dbsync",
-		instance.Spec.Debug.PreserveJobs,
-		r.RequeueTimeoutSeconds,
-		dbSyncHash,
-	)
-	ctrlResult, err := dbSyncjob.DoJob(ctx, h)
+	dbSyncJob := job.NewJob(jobDef, "dbsync", instance.Spec.Debug.PreserveJobs, 1, dbSyncHash)
+	dbSyncJob.SetTimeout(r.RequeueTimeout)
+	ctrlResult, err := dbSyncJob.DoJob(ctx, h)
 	if (ctrlResult != ctrl.Result{}) {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.DBSyncReadyCondition,
@@ -271,8 +266,8 @@ func (r *NovaConductorReconciler) reconcileNormal(
 			err.Error()))
 		return ctrl.Result{}, err
 	}
-	if dbSyncjob.HasChanged() {
-		instance.Status.Hash[DbSyncHash] = dbSyncjob.GetHash()
+	if dbSyncJob.HasChanged() {
+		instance.Status.Hash[DbSyncHash] = dbSyncJob.GetHash()
 		// TODO(gibi): Do we need to call Status().Update() now or it is
 		// enough to let our deferred call do the update at the end of the
 		// reconcile loop?
