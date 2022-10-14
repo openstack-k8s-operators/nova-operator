@@ -114,6 +114,8 @@ github.com/evanphx/json-patch/v5 v5.6.0/go.mod h1:G79N1coSVB93tBe7j6PhzjmR3/2Vvl
 github.com/fsnotify/fsnotify v1.5.4 h1:jRbGcIw6P2Meqdwuo0H1p6JVLbL5DHKAKlYndzMwVZI=
 github.com/fsnotify/fsnotify v1.5.4/go.mod h1:OVB6XrOHzAwXMpEM7uPOzcehqUV2UqJxmVXmkdnm1bU=
 github.com/ghodss/yaml v1.0.0/go.mod h1:4dBDuWmgqj2HViK6kFavaiC9ZROes6MMH2rRYeMEF04=
+github.com/gibizer/lib-common/modules/common v0.0.0-20221014143800-c6662e4a62ff h1:R3q2BmVaVdvI/0/QUBO5khg7xXidsHQyKUViaFhU2t4=
+github.com/gibizer/lib-common/modules/common v0.0.0-20221014143800-c6662e4a62ff/go.mod h1:KWqK7l2ej+rIYngoNUrxE2YjKGlRAAgJXXM0uU2R6XY=
 github.com/go-gl/glfw v0.0.0-20190409004039-e6da0acd62b1/go.mod h1:vR7hzQXu2zJy9AVAgeJqvqgH9Q5CA+iKCZ2gyEVpxRU=
 github.com/go-gl/glfw/v3.3/glfw v0.0.0-20191125211704-12ad95a8df72/go.mod h1:tQ2UAYgL5IevRw8kRxooKSPJfGvJ9fJQFa0TUsXzTg8=
 github.com/go-gl/glfw/v3.3/glfw v0.0.0-20200222043503-6f7a984d4dc4/go.mod h1:tQ2UAYgL5IevRw8kRxooKSPJfGvJ9fJQFa0TUsXzTg8=
@@ -281,8 +283,6 @@ github.com/onsi/ginkgo/v2 v2.2.0 h1:3ZNA3L1c5FYDFTTxbFeVGGD8jYvjYauHD30YgLxVsNI=
 github.com/onsi/ginkgo/v2 v2.2.0/go.mod h1:MEH45j8TBi6u9BMogfbp0stKC5cdGjumZj5Y7AG4VIk=
 github.com/onsi/gomega v1.20.1 h1:PA/3qinGoukvymdIDV8pii6tiZgC8kbmJO6Z5+b002Q=
 github.com/onsi/gomega v1.20.1/go.mod h1:DtrZpjmvpn2mPm4YWQa0/ALMDj9v4YxLgojwPeREyVo=
-github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20221008204533-ade2fb9c487c h1:ntbHkGIAKY96RO5Fb6KxMmC5ZikdySiPnTi6MfWaPxE=
-github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20221008204533-ade2fb9c487c/go.mod h1:KWqK7l2ej+rIYngoNUrxE2YjKGlRAAgJXXM0uU2R6XY=
 github.com/openstack-k8s-operators/lib-common/modules/database v0.0.0-20221008204533-ade2fb9c487c h1:1M0oNNcgPjuj3nNXoBU45f3g/B0ahfp/G6cfcmI9PMs=
 github.com/openstack-k8s-operators/lib-common/modules/database v0.0.0-20221008204533-ade2fb9c487c/go.mod h1:umGUqQO4JtgefAaIwZjP+TxfxsLMEEeK/6VNzk8ooaI=
 github.com/openstack-k8s-operators/mariadb-operator/api v0.0.0-20220929123241-597b259525ac h1:6z2oXzobCoNDREmQLivZ8WAp27NRj6/jEkLB5aFL9U0=

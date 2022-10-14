@@ -18,7 +18,6 @@ package controllers
 
 import (
 	"context"
-	"fmt"
 
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
@@ -59,13 +58,13 @@ type NovaConductorReconciler struct {
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.2/pkg/reconcile
-func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, err error) {
 	l := log.FromContext(ctx)
 	l.Info("Reconciling ", "request", req)
 
 	// Fetch our instance that needs to be reconciled
 	instance := &novav1.NovaConductor{}
-	err := r.Client.Get(ctx, req.NamespacedName, instance)
+	err = r.Client.Get(ctx, req.NamespacedName, instance)
 	if err != nil {
 		if k8s_errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
@@ -105,13 +104,20 @@ func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			instance.Status.Conditions.MarkTrue(
 				condition.ReadyCondition, condition.ReadyMessage)
 		}
-		err := r.Client.Status().Update(ctx, instance)
+		err = r.Client.Status().Update(ctx, instance)
 		if err != nil && !k8s_errors.IsNotFound(err) {
 			util.LogErrorForObject(
 				h, err, "Failed to update status at the end of reconciliation", instance)
+			return
 		}
-		util.LogForObject(
-			h, "Updated status at the end of reconciliation", instance)
+
+		// Successfully persisted the Status changes, so we are free to cleanup
+		// temporary resources, e.g. Jobs.
+		// NOTE(gibi): by writing to the named return values of Reconcile we
+		// can signal failure
+		if !instance.Spec.Debug.PreserveJobs {
+			err = job.DeleteAllSucceededJobs(ctx, h, []string{instance.Status.Hash[DbSyncHash]})
+		}
 	}()
 
 	return r.reconcileNormal(ctx, h, instance)
@@ -245,8 +251,7 @@ func (r *NovaConductorReconciler) reconcileNormal(
 
 	dbSyncHash := instance.Status.Hash[DbSyncHash]
 	jobDef := novaconductor.CellDBSyncJob(instance, serviceLabels)
-	dbSyncJob := job.NewJob(jobDef, "dbsync", instance.Spec.Debug.PreserveJobs, 1, dbSyncHash)
-	dbSyncJob.SetTimeout(r.RequeueTimeout)
+	dbSyncJob := job.NewJob(jobDef, "dbsync", r.RequeueTimeout, dbSyncHash)
 	ctrlResult, err := dbSyncJob.DoJob(ctx, h)
 	if (ctrlResult != ctrl.Result{}) {
 		instance.Status.Conditions.Set(condition.FalseCondition(
@@ -265,13 +270,9 @@ func (r *NovaConductorReconciler) reconcileNormal(
 			err.Error()))
 		return ctrl.Result{}, err
 	}
-	if dbSyncJob.HasChanged() {
-		instance.Status.Hash[DbSyncHash] = dbSyncJob.GetHash()
-		// TODO(gibi): Do we need to call Status().Update() now or it is
-		// enough to let our deferred call do the update at the end of the
-		// reconcile loop?
-		r.Log.Info(fmt.Sprintf("Job %s hash added - %s", jobDef.Name, instance.Status.Hash[DbSyncHash]))
-	}
+
+	// The DBSync job succeeded
+	instance.Status.Hash[DbSyncHash] = dbSyncJob.GetHash()
 	instance.Status.Conditions.MarkTrue(condition.DBSyncReadyCondition, condition.DBSyncReadyMessage)
 
 	return ctrl.Result{}, nil
