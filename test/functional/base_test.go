@@ -140,6 +140,7 @@ func ExpectCondition(
 	conditionType condition.Type,
 	expectedStatus corev1.ConditionStatus,
 ) {
+	logger.Info("ExpectCondition", "type", conditionType, "expected status", expectedStatus, "on", name)
 	Eventually(func(g Gomega) {
 		conditions := getter.GetConditions(name)
 		g.Expect(conditions).NotTo(
@@ -152,6 +153,7 @@ func ExpectCondition(
 			"%s condition is in an unexpected state. Expected: %s, Actual: %s, instance name: %s, Conditions: %v",
 			conditionType, expectedStatus, actual, name, conditions)
 	}, timeout, interval).Should(Succeed())
+	logger.Info("ExpectCondition succeeded", "type", conditionType, "expected status", expectedStatus, "on", name)
 }
 
 func ExpectConditionWithDetails(
@@ -162,20 +164,27 @@ func ExpectConditionWithDetails(
 	expectedReason condition.Reason,
 	expecteMessage string,
 ) {
+	logger.Info("ExpectConditionWithDetails", "type", conditionType, "expected status", expectedStatus, "on", name)
 	Eventually(func(g Gomega) {
 		conditions := getter.GetConditions(name)
 		g.Expect(conditions).NotTo(
-			BeNil(), "NovaAPI.Status.Conditions in nil")
+			BeNil(), "Status.Conditions in nil")
 		g.Expect(conditions.Has(conditionType)).To(
-			BeTrue(), "NovaAPI does not have condition type %s", conditionType)
+			BeTrue(), "Condition type is not in Status.Conditions %s", conditionType)
 		actualCondition := conditions.Get(conditionType)
 		g.Expect(actualCondition.Status).To(
 			Equal(expectedStatus),
-			"NovaAPI %s condition is in an unexpected state. Expected: %s, Actual: %s",
+			"%s condition is in an unexpected state. Expected: %s, Actual: %s",
 			conditionType, expectedStatus, actualCondition.Status)
-		g.Expect(actualCondition.Reason).To(Equal(expectedReason))
-		g.Expect(actualCondition.Message).To(Equal(expecteMessage))
+		g.Expect(actualCondition.Reason).To(
+			Equal(expectedReason),
+			"%s condition has a different reason. Actual condition: %v", conditionType, actualCondition)
+		g.Expect(actualCondition.Message).To(
+			Equal(expecteMessage),
+			"%s condition has a different message. Actual condition: %v", conditionType, actualCondition)
 	}, timeout, interval).Should(Succeed())
+
+	logger.Info("ExpectConditionWithDetails succeeded", "type", conditionType, "expected status", expectedStatus, "on", name)
 }
 
 func GetConfigMap(name types.NamespacedName) corev1.ConfigMap {
@@ -237,6 +246,7 @@ func SimulateJobFailure(name types.NamespacedName) {
 	job.Status.Failed = 1
 	job.Status.Active = 0
 	Expect(k8sClient.Status().Update(ctx, job)).To(Succeed())
+	logger.Info("Simulated job failure", "on", name)
 }
 
 func SimulateJobSuccess(name types.NamespacedName) {
@@ -251,6 +261,7 @@ func SimulateJobSuccess(name types.NamespacedName) {
 	job.Status.Succeeded = 1
 	job.Status.Active = 0
 	Expect(k8sClient.Status().Update(ctx, job)).To(Succeed())
+	logger.Info("Simulated job success", "on", name)
 }
 
 func GetDeployment(name types.NamespacedName) *appsv1.Deployment {
@@ -278,6 +289,7 @@ func SimulateDeploymentReplicaReady(name types.NamespacedName) {
 	deployment.Status.Replicas = 1
 	deployment.Status.ReadyReplicas = 1
 	Expect(k8sClient.Status().Update(ctx, deployment)).To(Succeed())
+	logger.Info("Simulated deployment success", "on", name)
 }
 
 func SkipInExistingCluster(message string) {
@@ -397,6 +409,7 @@ func SimulateMariaDBDatabaseCompleted(name types.NamespacedName) {
 	db := GetMariaDBDatabase(name)
 	db.Status.Completed = true
 	Expect(k8sClient.Status().Update(ctx, db)).To(Succeed())
+	logger.Info("Simulated DB completed", "on", name)
 }
 
 func CreateNovaConductor(namespace string, spec novav1.NovaConductorSpec) types.NamespacedName {

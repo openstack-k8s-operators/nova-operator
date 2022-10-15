@@ -25,6 +25,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"golang.org/x/mod/modfile"
@@ -53,6 +54,7 @@ var (
 	testEnv   *envtest.Environment
 	ctx       context.Context
 	cancel    context.CancelFunc
+	logger    logr.Logger
 )
 
 func GetDependencyVersion(moduleName string) (string, error) {
@@ -144,6 +146,8 @@ var _ = BeforeSuite(func() {
 	reconcilers.OverriedRequeueTimeout(time.Duration(10) * time.Millisecond)
 	err = reconcilers.Setup(k8sManager, ctrl.Log.WithName("testSetup"))
 	Expect(err).ToNot(HaveOccurred())
+
+	logger = ctrl.Log.WithName("---Test---")
 
 	go func() {
 		defer GinkgoRecover()
