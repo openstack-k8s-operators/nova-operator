@@ -94,9 +94,9 @@ func DeleteNovaAPI(name types.NamespacedName) {
 		if k8s_errors.IsNotFound(err) {
 			return
 		}
-		Expect(err).Should(BeNil())
+		g.Expect(err).Should(BeNil())
 
-		Expect(k8sClient.Delete(ctx, novaAPI)).Should(Succeed())
+		g.Expect(k8sClient.Delete(ctx, novaAPI)).Should(Succeed())
 
 		err = k8sClient.Get(ctx, name, novaAPI)
 		g.Expect(k8s_errors.IsNotFound(err)).To(BeTrue())
@@ -296,7 +296,7 @@ func SimulateDeploymentReplicaReady(name types.NamespacedName) {
 
 		deployment.Status.Replicas = 1
 		deployment.Status.ReadyReplicas = 1
-		Expect(k8sClient.Status().Update(ctx, deployment)).To(Succeed())
+		g.Expect(k8sClient.Status().Update(ctx, deployment)).To(Succeed())
 
 	}, timeout, interval).Should(Succeed())
 	logger.Info("Simulated deployment success", "on", name)
@@ -337,9 +337,9 @@ func DeleteNova(name types.NamespacedName) {
 		if k8s_errors.IsNotFound(err) {
 			return
 		}
-		Expect(err).Should(BeNil())
+		g.Expect(err).Should(BeNil())
 
-		Expect(k8sClient.Delete(ctx, nova)).Should(Succeed())
+		g.Expect(k8sClient.Delete(ctx, nova)).Should(Succeed())
 
 		err = k8sClient.Get(ctx, name, nova)
 		g.Expect(k8s_errors.IsNotFound(err)).To(BeTrue())
@@ -392,9 +392,9 @@ func DeleteDBService(name types.NamespacedName) {
 		if k8s_errors.IsNotFound(err) {
 			return
 		}
-		Expect(err).Should(BeNil())
+		g.Expect(err).Should(BeNil())
 
-		Expect(k8sClient.Delete(ctx, service)).Should(Succeed())
+		g.Expect(k8sClient.Delete(ctx, service)).Should(Succeed())
 
 		err = k8sClient.Get(ctx, name, service)
 		g.Expect(k8s_errors.IsNotFound(err)).To(BeTrue())
@@ -455,9 +455,9 @@ func DeleteNovaConductor(name types.NamespacedName) {
 		if k8s_errors.IsNotFound(err) {
 			return
 		}
-		Expect(err).Should(BeNil())
+		g.Expect(err).Should(BeNil())
 
-		Expect(k8sClient.Delete(ctx, novaConductor)).Should(Succeed())
+		g.Expect(k8sClient.Delete(ctx, novaConductor)).Should(Succeed())
 
 		err = k8sClient.Get(ctx, name, novaConductor)
 		g.Expect(k8s_errors.IsNotFound(err)).To(BeTrue())
@@ -521,9 +521,9 @@ func DeleteNovaCell(name types.NamespacedName) {
 		if k8s_errors.IsNotFound(err) {
 			return
 		}
-		Expect(err).Should(BeNil())
+		g.Expect(err).Should(BeNil())
 
-		Expect(k8sClient.Delete(ctx, novaCell)).Should(Succeed())
+		g.Expect(k8sClient.Delete(ctx, novaCell)).Should(Succeed())
 
 		err = k8sClient.Get(ctx, name, novaCell)
 		g.Expect(k8s_errors.IsNotFound(err)).To(BeTrue())
