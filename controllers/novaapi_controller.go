@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 
+	v1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -285,7 +286,9 @@ func (r *NovaAPIReconciler) reconcileNormal(
 			condition.RequestedReason,
 			condition.SeverityInfo,
 			condition.DeploymentReadyRunningMessage))
-		return ctrl.Result{RequeueAfter: r.RequeueTimeout}, nil
+		// It is OK to return success as we are watching for Deployment changes
+		return ctrl.Result{}, nil
+
 	}
 
 	return ctrl.Result{}, nil
@@ -363,5 +366,6 @@ func (r *NovaAPIReconciler) generateServiceConfigMaps(
 func (r *NovaAPIReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&novav1.NovaAPI{}).
+		Owns(&v1.Deployment{}).
 		Complete(r)
 }

@@ -264,7 +264,9 @@ func (r *NovaReconciler) reconcileNormal(
 	// cell0 is ready as top level services needs cell0 to register in
 	cell0ReadyCond := cell0.Status.Conditions.Get(condition.ReadyCondition)
 	if cell0ReadyCond == nil || cell0ReadyCond.Status != corev1.ConditionTrue {
-		return ctrl.Result{RequeueAfter: r.RequeueTimeout}, nil
+		// It is OK to return success as NovaCell expected to change to Ready
+		// and we are watching NovaCell
+		return ctrl.Result{}, nil
 	}
 
 	// TODO(gibi): Pass down a narroved secret that only hold
