@@ -57,7 +57,7 @@ type NovaReconciler struct {
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.2/pkg/reconcile
-func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, _err error) {
 	l := log.FromContext(ctx)
 	l.Info("Reconciling ", "request", req)
 
@@ -105,16 +105,22 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 		}
 		if err := h.SetAfter(instance); err != nil {
 			util.LogErrorForObject(h, err, "Set after and calc patch/diff", instance)
+			_err = err
+			return
 		}
 
 		if changed := h.GetChanges()["status"]; changed {
 			patch := client.MergeFrom(h.GetBeforeObject())
 
-			err := r.Client.Status().Patch(ctx, instance, patch)
+			err = r.Client.Status().Patch(ctx, instance, patch)
 			if k8s_errors.IsConflict(err) {
 				util.LogForObject(h, "Status update conflict", instance)
+				_err = err
+				return
 			} else if err != nil && !k8s_errors.IsNotFound(err) {
 				util.LogErrorForObject(h, err, "Status update failed", instance)
+				_err = err
+				return
 			}
 		}
 	}()
