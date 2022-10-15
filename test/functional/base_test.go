@@ -237,30 +237,37 @@ func ListJobs(namespace string) *batchv1.JobList {
 }
 
 func SimulateJobFailure(name types.NamespacedName) {
-	job := GetJob(name)
+	Eventually(func(g Gomega) {
+		job := GetJob(name)
 
-	// NOTE(gibi) when run against a real env we need to find a
-	// better way to make the job fail. This works but it is unreal.
+		// NOTE(gibi) when run against a real env we need to find a
+		// better way to make the job fail. This works but it is unreal.
 
-	// Simulate that the job is failed
-	job.Status.Failed = 1
-	job.Status.Active = 0
-	Expect(k8sClient.Status().Update(ctx, job)).To(Succeed())
+		// Simulate that the job is failed
+		job.Status.Failed = 1
+		job.Status.Active = 0
+		// This can return conflict so we need the Eventually block to retry
+		g.Expect(k8sClient.Status().Update(ctx, job)).To(Succeed())
+	}, timeout, interval).Should(Succeed())
 	logger.Info("Simulated job failure", "on", name)
 }
 
 func SimulateJobSuccess(name types.NamespacedName) {
-	job := GetJob(name)
-	// NOTE(gibi): We don't need to do this when run against a real
-	// env as there the job could run successfully automatically if the
-	// database user is registered manually in the DB service. But for that
-	// we would need another set of test setup, i.e. deploying the
-	// mariadb-operator.
+	Eventually(func(g Gomega) {
 
-	// Simulate that the job is succeeded
-	job.Status.Succeeded = 1
-	job.Status.Active = 0
-	Expect(k8sClient.Status().Update(ctx, job)).To(Succeed())
+		job := GetJob(name)
+		// NOTE(gibi): We don't need to do this when run against a real
+		// env as there the job could run successfully automatically if the
+		// database user is registered manually in the DB service. But for that
+		// we would need another set of test setup, i.e. deploying the
+		// mariadb-operator.
+
+		// Simulate that the job is succeeded
+		job.Status.Succeeded = 1
+		job.Status.Active = 0
+		// This can return conflict so we need the Eventually block to retry
+		g.Expect(k8sClient.Status().Update(ctx, job)).To(Succeed())
+	}, timeout, interval).Should(Succeed())
 	logger.Info("Simulated job success", "on", name)
 }
 
@@ -280,15 +287,18 @@ func ListDeployments(namespace string) *appsv1.DeploymentList {
 }
 
 func SimulateDeploymentReplicaReady(name types.NamespacedName) {
-	deployment := GetDeployment(name)
-	// NOTE(gibi): We don't need to do this when run against a real
-	// env as there the deployment could reach the ready state automatically.
-	// But for that  we would need another set of test setup, i.e. deploying
-	// the mariadb-operator.
+	Eventually(func(g Gomega) {
+		deployment := GetDeployment(name)
+		// NOTE(gibi): We don't need to do this when run against a real
+		// env as there the deployment could reach the ready state automatically.
+		// But for that  we would need another set of test setup, i.e. deploying
+		// the mariadb-operator.
 
-	deployment.Status.Replicas = 1
-	deployment.Status.ReadyReplicas = 1
-	Expect(k8sClient.Status().Update(ctx, deployment)).To(Succeed())
+		deployment.Status.Replicas = 1
+		deployment.Status.ReadyReplicas = 1
+		Expect(k8sClient.Status().Update(ctx, deployment)).To(Succeed())
+
+	}, timeout, interval).Should(Succeed())
 	logger.Info("Simulated deployment success", "on", name)
 }
 
@@ -406,9 +416,14 @@ func ListMariaDBDatabase(namespace string) *mariadbv1.MariaDBDatabaseList {
 }
 
 func SimulateMariaDBDatabaseCompleted(name types.NamespacedName) {
-	db := GetMariaDBDatabase(name)
-	db.Status.Completed = true
-	Expect(k8sClient.Status().Update(ctx, db)).To(Succeed())
+	Eventually(func(g Gomega) {
+		db := GetMariaDBDatabase(name)
+		db.Status.Completed = true
+		// This can return conflict so we have the Eventually block to retry
+		g.Expect(k8sClient.Status().Update(ctx, db)).To(Succeed())
+
+	}, timeout, interval).Should(Succeed())
+
 	logger.Info("Simulated DB completed", "on", name)
 }
 
