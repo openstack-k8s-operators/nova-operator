@@ -444,4 +444,54 @@ var _ = Describe("NovaConductor controller", func() {
 		})
 	})
 
+	When("PreserveJobs changed from true to false", func() {
+		var jobName types.NamespacedName
+
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateNovaConductorSecret(namespace, SecretName))
+
+			novaConductorName = CreateNovaConductor(
+				namespace,
+				novav1.NovaConductorSpec{
+					Secret: SecretName,
+					NovaServiceBase: novav1.NovaServiceBase{
+						ContainerImage: ContainerImage,
+					},
+					Debug: novav1.Debug{PreserveJobs: true},
+				},
+			)
+			DeferCleanup(DeleteNovaConductor, novaConductorName)
+
+			jobName = types.NamespacedName{
+				Namespace: namespace,
+				Name:      fmt.Sprintf("%s-cell-db-sync", novaConductorName.Name)}
+
+			SimulateJobSuccess(jobName)
+			ExpectCondition(
+				novaConductorName,
+				conditionGetterFunc(NovaConductorConditionGetter),
+				condition.DBSyncReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			Consistently(func(g Gomega) {
+				GetJob(jobName)
+			}, consistencyTimeout, interval).Should(Succeed())
+
+			// Update the NovaConductor to not preserve Jobs
+			// Eventually is needed here to retry if the update returns conflict
+			Eventually(func(g Gomega) {
+				conductor := GetNovaConductor(novaConductorName)
+				conductor.Spec.Debug.PreserveJobs = false
+				g.Expect(k8sClient.Update(ctx, conductor)).Should(Succeed())
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("deletes the job", func() {
+			Eventually(func(g Gomega) {
+				g.Expect(ListJobs(namespace).Items).To(BeEmpty())
+			}, timeout, interval).Should(Succeed())
+		})
+	})
 })
