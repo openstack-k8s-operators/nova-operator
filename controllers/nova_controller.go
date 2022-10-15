@@ -371,7 +371,7 @@ func (r *NovaReconciler) reconcileNovaAPI(
 ) (ctrl.Result, error) {
 	api := &novav1.NovaAPI{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      instance.Name,
+			Name:      instance.Name + "-api",
 			Namespace: instance.Namespace,
 		},
 	}

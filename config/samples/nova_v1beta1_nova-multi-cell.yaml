@@ -1,7 +1,7 @@
 apiVersion: nova.openstack.org/v1beta1
 kind: Nova
 metadata:
-  name: nova-multi-cell-sample
+  name: nova
 spec:
   # This is the name of the single MariaDB CR we deploy today
   # The Service is labelled with app=mariadb,cr=mariadb-<MariaDB.Name>

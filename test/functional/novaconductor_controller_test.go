@@ -279,7 +279,7 @@ var _ = Describe("NovaConductor controller", func() {
 
 			jobName = types.NamespacedName{
 				Namespace: namespace,
-				Name:      fmt.Sprintf("%s-cell-db-sync", novaConductorName.Name),
+				Name:      novaConductorName.Name + "-db-sync",
 			}
 
 		})
@@ -411,7 +411,8 @@ var _ = Describe("NovaConductor controller", func() {
 
 			jobName = types.NamespacedName{
 				Namespace: namespace,
-				Name:      fmt.Sprintf("%s-cell-db-sync", novaConductorName.Name)}
+				Name:      novaConductorName.Name + "-db-sync",
+			}
 		})
 
 		It("does not delete the DB sync job after it finished", func() {

@@ -16,7 +16,6 @@ limitations under the License.
 package functional_test
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/google/uuid"
@@ -72,19 +71,19 @@ var _ = Describe("Nova controller", func() {
 		}
 		cell0Name = types.NamespacedName{
 			Namespace: namespace,
-			Name:      novaName.Name + "-" + "cell0",
+			Name:      novaName.Name + "-cell0",
 		}
 		cell0ConductorName = types.NamespacedName{
 			Namespace: namespace,
-			Name:      cell0Name.Name,
+			Name:      cell0Name.Name + "-conductor",
 		}
 		cell0DBSyncJobName = types.NamespacedName{
 			Namespace: namespace,
-			Name:      fmt.Sprintf("%s-cell-db-sync", cell0ConductorName.Name),
+			Name:      cell0ConductorName.Name + "-db-sync",
 		}
 		novaAPIName = types.NamespacedName{
 			Namespace: namespace,
-			Name:      novaName.Name,
+			Name:      novaName.Name + "-api",
 		}
 		novaAPIdeploymentName = types.NamespacedName{
 			Namespace: namespace,
