@@ -16,7 +16,6 @@ limitations under the License.
 package functional_test
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/google/uuid"
@@ -100,7 +99,9 @@ var _ = Describe("NovaCell controller", func() {
 			)
 			DeferCleanup(DeleteNovaCell, novaCellName)
 			novaConductorName = types.NamespacedName{
-				Namespace: namespace, Name: novaCellName.Name}
+				Namespace: namespace,
+				Name:      novaCellName.Name + "-conductor",
+			}
 		})
 
 		It("creates the NovaConductor and tracks its readiness", func() {
@@ -127,7 +128,8 @@ var _ = Describe("NovaCell controller", func() {
 				)
 				novaConductorDBSyncJobName = types.NamespacedName{
 					Namespace: namespace,
-					Name:      fmt.Sprintf("%s-cell-db-sync", novaConductorName.Name)}
+					Name:      novaConductorName.Name + "-db-sync",
+				}
 				SimulateJobSuccess(novaConductorDBSyncJobName)
 
 				ExpectCondition(

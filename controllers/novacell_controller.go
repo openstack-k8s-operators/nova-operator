@@ -199,7 +199,7 @@ func (r *NovaCellReconciler) reconcileNovaConductor(
 ) (ctrl.Result, error) {
 	conductor := &novav1.NovaConductor{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      instance.Name,
+			Name:      instance.Name + "-conductor",
 			Namespace: instance.Namespace,
 		},
 	}

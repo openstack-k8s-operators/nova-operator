@@ -77,7 +77,7 @@ func CellDBSyncJob(
 
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      instance.Name + "-cell-db-sync",
+			Name:      instance.Name + "-db-sync",
 			Namespace: instance.Namespace,
 			Labels:    labels,
 		},
@@ -92,7 +92,7 @@ func CellDBSyncJob(
 					),
 					Containers: []corev1.Container{
 						{
-							Name: instance.Name + "-cell-db-sync",
+							Name: instance.Name + "-db-sync",
 							Command: []string{
 								"/bin/bash",
 							},

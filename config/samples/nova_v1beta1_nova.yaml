@@ -1,7 +1,7 @@
 apiVersion: nova.openstack.org/v1beta1
 kind: Nova
 metadata:
-  name: nova-minimal-example
+  name: nova
 spec:
   apiDatabaseInstance: openstack
   apiDatabaseUser: nova_api
