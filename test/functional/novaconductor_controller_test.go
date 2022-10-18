@@ -361,15 +361,15 @@ var _ = Describe("NovaConductor controller", func() {
 				SimulateJobSuccess(jobName)
 			})
 
-			It("reports that DB sync is ready and the job is deleted", func() {
+			It("reports that DB sync is ready and the job is configured to be deleted", func() {
 				ExpectCondition(
 					novaConductorName,
 					conditionGetterFunc(NovaConductorConditionGetter),
 					condition.DBSyncReadyCondition,
 					corev1.ConditionTrue,
 				)
-
-				Expect(ListJobs(namespace).Items).To(BeEmpty())
+				job := GetJob(jobName)
+				Expect(job.Spec.TTLSecondsAfterFinished).NotTo(BeNil())
 			})
 
 			It("stores the hash of the Job in the Status", func() {
@@ -415,7 +415,7 @@ var _ = Describe("NovaConductor controller", func() {
 			}
 		})
 
-		It("does not delete the DB sync job after it finished", func() {
+		It("does not configure DB sync job to be deleted after it finished", func() {
 			SimulateJobSuccess(jobName)
 
 			ExpectCondition(
@@ -424,11 +424,10 @@ var _ = Describe("NovaConductor controller", func() {
 				condition.DBSyncReadyCondition,
 				corev1.ConditionTrue,
 			)
-			// This would fail the test case if the job does not exists
-			GetJob(jobName)
+			Expect(GetJob(jobName).Spec.TTLSecondsAfterFinished).To(BeNil())
 		})
 
-		It("does not delete the DB sync job after it failed", func() {
+		It("does not configure DB sync job to be deleted after it failed", func() {
 			SimulateJobFailure(jobName)
 
 			ExpectConditionWithDetails(
@@ -439,8 +438,7 @@ var _ = Describe("NovaConductor controller", func() {
 				condition.ErrorReason,
 				"DBsync job error occured Internal error occurred: Job Failed. Check job logs",
 			)
-			// This would fail the test case if the job does not exists
-			GetJob(jobName)
+			Expect(GetJob(jobName).Spec.TTLSecondsAfterFinished).To(BeNil())
 		})
 	})
 
@@ -465,7 +463,8 @@ var _ = Describe("NovaConductor controller", func() {
 
 			jobName = types.NamespacedName{
 				Namespace: namespace,
-				Name:      fmt.Sprintf("%s-cell-db-sync", novaConductorName.Name)}
+				Name:      novaConductorName.Name + "-db-sync",
+			}
 
 			SimulateJobSuccess(jobName)
 			ExpectCondition(
@@ -475,9 +474,7 @@ var _ = Describe("NovaConductor controller", func() {
 				corev1.ConditionTrue,
 			)
 
-			Consistently(func(g Gomega) {
-				GetJob(jobName)
-			}, consistencyTimeout, interval).Should(Succeed())
+			Expect(GetJob(jobName).Spec.TTLSecondsAfterFinished).To(BeNil())
 
 			// Update the NovaConductor to not preserve Jobs
 			// Eventually is needed here to retry if the update returns conflict
@@ -488,9 +485,9 @@ var _ = Describe("NovaConductor controller", func() {
 			}, timeout, interval).Should(Succeed())
 		})
 
-		It("deletes the job", func() {
+		It("marks the job to be deleted", func() {
 			Eventually(func(g Gomega) {
-				g.Expect(ListJobs(namespace).Items).To(BeEmpty())
+				g.Expect(GetJob(jobName).Spec.TTLSecondsAfterFinished).NotTo(BeNil())
 			}, timeout, interval).Should(Succeed())
 		})
 	})
