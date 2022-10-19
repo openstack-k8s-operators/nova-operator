@@ -1,11 +1,11 @@
 apiVersion: nova.openstack.org/v1beta1
 kind: Nova
 metadata:
-  name: nova-minimal-example
+  name: nova
 spec:
   apiDatabaseInstance: openstack
   apiDatabaseUser: nova_api
-  apiMessageBusInstance: default-security-context
+  apiMessageBusInstance: not-implemented-yet
   keystoneInstance: keystone
   secret: osp-secret
   # NOTE(gibi): if apiServiceTemplate and schedlerServiceTemplate is not
@@ -29,20 +29,21 @@ spec:
   # value.
   cellTemplates:
     cell0:
-      cellDatabaseInstance: mariadb-cell0
+      cellDatabaseInstance: openstack
       cellDatabaseUser: nova_cell0
-      cellMessageBusInstance: rabbitmq-cell0
+      cellMessageBusInstance: not-implemented-yet
       # cell0 always needs API access as it hosts the super conductor
       hasAPIAccess: True
+      conductorServiceTemplate: {}
       # we never need a metadata service in cell0 as there are no computes there
       # and we need to
       metadataServiceTemplate: null
       # we never need novncproxy service in cell0
       noVNCProxyServiceTemplate: null
+    # this is currently not deployed
     cell1:
-      cellDatabaseInstance: mariadb-cell1
+      cellDatabaseInstance: openstack
       cellDatabaseUser: nova_cell1
-      cellMessageBusInstance: rabbitmq-cell1
+      cellMessageBusInstance: not-implemented-yet
       hasAPIAccess: True
-      # In this example we have metadata at the top level
-      metadataServiceTemplate: null
+      conductorServiceTemplate: {}
