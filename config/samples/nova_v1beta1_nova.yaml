@@ -33,7 +33,7 @@ spec:
       cellDatabaseUser: nova_cell0
       cellMessageBusInstance: not-implemented-yet
       # cell0 always needs API access as it hosts the super conductor
-      hasAPIAccess: True
+      hasAPIAccess: true
       conductorServiceTemplate: {}
       # we never need a metadata service in cell0 as there are no computes there
       # and we need to
@@ -45,5 +45,5 @@ spec:
       cellDatabaseInstance: openstack
       cellDatabaseUser: nova_cell1
       cellMessageBusInstance: not-implemented-yet
-      hasAPIAccess: True
+      hasAPIAccess: true
       conductorServiceTemplate: {}

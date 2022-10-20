@@ -32,6 +32,7 @@ import (
 	database "github.com/openstack-k8s-operators/lib-common/modules/database"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/nova-operator/pkg/nova"
+	corev1 "k8s.io/api/core/v1"
 
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -134,13 +135,14 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	if (err != nil || result != ctrl.Result{}) {
 		return result, err
 	}
+	instance.Status.Conditions.MarkTrue(novav1.NovaAPIDBReadyCondition, condition.DBReadyMessage)
 
-	cell0DB, result, err := r.ensureCell0DB(ctx, h, instance, cell0Template)
+	cell0DB, result, err := r.ensureCellDB(ctx, h, instance, Cell0Name, cell0Template)
 	if (err != nil || result != ctrl.Result{}) {
 		return result, err
 	}
 
-	cell0, result, err := r.ensureCell0(ctx, h, instance, cell0Template, cell0DB, apiDB)
+	cell0, result, err := r.ensureCell(ctx, h, instance, Cell0Name, cell0Template, cell0DB, apiDB)
 	if err != nil {
 		return result, err
 	}
@@ -158,6 +160,49 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		return result, err
 	}
 
+	// NOTE(gibi): We do a sequenctial approach to create Cell DBs here. I.e.
+	// we create the DB of the first cell and not move forward to the second
+	// cell DB until the first is created. So if the DB creation fails for the
+	// first cell then we never try to create DB for the second cell.
+	// This is suboptimal but simple.
+	cellDBs := map[string]*database.Database{}
+	for cellName, cellTemplate := range instance.Spec.CellTemplates {
+		if cellName == Cell0Name {
+			// We already ensured cell0 so we skipt that here.
+			continue
+		}
+		cellDB, result, err := r.ensureCellDB(ctx, h, instance, cellName, cellTemplate)
+		if (err != nil || result != ctrl.Result{}) {
+			return result, err
+		}
+		cellDBs[cellName] = cellDB
+	}
+	instance.Status.Conditions.MarkTrue(novav1.NovaAllCellsDBReadyCondition, condition.DBReadyMessage)
+
+	// We do a more parellel approch with the actuall Cell creation. We create
+	// NovaCell instances in a sequence and if the creation of a NovaCell fail
+	// then we don't create the rest. But if the NovaCell creation succeed then
+	// we let all NovaCells do the deployments in parallel.
+	allCellReady := cell0.IsReady()
+	for cellName, cellTemplate := range instance.Spec.CellTemplates {
+		if cellName == Cell0Name {
+			// We already ensured cell0 so we skipt that here.
+			continue
+		}
+		cellDB := cellDBs[cellName]
+		cell, result, err := r.ensureCell(ctx, h, instance, cellName, cellTemplate, cellDB, apiDB)
+		if err != nil {
+			return result, err
+		}
+
+		allCellReady = allCellReady && cell.IsReady()
+	}
+	if allCellReady {
+		instance.Status.Conditions.MarkTrue(novav1.NovaAllCellsReadyCondition, novav1.NovaAllCellsReadyMessage)
+
+	}
+
+	util.LogForObject(h, "Successfully reconciled", instance)
 	return ctrl.Result{}, nil
 }
 
@@ -187,19 +232,19 @@ func (r *NovaReconciler) initConditions(
 				condition.DBReadyInitMessage,
 			),
 			condition.UnknownCondition(
-				novav1.NovaCell0DBReadyCondition,
-				condition.InitReason,
-				condition.DBReadyInitMessage,
-			),
-			condition.UnknownCondition(
 				novav1.NovaAPIReadyCondition,
 				condition.InitReason,
 				novav1.NovaAPIReadyInitMessage,
 			),
 			condition.UnknownCondition(
-				novav1.NovaCell0ReadyCondition,
+				novav1.NovaAllCellsDBReadyCondition,
 				condition.InitReason,
-				novav1.NovaCell0ReadyInitMessage,
+				condition.DBReadyInitMessage,
+			),
+			condition.UnknownCondition(
+				novav1.NovaAllCellsReadyCondition,
+				condition.InitReason,
+				novav1.NovaAllCellsReadyInitMessage,
 			),
 		)
 		instance.Status.Conditions.Init(&cl)
@@ -258,8 +303,6 @@ func (r *NovaReconciler) ensureDB(
 		return ctrlResult, nil
 	}
 
-	instance.Status.Conditions.MarkTrue(targetCondition, condition.DBReadyMessage)
-
 	return ctrl.Result{}, nil
 }
 
@@ -267,13 +310,14 @@ func (r *NovaReconciler) getCell0Template(instance *novav1.Nova) (novav1.NovaCel
 	var cell0Template novav1.NovaCellTemplate
 	var ok bool
 
-	if cell0Template, ok = instance.Spec.CellTemplates["cell0"]; !ok {
+	if cell0Template, ok = instance.Spec.CellTemplates[Cell0Name]; !ok {
 		err := fmt.Errorf("missing cell0 specification from Spec.CellTemplates")
 		instance.Status.Conditions.Set(condition.FalseCondition(
-			novav1.NovaCell0ReadyCondition,
+			novav1.NovaAllCellsReadyCondition,
 			condition.ErrorReason,
 			condition.SeverityError,
-			novav1.NovaCell0ReadyErrorMessage,
+			novav1.NovaAllCellsReadyErrorMessage,
+			Cell0Name,
 			err.Error()))
 
 		return cell0Template, err
@@ -308,59 +352,63 @@ func (r *NovaReconciler) ensureAPIDB(
 	return apiDB, result, err
 }
 
-func (r *NovaReconciler) ensureCell0DB(
+func (r *NovaReconciler) ensureCellDB(
 	ctx context.Context,
 	h *helper.Helper,
 	instance *novav1.Nova,
-	cell0Template novav1.NovaCellTemplate,
+	cellName string,
+	cellTemplate novav1.NovaCellTemplate,
 ) (*database.Database, ctrl.Result, error) {
-	cell0DB := database.NewDatabaseWithNamespace(
-		nova.NovaCell0DatabaseName,
-		cell0Template.CellDatabaseUser,
+	cellDB := database.NewDatabaseWithNamespace(
+		"nova_"+cellName,
+		cellTemplate.CellDatabaseUser,
 		instance.Spec.Secret,
 		map[string]string{
-			"dbName": cell0Template.CellDatabaseInstance,
+			"dbName": cellTemplate.CellDatabaseInstance,
 		},
-		"nova-cell0",
+		"nova-"+cellName,
 		instance.Namespace,
 	)
 	result, err := r.ensureDB(
 		ctx,
 		h,
 		instance,
-		cell0DB,
-		cell0Template.CellDatabaseInstance,
-		novav1.NovaCell0DBReadyCondition,
+		cellDB,
+		cellTemplate.CellDatabaseInstance,
+		novav1.NovaAllCellsDBReadyCondition,
 	)
-	return cell0DB, result, err
+	return cellDB, result, err
 }
 
-func (r *NovaReconciler) ensureCell0(
+func (r *NovaReconciler) ensureCell(
 	ctx context.Context,
 	h *helper.Helper,
 	instance *novav1.Nova,
-	cell0Template novav1.NovaCellTemplate,
-	cell0DB *database.Database,
+	cellName string,
+	cellTemplate novav1.NovaCellTemplate,
+	cellDB *database.Database,
 	apiDB *database.Database,
 ) (*novav1.NovaCell, ctrl.Result, error) {
 	// TODO(gibi): Pass down a narrowed secret that only holds
 	// specific information but also holds user names
-	cell0Spec := novav1.NovaCellSpec{
-		CellName:                  "cell0",
+	cellSpec := novav1.NovaCellSpec{
+		CellName:                  cellName,
 		Secret:                    instance.Spec.Secret,
-		CellDatabaseHostname:      cell0DB.GetDatabaseHostname(),
-		CellDatabaseUser:          cell0Template.CellDatabaseUser,
-		APIDatabaseHostname:       apiDB.GetDatabaseHostname(),
-		APIDatabaseUser:           instance.Spec.APIDatabaseUser,
-		ConductorServiceTemplate:  cell0Template.ConductorServiceTemplate,
-		MetadataServiceTemplate:   cell0Template.MetadataServiceTemplate,
-		NoVNCProxyServiceTemplate: cell0Template.NoVNCProxyServiceTemplate,
+		CellDatabaseHostname:      cellDB.GetDatabaseHostname(),
+		CellDatabaseUser:          cellTemplate.CellDatabaseUser,
+		ConductorServiceTemplate:  cellTemplate.ConductorServiceTemplate,
+		MetadataServiceTemplate:   cellTemplate.MetadataServiceTemplate,
+		NoVNCProxyServiceTemplate: cellTemplate.NoVNCProxyServiceTemplate,
 		Debug:                     instance.Spec.Debug,
+	}
+	if cellTemplate.HasAPIAccess {
+		cellSpec.APIDatabaseHostname = apiDB.GetDatabaseHostname()
+		cellSpec.APIDatabaseUser = instance.Spec.APIDatabaseUser
 	}
 
 	cell := &novav1.NovaCell{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      instance.Name + "-" + cell0Spec.CellName,
+			Name:      instance.Name + "-" + cellSpec.CellName,
 			Namespace: instance.Namespace,
 		},
 	}
@@ -368,7 +416,7 @@ func (r *NovaReconciler) ensureCell0(
 	op, err := controllerutil.CreateOrPatch(ctx, r.Client, cell, func() error {
 		// TODO(gibi): Pass down a narroved secret that only hold
 		// specific information but also holds user names
-		cell.Spec = cell0Spec
+		cell.Spec = cellSpec
 
 		err := controllerutil.SetControllerReference(instance, cell, r.Scheme)
 		if err != nil {
@@ -380,23 +428,26 @@ func (r *NovaReconciler) ensureCell0(
 
 	if err != nil {
 		condition.FalseCondition(
-			novav1.NovaCell0ReadyCondition,
+			novav1.NovaAllCellsReadyCondition,
 			condition.ErrorReason,
 			condition.SeverityError,
-			novav1.NovaCell0ReadyErrorMessage,
+			novav1.NovaAllCellsReadyErrorMessage,
+			cellName,
 			err.Error(),
 		)
 		return cell, ctrl.Result{}, err
 	}
 
 	if op != controllerutil.OperationResultNone {
-		util.LogForObject(h, fmt.Sprintf("NovaCell0 %s.", string(op)), instance, "NovaCell0.Name", cell.Name)
+		util.LogForObject(h, fmt.Sprintf("NovaCell %s.", string(op)), instance, "NovaCell.Name", cell.Name)
 	}
 
-	c := cell.Status.Conditions.Mirror(novav1.NovaCell0ReadyCondition)
+	c := cell.Status.Conditions.Mirror(novav1.NovaAllCellsReadyCondition)
 	// NOTE(gibi): it can be nil if the NovaCell CR is created but no
 	// reconciliation is run on it to initialize the ReadyCondition yet.
-	if c != nil {
+	// We only propagate error status here as NovaAllCellsReadyCondition should
+	// only be true if *all* cells report True.
+	if c != nil && c.Status == corev1.ConditionFalse {
 		instance.Status.Conditions.Set(c)
 	}
 
