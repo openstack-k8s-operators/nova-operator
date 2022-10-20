@@ -124,10 +124,10 @@ var _ = Describe("Nova controller", func() {
 			ExpectConditionWithDetails(
 				novaName,
 				conditionGetterFunc(NovaConditionGetter),
-				novav1.NovaCell0ReadyCondition,
+				novav1.NovaAllCellsReadyCondition,
 				corev1.ConditionFalse,
 				condition.ErrorReason,
-				"NovaCell0 error occured missing cell0 specification from Spec.CellTemplates",
+				"NovaCell cell0 error occured missing cell0 specification from Spec.CellTemplates",
 			)
 		})
 	})
@@ -155,6 +155,7 @@ var _ = Describe("Nova controller", func() {
 					CellTemplates: map[string]novav1.NovaCellTemplate{
 						"cell0": {
 							CellDatabaseInstance: "openstack",
+							HasAPIAccess:         true,
 							ConductorServiceTemplate: novav1.NovaConductorTemplate{
 								ContainerImage: ContainerImage,
 								Replicas:       1,
@@ -192,19 +193,12 @@ var _ = Describe("Nova controller", func() {
 			ExpectCondition(
 				novaName,
 				conditionGetterFunc(NovaConditionGetter),
-				novav1.NovaCell0DBReadyCondition,
+				novav1.NovaAllCellsDBReadyCondition,
 				corev1.ConditionUnknown,
 			)
 			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
 			GetMariaDBDatabase(mariaDBDatabaseNameForCell0)
 			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForCell0)
-
-			ExpectCondition(
-				novaName,
-				conditionGetterFunc(NovaConditionGetter),
-				novav1.NovaCell0DBReadyCondition,
-				corev1.ConditionTrue,
-			)
 		})
 
 		It("creates cell0 NovaCell", func() {
@@ -237,7 +231,7 @@ var _ = Describe("Nova controller", func() {
 			ExpectCondition(
 				novaName,
 				conditionGetterFunc(NovaConditionGetter),
-				novav1.NovaCell0ReadyCondition,
+				novav1.NovaAllCellsReadyCondition,
 				corev1.ConditionTrue,
 			)
 		})
@@ -294,6 +288,7 @@ var _ = Describe("Nova controller", func() {
 					CellTemplates: map[string]novav1.NovaCellTemplate{
 						"cell0": {
 							CellDatabaseInstance: "openstack",
+							HasAPIAccess:         true,
 							ConductorServiceTemplate: novav1.NovaConductorTemplate{
 								ContainerImage: ContainerImage,
 								Replicas:       1,
@@ -331,7 +326,7 @@ var _ = Describe("Nova controller", func() {
 			ExpectCondition(
 				novaName,
 				conditionGetterFunc(NovaConditionGetter),
-				novav1.NovaCell0ReadyCondition,
+				novav1.NovaAllCellsReadyCondition,
 				corev1.ConditionFalse,
 			)
 
@@ -372,6 +367,7 @@ var _ = Describe("Nova controller", func() {
 					CellTemplates: map[string]novav1.NovaCellTemplate{
 						"cell0": {
 							CellDatabaseInstance: "db-for-cell0",
+							HasAPIAccess:         true,
 							ConductorServiceTemplate: novav1.NovaConductorTemplate{
 								ContainerImage: ContainerImage,
 								Replicas:       1,
@@ -433,7 +429,7 @@ var _ = Describe("Nova controller", func() {
 			ExpectCondition(
 				novaName,
 				conditionGetterFunc(NovaConditionGetter),
-				novav1.NovaCell0ReadyCondition,
+				novav1.NovaAllCellsReadyCondition,
 				corev1.ConditionTrue,
 			)
 			ExpectCondition(

@@ -40,5 +40,5 @@ spec:
       # message bus so it is a required field today.
       cellMessageBusInstance: unused
       # NOTE(gibi): it is unused today, we might not need it later either
-      hasAPIAccess: True
+      hasAPIAccess: true
       conductorServiceTemplate: {}

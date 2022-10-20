@@ -45,6 +45,8 @@ const (
 	// DbSyncHash - the field name in Status.Hashes storing the has of the DB
 	// sync job
 	DbSyncHash = "dbsync"
+	// Cell0Name is the name of Cell0 cell that is mandatory in every deployment
+	Cell0Name = "cell0"
 )
 
 type conditionsGetter interface {
