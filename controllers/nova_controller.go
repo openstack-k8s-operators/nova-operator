@@ -68,11 +68,11 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected.
 			// For additional cleanup logic use finalizers. Return and don't requeue.
-			l.Info("Nova instance not found, probably deleted before reconciled. Nothing to do.", "request", req)
+			l.Info("Nova instance not found, probably deleted before reconciled. Nothing to do.")
 			return ctrl.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
-		l.Error(err, "Failed to read the Nova instance.", "request", req)
+		l.Error(err, "Failed to read the Nova instance.")
 		return ctrl.Result{}, err
 	}
 
@@ -84,7 +84,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		r.Log,
 	)
 	if err != nil {
-		l.Error(err, "Failed to create lib-common Helper", "request", req)
+		l.Error(err, "Failed to create lib-common Helper")
 		return ctrl.Result{}, err
 	}
 	util.LogForObject(h, "Reconciling", instance)
