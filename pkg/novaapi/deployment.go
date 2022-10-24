@@ -28,12 +28,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// Deployment - returns the Deployment definition for the nova-api service
-func Deployment(
+// StatefulSet - returns the StatefulSet definition for the nova-api service
+func StatefulSet(
 	instance *novav1.NovaAPI,
 	configHash string,
 	labels map[string]string,
-) *appsv1.Deployment {
+) *appsv1.StatefulSet {
 	runAsUser := int64(0)
 
 	initContainerDetails := ContainerInput{
@@ -114,19 +114,19 @@ func Deployment(
 	envVars := map[string]env.Setter{}
 	envVars["KOLLA_CONFIG_FILE"] = env.SetValue(MergedServiceConfigPath)
 	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
-	// NOTE(gibi): The deployment does not use this hash directly. We store it
+	// NOTE(gibi): The stateafulset does not use this hash directly. We store it
 	// in the environment to trigger a Pod restart if any input of the
-	// deployment has changed. The k8s will trigger a restart automatically if
+	// statefulset has changed. The k8s will trigger a restart automatically if
 	// the env changes.
 	envVars["CONFIG_HASH"] = env.SetValue(configHash)
 	env := env.MergeEnvs([]corev1.EnvVar{}, envVars)
 
-	deployment := &appsv1.Deployment{
+	statefulset := &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      instance.Name,
 			Namespace: instance.Namespace,
 		},
-		Spec: appsv1.DeploymentSpec{
+		Spec: appsv1.StatefulSetSpec{
 			Selector: &metav1.LabelSelector{
 				MatchLabels: labels,
 			},
@@ -176,5 +176,5 @@ func Deployment(
 		},
 	}
 
-	return deployment
+	return statefulset
 }

@@ -248,7 +248,7 @@ var _ = Describe("Nova controller", func() {
 			SimulateJobSuccess(cell0DBSyncJobName)
 
 			GetNovaAPI(novaAPIName)
-			SimulateDeploymentReplicaReady(novaAPIdeploymentName)
+			SimulateStatefulSetReplicaReady(novaAPIdeploymentName)
 
 			ExpectCondition(
 				novaAPIName,
@@ -405,7 +405,7 @@ var _ = Describe("Nova controller", func() {
 
 			SimulateJobSuccess(cell0DBSyncJobName)
 
-			novaAPIDeployment := GetDeployment(novaAPIdeploymentName)
+			novaAPIDeployment := GetStatefulSet(novaAPIdeploymentName)
 			novaAPIDepEnv := novaAPIDeployment.Spec.Template.Spec.InitContainers[0].Env
 			Expect(novaAPIDepEnv).To(
 				ContainElements(
@@ -416,7 +416,7 @@ var _ = Describe("Nova controller", func() {
 				),
 			)
 
-			SimulateDeploymentReplicaReady(novaAPIdeploymentName)
+			SimulateStatefulSetReplicaReady(novaAPIdeploymentName)
 
 			ExpectCondition(
 				cell0ConductorName,
