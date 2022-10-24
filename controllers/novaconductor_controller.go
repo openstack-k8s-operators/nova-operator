@@ -71,11 +71,11 @@ func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected.
 			// For additional cleanup logic use finalizers. Return and don't requeue.
-			l.Info("NovaConductor instance not found, probably deleted before reconciled. Nothing to do.", "request", req)
+			l.Info("NovaConductor instance not found, probably deleted before reconciled. Nothing to do.")
 			return ctrl.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
-		l.Error(err, "Failed to read the NovaConductor instance.", "request", req)
+		l.Error(err, "Failed to read the NovaConductor instance.")
 		return ctrl.Result{}, err
 	}
 
@@ -87,7 +87,7 @@ func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		r.Log,
 	)
 	if err != nil {
-		l.Error(err, "Failed to create lib-common Helper", "request", req)
+		l.Error(err, "Failed to create lib-common Helper")
 		return ctrl.Result{}, err
 	}
 	util.LogForObject(h, "Reconciling", instance)

@@ -63,11 +63,11 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected.
 			// For additional cleanup logic use finalizers. Return and don't requeue.
-			l.Info("NovaCell instance not found, probably deleted before reconciled. Nothing to do.", "request", req)
+			l.Info("NovaCell instance not found, probably deleted before reconciled. Nothing to do.")
 			return ctrl.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
-		l.Error(err, "Failed to read the NovaCell instance.", "request", req)
+		l.Error(err, "Failed to read the NovaCell instance.")
 		return ctrl.Result{}, err
 	}
 
@@ -79,7 +79,7 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 		r.Log,
 	)
 	if err != nil {
-		l.Error(err, "Failed to create lib-common Helper", "request", req)
+		l.Error(err, "Failed to create lib-common Helper")
 		return ctrl.Result{}, err
 	}
 	util.LogForObject(h, "Reconciling", instance)
