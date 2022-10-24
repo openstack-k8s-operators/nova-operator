@@ -28,10 +28,10 @@ import (
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/configmap"
-	"github.com/openstack-k8s-operators/lib-common/modules/common/deployment"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/labels"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/statefulset"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
@@ -53,7 +53,7 @@ type NovaAPIReconciler struct {
 // +kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete;
-// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete;
+// +kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;list;watch;create;update;patch;delete;
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -338,10 +338,10 @@ func (r *NovaAPIReconciler) ensureDeployment(
 		common.AppSelector: NovaAPILabelPrefix,
 	}
 
-	depl := deployment.NewDeployment(novaapi.Deployment(instance, inputHash, serviceLabels), 1)
-	depl.SetTimeout(r.RequeueTimeout)
-	ctrlResult, err := depl.CreateOrPatch(ctx, h)
-	if err != nil {
+	ss := statefulset.NewStatefulSet(novaapi.StatefulSet(instance, inputHash, serviceLabels), 1)
+	ss.SetTimeout(r.RequeueTimeout)
+	ctrlResult, err := ss.CreateOrPatch(ctx, h)
+	if err != nil && !k8s_errors.IsNotFound(err) {
 		util.LogErrorForObject(h, err, "Deployment failed", instance)
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.DeploymentReadyCondition,
@@ -350,29 +350,29 @@ func (r *NovaAPIReconciler) ensureDeployment(
 			condition.DeploymentReadyErrorMessage,
 			err.Error()))
 		return ctrlResult, err
-	} else if (ctrlResult != ctrl.Result{}) {
+	} else if (ctrlResult != ctrl.Result{} || k8s_errors.IsNotFound(err)) {
 		util.LogForObject(h, "Deployment in progress", instance)
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.DeploymentReadyCondition,
 			condition.RequestedReason,
 			condition.SeverityInfo,
 			condition.DeploymentReadyRunningMessage))
-		// It is OK to return success as we are watching for Deployment changes
+		// It is OK to return success as we are watching for StatefulSet changes
 		return ctrlResult, nil
 	}
 
-	instance.Status.ReadyCount = depl.GetDeployment().Status.ReadyReplicas
+	instance.Status.ReadyCount = ss.GetStatefulSet().Status.ReadyReplicas
 	if instance.Status.ReadyCount > 0 {
 		util.LogForObject(h, "Deployment is ready", instance)
 		instance.Status.Conditions.MarkTrue(condition.DeploymentReadyCondition, condition.DeploymentReadyMessage)
 	} else {
-		util.LogForObject(h, "Deployment is not ready", instance, "Status", depl.GetDeployment().Status)
+		util.LogForObject(h, "Deployment is not ready", instance, "Status", ss.GetStatefulSet().Status)
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.DeploymentReadyCondition,
 			condition.RequestedReason,
 			condition.SeverityInfo,
 			condition.DeploymentReadyRunningMessage))
-		// It is OK to return success as we are watching for Deployment changes
+		// It is OK to return success as we are watching for StatefulSet changes
 		return ctrl.Result{}, nil
 	}
 	return ctrl.Result{}, nil
@@ -382,6 +382,6 @@ func (r *NovaAPIReconciler) ensureDeployment(
 func (r *NovaAPIReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&novav1.NovaAPI{}).
-		Owns(&v1.Deployment{}).
+		Owns(&v1.StatefulSet{}).
 		Complete(r)
 }

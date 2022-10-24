@@ -559,3 +559,29 @@ func CreateNovaSecret(namespace string, name string) *corev1.Secret {
 	Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
 	return secret
 }
+
+func GetStatefulSet(name types.NamespacedName) *appsv1.StatefulSet {
+	ss := &appsv1.StatefulSet{}
+	Eventually(func(g Gomega) {
+		g.Expect(k8sClient.Get(ctx, name, ss)).Should(Succeed())
+	}, timeout, interval).Should(Succeed())
+	return ss
+}
+
+func ListStatefulSets(namespace string) *appsv1.StatefulSetList {
+	sss := &appsv1.StatefulSetList{}
+	Expect(k8sClient.List(ctx, sss, client.InNamespace(namespace))).Should(Succeed())
+	return sss
+
+}
+
+func SimulateStatefulSetReplicaReady(name types.NamespacedName) {
+	Eventually(func(g Gomega) {
+		ss := GetStatefulSet(name)
+		ss.Status.Replicas = 1
+		ss.Status.ReadyReplicas = 1
+		g.Expect(k8sClient.Status().Update(ctx, ss)).To(Succeed())
+
+	}, timeout, interval).Should(Succeed())
+	logger.Info("Simulated statefulset success", "on", name)
+}

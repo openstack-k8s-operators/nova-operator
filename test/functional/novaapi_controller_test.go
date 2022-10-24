@@ -274,7 +274,7 @@ var _ = Describe("NovaAPI controller", func() {
 	})
 
 	When("NovAPI is created", func() {
-		var deploymentName types.NamespacedName
+		var statefulSetName types.NamespacedName
 
 		BeforeEach(func() {
 			DeferCleanup(
@@ -299,13 +299,13 @@ var _ = Describe("NovaAPI controller", func() {
 				corev1.ConditionTrue,
 			)
 
-			deploymentName = types.NamespacedName{
+			statefulSetName = types.NamespacedName{
 				Namespace: namespace,
 				Name:      novaAPIName.Name,
 			}
 		})
 
-		It("creates a Deployment for the nova-api service", func() {
+		It("creates a StatefulSet for the nova-api service", func() {
 			ExpectConditionWithDetails(
 				novaAPIName,
 				conditionGetterFunc(NovaAPIConditionGetter),
@@ -315,23 +315,23 @@ var _ = Describe("NovaAPI controller", func() {
 				condition.DeploymentReadyRunningMessage,
 			)
 
-			deployment := GetDeployment(deploymentName)
-			Expect(int(*deployment.Spec.Replicas)).To(Equal(1))
+			ss := GetStatefulSet(statefulSetName)
+			Expect(int(*ss.Spec.Replicas)).To(Equal(1))
 
-			Expect(deployment.Spec.Template.Spec.Volumes).To(HaveLen(3))
-			Expect(deployment.Spec.Template.Spec.InitContainers).To(HaveLen(1))
-			initContainer := deployment.Spec.Template.Spec.InitContainers[0]
+			Expect(ss.Spec.Template.Spec.Volumes).To(HaveLen(3))
+			Expect(ss.Spec.Template.Spec.InitContainers).To(HaveLen(1))
+			initContainer := ss.Spec.Template.Spec.InitContainers[0]
 			Expect(initContainer.VolumeMounts).To(HaveLen(3))
 			Expect(initContainer.Image).To(Equal(ContainerImage))
 
-			Expect(deployment.Spec.Template.Spec.Containers).To(HaveLen(1))
-			container := deployment.Spec.Template.Spec.Containers[0]
+			Expect(ss.Spec.Template.Spec.Containers).To(HaveLen(1))
+			container := ss.Spec.Template.Spec.Containers[0]
 			Expect(container.VolumeMounts).To(HaveLen(2))
 			Expect(container.Image).To(Equal(ContainerImage))
 
 		})
 
-		When("the Deployment has at least one Replica ready", func() {
+		When("the StatefulSet has at least one Replica ready", func() {
 			BeforeEach(func() {
 				SkipInExistingCluster(
 					"Deployment never finishes in a real env as dependencies like" +
@@ -345,10 +345,10 @@ var _ = Describe("NovaAPI controller", func() {
 					condition.RequestedReason,
 					condition.DeploymentReadyRunningMessage,
 				)
-				SimulateDeploymentReplicaReady(deploymentName)
+				SimulateStatefulSetReplicaReady(statefulSetName)
 			})
 
-			It("reports that the depoyment is ready", func() {
+			It("reports that the StatefulSet is ready", func() {
 				ExpectCondition(
 					novaAPIName,
 					conditionGetterFunc(NovaAPIConditionGetter),
