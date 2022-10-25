@@ -16,7 +16,11 @@ limitations under the License.
 
 package nova
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/openstack-k8s-operators/lib-common/modules/database"
+)
 
 const (
 	// ServiceAccount - the name of the account defined in
@@ -42,4 +46,22 @@ func GetScriptConfigMapName(crName string) string {
 // store the service configuration files
 func GetServiceConfigConfigMapName(crName string) string {
 	return fmt.Sprintf("%s-config-data", crName)
+}
+
+// DatabaseStatus -
+type DatabaseStatus int
+
+const (
+	// DBFailed -
+	DBFailed DatabaseStatus = iota
+	// DBCreating -
+	DBCreating DatabaseStatus = iota
+	// DBCompleted -
+	DBCompleted DatabaseStatus = iota
+)
+
+// Database -
+type Database struct {
+	Database *database.Database
+	Status   DatabaseStatus
 }

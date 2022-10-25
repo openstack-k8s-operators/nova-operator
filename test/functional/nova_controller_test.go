@@ -127,7 +127,7 @@ var _ = Describe("Nova controller", func() {
 				novav1.NovaAllCellsReadyCondition,
 				corev1.ConditionFalse,
 				condition.ErrorReason,
-				"NovaCell cell0 error occured missing cell0 specification from Spec.CellTemplates",
+				"NovaCell creation failed for cell0(missing cell0 specification from Spec.CellTemplates)",
 			)
 		})
 	})
@@ -194,11 +194,17 @@ var _ = Describe("Nova controller", func() {
 				novaName,
 				conditionGetterFunc(NovaConditionGetter),
 				novav1.NovaAllCellsDBReadyCondition,
-				corev1.ConditionUnknown,
+				corev1.ConditionFalse,
 			)
 			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
 			GetMariaDBDatabase(mariaDBDatabaseNameForCell0)
 			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForCell0)
+			ExpectCondition(
+				novaName,
+				conditionGetterFunc(NovaConditionGetter),
+				novav1.NovaAllCellsDBReadyCondition,
+				corev1.ConditionTrue,
+			)
 		})
 
 		It("creates cell0 NovaCell", func() {

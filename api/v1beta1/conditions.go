@@ -54,11 +54,29 @@ const (
 	// NovaConductorReadyErrorMessage
 	NovaConductorReadyErrorMessage = "NovaConductor error occured %s"
 
+	// NovaAllCellsDBReadyInitMessage
+	NovaAllCellsDBReadyInitMessage = "DB creation not started"
+
+	// NovaAllCellsDBReadyErrorMessage
+	NovaAllCellsDBReadyCreatingMessage = "DB creation ongoing for %s"
+
+	// NovaAllCellsDBReadyErrorMessage
+	NovaAllCellsDBReadyErrorMessage = "DB creation failed for %s"
+
+	// NovaAllCellsReadyMessage
+	NovaAllCellsDBReadyMessage = "All DBs created succcessfully"
+
 	// NovaAllCellsReadyInitMessage
 	NovaAllCellsReadyInitMessage = "NovaCells are not started"
 
+	// NovaAllCellsReadyCreatingMessage
+	NovaAllCellsReadyCreatingMessage = "NovaCell creation ongoing for %s"
+
+	// NovaAllCellsReadyWaitingMessage
+	NovaAllCellsReadyWaitingMessage = "NovaCell creation waits for DB creation for %s"
+
 	// NovaAllCellsReadyErrorMessage
-	NovaAllCellsReadyErrorMessage = "NovaCell %s error occured %s"
+	NovaAllCellsReadyErrorMessage = "NovaCell creation failed for %s"
 
 	// NovaAllCellsReadyMessage
 	NovaAllCellsReadyMessage = "All NovaCells are ready"
