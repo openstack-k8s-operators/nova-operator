@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,7 +33,6 @@ import (
 	database "github.com/openstack-k8s-operators/lib-common/modules/database"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/nova-operator/pkg/nova"
-	corev1 "k8s.io/api/core/v1"
 
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -131,75 +131,155 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		return ctrl.Result{}, err
 	}
 
-	apiDB, result, err := r.ensureAPIDB(ctx, h, instance)
-	if (err != nil || result != ctrl.Result{}) {
-		return result, err
+	// We create the API DB separately from the Cell DBs as we want to report
+	// its status separately and we need to pass the API DB around for Cells
+	// having upcall support
+	// NOTE(gibi): We don't return on error or if the DB is not ready yet. We
+	// move forward and kick off the rest of the work we can do (e.g. creating
+	// Cell DBs and Cells without upcall support). Eventually we rely on the
+	// watch to get reconciled if the status of the API DB resource changes.
+	apiDB, apiDBStatus, apiDBError := r.ensureAPIDB(ctx, h, instance)
+	if apiDBStatus == nova.DBFailed {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			novav1.NovaAPIDBReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityError,
+			condition.DBReadyErrorMessage,
+			apiDBError.Error(),
+		))
 	}
-	instance.Status.Conditions.MarkTrue(novav1.NovaAPIDBReadyCondition, condition.DBReadyMessage)
-
-	cell0DB, result, err := r.ensureCellDB(ctx, h, instance, Cell0Name, cell0Template)
-	if (err != nil || result != ctrl.Result{}) {
-		return result, err
+	if apiDBStatus == nova.DBCreating {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			novav1.NovaAPIDBReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityError,
+			condition.DBReadyRunningMessage,
+		))
+	}
+	if apiDBStatus == nova.DBCompleted {
+		instance.Status.Conditions.MarkTrue(novav1.NovaAPIDBReadyCondition, condition.DBReadyMessage)
 	}
 
-	cell0, result, err := r.ensureCell(ctx, h, instance, Cell0Name, cell0Template, cell0DB, apiDB)
-	if err != nil {
-		return result, err
+	// Create the Cell DBs. Note that we are not returning on error or if the
+	// DB creation is still in progress. We move forward with whathever we can
+	// and relay on the watch to get reconciled if some of the resources change
+	// status
+	cellDBs := map[string]*nova.Database{}
+	var failedDBs []string
+	var creatingDBs []string
+	for cellName, cellTemplate := range instance.Spec.CellTemplates {
+		cellDB, status, err := r.ensureCellDB(ctx, h, instance, cellName, cellTemplate)
+		if err != nil {
+			failedDBs = append(failedDBs, fmt.Sprintf("%s(%v)", cellName, err.Error()))
+
+		}
+		if status == nova.DBCreating {
+			creatingDBs = append(creatingDBs, cellName)
+		}
+		cellDBs[cellName] = &nova.Database{Database: cellDB, Status: status}
+	}
+	if len(failedDBs) > 0 {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			novav1.NovaAllCellsDBReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityError,
+			novav1.NovaAllCellsDBReadyErrorMessage,
+			strings.Join(failedDBs, ",")))
+	} else if len(creatingDBs) > 0 {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			novav1.NovaAllCellsDBReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityError,
+			novav1.NovaAllCellsDBReadyCreatingMessage,
+			strings.Join(creatingDBs, ",")))
+	} else { // we have no DB in failed or creating status so all DB is ready
+		instance.Status.Conditions.MarkTrue(novav1.NovaAllCellsDBReadyCondition, condition.DBReadyMessage)
 	}
 
-	// Don't move forward with the other service creations like NovaAPI until
-	// cell0 is ready as top level services needs cell0 to register in
-	if !cell0.IsReady() {
-		// It is OK to return success as NovaCell expected to change to Ready
-		// and we are watching NovaCell
+	// Kick of the creation of Cells. We skip over those cells where the cell
+	// DB is not yet created and those which needs API DB access but cell0 is
+	// not ready yet
+	failedCells := []string{}
+	creatingCells := []string{}
+	skippedCells := []string{}
+	readyCells := []string{}
+	cells := map[string]*novav1.NovaCell{}
+	allCellsReady := true
+	for cellName, cellTemplate := range instance.Spec.CellTemplates {
+		cellDB := cellDBs[cellName]
+		if cellDB.Status != nova.DBCompleted {
+			allCellsReady = false
+			skippedCells = append(skippedCells, cellName)
+			util.LogForObject(
+				h, "Skipping NovaCell as waiting for the cell DB to be created",
+				instance, "CellName", cellName)
+			continue
+		}
+		cell0, ok := cells[Cell0Name]
+		if cellName != Cell0Name && cellTemplate.HasAPIAccess && (!ok || !cell0.IsReady()) {
+			allCellsReady = false
+			skippedCells = append(skippedCells, cellName)
+			util.LogForObject(
+				h, "Skippig NovaCell as cell0 is not ready yet and this cell needs API DB access",
+				instance, "CellName", cellName)
+			continue
+		}
+
+		cell, _, err := r.ensureCell(ctx, h, instance, cellName, cellTemplate, cellDB.Database, apiDB)
+		cells[cellName] = cell
+		if err != nil {
+			failedCells = append(failedCells, fmt.Sprintf("%s(%v)", cellName, err.Error()))
+		} else if !cell.IsReady() {
+			creatingCells = append(creatingCells, cellName)
+		} else {
+			readyCells = append(readyCells, cellName)
+		}
+
+		allCellsReady = allCellsReady && cell.IsReady()
+	}
+	util.LogForObject(
+		h, "Cell statuses", instance, "failed", failedCells,
+		"creating", creatingCells, "skipped", skippedCells,
+		"ready", readyCells, "all cells ready", allCellsReady)
+	if len(failedCells) > 0 {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			novav1.NovaAllCellsReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityError,
+			novav1.NovaAllCellsReadyErrorMessage,
+			strings.Join(failedCells, ","),
+		))
+	} else if len(creatingCells) > 0 {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			novav1.NovaAllCellsReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityError,
+			novav1.NovaAllCellsReadyCreatingMessage,
+			strings.Join(creatingCells, ","),
+		))
+	} else if len(skippedCells) > 0 {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			novav1.NovaAllCellsReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityError,
+			novav1.NovaAllCellsReadyWaitingMessage,
+			strings.Join(skippedCells, ","),
+		))
+	}
+	if allCellsReady {
+		instance.Status.Conditions.MarkTrue(novav1.NovaAllCellsReadyCondition, novav1.NovaAllCellsReadyMessage)
+	}
+
+	// Don't move forward with the top level service creations like NovaAPI
+	// until cell0 is ready as top level services need cell0 to register in
+	if cell0, ok := cells[Cell0Name]; !ok || !cell0.IsReady() {
+		// we need to stop here until cell0 is ready
 		return ctrl.Result{}, nil
 	}
 
-	result, err = r.ensureAPI(ctx, h, instance, cell0Template, cell0DB, apiDB)
+	result, err = r.ensureAPI(ctx, h, instance, cell0Template, cellDBs[Cell0Name].Database, apiDB)
 	if err != nil {
 		return result, err
-	}
-
-	// NOTE(gibi): We do a sequenctial approach to create Cell DBs here. I.e.
-	// we create the DB of the first cell and not move forward to the second
-	// cell DB until the first is created. So if the DB creation fails for the
-	// first cell then we never try to create DB for the second cell.
-	// This is suboptimal but simple.
-	cellDBs := map[string]*database.Database{}
-	for cellName, cellTemplate := range instance.Spec.CellTemplates {
-		if cellName == Cell0Name {
-			// We already ensured cell0 so we skipt that here.
-			continue
-		}
-		cellDB, result, err := r.ensureCellDB(ctx, h, instance, cellName, cellTemplate)
-		if (err != nil || result != ctrl.Result{}) {
-			return result, err
-		}
-		cellDBs[cellName] = cellDB
-	}
-	instance.Status.Conditions.MarkTrue(novav1.NovaAllCellsDBReadyCondition, condition.DBReadyMessage)
-
-	// We do a more parellel approch with the actuall Cell creation. We create
-	// NovaCell instances in a sequence and if the creation of a NovaCell fail
-	// then we don't create the rest. But if the NovaCell creation succeed then
-	// we let all NovaCells do the deployments in parallel.
-	allCellReady := cell0.IsReady()
-	for cellName, cellTemplate := range instance.Spec.CellTemplates {
-		if cellName == Cell0Name {
-			// We already ensured cell0 so we skipt that here.
-			continue
-		}
-		cellDB := cellDBs[cellName]
-		cell, result, err := r.ensureCell(ctx, h, instance, cellName, cellTemplate, cellDB, apiDB)
-		if err != nil {
-			return result, err
-		}
-
-		allCellReady = allCellReady && cell.IsReady()
-	}
-	if allCellReady {
-		instance.Status.Conditions.MarkTrue(novav1.NovaAllCellsReadyCondition, novav1.NovaAllCellsReadyMessage)
-
 	}
 
 	util.LogForObject(h, "Successfully reconciled", instance)
@@ -259,7 +339,7 @@ func (r *NovaReconciler) ensureDB(
 	db *database.Database,
 	databaseServiceName string,
 	targetCondition condition.Type,
-) (ctrl.Result, error) {
+) (nova.DatabaseStatus, error) {
 
 	ctrlResult, err := db.CreateOrPatchDBByName(
 		ctx,
@@ -267,43 +347,21 @@ func (r *NovaReconciler) ensureDB(
 		databaseServiceName,
 	)
 	if err != nil {
-		instance.Status.Conditions.Set(condition.FalseCondition(
-			targetCondition,
-			condition.ErrorReason,
-			condition.SeverityWarning,
-			condition.DBReadyErrorMessage,
-			err.Error()))
-		return ctrl.Result{}, err
+		return nova.DBFailed, err
 	}
 	if (ctrlResult != ctrl.Result{}) {
-		instance.Status.Conditions.Set(condition.FalseCondition(
-			targetCondition,
-			condition.RequestedReason,
-			condition.SeverityInfo,
-			condition.DBReadyRunningMessage))
-		return ctrlResult, nil
+		return nova.DBCreating, nil
 	}
-	// wait for the DB to be setup
+	// poll the status of the DB creation
 	ctrlResult, err = db.WaitForDBCreatedWithTimeout(ctx, h, r.RequeueTimeout)
 	if err != nil {
-		instance.Status.Conditions.Set(condition.FalseCondition(
-			targetCondition,
-			condition.ErrorReason,
-			condition.SeverityWarning,
-			condition.DBReadyErrorMessage,
-			err.Error()))
-		return ctrlResult, err
+		return nova.DBFailed, err
 	}
 	if (ctrlResult != ctrl.Result{}) {
-		instance.Status.Conditions.Set(condition.FalseCondition(
-			targetCondition,
-			condition.RequestedReason,
-			condition.SeverityInfo,
-			condition.DBReadyRunningMessage))
-		return ctrlResult, nil
+		return nova.DBCreating, nil
 	}
 
-	return ctrl.Result{}, nil
+	return nova.DBCompleted, nil
 }
 
 func (r *NovaReconciler) getCell0Template(instance *novav1.Nova) (novav1.NovaCellTemplate, error) {
@@ -317,8 +375,8 @@ func (r *NovaReconciler) getCell0Template(instance *novav1.Nova) (novav1.NovaCel
 			condition.ErrorReason,
 			condition.SeverityError,
 			novav1.NovaAllCellsReadyErrorMessage,
-			Cell0Name,
-			err.Error()))
+			fmt.Sprintf("%s(%v)", Cell0Name, err.Error()),
+		))
 
 		return cell0Template, err
 	}
@@ -330,7 +388,7 @@ func (r *NovaReconciler) ensureAPIDB(
 	ctx context.Context,
 	h *helper.Helper,
 	instance *novav1.Nova,
-) (*database.Database, ctrl.Result, error) {
+) (*database.Database, nova.DatabaseStatus, error) {
 	apiDB := database.NewDatabaseWithNamespace(
 		nova.NovaAPIDatabaseName,
 		instance.Spec.APIDatabaseUser,
@@ -358,7 +416,7 @@ func (r *NovaReconciler) ensureCellDB(
 	instance *novav1.Nova,
 	cellName string,
 	cellTemplate novav1.NovaCellTemplate,
-) (*database.Database, ctrl.Result, error) {
+) (*database.Database, nova.DatabaseStatus, error) {
 	cellDB := database.NewDatabaseWithNamespace(
 		"nova_"+cellName,
 		cellTemplate.CellDatabaseUser,
@@ -427,28 +485,11 @@ func (r *NovaReconciler) ensureCell(
 	})
 
 	if err != nil {
-		condition.FalseCondition(
-			novav1.NovaAllCellsReadyCondition,
-			condition.ErrorReason,
-			condition.SeverityError,
-			novav1.NovaAllCellsReadyErrorMessage,
-			cellName,
-			err.Error(),
-		)
 		return cell, ctrl.Result{}, err
 	}
 
 	if op != controllerutil.OperationResultNone {
 		util.LogForObject(h, fmt.Sprintf("NovaCell %s.", string(op)), instance, "NovaCell.Name", cell.Name)
-	}
-
-	c := cell.Status.Conditions.Mirror(novav1.NovaAllCellsReadyCondition)
-	// NOTE(gibi): it can be nil if the NovaCell CR is created but no
-	// reconciliation is run on it to initialize the ReadyCondition yet.
-	// We only propagate error status here as NovaAllCellsReadyCondition should
-	// only be true if *all* cells report True.
-	if c != nil && c.Status == corev1.ConditionFalse {
-		instance.Status.Conditions.Set(c)
 	}
 
 	return cell, ctrl.Result{}, nil

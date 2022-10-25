@@ -538,6 +538,14 @@ func GetNovaCell(name types.NamespacedName) *novav1.NovaCell {
 	return instance
 }
 
+func NovaCellNotExists(name types.NamespacedName) {
+	Consistently(func(g Gomega) {
+		instance := &novav1.NovaCell{}
+		err := k8sClient.Get(ctx, name, instance)
+		g.Expect(k8s_errors.IsNotFound(err)).To(BeTrue())
+	}, consistencyTimeout, interval).Should(Succeed())
+}
+
 func NovaCellConditionGetter(name types.NamespacedName) condition.Conditions {
 	instance := GetNovaCell(name)
 	return instance.Status.Conditions

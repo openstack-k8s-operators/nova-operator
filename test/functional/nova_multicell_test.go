@@ -306,7 +306,6 @@ var _ = Describe("Nova controller", func() {
 			SimulateDeploymentReplicaReady(novaAPIdeploymentName)
 			SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
 			SimulateMariaDBDatabaseCompleted(cell2.MariaDBDatabaseName)
-			// cell2 only deployed after cell1 is deployed successfully
 			SimulateJobSuccess(cell1.CellDBSyncJobName)
 
 			// assert that cell related CRs are created
@@ -362,6 +361,77 @@ var _ = Describe("Nova controller", func() {
 				condition.ReadyCondition,
 				corev1.ConditionTrue,
 			)
+		})
+		It("creates cell2 NovaCell even if everthing else fails", func() {
+			// Don't simulate any success for any other DBs or Cells
+			// just for cell2
+			SimulateMariaDBDatabaseCompleted(cell2.MariaDBDatabaseName)
+
+			// assert that cell related CRs are created
+			GetNovaCell(cell2.CellName)
+			GetNovaConductor(cell2.CellConductorName)
+
+			SimulateJobSuccess(cell2.CellDBSyncJobName)
+			ExpectCondition(
+				cell2.CellConductorName,
+				conditionGetterFunc(NovaConductorConditionGetter),
+				condition.DBSyncReadyCondition,
+				corev1.ConditionTrue,
+			)
+			ExpectCondition(
+				cell2.CellName,
+				conditionGetterFunc(NovaCellConditionGetter),
+				novav1.NovaConductorReadyCondition,
+				corev1.ConditionTrue,
+			)
+			ExpectCondition(
+				cell2.CellName,
+				conditionGetterFunc(NovaCellConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+			// Only cell2 succeeded so Nova is not ready yet
+			ExpectCondition(
+				novaName,
+				conditionGetterFunc(NovaConditionGetter),
+				novav1.NovaAllCellsReadyCondition,
+				corev1.ConditionFalse,
+			)
+		})
+		It("creates Nova API even if cell1 and cell2 fails", func() {
+			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
+			SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
+			SimulateJobSuccess(cell0.CellDBSyncJobName)
+
+			// Simulate that cell1 DB sync failed and do not simulate
+			// cell2 DB creation success so that will be in Creating state.
+			SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
+			SimulateJobFailure(cell1.CellDBSyncJobName)
+
+			// NovaAPI is still created
+			GetNovaAPI(novaAPIName)
+			SimulateDeploymentReplicaReady(novaAPIdeploymentName)
+			ExpectCondition(
+				novaName,
+				conditionGetterFunc(NovaConditionGetter),
+				novav1.NovaAPIReadyCondition,
+				corev1.ConditionTrue,
+			)
+			ExpectCondition(
+				novaName,
+				conditionGetterFunc(NovaConditionGetter),
+				novav1.NovaAllCellsReadyCondition,
+				corev1.ConditionFalse,
+			)
+		})
+		It("does not create cell1 if cell0 fails as cell1 needs API access", func() {
+			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
+			SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
+			SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
+
+			SimulateJobFailure(cell0.CellDBSyncJobName)
+
+			NovaCellNotExists(cell1.CellName)
 		})
 	})
 })
