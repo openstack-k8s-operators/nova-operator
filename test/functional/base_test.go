@@ -187,20 +187,20 @@ func ExpectConditionWithDetails(
 	logger.Info("ExpectConditionWithDetails succeeded", "type", conditionType, "expected status", expectedStatus, "on", name)
 }
 
-func GetConfigMap(name types.NamespacedName) corev1.ConfigMap {
+func GetConfigMap(name types.NamespacedName) *corev1.ConfigMap {
 	cm := &corev1.ConfigMap{}
 	Eventually(func(g Gomega) {
 		g.Expect(k8sClient.Get(ctx, name, cm)).Should(Succeed())
 	}, timeout, interval).Should(Succeed())
-	return *cm
+	return cm
 }
 
-func ListConfigMaps(namespace string) corev1.ConfigMapList {
+func ListConfigMaps(namespace string) *corev1.ConfigMapList {
 	cms := &corev1.ConfigMapList{}
 	Eventually(func(g Gomega) {
 		g.Expect(k8sClient.List(ctx, cms, client.InNamespace(namespace))).Should(Succeed())
 	}, timeout, interval).Should(Succeed())
-	return *cms
+	return cms
 
 }
 
