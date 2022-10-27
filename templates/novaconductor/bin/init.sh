@@ -46,6 +46,8 @@ done
 crudini --set ${SVC_CFG_MERGED} database connection mysql+pymysql://${CELLDBUSER}:${CELLDBPASSWORD}@${CELLDBHOST}/${CELLDB}
 crudini --set ${SVC_CFG_MERGED} keystone_authtoken password $PASSWORD
 
+crudini --set ${SVC_CFG_MERGED} placement password $PASSWORD
+
 # set api database connection if provided
 if [ ! -z "$APIDatabaseHost" ]
 then

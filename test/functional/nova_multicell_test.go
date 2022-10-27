@@ -28,10 +28,11 @@ import (
 )
 
 type Cell struct {
-	CellName            types.NamespacedName
-	MariaDBDatabaseName types.NamespacedName
-	CellConductorName   types.NamespacedName
-	CellDBSyncJobName   types.NamespacedName
+	CellName                 types.NamespacedName
+	MariaDBDatabaseName      types.NamespacedName
+	CellConductorName        types.NamespacedName
+	CellDBSyncJobName        types.NamespacedName
+	ConductorStatefulSetName types.NamespacedName
 }
 
 func NewCell(novaName types.NamespacedName, cell string) Cell {
@@ -52,6 +53,10 @@ func NewCell(novaName types.NamespacedName, cell string) Cell {
 		CellDBSyncJobName: types.NamespacedName{
 			Namespace: novaName.Namespace,
 			Name:      cellName.Name + "-conductor-db-sync",
+		},
+		ConductorStatefulSetName: types.NamespacedName{
+			Namespace: novaName.Namespace,
+			Name:      cellName.Name + "-conductor",
 		},
 	}
 }
@@ -189,6 +194,7 @@ var _ = Describe("Nova controller", func() {
 				condition.DBSyncReadyCondition,
 				corev1.ConditionTrue,
 			)
+			SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 			ExpectCondition(
 				cell0.CellName,
 				conditionGetterFunc(NovaCellConditionGetter),
@@ -207,6 +213,7 @@ var _ = Describe("Nova controller", func() {
 			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
 			SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
 			SimulateJobSuccess(cell0.CellDBSyncJobName)
+			SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 
 			api := GetNovaAPI(novaAPIName)
 			Expect(api.Spec.Replicas).Should(BeEquivalentTo(1))
@@ -243,6 +250,7 @@ var _ = Describe("Nova controller", func() {
 			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
 			SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
 			SimulateJobSuccess(cell0.CellDBSyncJobName)
+			SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 			SimulateStatefulSetReplicaReady(novaAPIdeploymentName)
 
 			SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
@@ -266,6 +274,7 @@ var _ = Describe("Nova controller", func() {
 			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
 			SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
 			SimulateJobSuccess(cell0.CellDBSyncJobName)
+			SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 			SimulateStatefulSetReplicaReady(novaAPIdeploymentName)
 			SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
 			SimulateMariaDBDatabaseCompleted(cell2.MariaDBDatabaseName)
@@ -297,6 +306,7 @@ var _ = Describe("Nova controller", func() {
 				condition.DBSyncReadyCondition,
 				corev1.ConditionTrue,
 			)
+			SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
 			ExpectCondition(
 				cell1.CellName,
 				conditionGetterFunc(NovaCellConditionGetter),
@@ -314,10 +324,12 @@ var _ = Describe("Nova controller", func() {
 			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
 			SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
 			SimulateJobSuccess(cell0.CellDBSyncJobName)
+			SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 			SimulateStatefulSetReplicaReady(novaAPIdeploymentName)
 			SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
 			SimulateMariaDBDatabaseCompleted(cell2.MariaDBDatabaseName)
 			SimulateJobSuccess(cell1.CellDBSyncJobName)
+			SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
 
 			// assert that cell related CRs are created
 			GetNovaCell(cell2.CellName)
@@ -352,6 +364,7 @@ var _ = Describe("Nova controller", func() {
 				condition.DBSyncReadyCondition,
 				corev1.ConditionTrue,
 			)
+			SimulateStatefulSetReplicaReady(cell2.ConductorStatefulSetName)
 			ExpectCondition(
 				cell2.CellName,
 				conditionGetterFunc(NovaCellConditionGetter),
@@ -389,6 +402,7 @@ var _ = Describe("Nova controller", func() {
 				condition.DBSyncReadyCondition,
 				corev1.ConditionTrue,
 			)
+			SimulateStatefulSetReplicaReady(cell2.ConductorStatefulSetName)
 			ExpectCondition(
 				cell2.CellName,
 				conditionGetterFunc(NovaCellConditionGetter),
@@ -413,6 +427,7 @@ var _ = Describe("Nova controller", func() {
 			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
 			SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
 			SimulateJobSuccess(cell0.CellDBSyncJobName)
+			SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 
 			// Simulate that cell1 DB sync failed and do not simulate
 			// cell2 DB creation success so that will be in Creating state.

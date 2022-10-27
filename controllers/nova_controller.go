@@ -517,8 +517,9 @@ func (r *NovaReconciler) ensureCell(
 		MetadataServiceTemplate:   cellTemplate.MetadataServiceTemplate,
 		NoVNCProxyServiceTemplate: cellTemplate.NoVNCProxyServiceTemplate,
 		Debug:                     instance.Spec.Debug,
-		ServiceUser:               instance.Spec.ServiceUser,
-		KeystoneAuthURL:           keystoneAuthURL,
+		// TODO(gibi): this should be part of the secret
+		ServiceUser:     instance.Spec.ServiceUser,
+		KeystoneAuthURL: keystoneAuthURL,
 	}
 	if cellTemplate.HasAPIAccess {
 		cellSpec.APIDatabaseHostname = apiDB.GetDatabaseHostname()

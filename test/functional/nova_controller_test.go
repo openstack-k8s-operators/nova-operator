@@ -39,6 +39,7 @@ var _ = Describe("Nova controller", func() {
 	var novaAPIName types.NamespacedName
 	var novaAPIdeploymentName types.NamespacedName
 	var novaKeystoneServiceName types.NamespacedName
+	var novaCell0ConductorStatefulSetName types.NamespacedName
 
 	BeforeEach(func() {
 		// NOTE(gibi): We need to create a unique namespace for each test run
@@ -93,6 +94,10 @@ var _ = Describe("Nova controller", func() {
 		novaKeystoneServiceName = types.NamespacedName{
 			Namespace: namespace,
 			Name:      "nova",
+		}
+		novaCell0ConductorStatefulSetName = types.NamespacedName{
+			Namespace: namespace,
+			Name:      cell0ConductorName.Name,
 		}
 	})
 
@@ -231,6 +236,7 @@ var _ = Describe("Nova controller", func() {
 				condition.DBSyncReadyCondition,
 				corev1.ConditionTrue,
 			)
+			SimulateStatefulSetReplicaReady(novaCell0ConductorStatefulSetName)
 			ExpectCondition(
 				cell0Name,
 				conditionGetterFunc(NovaCellConditionGetter),
@@ -250,6 +256,7 @@ var _ = Describe("Nova controller", func() {
 			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
 			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForCell0)
 			SimulateJobSuccess(cell0DBSyncJobName)
+			SimulateStatefulSetReplicaReady(novaCell0ConductorStatefulSetName)
 
 			GetNovaAPI(novaAPIName)
 			SimulateStatefulSetReplicaReady(novaAPIdeploymentName)
@@ -394,6 +401,7 @@ var _ = Describe("Nova controller", func() {
 			)
 
 			SimulateJobSuccess(cell0DBSyncJobName)
+			SimulateStatefulSetReplicaReady(novaCell0ConductorStatefulSetName)
 
 			novaAPIDeployment := GetStatefulSet(novaAPIdeploymentName)
 			novaAPIDepEnv := novaAPIDeployment.Spec.Template.Spec.InitContainers[0].Env
