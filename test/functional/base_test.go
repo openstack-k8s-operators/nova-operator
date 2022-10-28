@@ -28,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
@@ -562,4 +563,73 @@ func SimulateStatefulSetReplicaReady(name types.NamespacedName) {
 
 	}, timeout, interval).Should(Succeed())
 	logger.Info("Simulated statefulset success", "on", name)
+}
+
+func CreateKeystoneAPI(namespace string) types.NamespacedName {
+	keystone := &keystonev1.KeystoneAPI{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "keystone.openstack.org/v1beta1",
+			Kind:       "KeystoneAPI",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "keystone-" + uuid.New().String(),
+			Namespace: namespace,
+		},
+		Spec: keystonev1.KeystoneAPISpec{},
+	}
+
+	Expect(k8sClient.Create(ctx, keystone.DeepCopy())).Should(Succeed())
+	name := types.NamespacedName{Namespace: namespace, Name: keystone.Name}
+
+	// the Status field needs to be written via a separate client
+	keystone = GetKeystoneAPI(name)
+	keystone.Status = keystonev1.KeystoneAPIStatus{
+		APIEndpoints: map[string]string{"public": "http://keystone-public-openstack.testing"},
+	}
+	Expect(k8sClient.Status().Update(ctx, keystone.DeepCopy())).Should(Succeed())
+
+	logger.Info("KeystoneAPI created", "KeystoneAPI", name)
+	return name
+}
+
+func DeleteKeystoneAPI(name types.NamespacedName) {
+	Eventually(func(g Gomega) {
+		keystone := &keystonev1.KeystoneAPI{}
+		err := k8sClient.Get(ctx, name, keystone)
+		// if it is already gone that is OK
+		if k8s_errors.IsNotFound(err) {
+			return
+		}
+		g.Expect(err).Should(BeNil())
+
+		g.Expect(k8sClient.Delete(ctx, keystone)).Should(Succeed())
+
+		err = k8sClient.Get(ctx, name, keystone)
+		g.Expect(k8s_errors.IsNotFound(err)).To(BeTrue())
+	}, timeout, interval).Should(Succeed())
+}
+
+func GetKeystoneAPI(name types.NamespacedName) *keystonev1.KeystoneAPI {
+	instance := &keystonev1.KeystoneAPI{}
+	Eventually(func(g Gomega) {
+		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
+	}, timeout, interval).Should(Succeed())
+	return instance
+}
+
+func GetKeystoneService(name types.NamespacedName) *keystonev1.KeystoneService {
+	instance := &keystonev1.KeystoneService{}
+	Eventually(func(g Gomega) {
+		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
+	}, timeout, interval).Should(Succeed())
+	return instance
+}
+
+func SimulateKeystoneServiceReady(name types.NamespacedName) {
+	Eventually(func(g Gomega) {
+		service := GetKeystoneService(name)
+		service.Status.Conditions.MarkTrue(condition.ReadyCondition, "Ready")
+		g.Expect(k8sClient.Status().Update(ctx, service)).To(Succeed())
+	}, timeout, interval).Should(Succeed())
+	logger.Info("Simulated KeystoneService ready", "on", name)
 }

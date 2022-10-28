@@ -27,7 +27,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
+	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
+	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/endpoint"
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	database "github.com/openstack-k8s-operators/lib-common/modules/database"
@@ -47,6 +50,9 @@ type NovaReconciler struct {
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=nova/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=nova/finalizers,verbs=update
 //+kubebuilder:rbac:groups=mariadb.openstack.org,resources=mariadbdatabases,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneapis,verbs=get;list;watch;
+// +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneservices,verbs=get;list;watch;create;update;patch;delete;
+// +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneendpoints,verbs=get;list;watch;create;update;patch;delete;
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -127,6 +133,21 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	// TODO(gibi): This should be checked in a webhook and reject the CR
 	// creation instead of setting its status.
 	cell0Template, err := r.getCell0Template(instance)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	err = r.ensureKeystoneServiceUser(ctx, h, instance)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	// We have to wait until our service is registered to keystone
+	if !instance.Status.Conditions.IsTrue(condition.KeystoneServiceReadyCondition) {
+		return ctrl.Result{}, nil
+	}
+
+	keystoneAuthURL, err := r.getKeystoneAuthURL(ctx, h, instance)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -225,7 +246,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 			continue
 		}
 
-		cell, _, err := r.ensureCell(ctx, h, instance, cellName, cellTemplate, cellDB.Database, apiDB)
+		cell, _, err := r.ensureCell(ctx, h, instance, cellName, cellTemplate, cellDB.Database, apiDB, keystoneAuthURL)
 		cells[cellName] = cell
 		if err != nil {
 			failedCells = append(failedCells, fmt.Sprintf("%s(%v)", cellName, err.Error()))
@@ -325,6 +346,11 @@ func (r *NovaReconciler) initConditions(
 				novav1.NovaAllCellsReadyCondition,
 				condition.InitReason,
 				novav1.NovaAllCellsReadyInitMessage,
+			),
+			condition.UnknownCondition(
+				condition.KeystoneServiceReadyCondition,
+				condition.InitReason,
+				"Service registration not started",
 			),
 		)
 		instance.Status.Conditions.Init(&cl)
@@ -446,6 +472,7 @@ func (r *NovaReconciler) ensureCell(
 	cellTemplate novav1.NovaCellTemplate,
 	cellDB *database.Database,
 	apiDB *database.Database,
+	keystoneAuthURL string,
 ) (*novav1.NovaCell, ctrl.Result, error) {
 	// TODO(gibi): Pass down a narrowed secret that only holds
 	// specific information but also holds user names
@@ -458,6 +485,8 @@ func (r *NovaReconciler) ensureCell(
 		MetadataServiceTemplate:   cellTemplate.MetadataServiceTemplate,
 		NoVNCProxyServiceTemplate: cellTemplate.NoVNCProxyServiceTemplate,
 		Debug:                     instance.Spec.Debug,
+		ServiceUser:               instance.Spec.ServiceUser,
+		KeystoneAuthURL:           keystoneAuthURL,
 	}
 	if cellTemplate.HasAPIAccess {
 		cellSpec.APIDatabaseHostname = apiDB.GetDatabaseHostname()
@@ -562,11 +591,66 @@ func (r *NovaReconciler) ensureAPI(
 	return ctrl.Result{}, nil
 }
 
+func (r *NovaReconciler) ensureKeystoneServiceUser(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *novav1.Nova,
+) error {
+	serviceSpec := keystonev1.KeystoneServiceSpec{
+		ServiceType:        "compute",
+		ServiceName:        "nova",
+		ServiceDescription: "Nova Compute Service",
+		Enabled:            true,
+		ServiceUser:        instance.Spec.ServiceUser,
+		Secret:             instance.Spec.Secret,
+		PasswordSelector:   instance.Spec.PasswordSelectors.Service,
+	}
+	serviceLabels := map[string]string{
+		common.AppSelector: "nova",
+	}
+
+	service := keystonev1.NewKeystoneService(serviceSpec, instance.Namespace, serviceLabels, 10)
+	result, err := service.CreateOrPatch(ctx, h)
+	if k8s_errors.IsNotFound(err) {
+		return nil
+	}
+	if (err != nil || result != ctrl.Result{}) {
+		return err
+	}
+
+	c := service.GetConditions().Mirror(condition.KeystoneServiceReadyCondition)
+	if c != nil {
+		instance.Status.Conditions.Set(c)
+	}
+
+	return nil
+}
+
+func (r *NovaReconciler) getKeystoneAuthURL(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *novav1.Nova,
+) (string, error) {
+	// TODO(gibi): change lib-common to take the name of the KeystoneAPI as
+	// parameter instead of labels. Then use instance.Spec.KeystoneInstance as
+	// the name.
+	keystoneAPI, err := keystonev1.GetKeystoneAPI(ctx, h, instance.Namespace, map[string]string{})
+	if err != nil {
+		return "", err
+	}
+	authURL, err := keystoneAPI.GetEndpoint(endpoint.EndpointPublic)
+	if err != nil {
+		return "", err
+	}
+	return authURL, nil
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *NovaReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&novav1.Nova{}).
 		Owns(&mariadbv1.MariaDBDatabase{}).
+		Owns(&keystonev1.KeystoneService{}).
 		Owns(&novav1.NovaAPI{}).
 		Owns(&novav1.NovaCell{}).
 		Complete(r)

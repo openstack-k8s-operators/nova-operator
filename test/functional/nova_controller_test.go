@@ -38,6 +38,7 @@ var _ = Describe("Nova controller", func() {
 	var cell0DBSyncJobName types.NamespacedName
 	var novaAPIName types.NamespacedName
 	var novaAPIdeploymentName types.NamespacedName
+	var novaKeystoneServiceName types.NamespacedName
 
 	BeforeEach(func() {
 		// NOTE(gibi): We need to create a unique namespace for each test run
@@ -89,7 +90,10 @@ var _ = Describe("Nova controller", func() {
 			Namespace: namespace,
 			Name:      novaAPIName.Name,
 		}
-
+		novaKeystoneServiceName = types.NamespacedName{
+			Namespace: namespace,
+			Name:      "nova",
+		}
 	})
 
 	When("Nova CR instance is created without cell0", func() {
@@ -146,6 +150,7 @@ var _ = Describe("Nova controller", func() {
 					},
 				),
 			)
+			DeferCleanup(DeleteKeystoneAPI, CreateKeystoneAPI(namespace))
 
 			CreateNova(
 				novaName,
@@ -171,7 +176,23 @@ var _ = Describe("Nova controller", func() {
 			DeferCleanup(DeleteNova, novaName)
 		})
 
+		It("registers nova service to keystone", func() {
+			// assert that the KeystoneService for nova is created
+			GetKeystoneService(novaKeystoneServiceName)
+			// and simulate that it becomes ready i.e. the keystone-operator
+			// did its job and registered the nova service
+			SimulateKeystoneServiceReady(novaKeystoneServiceName)
+
+			ExpectCondition(
+				novaName,
+				conditionGetterFunc(NovaConditionGetter),
+				condition.KeystoneServiceReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
+
 		It("creates nova_api DB", func() {
+			SimulateKeystoneServiceReady(novaKeystoneServiceName)
 			ExpectCondition(
 				novaName,
 				conditionGetterFunc(NovaConditionGetter),
@@ -190,6 +211,7 @@ var _ = Describe("Nova controller", func() {
 		})
 
 		It("creates nova_cell0 DB", func() {
+			SimulateKeystoneServiceReady(novaKeystoneServiceName)
 			ExpectCondition(
 				novaName,
 				conditionGetterFunc(NovaConditionGetter),
@@ -208,6 +230,7 @@ var _ = Describe("Nova controller", func() {
 		})
 
 		It("creates cell0 NovaCell", func() {
+			SimulateKeystoneServiceReady(novaKeystoneServiceName)
 			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
 			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForCell0)
 			// assert that cell related CRs are created
@@ -243,6 +266,7 @@ var _ = Describe("Nova controller", func() {
 		})
 
 		It("create NovaAPI", func() {
+			SimulateKeystoneServiceReady(novaKeystoneServiceName)
 			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
 			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForCell0)
 			SimulateJobSuccess(cell0DBSyncJobName)
@@ -285,6 +309,7 @@ var _ = Describe("Nova controller", func() {
 					},
 				),
 			)
+			DeferCleanup(DeleteKeystoneAPI, CreateKeystoneAPI(namespace))
 
 			CreateNova(
 				novaName,
@@ -311,6 +336,7 @@ var _ = Describe("Nova controller", func() {
 		})
 
 		It("does not create NovaAPI", func() {
+			SimulateKeystoneServiceReady(novaKeystoneServiceName)
 			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
 			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForCell0)
 			GetNovaCell(cell0Name)
@@ -365,6 +391,7 @@ var _ = Describe("Nova controller", func() {
 					},
 				),
 			)
+			DeferCleanup(DeleteKeystoneAPI, CreateKeystoneAPI(namespace))
 
 			CreateNova(
 				novaName,
@@ -391,6 +418,7 @@ var _ = Describe("Nova controller", func() {
 		})
 
 		It("uses the correct hostnames to access the different DB services", func() {
+			SimulateKeystoneServiceReady(novaKeystoneServiceName)
 			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
 			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForCell0)
 

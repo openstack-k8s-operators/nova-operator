@@ -65,6 +65,7 @@ var _ = Describe("Nova controller", func() {
 	var cell2 Cell
 	var novaAPIName types.NamespacedName
 	var novaAPIdeploymentName types.NamespacedName
+	var novaKeystoneServiceName types.NamespacedName
 
 	BeforeEach(func() {
 		// NOTE(gibi): We need to create a unique namespace for each test run
@@ -99,6 +100,10 @@ var _ = Describe("Nova controller", func() {
 		novaAPIdeploymentName = types.NamespacedName{
 			Namespace: namespace,
 			Name:      novaAPIName.Name,
+		}
+		novaKeystoneServiceName = types.NamespacedName{
+			Namespace: namespace,
+			Name:      "nova",
 		}
 		cell0 = NewCell(novaName, "cell0")
 		cell1 = NewCell(novaName, "cell1")
@@ -149,6 +154,8 @@ var _ = Describe("Nova controller", func() {
 			}
 			CreateNova(novaName, novaSpec)
 			DeferCleanup(DeleteNova, novaName)
+			DeferCleanup(DeleteKeystoneAPI, CreateKeystoneAPI(namespace))
+			SimulateKeystoneServiceReady(novaKeystoneServiceName)
 		})
 
 		It("creates cell0 NovaCell", func() {
