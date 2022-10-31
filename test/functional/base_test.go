@@ -299,7 +299,32 @@ func CreateNova(name types.NamespacedName, spec novav1.NovaSpec) {
 	Expect(k8sClient.Create(ctx, nova)).Should(Succeed())
 }
 
+func CreateNovaWithCell0(name types.NamespacedName) {
+	CreateNova(
+		name,
+		novav1.NovaSpec{
+			Secret:              SecretName,
+			APIDatabaseInstance: "openstack",
+			CellTemplates: map[string]novav1.NovaCellTemplate{
+				"cell0": {
+					CellDatabaseInstance: "openstack",
+					HasAPIAccess:         true,
+					ConductorServiceTemplate: novav1.NovaConductorTemplate{
+						ContainerImage: ContainerImage,
+						Replicas:       1,
+					},
+				},
+			},
+			APIServiceTemplate: novav1.NovaAPITemplate{
+				ContainerImage: ContainerImage,
+				Replicas:       1,
+			},
+		},
+	)
+}
+
 func DeleteNova(name types.NamespacedName) {
+	logger.Info("Deleting Nova", "Nova", name)
 	// We have to wait for the controller to fully delete the instance
 	Eventually(func(g Gomega) {
 		nova := &novav1.Nova{}
@@ -315,6 +340,7 @@ func DeleteNova(name types.NamespacedName) {
 		err = k8sClient.Get(ctx, name, nova)
 		g.Expect(k8s_errors.IsNotFound(err)).To(BeTrue())
 	}, timeout, interval).Should(Succeed())
+	logger.Info("Nova deleted", "Nova", name)
 }
 
 func GetNova(name types.NamespacedName) *novav1.Nova {

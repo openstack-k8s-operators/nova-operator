@@ -152,27 +152,7 @@ var _ = Describe("Nova controller", func() {
 			)
 			DeferCleanup(DeleteKeystoneAPI, CreateKeystoneAPI(namespace))
 
-			CreateNova(
-				novaName,
-				novav1.NovaSpec{
-					Secret:              SecretName,
-					APIDatabaseInstance: "openstack",
-					CellTemplates: map[string]novav1.NovaCellTemplate{
-						"cell0": {
-							CellDatabaseInstance: "openstack",
-							HasAPIAccess:         true,
-							ConductorServiceTemplate: novav1.NovaConductorTemplate{
-								ContainerImage: ContainerImage,
-								Replicas:       1,
-							},
-						},
-					},
-					APIServiceTemplate: novav1.NovaAPITemplate{
-						ContainerImage: ContainerImage,
-						Replicas:       1,
-					},
-				},
-			)
+			CreateNovaWithCell0(novaName)
 			DeferCleanup(DeleteNova, novaName)
 		})
 
@@ -311,27 +291,7 @@ var _ = Describe("Nova controller", func() {
 			)
 			DeferCleanup(DeleteKeystoneAPI, CreateKeystoneAPI(namespace))
 
-			CreateNova(
-				novaName,
-				novav1.NovaSpec{
-					APIDatabaseInstance: "openstack",
-					Secret:              SecretName,
-					CellTemplates: map[string]novav1.NovaCellTemplate{
-						"cell0": {
-							CellDatabaseInstance: "openstack",
-							HasAPIAccess:         true,
-							ConductorServiceTemplate: novav1.NovaConductorTemplate{
-								ContainerImage: ContainerImage,
-								Replicas:       1,
-							},
-						},
-					},
-					APIServiceTemplate: novav1.NovaAPITemplate{
-						ContainerImage: ContainerImage,
-						Replicas:       1,
-					},
-				},
-			)
+			CreateNovaWithCell0(novaName)
 			DeferCleanup(DeleteNova, novaName)
 		})
 
