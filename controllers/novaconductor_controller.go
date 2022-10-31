@@ -296,6 +296,9 @@ func (r *NovaConductorReconciler) generateServiceConfigMaps(
 	templateParameters := make(map[string]interface{})
 	templateParameters["ServiceUser"] = instance.Spec.ServiceUser
 	templateParameters["KeystonePublicURL"] = instance.Spec.KeystoneAuthURL
+	// TODO(gibi): This should come from the Spec / Secret but hardcoded
+	// here now
+	templateParameters["PlacementServiceUser"] = "placement"
 
 	cms := []util.Template{
 		// ScriptsConfigMap

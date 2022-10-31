@@ -484,6 +484,7 @@ func CreateNovaConductorSecret(namespace string, name string) *corev1.Secret {
 		},
 		Data: map[string][]byte{
 			"NovaCell0DatabasePassword": []byte("12345678"),
+			"PlacementPassword":         []byte("12345678"),
 		},
 	}
 	Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
@@ -559,6 +560,7 @@ func CreateNovaSecret(namespace string, name string) *corev1.Secret {
 			"NovaAPIDatabasePassword":   []byte("12345678"),
 			"NovaAPIMessageBusPassword": []byte("12345678"),
 			"NovaCell0DatabasePassword": []byte("12345678"),
+			"PlacementPassword":         []byte("12345678"),
 		},
 	}
 	Expect(k8sClient.Create(ctx, secret)).Should(Succeed())

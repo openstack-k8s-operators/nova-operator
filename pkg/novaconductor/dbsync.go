@@ -56,6 +56,8 @@ func CellDBSyncJob(
 		APIDatabaseName:             nova.NovaAPIDatabaseName,
 		APIDatabasePasswordSelector: instance.Spec.PasswordSelectors.APIDatabase,
 		VolumeMounts:                nova.GetAllVolumeMounts(),
+		// TODO(gibi): this should come from our Spec but hardcoded for now
+		PlacementServiceUserPasswordSelector: "PlacementPassword",
 	}
 	runAsUser := int64(0)
 
