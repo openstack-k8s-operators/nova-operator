@@ -20,14 +20,18 @@ import (
 	"context"
 
 	v1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
+	routev1 "github.com/openshift/api/route/v1"
+
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/configmap"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/endpoint"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/labels"
@@ -55,6 +59,9 @@ type NovaAPIReconciler struct {
 // +kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;list;watch;create;update;patch;delete;
+// +kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete;
+// +kubebuilder:rbac:groups=route.openshift.io,resources=routes,verbs=get;list;watch;create;update;patch;delete;
+// +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneendpoints,verbs=get;list;watch;create;update;patch;delete;
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -182,6 +189,24 @@ func (r *NovaAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (re
 		return result, err
 	}
 
+	// Only expose the service is the deployment succeeded
+	if !instance.Status.Conditions.IsTrue(condition.DeploymentReadyCondition) {
+		return ctrl.Result{}, nil
+	}
+
+	result, err = r.ensureServiceExposed(ctx, h, instance)
+	if (err != nil || result != ctrl.Result{}) {
+		// We can ignore RequeueAfter as we are watching the Service and Route resource
+		// but we have to return while waiting for the service to be exposed
+		return ctrl.Result{}, err
+	}
+
+	result, err = r.ensureKeystoneEndpoint(ctx, h, instance)
+	if (err != nil || result != ctrl.Result{}) {
+		// We can ignore RequeueAfter as we are watching the KeystoneEndpoint resource
+		return ctrl.Result{}, err
+	}
+
 	return ctrl.Result{}, nil
 }
 
@@ -228,6 +253,16 @@ func (r *NovaAPIReconciler) initConditions(
 				condition.DeploymentReadyCondition,
 				condition.InitReason,
 				condition.DeploymentReadyInitMessage,
+			),
+			condition.UnknownCondition(
+				condition.ExposeServiceReadyCondition,
+				condition.InitReason,
+				condition.ExposeServiceReadyInitMessage,
+			),
+			condition.UnknownCondition(
+				condition.KeystoneEndpointReadyCondition,
+				condition.InitReason,
+				"KeystoneEndpoint not created",
 			),
 		)
 
@@ -335,11 +370,7 @@ func (r *NovaAPIReconciler) ensureDeployment(
 	instance *novav1.NovaAPI,
 	inputHash string,
 ) (ctrl.Result, error) {
-	serviceLabels := map[string]string{
-		common.AppSelector: NovaAPILabelPrefix,
-	}
-
-	ss := statefulset.NewStatefulSet(novaapi.StatefulSet(instance, inputHash, serviceLabels), 1)
+	ss := statefulset.NewStatefulSet(novaapi.StatefulSet(instance, inputHash, getServiceLabels()), 1)
 	ss.SetTimeout(r.RequeueTimeout)
 	ctrlResult, err := ss.CreateOrPatch(ctx, h)
 	if err != nil && !k8s_errors.IsNotFound(err) {
@@ -379,11 +410,92 @@ func (r *NovaAPIReconciler) ensureDeployment(
 	return ctrl.Result{}, nil
 }
 
+func (r *NovaAPIReconciler) ensureServiceExposed(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *novav1.NovaAPI,
+) (ctrl.Result, error) {
+	var ports = map[endpoint.Endpoint]endpoint.Data{
+		endpoint.EndpointAdmin:    {Port: novaapi.APIServicePort},
+		endpoint.EndpointPublic:   {Port: novaapi.APIServicePort},
+		endpoint.EndpointInternal: {Port: novaapi.APIServicePort},
+	}
+
+	apiEndpoints, ctrlResult, err := endpoint.ExposeEndpoints(
+		ctx,
+		h,
+		novaapi.ServiceName,
+		getServiceLabels(),
+		ports,
+	)
+	if err != nil {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.ExposeServiceReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.ExposeServiceReadyErrorMessage,
+			err.Error()))
+		return ctrlResult, err
+	} else if (ctrlResult != ctrl.Result{}) {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.ExposeServiceReadyCondition,
+			condition.RequestedReason,
+			condition.SeverityInfo,
+			condition.ExposeServiceReadyRunningMessage))
+		return ctrlResult, err
+	}
+	instance.Status.Conditions.MarkTrue(condition.ExposeServiceReadyCondition, condition.ExposeServiceReadyMessage)
+
+	instance.Status.APIEndpoints = apiEndpoints
+	return ctrl.Result{}, nil
+}
+
+func (r *NovaAPIReconciler) ensureKeystoneEndpoint(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *novav1.NovaAPI,
+) (ctrl.Result, error) {
+	endpointSpec := keystonev1.KeystoneEndpointSpec{
+		ServiceName: novaapi.ServiceName,
+		Endpoints:   instance.Status.APIEndpoints,
+	}
+	endpoint := keystonev1.NewKeystoneEndpoint(
+		novaapi.ServiceName,
+		instance.Namespace,
+		endpointSpec,
+		getServiceLabels(),
+		10,
+	)
+	ctrlResult, err := endpoint.CreateOrPatch(ctx, h)
+	if err != nil {
+		return ctrlResult, err
+	}
+	c := endpoint.GetConditions().Mirror(condition.KeystoneEndpointReadyCondition)
+	if c != nil {
+		instance.Status.Conditions.Set(c)
+	}
+
+	if (ctrlResult != ctrl.Result{}) {
+		// We can ignore RequeueAfter as we are watching the KeystoneEndpoint resource
+		return ctrlResult, nil
+	}
+
+	return ctrl.Result{}, nil
+}
+
+func getServiceLabels() map[string]string {
+	return map[string]string{
+		common.AppSelector: NovaAPILabelPrefix,
+	}
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *NovaAPIReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&novav1.NovaAPI{}).
 		Owns(&v1.StatefulSet{}).
-		Owns(&keystonev1.KeystoneService{}).
+		Owns(&corev1.Service{}).
+		Owns(&routev1.Route{}).
+		Owns(&keystonev1.KeystoneEndpoint{}).
 		Complete(r)
 }
