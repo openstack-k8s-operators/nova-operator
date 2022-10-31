@@ -16,12 +16,9 @@ limitations under the License.
 package functional_test
 
 import (
-	"os"
-	"strconv"
 	"time"
 
 	"github.com/google/uuid"
-	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -187,23 +184,6 @@ func ExpectConditionWithDetails(
 	logger.Info("ExpectConditionWithDetails succeeded", "type", conditionType, "expected status", expectedStatus, "on", name)
 }
 
-func GetConfigMap(name types.NamespacedName) *corev1.ConfigMap {
-	cm := &corev1.ConfigMap{}
-	Eventually(func(g Gomega) {
-		g.Expect(k8sClient.Get(ctx, name, cm)).Should(Succeed())
-	}, timeout, interval).Should(Succeed())
-	return cm
-}
-
-func ListConfigMaps(namespace string) *corev1.ConfigMapList {
-	cms := &corev1.ConfigMapList{}
-	Eventually(func(g Gomega) {
-		g.Expect(k8sClient.List(ctx, cms, client.InNamespace(namespace))).Should(Succeed())
-	}, timeout, interval).Should(Succeed())
-	return cms
-
-}
-
 // CreateSecret creates a secret that has all the information NovaAPI needs
 func CreateNovaAPISecret(namespace string, name string) *corev1.Secret {
 	secret := &corev1.Secret{
@@ -300,16 +280,6 @@ func SimulateDeploymentReplicaReady(name types.NamespacedName) {
 
 	}, timeout, interval).Should(Succeed())
 	logger.Info("Simulated deployment success", "on", name)
-}
-
-func SkipInExistingCluster(message string) {
-	s := os.Getenv("USE_EXISTING_CLUSTER")
-	v, err := strconv.ParseBool(s)
-
-	if err == nil && v {
-		Skip("Skipped running against existing cluster. " + message)
-	}
-
 }
 
 func CreateNova(name types.NamespacedName, spec novav1.NovaSpec) {
