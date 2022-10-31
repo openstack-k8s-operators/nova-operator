@@ -407,4 +407,44 @@ var _ = Describe("NovaAPI controller", func() {
 			)
 		})
 	})
+	When("NovaAPI CR instance is deleted", func() {
+		var statefulSetName types.NamespacedName
+		var keystoneEndpointName types.NamespacedName
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateNovaAPISecret(namespace, SecretName))
+
+			novaAPIName = CreateNovaAPI(
+				namespace,
+				novav1.NovaAPISpec{
+					Secret: SecretName,
+					NovaServiceBase: novav1.NovaServiceBase{
+						ContainerImage: ContainerImage,
+						Replicas:       1,
+					},
+				},
+			)
+			DeferCleanup(DeleteNovaAPI, novaAPIName)
+			statefulSetName = types.NamespacedName{Namespace: namespace, Name: novaAPIName.Name}
+			keystoneEndpointName = types.NamespacedName{Namespace: namespace, Name: "nova"}
+		})
+
+		It("removes the finalizer from KeystoneEndpoint", func() {
+			SimulateStatefulSetReplicaReady(statefulSetName)
+			SimulateKeystoneEndpointReady(keystoneEndpointName)
+			ExpectCondition(
+				novaAPIName,
+				conditionGetterFunc(NovaAPIConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			endpoint := GetKeystoneEndpoint(keystoneEndpointName)
+			Expect(endpoint.Finalizers).To(ContainElement("NovaAPI"))
+
+			DeleteNovaAPI(novaAPIName)
+			endpoint = GetKeystoneEndpoint(keystoneEndpointName)
+			Expect(endpoint.Finalizers).NotTo(ContainElement("NovaAPI"))
+		})
+	})
 })
