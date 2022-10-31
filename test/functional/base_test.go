@@ -28,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	routev1 "github.com/openshift/api/route/v1"
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
@@ -660,4 +661,37 @@ func SimulateKeystoneServiceReady(name types.NamespacedName) {
 		g.Expect(k8sClient.Status().Update(ctx, service)).To(Succeed())
 	}, timeout, interval).Should(Succeed())
 	logger.Info("Simulated KeystoneService ready", "on", name)
+}
+
+func AssertServiceExists(name types.NamespacedName) *corev1.Service {
+	instance := &corev1.Service{}
+	Eventually(func(g Gomega) {
+		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
+	}, timeout, interval).Should(Succeed())
+	return instance
+}
+
+func AssertRouteExists(name types.NamespacedName) *routev1.Route {
+	instance := &routev1.Route{}
+	Eventually(func(g Gomega) {
+		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
+	}, timeout, interval).Should(Succeed())
+	return instance
+}
+
+func GetKeystoneEndpoint(name types.NamespacedName) *keystonev1.KeystoneEndpoint {
+	instance := &keystonev1.KeystoneEndpoint{}
+	Eventually(func(g Gomega) {
+		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
+	}, timeout, interval).Should(Succeed())
+	return instance
+}
+
+func SimulateKeystoneEndpointReady(name types.NamespacedName) {
+	Eventually(func(g Gomega) {
+		endpoint := GetKeystoneEndpoint(name)
+		endpoint.Status.Conditions.MarkTrue(condition.ReadyCondition, "Ready")
+		g.Expect(k8sClient.Status().Update(ctx, endpoint)).To(Succeed())
+	}, timeout, interval).Should(Succeed())
+	logger.Info("Simulated KeystoneEndpoint ready", "on", name)
 }

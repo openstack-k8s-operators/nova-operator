@@ -359,15 +359,52 @@ var _ = Describe("NovaAPI controller", func() {
 				novaAPI := GetNovaAPI(novaAPIName)
 				Expect(novaAPI.Status.ReadyCount).To(BeNumerically(">", 0))
 			})
+		})
 
-			It("isReady ", func() {
-				ExpectCondition(
-					novaAPIName,
-					conditionGetterFunc(NovaAPIConditionGetter),
-					condition.ReadyCondition,
-					corev1.ConditionTrue,
-				)
-			})
+		It("exposes the service", func() {
+			SimulateStatefulSetReplicaReady(statefulSetName)
+			ExpectCondition(
+				novaAPIName,
+				conditionGetterFunc(NovaAPIConditionGetter),
+				condition.ExposeServiceReadyCondition,
+				corev1.ConditionTrue,
+			)
+			AssertServiceExists(types.NamespacedName{Namespace: namespace, Name: "nova-public"})
+			AssertServiceExists(types.NamespacedName{Namespace: namespace, Name: "nova-internal"})
+			AssertServiceExists(types.NamespacedName{Namespace: namespace, Name: "nova-admin"})
+			AssertRouteExists(types.NamespacedName{Namespace: namespace, Name: "nova-public"})
+			AssertRouteExists(types.NamespacedName{Namespace: namespace, Name: "nova-internal"})
+			AssertRouteExists(types.NamespacedName{Namespace: namespace, Name: "nova-admin"})
+		})
+
+		It("creates KeystoneEndpoint", func() {
+			SimulateStatefulSetReplicaReady(statefulSetName)
+			SimulateKeystoneEndpointReady(types.NamespacedName{Namespace: namespace, Name: "nova"})
+
+			keystoneEndpoint := GetKeystoneEndpoint(types.NamespacedName{Namespace: namespace, Name: "nova"})
+			endpoints := keystoneEndpoint.Spec.Endpoints
+			Expect(endpoints).To(HaveKeyWithValue("public", "http:"))
+			Expect(endpoints).To(HaveKeyWithValue("internal", "http:"))
+			Expect(endpoints).To(HaveKeyWithValue("admin", "http:"))
+
+			ExpectCondition(
+				novaAPIName,
+				conditionGetterFunc(NovaAPIConditionGetter),
+				condition.KeystoneEndpointReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
+
+		It("is Ready", func() {
+			SimulateStatefulSetReplicaReady(statefulSetName)
+			SimulateKeystoneEndpointReady(types.NamespacedName{Namespace: namespace, Name: "nova"})
+
+			ExpectCondition(
+				novaAPIName,
+				conditionGetterFunc(NovaAPIConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
 		})
 	})
 })
