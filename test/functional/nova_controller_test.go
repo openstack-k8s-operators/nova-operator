@@ -440,4 +440,41 @@ var _ = Describe("Nova controller", func() {
 			)
 		})
 	})
+	When("Nova CR instance is deleted", func() {
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateNovaSecret(namespace, SecretName))
+			DeferCleanup(
+				DeleteDBService,
+				CreateDBService(
+					namespace,
+					"openstack",
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+			DeferCleanup(DeleteKeystoneAPI, CreateKeystoneAPI(namespace))
+
+			CreateNovaWithCell0(novaName)
+			DeferCleanup(DeleteNova, novaName)
+		})
+
+		It("removes the finalizer from KeystoneService", func() {
+			SimulateKeystoneServiceReady(novaKeystoneServiceName)
+			ExpectCondition(
+				novaName,
+				conditionGetterFunc(NovaConditionGetter),
+				condition.KeystoneServiceReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			service := GetKeystoneService(novaKeystoneServiceName)
+			Expect(service.Finalizers).To(ContainElement("Nova"))
+
+			DeleteNova(novaName)
+			service = GetKeystoneService(novaKeystoneServiceName)
+			Expect(service.Finalizers).NotTo(ContainElement("Nova"))
+		})
+	})
 })

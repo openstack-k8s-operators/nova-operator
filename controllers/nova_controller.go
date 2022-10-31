@@ -114,9 +114,23 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 			return
 		}
 
-		if changed := h.GetChanges()["status"]; changed {
-			patch := client.MergeFrom(h.GetBeforeObject())
+		changes := h.GetChanges()
+		patch := client.MergeFrom(h.GetBeforeObject())
 
+		if changes["metadata"] {
+			err = r.Client.Patch(ctx, instance, patch)
+			if k8s_errors.IsConflict(err) {
+				util.LogForObject(h, "Metadata update conflict", instance)
+				_err = err
+				return
+			} else if err != nil && !k8s_errors.IsNotFound(err) {
+				util.LogErrorForObject(h, err, "Metadate update failed", instance)
+				_err = err
+				return
+			}
+		}
+
+		if changes["status"] {
 			err = r.Client.Status().Patch(ctx, instance, patch)
 			if k8s_errors.IsConflict(err) {
 				util.LogForObject(h, "Status update conflict", instance)
@@ -129,6 +143,24 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 			}
 		}
 	}()
+
+	if !instance.DeletionTimestamp.IsZero() {
+		return ctrl.Result{}, r.reconcileDelete(ctx, h, instance)
+	}
+
+	// We create a KeystoneService CR later and that will automatically get the
+	// Nova finalizer. So we need a finalizer on the ourselves too so that
+	// during Nova CR delete we can have a chance to remove the finalizer from
+	// the our KeystoneService so that is also deleted.
+	updated := controllerutil.AddFinalizer(instance, h.GetFinalizer())
+	if updated {
+		util.LogForObject(h, "Added finalizer to ourselves", instance)
+		// we intentionally return imediately to force the deferred function
+		// to persist the Instance with the finalizer. We need to have our own
+		// finalizer persisted before we try to create the KeystoneService with
+		// our finalizer to avoid orphaning the KeystoneService.
+		return ctrl.Result{}, nil
+	}
 
 	// TODO(gibi): This should be checked in a webhook and reject the CR
 	// creation instead of setting its status.
@@ -626,6 +658,38 @@ func (r *NovaReconciler) ensureKeystoneServiceUser(
 	return nil
 }
 
+func (r *NovaReconciler) ensureKeystoneServiceUserDeletion(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *novav1.Nova,
+) error {
+	// Remove the finalizer from our KeystoneService CR
+	// This is oddly added automatically when we created KeystoneService but
+	// we need to remove it manually
+	service, err := keystonev1.GetKeystoneServiceWithName(ctx, h, "nova", instance.Namespace)
+	if err != nil && !k8s_errors.IsNotFound(err) {
+		return err
+	}
+
+	if k8s_errors.IsNotFound(err) {
+		// Nothing to do as it was never created
+		return nil
+	}
+
+	updated := controllerutil.RemoveFinalizer(service, h.GetFinalizer())
+	if !updated {
+		// No finalizer to remove
+		return nil
+	}
+
+	if err = h.GetClient().Update(ctx, service); err != nil && !k8s_errors.IsNotFound(err) {
+		return err
+	}
+	util.LogForObject(h, "Removed finalizer from nova KeystoneService", instance)
+
+	return nil
+}
+
 func (r *NovaReconciler) getKeystoneAuthURL(
 	ctx context.Context,
 	h *helper.Helper,
@@ -643,6 +707,29 @@ func (r *NovaReconciler) getKeystoneAuthURL(
 		return "", err
 	}
 	return authURL, nil
+}
+
+func (r *NovaReconciler) reconcileDelete(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *novav1.Nova,
+) error {
+	util.LogForObject(h, "Reconciling delete", instance)
+
+	err := r.ensureKeystoneServiceUserDeletion(ctx, h, instance)
+	if err != nil {
+		return err
+	}
+
+	// Successfully cleaned up everyting. So as the final step let's remove the
+	// finalizer from ourselves to allow the deletion of Nova CR itself
+	updated := controllerutil.RemoveFinalizer(instance, h.GetFinalizer())
+	if updated {
+		util.LogForObject(h, "Removed finalizer from ourselves", instance)
+	}
+
+	util.LogForObject(h, "Reconciled delete successfully", instance)
+	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
