@@ -8,6 +8,9 @@ spec:
   apiMessageBusInstance: not-implemented-yet
   keystoneInstance: keystone
   secret: osp-secret
+  # NOTE(gibi): defaulting structs only work if we provide {} value. If the
+  # field is left out then it will not be defaulted.
+  passwordSelector: {}
   # NOTE(gibi): if apiServiceTemplate and schedlerServiceTemplate is not
   # specified still a CRs for those services are created with default
   # configuration.
