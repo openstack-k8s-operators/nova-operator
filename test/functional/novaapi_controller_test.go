@@ -203,22 +203,10 @@ var _ = Describe("NovaAPI controller", func() {
 						Name:      fmt.Sprintf("%s-config-data", novaAPIName.Name),
 					},
 				)
+				Expect(configDataMap).ShouldNot(BeNil())
+				Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
 				Expect(configDataMap.Data).Should(
-					HaveKeyWithValue("custom.conf", "# add your customization here"))
-
-				scriptMap := th.GetConfigMap(
-					types.NamespacedName{
-						Namespace: namespace,
-						Name:      fmt.Sprintf("%s-scripts", novaAPIName.Name),
-					},
-				)
-				// This is explicitly added to the map by the controller
-				Expect(scriptMap.Data).Should(HaveKeyWithValue(
-					"common.sh", ContainSubstring("function merge_config_dir")))
-				// Everything under templates/novaapi are added automatically by
-				// lib-common
-				Expect(scriptMap.Data).Should(HaveKeyWithValue(
-					"init.sh", ContainSubstring("api_database connection mysql+pymysql")))
+					HaveKeyWithValue("03-nova-override.conf", "# add your customization here"))
 			})
 
 			It("stored the input hash in the Status", func() {
@@ -319,11 +307,6 @@ var _ = Describe("NovaAPI controller", func() {
 			Expect(int(*ss.Spec.Replicas)).To(Equal(1))
 
 			Expect(ss.Spec.Template.Spec.Volumes).To(HaveLen(3))
-			Expect(ss.Spec.Template.Spec.InitContainers).To(HaveLen(1))
-			initContainer := ss.Spec.Template.Spec.InitContainers[0]
-			Expect(initContainer.VolumeMounts).To(HaveLen(3))
-			Expect(initContainer.Image).To(Equal(ContainerImage))
-
 			Expect(ss.Spec.Template.Spec.Containers).To(HaveLen(1))
 			container := ss.Spec.Template.Spec.Containers[0]
 			Expect(container.VolumeMounts).To(HaveLen(2))

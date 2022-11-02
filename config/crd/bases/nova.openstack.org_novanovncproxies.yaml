@@ -119,6 +119,7 @@ spec:
                       API message bus password from the Secret
                     type: string
                   cellDatabase:
+                    default: NovaCell0DatabasePassword
                     description: CellDatabase - the name of the field to get the Cell
                       DB password from the Secret
                     type: string

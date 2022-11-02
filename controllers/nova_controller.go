@@ -631,6 +631,9 @@ func (r *NovaReconciler) ensureKeystoneServiceUser(
 	h *helper.Helper,
 	instance *novav1.Nova,
 ) error {
+	// NOTE(sean-k-mooney): the service user project is currently
+	// hardcoded to "service" so all service users are created as
+	// a member of that shared service project
 	serviceSpec := keystonev1.KeystoneServiceSpec{
 		ServiceType:        "compute",
 		ServiceName:        "nova",

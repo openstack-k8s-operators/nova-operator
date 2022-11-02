@@ -36,23 +36,6 @@ func StatefulSet(
 ) *appsv1.StatefulSet {
 	runAsUser := int64(0)
 
-	initContainerDetails := ContainerInput{
-		ContainerImage:                      instance.Spec.ContainerImage,
-		DatabaseHostname:                    instance.Spec.APIDatabaseHostname,
-		DatabaseUser:                        instance.Spec.APIDatabaseUser,
-		DatabaseName:                        nova.NovaAPIDatabaseName,
-		Secret:                              instance.Spec.Secret,
-		DatabasePasswordSelector:            instance.Spec.PasswordSelectors.APIDatabase,
-		KeystoneServiceUserPasswordSelector: instance.Spec.PasswordSelectors.Service,
-		Cell0DatabaseHostname:               instance.Spec.Cell0DatabaseHostname,
-		Cell0DatabaseUser:                   instance.Spec.Cell0DatabaseUser,
-		Cell0DatabaseName:                   nova.NovaCell0DatabaseName,
-		// TODO(gibi): this is a hack until we implement proper secret handling
-		// per cell.
-		Cell0DatabasePasswordSelector: "NovaCell0DatabasePassword",
-		VolumeMounts:                  nova.GetAllVolumeMounts(),
-	}
-
 	livenessProbe := &corev1.Probe{
 		// TODO might need tuning
 		TimeoutSeconds:      5,
@@ -114,7 +97,7 @@ func StatefulSet(
 	envVars := map[string]env.Setter{}
 	envVars["KOLLA_CONFIG_FILE"] = env.SetValue(MergedServiceConfigPath)
 	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
-	// NOTE(gibi): The stateafulset does not use this hash directly. We store it
+	// NOTE(gibi): The statefulset does not use this hash directly. We store it
 	// in the environment to trigger a Pod restart if any input of the
 	// statefulset has changed. The k8s will trigger a restart automatically if
 	// the env changes.
@@ -141,7 +124,6 @@ func StatefulSet(
 						nova.GetScriptConfigMapName(instance.Name),
 						nova.GetServiceConfigConfigMapName(instance.Name),
 					),
-					InitContainers: initContainer(initContainerDetails),
 					Containers: []corev1.Container{
 						{
 							Name: instance.Name + "-api",
@@ -154,7 +136,7 @@ func StatefulSet(
 								RunAsUser: &runAsUser,
 							},
 							Env:            env,
-							VolumeMounts:   nova.GetServiceVolumeMounts(),
+							VolumeMounts:   nova.GetOpenstackVolumeMounts(),
 							Resources:      instance.Spec.Resources,
 							ReadinessProbe: readinessProbe,
 							LivenessProbe:  livenessProbe,

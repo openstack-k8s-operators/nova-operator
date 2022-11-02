@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -29,9 +30,10 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/go-logr/logr"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/configmap"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
+	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 )
 
@@ -241,4 +243,34 @@ func (r *Reconcilers) OverriedRequeueTimeout(timeout time.Duration) {
 	for _, reconciler := range r.reconcilers {
 		reconciler.SetRequeueTimeout(timeout)
 	}
+}
+
+// GenerateConfigs helper function to generate config maps
+func (r *ReconcilerBase) GenerateConfigs(
+	ctx context.Context, h *helper.Helper,
+	instance client.Object, envVars *map[string]env.Setter,
+	templateParameters map[string]interface{},
+	extraData map[string]string, cmLabels map[string]string,
+) error {
+	additionalTemplates := map[string]string{
+		"01-nova.conf": "/nova.conf",
+	}
+	cms := []util.Template{
+		// ConfigMap
+		{
+			Name:               fmt.Sprintf("%s-config-data", instance.GetName()),
+			Namespace:          instance.GetNamespace(),
+			Type:               util.TemplateTypeConfig,
+			InstanceType:       instance.GetObjectKind().GroupVersionKind().Kind,
+			ConfigOptions:      templateParameters,
+			Labels:             cmLabels,
+			CustomData:         extraData,
+			Annotations:        map[string]string{},
+			AdditionalTemplate: additionalTemplates,
+		},
+	}
+	// TODO(sean): make this create a secret instead.
+	// consider taking this as a function pointer or interface
+	// to enable unit testing at some point.
+	return configmap.EnsureConfigMaps(ctx, h, instance, cms, envVars)
 }
