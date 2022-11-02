@@ -330,7 +330,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		return ctrl.Result{}, nil
 	}
 
-	result, err = r.ensureAPI(ctx, h, instance, cell0Template, cellDBs[Cell0Name].Database, apiDB)
+	result, err = r.ensureAPI(ctx, h, instance, cell0Template, cellDBs[Cell0Name].Database, apiDB, keystoneAuthURL)
 	if err != nil {
 		return result, err
 	}
@@ -564,6 +564,7 @@ func (r *NovaReconciler) ensureAPI(
 	cell0Template novav1.NovaCellTemplate,
 	cell0DB *database.Database,
 	apiDB *database.Database,
+	keystoneAuthURL string,
 ) (ctrl.Result, error) {
 	// TODO(gibi): Pass down a narroved secret that only hold
 	// specific information but also holds user names
@@ -579,6 +580,7 @@ func (r *NovaReconciler) ensureAPI(
 		// between them directly. As soon as these two structs start to diverge
 		// we need to copy fields one by one here.
 		NovaServiceBase: novav1.NovaServiceBase(instance.Spec.APIServiceTemplate),
+		KeystoneAuthURL: keystoneAuthURL,
 	}
 	api := &novav1.NovaAPI{
 		ObjectMeta: metav1.ObjectMeta{
