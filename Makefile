@@ -103,9 +103,12 @@ fmt: ## Run go fmt against code.
 vet: ## Run go vet against code.
 	go vet ./...
 
+PROCS?=$(shell expr $(shell nproc --ignore 2) / 2)
+PROC_CMD = --procs ${PROCS}
+
 .PHONY: test
 test: manifests generate fmt vet envtest ## Run tests.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" ginkgo --trace --cover --coverpkg=../../pkg/nova,../../pkg/novaapi,../../pkg/novaconductor,../../controllers,../../api/v1beta1 --coverprofile cover.out --covermode=atomic -p --randomize-all ./...
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" ginkgo --trace --cover --coverpkg=../../pkg/nova,../../pkg/novaapi,../../pkg/novaconductor,../../controllers,../../api/v1beta1 --coverprofile cover.out --covermode=atomic --randomize-all ${PROC_CMD} ./test/...
 
 ##@ Build
 
