@@ -72,21 +72,34 @@ func StatefulSet(
 
 	if instance.Spec.Debug.StopService {
 		args = append(args, common.DebugCommand)
+		livenessProbe.Exec = &corev1.ExecAction{
+			Command: []string{
+				"/usr/bin/true",
+			},
+		}
+
+		readinessProbe.Exec = &corev1.ExecAction{
+			Command: []string{
+				"/usr/bin/true",
+			},
+		}
 	} else {
 		args = append(args, nova.KollaServiceCommand)
-	}
+		// TODO(gibi): replace this with a proper healthcheck once
+		// https://review.opendev.org/q/topic:per-process-healthchecks merges.
+		// NOTE(gibi): -r DRST means we consider nova-conductor processes
+		// healthy if they are not in zombie state.
+		livenessProbe.Exec = &corev1.ExecAction{
+			Command: []string{
+				"/usr/bin/pgrep", "-r", "DRST", "nova-conductor",
+			},
+		}
 
-	// TODO(gibi): replace this with a better health check
-	livenessProbe.Exec = &corev1.ExecAction{
-		Command: []string{
-			"/bin/true",
-		},
-	}
-
-	readinessProbe.Exec = &corev1.ExecAction{
-		Command: []string{
-			"/bin/true",
-		},
+		readinessProbe.Exec = &corev1.ExecAction{
+			Command: []string{
+				"/usr/bin/pgrep", "-r", "DRST", "nova-conductor",
+			},
+		}
 	}
 
 	nodeSelector := map[string]string{}

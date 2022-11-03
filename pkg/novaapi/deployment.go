@@ -26,6 +26,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 // StatefulSet - returns the StatefulSet definition for the nova-api service
@@ -65,28 +66,12 @@ func StatefulSet(
 		}
 	} else {
 		args = append(args, nova.KollaServiceCommand)
-		// TODO(gibi): user the proper http-get probes once the service is
-		// exposed
-		livenessProbe.Exec = &corev1.ExecAction{
-			Command: []string{
-				"/bin/true",
-			},
+		livenessProbe.HTTPGet = &corev1.HTTPGetAction{
+			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(APIServicePort)},
 		}
-
-		readinessProbe.Exec = &corev1.ExecAction{
-			Command: []string{
-				"/bin/true",
-			},
+		readinessProbe.HTTPGet = &corev1.HTTPGetAction{
+			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(APIServicePort)},
 		}
-		// //
-		// // https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
-		// //
-		// livenessProbe.HTTPGet = &corev1.HTTPGetAction{
-		// 	Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(APIServicePort)},
-		// }
-		// readinessProbe.HTTPGet = &corev1.HTTPGetAction{
-		// 	Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(APIServicePort)},
-		// }
 	}
 
 	nodeSelector := map[string]string{}

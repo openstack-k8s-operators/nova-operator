@@ -312,6 +312,9 @@ var _ = Describe("NovaAPI controller", func() {
 			Expect(container.VolumeMounts).To(HaveLen(2))
 			Expect(container.Image).To(Equal(ContainerImage))
 
+			Expect(container.LivenessProbe.HTTPGet.Port.IntVal).To(Equal(int32(8774)))
+			Expect(container.ReadinessProbe.HTTPGet.Port.IntVal).To(Equal(int32(8774)))
+
 		})
 
 		When("the StatefulSet has at least one Replica ready", func() {
