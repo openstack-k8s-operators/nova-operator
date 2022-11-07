@@ -197,7 +197,7 @@ var _ = Describe("NovaAPI controller", func() {
 					corev1.ConditionTrue,
 				)
 
-				configDataMap := GetConfigMap(
+				configDataMap := th.GetConfigMap(
 					types.NamespacedName{
 						Namespace: namespace,
 						Name:      fmt.Sprintf("%s-config-data", novaAPIName.Name),
@@ -206,7 +206,7 @@ var _ = Describe("NovaAPI controller", func() {
 				Expect(configDataMap.Data).Should(
 					HaveKeyWithValue("custom.conf", "# add your customization here"))
 
-				scriptMap := GetConfigMap(
+				scriptMap := th.GetConfigMap(
 					types.NamespacedName{
 						Namespace: namespace,
 						Name:      fmt.Sprintf("%s-scripts", novaAPIName.Name),
@@ -241,7 +241,7 @@ var _ = Describe("NovaAPI controller", func() {
 					DeleteNovaAPI(novaAPIName)
 
 					Eventually(func() []corev1.ConfigMap {
-						return ListConfigMaps(novaAPIName.Name).Items
+						return th.ListConfigMaps(novaAPIName.Name).Items
 					}, timeout, interval).Should(BeEmpty())
 				})
 			})
@@ -333,7 +333,7 @@ var _ = Describe("NovaAPI controller", func() {
 
 		When("the StatefulSet has at least one Replica ready", func() {
 			BeforeEach(func() {
-				SkipInExistingCluster(
+				th.SkipInExistingCluster(
 					"Deployment never finishes in a real env as dependencies like" +
 						"ServiceAccount is missing",
 				)

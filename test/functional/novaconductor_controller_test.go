@@ -194,7 +194,7 @@ var _ = Describe("NovaConductor controller", func() {
 					corev1.ConditionTrue,
 				)
 
-				configDataMap := GetConfigMap(
+				configDataMap := th.GetConfigMap(
 					types.NamespacedName{
 						Namespace: namespace,
 						Name:      fmt.Sprintf("%s-config-data", novaConductorName.Name),
@@ -203,7 +203,7 @@ var _ = Describe("NovaConductor controller", func() {
 				Expect(configDataMap.Data).Should(
 					HaveKeyWithValue("custom.conf", "# add your customization here"))
 
-				scriptMap := GetConfigMap(
+				scriptMap := th.GetConfigMap(
 					types.NamespacedName{
 						Namespace: namespace,
 						Name:      fmt.Sprintf("%s-scripts", novaConductorName.Name),
@@ -244,7 +244,7 @@ var _ = Describe("NovaConductor controller", func() {
 					DeleteNovaConductor(novaConductorName)
 
 					Eventually(func() []corev1.ConfigMap {
-						return ListConfigMaps(novaConductorName.Name).Items
+						return th.ListConfigMaps(novaConductorName.Name).Items
 					}, timeout, interval).Should(BeEmpty())
 				})
 			})
