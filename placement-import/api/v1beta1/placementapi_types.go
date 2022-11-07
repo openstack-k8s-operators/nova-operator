@@ -69,6 +69,7 @@ type PlacementAPISpec struct {
 	Secret string `json:"secret,omitempty"`
 
 	// +kubebuilder:validation:Optional
+	// +kubebuilder:default={database: PlacementDatabasePassword, service: PlacementPassword}
 	// PasswordSelectors - Selectors to identify the DB and ServiceUser password from the Secret
 	PasswordSelectors PasswordSelector `json:"passwordSelectors,omitempty"`
 

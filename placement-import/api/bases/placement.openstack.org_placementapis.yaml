@@ -95,6 +95,9 @@ spec:
                   this service
                 type: object
               passwordSelectors:
+                default:
+                  database: PlacementDatabasePassword
+                  service: PlacementPassword
                 description: PasswordSelectors - Selectors to identify the DB and
                   ServiceUser password from the Secret
                 properties:
