@@ -201,8 +201,12 @@ var _ = Describe("Nova controller", func() {
 			SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
 			SimulateJobSuccess(cell0.CellDBSyncJobName)
 
-			GetNovaAPI(novaAPIName)
-			novaAPIDeployment := GetDeployment(novaAPIdeploymentName)
+			api := GetNovaAPI(novaAPIName)
+			Expect(api.Spec.Replicas).Should(BeEquivalentTo(1))
+			Expect(api.Spec.Cell0DatabaseHostname).Should(BeEquivalentTo("hostname-for-db-for-api"))
+			Expect(api.Spec.Cell0DatabaseHostname).Should(BeEquivalentTo(api.Spec.APIDatabaseHostname))
+
+			novaAPIDeployment := GetStatefulSet(novaAPIdeploymentName)
 			novaAPIDepEnv := novaAPIDeployment.Spec.Template.Spec.InitContainers[0].Env
 			Expect(novaAPIDepEnv).To(
 				ContainElements(
@@ -212,7 +216,7 @@ var _ = Describe("Nova controller", func() {
 					},
 				),
 			)
-			SimulateDeploymentReplicaReady(novaAPIdeploymentName)
+			SimulateStatefulSetReplicaReady(novaAPIdeploymentName)
 
 			ExpectCondition(
 				novaAPIName,
@@ -232,7 +236,7 @@ var _ = Describe("Nova controller", func() {
 			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
 			SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
 			SimulateJobSuccess(cell0.CellDBSyncJobName)
-			SimulateDeploymentReplicaReady(novaAPIdeploymentName)
+			SimulateStatefulSetReplicaReady(novaAPIdeploymentName)
 
 			SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
 			ExpectCondition(
@@ -255,7 +259,7 @@ var _ = Describe("Nova controller", func() {
 			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
 			SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
 			SimulateJobSuccess(cell0.CellDBSyncJobName)
-			SimulateDeploymentReplicaReady(novaAPIdeploymentName)
+			SimulateStatefulSetReplicaReady(novaAPIdeploymentName)
 			SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
 			SimulateMariaDBDatabaseCompleted(cell2.MariaDBDatabaseName)
 
@@ -303,7 +307,7 @@ var _ = Describe("Nova controller", func() {
 			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
 			SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
 			SimulateJobSuccess(cell0.CellDBSyncJobName)
-			SimulateDeploymentReplicaReady(novaAPIdeploymentName)
+			SimulateStatefulSetReplicaReady(novaAPIdeploymentName)
 			SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
 			SimulateMariaDBDatabaseCompleted(cell2.MariaDBDatabaseName)
 			SimulateJobSuccess(cell1.CellDBSyncJobName)
@@ -410,7 +414,7 @@ var _ = Describe("Nova controller", func() {
 
 			// NovaAPI is still created
 			GetNovaAPI(novaAPIName)
-			SimulateDeploymentReplicaReady(novaAPIdeploymentName)
+			SimulateStatefulSetReplicaReady(novaAPIdeploymentName)
 			ExpectCondition(
 				novaName,
 				conditionGetterFunc(NovaConditionGetter),
