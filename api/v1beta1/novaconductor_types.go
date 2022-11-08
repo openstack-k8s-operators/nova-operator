@@ -29,7 +29,7 @@ import (
 // create a NovaConductor via higher level CRDs.
 type NovaConductorTemplate struct {
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default="quay.io/tripleowallabycentos9/openstack-nova-conductor:current-tripleo"
+	// +kubebuilder:default="quay.io/tripleozedcentos9/openstack-nova-conductor:current-tripleo"
 	// The service specific Container Image URL
 	ContainerImage string `json:"containerImage"`
 

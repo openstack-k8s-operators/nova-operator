@@ -86,7 +86,7 @@ spec:
                   deployment for the cell
                 properties:
                   containerImage:
-                    default: quay.io/tripleowallabycentos9/openstack-nova-conductor:current-tripleo
+                    default: quay.io/tripleozedcentos9/openstack-nova-conductor:current-tripleo
                     description: The service specific Container Image URL
                     type: string
                   customServiceConfig:
@@ -182,7 +182,7 @@ spec:
                   dedicated for the cell.
                 properties:
                   containerImage:
-                    default: quay.io/tripleowallabycentos9/openstack-nova-metadata:current-tripleo
+                    default: quay.io/tripleozedcentos9/openstack-nova-metadata:current-tripleo
                     description: The service specific Container Image URL
                     type: string
                   customServiceConfig:
@@ -247,7 +247,7 @@ spec:
                   dedicated for the cell.
                 properties:
                   containerImage:
-                    default: quay.io/tripleowallabycentos9/openstack-nova-novncproxy:current-tripleo
+                    default: quay.io/tripleozedcentos9/openstack-nova-novncproxy:current-tripleo
                     description: The service specific Container Image URL
                     type: string
                   customServiceConfig:

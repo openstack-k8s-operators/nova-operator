@@ -32,7 +32,7 @@ spec:
     defaultConfigOverwrite:
       logging.conf: >
       # my custom logging configuration
-    containerImage: quay.io/tripleowallabycentos9/openstack-nova-conductor:current-tripleo
+    containerImage: quay.io/tripleozedcentos9/openstack-nova-conductor:current-tripleo
     replicate: 3
     nodeSelector: {}
     resources:
@@ -56,7 +56,7 @@ spec:
       logging.conf: >
         # my custom logging configuration
     # TODO: what is the name of the container for metadata?
-    containerImage: quay.io/tripleowallabycentos9/openstack-nova-metadata-api:current-tripleo
+    containerImage: quay.io/tripleozedcentos9/openstack-nova-metadata-api:current-tripleo
     replicate: 3
     nodeSelector: {}
     resources:
@@ -74,7 +74,7 @@ spec:
     defaultConfigOverwrite:
       logging.conf: >
       # my custom logging configuration
-    containerImage: quay.io/tripleowallabycentos9/openstack-nova-novncproxy:current-tripleo
+    containerImage: quay.io/tripleozedcentos9/openstack-nova-novncproxy:current-tripleo
     replicate: 3
     nodeSelector: {}
     resources:
