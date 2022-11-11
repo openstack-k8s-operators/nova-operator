@@ -17,27 +17,24 @@ limitations under the License.
 package novaconductor
 
 import (
+	common "github.com/openstack-k8s-operators/lib-common/modules/common"
+	affinity "github.com/openstack-k8s-operators/lib-common/modules/common/affinity"
+	env "github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/nova-operator/pkg/nova"
 
-	common "github.com/openstack-k8s-operators/lib-common/modules/common"
-	env "github.com/openstack-k8s-operators/lib-common/modules/common/env"
-
-	batchv1 "k8s.io/api/batch/v1"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-const (
-	// cellDBSyncCommand - the command to be used to run db sync for the cell DB
-	cellDBSyncCommand = "/usr/local/bin/kolla_set_configs && /bin/sh -c /usr/local/bin/container-scripts/dbsync.sh"
-)
-
-// CellDBSyncJob - define a batchv1.Job to be run to apply the cel DB schema
-func CellDBSyncJob(
+// StatefulSet - returns the StatefulSet definition for the nova-api service
+func StatefulSet(
 	instance *novav1.NovaConductor,
+	configHash string,
 	labels map[string]string,
-) *batchv1.Job {
+) *appsv1.StatefulSet {
+	runAsUser := int64(0)
 
 	initContainerDetails := ContainerInput{
 		ContainerImage:       instance.Spec.ContainerImage,
@@ -59,42 +56,80 @@ func CellDBSyncJob(
 		// TODO(gibi): this should come from our Spec but hardcoded for now
 		PlacementServiceUserPasswordSelector: "PlacementPassword",
 	}
-	runAsUser := int64(0)
+
+	livenessProbe := &corev1.Probe{
+		// TODO might need tuning
+		TimeoutSeconds:      5,
+		PeriodSeconds:       3,
+		InitialDelaySeconds: 3,
+	}
+	readinessProbe := &corev1.Probe{
+		// TODO might need tuning
+		TimeoutSeconds:      5,
+		PeriodSeconds:       5,
+		InitialDelaySeconds: 5,
+	}
 
 	args := []string{"-c"}
-	if instance.Spec.Debug.StopDBSync {
+
+	if instance.Spec.Debug.StopService {
 		args = append(args, common.DebugCommand)
 	} else {
-		args = append(args, cellDBSyncCommand)
+		args = append(args, nova.KollaServiceCommand)
+	}
+
+	// TODO(gibi): replace this with a better health check
+	livenessProbe.Exec = &corev1.ExecAction{
+		Command: []string{
+			"/bin/true",
+		},
+	}
+
+	readinessProbe.Exec = &corev1.ExecAction{
+		Command: []string{
+			"/bin/true",
+		},
+	}
+
+	nodeSelector := map[string]string{}
+	if instance.Spec.NodeSelector != nil {
+		nodeSelector = instance.Spec.NodeSelector
 	}
 
 	envVars := map[string]env.Setter{}
 	envVars["KOLLA_CONFIG_FILE"] = env.SetValue(MergedServiceConfigPath)
 	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
-	envVars["KOLLA_BOOTSTRAP"] = env.SetValue("true")
-
-	envVars["CELL_NAME"] = env.SetValue(instance.Spec.CellName)
-
+	// NOTE(gibi): The stateafulset does not use this hash directly. We store it
+	// in the environment to trigger a Pod restart if any input of the
+	// statefulset has changed. The k8s will trigger a restart automatically if
+	// the env changes.
+	envVars["CONFIG_HASH"] = env.SetValue(configHash)
 	env := env.MergeEnvs([]corev1.EnvVar{}, envVars)
 
-	job := &batchv1.Job{
+	statefulset := &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      instance.Name + "-db-sync",
+			Name:      instance.Name,
 			Namespace: instance.Namespace,
-			Labels:    labels,
 		},
-		Spec: batchv1.JobSpec{
+		Spec: appsv1.StatefulSetSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: labels,
+			},
+			Replicas: &instance.Spec.Replicas,
 			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: labels,
+				},
 				Spec: corev1.PodSpec{
-					RestartPolicy:      "OnFailure",
 					ServiceAccountName: nova.ServiceAccount,
 					Volumes: nova.GetVolumes(
 						nova.GetScriptConfigMapName(instance.Name),
 						nova.GetServiceConfigConfigMapName(instance.Name),
 					),
+					InitContainers: initContainer(initContainerDetails),
 					Containers: []corev1.Container{
 						{
-							Name: instance.Name + "-db-sync",
+							Name: instance.Name + "-conductor",
 							Command: []string{
 								"/bin/bash",
 							},
@@ -103,15 +138,28 @@ func CellDBSyncJob(
 							SecurityContext: &corev1.SecurityContext{
 								RunAsUser: &runAsUser,
 							},
-							Env:          env,
-							VolumeMounts: nova.GetServiceVolumeMounts(),
+							Env:            env,
+							VolumeMounts:   nova.GetServiceVolumeMounts(),
+							Resources:      instance.Spec.Resources,
+							ReadinessProbe: readinessProbe,
+							LivenessProbe:  livenessProbe,
 						},
 					},
-					InitContainers: initContainer(initContainerDetails),
+					NodeSelector: nodeSelector,
+					// If possible two pods of the same service should not
+					// run on the same worker node. If this is not possible
+					// the get still created on the same worker node.
+					Affinity: affinity.DistributePods(
+						common.AppSelector,
+						[]string{
+							instance.Name,
+						},
+						corev1.LabelHostname,
+					),
 				},
 			},
 		},
 	}
 
-	return job
+	return statefulset
 }

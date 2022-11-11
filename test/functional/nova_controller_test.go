@@ -38,6 +38,8 @@ var _ = Describe("Nova controller", func() {
 	var cell0DBSyncJobName types.NamespacedName
 	var novaAPIName types.NamespacedName
 	var novaAPIdeploymentName types.NamespacedName
+	var novaKeystoneServiceName types.NamespacedName
+	var novaCell0ConductorStatefulSetName types.NamespacedName
 
 	BeforeEach(func() {
 		// NOTE(gibi): We need to create a unique namespace for each test run
@@ -89,7 +91,14 @@ var _ = Describe("Nova controller", func() {
 			Namespace: namespace,
 			Name:      novaAPIName.Name,
 		}
-
+		novaKeystoneServiceName = types.NamespacedName{
+			Namespace: namespace,
+			Name:      "nova",
+		}
+		novaCell0ConductorStatefulSetName = types.NamespacedName{
+			Namespace: namespace,
+			Name:      cell0ConductorName.Name,
+		}
 	})
 
 	When("Nova CR instance is created without cell0", func() {
@@ -146,32 +155,29 @@ var _ = Describe("Nova controller", func() {
 					},
 				),
 			)
+			DeferCleanup(DeleteKeystoneAPI, CreateKeystoneAPI(namespace))
 
-			CreateNova(
-				novaName,
-				novav1.NovaSpec{
-					Secret:              SecretName,
-					APIDatabaseInstance: "openstack",
-					CellTemplates: map[string]novav1.NovaCellTemplate{
-						"cell0": {
-							CellDatabaseInstance: "openstack",
-							HasAPIAccess:         true,
-							ConductorServiceTemplate: novav1.NovaConductorTemplate{
-								ContainerImage: ContainerImage,
-								Replicas:       1,
-							},
-						},
-					},
-					APIServiceTemplate: novav1.NovaAPITemplate{
-						ContainerImage: ContainerImage,
-						Replicas:       1,
-					},
-				},
-			)
+			CreateNovaWithCell0(novaName)
 			DeferCleanup(DeleteNova, novaName)
 		})
 
+		It("registers nova service to keystone", func() {
+			// assert that the KeystoneService for nova is created
+			GetKeystoneService(novaKeystoneServiceName)
+			// and simulate that it becomes ready i.e. the keystone-operator
+			// did its job and registered the nova service
+			SimulateKeystoneServiceReady(novaKeystoneServiceName)
+
+			ExpectCondition(
+				novaName,
+				conditionGetterFunc(NovaConditionGetter),
+				condition.KeystoneServiceReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
+
 		It("creates nova_api DB", func() {
+			SimulateKeystoneServiceReady(novaKeystoneServiceName)
 			ExpectCondition(
 				novaName,
 				conditionGetterFunc(NovaConditionGetter),
@@ -190,6 +196,7 @@ var _ = Describe("Nova controller", func() {
 		})
 
 		It("creates nova_cell0 DB", func() {
+			SimulateKeystoneServiceReady(novaKeystoneServiceName)
 			ExpectCondition(
 				novaName,
 				conditionGetterFunc(NovaConditionGetter),
@@ -208,6 +215,7 @@ var _ = Describe("Nova controller", func() {
 		})
 
 		It("creates cell0 NovaCell", func() {
+			SimulateKeystoneServiceReady(novaKeystoneServiceName)
 			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
 			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForCell0)
 			// assert that cell related CRs are created
@@ -228,6 +236,7 @@ var _ = Describe("Nova controller", func() {
 				condition.DBSyncReadyCondition,
 				corev1.ConditionTrue,
 			)
+			SimulateStatefulSetReplicaReady(novaCell0ConductorStatefulSetName)
 			ExpectCondition(
 				cell0Name,
 				conditionGetterFunc(NovaCellConditionGetter),
@@ -243,9 +252,11 @@ var _ = Describe("Nova controller", func() {
 		})
 
 		It("create NovaAPI", func() {
+			SimulateKeystoneServiceReady(novaKeystoneServiceName)
 			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
 			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForCell0)
 			SimulateJobSuccess(cell0DBSyncJobName)
+			SimulateStatefulSetReplicaReady(novaCell0ConductorStatefulSetName)
 
 			GetNovaAPI(novaAPIName)
 			SimulateStatefulSetReplicaReady(novaAPIdeploymentName)
@@ -285,32 +296,14 @@ var _ = Describe("Nova controller", func() {
 					},
 				),
 			)
+			DeferCleanup(DeleteKeystoneAPI, CreateKeystoneAPI(namespace))
 
-			CreateNova(
-				novaName,
-				novav1.NovaSpec{
-					APIDatabaseInstance: "openstack",
-					Secret:              SecretName,
-					CellTemplates: map[string]novav1.NovaCellTemplate{
-						"cell0": {
-							CellDatabaseInstance: "openstack",
-							HasAPIAccess:         true,
-							ConductorServiceTemplate: novav1.NovaConductorTemplate{
-								ContainerImage: ContainerImage,
-								Replicas:       1,
-							},
-						},
-					},
-					APIServiceTemplate: novav1.NovaAPITemplate{
-						ContainerImage: ContainerImage,
-						Replicas:       1,
-					},
-				},
-			)
+			CreateNovaWithCell0(novaName)
 			DeferCleanup(DeleteNova, novaName)
 		})
 
 		It("does not create NovaAPI", func() {
+			SimulateKeystoneServiceReady(novaKeystoneServiceName)
 			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
 			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForCell0)
 			GetNovaCell(cell0Name)
@@ -365,6 +358,7 @@ var _ = Describe("Nova controller", func() {
 					},
 				),
 			)
+			DeferCleanup(DeleteKeystoneAPI, CreateKeystoneAPI(namespace))
 
 			CreateNova(
 				novaName,
@@ -391,6 +385,7 @@ var _ = Describe("Nova controller", func() {
 		})
 
 		It("uses the correct hostnames to access the different DB services", func() {
+			SimulateKeystoneServiceReady(novaKeystoneServiceName)
 			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
 			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForCell0)
 
@@ -406,6 +401,7 @@ var _ = Describe("Nova controller", func() {
 			)
 
 			SimulateJobSuccess(cell0DBSyncJobName)
+			SimulateStatefulSetReplicaReady(novaCell0ConductorStatefulSetName)
 
 			novaAPIDeployment := GetStatefulSet(novaAPIdeploymentName)
 			novaAPIDepEnv := novaAPIDeployment.Spec.Template.Spec.InitContainers[0].Env
@@ -450,6 +446,43 @@ var _ = Describe("Nova controller", func() {
 				condition.ReadyCondition,
 				corev1.ConditionTrue,
 			)
+		})
+	})
+	When("Nova CR instance is deleted", func() {
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateNovaSecret(namespace, SecretName))
+			DeferCleanup(
+				DeleteDBService,
+				CreateDBService(
+					namespace,
+					"openstack",
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+			DeferCleanup(DeleteKeystoneAPI, CreateKeystoneAPI(namespace))
+
+			CreateNovaWithCell0(novaName)
+			DeferCleanup(DeleteNova, novaName)
+		})
+
+		It("removes the finalizer from KeystoneService", func() {
+			SimulateKeystoneServiceReady(novaKeystoneServiceName)
+			ExpectCondition(
+				novaName,
+				conditionGetterFunc(NovaConditionGetter),
+				condition.KeystoneServiceReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			service := GetKeystoneService(novaKeystoneServiceName)
+			Expect(service.Finalizers).To(ContainElement("Nova"))
+
+			DeleteNova(novaName)
+			service = GetKeystoneService(novaKeystoneServiceName)
+			Expect(service.Finalizers).NotTo(ContainElement("Nova"))
 		})
 	})
 })

@@ -34,6 +34,7 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/statefulset"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 
+	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/nova-operator/pkg/nova"
 	"github.com/openstack-k8s-operators/nova-operator/pkg/novaapi"
@@ -383,5 +384,6 @@ func (r *NovaAPIReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&novav1.NovaAPI{}).
 		Owns(&v1.StatefulSet{}).
+		Owns(&keystonev1.KeystoneService{}).
 		Complete(r)
 }

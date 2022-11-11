@@ -118,6 +118,7 @@ var _ = Describe("NovaCell controller", func() {
 
 		When("NovaConductor is ready", func() {
 			var novaConductorDBSyncJobName types.NamespacedName
+			var conductorStatefulSetName types.NamespacedName
 
 			BeforeEach(func() {
 				ExpectCondition(
@@ -131,6 +132,12 @@ var _ = Describe("NovaCell controller", func() {
 					Name:      novaConductorName.Name + "-db-sync",
 				}
 				SimulateJobSuccess(novaConductorDBSyncJobName)
+
+				conductorStatefulSetName = types.NamespacedName{
+					Namespace: namespace,
+					Name:      novaConductorName.Name,
+				}
+				SimulateStatefulSetReplicaReady(conductorStatefulSetName)
 
 				ExpectCondition(
 					novaConductorName,

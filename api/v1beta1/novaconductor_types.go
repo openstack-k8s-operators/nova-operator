@@ -217,6 +217,8 @@ func NewNovaConductorSpec(
 		APIDatabaseUser:      novaCell.APIDatabaseUser,
 		Debug:                novaCell.Debug,
 		NovaServiceBase:      NovaServiceBase(novaCell.ConductorServiceTemplate),
+		KeystoneAuthURL:      novaCell.KeystoneAuthURL,
+		ServiceUser:          novaCell.ServiceUser,
 	}
 	return conductorSpec
 }

@@ -27,7 +27,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
+	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
+	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/endpoint"
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	database "github.com/openstack-k8s-operators/lib-common/modules/database"
@@ -47,6 +50,9 @@ type NovaReconciler struct {
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=nova/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=nova/finalizers,verbs=update
 //+kubebuilder:rbac:groups=mariadb.openstack.org,resources=mariadbdatabases,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneapis,verbs=get;list;watch;
+// +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneservices,verbs=get;list;watch;create;update;patch;delete;
+// +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneendpoints,verbs=get;list;watch;create;update;patch;delete;
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -108,9 +114,23 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 			return
 		}
 
-		if changed := h.GetChanges()["status"]; changed {
-			patch := client.MergeFrom(h.GetBeforeObject())
+		changes := h.GetChanges()
+		patch := client.MergeFrom(h.GetBeforeObject())
 
+		if changes["metadata"] {
+			err = r.Client.Patch(ctx, instance, patch)
+			if k8s_errors.IsConflict(err) {
+				util.LogForObject(h, "Metadata update conflict", instance)
+				_err = err
+				return
+			} else if err != nil && !k8s_errors.IsNotFound(err) {
+				util.LogErrorForObject(h, err, "Metadate update failed", instance)
+				_err = err
+				return
+			}
+		}
+
+		if changes["status"] {
 			err = r.Client.Status().Patch(ctx, instance, patch)
 			if k8s_errors.IsConflict(err) {
 				util.LogForObject(h, "Status update conflict", instance)
@@ -124,9 +144,42 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		}
 	}()
 
+	if !instance.DeletionTimestamp.IsZero() {
+		return ctrl.Result{}, r.reconcileDelete(ctx, h, instance)
+	}
+
+	// We create a KeystoneService CR later and that will automatically get the
+	// Nova finalizer. So we need a finalizer on the ourselves too so that
+	// during Nova CR delete we can have a chance to remove the finalizer from
+	// the our KeystoneService so that is also deleted.
+	updated := controllerutil.AddFinalizer(instance, h.GetFinalizer())
+	if updated {
+		util.LogForObject(h, "Added finalizer to ourselves", instance)
+		// we intentionally return imediately to force the deferred function
+		// to persist the Instance with the finalizer. We need to have our own
+		// finalizer persisted before we try to create the KeystoneService with
+		// our finalizer to avoid orphaning the KeystoneService.
+		return ctrl.Result{}, nil
+	}
+
 	// TODO(gibi): This should be checked in a webhook and reject the CR
 	// creation instead of setting its status.
 	cell0Template, err := r.getCell0Template(instance)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	err = r.ensureKeystoneServiceUser(ctx, h, instance)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	// We have to wait until our service is registered to keystone
+	if !instance.Status.Conditions.IsTrue(condition.KeystoneServiceReadyCondition) {
+		return ctrl.Result{}, nil
+	}
+
+	keystoneAuthURL, err := r.getKeystoneAuthURL(ctx, h, instance)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -225,7 +278,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 			continue
 		}
 
-		cell, _, err := r.ensureCell(ctx, h, instance, cellName, cellTemplate, cellDB.Database, apiDB)
+		cell, _, err := r.ensureCell(ctx, h, instance, cellName, cellTemplate, cellDB.Database, apiDB, keystoneAuthURL)
 		cells[cellName] = cell
 		if err != nil {
 			failedCells = append(failedCells, fmt.Sprintf("%s(%v)", cellName, err.Error()))
@@ -325,6 +378,11 @@ func (r *NovaReconciler) initConditions(
 				novav1.NovaAllCellsReadyCondition,
 				condition.InitReason,
 				novav1.NovaAllCellsReadyInitMessage,
+			),
+			condition.UnknownCondition(
+				condition.KeystoneServiceReadyCondition,
+				condition.InitReason,
+				"Service registration not started",
 			),
 		)
 		instance.Status.Conditions.Init(&cl)
@@ -446,6 +504,7 @@ func (r *NovaReconciler) ensureCell(
 	cellTemplate novav1.NovaCellTemplate,
 	cellDB *database.Database,
 	apiDB *database.Database,
+	keystoneAuthURL string,
 ) (*novav1.NovaCell, ctrl.Result, error) {
 	// TODO(gibi): Pass down a narrowed secret that only holds
 	// specific information but also holds user names
@@ -458,6 +517,9 @@ func (r *NovaReconciler) ensureCell(
 		MetadataServiceTemplate:   cellTemplate.MetadataServiceTemplate,
 		NoVNCProxyServiceTemplate: cellTemplate.NoVNCProxyServiceTemplate,
 		Debug:                     instance.Spec.Debug,
+		// TODO(gibi): this should be part of the secret
+		ServiceUser:     instance.Spec.ServiceUser,
+		KeystoneAuthURL: keystoneAuthURL,
 	}
 	if cellTemplate.HasAPIAccess {
 		cellSpec.APIDatabaseHostname = apiDB.GetDatabaseHostname()
@@ -562,11 +624,121 @@ func (r *NovaReconciler) ensureAPI(
 	return ctrl.Result{}, nil
 }
 
+func (r *NovaReconciler) ensureKeystoneServiceUser(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *novav1.Nova,
+) error {
+	serviceSpec := keystonev1.KeystoneServiceSpec{
+		ServiceType:        "compute",
+		ServiceName:        "nova",
+		ServiceDescription: "Nova Compute Service",
+		Enabled:            true,
+		ServiceUser:        instance.Spec.ServiceUser,
+		Secret:             instance.Spec.Secret,
+		PasswordSelector:   instance.Spec.PasswordSelectors.Service,
+	}
+	serviceLabels := map[string]string{
+		common.AppSelector: "nova",
+	}
+
+	service := keystonev1.NewKeystoneService(serviceSpec, instance.Namespace, serviceLabels, 10)
+	result, err := service.CreateOrPatch(ctx, h)
+	if k8s_errors.IsNotFound(err) {
+		return nil
+	}
+	if (err != nil || result != ctrl.Result{}) {
+		return err
+	}
+
+	c := service.GetConditions().Mirror(condition.KeystoneServiceReadyCondition)
+	if c != nil {
+		instance.Status.Conditions.Set(c)
+	}
+
+	return nil
+}
+
+func (r *NovaReconciler) ensureKeystoneServiceUserDeletion(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *novav1.Nova,
+) error {
+	// Remove the finalizer from our KeystoneService CR
+	// This is oddly added automatically when we created KeystoneService but
+	// we need to remove it manually
+	service, err := keystonev1.GetKeystoneServiceWithName(ctx, h, "nova", instance.Namespace)
+	if err != nil && !k8s_errors.IsNotFound(err) {
+		return err
+	}
+
+	if k8s_errors.IsNotFound(err) {
+		// Nothing to do as it was never created
+		return nil
+	}
+
+	updated := controllerutil.RemoveFinalizer(service, h.GetFinalizer())
+	if !updated {
+		// No finalizer to remove
+		return nil
+	}
+
+	if err = h.GetClient().Update(ctx, service); err != nil && !k8s_errors.IsNotFound(err) {
+		return err
+	}
+	util.LogForObject(h, "Removed finalizer from nova KeystoneService", instance)
+
+	return nil
+}
+
+func (r *NovaReconciler) getKeystoneAuthURL(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *novav1.Nova,
+) (string, error) {
+	// TODO(gibi): change lib-common to take the name of the KeystoneAPI as
+	// parameter instead of labels. Then use instance.Spec.KeystoneInstance as
+	// the name.
+	keystoneAPI, err := keystonev1.GetKeystoneAPI(ctx, h, instance.Namespace, map[string]string{})
+	if err != nil {
+		return "", err
+	}
+	authURL, err := keystoneAPI.GetEndpoint(endpoint.EndpointPublic)
+	if err != nil {
+		return "", err
+	}
+	return authURL, nil
+}
+
+func (r *NovaReconciler) reconcileDelete(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *novav1.Nova,
+) error {
+	util.LogForObject(h, "Reconciling delete", instance)
+
+	err := r.ensureKeystoneServiceUserDeletion(ctx, h, instance)
+	if err != nil {
+		return err
+	}
+
+	// Successfully cleaned up everyting. So as the final step let's remove the
+	// finalizer from ourselves to allow the deletion of Nova CR itself
+	updated := controllerutil.RemoveFinalizer(instance, h.GetFinalizer())
+	if updated {
+		util.LogForObject(h, "Removed finalizer from ourselves", instance)
+	}
+
+	util.LogForObject(h, "Reconciled delete successfully", instance)
+	return nil
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *NovaReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&novav1.Nova{}).
 		Owns(&mariadbv1.MariaDBDatabase{}).
+		Owns(&keystonev1.KeystoneService{}).
 		Owns(&novav1.NovaAPI{}).
 		Owns(&novav1.NovaCell{}).
 		Complete(r)

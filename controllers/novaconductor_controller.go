@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 
+	v1 "k8s.io/api/apps/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -33,6 +34,7 @@ import (
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 	job "github.com/openstack-k8s-operators/lib-common/modules/common/job"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/labels"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/statefulset"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/nova-operator/pkg/nova"
@@ -175,6 +177,11 @@ func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return result, err
 	}
 
+	result, err = r.ensureDeployment(ctx, h, instance, inputHash)
+	if (err != nil || result != ctrl.Result{}) {
+		return result, err
+	}
+
 	return ctrl.Result{}, nil
 }
 
@@ -289,6 +296,9 @@ func (r *NovaConductorReconciler) generateServiceConfigMaps(
 	templateParameters := make(map[string]interface{})
 	templateParameters["ServiceUser"] = instance.Spec.ServiceUser
 	templateParameters["KeystonePublicURL"] = instance.Spec.KeystoneAuthURL
+	// TODO(gibi): This should come from the Spec / Secret but hardcoded
+	// here now
+	templateParameters["PlacementServiceUser"] = "placement"
 
 	cms := []util.Template{
 		// ScriptsConfigMap
@@ -359,9 +369,60 @@ func (r *NovaConductorReconciler) ensureCellDBSynced(
 	return ctrl.Result{}, nil
 }
 
+func (r *NovaConductorReconciler) ensureDeployment(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *novav1.NovaConductor,
+	inputHash string,
+) (ctrl.Result, error) {
+	serviceLabels := map[string]string{
+		common.AppSelector: NovaConductorLabelPrefix,
+	}
+
+	ss := statefulset.NewStatefulSet(novaconductor.StatefulSet(instance, inputHash, serviceLabels), 1)
+	ss.SetTimeout(r.RequeueTimeout)
+	ctrlResult, err := ss.CreateOrPatch(ctx, h)
+	if err != nil && !k8s_errors.IsNotFound(err) {
+		util.LogErrorForObject(h, err, "Deployment failed", instance)
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.DeploymentReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.DeploymentReadyErrorMessage,
+			err.Error()))
+		return ctrlResult, err
+	} else if (ctrlResult != ctrl.Result{} || k8s_errors.IsNotFound(err)) {
+		util.LogForObject(h, "Deployment in progress", instance)
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.DeploymentReadyCondition,
+			condition.RequestedReason,
+			condition.SeverityInfo,
+			condition.DeploymentReadyRunningMessage))
+		// It is OK to return success as we are watching for StatefulSet changes
+		return ctrlResult, nil
+	}
+
+	instance.Status.ReadyCount = ss.GetStatefulSet().Status.ReadyReplicas
+	if instance.Status.ReadyCount > 0 {
+		util.LogForObject(h, "Deployment is ready", instance)
+		instance.Status.Conditions.MarkTrue(condition.DeploymentReadyCondition, condition.DeploymentReadyMessage)
+	} else {
+		util.LogForObject(h, "Deployment is not ready", instance, "Status", ss.GetStatefulSet().Status)
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.DeploymentReadyCondition,
+			condition.RequestedReason,
+			condition.SeverityInfo,
+			condition.DeploymentReadyRunningMessage))
+		// It is OK to return success as we are watching for StatefulSet changes
+		return ctrl.Result{}, nil
+	}
+	return ctrl.Result{}, nil
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *NovaConductorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&novav1.NovaConductor{}).
+		Owns(&v1.StatefulSet{}).
 		Complete(r)
 }

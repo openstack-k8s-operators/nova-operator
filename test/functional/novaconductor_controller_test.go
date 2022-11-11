@@ -253,6 +253,7 @@ var _ = Describe("NovaConductor controller", func() {
 
 	When("NovConductor is created with a proper Secret", func() {
 		var jobName types.NamespacedName
+		var statefulSetName types.NamespacedName
 
 		BeforeEach(func() {
 			DeferCleanup(
@@ -280,6 +281,10 @@ var _ = Describe("NovaConductor controller", func() {
 			jobName = types.NamespacedName{
 				Namespace: namespace,
 				Name:      novaConductorName.Name + "-db-sync",
+			}
+			statefulSetName = types.NamespacedName{
+				Namespace: namespace,
+				Name:      novaConductorName.Name,
 			}
 
 		})
@@ -380,6 +385,29 @@ var _ = Describe("NovaConductor controller", func() {
 
 			})
 
+			It("creates a StatefulSet for the nova-conductor service", func() {
+				ExpectCondition(
+					novaConductorName,
+					conditionGetterFunc(NovaConductorConditionGetter),
+					condition.DeploymentReadyCondition,
+					corev1.ConditionFalse,
+				)
+				SimulateStatefulSetReplicaReady(statefulSetName)
+				ExpectCondition(
+					novaConductorName,
+					conditionGetterFunc(NovaConductorConditionGetter),
+					condition.DeploymentReadyCondition,
+					corev1.ConditionTrue,
+				)
+				ExpectCondition(
+					novaConductorName,
+					conditionGetterFunc(NovaConductorConditionGetter),
+					condition.ReadyCondition,
+					corev1.ConditionTrue,
+				)
+				conductor := GetNovaConductor(novaConductorName)
+				Expect(conductor.Status.ReadyCount).To(BeNumerically(">", 0))
+			})
 		})
 	})
 
