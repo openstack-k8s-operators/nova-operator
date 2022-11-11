@@ -120,11 +120,28 @@ func StatefulSet(
 				},
 				Spec: corev1.PodSpec{
 					ServiceAccountName: nova.ServiceAccount,
-					Volumes: nova.GetVolumes(
-						nova.GetScriptConfigMapName(instance.Name),
+					Volumes: nova.GetOpenstackVolumes(
 						nova.GetServiceConfigConfigMapName(instance.Name),
 					),
 					Containers: []corev1.Container{
+						// the first container in a pod is the default selected
+						// by oc log so define the log stream container first.
+						{
+							Name: instance.Name + "-log",
+							Command: []string{
+								"/bin/bash",
+							},
+							Args:  []string{"-c", "tail -n+1 -F /var/log/nova/nova-api.log"},
+							Image: instance.Spec.ContainerImage,
+							SecurityContext: &corev1.SecurityContext{
+								RunAsUser: &runAsUser,
+							},
+							Env:            env,
+							VolumeMounts:   nova.GetOpenstackVolumeMounts(),
+							Resources:      instance.Spec.Resources,
+							ReadinessProbe: readinessProbe,
+							LivenessProbe:  livenessProbe,
+						},
 						{
 							Name: instance.Name + "-api",
 							Command: []string{

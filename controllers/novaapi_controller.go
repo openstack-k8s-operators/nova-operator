@@ -356,6 +356,7 @@ func (r *NovaAPIReconciler) generateConfigs(
 		"default_user_domain":    "Default",        // fixme
 		"transport_url":          "rabbit://fixme", // fixme
 		"metadata_secret":        "42",             // fixme
+		"log_file":               "/var/log/nova/nova-api.log",
 	}
 	extraData := map[string]string{}
 	if instance.Spec.CustomServiceConfig != "" {
