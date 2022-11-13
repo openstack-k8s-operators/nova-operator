@@ -554,6 +554,7 @@ spec:
                 required:
                 - containerImage
                 - keystoneAuthURL
+                - secret
                 type: object
               passwordSelectors:
                 description: PasswordSelectors - Selectors to identify the DB and
@@ -736,6 +737,7 @@ spec:
                 - apiMessageBusHostname
                 - containerImage
                 - keystoneAuthURL
+                - secret
                 type: object
               secret:
                 description: Secret is the name of the Secret instance containing

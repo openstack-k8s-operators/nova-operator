@@ -177,8 +177,10 @@ spec:
                 type: string
             required:
             - cellDatabaseHostname
+            - cellName
             - containerImage
             - keystoneAuthURL
+            - secret
             type: object
           status:
             description: NovaNoVNCProxyStatus defines the observed state of NovaNoVNCProxy

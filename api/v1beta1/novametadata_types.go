@@ -75,7 +75,7 @@ type NovaMetadataSpec struct {
 	// +kubebuilder:validation:Required
 	// Secret is the name of the Secret instance containing password
 	// information for the nova-conductor service.
-	Secret string `json:"secret,omitempty"`
+	Secret string `json:"secret"`
 
 	// +kubebuilder:validation:Optional
 	// PasswordSelectors - Field names to identify the passwords from the
