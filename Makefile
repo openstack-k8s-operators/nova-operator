@@ -282,3 +282,8 @@ golint: get-ci-tools
 .PHONY: test_crc
 test_crc: manifests generate fmt vet envtest ## Run tests against a deployed CRC cluster
 	USE_EXISTING_CLUSTER=true go test ./... -coverpkg=./controllers -coverprofile cover.out
+
+.PHONY: operator-lint
+operator-lint: ## Runs operator-lint
+	GOBIN=$(LOCALBIN) go install github.com/gibizer/operator-lint@latest
+	go vet -vettool=$(LOCALBIN)/operator-lint ./... ./api/...
