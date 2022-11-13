@@ -6,6 +6,7 @@ ci:
    - 'go-vet'
    - 'golangci-lint'
    - 'go-lint'
+   - 'make-operator-lint'
 
 repos:
 - repo: local
@@ -20,6 +21,11 @@ repos:
       language: system
       entry: make
       args: ['generate']
+    - id: make-operator-lint
+      name: make-operator-lint
+      language: system
+      entry: make
+      args: ['operator-lint']
 
 - repo: https://github.com/dnephin/pre-commit-golang
   rev: v0.5.1
