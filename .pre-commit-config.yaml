@@ -16,16 +16,19 @@ repos:
       language: system
       entry: make
       args: ['manifests']
+      pass_filenames: false
     - id: make-generate
       name: make-generate
       language: system
       entry: make
       args: ['generate']
+      pass_filenames: false
     - id: make-operator-lint
       name: make-operator-lint
       language: system
       entry: make
       args: ['operator-lint']
+      pass_filenames: false
 
 - repo: https://github.com/dnephin/pre-commit-golang
   rev: v0.5.1
