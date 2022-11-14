@@ -45,7 +45,7 @@ type PlacementAPISpec struct {
 	// MariaDB instance name
 	// Right now required by the maridb-operator to get the credentials from the instance to create the DB
 	// Might not be required in future
-	DatabaseInstance string `json:"databaseInstance,omitempty"`
+	DatabaseInstance string `json:"databaseInstance"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=placement
@@ -55,7 +55,7 @@ type PlacementAPISpec struct {
 
 	// +kubebuilder:validation:Required
 	// PlacementAPI Container Image URL
-	ContainerImage string `json:"containerImage,omitempty"`
+	ContainerImage string `json:"containerImage"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=1
@@ -66,7 +66,7 @@ type PlacementAPISpec struct {
 
 	// +kubebuilder:validation:Required
 	// Secret containing OpenStack password information for placement PlacementDatabasePassword, AdminPassword
-	Secret string `json:"secret,omitempty"`
+	Secret string `json:"secret"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default={database: PlacementDatabasePassword, service: PlacementPassword}

@@ -160,6 +160,10 @@ spec:
                 description: ServiceUser - optional username used for this service
                   to register in keystone
                 type: string
+            required:
+            - containerImage
+            - databaseInstance
+            - secret
             type: object
           status:
             description: PlacementAPIStatus defines the observed state of PlacementAPI
