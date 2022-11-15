@@ -28,19 +28,18 @@ const (
 
 // ContainerInput - the data needed for the init container
 type ContainerInput struct {
-	ContainerImage                       string
-	CellDatabaseHostname                 string
-	CellDatabaseUser                     string
-	CellDatabaseName                     string
-	Secret                               string
-	CellDatabasePasswordSelector         string
-	KeystoneServiceUserPasswordSelector  string
-	APIDatabaseHostname                  string
-	APIDatabaseUser                      string
-	APIDatabaseName                      string
-	APIDatabasePasswordSelector          string
-	VolumeMounts                         []corev1.VolumeMount
-	PlacementServiceUserPasswordSelector string
+	ContainerImage                      string
+	CellDatabaseHostname                string
+	CellDatabaseUser                    string
+	CellDatabaseName                    string
+	Secret                              string
+	CellDatabasePasswordSelector        string
+	KeystoneServiceUserPasswordSelector string
+	APIDatabaseHostname                 string
+	APIDatabaseUser                     string
+	APIDatabaseName                     string
+	APIDatabasePasswordSelector         string
+	VolumeMounts                        []corev1.VolumeMount
 }
 
 // initContainer - init container for nova-api related jobs and for the
@@ -78,17 +77,6 @@ func initContainer(init ContainerInput) []corev1.Container {
 						Name: init.Secret,
 					},
 					Key: init.KeystoneServiceUserPasswordSelector,
-				},
-			},
-		},
-		{
-			Name: "PlacementPassword",
-			ValueFrom: &corev1.EnvVarSource{
-				SecretKeyRef: &corev1.SecretKeySelector{
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: init.Secret,
-					},
-					Key: init.PlacementServiceUserPasswordSelector,
 				},
 			},
 		},
