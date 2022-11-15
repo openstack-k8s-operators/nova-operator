@@ -186,6 +186,7 @@ spec:
             - apiMessageBusHostname
             - containerImage
             - keystoneAuthURL
+            - secret
             type: object
           status:
             description: NovaSchedulerStatus defines the observed state of NovaScheduler

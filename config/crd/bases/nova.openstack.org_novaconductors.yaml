@@ -218,7 +218,9 @@ spec:
                   to register in keystone
                 type: string
             required:
+            - cellName
             - containerImage
+            - secret
             type: object
           status:
             description: NovaConductorStatus defines the observed state of NovaConductor

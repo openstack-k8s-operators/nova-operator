@@ -203,6 +203,7 @@ spec:
             required:
             - containerImage
             - keystoneAuthURL
+            - secret
             type: object
           status:
             description: NovaMetadataStatus defines the observed state of NovaMetadata
