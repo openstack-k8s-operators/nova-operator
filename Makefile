@@ -279,10 +279,6 @@ golint: get-ci-tools
 	export GOWORK=off && PATH=$(GOBIN):$(PATH); $(CI_TOOLS_REPO_DIR)/test-runner/golint.sh
 	export GOWORK=off && PATH=$(GOBIN):$(PATH); $(CI_TOOLS_REPO_DIR)/test-runner/golint.sh ./api
 
-.PHONY: test_crc
-test_crc: manifests generate fmt vet envtest ## Run tests against a deployed CRC cluster
-	USE_EXISTING_CLUSTER=true go test ./... -coverpkg=./controllers -coverprofile cover.out
-
 .PHONY: operator-lint
 operator-lint: ## Runs operator-lint
 	GOBIN=$(LOCALBIN) go install github.com/gibizer/operator-lint@latest
