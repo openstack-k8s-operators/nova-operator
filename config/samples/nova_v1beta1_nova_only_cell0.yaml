@@ -3,11 +3,7 @@ kind: Nova
 metadata:
   name: nova
 spec:
-  apiDatabaseInstance: openstack
-  # This is a MariaDB limitation that the DB user is always the name of the DB
-  apiDatabaseUser: nova_api
   apiMessageBusInstance: default-security-context
-  keystoneInstance: keystone
   secret: osp-secret
   # NOTE(gibi): defaulting structs only work if we provide {} value. If the
   # field is left out then it will not be defaulted.
@@ -27,18 +23,3 @@ spec:
   # single Secret and no field selectors (i.e. field selectors will be
   # hardcoded). ii) The Nova CR should generate a separate Secret object to
   # NovaAPI. iii) Add usernames to the generated Secret.
-  # NOTE(gibi): The ContainerImage, Replicas, NodeSelector,
-  # CustomServiceConfig, DefaultConfigOverwrite, Resources are customizable
-  # here but nothing else. Also all these fields has a meaningful default
-  # value.
-  cellTemplates:
-    cell0:
-      cellDatabaseInstance: openstack
-      # This is a MariaDB limitation that the DB user is always the name of the DB
-      cellDatabaseUser: nova_cell0
-      # NOTE(gibi): cell0 has no message bus but all the other cells requires
-      # message bus so it is a required field today.
-      cellMessageBusInstance: unused
-      # NOTE(gibi): it is unused today, we might not need it later either
-      hasAPIAccess: true
-      conductorServiceTemplate: {}

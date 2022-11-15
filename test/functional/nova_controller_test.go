@@ -415,7 +415,7 @@ var _ = Describe("Nova controller", func() {
 				ContainSubstring("[database]\nconnection = mysql+pymysql://nova:12345678@hostname-for-db-for-cell0/nova"),
 			)
 			Expect(configDataMap.Data["01-nova.conf"]).To(
-				ContainSubstring("[api_database]\nconnection = mysql+pymysql://nova:12345678@hostname-for-db-for-api/nova"),
+				ContainSubstring("[api_database]\nconnection = mysql+pymysql://nova_api:12345678@hostname-for-db-for-api/nova_api"),
 			)
 
 			SimulateStatefulSetReplicaReady(novaAPIdeploymentName)

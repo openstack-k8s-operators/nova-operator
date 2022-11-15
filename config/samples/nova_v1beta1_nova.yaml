@@ -3,10 +3,7 @@ kind: Nova
 metadata:
   name: nova
 spec:
-  apiDatabaseInstance: openstack
-  apiDatabaseUser: nova_api
   apiMessageBusInstance: not-implemented-yet
-  keystoneInstance: keystone
   secret: osp-secret
   # NOTE(gibi): defaulting structs only work if we provide {} value. If the
   # field is left out then it will not be defaulted.
