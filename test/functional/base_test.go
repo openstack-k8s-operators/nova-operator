@@ -222,10 +222,6 @@ func ListJobs(namespace string) *batchv1.JobList {
 func SimulateJobFailure(name types.NamespacedName) {
 	Eventually(func(g Gomega) {
 		job := GetJob(name)
-
-		// NOTE(gibi) when run against a real env we need to find a
-		// better way to make the job fail. This works but it is unreal.
-
 		// Simulate that the job is failed
 		job.Status.Failed = 1
 		job.Status.Active = 0
@@ -239,12 +235,6 @@ func SimulateJobSuccess(name types.NamespacedName) {
 	Eventually(func(g Gomega) {
 
 		job := GetJob(name)
-		// NOTE(gibi): We don't need to do this when run against a real
-		// env as there the job could run successfully automatically if the
-		// database user is registered manually in the DB service. But for that
-		// we would need another set of test setup, i.e. deploying the
-		// mariadb-operator.
-
 		// Simulate that the job is succeeded
 		job.Status.Succeeded = 1
 		job.Status.Active = 0
@@ -272,11 +262,6 @@ func ListDeployments(namespace string) *appsv1.DeploymentList {
 func SimulateDeploymentReplicaReady(name types.NamespacedName) {
 	Eventually(func(g Gomega) {
 		deployment := GetDeployment(name)
-		// NOTE(gibi): We don't need to do this when run against a real
-		// env as there the deployment could reach the ready state automatically.
-		// But for that  we would need another set of test setup, i.e. deploying
-		// the mariadb-operator.
-
 		deployment.Status.Replicas = 1
 		deployment.Status.ReadyReplicas = 1
 		g.Expect(k8sClient.Status().Update(ctx, deployment)).To(Succeed())

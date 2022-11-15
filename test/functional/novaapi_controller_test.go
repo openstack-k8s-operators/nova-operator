@@ -316,10 +316,6 @@ var _ = Describe("NovaAPI controller", func() {
 
 		When("the StatefulSet has at least one Replica ready", func() {
 			BeforeEach(func() {
-				th.SkipInExistingCluster(
-					"Deployment never finishes in a real env as dependencies like" +
-						"ServiceAccount is missing",
-				)
 				ExpectConditionWithDetails(
 					novaAPIName,
 					conditionGetterFunc(NovaAPIConditionGetter),
