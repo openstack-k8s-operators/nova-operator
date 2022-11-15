@@ -33,10 +33,9 @@ type NovaCellTemplate struct {
 	// Service instance used as the DB of this cell.
 	CellDatabaseInstance string `json:"cellDatabaseInstance"`
 
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default="nova"
+	// +kubebuilder:validation:Required
 	// CellDatabaseUser - username to use when accessing the give cell DB
-	CellDatabaseUser string `json:"cellDatabaseUser,omitempty"`
+	CellDatabaseUser string `json:"cellDatabaseUser"`
 
 	// +kubebuilder:validation:Required
 	// CellMessageBusInstance is the name of the RabbitMqCluster CR to select
@@ -50,7 +49,6 @@ type NovaCellTemplate struct {
 	HasAPIAccess bool `json:"hasAPIAccess"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default={}
 	// ConductorServiceTemplate - defines the cell conductor deployment for the cell.
 	ConductorServiceTemplate NovaConductorTemplate `json:"conductorServiceTemplate"`
 

@@ -29,12 +29,14 @@ type NovaSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=keystone
 	// KeystoneInstance to name of the KeystoneAPI CR to select the Service
 	// instance used by the Nova services to authenticate.
 	KeystoneInstance string `json:"keystoneInstance"`
 
-	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=openstack
 	// APIDatabaseInstance is the name of the MariaDB CR to select the DB
 	// Service instance used for the Nova API DB.
 	APIDatabaseInstance string `json:"apiDatabaseInstance"`
@@ -45,7 +47,8 @@ type NovaSpec struct {
 	// communicate.
 	APIMessageBusInstance string `json:"apiMessageBusInstance"`
 
-	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default={cell0: {cellDatabaseInstance: openstack, cellDatabaseUser: nova_cell0, cellMessageBusInstance: unused, hasAPIAccess: true, conductorServiceTemplate: {containerImage: "quay.io/tripleowallabycentos9/openstack-nova-conductor:current-tripleo"}}}
 	// Cells is a mapping of cell names to NovaCellTemplate objects defining
 	// the cells in the deployment. The "cell0" cell is a mandatory cell in
 	// every deployment. Moreover any real deployment needs at least one
@@ -58,7 +61,7 @@ type NovaSpec struct {
 	ServiceUser string `json:"serviceUser,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default="nova"
+	// +kubebuilder:default="nova_api"
 	// APIDatabaseUser - username to use when accessing the API DB
 	APIDatabaseUser string `json:"apiDatabaseUser,omitempty"`
 
