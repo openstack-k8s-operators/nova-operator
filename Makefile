@@ -283,7 +283,22 @@ golint: get-ci-tools
 test_crc: manifests generate fmt vet envtest ## Run tests against a deployed CRC cluster
 	USE_EXISTING_CLUSTER=true go test ./... -coverpkg=./controllers -coverprofile cover.out
 
+
 .PHONY: operator-lint
 operator-lint: ## Runs operator-lint
 	GOBIN=$(LOCALBIN) go install github.com/gibizer/operator-lint@latest
 	go vet -vettool=$(LOCALBIN)/operator-lint ./... ./api/...
+
+
+.PHONY: smoke-test
+smoke-test: tempest
+	bash -c ". .tempest/bin/activate; tempest run --workspace '.tempest-workspace'  --config-file test/smoke-test/tempest.conf --smoke"
+
+tempest:
+	if [ ! -d ".tempest" ]; then \
+	    python3 -m venv .tempest; \
+		bash -c ". .tempest/bin/activate; python3 -m pip install -c https://releases.openstack.org/constraints/upper/master tempest"; \
+	fi
+	if [ ! -d ".tempest-workspace" ]; then \
+		bash -c ". .tempest/bin/activate; tempest init .tempest-workspace"; \
+	fi
