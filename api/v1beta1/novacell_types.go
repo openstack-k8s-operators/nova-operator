@@ -28,7 +28,8 @@ import (
 // NovaCellTemplate defines the input parameters specified by the user to
 // create a NovaCell via higher level CRDs.
 type NovaCellTemplate struct {
-	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=openstack
 	// CellDatabaseInstance is the name of the MariaDB CR to select the DB
 	// Service instance used as the DB of this cell.
 	CellDatabaseInstance string `json:"cellDatabaseInstance"`
@@ -37,7 +38,8 @@ type NovaCellTemplate struct {
 	// CellDatabaseUser - username to use when accessing the give cell DB
 	CellDatabaseUser string `json:"cellDatabaseUser"`
 
-	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=unused
 	// CellMessageBusInstance is the name of the RabbitMqCluster CR to select
 	// the Message Bus Service instance used by the nova services to
 	// communicate in this cell.
@@ -49,16 +51,15 @@ type NovaCellTemplate struct {
 	HasAPIAccess bool `json:"hasAPIAccess"`
 
 	// +kubebuilder:validation:Optional
+	// +kubebuilder:default={containerImage: "quay.io/tripleowallabycentos9/openstack-nova-conductor:current-tripleo"}
 	// ConductorServiceTemplate - defines the cell conductor deployment for the cell.
 	ConductorServiceTemplate NovaConductorTemplate `json:"conductorServiceTemplate"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default={}
 	// MetadataServiceTemplate - defines the metadata serive dedicated for the cell.
 	MetadataServiceTemplate NovaMetadataTemplate `json:"metadataServiceTemplate"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default={}
 	// NoVNCProxyServiceTemplate - defines the novvncproxy serive dedicated for
 	// the cell.
 	NoVNCProxyServiceTemplate NovaNoVNCProxyTemplate `json:"noVNCProxyServiceTemplate"`
