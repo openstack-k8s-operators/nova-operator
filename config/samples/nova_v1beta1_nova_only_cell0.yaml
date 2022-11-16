@@ -3,23 +3,4 @@ kind: Nova
 metadata:
   name: nova
 spec:
-  apiMessageBusInstance: default-security-context
   secret: osp-secret
-  # NOTE(gibi): defaulting structs only work if we provide {} value. If the
-  # field is left out then it will not be defaulted.
-  passwordSelectors: {}
-  # NOTE(gibi): if apiServiceTemplate and schedlerServiceTemplate is not
-  # specified still a CRs for those services are created with default
-  # configuration.
-  # NOTE(gibi): I don't see a way to define the apiServiceTemplate field with
-  # kubebuilder to get a properly defaulted ApiServiceTemplate struct if the
-  # apiServiceTemplate is not provided here.
-  apiServiceTemplate: {}
-  # NOTE(gibi): We are not passing a Secret to the NovaAPI here any more. Nova
-  # controller will push a Secret to NovaAPI CR automatically and NovaAPI will
-  # hardcode which fields it will look at in that Secret.
-  # TODO(gibi): Refactor secret handling that i) allows using Secret + field
-  # selectors on the Nova CR level, but the NovaAPI CR should only take a
-  # single Secret and no field selectors (i.e. field selectors will be
-  # hardcoded). ii) The Nova CR should generate a separate Secret object to
-  # NovaAPI. iii) Add usernames to the generated Secret.

@@ -3,47 +3,12 @@ kind: Nova
 metadata:
   name: nova
 spec:
-  apiMessageBusInstance: not-implemented-yet
   secret: osp-secret
-  # NOTE(gibi): defaulting structs only work if we provide {} value. If the
-  # field is left out then it will not be defaulted.
-  passwordSelectors: {}
-  # NOTE(gibi): if apiServiceTemplate and schedlerServiceTemplate is not
-  # specified still a CRs for those services are created with default
-  # configuration.
-  # NOTE(gibi): I don't see a way to define the apiServiceTemplate field with
-  # kubebuilder to get a properly defaulted ApiServiceTemplate struct if the
-  # apiServiceTemplate is not provided here.
-  apiServiceTemplate: {}
-  # NOTE(gibi): We are not passing a Secret to the NovaAPI here any more. Nova
-  # controller will push a Secret to NovaAPI CR automatically and NovaAPI will
-  # hardcode which fields it will look at in that Secret.
-  # TODO(gibi): Refactor secret handling that i) allows using Secret + field
-  # selectors on the Nova CR level, but the NovaAPI CR should only take a
-  # single Secret and no field selectors (i.e. field selectors will be
-  # hardcoded). ii) The Nova CR should generate a separate Secret object to
-  # NovaAPI. iii) Add usernames to the generated Secret.
-  # NOTE(gibi): The ContainerImage, Replicas, NodeSelector,
-  # CustomServiceConfig, DefaultConfigOverwrite, Resources are customizable
-  # here but nothing else. Also all these fields has a meaningful default
-  # value.
   cellTemplates:
     cell0:
-      cellDatabaseInstance: openstack
       cellDatabaseUser: nova_cell0
-      cellMessageBusInstance: not-implemented-yet
       # cell0 always needs API access as it hosts the super conductor
       hasAPIAccess: true
-      conductorServiceTemplate: {}
-      # we never need a metadata service in cell0 as there are no computes there
-      # and we need to
-      metadataServiceTemplate: null
-      # we never need novncproxy service in cell0
-      noVNCProxyServiceTemplate: null
-    # this is currently not deployed
     cell1:
-      cellDatabaseInstance: openstack
       cellDatabaseUser: nova_cell1
-      cellMessageBusInstance: not-implemented-yet
       hasAPIAccess: true
-      conductorServiceTemplate: {}

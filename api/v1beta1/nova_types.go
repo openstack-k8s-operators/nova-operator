@@ -41,7 +41,8 @@ type NovaSpec struct {
 	// Service instance used for the Nova API DB.
 	APIDatabaseInstance string `json:"apiDatabaseInstance"`
 
-	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=unused
 	// APIMessageBusInstance is the name of the RabbitMqCluster CR to select
 	// the Message Bus Service instance used by the Nova top level services to
 	// communicate.
@@ -76,6 +77,7 @@ type NovaSpec struct {
 	Secret string `json:"secret"`
 
 	// +kubebuilder:validation:Optional
+	// +kubebuilder:default={service: NovaPassword, apiDatabase: NovaAPIDatabasePassword}
 	// PasswordSelectors - Selectors to identify the DB and ServiceUser
 	// passwords from the Secret
 	PasswordSelectors PasswordSelector `json:"passwordSelectors,omitempty"`
@@ -87,18 +89,18 @@ type NovaSpec struct {
 	Debug Debug `json:"debug,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:type=NovaAPITemplate
+	// +kubebuilder:default={containerImage: "quay.io/tripleowallabycentos9/openstack-nova-api:current-tripleo"}
 	// APIServiceTemplate - define the nova-api service
-	APIServiceTemplate NovaAPITemplate `json:"apiServiceTemplate,omitempty"`
+	APIServiceTemplate NovaAPITemplate `json:"apiServiceTemplate"`
 
 	// +kubebuilder:validation:Optional
 	// SchedulerServiceTemplate- define the nova-scheduler service
-	SchedulerServiceTemplate NovaSchedulerSpec `json:"schedulerServiceTemplate,omitempty"`
+	SchedulerServiceTemplate NovaSchedulerTemplate `json:"schedulerServiceTemplate"`
 
 	// +kubebuilder:validation:Optional
 	// MetadataServiceTemplate - defines the metadata service that is global for the
 	// deployment serving all the cells.
-	MetadataServiceTemplate NovaMetadataSpec `json:"metadataServiceTemplate,omitempty"`
+	MetadataServiceTemplate NovaMetadataTemplate `json:"metadataServiceTemplate"`
 }
 
 // NovaStatus defines the observed state of Nova
