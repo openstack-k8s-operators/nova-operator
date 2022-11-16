@@ -31,7 +31,6 @@ import (
 
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
-	"github.com/openstack-k8s-operators/lib-common/modules/common/configmap"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/endpoint"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
@@ -41,7 +40,6 @@ import (
 
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
-	"github.com/openstack-k8s-operators/nova-operator/pkg/nova"
 	"github.com/openstack-k8s-operators/nova-operator/pkg/novaapi"
 
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
@@ -186,6 +184,7 @@ func (r *NovaAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (re
 			instance.Spec.PasswordSelectors.APIDatabase,
 			instance.Spec.PasswordSelectors.APIMessageBus,
 			instance.Spec.PasswordSelectors.Service,
+			instance.Spec.PasswordSelectors.CellDatabase,
 		},
 		h.GetClient(),
 		&instance.Status.Conditions,
@@ -309,13 +308,7 @@ func (r *NovaAPIReconciler) ensureConfigMaps(
 	instance *novav1.NovaAPI,
 	hashes *map[string]env.Setter,
 ) error {
-	// create ConfigMaps required for nova-api service
-	// - %-scripts configmap holding scripts to e.g. bootstrap the service
-	// - %-config configmap holding minimal nova-api config required to get
-	//   the service up, user can add additional files to be added to the service
-	// - parameters which has passwords gets added from the OpenStack secret
-	//   via the init container
-	err := r.generateServiceConfigMaps(ctx, h, instance, hashes)
+	err := r.generateConfigs(ctx, h, instance, hashes)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.ServiceConfigReadyCondition,
@@ -328,72 +321,59 @@ func (r *NovaAPIReconciler) ensureConfigMaps(
 	return nil
 }
 
-// TODO(gibi): Carried over from placement, Sean started working on this
-// so integrate Sean's work here
-//
-// generateServiceConfigMaps - create create configmaps which hold scripts and service configuration
-// TODO add DefaultConfigOverwrite
-//
-func (r *NovaAPIReconciler) generateServiceConfigMaps(
-	ctx context.Context,
-	h *helper.Helper,
-	instance *novav1.NovaAPI,
-	envVars *map[string]env.Setter,
+func (r *NovaAPIReconciler) generateConfigs(
+	ctx context.Context, helper *helper.Helper, instance *novav1.NovaAPI, hashes *map[string]env.Setter,
 ) error {
-	//
-	// create Configmap/Secret required for nova-api input
-	// - %-scripts configmap holding scripts to e.g. bootstrap the service
-	// - %-config configmap holding minimal nova-api config required to get
-	//   the service up, user can add additional files to be added to the service
-	// - parameters which has passwords gets added from the ospSecret via the
-	//   init container
-	//
-
-	cmLabels := labels.GetLabels(
-		instance, labels.GetGroupLabel(NovaAPILabelPrefix), map[string]string{})
-
-	// customData hold any customization for the service.
-	// custom.conf is going to /etc/<service>/<service>.conf.d
-	// all other files get placed into /etc/<service> to allow overwrite of
-	// e.g. logging.conf or policy.json
-	// TODO: make sure custom.conf can not be overwritten
-	customData := map[string]string{
-		common.CustomServiceConfigFileName: instance.Spec.CustomServiceConfig}
-	for key, data := range instance.Spec.DefaultConfigOverwrite {
-		customData[key] = data
+	secret := &corev1.Secret{}
+	namespace := instance.GetNamespace()
+	secretName := types.NamespacedName{
+		Namespace: namespace,
+		Name:      instance.Spec.Secret,
 	}
-
-	templateParameters := make(map[string]interface{})
-	templateParameters["ServiceUser"] = instance.Spec.ServiceUser
-	templateParameters["KeystonePublicURL"] = instance.Spec.KeystoneAuthURL
-
-	cms := []util.Template{
-		// ScriptsConfigMap
-		{
-			Name:               nova.GetScriptConfigMapName(instance.Name),
-			Namespace:          instance.Namespace,
-			Type:               util.TemplateTypeScripts,
-			InstanceType:       instance.Kind,
-			AdditionalTemplate: map[string]string{"common.sh": "/common/common.sh"},
-			Labels:             cmLabels,
-		},
-		// ConfigMap
-		{
-			Name:          nova.GetServiceConfigConfigMapName(instance.Name),
-			Namespace:     instance.Namespace,
-			Type:          util.TemplateTypeConfig,
-			InstanceType:  instance.Kind,
-			CustomData:    customData,
-			ConfigOptions: templateParameters,
-			Labels:        cmLabels,
-		},
-	}
-	err := configmap.EnsureConfigMaps(ctx, h, instance, cms, envVars)
+	err := helper.GetClient().Get(ctx, secretName, secret)
 	if err != nil {
 		return err
 	}
 
-	return nil
+	templateParameters := map[string]interface{}{
+		"service_name":           "nova-api",
+		"keystone_internal_url":  instance.Spec.KeystoneAuthURL,
+		"nova_keystone_user":     instance.Spec.ServiceUser,
+		"nova_keystone_password": string(secret.Data[instance.Spec.PasswordSelectors.Service]),
+		"api_db_name":            instance.Spec.APIDatabaseUser, // fixme
+		"api_db_user":            instance.Spec.APIDatabaseUser,
+		"api_db_password":        string(secret.Data[instance.Spec.PasswordSelectors.APIDatabase]),
+		"api_db_address":         instance.Spec.APIDatabaseHostname,
+		"api_db_port":            3306,
+		"cell_db_name":           instance.Spec.Cell0DatabaseUser, // fixme
+		"cell_db_user":           instance.Spec.Cell0DatabaseUser,
+		"cell_db_password":       string(secret.Data[instance.Spec.PasswordSelectors.CellDatabase]),
+		"cell_db_address":        instance.Spec.Cell0DatabaseHostname,
+		"cell_db_port":           3306,
+		"openstack_cacert":       "",               // fixme
+		"openstack_region_name":  "regionOne",      // fixme
+		"default_project_domain": "Default",        // fixme
+		"default_user_domain":    "Default",        // fixme
+		"transport_url":          "rabbit://fixme", // fixme
+		"metadata_secret":        "42",             // fixme
+		"log_file":               "/var/log/nova/nova-api.log",
+	}
+	extraData := map[string]string{}
+	if instance.Spec.CustomServiceConfig != "" {
+		extraData["03-nova-override.conf"] = instance.Spec.CustomServiceConfig
+	}
+	for key, data := range instance.Spec.DefaultConfigOverwrite {
+		extraData[key] = data
+	}
+
+	cmLabels := labels.GetLabels(
+		instance, labels.GetGroupLabel(NovaAPILabelPrefix), map[string]string{},
+	)
+
+	err = r.GenerateConfigs(
+		ctx, helper, instance, hashes, templateParameters, extraData, cmLabels,
+	)
+	return err
 }
 
 func (r *NovaAPIReconciler) ensureDeployment(

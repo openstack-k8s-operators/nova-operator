@@ -16,6 +16,7 @@ limitations under the License.
 package functional_test
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/google/uuid"
@@ -220,16 +221,20 @@ var _ = Describe("Nova controller", func() {
 			Expect(api.Spec.Cell0DatabaseHostname).Should(BeEquivalentTo("hostname-for-db-for-api"))
 			Expect(api.Spec.Cell0DatabaseHostname).Should(BeEquivalentTo(api.Spec.APIDatabaseHostname))
 
-			novaAPIDeployment := GetStatefulSet(novaAPIdeploymentName)
-			novaAPIDepEnv := novaAPIDeployment.Spec.Template.Spec.InitContainers[0].Env
-			Expect(novaAPIDepEnv).To(
-				ContainElements(
-					[]corev1.EnvVar{
-						{Name: "Cell0DatabaseHost", Value: "hostname-for-db-for-api"},
-						{Name: "DatabaseHost", Value: "hostname-for-db-for-api"},
-					},
-				),
+			configDataMap := th.GetConfigMap(
+				types.NamespacedName{
+					Namespace: namespace,
+					Name:      fmt.Sprintf("%s-config-data", novaAPIName.Name),
+				},
 			)
+			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
+			Expect(configDataMap.Data["01-nova.conf"]).To(
+				ContainSubstring("[database]\nconnection = mysql+pymysql://nova:12345678@hostname-for-db-for-api/nova"),
+			)
+			Expect(configDataMap.Data["01-nova.conf"]).To(
+				ContainSubstring("[api_database]\nconnection = mysql+pymysql://nova:12345678@hostname-for-db-for-api/nova"),
+			)
+
 			SimulateStatefulSetReplicaReady(novaAPIdeploymentName)
 
 			ExpectCondition(

@@ -2,34 +2,22 @@
     "command": "/usr/sbin/httpd -DFOREGROUND",
     "config_files": [
         {
-            "source": "/var/lib/config-data/merged/nova.conf",
+            "source": "/var/lib/openstack/config/01-nova.conf",
             "dest": "/etc/nova/nova.conf",
             "owner": "nova",
             "perm": "0600"
         },
         {
-            "source": "/var/lib/config-data/merged/custom.conf",
-            "dest": "/etc/nova/nova.conf.d/custom.conf",
-            "owner": "nova",
-            "perm": "0600"
-        },
-        {
-            "source": "/var/lib/config-data/merged/httpd.conf",
+            "source": "/var/lib/openstack/config/httpd.conf",
             "dest": "/etc/httpd/conf/httpd.conf",
-            "owner": "root",
-            "perm": "0644"
-        },
-        {
-            "source": "/var/lib/config-data/merged/logging.conf",
-            "dest": "/etc/nova/logging.conf",
-            "owner": "root",
+            "owner": "apache",
             "perm": "0644"
         }
     ],
     "permissions": [
         {
             "path": "/var/log/nova",
-            "owner": "nova:nova",
+            "owner": "nova:apache",
             "recurse": true
         }
     ]

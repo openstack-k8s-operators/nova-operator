@@ -8,7 +8,7 @@ spec:
     service: NovaPassword
     apiDatabase: NovaAPIDatabasePassword
     apiMessageBus: NovaAPIMessageBusPassword
-    cellDatabase: null
+    cellDatabase: NovaCell0DatabasePassword
     cellMessageBus: null
   serviceUser: nova
   keystoneAuthURL: http://keystone-internal-openstack.apps-crc.testing
@@ -19,22 +19,22 @@ spec:
   # Q: do we need db an rabbit port? it seems today we use the default port
   # This is the hostname of the default Rabbit today
   apiMessageBusHostname: default-security-context
-  customServiceConfig: >
+  customServiceConfig: |
     # service config customization
     debug=True
   defaultConfigOverwrite:
-    policy.yaml: >
+    policy.yaml: |
       # my custom policy
   containerImage: quay.io/tripleowallabycentos9/openstack-nova-api:current-tripleo
   replicas: 1
   nodeSelector: {}
   resources:
     limits:
-      cpu: 500m
-      memory: 128Mi
+      cpu: 0.5
+      memory: 512Mi
     requests:
-      cpu: 10m
-      memory: 64Mi
+      cpu: 0.1
+      memory: 200Mi
   debug:
     stopDBSync: False
     stopService: False
