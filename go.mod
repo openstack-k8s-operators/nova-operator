@@ -9,9 +9,9 @@ require (
 	github.com/onsi/gomega v1.24.1
 	github.com/openshift/api v3.9.0+incompatible
 	github.com/openstack-k8s-operators/keystone-operator/api v0.0.0-20221021152415-9ec28bf05070
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20221026124010-73aea021d52a
-	github.com/openstack-k8s-operators/lib-common/modules/database v0.0.0-20221026124010-73aea021d52a
-	github.com/openstack-k8s-operators/lib-common/modules/test v0.0.0-20221103175706-2c39582ce513
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20221115095652-2c390a9d20b4
+	github.com/openstack-k8s-operators/lib-common/modules/database v0.0.0-20221115095652-2c390a9d20b4
+	github.com/openstack-k8s-operators/lib-common/modules/test v0.0.0-20221115095652-2c390a9d20b4
 	github.com/openstack-k8s-operators/mariadb-operator/api v0.0.0-20220929123241-597b259525ac
 	github.com/openstack-k8s-operators/nova-operator/api v0.0.0-00010101000000-000000000000
 	go.uber.org/zap v1.23.0
