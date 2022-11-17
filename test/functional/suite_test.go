@@ -44,6 +44,7 @@ import (
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	novav1beta1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/nova-operator/controllers"
+	rabbitmqv1 "github.com/openstack-k8s-operators/openstack-operator/apis/rabbitmq/v1beta1"
 
 	. "github.com/openstack-k8s-operators/lib-common/modules/test/helpers"
 	//+kubebuilder:scaffold:imports
@@ -80,6 +81,9 @@ var _ = BeforeSuite(func() {
 	mariadbCRDs, err := test.GetCRDDirFromModule(
 		"github.com/openstack-k8s-operators/keystone-operator/api", gomod, "bases")
 	Expect(err).ShouldNot(HaveOccurred())
+	rabbitCRDs, err := test.GetCRDDirFromModule(
+		"github.com/openstack-k8s-operators/openstack-operator/apis", gomod, "bases")
+	Expect(err).ShouldNot(HaveOccurred())
 	routev1CRDs, err := test.GetOpenShiftCRDDir("route/v1", gomod)
 	Expect(err).ShouldNot(HaveOccurred())
 
@@ -88,8 +92,9 @@ var _ = BeforeSuite(func() {
 		CRDDirectoryPaths: []string{
 			filepath.Join("..", "..", "config", "crd", "bases"),
 			// NOTE(gibi): we need to list all the external CRDs our operator depends on
-			keystoneCRDs,
 			mariadbCRDs,
+			keystoneCRDs,
+			rabbitCRDs,
 			routev1CRDs,
 		},
 		ErrorIfCRDPathMissing: true,
@@ -115,6 +120,8 @@ var _ = BeforeSuite(func() {
 	err = appsv1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 	err = routev1.AddToScheme(scheme.Scheme)
+	Expect(err).NotTo(HaveOccurred())
+	err = rabbitmqv1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 
 	//+kubebuilder:scaffold:scheme

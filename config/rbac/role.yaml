@@ -292,6 +292,18 @@ rules:
   - patch
   - update
 - apiGroups:
+  - rabbitmq.openstack.org
+  resources:
+  - transporturls
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
   - route.openshift.io
   resources:
   - routes
