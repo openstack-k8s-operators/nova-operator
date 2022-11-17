@@ -18,9 +18,6 @@ package functional_test
 
 import (
 	"context"
-	"fmt"
-	"go/build"
-	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -28,7 +25,6 @@ import (
 	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"golang.org/x/mod/modfile"
 
 	routev1 "github.com/openshift/api/route/v1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -66,34 +62,6 @@ var (
 	th        *TestHelper
 )
 
-func GetDependencyVersion(moduleName string) (string, error) {
-	content, err := os.ReadFile("../../go.mod")
-	if err != nil {
-		return "", err
-	}
-
-	f, err := modfile.Parse("go.mod", content, nil)
-	if err != nil {
-		return "", err
-	}
-
-	for _, r := range f.Require {
-		if r.Mod.Path == moduleName {
-			return r.Mod.Version, nil
-		}
-	}
-	return "", fmt.Errorf("Cannot find %s in our go.mod file", moduleName)
-
-}
-
-func GetCRDDirFromModule(moduleName string) string {
-	version, err := GetDependencyVersion(moduleName)
-	Expect(err).NotTo(HaveOccurred())
-	versionedModule := fmt.Sprintf("%s@%s", moduleName, version)
-	path := filepath.Join(build.Default.GOPATH, "pkg", "mod", versionedModule, "bases")
-	return path
-}
-
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Controller Suite")
@@ -104,7 +72,15 @@ var _ = BeforeSuite(func() {
 
 	ctx, cancel = context.WithCancel(context.TODO())
 
-	routev1CRDs, err := test.GetOpenShiftCRDDir("route/v1", "../../go.mod")
+	const gomod = "../../go.mod"
+
+	keystoneCRDs, err := test.GetCRDDirFromModule(
+		"github.com/openstack-k8s-operators/mariadb-operator/api", gomod, "bases")
+	Expect(err).ShouldNot(HaveOccurred())
+	mariadbCRDs, err := test.GetCRDDirFromModule(
+		"github.com/openstack-k8s-operators/keystone-operator/api", gomod, "bases")
+	Expect(err).ShouldNot(HaveOccurred())
+	routev1CRDs, err := test.GetOpenShiftCRDDir("route/v1", gomod)
 	Expect(err).ShouldNot(HaveOccurred())
 
 	By("bootstrapping test environment")
@@ -112,8 +88,8 @@ var _ = BeforeSuite(func() {
 		CRDDirectoryPaths: []string{
 			filepath.Join("..", "..", "config", "crd", "bases"),
 			// NOTE(gibi): we need to list all the external CRDs our operator depends on
-			GetCRDDirFromModule("github.com/openstack-k8s-operators/mariadb-operator/api"),
-			GetCRDDirFromModule("github.com/openstack-k8s-operators/keystone-operator/api"),
+			keystoneCRDs,
+			mariadbCRDs,
 			routev1CRDs,
 		},
 		ErrorIfCRDPathMissing: true,
