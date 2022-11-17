@@ -26,19 +26,21 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/endpoint"
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	database "github.com/openstack-k8s-operators/lib-common/modules/database"
+
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/nova-operator/pkg/nova"
 
+	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
-	"sigs.k8s.io/controller-runtime/pkg/log"
+	rabbitmqv1 "github.com/openstack-k8s-operators/openstack-operator/apis/rabbitmq/v1beta1"
 )
 
 // NovaReconciler reconciles a Nova object
@@ -53,6 +55,7 @@ type NovaReconciler struct {
 // +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneapis,verbs=get;list;watch;
 // +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneservices,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneendpoints,verbs=get;list;watch;create;update;patch;delete;
+// +kubebuilder:rbac:groups=rabbitmq.openstack.org,resources=transporturls,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -746,5 +749,6 @@ func (r *NovaReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&keystonev1.KeystoneService{}).
 		Owns(&novav1.NovaAPI{}).
 		Owns(&novav1.NovaCell{}).
+		Owns(&rabbitmqv1.TransportURL{}).
 		Complete(r)
 }

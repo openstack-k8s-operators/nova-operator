@@ -12,8 +12,9 @@ require (
 	github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20221115095652-2c390a9d20b4
 	github.com/openstack-k8s-operators/lib-common/modules/database v0.0.0-20221115095652-2c390a9d20b4
 	github.com/openstack-k8s-operators/lib-common/modules/test v0.0.0-20221115095652-2c390a9d20b4
-	github.com/openstack-k8s-operators/mariadb-operator/api v0.0.0-20220929123241-597b259525ac
+	github.com/openstack-k8s-operators/mariadb-operator/api v0.0.0-20221014164348-0a612ae8b391
 	github.com/openstack-k8s-operators/nova-operator/api v0.0.0-00010101000000-000000000000
+	github.com/openstack-k8s-operators/openstack-operator/apis v0.0.0-20221115120604-ac0d2f7eca02
 	go.uber.org/zap v1.21.0
 	k8s.io/api v0.25.4
 	k8s.io/apimachinery v0.25.4
@@ -82,10 +83,13 @@ require (
 	k8s.io/component-base v0.25.0 // indirect
 	k8s.io/klog/v2 v2.80.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20220803164354-a70c9af30aea // indirect
-	k8s.io/utils v0.0.0-20220823124924-e9cbc92d1a73 // indirect
+	k8s.io/utils v0.0.0-20220922133306-665eaaec4324 // indirect
 	sigs.k8s.io/json v0.0.0-20220713155537-f223a00ba0e2 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.3 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
 
 replace github.com/openstack-k8s-operators/nova-operator/api => ./api
+
+// Drop this once https://github.com/openstack-k8s-operators/openstack-operator/pull/46 landed
+replace github.com/openstack-k8s-operators/openstack-operator/apis => github.com/gibizer/openstack-operator/apis v0.0.0-20221117143058-c08e092c8d60
