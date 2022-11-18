@@ -46,17 +46,6 @@ spec:
                 description: APIDatabaseUser - username to use when accessing the
                   API DB
                 type: string
-              apiMessageBusHostname:
-                description: 'APIMessageBusHostname - hostname to use when accessing
-                  the API message bus. If not provided then upcalls will be disabled.
-                  This filed is Required for cell0. TODO(gibi): Add a webhook to validate
-                  cell0 constraint.'
-                type: string
-              apiMessageBusUser:
-                default: nova
-                description: APIMessageBusUser - username to use when accessing the
-                  API message bus
-                type: string
               cellDatabaseHostname:
                 description: 'NOTE(gibi): This should be Required, see notes in KeystoneAuthURL
                   CellDatabaseHostname - hostname to use when accessing the cell DB'
@@ -66,15 +55,10 @@ spec:
                 description: CellDatabaseUser - username to use when accessing the
                   cell DB
                 type: string
-              cellMessageBusHostname:
-                description: 'NOTE(gibi): This should be Required, see notes in KeystoneAuthURL
-                  CellMessageBusHostname - hostname to use when accessing the cell
-                  message bus'
-                type: string
-              cellMessageBusUser:
-                default: nova
-                description: CellMessageBusUser - username to use when accessing the
-                  cell message bus
+              cellMessageBusSecretName:
+                description: CellMessageBusSecretName - the name of the Secret conntaining
+                  the transport URL information to use when accessing the Cell message
+                  bus.
                 type: string
               cellName:
                 description: CellName is the name of the Nova Cell this conductor
@@ -127,17 +111,8 @@ spec:
                   in /etc/<service> .
                 type: object
               keystoneAuthURL:
-                description: 'KeystoneAuthURL - the URL that the nova-conductor service
-                  can use to talk to keystone NOTE(gibi): This is made optional here
-                  to allow reusing the NovaConductorSpec struct in the Nova CR via
-                  the NovaCell CR where this information is not yet known. We could
-                  make this required via multiple options: a) create a NovaConductorTemplate
-                  that duplicates NovaConductorSpec without this field. Use NovaCondcutorTemplate
-                  in NovaCellSpec. b) do a) but pull out a the fields to a base struct
-                  that are used in both NovaConductorSpec and NovaCondcutorTemplate
-                  c) add a validating webhook here that runs only when NovaConductor
-                  CR is created and does not run when Nova CR is created and make
-                  this field required via that webhook.'
+                description: KeystoneAuthURL - the URL that the nova-conductor service
+                  can use to talk to keystone
                 type: string
               nodeSelector:
                 additionalProperties:
@@ -154,19 +129,10 @@ spec:
                     description: APIDatabase - the name of the field to get the API
                       DB password from the Secret
                     type: string
-                  apiMessageBus:
-                    default: NovaAPIMessageBusPassword
-                    description: APIMessageBus - the name of the field to get the
-                      API message bus password from the Secret
-                    type: string
                   cellDatabase:
                     default: NovaCell0DatabasePassword
                     description: CellDatabase - the name of the field to get the Cell
                       DB password from the Secret
-                    type: string
-                  cellMessageBus:
-                    description: CellMessageBus - the name of the field to get the
-                      API message bus password from the Secret
                     type: string
                   service:
                     default: NovaPassword
@@ -218,8 +184,10 @@ spec:
                   to register in keystone
                 type: string
             required:
+            - cellMessageBusSecretName
             - cellName
             - containerImage
+            - keystoneAuthURL
             - secret
             type: object
           status:

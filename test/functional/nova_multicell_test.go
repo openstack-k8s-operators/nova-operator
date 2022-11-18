@@ -34,6 +34,7 @@ type Cell struct {
 	CellConductorName        types.NamespacedName
 	CellDBSyncJobName        types.NamespacedName
 	ConductorStatefulSetName types.NamespacedName
+	TransportURLName         types.NamespacedName
 }
 
 func NewCell(novaName types.NamespacedName, cell string) Cell {
@@ -41,7 +42,7 @@ func NewCell(novaName types.NamespacedName, cell string) Cell {
 		Namespace: novaName.Namespace,
 		Name:      novaName.Name + "-" + cell,
 	}
-	return Cell{
+	c := Cell{
 		CellName: cellName,
 		MariaDBDatabaseName: types.NamespacedName{
 			Namespace: novaName.Namespace,
@@ -59,7 +60,20 @@ func NewCell(novaName types.NamespacedName, cell string) Cell {
 			Namespace: novaName.Namespace,
 			Name:      cellName.Name + "-conductor",
 		},
+		TransportURLName: types.NamespacedName{
+			Namespace: novaName.Namespace,
+			Name:      cell + "-transport",
+		},
 	}
+
+	if cell == "cell0" {
+		c.TransportURLName = types.NamespacedName{
+			Namespace: novaName.Namespace,
+			Name:      "nova-api-transport",
+		}
+	}
+
+	return c
 }
 
 var _ = Describe("Nova controller", func() {
@@ -136,23 +150,26 @@ var _ = Describe("Nova controller", func() {
 						},
 					},
 					"cell1": {
-						CellDatabaseInstance: "db-for-cell1",
-						HasAPIAccess:         true,
+						CellDatabaseInstance:   "db-for-cell1",
+						CellMessageBusInstance: "mq-for-cell1",
+						HasAPIAccess:           true,
 						ConductorServiceTemplate: novav1.NovaConductorTemplate{
 							ContainerImage: ContainerImage,
 							Replicas:       1,
 						},
 					},
 					"cell2": {
-						CellDatabaseInstance: "db-for-cell2",
-						HasAPIAccess:         false,
+						CellDatabaseInstance:   "db-for-cell2",
+						CellMessageBusInstance: "mq-for-cell2",
+						HasAPIAccess:           false,
 						ConductorServiceTemplate: novav1.NovaConductorTemplate{
 							ContainerImage: ContainerImage,
 							Replicas:       1,
 						},
 					},
 				},
-				APIDatabaseInstance: "db-for-api",
+				APIDatabaseInstance:   "db-for-api",
+				APIMessageBusInstance: "mq-for-api",
 				APIServiceTemplate: novav1.NovaAPITemplate{
 					ContainerImage: ContainerImage,
 					Replicas:       1,
@@ -167,9 +184,14 @@ var _ = Describe("Nova controller", func() {
 		It("creates cell0 NovaCell", func() {
 			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
 			SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
-			// assert that cell related CRs are created
-			GetNovaCell(cell0.CellName)
-			GetNovaConductor(cell0.CellConductorName)
+			SimulateTransportURLReady(cell0.TransportURLName)
+
+			// assert that cell related CRs are created pointing to the API MQ
+			cell := GetNovaCell(cell0.CellName)
+			Expect(cell.Spec.CellMessageBusSecretName).To(Equal("mq-for-api-secret"))
+			conductor := GetNovaConductor(cell0.CellConductorName)
+			Expect(conductor.Spec.CellMessageBusSecretName).To(Equal("mq-for-api-secret"))
+
 			ExpectCondition(
 				cell0.CellConductorName,
 				conditionGetterFunc(NovaConductorConditionGetter),
@@ -213,13 +235,15 @@ var _ = Describe("Nova controller", func() {
 		It("creates NovaAPI", func() {
 			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
 			SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
+			SimulateTransportURLReady(cell0.TransportURLName)
 			SimulateJobSuccess(cell0.CellDBSyncJobName)
 			SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 
 			api := GetNovaAPI(novaAPIName)
 			Expect(api.Spec.Replicas).Should(BeEquivalentTo(1))
-			Expect(api.Spec.Cell0DatabaseHostname).Should(BeEquivalentTo("hostname-for-db-for-api"))
-			Expect(api.Spec.Cell0DatabaseHostname).Should(BeEquivalentTo(api.Spec.APIDatabaseHostname))
+			Expect(api.Spec.Cell0DatabaseHostname).To(Equal("hostname-for-db-for-api"))
+			Expect(api.Spec.Cell0DatabaseHostname).To(Equal(api.Spec.APIDatabaseHostname))
+			Expect(api.Spec.APIMessageBusSecretName).To(Equal("mq-for-api-secret"))
 
 			configDataMap := th.GetConfigMap(
 				types.NamespacedName{
@@ -253,6 +277,7 @@ var _ = Describe("Nova controller", func() {
 
 		It("creates all cell DBs", func() {
 			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
+			SimulateTransportURLReady(cell0.TransportURLName)
 			SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
 			SimulateJobSuccess(cell0.CellDBSyncJobName)
 			SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
@@ -275,18 +300,41 @@ var _ = Describe("Nova controller", func() {
 
 		})
 
+		It("creates all cell MQs", func() {
+			SimulateTransportURLReady(cell0.TransportURLName)
+			SimulateTransportURLReady(cell1.TransportURLName)
+			ExpectCondition(
+				novaName,
+				conditionGetterFunc(NovaConditionGetter),
+				novav1.NovaAllCellsMQReadyCondition,
+				corev1.ConditionFalse,
+			)
+			SimulateTransportURLReady(cell2.TransportURLName)
+			ExpectCondition(
+				novaName,
+				conditionGetterFunc(NovaConditionGetter),
+				novav1.NovaAllCellsMQReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+		})
+
 		It("creates cell1 NovaCell", func() {
 			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
 			SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
+			SimulateTransportURLReady(cell0.TransportURLName)
 			SimulateJobSuccess(cell0.CellDBSyncJobName)
 			SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 			SimulateStatefulSetReplicaReady(novaAPIdeploymentName)
 			SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
-			SimulateMariaDBDatabaseCompleted(cell2.MariaDBDatabaseName)
+			SimulateTransportURLReady(cell1.TransportURLName)
 
-			// assert that cell related CRs are created
-			GetNovaCell(cell1.CellName)
-			GetNovaConductor(cell1.CellConductorName)
+			// assert that cell related CRs are created pointing to the cell1 MQ
+			c1 := GetNovaCell(cell1.CellName)
+			Expect(c1.Spec.CellMessageBusSecretName).To(Equal("mq-for-cell1-secret"))
+			c1Conductor := GetNovaConductor(cell1.CellConductorName)
+			Expect(c1Conductor.Spec.CellMessageBusSecretName).To(Equal("mq-for-cell1-secret"))
+
 			ExpectCondition(
 				cell1.CellConductorName,
 				conditionGetterFunc(NovaConductorConditionGetter),
@@ -328,17 +376,23 @@ var _ = Describe("Nova controller", func() {
 		It("creates cell2 NovaCell", func() {
 			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
 			SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
+			SimulateTransportURLReady(cell0.TransportURLName)
 			SimulateJobSuccess(cell0.CellDBSyncJobName)
 			SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 			SimulateStatefulSetReplicaReady(novaAPIdeploymentName)
 			SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
-			SimulateMariaDBDatabaseCompleted(cell2.MariaDBDatabaseName)
+			SimulateTransportURLReady(cell1.TransportURLName)
 			SimulateJobSuccess(cell1.CellDBSyncJobName)
 			SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
 
-			// assert that cell related CRs are created
-			GetNovaCell(cell2.CellName)
-			GetNovaConductor(cell2.CellConductorName)
+			SimulateMariaDBDatabaseCompleted(cell2.MariaDBDatabaseName)
+			SimulateTransportURLReady(cell2.TransportURLName)
+
+			// assert that cell related CRs are created pointing to the Cell 2 MQ
+			c2 := GetNovaCell(cell2.CellName)
+			Expect(c2.Spec.CellMessageBusSecretName).To(Equal("mq-for-cell2-secret"))
+			c2Conductor := GetNovaConductor(cell2.CellConductorName)
+			Expect(c2Conductor.Spec.CellMessageBusSecretName).To(Equal("mq-for-cell2-secret"))
 			ExpectCondition(
 				cell2.CellConductorName,
 				conditionGetterFunc(NovaConductorConditionGetter),
@@ -392,9 +446,10 @@ var _ = Describe("Nova controller", func() {
 			)
 		})
 		It("creates cell2 NovaCell even if everthing else fails", func() {
-			// Don't simulate any success for any other DBs or Cells
+			// Don't simulate any success for any other DBs MQs or Cells
 			// just for cell2
 			SimulateMariaDBDatabaseCompleted(cell2.MariaDBDatabaseName)
+			SimulateTransportURLReady(cell2.TransportURLName)
 
 			// assert that cell related CRs are created
 			GetNovaCell(cell2.CellName)
@@ -431,12 +486,14 @@ var _ = Describe("Nova controller", func() {
 		It("creates Nova API even if cell1 and cell2 fails", func() {
 			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
 			SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
+			SimulateTransportURLReady(cell0.TransportURLName)
 			SimulateJobSuccess(cell0.CellDBSyncJobName)
 			SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 
 			// Simulate that cell1 DB sync failed and do not simulate
 			// cell2 DB creation success so that will be in Creating state.
 			SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
+			SimulateTransportURLReady(cell1.TransportURLName)
 			SimulateJobFailure(cell1.CellDBSyncJobName)
 
 			// NovaAPI is still created
@@ -459,6 +516,8 @@ var _ = Describe("Nova controller", func() {
 			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
 			SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
 			SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
+			SimulateTransportURLReady(cell0.TransportURLName)
+			SimulateTransportURLReady(cell1.TransportURLName)
 
 			SimulateJobFailure(cell0.CellDBSyncJobName)
 

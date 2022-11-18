@@ -92,17 +92,8 @@ type PasswordSelector struct {
 	// Secret
 	APIDatabase string `json:"apiDatabase,omitempty"`
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default="NovaAPIMessageBusPassword"
-	// APIMessageBus - the name of the field to get the API message bus
-	// password from the Secret
-	APIMessageBus string `json:"apiMessageBus,omitempty"`
-	// +kubebuilder:validation:Optional
 	// +kubebuilder:default="NovaCell0DatabasePassword"
 	// CellDatabase - the name of the field to get the Cell DB password from
 	// the Secret
 	CellDatabase string `json:"cellDatabase,omitempty"`
-	// +kubebuilder:validation:Optional
-	// CellMessageBus - the name of the field to get the API message bus
-	// password from the Secret
-	CellMessageBus string `json:"cellMessageBus,omitempty"`
 }

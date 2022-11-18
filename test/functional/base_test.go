@@ -33,6 +33,7 @@ import (
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
+	rabbitmqv1 "github.com/openstack-k8s-operators/openstack-operator/apis/rabbitmq/v1beta1"
 )
 
 const (
@@ -290,8 +291,9 @@ func CreateNovaWithCell0(name types.NamespacedName) {
 	CreateNova(
 		name,
 		novav1.NovaSpec{
-			Secret:              SecretName,
-			APIDatabaseInstance: "openstack",
+			Secret:                SecretName,
+			APIDatabaseInstance:   "openstack",
+			APIMessageBusInstance: "rabbitmq",
 			CellTemplates: map[string]novav1.NovaCellTemplate{
 				"cell0": {
 					CellDatabaseInstance: "openstack",
@@ -678,4 +680,23 @@ func SimulateKeystoneEndpointReady(name types.NamespacedName) {
 		g.Expect(k8sClient.Status().Update(ctx, endpoint)).To(Succeed())
 	}, timeout, interval).Should(Succeed())
 	logger.Info("Simulated KeystoneEndpoint ready", "on", name)
+}
+
+func GetTransportURL(name types.NamespacedName) *rabbitmqv1.TransportURL {
+	instance := &rabbitmqv1.TransportURL{}
+	Eventually(func(g Gomega) {
+		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
+	}, timeout, interval).Should(Succeed())
+	return instance
+}
+
+func SimulateTransportURLReady(name types.NamespacedName) {
+	Eventually(func(g Gomega) {
+		transport := GetTransportURL(name)
+		transport.Status.SecretName = transport.Spec.RabbitmqClusterName + "-secret"
+		transport.Status.Conditions.MarkTrue("TransportURLReady", "Ready")
+		g.Expect(k8sClient.Status().Update(ctx, transport)).To(Succeed())
+
+	}, timeout, interval).Should(Succeed())
+	logger.Info("Simulated TransportURL ready", "on", name)
 }

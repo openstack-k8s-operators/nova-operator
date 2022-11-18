@@ -44,14 +44,10 @@ spec:
                 description: APIDatabaseUser - username to use when accessing the
                   API DB
                 type: string
-              apiMessageBusHostname:
-                description: APIMessageBusHostname - hostname to use when accessing
-                  the API message bus
-                type: string
-              apiMessageBusUser:
-                default: nova
-                description: APIMessageBusUser - username to use when accessing the
-                  API message bus
+              apiMessageBusSecretName:
+                description: APIMessageBusSecretName - the name of the Secret conntaining
+                  the transport URL information to use when accessing the API message
+                  bus.
                 type: string
               cell0DatabaseHostname:
                 description: APIDatabaseHostname - hostname to use when accessing
@@ -125,19 +121,10 @@ spec:
                     description: APIDatabase - the name of the field to get the API
                       DB password from the Secret
                     type: string
-                  apiMessageBus:
-                    default: NovaAPIMessageBusPassword
-                    description: APIMessageBus - the name of the field to get the
-                      API message bus password from the Secret
-                    type: string
                   cellDatabase:
                     default: NovaCell0DatabasePassword
                     description: CellDatabase - the name of the field to get the Cell
                       DB password from the Secret
-                    type: string
-                  cellMessageBus:
-                    description: CellMessageBus - the name of the field to get the
-                      API message bus password from the Secret
                     type: string
                   service:
                     default: NovaPassword
@@ -190,7 +177,7 @@ spec:
                 type: string
             required:
             - apiDatabaseHostname
-            - apiMessageBusHostname
+            - apiMessageBusSecretName
             - cell0DatabaseHostname
             - containerImage
             - keystoneAuthURL

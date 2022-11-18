@@ -39,10 +39,10 @@ type NovaCellTemplate struct {
 	CellDatabaseUser string `json:"cellDatabaseUser"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=unused
+	// +kubebuilder:default=rabbitmq
 	// CellMessageBusInstance is the name of the RabbitMqCluster CR to select
 	// the Message Bus Service instance used by the nova services to
-	// communicate in this cell.
+	// communicate in this cell. For cell0 it is unused.
 	CellMessageBusInstance string `json:"cellMessageBusInstance"`
 
 	// +kubebuilder:validation:Required
@@ -112,18 +112,6 @@ type NovaCellSpec struct {
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=nova
-	// APIMessageBusUser - username to use when accessing the API message bus
-	APIMessageBusUser string `json:"apiMessageBusUser"`
-
-	// +kubebuilder:validation:Optional
-	// APIMessageBusHostname - hostname to use when accessing the API message
-	// bus. If not provided then upcalls will be disabled. This field is
-	// Required for cell0.
-	// TODO(gibi): Add a webhook to validate cell0 constraint.
-	APIMessageBusHostname string `json:"apiMessageBusHostname"`
-
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=nova
 	// CellDatabaseUser - username to use when accessing the cell DB
 	CellDatabaseUser string `json:"cellDatabaseUser"`
 
@@ -131,15 +119,11 @@ type NovaCellSpec struct {
 	// CellDatabaseHostname - hostname to use when accessing the cell DB
 	CellDatabaseHostname string `json:"cellDatabaseHostname"`
 
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=nova
-	// CellMessageBusUser - username to use when accessing the cell message bus
-	CellMessageBusUser string `json:"cellMessageBusUser"`
-
 	// +kubebuilder:validation:Required
-	// CellMessageBusHostname - hostname to use when accessing the cell message
-	// bus
-	CellMessageBusHostname string `json:"cellMessageBusHostname"`
+	// CellMessageBusSecretName - the name of the Secret conntaining the
+	// transport URL information to use when accessing the Cell message
+	// bus. For cell0 this should be the Secret for the API message bus.
+	CellMessageBusSecretName string `json:"cellMessageBusSecretName"`
 
 	// +kubebuilder:validation:Optional
 	// Debug - enable debug for different deploy stages. If an init container

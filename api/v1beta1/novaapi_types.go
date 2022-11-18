@@ -99,15 +99,11 @@ type NovaAPISpec struct {
 	// APIDatabaseHostname - hostname to use when accessing the API DB
 	APIDatabaseHostname string `json:"apiDatabaseHostname"`
 
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default="nova"
-	// APIMessageBusUser - username to use when accessing the API message bus
-	APIMessageBusUser string `json:"apiMessageBusUser,omitempty"`
-
 	// +kubebuilder:validation:Required
-	// APIMessageBusHostname - hostname to use when accessing the API message
-	// bus
-	APIMessageBusHostname string `json:"apiMessageBusHostname"`
+	// APIMessageBusSecretName - the name of the Secret conntaining the
+	// transport URL information to use when accessing the API message
+	// bus.
+	APIMessageBusSecretName string `json:"apiMessageBusSecretName"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default="nova"

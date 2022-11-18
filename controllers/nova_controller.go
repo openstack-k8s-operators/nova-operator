@@ -23,6 +23,7 @@ import (
 
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -249,12 +250,85 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 			novav1.NovaAllCellsDBReadyCreatingMessage,
 			strings.Join(creatingDBs, ",")))
 	} else { // we have no DB in failed or creating status so all DB is ready
-		instance.Status.Conditions.MarkTrue(novav1.NovaAllCellsDBReadyCondition, condition.DBReadyMessage)
+		instance.Status.Conditions.MarkTrue(
+			novav1.NovaAllCellsDBReadyCondition, novav1.NovaAllCellsDBReadyMessage)
+	}
+
+	// Create TransportURLs to access the message buses of each cell. Cell0
+	// message bus is always the same as the top level API message bus so
+	// we create API MQ separately first
+	apiMQSecretName, apiMQStatus, apiMQError := r.ensureMQ(
+		ctx, h, instance, "nova-api-transport", instance.Spec.APIMessageBusInstance)
+	if apiMQStatus == nova.MQFailed {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			novav1.NovaAPIMQReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityError,
+			novav1.NovaAPIMQReadyErrorMessage,
+			apiDBError.Error(),
+		))
+	}
+	if apiMQStatus == nova.MQCreating {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			novav1.NovaAPIMQReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityError,
+			novav1.NovaAPIMQReadyCreatingMessage,
+		))
+	}
+	if apiMQStatus == nova.MQCompleted {
+		instance.Status.Conditions.MarkTrue(
+			novav1.NovaAPIMQReadyCondition, novav1.NovaAPIMQReadyMessage)
+	}
+
+	cellMQs := map[string]*nova.MessageBus{}
+	var failedMQs []string
+	var creatingMQs []string
+	for cellName, cellTemplate := range instance.Spec.CellTemplates {
+		var cellMQ string
+		var status nova.MessageBusStatus
+		var err error
+		// cell0 does not need its own cell message bus it uses the
+		// API message bus instead
+		if cellName == Cell0Name {
+			cellMQ = apiMQSecretName
+			status = apiMQStatus
+			err = apiMQError
+		} else {
+			cellMQ, status, err = r.ensureMQ(
+				ctx, h, instance, cellName+"-transport", cellTemplate.CellMessageBusInstance)
+		}
+		if err != nil {
+			failedMQs = append(failedMQs, fmt.Sprintf("%s(%v)", cellName, err.Error()))
+
+		}
+		if status == nova.MQCreating {
+			creatingMQs = append(creatingMQs, cellName)
+		}
+		cellMQs[cellName] = &nova.MessageBus{SecretName: cellMQ, Status: status}
+	}
+	if len(failedMQs) > 0 {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			novav1.NovaAllCellsMQReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityError,
+			novav1.NovaAllCellsMQReadyErrorMessage,
+			strings.Join(failedMQs, ",")))
+	} else if len(creatingMQs) > 0 {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			novav1.NovaAllCellsMQReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityError,
+			novav1.NovaAllCellsMQReadyCreatingMessage,
+			strings.Join(creatingMQs, ",")))
+	} else { // we have no MQ in failed or creating status so all MQ is ready
+		instance.Status.Conditions.MarkTrue(
+			novav1.NovaAllCellsMQReadyCondition, novav1.NovaAllCellsMQReadyMessage)
 	}
 
 	// Kick of the creation of Cells. We skip over those cells where the cell
-	// DB is not yet created and those which needs API DB access but cell0 is
-	// not ready yet
+	// DB or MQ is not yet created and those which needs API DB access but
+	// cell0 is not ready yet
 	failedCells := []string{}
 	creatingCells := []string{}
 	skippedCells := []string{}
@@ -263,6 +337,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	allCellsReady := true
 	for cellName, cellTemplate := range instance.Spec.CellTemplates {
 		cellDB := cellDBs[cellName]
+		cellMQ := cellMQs[cellName]
 		if cellDB.Status != nova.DBCompleted {
 			allCellsReady = false
 			skippedCells = append(skippedCells, cellName)
@@ -271,6 +346,15 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 				instance, "CellName", cellName)
 			continue
 		}
+		if cellMQ.Status != nova.MQCompleted {
+			allCellsReady = false
+			skippedCells = append(skippedCells, cellName)
+			util.LogForObject(
+				h, "Skipping NovaCell as waiting for the cell MQ to be created",
+				instance, "CellName", cellName)
+			continue
+		}
+
 		cell0, ok := cells[Cell0Name]
 		if cellName != Cell0Name && cellTemplate.HasAPIAccess && (!ok || !cell0.IsReady()) {
 			allCellsReady = false
@@ -281,7 +365,10 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 			continue
 		}
 
-		cell, _, err := r.ensureCell(ctx, h, instance, cellName, cellTemplate, cellDB.Database, apiDB, keystoneAuthURL)
+		cell, _, err := r.ensureCell(
+			ctx, h, instance, cellName, cellTemplate,
+			cellDB.Database, apiDB, cellMQ.SecretName, keystoneAuthURL,
+		)
 		cells[cellName] = cell
 		if err != nil {
 			failedCells = append(failedCells, fmt.Sprintf("%s(%v)", cellName, err.Error()))
@@ -295,7 +382,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	}
 	util.LogForObject(
 		h, "Cell statuses", instance, "failed", failedCells,
-		"creating", creatingCells, "skipped", skippedCells,
+		"creating", creatingCells, "waiting", skippedCells,
 		"ready", readyCells, "all cells ready", allCellsReady)
 	if len(failedCells) > 0 {
 		instance.Status.Conditions.Set(condition.FalseCondition(
@@ -333,7 +420,10 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		return ctrl.Result{}, nil
 	}
 
-	result, err = r.ensureAPI(ctx, h, instance, cell0Template, cellDBs[Cell0Name].Database, apiDB, keystoneAuthURL)
+	result, err = r.ensureAPI(
+		ctx, h, instance, cell0Template,
+		cellDBs[Cell0Name].Database, apiDB, apiMQSecretName, keystoneAuthURL,
+	)
 	if err != nil {
 		return result, err
 	}
@@ -386,6 +476,16 @@ func (r *NovaReconciler) initConditions(
 				condition.KeystoneServiceReadyCondition,
 				condition.InitReason,
 				"Service registration not started",
+			),
+			condition.UnknownCondition(
+				novav1.NovaAPIMQReadyCondition,
+				condition.InitReason,
+				novav1.NovaAPIMQReadyInitMessage,
+			),
+			condition.UnknownCondition(
+				novav1.NovaAllCellsMQReadyCondition,
+				condition.InitReason,
+				novav1.NovaAllCellsMQReadyInitMessage,
 			),
 		)
 		instance.Status.Conditions.Init(&cl)
@@ -507,6 +607,7 @@ func (r *NovaReconciler) ensureCell(
 	cellTemplate novav1.NovaCellTemplate,
 	cellDB *database.Database,
 	apiDB *database.Database,
+	cellMQSecretName string,
 	keystoneAuthURL string,
 ) (*novav1.NovaCell, ctrl.Result, error) {
 	// TODO(gibi): Pass down a narrowed secret that only holds
@@ -516,6 +617,7 @@ func (r *NovaReconciler) ensureCell(
 		Secret:                    instance.Spec.Secret,
 		CellDatabaseHostname:      cellDB.GetDatabaseHostname(),
 		CellDatabaseUser:          cellTemplate.CellDatabaseUser,
+		CellMessageBusSecretName:  cellMQSecretName,
 		ConductorServiceTemplate:  cellTemplate.ConductorServiceTemplate,
 		MetadataServiceTemplate:   cellTemplate.MetadataServiceTemplate,
 		NoVNCProxyServiceTemplate: cellTemplate.NoVNCProxyServiceTemplate,
@@ -567,17 +669,19 @@ func (r *NovaReconciler) ensureAPI(
 	cell0Template novav1.NovaCellTemplate,
 	cell0DB *database.Database,
 	apiDB *database.Database,
+	apiMQSecretName string,
 	keystoneAuthURL string,
 ) (ctrl.Result, error) {
 	// TODO(gibi): Pass down a narroved secret that only hold
 	// specific information but also holds user names
 	apiSpec := novav1.NovaAPISpec{
-		Secret:                instance.Spec.Secret,
-		APIDatabaseHostname:   apiDB.GetDatabaseHostname(),
-		APIDatabaseUser:       instance.Spec.APIDatabaseUser,
-		Cell0DatabaseHostname: cell0DB.GetDatabaseHostname(),
-		Cell0DatabaseUser:     cell0Template.CellDatabaseUser,
-		Debug:                 instance.Spec.Debug,
+		Secret:                  instance.Spec.Secret,
+		APIDatabaseHostname:     apiDB.GetDatabaseHostname(),
+		APIDatabaseUser:         instance.Spec.APIDatabaseUser,
+		Cell0DatabaseHostname:   cell0DB.GetDatabaseHostname(),
+		Cell0DatabaseUser:       cell0Template.CellDatabaseUser,
+		APIMessageBusSecretName: apiMQSecretName,
+		Debug:                   instance.Spec.Debug,
 		// NOTE(gibi): this is a coincidence that the NovaServiceBase
 		// has exactly the same fields as the NovaAPITemplate so we can convert
 		// between them directly. As soon as these two structs start to diverge
@@ -739,6 +843,56 @@ func (r *NovaReconciler) reconcileDelete(
 
 	util.LogForObject(h, "Reconciled delete successfully", instance)
 	return nil
+}
+
+func (r *NovaReconciler) ensureMQ(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *novav1.Nova,
+	transportName string,
+	messageBusInstanceName string,
+) (string, nova.MessageBusStatus, error) {
+	transportURL := &rabbitmqv1.TransportURL{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      transportName,
+			Namespace: instance.Namespace,
+		},
+	}
+
+	op, err := controllerutil.CreateOrPatch(ctx, r.Client, transportURL, func() error {
+		transportURL.Spec.RabbitmqClusterName = messageBusInstanceName
+
+		err := controllerutil.SetControllerReference(instance, transportURL, r.Scheme)
+		return err
+	})
+
+	if err != nil && !k8s_errors.IsNotFound(err) {
+		return "", nova.MQFailed, util.WrapErrorForObject(
+			fmt.Sprintf("Error create or update TransportURL object %s", transportName),
+			transportURL,
+			err,
+		)
+	}
+
+	if op != controllerutil.OperationResultNone {
+		util.LogForObject(h, fmt.Sprintf("TransportURL object %s created or patched", transportName), transportURL)
+		return "", nova.MQCreating, nil
+	}
+
+	err = r.Client.Get(ctx, types.NamespacedName{Namespace: instance.Namespace, Name: transportName}, transportURL)
+	if err != nil && !k8s_errors.IsNotFound(err) {
+		return "", nova.MQFailed, util.WrapErrorForObject(
+			fmt.Sprintf("Error reading TransportURL object %s", transportName),
+			transportURL,
+			err,
+		)
+	}
+
+	if k8s_errors.IsNotFound(err) || !transportURL.IsReady() || transportURL.Status.SecretName == "" {
+		return "", nova.MQCreating, nil
+	}
+
+	return transportURL.Status.SecretName, nova.MQCompleted, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
