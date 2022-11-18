@@ -182,7 +182,6 @@ func (r *NovaAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (re
 		// passed via the Secret
 		[]string{
 			instance.Spec.PasswordSelectors.APIDatabase,
-			instance.Spec.PasswordSelectors.APIMessageBus,
 			instance.Spec.PasswordSelectors.Service,
 			instance.Spec.PasswordSelectors.CellDatabase,
 		},

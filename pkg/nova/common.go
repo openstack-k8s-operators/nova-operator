@@ -60,8 +60,26 @@ const (
 	DBCompleted DatabaseStatus = iota
 )
 
+// MessageBusStatus -
+type MessageBusStatus int
+
+const (
+	// MQFailed -
+	MQFailed MessageBusStatus = iota
+	// MQCreating -
+	MQCreating MessageBusStatus = iota
+	// MQCompleted -
+	MQCompleted MessageBusStatus = iota
+)
+
 // Database -
 type Database struct {
 	Database *database.Database
 	Status   DatabaseStatus
+}
+
+// MessageBus -
+type MessageBus struct {
+	SecretName string
+	Status     MessageBusStatus
 }

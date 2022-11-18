@@ -42,7 +42,7 @@ type NovaSpec struct {
 	APIDatabaseInstance string `json:"apiDatabaseInstance"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=unused
+	// +kubebuilder:default=rabbitmq
 	// APIMessageBusInstance is the name of the RabbitMqCluster CR to select
 	// the Message Bus Service instance used by the Nova top level services to
 	// communicate.

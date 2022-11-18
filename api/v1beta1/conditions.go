@@ -36,6 +36,11 @@ const (
 	NovaAllCellsDBReadyCondition condition.Type = "NovaAllCellDBReady"
 	// NovaAllCellsReadyCondition indicates that every defined Cell is ready
 	NovaAllCellsReadyCondition condition.Type = "NovaAllCellReady"
+	// NovaAPIMQReadyCondition indicated that the top level message bus is ready
+	NovaAPIMQReadyCondition condition.Type = "NovaAPIMQReady"
+	// NovaAllCellsMQReadyCondition indicates that the message bus for each
+	// configured Cell is created successfully
+	NovaAllCellsMQReadyCondition condition.Type = "NovaAllCellsMQReady"
 )
 
 //
@@ -57,7 +62,7 @@ const (
 	// NovaAllCellsDBReadyInitMessage
 	NovaAllCellsDBReadyInitMessage = "DB creation not started"
 
-	// NovaAllCellsDBReadyErrorMessage
+	// NovaAllCellsDBReadyCreatingMessage
 	NovaAllCellsDBReadyCreatingMessage = "DB creation ongoing for %s"
 
 	// NovaAllCellsDBReadyErrorMessage
@@ -80,4 +85,28 @@ const (
 
 	// NovaAllCellsReadyMessage
 	NovaAllCellsReadyMessage = "All NovaCells are ready"
+
+	// NovaAPIMQReadyInitMessage
+	NovaAPIMQReadyInitMessage = "API message bus not started"
+
+	// NovaAPIMQReadyErrorMessage
+	NovaAPIMQReadyErrorMessage = "API message bus creation failed: %s"
+
+	// NovaAPIMQReadyMessage
+	NovaAPIMQReadyMessage = "API message bus creation successfully"
+
+	// NovaAPIMQReadyCreatingMessage
+	NovaAPIMQReadyCreatingMessage = "API message bus creation onging"
+
+	// NovaAllCellsMQReadyInitMessage
+	NovaAllCellsMQReadyInitMessage = "Message bus creation not started"
+
+	// NovaAllCellsMQReadyErrorMessage
+	NovaAllCellsMQReadyCreatingMessage = "Message bus creation ongoing for %s"
+
+	// NovaAllCellsMQReadyErrorMessage
+	NovaAllCellsMQReadyErrorMessage = "Message bus creation failed for %s"
+
+	// NovaAllCellsMQReadyMessage
+	NovaAllCellsMQReadyMessage = "All message busses created successfully"
 )

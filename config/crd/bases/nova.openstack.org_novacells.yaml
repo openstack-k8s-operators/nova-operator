@@ -46,17 +46,6 @@ spec:
                 description: APIDatabaseUser - username to use when accessing the
                   API DB
                 type: string
-              apiMessageBusHostname:
-                description: 'APIMessageBusHostname - hostname to use when accessing
-                  the API message bus. If not provided then upcalls will be disabled.
-                  This field is Required for cell0. TODO(gibi): Add a webhook to validate
-                  cell0 constraint.'
-                type: string
-              apiMessageBusUser:
-                default: nova
-                description: APIMessageBusUser - username to use when accessing the
-                  API message bus
-                type: string
               cellDatabaseHostname:
                 description: CellDatabaseHostname - hostname to use when accessing
                   the cell DB
@@ -66,14 +55,10 @@ spec:
                 description: CellDatabaseUser - username to use when accessing the
                   cell DB
                 type: string
-              cellMessageBusHostname:
-                description: CellMessageBusHostname - hostname to use when accessing
-                  the cell message bus
-                type: string
-              cellMessageBusUser:
-                default: nova
-                description: CellMessageBusUser - username to use when accessing the
-                  cell message bus
+              cellMessageBusSecretName:
+                description: CellMessageBusSecretName - the name of the Secret conntaining
+                  the transport URL information to use when accessing the Cell message
+                  bus. For cell0 this should be the Secret for the API message bus.
                 type: string
               cellName:
                 description: CellName is the name of the Nova Cell. The value "cell0"
@@ -316,19 +301,10 @@ spec:
                     description: APIDatabase - the name of the field to get the API
                       DB password from the Secret
                     type: string
-                  apiMessageBus:
-                    default: NovaAPIMessageBusPassword
-                    description: APIMessageBus - the name of the field to get the
-                      API message bus password from the Secret
-                    type: string
                   cellDatabase:
                     default: NovaCell0DatabasePassword
                     description: CellDatabase - the name of the field to get the Cell
                       DB password from the Secret
-                    type: string
-                  cellMessageBus:
-                    description: CellMessageBus - the name of the field to get the
-                      API message bus password from the Secret
                     type: string
                   service:
                     default: NovaPassword
@@ -347,7 +323,7 @@ spec:
                 type: string
             required:
             - cellDatabaseHostname
-            - cellMessageBusHostname
+            - cellMessageBusSecretName
             - cellName
             - conductorServiceTemplate
             - keystoneAuthURL

@@ -122,7 +122,7 @@ func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 				_err = err
 				return
 			} else if err != nil && !k8s_errors.IsNotFound(err) {
-				util.LogErrorForObject(h, err, "Satus update failed", instance)
+				util.LogErrorForObject(h, err, "Status update failed", instance)
 				_err = err
 				return
 			}

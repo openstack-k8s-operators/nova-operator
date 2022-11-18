@@ -41,6 +41,7 @@ var _ = Describe("Nova controller", func() {
 	var novaAPIdeploymentName types.NamespacedName
 	var novaKeystoneServiceName types.NamespacedName
 	var novaCell0ConductorStatefulSetName types.NamespacedName
+	var apiTransportURLName types.NamespacedName
 
 	BeforeEach(func() {
 		// NOTE(gibi): We need to create a unique namespace for each test run
@@ -99,6 +100,10 @@ var _ = Describe("Nova controller", func() {
 		novaCell0ConductorStatefulSetName = types.NamespacedName{
 			Namespace: namespace,
 			Name:      cell0ConductorName.Name,
+		}
+		apiTransportURLName = types.NamespacedName{
+			Namespace: namespace,
+			Name:      "nova-api-transport",
 		}
 	})
 
@@ -196,6 +201,25 @@ var _ = Describe("Nova controller", func() {
 			)
 		})
 
+		It("creates nova-api MQ", func() {
+			SimulateKeystoneServiceReady(novaKeystoneServiceName)
+			ExpectCondition(
+				novaName,
+				conditionGetterFunc(NovaConditionGetter),
+				novav1.NovaAPIMQReadyCondition,
+				corev1.ConditionFalse,
+			)
+			GetTransportURL(apiTransportURLName)
+
+			SimulateTransportURLReady(apiTransportURLName)
+			ExpectCondition(
+				novaName,
+				conditionGetterFunc(NovaConditionGetter),
+				novav1.NovaAPIMQReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
+
 		It("creates nova_cell0 DB", func() {
 			SimulateKeystoneServiceReady(novaKeystoneServiceName)
 			ExpectCondition(
@@ -219,9 +243,12 @@ var _ = Describe("Nova controller", func() {
 			SimulateKeystoneServiceReady(novaKeystoneServiceName)
 			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
 			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForCell0)
+			SimulateTransportURLReady(apiTransportURLName)
 			// assert that cell related CRs are created
-			GetNovaCell(cell0Name)
-			GetNovaConductor(cell0ConductorName)
+			cell := GetNovaCell(cell0Name)
+			Expect(cell.Spec.CellMessageBusSecretName).To(Equal("rabbitmq-secret"))
+			conductor := GetNovaConductor(cell0ConductorName)
+			Expect(conductor.Spec.CellMessageBusSecretName).To(Equal("rabbitmq-secret"))
 
 			ExpectCondition(
 				cell0ConductorName,
@@ -256,10 +283,13 @@ var _ = Describe("Nova controller", func() {
 			SimulateKeystoneServiceReady(novaKeystoneServiceName)
 			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
 			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForCell0)
+			SimulateTransportURLReady(apiTransportURLName)
 			SimulateJobSuccess(cell0DBSyncJobName)
 			SimulateStatefulSetReplicaReady(novaCell0ConductorStatefulSetName)
 
-			GetNovaAPI(novaAPIName)
+			api := GetNovaAPI(novaAPIName)
+			Expect(api.Spec.APIMessageBusSecretName).To(Equal("rabbitmq-secret"))
+
 			SimulateStatefulSetReplicaReady(novaAPIdeploymentName)
 
 			ExpectCondition(
@@ -307,6 +337,7 @@ var _ = Describe("Nova controller", func() {
 			SimulateKeystoneServiceReady(novaKeystoneServiceName)
 			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
 			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForCell0)
+			SimulateTransportURLReady(apiTransportURLName)
 			GetNovaCell(cell0Name)
 			GetNovaConductor(cell0ConductorName)
 
@@ -389,6 +420,7 @@ var _ = Describe("Nova controller", func() {
 			SimulateKeystoneServiceReady(novaKeystoneServiceName)
 			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
 			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForCell0)
+			SimulateTransportURLReady(apiTransportURLName)
 
 			cell0DBSync := GetJob(cell0DBSyncJobName)
 			cell0DBSyncJobEnv := cell0DBSync.Spec.Template.Spec.InitContainers[0].Env

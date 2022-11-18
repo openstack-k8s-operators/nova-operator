@@ -87,20 +87,9 @@ type NovaConductorSpec struct {
 	// keystone
 	ServiceUser string `json:"serviceUser"`
 
-	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Required
 	// KeystoneAuthURL - the URL that the nova-conductor service can use to
 	// talk to keystone
-	// NOTE(gibi): This is made optional here to allow reusing the
-	// NovaConductorSpec struct in the Nova CR via the NovaCell CR where this
-	// information is not yet known. We could make this required via multiple
-	// options:
-	// a) create a NovaConductorTemplate that duplicates NovaConductorSpec
-	//    without this field. Use NovaCondcutorTemplate in NovaCellSpec.
-	// b) do a) but pull out a the fields to a base struct that are used in
-	//    both NovaConductorSpec and NovaCondcutorTemplate
-	// c) add a validating webhook here that runs only when NovaConductor CR is
-	//    created and does not run when Nova CR is created and make this field
-	//    required via that webhook.
 	KeystoneAuthURL string `json:"keystoneAuthURL"`
 
 	// +kubebuilder:validation:Optional
@@ -117,18 +106,6 @@ type NovaConductorSpec struct {
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=nova
-	// APIMessageBusUser - username to use when accessing the API message bus
-	APIMessageBusUser string `json:"apiMessageBusUser"`
-
-	// +kubebuilder:validation:Optional
-	// APIMessageBusHostname - hostname to use when accessing the API message
-	// bus. If not provided then upcalls will be disabled. This filed is
-	// Required for cell0.
-	// TODO(gibi): Add a webhook to validate cell0 constraint.
-	APIMessageBusHostname string `json:"apiMessageBusHostname"`
-
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=nova
 	// CellDatabaseUser - username to use when accessing the cell DB
 	CellDatabaseUser string `json:"cellDatabaseUser"`
 
@@ -137,16 +114,11 @@ type NovaConductorSpec struct {
 	// CellDatabaseHostname - hostname to use when accessing the cell DB
 	CellDatabaseHostname string `json:"cellDatabaseHostname"`
 
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=nova
-	// CellMessageBusUser - username to use when accessing the cell message bus
-	CellMessageBusUser string `json:"cellMessageBusUser"`
-
-	// +kubebuilder:validation:Optional
-	// NOTE(gibi): This should be Required, see notes in KeystoneAuthURL
-	// CellMessageBusHostname - hostname to use when accessing the cell message
-	// bus
-	CellMessageBusHostname string `json:"cellMessageBusHostname"`
+	// +kubebuilder:validation:Required
+	// CellMessageBusSecretName - the name of the Secret conntaining the
+	// transport URL information to use when accessing the Cell message
+	// bus.
+	CellMessageBusSecretName string `json:"cellMessageBusSecretName"`
 
 	// +kubebuilder:validation:Optional
 	// Debug - enable debug for different deploy stages. If an init container
@@ -209,16 +181,17 @@ func NewNovaConductorSpec(
 	novaCell NovaCellSpec,
 ) NovaConductorSpec {
 	conductorSpec := NovaConductorSpec{
-		CellName:             novaCell.CellName,
-		Secret:               novaCell.Secret,
-		CellDatabaseHostname: novaCell.CellDatabaseHostname,
-		CellDatabaseUser:     novaCell.CellDatabaseUser,
-		APIDatabaseHostname:  novaCell.APIDatabaseHostname,
-		APIDatabaseUser:      novaCell.APIDatabaseUser,
-		Debug:                novaCell.Debug,
-		NovaServiceBase:      NovaServiceBase(novaCell.ConductorServiceTemplate),
-		KeystoneAuthURL:      novaCell.KeystoneAuthURL,
-		ServiceUser:          novaCell.ServiceUser,
+		CellName:                 novaCell.CellName,
+		Secret:                   novaCell.Secret,
+		CellDatabaseHostname:     novaCell.CellDatabaseHostname,
+		CellDatabaseUser:         novaCell.CellDatabaseUser,
+		APIDatabaseHostname:      novaCell.APIDatabaseHostname,
+		APIDatabaseUser:          novaCell.APIDatabaseUser,
+		CellMessageBusSecretName: novaCell.CellMessageBusSecretName,
+		Debug:                    novaCell.Debug,
+		NovaServiceBase:          NovaServiceBase(novaCell.ConductorServiceTemplate),
+		KeystoneAuthURL:          novaCell.KeystoneAuthURL,
+		ServiceUser:              novaCell.ServiceUser,
 	}
 	return conductorSpec
 }

@@ -118,19 +118,10 @@ spec:
                     description: APIDatabase - the name of the field to get the API
                       DB password from the Secret
                     type: string
-                  apiMessageBus:
-                    default: NovaAPIMessageBusPassword
-                    description: APIMessageBus - the name of the field to get the
-                      API message bus password from the Secret
-                    type: string
                   cellDatabase:
                     default: NovaCell0DatabasePassword
                     description: CellDatabase - the name of the field to get the Cell
                       DB password from the Secret
-                    type: string
-                  cellMessageBus:
-                    description: CellMessageBus - the name of the field to get the
-                      API message bus password from the Secret
                     type: string
                   service:
                     default: NovaPassword

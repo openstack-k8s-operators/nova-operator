@@ -46,7 +46,7 @@ spec:
                   API DB
                 type: string
               apiMessageBusInstance:
-                default: unused
+                default: rabbitmq
                 description: APIMessageBusInstance is the name of the RabbitMqCluster
                   CR to select the Message Bus Service instance used by the Nova top
                   level services to communicate.
@@ -139,10 +139,11 @@ spec:
                         the give cell DB
                       type: string
                     cellMessageBusInstance:
-                      default: unused
+                      default: rabbitmq
                       description: CellMessageBusInstance is the name of the RabbitMqCluster
                         CR to select the Message Bus Service instance used by the
-                        nova services to communicate in this cell.
+                        nova services to communicate in this cell. For cell0 it is
+                        unused.
                       type: string
                     conductorServiceTemplate:
                       default:
@@ -475,19 +476,10 @@ spec:
                     description: APIDatabase - the name of the field to get the API
                       DB password from the Secret
                     type: string
-                  apiMessageBus:
-                    default: NovaAPIMessageBusPassword
-                    description: APIMessageBus - the name of the field to get the
-                      API message bus password from the Secret
-                    type: string
                   cellDatabase:
                     default: NovaCell0DatabasePassword
                     description: CellDatabase - the name of the field to get the Cell
                       DB password from the Secret
-                    type: string
-                  cellMessageBus:
-                    description: CellMessageBus - the name of the field to get the
-                      API message bus password from the Secret
                     type: string
                   service:
                     default: NovaPassword
