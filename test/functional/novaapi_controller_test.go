@@ -84,8 +84,13 @@ var _ = Describe("NovaAPI controller", func() {
 
 	When("a NovaAPI CR is created pointing to a non existent Secret", func() {
 		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(namespace, MessageBusSecretName))
 			novaAPIName = CreateNovaAPI(
-				namespace, novav1.NovaAPISpec{Secret: SecretName})
+				namespace, novav1.NovaAPISpec{
+					Secret:                  SecretName, // this Secret not exist yet
+					APIMessageBusSecretName: MessageBusSecretName,
+				})
 			DeferCleanup(DeleteNovaAPI, novaAPIName)
 		})
 
@@ -206,6 +211,9 @@ var _ = Describe("NovaAPI controller", func() {
 				Expect(configDataMap).ShouldNot(BeNil())
 				Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
 				Expect(configDataMap.Data).Should(
+					HaveKeyWithValue("01-nova.conf",
+						ContainSubstring("transport_url=rabbit://fake")))
+				Expect(configDataMap.Data).Should(
 					HaveKeyWithValue("03-nova-override.conf", "# add your customization here"))
 			})
 
@@ -240,11 +248,14 @@ var _ = Describe("NovaAPI controller", func() {
 		BeforeEach(func() {
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreateNovaAPISecret(namespace, SecretName))
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(namespace, MessageBusSecretName))
 
 			novaAPIName = CreateNovaAPI(
 				namespace,
 				novav1.NovaAPISpec{
-					Secret: SecretName,
+					Secret:                  SecretName,
+					APIMessageBusSecretName: MessageBusSecretName,
 					NovaServiceBase: novav1.NovaServiceBase{
 						ContainerImage: ContainerImage,
 					},
@@ -267,11 +278,14 @@ var _ = Describe("NovaAPI controller", func() {
 		BeforeEach(func() {
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreateNovaAPISecret(namespace, SecretName))
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(namespace, MessageBusSecretName))
 
 			novaAPIName = CreateNovaAPI(
 				namespace,
 				novav1.NovaAPISpec{
-					Secret: SecretName,
+					Secret:                  SecretName,
+					APIMessageBusSecretName: MessageBusSecretName,
 					NovaServiceBase: novav1.NovaServiceBase{
 						ContainerImage: ContainerImage,
 						Replicas:       1,
@@ -395,11 +409,14 @@ var _ = Describe("NovaAPI controller", func() {
 		BeforeEach(func() {
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreateNovaAPISecret(namespace, SecretName))
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(namespace, MessageBusSecretName))
 
 			novaAPIName = CreateNovaAPI(
 				namespace,
 				novav1.NovaAPISpec{
-					Secret: SecretName,
+					Secret:                  SecretName,
+					APIMessageBusSecretName: MessageBusSecretName,
 					NovaServiceBase: novav1.NovaServiceBase{
 						ContainerImage: ContainerImage,
 						Replicas:       1,

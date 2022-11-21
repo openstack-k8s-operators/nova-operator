@@ -37,8 +37,9 @@ import (
 )
 
 const (
-	SecretName     = "test-secret"
-	ContainerImage = "test://nova"
+	SecretName           = "test-secret"
+	MessageBusSecretName = "rabbitmq-secret"
+	ContainerImage       = "test://nova"
 
 	interval = time.Millisecond * 10
 	timeout  = interval * 200
@@ -197,7 +198,6 @@ func CreateNovaAPISecret(namespace string, name string) *corev1.Secret {
 		Data: map[string][]byte{
 			"NovaPassword":              []byte("12345678"),
 			"NovaAPIDatabasePassword":   []byte("12345678"),
-			"NovaAPIMessageBusPassword": []byte("12345678"),
 			"NovaCell0DatabasePassword": []byte("12345678"),
 		},
 	}
@@ -478,14 +478,15 @@ func CreateNovaConductorSecret(namespace string, name string) *corev1.Secret {
 	Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
 	return secret
 }
-func CreateNovaCellMessageBusSecret(namespace string, name string) *corev1.Secret {
+func CreateNovaMessageBusSecret(namespace string, name string) *corev1.Secret {
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
 		},
 		Data: map[string][]byte{
-			"transport_url": []byte("rabbitmq://"),
+
+			"transport_url": []byte("rabbit://fake"),
 		},
 	}
 	Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
@@ -559,7 +560,6 @@ func CreateNovaSecret(namespace string, name string) *corev1.Secret {
 		Data: map[string][]byte{
 			"NovaPassword":              []byte("12345678"),
 			"NovaAPIDatabasePassword":   []byte("12345678"),
-			"NovaAPIMessageBusPassword": []byte("12345678"),
 			"NovaCell0DatabasePassword": []byte("12345678"),
 		},
 	}
