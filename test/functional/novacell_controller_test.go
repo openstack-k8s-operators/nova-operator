@@ -28,6 +28,8 @@ import (
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 )
 
+const Cell0MessageBusSecretName = "rabbitmq-transport-url-nova-api-transport"
+
 var _ = Describe("NovaCell controller", func() {
 	var namespace string
 	var novaCellName types.NamespacedName
@@ -85,12 +87,18 @@ var _ = Describe("NovaCell controller", func() {
 				ctx,
 				CreateNovaConductorSecret(namespace, SecretName),
 			)
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateNovaCellMessageBusSecret(namespace, Cell0MessageBusSecretName),
+			)
 
 			novaCellName = CreateNovaCell(
 				namespace,
 				novav1.NovaCellSpec{
-					CellName: "cell0",
-					Secret:   SecretName,
+					CellName:                 "cell0",
+					Secret:                   SecretName,
+					CellMessageBusSecretName: Cell0MessageBusSecretName,
 					ConductorServiceTemplate: novav1.NovaConductorTemplate{
 						ContainerImage: ContainerImage,
 						Replicas:       1,

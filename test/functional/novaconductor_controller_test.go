@@ -28,6 +28,8 @@ import (
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 )
 
+const CellMessageBusSecretName = "rabbitmq-transport-url-nova-api-transport"
+
 var _ = Describe("NovaConductor controller", func() {
 	var namespace string
 	var novaConductorName types.NamespacedName
@@ -258,12 +260,15 @@ var _ = Describe("NovaConductor controller", func() {
 		BeforeEach(func() {
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreateNovaConductorSecret(namespace, SecretName))
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateNovaCellMessageBusSecret(namespace, CellMessageBusSecretName))
 
 			novaConductorName = CreateNovaConductor(
 				namespace,
 				novav1.NovaConductorSpec{
-					CellName: "cell0",
-					Secret:   SecretName,
+					CellName:                 "cell0",
+					Secret:                   SecretName,
+					CellMessageBusSecretName: CellMessageBusSecretName,
 					NovaServiceBase: novav1.NovaServiceBase{
 						ContainerImage: ContainerImage,
 					},
@@ -309,6 +314,19 @@ var _ = Describe("NovaConductor controller", func() {
 			initContainer := job.Spec.Template.Spec.InitContainers[0]
 			Expect(initContainer.VolumeMounts).To(HaveLen(3))
 			Expect(initContainer.Image).To(Equal(ContainerImage))
+			Expect(initContainer.Env).To(ContainElement(
+				corev1.EnvVar{
+					Name: "TransportURL",
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: CellMessageBusSecretName,
+							},
+							Key: "transport_url",
+						},
+					},
+				},
+			))
 
 			Expect(job.Spec.Template.Spec.Containers).To(HaveLen(1))
 			container := job.Spec.Template.Spec.Containers[0]
@@ -425,11 +443,14 @@ var _ = Describe("NovaConductor controller", func() {
 		BeforeEach(func() {
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreateNovaConductorSecret(namespace, SecretName))
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateNovaCellMessageBusSecret(namespace, CellMessageBusSecretName))
 
 			novaConductorName = CreateNovaConductor(
 				namespace,
 				novav1.NovaConductorSpec{
-					Secret: SecretName,
+					Secret:                   SecretName,
+					CellMessageBusSecretName: CellMessageBusSecretName,
 					NovaServiceBase: novav1.NovaServiceBase{
 						ContainerImage: ContainerImage,
 					},
@@ -484,11 +505,14 @@ var _ = Describe("NovaConductor controller", func() {
 		BeforeEach(func() {
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreateNovaConductorSecret(namespace, SecretName))
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateNovaCellMessageBusSecret(namespace, CellMessageBusSecretName))
 
 			novaConductorName = CreateNovaConductor(
 				namespace,
 				novav1.NovaConductorSpec{
-					Secret: SecretName,
+					Secret:                   SecretName,
+					CellMessageBusSecretName: CellMessageBusSecretName,
 					NovaServiceBase: novav1.NovaServiceBase{
 						ContainerImage: ContainerImage,
 					},

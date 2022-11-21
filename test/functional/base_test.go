@@ -478,6 +478,19 @@ func CreateNovaConductorSecret(namespace string, name string) *corev1.Secret {
 	Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
 	return secret
 }
+func CreateNovaCellMessageBusSecret(namespace string, name string) *corev1.Secret {
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Data: map[string][]byte{
+			"transport_url": []byte("rabbitmq://"),
+		},
+	}
+	Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
+	return secret
+}
 
 func CreateNovaCell(namespace string, spec novav1.NovaCellSpec) types.NamespacedName {
 	novaCellName := uuid.New().String()
