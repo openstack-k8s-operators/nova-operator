@@ -25,6 +25,7 @@ export CELLDBHOST=${CellDatabaseHost:?"Please specify a CellDatabaseHost variabl
 export CELLDBUSER=${CellDatabaseUser:?"Please specify a CellDatabaseUser variable."}
 export CELLDBPASSWORD=${CellDatabasePassword:?"Please specify a CellDatabasePassword variable."}
 export CELLDB=${CellDatabaseName:?"Please specify a CellDatabaseName variable."}
+export TRANSPORT_URL=${TransportURL:?"Please specify a TrasnportURL variable."}
 
 SVC_CFG=/etc/nova/nova.conf
 SVC_CFG_MERGED=/var/lib/config-data/merged/nova.conf
@@ -47,6 +48,8 @@ crudini --set ${SVC_CFG_MERGED} database connection mysql+pymysql://${CELLDBUSER
 crudini --set ${SVC_CFG_MERGED} keystone_authtoken password $PASSWORD
 
 crudini --set ${SVC_CFG_MERGED} placement password $PASSWORD
+
+crudini --set ${SVC_CFG_MERGED} DEFAULT transport_url $TRANSPORT_URL
 
 # set api database connection if provided
 if [ ! -z "$APIDatabaseHost" ]

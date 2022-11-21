@@ -395,7 +395,8 @@ var _ = Describe("Nova controller", func() {
 			CreateNova(
 				novaName,
 				novav1.NovaSpec{
-					Secret: SecretName,
+					Secret:                SecretName,
+					APIMessageBusInstance: "rabbitmq",
 					CellTemplates: map[string]novav1.NovaCellTemplate{
 						"cell0": {
 							CellDatabaseInstance: "db-for-cell0",

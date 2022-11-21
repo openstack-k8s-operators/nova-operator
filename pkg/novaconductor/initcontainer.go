@@ -40,6 +40,7 @@ type ContainerInput struct {
 	APIDatabaseName                     string
 	APIDatabasePasswordSelector         string
 	VolumeMounts                        []corev1.VolumeMount
+	CellMessageBusSecretName            string
 }
 
 // initContainer - init container for nova-api related jobs and for the
@@ -77,6 +78,17 @@ func initContainer(init ContainerInput) []corev1.Container {
 						Name: init.Secret,
 					},
 					Key: init.KeystoneServiceUserPasswordSelector,
+				},
+			},
+		},
+		{
+			Name: "TransportURL",
+			ValueFrom: &corev1.EnvVarSource{
+				SecretKeyRef: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: init.CellMessageBusSecretName,
+					},
+					Key: "transport_url",
 				},
 			},
 		},

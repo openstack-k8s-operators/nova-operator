@@ -56,6 +56,7 @@ func CellDBSyncJob(
 		APIDatabaseName:             nova.NovaAPIDatabaseName,
 		APIDatabasePasswordSelector: instance.Spec.PasswordSelectors.APIDatabase,
 		VolumeMounts:                nova.GetAllVolumeMounts(),
+		CellMessageBusSecretName:    instance.Spec.CellMessageBusSecretName,
 	}
 	runAsUser := int64(0)
 
