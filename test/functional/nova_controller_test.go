@@ -152,6 +152,11 @@ var _ = Describe("Nova controller", func() {
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreateNovaSecret(namespace, SecretName))
 			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateNovaMessageBusSecret(namespace, MessageBusSecretName),
+			)
+			DeferCleanup(
 				DeleteDBService,
 				CreateDBService(
 					namespace,
@@ -318,6 +323,11 @@ var _ = Describe("Nova controller", func() {
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreateNovaSecret(namespace, SecretName))
 			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateNovaMessageBusSecret(namespace, MessageBusSecretName),
+			)
+			DeferCleanup(
 				DeleteDBService,
 				CreateDBService(
 					namespace,
@@ -369,6 +379,11 @@ var _ = Describe("Nova controller", func() {
 		BeforeEach(func() {
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreateNovaSecret(namespace, SecretName))
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateNovaMessageBusSecret(namespace, MessageBusSecretName),
+			)
 
 			DeferCleanup(
 				DeleteDBService,
@@ -489,6 +504,11 @@ var _ = Describe("Nova controller", func() {
 		BeforeEach(func() {
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreateNovaSecret(namespace, SecretName))
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateNovaMessageBusSecret(namespace, MessageBusSecretName),
+			)
 			DeferCleanup(
 				DeleteDBService,
 				CreateDBService(

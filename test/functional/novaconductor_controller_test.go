@@ -261,7 +261,7 @@ var _ = Describe("NovaConductor controller", func() {
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreateNovaConductorSecret(namespace, SecretName))
 			DeferCleanup(
-				k8sClient.Delete, ctx, CreateNovaCellMessageBusSecret(namespace, CellMessageBusSecretName))
+				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(namespace, CellMessageBusSecretName))
 
 			novaConductorName = CreateNovaConductor(
 				namespace,
@@ -444,7 +444,7 @@ var _ = Describe("NovaConductor controller", func() {
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreateNovaConductorSecret(namespace, SecretName))
 			DeferCleanup(
-				k8sClient.Delete, ctx, CreateNovaCellMessageBusSecret(namespace, CellMessageBusSecretName))
+				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(namespace, CellMessageBusSecretName))
 
 			novaConductorName = CreateNovaConductor(
 				namespace,
@@ -506,7 +506,7 @@ var _ = Describe("NovaConductor controller", func() {
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreateNovaConductorSecret(namespace, SecretName))
 			DeferCleanup(
-				k8sClient.Delete, ctx, CreateNovaCellMessageBusSecret(namespace, CellMessageBusSecretName))
+				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(namespace, CellMessageBusSecretName))
 
 			novaConductorName = CreateNovaConductor(
 				namespace,

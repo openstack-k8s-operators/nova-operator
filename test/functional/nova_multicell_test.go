@@ -133,6 +133,21 @@ var _ = Describe("Nova controller", func() {
 	When("Nova CR instance is created with 3 cells", func() {
 		BeforeEach(func() {
 			DeferCleanup(k8sClient.Delete, ctx, CreateNovaSecret(namespace, SecretName))
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateNovaMessageBusSecret(namespace, "mq-for-api-secret"),
+			)
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateNovaMessageBusSecret(namespace, "mq-for-cell1-secret"),
+			)
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateNovaMessageBusSecret(namespace, "mq-for-cell2-secret"),
+			)
 
 			serviceSpec := corev1.ServiceSpec{Ports: []corev1.ServicePort{{Port: 3306}}}
 			DeferCleanup(DeleteDBService, CreateDBService(namespace, "db-for-api", serviceSpec))

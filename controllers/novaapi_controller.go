@@ -321,7 +321,7 @@ func (r *NovaAPIReconciler) ensureConfigMaps(
 }
 
 func (r *NovaAPIReconciler) generateConfigs(
-	ctx context.Context, helper *helper.Helper, instance *novav1.NovaAPI, hashes *map[string]env.Setter,
+	ctx context.Context, h *helper.Helper, instance *novav1.NovaAPI, hashes *map[string]env.Setter,
 ) error {
 	secret := &corev1.Secret{}
 	namespace := instance.GetNamespace()
@@ -329,8 +329,21 @@ func (r *NovaAPIReconciler) generateConfigs(
 		Namespace: namespace,
 		Name:      instance.Spec.Secret,
 	}
-	err := helper.GetClient().Get(ctx, secretName, secret)
+	err := h.GetClient().Get(ctx, secretName, secret)
 	if err != nil {
+		return err
+	}
+
+	apiMessageBusSecret := &corev1.Secret{}
+	secretName = types.NamespacedName{
+		Namespace: instance.Namespace,
+		Name:      instance.Spec.APIMessageBusSecretName,
+	}
+	err = h.GetClient().Get(ctx, secretName, apiMessageBusSecret)
+	if err != nil {
+		util.LogForObject(
+			h, "Failed reading Secret", instance,
+			"APIMessageBusSecretName", instance.Spec.APIMessageBusSecretName)
 		return err
 	}
 
@@ -349,12 +362,12 @@ func (r *NovaAPIReconciler) generateConfigs(
 		"cell_db_password":       string(secret.Data[instance.Spec.PasswordSelectors.CellDatabase]),
 		"cell_db_address":        instance.Spec.Cell0DatabaseHostname,
 		"cell_db_port":           3306,
-		"openstack_cacert":       "",               // fixme
-		"openstack_region_name":  "regionOne",      // fixme
-		"default_project_domain": "Default",        // fixme
-		"default_user_domain":    "Default",        // fixme
-		"transport_url":          "rabbit://fixme", // fixme
-		"metadata_secret":        "42",             // fixme
+		"openstack_cacert":       "",          // fixme
+		"openstack_region_name":  "regionOne", // fixme
+		"default_project_domain": "Default",   // fixme
+		"default_user_domain":    "Default",   // fixme
+		"transport_url":          string(apiMessageBusSecret.Data["transport_url"]),
+		"metadata_secret":        "42", // fixme
 		"log_file":               "/var/log/nova/nova-api.log",
 	}
 	extraData := map[string]string{}
@@ -370,7 +383,7 @@ func (r *NovaAPIReconciler) generateConfigs(
 	)
 
 	err = r.GenerateConfigs(
-		ctx, helper, instance, hashes, templateParameters, extraData, cmLabels,
+		ctx, h, instance, hashes, templateParameters, extraData, cmLabels,
 	)
 	return err
 }
