@@ -458,6 +458,10 @@ func (r *NovaAPIReconciler) ensureServiceExposed(
 	}
 	instance.Status.Conditions.MarkTrue(condition.ExposeServiceReadyCondition, condition.ExposeServiceReadyMessage)
 
+	for k, v := range apiEndpoints {
+		apiEndpoints[k] = v + "/v2.1"
+	}
+
 	instance.Status.APIEndpoints = apiEndpoints
 	return ctrl.Result{}, nil
 }
