@@ -14,11 +14,12 @@ require (
 	github.com/openstack-k8s-operators/lib-common/modules/test v0.0.0-20221103175706-2c39582ce513
 	github.com/openstack-k8s-operators/mariadb-operator/api v0.0.0-20220929123241-597b259525ac
 	github.com/openstack-k8s-operators/nova-operator/api v0.0.0-00010101000000-000000000000
+	go.uber.org/zap v1.21.0
 	golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4
 	k8s.io/api v0.25.2
 	k8s.io/apimachinery v0.25.2
 	k8s.io/client-go v0.25.0
-	sigs.k8s.io/controller-runtime v0.13.0
+	sigs.k8s.io/controller-runtime v0.13.1
 )
 
 require (
@@ -64,7 +65,6 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
-	go.uber.org/zap v1.21.0 // indirect
 	golang.org/x/crypto v0.0.0-20220315160706-3147a52a75dd // indirect
 	golang.org/x/net v0.0.0-20220909164309-bea034e7d591 // indirect
 	golang.org/x/oauth2 v0.0.0-20220909003341-f21342109be1 // indirect
