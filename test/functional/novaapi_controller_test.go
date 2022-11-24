@@ -365,9 +365,9 @@ var _ = Describe("NovaAPI controller", func() {
 
 			keystoneEndpoint := GetKeystoneEndpoint(types.NamespacedName{Namespace: namespace, Name: "nova"})
 			endpoints := keystoneEndpoint.Spec.Endpoints
-			Expect(endpoints).To(HaveKeyWithValue("public", "http:"))
-			Expect(endpoints).To(HaveKeyWithValue("internal", "http:"))
-			Expect(endpoints).To(HaveKeyWithValue("admin", "http:"))
+			Expect(endpoints).To(HaveKeyWithValue("public", "http:/v2.1"))
+			Expect(endpoints).To(HaveKeyWithValue("internal", "http:/v2.1"))
+			Expect(endpoints).To(HaveKeyWithValue("admin", "http:/v2.1"))
 
 			ExpectCondition(
 				novaAPIName,
