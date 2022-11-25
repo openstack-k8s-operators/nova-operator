@@ -18,15 +18,11 @@ package controllers
 
 import (
 	"context"
-	"fmt"
-	"go/build"
-	"os"
 	"path/filepath"
 	"testing"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"golang.org/x/mod/modfile"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -43,6 +39,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
+	test "github.com/openstack-k8s-operators/lib-common/modules/test"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	placementv1beta1 "github.com/openstack-k8s-operators/placement-operator/api/v1beta1"
 	//+kubebuilder:scaffold:imports
@@ -67,69 +64,32 @@ func TestAPIs(t *testing.T) {
 		[]Reporter{printer.NewlineReporter{}})
 }
 
-func GetDependencyVersion(moduleName string) (string, string, error) {
-	content, err := os.ReadFile("../go.mod")
-	if err != nil {
-		return "", "", err
-	}
-
-	f, err := modfile.Parse("go.mod", content, nil)
-	if err != nil {
-		return "", "", err
-	}
-
-	version := ""
-	name := moduleName
-
-	for _, r := range f.Require {
-		if r.Mod.Path == moduleName {
-			version = r.Mod.Version
-		}
-	}
-
-	// check for replacement config in go.mod for the named module
-	for _, r := range f.Replace {
-		if r.Old.Path == moduleName {
-			version = r.New.Version
-			name = r.New.Path
-		}
-	}
-
-	if version != "" {
-		return name, version, nil
-	}
-
-	return name, "", fmt.Errorf("Cannot find %s in our go.mod file", moduleName)
-}
-
-func GetCRDDirFromModule(moduleName string) string {
-	moduleName, version, err := GetDependencyVersion(moduleName)
-	Expect(err).NotTo(HaveOccurred())
-	versionedModule := fmt.Sprintf("%s@%s", moduleName, version)
-	path := filepath.Join(build.Default.GOPATH, "pkg", "mod", versionedModule, "bases")
-	return path
-}
-
 var _ = BeforeSuite(func() {
 	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
 
 	ctx, cancel = context.WithCancel(context.TODO())
+
+	keystoneCRDs, err := test.GetCRDDirFromModule(
+		"github.com/openstack-k8s-operators/keystone-operator/api", "../go.mod", "bases")
+	Expect(err).ShouldNot(HaveOccurred())
+	mariaDBCRDs, err := test.GetCRDDirFromModule(
+		"github.com/openstack-k8s-operators/mariadb-operator/api", "../go.mod", "bases")
+	Expect(err).ShouldNot(HaveOccurred())
+	routev1CRDs, err := test.GetOpenShiftCRDDir("route/v1", "../go.mod")
+	Expect(err).ShouldNot(HaveOccurred())
 
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
 		CRDDirectoryPaths: []string{
 			filepath.Join("..", "config", "crd", "bases"),
 			// NOTE(gibi): we need to list all the external CRDs our operator depends on
-			GetCRDDirFromModule("github.com/openstack-k8s-operators/keystone-operator/api"),
-			GetCRDDirFromModule("github.com/openstack-k8s-operators/mariadb-operator/api"),
-			// NOTE(gibi): OpenShift CRDs are even trickier as they are not directly published.
-			// For now we store a copy of the needed ones locally
-			filepath.Join("..", "openshift_crds", "route", "v1"),
+			keystoneCRDs,
+			mariaDBCRDs,
+			routev1CRDs,
 		},
 		ErrorIfCRDPathMissing: true,
 	}
 
-	var err error
 	// cfg is defined in this file globally.
 	cfg, err = testEnv.Start()
 	Expect(err).NotTo(HaveOccurred())
