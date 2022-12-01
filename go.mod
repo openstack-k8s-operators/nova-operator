@@ -8,13 +8,13 @@ require (
 	github.com/onsi/ginkgo/v2 v2.5.1
 	github.com/onsi/gomega v1.24.1
 	github.com/openshift/api v3.9.0+incompatible
-	github.com/openstack-k8s-operators/keystone-operator/api v0.0.0-20221021152415-9ec28bf05070
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20221115095652-2c390a9d20b4
+	github.com/openstack-k8s-operators/keystone-operator/api v0.0.0-20221123090515-e2561e258f0a
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20221124114404-c42a739be111
 	github.com/openstack-k8s-operators/lib-common/modules/database v0.0.0-20221115095652-2c390a9d20b4
 	github.com/openstack-k8s-operators/lib-common/modules/test v0.0.0-20221115095652-2c390a9d20b4
-	github.com/openstack-k8s-operators/mariadb-operator/api v0.0.0-20221014164348-0a612ae8b391
+	github.com/openstack-k8s-operators/mariadb-operator/api v0.0.0-20221122141723-fb7400f56094
 	github.com/openstack-k8s-operators/nova-operator/api v0.0.0-00010101000000-000000000000
-	github.com/openstack-k8s-operators/openstack-operator/apis v0.0.0-20221115120604-ac0d2f7eca02
+	github.com/openstack-k8s-operators/openstack-operator/apis v0.0.0-20221201150228-f59193372831
 	go.uber.org/zap v1.21.0
 	k8s.io/api v0.25.4
 	k8s.io/apimachinery v0.25.4
@@ -90,6 +90,3 @@ require (
 )
 
 replace github.com/openstack-k8s-operators/nova-operator/api => ./api
-
-// Drop this once https://github.com/openstack-k8s-operators/openstack-operator/pull/46 landed
-replace github.com/openstack-k8s-operators/openstack-operator/apis => github.com/gibizer/openstack-operator/apis v0.0.0-20221117143058-c08e092c8d60
