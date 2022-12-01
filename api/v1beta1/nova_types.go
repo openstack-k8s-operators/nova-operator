@@ -49,7 +49,7 @@ type NovaSpec struct {
 	APIMessageBusInstance string `json:"apiMessageBusInstance"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default={cell0: {cellDatabaseInstance: openstack, cellDatabaseUser: nova_cell0, cellMessageBusInstance: unused, hasAPIAccess: true, conductorServiceTemplate: {containerImage: "quay.io/tripleowallabycentos9/openstack-nova-conductor:current-tripleo"}}}
+	// +kubebuilder:default={cell0: {cellDatabaseInstance: openstack, cellDatabaseUser: nova_cell0, cellMessageBusInstance: unused, hasAPIAccess: true, conductorServiceTemplate: {containerImage: "quay.io/tripleozedcentos9/openstack-nova-conductor:current-tripleo"}}}
 	// Cells is a mapping of cell names to NovaCellTemplate objects defining
 	// the cells in the deployment. The "cell0" cell is a mandatory cell in
 	// every deployment. Moreover any real deployment needs at least one
@@ -89,7 +89,7 @@ type NovaSpec struct {
 	Debug Debug `json:"debug,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default={containerImage: "quay.io/tripleowallabycentos9/openstack-nova-api:current-tripleo"}
+	// +kubebuilder:default={containerImage: "quay.io/tripleozedcentos9/openstack-nova-api:current-tripleo"}
 	// APIServiceTemplate - define the nova-api service
 	APIServiceTemplate NovaAPITemplate `json:"apiServiceTemplate"`
 

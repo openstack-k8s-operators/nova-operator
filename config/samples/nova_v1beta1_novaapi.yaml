@@ -25,7 +25,7 @@ spec:
   defaultConfigOverwrite:
     policy.yaml: |
       # my custom policy
-  containerImage: quay.io/tripleowallabycentos9/openstack-nova-api:current-tripleo
+  containerImage: quay.io/tripleozedcentos9/openstack-nova-api:current-tripleo
   replicas: 1
   nodeSelector: {}
   resources:
