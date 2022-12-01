@@ -14,7 +14,7 @@ require (
 	github.com/openstack-k8s-operators/lib-common/modules/test v0.0.0-20221124114404-c42a739be111
 	github.com/openstack-k8s-operators/mariadb-operator/api v0.0.0-20220927092716-25669bcdb523
 	github.com/openstack-k8s-operators/placement-operator/api v0.0.0-20220816132717-b1fe0c1140da
-	go.uber.org/zap v1.21.0
+	go.uber.org/zap v1.24.0
 	k8s.io/api v0.25.4
 	k8s.io/apimachinery v0.25.4
 	k8s.io/client-go v0.25.4
