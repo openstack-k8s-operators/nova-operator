@@ -147,7 +147,7 @@ spec:
                       type: string
                     conductorServiceTemplate:
                       default:
-                        containerImage: quay.io/tripleowallabycentos9/openstack-nova-conductor:current-tripleo
+                        containerImage: quay.io/tripleozedcentos9/openstack-nova-conductor:current-tripleo
                       description: ConductorServiceTemplate - defines the cell conductor
                         deployment for the cell.
                       properties:
