@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	v1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -410,5 +411,6 @@ func (r *NovaConductorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&novav1.NovaConductor{}).
 		Owns(&v1.StatefulSet{}).
+		Owns(&corev1.ConfigMap{}).
 		Complete(r)
 }

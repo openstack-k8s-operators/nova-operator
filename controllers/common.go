@@ -44,6 +44,9 @@ const (
 	// NovaConductorLabelPrefix - a unique, service binary specific prefix for
 	// the labeles the NovaConductor controller uses on children objects
 	NovaConductorLabelPrefix = "nova-conductor"
+	// NovaSchedulerLabelPrefix - a unique, service binary specific prefix for
+	// the labeles the NovaScheduler controller uses on children objects
+	NovaSchedulerLabelPrefix = "nova-scheduler"
 	// DbSyncHash - the field name in Status.Hashes storing the has of the DB
 	// sync job
 	DbSyncHash = "dbsync"
