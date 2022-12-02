@@ -51,7 +51,7 @@ type NovaCellTemplate struct {
 	HasAPIAccess bool `json:"hasAPIAccess"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default={containerImage: "quay.io/tripleowallabycentos9/openstack-nova-conductor:current-tripleo"}
+	// +kubebuilder:default={containerImage: "quay.io/tripleozedcentos9/openstack-nova-conductor:current-tripleo"}
 	// ConductorServiceTemplate - defines the cell conductor deployment for the cell.
 	ConductorServiceTemplate NovaConductorTemplate `json:"conductorServiceTemplate"`
 
