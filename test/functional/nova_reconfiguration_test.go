@@ -189,9 +189,6 @@ var _ = Describe("Nova reconfiguration", func() {
 			// We need this big Eventually block because the Update() call might
 			// return a Conflict and then we have to retry by re-reading Nova,
 			// and updating the Replicas again.
-			// NOTE(gibi): we expected fauilure here, hence the ShouldNot
-			// construct, due to a bug in propagating the Replicas 0 to the
-			// NovaConductor
 			Eventually(func(g Gomega) {
 				nova := GetNova(novaName)
 
@@ -208,7 +205,7 @@ var _ = Describe("Nova reconfiguration", func() {
 				g.Expect(k8sClient.Get(ctx, cell0DeploymentName, deployment)).Should(Succeed())
 				zero := int32(0)
 				g.Expect(deployment.Spec.Replicas).To(Equal(&zero))
-			}, timeout, interval).ShouldNot(Succeed())
+			}, timeout, interval).Should(Succeed())
 		})
 	})
 })
