@@ -519,23 +519,33 @@ func CreateNovaMessageBusSecret(namespace string, name string) *corev1.Secret {
 	return secret
 }
 
-func CreateNovaCell(namespace string, spec novav1.NovaCellSpec) types.NamespacedName {
-	novaCellName := uuid.New().String()
-	novaCell := &novav1.NovaCell{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "nova.openstack.org/v1beta1",
-			Kind:       "NovaCell",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      novaCellName,
-			Namespace: namespace,
-		},
-		Spec: spec,
+func GetDefaultNovaCellSpec() map[string]interface{} {
+	return map[string]interface{}{
+		"cellName":                  "cell0",
+		"secret":                    SecretName,
+		"cellDatabaseHostname":      "cell-database-hostname",
+		"cellMessageBusSecretName":  MessageBusSecretName,
+		"keystoneAuthURL":           "keystone-auth-url",
+		"conductorServiceTemplate":  map[string]interface{}{},
+		"noVNCProxyServiceTemplate": map[string]interface{}{},
 	}
+}
 
-	Expect(k8sClient.Create(ctx, novaCell)).Should(Succeed())
+func CreateNovaCell(namespace string, spec map[string]interface{}) types.NamespacedName {
+	novaAPIName := uuid.New().String()
 
-	return types.NamespacedName{Name: novaCellName, Namespace: namespace}
+	raw := map[string]interface{}{
+		"apiVersion": "nova.openstack.org/v1beta1",
+		"kind":       "NovaCell",
+		"metadata": map[string]interface{}{
+			"name":      novaAPIName,
+			"namespace": namespace,
+		},
+		"spec": spec,
+	}
+	CreateUnstructured(raw)
+
+	return types.NamespacedName{Name: novaAPIName, Namespace: namespace}
 }
 
 func DeleteNovaCell(name types.NamespacedName) {
