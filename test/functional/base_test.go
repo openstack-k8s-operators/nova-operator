@@ -431,23 +431,31 @@ func SimulateMariaDBDatabaseCompleted(name types.NamespacedName) {
 	logger.Info("Simulated DB completed", "on", name)
 }
 
-func CreateNovaConductor(namespace string, spec novav1.NovaConductorSpec) types.NamespacedName {
-	novaConductorName := uuid.New().String()
-	novaConductor := &novav1.NovaConductor{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "nova.openstack.org/v1beta1",
-			Kind:       "NovaConductor",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      novaConductorName,
-			Namespace: namespace,
-		},
-		Spec: spec,
+func GetDefaultNovaConductorSpec() map[string]interface{} {
+	return map[string]interface{}{
+		"cellName":                 "cell0",
+		"secret":                   SecretName,
+		"cellMessageBusSecretName": MessageBusSecretName,
+		"containerImage":           ContainerImage,
+		"keystoneAuthURL":          "keystone-auth-url",
 	}
+}
 
-	Expect(k8sClient.Create(ctx, novaConductor)).Should(Succeed())
+func CreateNovaConductor(namespace string, spec map[string]interface{}) types.NamespacedName {
+	novaAPIName := uuid.New().String()
 
-	return types.NamespacedName{Name: novaConductorName, Namespace: namespace}
+	raw := map[string]interface{}{
+		"apiVersion": "nova.openstack.org/v1beta1",
+		"kind":       "NovaConductor",
+		"metadata": map[string]interface{}{
+			"name":      novaAPIName,
+			"namespace": namespace,
+		},
+		"spec": spec,
+	}
+	CreateUnstructured(raw)
+
+	return types.NamespacedName{Name: novaAPIName, Namespace: namespace}
 }
 
 func DeleteNovaConductor(name types.NamespacedName) {
