@@ -63,7 +63,7 @@ type Debug struct {
 	// QUESTION(gibi): Not all CR will run dbsync, should we have per CR
 	// Debug struct or keep this generic one and ignore fields in the
 	// controller that are not applicable
-	StopDBSync bool `json:"stopDBSync,omitempty"`
+	StopDBSync bool `json:"stopDBSync"`
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=false
 	// StopService allows stopping the service container before staring
@@ -71,11 +71,11 @@ type Debug struct {
 	// QUESTION(gibi): Not all CR will run a service, should we have per CR
 	// Debug struct or keep this generic one and ignore fields in the
 	// controller that are not applicable
-	StopService bool `json:"stopService,omitempty"`
+	StopService bool `json:"stopService"`
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=false
 	// PreserveJobs - do not delete jobs after they finished e.g. to check logs
-	PreserveJobs bool `json:"preserveJobs,omitempty"`
+	PreserveJobs bool `json:"preserveJobs"`
 }
 
 // PasswordSelector to identify the DB and AdminUser password from the Secret
