@@ -184,8 +184,7 @@ var _ = Describe("NovaConductor controller", func() {
 						Name:      fmt.Sprintf("%s-config-data", novaConductorName.Name),
 					},
 				)
-				Expect(configDataMap.Data).Should(
-					HaveKeyWithValue("custom.conf", "# add your customization here"))
+				Expect(configDataMap.Data).Should(HaveKeyWithValue("custom.conf", ""))
 
 				scriptMap := th.GetConfigMap(
 					types.NamespacedName{
