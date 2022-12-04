@@ -15,7 +15,6 @@ spec:
   apiDatabaseUser: nova
   # This is the hostname of the default DB today
   apiDatabaseHostname: openstack
-  apiMessageBusUser: nova
   # Q: do we need db an rabbit port? it seems today we use the default port
   # This is the hostname of the default Rabbit today
   apiMessageBusHostname: default-security-context

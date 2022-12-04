@@ -688,6 +688,7 @@ func (r *NovaReconciler) ensureAPI(
 		// we need to copy fields one by one here.
 		NovaServiceBase: novav1.NovaServiceBase(instance.Spec.APIServiceTemplate),
 		KeystoneAuthURL: keystoneAuthURL,
+		ServiceUser:     instance.Spec.ServiceUser,
 	}
 	api := &novav1.NovaAPI{
 		ObjectMeta: metav1.ObjectMeta{

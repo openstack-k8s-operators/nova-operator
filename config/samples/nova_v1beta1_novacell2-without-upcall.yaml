@@ -17,7 +17,6 @@ spec:
   apiDatabaseUser: null
   # cell2 doesn't have access to the api DB
   apiDatabaseHostname: null
-  apiMessageBusUser: null
   # cell2 doesn't have access to api message bus
   apiMessageBusHostname: null
   cellDatabaseUser: nova

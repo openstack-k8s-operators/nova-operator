@@ -48,11 +48,6 @@ spec:
                 description: APIMessageBusHostname - hostname to use when accessing
                   the API message bus
                 type: string
-              apiMessageBusUser:
-                default: nova
-                description: APIMessageBusUser - username to use when accessing the
-                  API message bus
-                type: string
               containerImage:
                 description: The service specific Container Image URL
                 type: string

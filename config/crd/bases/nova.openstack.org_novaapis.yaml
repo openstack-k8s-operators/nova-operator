@@ -40,7 +40,7 @@ spec:
                   the API DB
                 type: string
               apiDatabaseUser:
-                default: nova
+                default: nova_api
                 description: APIDatabaseUser - username to use when accessing the
                   API DB
                 type: string
@@ -54,7 +54,7 @@ spec:
                   the cell0 DB
                 type: string
               cell0DatabaseUser:
-                default: nova
+                default: nova_cell0
                 description: APIDatabaseUser - username to use when accessing the
                   cell0 DB
                 type: string
