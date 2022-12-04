@@ -35,7 +35,7 @@ type NovaAPITemplate struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default="quay.io/tripleozedcentos9/openstack-nova-api:current-tripleo"
 	// ContainerImage - The service specific Container Image URL
-	ContainerImage string `json:"containerImage,omitempty"`
+	ContainerImage string `json:"containerImage"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=1
