@@ -113,6 +113,8 @@ spec:
                   this service
                 type: object
               passwordSelectors:
+                default:
+                  service: NovaPassword
                 description: PasswordSelectors - Field names to identify the passwords
                   from the Secret
                 properties:

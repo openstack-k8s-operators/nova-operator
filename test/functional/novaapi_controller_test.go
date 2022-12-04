@@ -27,7 +27,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
-	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 )
 
 var _ = Describe("NovaAPI controller", func() {
@@ -54,9 +53,13 @@ var _ = Describe("NovaAPI controller", func() {
 
 	})
 
-	When("A NovaAPI CR instance is created without any input", func() {
+	When("a NovaAPI CR is created pointing to a non existent Secret", func() {
 		BeforeEach(func() {
-			novaAPIName = CreateNovaAPI(namespace, novav1.NovaAPISpec{})
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(namespace, MessageBusSecretName))
+			spec := GetDefaultNovaAPISpec()
+			spec["customServiceConfig"] = "foo=bar"
+			novaAPIName = CreateNovaAPI(namespace, spec)
 			DeferCleanup(DeleteNovaAPI, novaAPIName)
 		})
 
@@ -64,8 +67,7 @@ var _ = Describe("NovaAPI controller", func() {
 			ExpectCondition(
 				novaAPIName,
 				conditionGetterFunc(NovaAPIConditionGetter),
-				condition.ReadyCondition,
-				corev1.ConditionUnknown,
+				condition.ReadyCondition, corev1.ConditionUnknown,
 			)
 		})
 
@@ -78,28 +80,6 @@ var _ = Describe("NovaAPI controller", func() {
 			Expect(instance.Status.APIEndpoints).To(BeEmpty())
 			Expect(instance.Status.ReadyCount).To(Equal(int32(0)))
 			Expect(instance.Status.ServiceID).To(Equal(""))
-		})
-
-	})
-
-	When("a NovaAPI CR is created pointing to a non existent Secret", func() {
-		BeforeEach(func() {
-			DeferCleanup(
-				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(namespace, MessageBusSecretName))
-			novaAPIName = CreateNovaAPI(
-				namespace, novav1.NovaAPISpec{
-					Secret:                  SecretName, // this Secret not exist yet
-					APIMessageBusSecretName: MessageBusSecretName,
-				})
-			DeferCleanup(DeleteNovaAPI, novaAPIName)
-		})
-
-		It("is not Ready", func() {
-			ExpectCondition(
-				novaAPIName,
-				conditionGetterFunc(NovaAPIConditionGetter),
-				condition.ReadyCondition, corev1.ConditionUnknown,
-			)
 		})
 
 		It("is missing the secret", func() {
@@ -214,7 +194,7 @@ var _ = Describe("NovaAPI controller", func() {
 					HaveKeyWithValue("01-nova.conf",
 						ContainSubstring("transport_url=rabbit://fake")))
 				Expect(configDataMap.Data).Should(
-					HaveKeyWithValue("03-nova-override.conf", "# add your customization here"))
+					HaveKeyWithValue("03-nova-override.conf", "foo=bar"))
 			})
 
 			It("stored the input hash in the Status", func() {
@@ -251,16 +231,7 @@ var _ = Describe("NovaAPI controller", func() {
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(namespace, MessageBusSecretName))
 
-			novaAPIName = CreateNovaAPI(
-				namespace,
-				novav1.NovaAPISpec{
-					Secret:                  SecretName,
-					APIMessageBusSecretName: MessageBusSecretName,
-					NovaServiceBase: novav1.NovaServiceBase{
-						ContainerImage: ContainerImage,
-					},
-				},
-			)
+			novaAPIName = CreateNovaAPI(namespace, GetDefaultNovaAPISpec())
 			DeferCleanup(DeleteNovaAPI, novaAPIName)
 
 			ExpectCondition(
@@ -281,17 +252,7 @@ var _ = Describe("NovaAPI controller", func() {
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(namespace, MessageBusSecretName))
 
-			novaAPIName = CreateNovaAPI(
-				namespace,
-				novav1.NovaAPISpec{
-					Secret:                  SecretName,
-					APIMessageBusSecretName: MessageBusSecretName,
-					NovaServiceBase: novav1.NovaServiceBase{
-						ContainerImage: ContainerImage,
-						Replicas:       1,
-					},
-				},
-			)
+			novaAPIName = CreateNovaAPI(namespace, GetDefaultNovaAPISpec())
 			DeferCleanup(DeleteNovaAPI, novaAPIName)
 
 			ExpectCondition(
@@ -412,17 +373,7 @@ var _ = Describe("NovaAPI controller", func() {
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(namespace, MessageBusSecretName))
 
-			novaAPIName = CreateNovaAPI(
-				namespace,
-				novav1.NovaAPISpec{
-					Secret:                  SecretName,
-					APIMessageBusSecretName: MessageBusSecretName,
-					NovaServiceBase: novav1.NovaServiceBase{
-						ContainerImage: ContainerImage,
-						Replicas:       1,
-					},
-				},
-			)
+			novaAPIName = CreateNovaAPI(namespace, GetDefaultNovaAPISpec())
 			DeferCleanup(DeleteNovaAPI, novaAPIName)
 			statefulSetName = types.NamespacedName{Namespace: namespace, Name: novaAPIName.Name}
 			keystoneEndpointName = types.NamespacedName{Namespace: namespace, Name: "nova"}

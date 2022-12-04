@@ -25,8 +25,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	routev1 "github.com/openshift/api/route/v1"
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
@@ -67,21 +69,37 @@ func DeleteNamespace(name string) {
 	Expect(k8sClient.Delete(ctx, ns)).Should(Succeed())
 }
 
-func CreateNovaAPI(namespace string, spec novav1.NovaAPISpec) types.NamespacedName {
-	novaAPIName := uuid.New().String()
-	novaAPI := &novav1.NovaAPI{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "nova.openstack.org/v1beta1",
-			Kind:       "NovaAPI",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      novaAPIName,
-			Namespace: namespace,
-		},
-		Spec: spec,
-	}
+func CreateUnstructured(rawObj map[string]interface{}) {
+	unstructuredObj := &unstructured.Unstructured{Object: rawObj}
+	_, err := controllerutil.CreateOrPatch(
+		ctx, k8sClient, unstructuredObj, func() error { return nil })
+	Expect(err).ShouldNot(HaveOccurred())
+}
 
-	Expect(k8sClient.Create(ctx, novaAPI)).Should(Succeed())
+func GetDefaultNovaAPISpec() map[string]interface{} {
+	return map[string]interface{}{
+		"secret":                  SecretName,
+		"apiDatabaseHostname":     "nova-api-db-hostname",
+		"apiMessageBusSecretName": MessageBusSecretName,
+		"cell0DatabaseHostname":   "nova-cell0-db-hostname",
+		"keystoneAuthURL":         "keystone-auth-url",
+		"containerImage":          ContainerImage,
+	}
+}
+
+func CreateNovaAPI(namespace string, spec map[string]interface{}) types.NamespacedName {
+	novaAPIName := uuid.New().String()
+
+	raw := map[string]interface{}{
+		"apiVersion": "nova.openstack.org/v1beta1",
+		"kind":       "NovaAPI",
+		"metadata": map[string]interface{}{
+			"name":      novaAPIName,
+			"namespace": namespace,
+		},
+		"spec": spec,
+	}
+	CreateUnstructured(raw)
 
 	return types.NamespacedName{Name: novaAPIName, Namespace: namespace}
 }
