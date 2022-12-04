@@ -25,7 +25,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
-	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 )
 
 const CellMessageBusSecretName = "rabbitmq-transport-url-nova-api-transport"
@@ -54,35 +53,9 @@ var _ = Describe("NovaConductor controller", func() {
 
 	})
 
-	When("A NovaConductor CR instance is created without any input", func() {
-		BeforeEach(func() {
-			novaConductorName = CreateNovaConductor(namespace, novav1.NovaConductorSpec{})
-			DeferCleanup(DeleteNovaConductor, novaConductorName)
-		})
-
-		It("has empty Status fields", func() {
-			instance := GetNovaConductor(novaConductorName)
-			// NOTE(gibi): Hash has `omitempty` tags so while
-			// they are initialized to an empty map that value is omited from
-			// the output when sent to the client. So we see nils here.
-			Expect(instance.Status.Hash).To(BeEmpty())
-			Expect(instance.Status.ReadyCount).To(Equal(int32(0)))
-		})
-
-		It("is not Ready", func() {
-			ExpectCondition(
-				novaConductorName,
-				conditionGetterFunc(NovaConductorConditionGetter),
-				condition.ReadyCondition,
-				corev1.ConditionUnknown,
-			)
-		})
-	})
-
 	When("a NovaConductor CR is created pointing to a non existent Secret", func() {
 		BeforeEach(func() {
-			novaConductorName = CreateNovaConductor(
-				namespace, novav1.NovaConductorSpec{Secret: SecretName})
+			novaConductorName = CreateNovaConductor(namespace, GetDefaultNovaConductorSpec())
 			DeferCleanup(DeleteNovaConductor, novaConductorName)
 		})
 
@@ -92,6 +65,15 @@ var _ = Describe("NovaConductor controller", func() {
 				conditionGetterFunc(NovaConductorConditionGetter),
 				condition.ReadyCondition, corev1.ConditionUnknown,
 			)
+		})
+
+		It("has empty Status fields", func() {
+			instance := GetNovaConductor(novaConductorName)
+			// NOTE(gibi): Hash has `omitempty` tags so while
+			// they are initialized to an empty map that value is omited from
+			// the output when sent to the client. So we see nils here.
+			Expect(instance.Status.Hash).To(BeEmpty())
+			Expect(instance.Status.ReadyCount).To(Equal(int32(0)))
 		})
 
 		It("is missing the secret", func() {
@@ -263,17 +245,9 @@ var _ = Describe("NovaConductor controller", func() {
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(namespace, CellMessageBusSecretName))
 
-			novaConductorName = CreateNovaConductor(
-				namespace,
-				novav1.NovaConductorSpec{
-					CellName:                 "cell0",
-					Secret:                   SecretName,
-					CellMessageBusSecretName: CellMessageBusSecretName,
-					NovaServiceBase: novav1.NovaServiceBase{
-						ContainerImage: ContainerImage,
-					},
-				},
-			)
+			spec := GetDefaultNovaConductorSpec()
+			spec["cellMessageBusSecretName"] = CellMessageBusSecretName
+			novaConductorName = CreateNovaConductor(namespace, spec)
 			DeferCleanup(DeleteNovaConductor, novaConductorName)
 
 			ExpectCondition(
@@ -446,17 +420,11 @@ var _ = Describe("NovaConductor controller", func() {
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(namespace, CellMessageBusSecretName))
 
-			novaConductorName = CreateNovaConductor(
-				namespace,
-				novav1.NovaConductorSpec{
-					Secret:                   SecretName,
-					CellMessageBusSecretName: CellMessageBusSecretName,
-					NovaServiceBase: novav1.NovaServiceBase{
-						ContainerImage: ContainerImage,
-					},
-					Debug: novav1.Debug{PreserveJobs: true},
-				},
-			)
+			spec := GetDefaultNovaConductorSpec()
+			spec["debug"] = map[string]interface{}{
+				"preserveJobs": true,
+			}
+			novaConductorName = CreateNovaConductor(namespace, spec)
 			DeferCleanup(DeleteNovaConductor, novaConductorName)
 
 			ExpectCondition(
@@ -508,17 +476,11 @@ var _ = Describe("NovaConductor controller", func() {
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(namespace, CellMessageBusSecretName))
 
-			novaConductorName = CreateNovaConductor(
-				namespace,
-				novav1.NovaConductorSpec{
-					Secret:                   SecretName,
-					CellMessageBusSecretName: CellMessageBusSecretName,
-					NovaServiceBase: novav1.NovaServiceBase{
-						ContainerImage: ContainerImage,
-					},
-					Debug: novav1.Debug{PreserveJobs: true},
-				},
-			)
+			spec := GetDefaultNovaConductorSpec()
+			spec["debug"] = map[string]interface{}{
+				"preserveJobs": true,
+			}
+			novaConductorName = CreateNovaConductor(namespace, spec)
 			DeferCleanup(DeleteNovaConductor, novaConductorName)
 
 			jobName = types.NamespacedName{
