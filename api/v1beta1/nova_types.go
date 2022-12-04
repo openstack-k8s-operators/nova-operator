@@ -60,17 +60,12 @@ type NovaSpec struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default="nova"
 	// ServiceUser - optional username used for this service to register in keystone
-	ServiceUser string `json:"serviceUser,omitempty"`
+	ServiceUser string `json:"serviceUser"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default="nova_api"
 	// APIDatabaseUser - username to use when accessing the API DB
-	APIDatabaseUser string `json:"apiDatabaseUser,omitempty"`
-
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default="nova"
-	// APIMessageBusUser - username to use when accessing the API message bus
-	APIMessageBusUser string `json:"apiMessageBusUser,omitempty"`
+	APIDatabaseUser string `json:"apiDatabaseUser"`
 
 	// +kubebuilder:validation:Required
 	// Secret is the name of the Secret instance containing password

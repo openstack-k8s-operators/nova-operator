@@ -96,11 +96,6 @@ type NovaSchedulerSpec struct {
 	// APIDatabaseHostname - hostname to use when accessing the API DB
 	APIDatabaseHostname string `json:"apiDatabaseHostname"`
 
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=nova
-	// APIMessageBusUser - username to use when accessing the API message bus
-	APIMessageBusUser string `json:"apiMessageBusUser"`
-
 	// +kubebuilder:validation:Required
 	// APIMessageBusHostname - hostname to use when accessing the API message
 	// bus

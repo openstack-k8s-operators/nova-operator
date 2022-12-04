@@ -85,15 +85,15 @@ type NovaAPISpec struct {
 	// +kubebuilder:default="nova"
 	// ServiceUser - optional username used for this service to register in
 	// keystone
-	ServiceUser string `json:"serviceUser,omitempty"`
+	ServiceUser string `json:"serviceUser"`
 
 	// +kubebuilder:validation:Required
 	KeystoneAuthURL string `json:"keystoneAuthURL"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default="nova"
+	// +kubebuilder:default="nova_api"
 	// APIDatabaseUser - username to use when accessing the API DB
-	APIDatabaseUser string `json:"apiDatabaseUser,omitempty"`
+	APIDatabaseUser string `json:"apiDatabaseUser"`
 
 	// +kubebuilder:validation:Required
 	// APIDatabaseHostname - hostname to use when accessing the API DB
@@ -106,9 +106,9 @@ type NovaAPISpec struct {
 	APIMessageBusSecretName string `json:"apiMessageBusSecretName"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default="nova"
+	// +kubebuilder:default="nova_cell0"
 	// APIDatabaseUser - username to use when accessing the cell0 DB
-	Cell0DatabaseUser string `json:"cell0DatabaseUser,omitempty"`
+	Cell0DatabaseUser string `json:"cell0DatabaseUser"`
 
 	// +kubebuilder:validation:Required
 	// APIDatabaseHostname - hostname to use when accessing the cell0 DB

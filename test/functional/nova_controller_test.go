@@ -247,8 +247,11 @@ var _ = Describe("Nova controller", func() {
 			// assert that cell related CRs are created
 			cell := GetNovaCell(cell0Name)
 			Expect(cell.Spec.CellMessageBusSecretName).To(Equal("rabbitmq-secret"))
+			Expect(cell.Spec.ServiceUser).To(Equal("nova"))
+
 			conductor := GetNovaConductor(cell0ConductorName)
 			Expect(conductor.Spec.CellMessageBusSecretName).To(Equal("rabbitmq-secret"))
+			Expect(conductor.Spec.ServiceUser).To(Equal("nova"))
 
 			ExpectCondition(
 				cell0ConductorName,
@@ -289,6 +292,7 @@ var _ = Describe("Nova controller", func() {
 
 			api := GetNovaAPI(novaAPIName)
 			Expect(api.Spec.APIMessageBusSecretName).To(Equal("rabbitmq-secret"))
+			Expect(api.Spec.ServiceUser).To(Equal("nova"))
 
 			SimulateStatefulSetReplicaReady(novaAPIdeploymentName)
 

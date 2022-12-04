@@ -26,7 +26,6 @@ spec:
     apiDatabase: NovaAPIDatabasePassword
     apiMessageBus: NovaAPIMessageBusPassword
   serviceUser: nova
-  apiMessageBusUser: nova
   debug:
     stopDBSync: False
     stopService: False
