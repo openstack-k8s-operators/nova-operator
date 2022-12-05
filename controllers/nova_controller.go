@@ -623,8 +623,9 @@ func (r *NovaReconciler) ensureCell(
 		NoVNCProxyServiceTemplate: cellTemplate.NoVNCProxyServiceTemplate,
 		Debug:                     instance.Spec.Debug,
 		// TODO(gibi): this should be part of the secret
-		ServiceUser:     instance.Spec.ServiceUser,
-		KeystoneAuthURL: keystoneAuthURL,
+		ServiceUser:       instance.Spec.ServiceUser,
+		KeystoneAuthURL:   keystoneAuthURL,
+		PasswordSelectors: instance.Spec.PasswordSelectors,
 	}
 	if cellTemplate.HasAPIAccess {
 		cellSpec.APIDatabaseHostname = apiDB.GetDatabaseHostname()
@@ -686,9 +687,10 @@ func (r *NovaReconciler) ensureAPI(
 		// has exactly the same fields as the NovaAPITemplate so we can convert
 		// between them directly. As soon as these two structs start to diverge
 		// we need to copy fields one by one here.
-		NovaServiceBase: novav1.NovaServiceBase(instance.Spec.APIServiceTemplate),
-		KeystoneAuthURL: keystoneAuthURL,
-		ServiceUser:     instance.Spec.ServiceUser,
+		NovaServiceBase:   novav1.NovaServiceBase(instance.Spec.APIServiceTemplate),
+		KeystoneAuthURL:   keystoneAuthURL,
+		ServiceUser:       instance.Spec.ServiceUser,
+		PasswordSelectors: instance.Spec.PasswordSelectors,
 	}
 	api := &novav1.NovaAPI{
 		ObjectMeta: metav1.ObjectMeta{

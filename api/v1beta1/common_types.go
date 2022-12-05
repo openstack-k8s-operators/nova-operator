@@ -84,15 +84,15 @@ type PasswordSelector struct {
 	// +kubebuilder:default="NovaPassword"
 	// Service - Selector to get the keystone service user password from the
 	// Secret
-	Service string `json:"service,omitempty"`
+	Service string `json:"service"`
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default="NovaAPIDatabasePassword"
 	// APIDatabase - the name of the field to get the API DB password from the
 	// Secret
-	APIDatabase string `json:"apiDatabase,omitempty"`
+	APIDatabase string `json:"apiDatabase"`
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default="NovaCell0DatabasePassword"
 	// CellDatabase - the name of the field to get the Cell DB password from
 	// the Secret
-	CellDatabase string `json:"cellDatabase,omitempty"`
+	CellDatabase string `json:"cellDatabase"`
 }

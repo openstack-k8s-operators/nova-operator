@@ -73,10 +73,10 @@ type NovaSpec struct {
 	Secret string `json:"secret"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default={service: NovaPassword, apiDatabase: NovaAPIDatabasePassword}
+	// +kubebuilder:default={service: NovaPassword}
 	// PasswordSelectors - Selectors to identify the DB and ServiceUser
 	// passwords from the Secret
-	PasswordSelectors PasswordSelector `json:"passwordSelectors,omitempty"`
+	PasswordSelectors PasswordSelector `json:"passwordSelectors"`
 
 	// +kubebuilder:validation:Optional
 	// Debug - enable debug for different deploy stages. If an init container
