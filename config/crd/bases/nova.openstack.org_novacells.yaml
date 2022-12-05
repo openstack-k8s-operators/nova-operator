@@ -416,6 +416,12 @@ spec:
                         type: object
                     type: object
                 type: object
+              nodeSelector:
+                additionalProperties:
+                  type: string
+                description: NodeSelector to target subset of worker nodes running
+                  this service
+                type: object
               passwordSelectors:
                 default:
                   service: NovaPassword

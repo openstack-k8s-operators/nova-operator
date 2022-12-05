@@ -670,6 +670,7 @@ func (r *NovaReconciler) ensureCell(
 		// TODO(gibi): Pass down a narrowed secret that only hold
 		// specific information but also holds user names
 		cell.Spec = cellSpec
+		cell.Spec.NodeSelector = instance.Spec.NodeSelector
 
 		err := controllerutil.SetControllerReference(instance, cell, r.Scheme)
 		if err != nil {
@@ -733,7 +734,7 @@ func (r *NovaReconciler) ensureAPI(
 
 	op, err := controllerutil.CreateOrPatch(ctx, r.Client, api, func() error {
 		api.Spec = apiSpec
-
+		api.Spec.NodeSelector = instance.Spec.NodeSelector
 		err := controllerutil.SetControllerReference(instance, api, r.Scheme)
 		if err != nil {
 			return err

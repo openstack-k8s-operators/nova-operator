@@ -89,6 +89,10 @@ type NovaCellSpec struct {
 	PasswordSelectors PasswordSelector `json:"passwordSelectors"`
 
 	// +kubebuilder:validation:Optional
+	// NodeSelector to target subset of worker nodes running this service
+	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+
+	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=nova
 	// ServiceUser - optional username used for this service to register in
 	// keystone

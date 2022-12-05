@@ -328,6 +328,13 @@ func (in *NovaCellList) DeepCopyObject() runtime.Object {
 func (in *NovaCellSpec) DeepCopyInto(out *NovaCellSpec) {
 	*out = *in
 	out.PasswordSelectors = in.PasswordSelectors
+	if in.NodeSelector != nil {
+		in, out := &in.NodeSelector, &out.NodeSelector
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	out.Debug = in.Debug
 	in.ConductorServiceTemplate.DeepCopyInto(&out.ConductorServiceTemplate)
 	in.MetadataServiceTemplate.DeepCopyInto(&out.MetadataServiceTemplate)
@@ -1229,6 +1236,13 @@ func (in *NovaSpec) DeepCopyInto(out *NovaSpec) {
 		}
 	}
 	out.PasswordSelectors = in.PasswordSelectors
+	if in.NodeSelector != nil {
+		in, out := &in.NodeSelector, &out.NodeSelector
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	out.Debug = in.Debug
 	in.APIServiceTemplate.DeepCopyInto(&out.APIServiceTemplate)
 	in.SchedulerServiceTemplate.DeepCopyInto(&out.SchedulerServiceTemplate)
