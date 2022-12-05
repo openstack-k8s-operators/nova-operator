@@ -109,12 +109,7 @@ var _ = Describe("Nova controller", func() {
 
 	When("Nova CR instance is created without cell0", func() {
 		BeforeEach(func() {
-			CreateNova(
-				novaName,
-				novav1.NovaSpec{
-					CellTemplates: map[string]novav1.NovaCellTemplate{},
-				},
-			)
+			CreateNovaWithoutCell0(novaName)
 			DeferCleanup(DeleteNova, novaName)
 		})
 
@@ -407,28 +402,13 @@ var _ = Describe("Nova controller", func() {
 			)
 			DeferCleanup(DeleteKeystoneAPI, CreateKeystoneAPI(namespace))
 
-			CreateNova(
-				novaName,
-				novav1.NovaSpec{
-					Secret:                SecretName,
-					APIMessageBusInstance: "rabbitmq",
-					CellTemplates: map[string]novav1.NovaCellTemplate{
-						"cell0": {
-							CellDatabaseInstance: "db-for-cell0",
-							HasAPIAccess:         true,
-							ConductorServiceTemplate: novav1.NovaConductorTemplate{
-								ContainerImage: ContainerImage,
-								Replicas:       1,
-							},
-						},
-					},
-					APIDatabaseInstance: "db-for-api",
-					APIServiceTemplate: novav1.NovaAPITemplate{
-						ContainerImage: ContainerImage,
-						Replicas:       1,
-					},
-				},
-			)
+			spec := GetDefaultNovaSpec()
+			cell0 := GetDefaultNovaCellTemplate()
+			cell0["cellDatabaseInstance"] = "db-for-cell0"
+			spec["cellTemplates"] = map[string]interface{}{"cell0": cell0}
+			spec["apiDatabaseInstance"] = "db-for-api"
+			CreateNova(novaName, spec)
+
 			DeferCleanup(DeleteNova, novaName)
 		})
 
@@ -460,7 +440,7 @@ var _ = Describe("Nova controller", func() {
 			)
 			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
 			Expect(configDataMap.Data["01-nova.conf"]).To(
-				ContainSubstring("[database]\nconnection = mysql+pymysql://nova:12345678@hostname-for-db-for-cell0/nova"),
+				ContainSubstring("[database]\nconnection = mysql+pymysql://nova_cell0:12345678@hostname-for-db-for-cell0/nova_cell0"),
 			)
 			Expect(configDataMap.Data["01-nova.conf"]).To(
 				ContainSubstring("[api_database]\nconnection = mysql+pymysql://nova_api:12345678@hostname-for-db-for-api/nova_api"),

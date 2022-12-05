@@ -153,44 +153,35 @@ var _ = Describe("Nova controller", func() {
 			DeferCleanup(DeleteDBService, CreateDBService(namespace, "db-for-api", serviceSpec))
 			DeferCleanup(DeleteDBService, CreateDBService(namespace, "db-for-cell1", serviceSpec))
 			DeferCleanup(DeleteDBService, CreateDBService(namespace, "db-for-cell2", serviceSpec))
-			novaSpec := novav1.NovaSpec{
-				Secret: SecretName,
-				CellTemplates: map[string]novav1.NovaCellTemplate{
-					"cell0": {
-						CellDatabaseInstance: "db-for-api",
-						HasAPIAccess:         true,
-						ConductorServiceTemplate: novav1.NovaConductorTemplate{
-							ContainerImage: ContainerImage,
-							Replicas:       1,
-						},
-					},
-					"cell1": {
-						CellDatabaseInstance:   "db-for-cell1",
-						CellMessageBusInstance: "mq-for-cell1",
-						HasAPIAccess:           true,
-						ConductorServiceTemplate: novav1.NovaConductorTemplate{
-							ContainerImage: ContainerImage,
-							Replicas:       1,
-						},
-					},
-					"cell2": {
-						CellDatabaseInstance:   "db-for-cell2",
-						CellMessageBusInstance: "mq-for-cell2",
-						HasAPIAccess:           false,
-						ConductorServiceTemplate: novav1.NovaConductorTemplate{
-							ContainerImage: ContainerImage,
-							Replicas:       1,
-						},
-					},
-				},
-				APIDatabaseInstance:   "db-for-api",
-				APIMessageBusInstance: "mq-for-api",
-				APIServiceTemplate: novav1.NovaAPITemplate{
-					ContainerImage: ContainerImage,
-					Replicas:       1,
-				},
+
+			spec := GetDefaultNovaSpec()
+			cell0 := GetDefaultNovaCellTemplate()
+			cell0["cellName"] = "cell0"
+			cell0["cellDatabaseInstance"] = "db-for-api"
+			cell0["cellDatabaseUser"] = "nova_cell0"
+
+			cell1 := GetDefaultNovaCellTemplate()
+			cell1["cellName"] = "cell1"
+			cell1["cellDatabaseInstance"] = "db-for-cell1"
+			cell1["cellDatabaseUser"] = "nova_cell1"
+			cell1["cellMessageBusInstance"] = "mq-for-cell1"
+
+			cell2 := GetDefaultNovaCellTemplate()
+			cell2["cellName"] = "cell2"
+			cell2["cellDatabaseInstance"] = "db-for-cell2"
+			cell2["cellDatabaseUser"] = "nova_cell2"
+			cell2["cellMessageBusInstance"] = "mq-for-cell2"
+			cell2["hasAPIAccess"] = false
+
+			spec["cellTemplates"] = map[string]interface{}{
+				"cell0": cell0,
+				"cell1": cell1,
+				"cell2": cell2,
 			}
-			CreateNova(novaName, novaSpec)
+			spec["apiDatabaseInstance"] = "db-for-api"
+			spec["apiMessageBusInstance"] = "mq-for-api"
+
+			CreateNova(novaName, spec)
 			DeferCleanup(DeleteNova, novaName)
 			DeferCleanup(DeleteKeystoneAPI, CreateKeystoneAPI(namespace))
 			SimulateKeystoneServiceReady(novaKeystoneServiceName)
@@ -268,7 +259,7 @@ var _ = Describe("Nova controller", func() {
 			)
 			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
 			Expect(configDataMap.Data["01-nova.conf"]).To(
-				ContainSubstring("[database]\nconnection = mysql+pymysql://nova:12345678@hostname-for-db-for-api/nova"),
+				ContainSubstring("[database]\nconnection = mysql+pymysql://nova_cell0:12345678@hostname-for-db-for-api/nova_cell0"),
 			)
 			Expect(configDataMap.Data["01-nova.conf"]).To(
 				ContainSubstring("[api_database]\nconnection = mysql+pymysql://nova_api:12345678@hostname-for-db-for-api/nova_api"),

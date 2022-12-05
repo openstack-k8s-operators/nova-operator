@@ -70,6 +70,7 @@ func DeleteNamespace(name string) {
 }
 
 func CreateUnstructured(rawObj map[string]interface{}) {
+	logger.Info("Creating", "raw", rawObj)
 	unstructuredObj := &unstructured.Unstructured{Object: rawObj}
 	_, err := controllerutil.CreateOrPatch(
 		ctx, k8sClient, unstructuredObj, func() error { return nil })
@@ -289,45 +290,71 @@ func SimulateDeploymentReplicaReady(name types.NamespacedName) {
 	logger.Info("Simulated deployment success", "on", name)
 }
 
-func CreateNova(name types.NamespacedName, spec novav1.NovaSpec) {
-	nova := &novav1.Nova{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "nova.openstack.org/v1beta1",
-			Kind:       "Nova",
+func GetDefaultNovaSpec() map[string]interface{} {
+	return map[string]interface{}{
+		"secret":        SecretName,
+		"cellTemplates": map[string]interface{}{},
+	}
+}
+
+func GetDefaultNovaCellTemplate() map[string]interface{} {
+	return map[string]interface{}{
+		"cellName":         "cell0",
+		"cellDatabaseUser": "nova_cell0",
+		"hasAPIAccess":     true,
+	}
+}
+
+func CreateNova(name types.NamespacedName, spec map[string]interface{}) {
+	raw := map[string]interface{}{
+		"apiVersion": "nova.openstack.org/v1beta1",
+		"kind":       "Nova",
+		"metadata": map[string]interface{}{
+			"name":      name.Name,
+			"namespace": name.Namespace,
 		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name.Name,
-			Namespace: name.Namespace,
+		"spec": spec,
+	}
+	CreateUnstructured(raw)
+}
+
+func CreateNovaWithoutCell0(name types.NamespacedName) {
+	rawNova := map[string]interface{}{
+		"apiVersion": "nova.openstack.org/v1beta1",
+		"kind":       "Nova",
+		"metadata": map[string]interface{}{
+			"name":      name.Name,
+			"namespace": name.Namespace,
 		},
-		Spec: spec,
+		"spec": map[string]interface{}{
+			"secret":        SecretName,
+			"cellTemplates": map[string]interface{}{},
+		},
 	}
 
-	Expect(k8sClient.Create(ctx, nova)).Should(Succeed())
+	CreateUnstructured(rawNova)
 }
 
 func CreateNovaWithCell0(name types.NamespacedName) {
-	CreateNova(
-		name,
-		novav1.NovaSpec{
-			Secret:                SecretName,
-			APIDatabaseInstance:   "openstack",
-			APIMessageBusInstance: "rabbitmq",
-			CellTemplates: map[string]novav1.NovaCellTemplate{
-				"cell0": {
-					CellDatabaseInstance: "openstack",
-					HasAPIAccess:         true,
-					ConductorServiceTemplate: novav1.NovaConductorTemplate{
-						ContainerImage: ContainerImage,
-						Replicas:       1,
-					},
+	rawNova := map[string]interface{}{
+		"apiVersion": "nova.openstack.org/v1beta1",
+		"kind":       "Nova",
+		"metadata": map[string]interface{}{
+			"name":      name.Name,
+			"namespace": name.Namespace,
+		},
+		"spec": map[string]interface{}{
+			"secret": SecretName,
+			"cellTemplates": map[string]interface{}{
+				"cell0": map[string]interface{}{
+					"cellDatabaseUser": "nova_cell0",
+					"hasAPIAccess":     true,
 				},
 			},
-			APIServiceTemplate: novav1.NovaAPITemplate{
-				ContainerImage: ContainerImage,
-				Replicas:       1,
-			},
 		},
-	)
+	}
+
+	CreateUnstructured(rawNova)
 }
 
 func DeleteNova(name types.NamespacedName) {
