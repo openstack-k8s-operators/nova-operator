@@ -281,5 +281,6 @@ golint: get-ci-tools
 
 .PHONY: operator-lint
 operator-lint: ## Runs operator-lint
-	GOBIN=$(LOCALBIN) go install github.com/gibizer/operator-lint@latest
+	#TODO(gibi): bump this to v0.2.2 as soon as that version is tagged
+	GOBIN=$(LOCALBIN) go install github.com/gibizer/operator-lint@2ffa25b7f1c13fb2bdae5444a3dd1b5bbad529b1
 	go vet -vettool=$(LOCALBIN)/operator-lint ./... ./api/...
