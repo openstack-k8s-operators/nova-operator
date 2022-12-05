@@ -79,7 +79,7 @@ type NovaConductorSpec struct {
 	// +kubebuilder:default={service: NovaPassword}
 	// PasswordSelectors - Field names to identify the passwords from the
 	// Secret
-	PasswordSelectors PasswordSelector `json:"passwordSelectors,omitempty"`
+	PasswordSelectors PasswordSelector `json:"passwordSelectors"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=nova
@@ -192,6 +192,7 @@ func NewNovaConductorSpec(
 		NovaServiceBase:          NovaServiceBase(novaCell.ConductorServiceTemplate),
 		KeystoneAuthURL:          novaCell.KeystoneAuthURL,
 		ServiceUser:              novaCell.ServiceUser,
+		PasswordSelectors:        novaCell.PasswordSelectors,
 	}
 	return conductorSpec
 }

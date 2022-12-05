@@ -72,9 +72,10 @@ type NovaSchedulerSpec struct {
 	Secret string `json:"secret"`
 
 	// +kubebuilder:validation:Optional
+	// +kubebuilder:default={service: NovaPassword}
 	// PasswordSelectors - Field names to identify the passwords from the
 	// Secret
-	PasswordSelectors PasswordSelector `json:"passwordSelectors,omitempty"`
+	PasswordSelectors PasswordSelector `json:"passwordSelectors"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=nova

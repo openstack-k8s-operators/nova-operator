@@ -456,7 +456,6 @@ spec:
                 type: object
               passwordSelectors:
                 default:
-                  apiDatabase: NovaAPIDatabasePassword
                   service: NovaPassword
                 description: PasswordSelectors - Selectors to identify the DB and
                   ServiceUser passwords from the Secret
