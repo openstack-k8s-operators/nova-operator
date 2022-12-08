@@ -24,7 +24,6 @@ import (
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
@@ -107,25 +106,10 @@ func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			instance.Status.Conditions.MarkTrue(
 				condition.ReadyCondition, condition.ReadyMessage)
 		}
-		if err := h.SetAfter(instance); err != nil {
-			util.LogErrorForObject(h, err, "Set after and calc patch/diff", instance)
+		err := r.patchInstance(ctx, h, instance)
+		if err != nil {
 			_err = err
 			return
-		}
-
-		if changed := h.GetChanges()["status"]; changed {
-			patch := client.MergeFrom(h.GetBeforeObject())
-
-			err = r.Client.Status().Patch(ctx, instance, patch)
-			if k8s_errors.IsConflict(err) {
-				util.LogForObject(h, "Status update conflict", instance)
-				_err = err
-				return
-			} else if err != nil && !k8s_errors.IsNotFound(err) {
-				util.LogErrorForObject(h, err, "Status update failed", instance)
-				_err = err
-				return
-			}
 		}
 	}()
 
