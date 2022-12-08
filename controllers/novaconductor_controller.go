@@ -182,6 +182,7 @@ func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return result, err
 	}
 
+	util.LogForObject(h, "Successfully reconciled", instance)
 	return ctrl.Result{}, nil
 }
 

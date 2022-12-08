@@ -180,6 +180,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 
 	// We have to wait until our service is registered to keystone
 	if !instance.Status.Conditions.IsTrue(condition.KeystoneServiceReadyCondition) {
+		util.LogForObject(h, "Waiting for the KeystoneService to become Ready", instance)
 		return ctrl.Result{}, nil
 	}
 
@@ -417,6 +418,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	// until cell0 is ready as top level services need cell0 to register in
 	if cell0, ok := cells[Cell0Name]; !ok || !cell0.IsReady() {
 		// we need to stop here until cell0 is ready
+		util.LogForObject(h, "Waiting for cell0 to become Ready before creating the top level services", instance)
 		return ctrl.Result{}, nil
 	}
 
