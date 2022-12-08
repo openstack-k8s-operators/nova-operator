@@ -226,6 +226,11 @@ func (r *NovaConductorReconciler) initConditions(
 				condition.InitReason,
 				condition.DBSyncReadyInitMessage,
 			),
+			condition.UnknownCondition(
+				condition.DeploymentReadyCondition,
+				condition.InitReason,
+				condition.DeploymentReadyInitMessage,
+			),
 		)
 
 		instance.Status.Conditions.Init(&cl)
