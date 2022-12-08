@@ -3,83 +3,10 @@ kind: NovaCell
 metadata:
   name: novacell2-without-upcall-sample
 spec:
-  cellName: cell2
-  secret: osp-secret
-  passwordSelectors:
-    service: NovaPassword
-    # this cell will not support upcalls
-    apiDatabase: null
-    apiMessageBus: null
-    cellDatabase: NovaCell2DatabasePassword
-    cellMessageBus: NovaCell2MessageBusPassword
-  serviceUser: nova
-  keystoneAuthURL: http://keystone-internal-openstack.apps-crc.testing
-  apiDatabaseUser: null
-  # cell2 doesn't have access to the api DB
-  apiDatabaseHostname: null
-  # cell2 doesn't have access to api message bus
-  apiMessageBusHostname: null
-  cellDatabaseUser: nova
   cellDatabaseHostname: openstack
-  cellMessageBusUser: nova
-  cellMessageBusHostname: default-security-context
-  conductorServiceTemplate:
-    customServiceConfig: >
-      # service config customization
-      [DEFAULT]
-      debug=True
-    defaultConfigOverwrite:
-      logging.conf: >
-      # my custom logging configuration
-    containerImage: quay.io/tripleozedcentos9/openstack-nova-conductor:current-tripleo
-    replicate: 3
-    nodeSelector: {}
-    resources:
-      limits:
-        cpu: 500m
-        memory: 128Mi
-      requests:
-        cpu: 10m
-        memory: 64Mi
-  # lets assume in this example that metadata is at cell level
-  metadataServiceTemplate:
-    customServiceConfig: >
-      # service config customization
-      [DEFAULT]
-      debug=True
-      [api]
-      # make sure this is in sync with the fact that this nova-metadata
-      # service is expected to run on the cell level
-      local_metadata_per_cell = True
-    defaultConfigOverwrite:
-      logging.conf: >
-        # my custom logging configuration
-    # TODO: what is the name of the container for metadata?
-    containerImage: quay.io/tripleozedcentos9/openstack-nova-metadata-api:current-tripleo
-    replicate: 3
-    nodeSelector: {}
-    resources:
-      limits:
-        cpu: 500m
-        memory: 128Mi
-      requests:
-        cpu: 10m
-        memory: 64Mi
-  noVNCProxyServiceTemplate:
-    customServiceConfig: >
-      # service config customization
-      [DEFAULT]
-      debug=True
-    defaultConfigOverwrite:
-      logging.conf: >
-      # my custom logging configuration
-    containerImage: quay.io/tripleozedcentos9/openstack-nova-novncproxy:current-tripleo
-    replicate: 3
-    nodeSelector: {}
-    resources:
-      limits:
-        cpu: 500m
-        memory: 128Mi
-      requests:
-        cpu: 10m
-        memory: 64Mi
+  cellMessageBusSecretName: rabbitmq-transport-url-cell2-transport
+  cellName: cell2
+  conductorServiceTemplate: {}
+  keystoneAuthURL: http://keystone-public-openstack.apps-crc.testing
+  noVNCProxyServiceTemplate: {}
+  secret: osp-secret

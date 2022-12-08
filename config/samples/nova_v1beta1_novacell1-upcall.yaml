@@ -3,63 +3,12 @@ kind: NovaCell
 metadata:
   name: novacell1-with-upcall-sample
 spec:
-  cellName: cell1
-  secret: osp-secret
-  # Here we have to have both api and cell passwords selectors
-  # as cell1 will support upcalls
-  passwordSelectors:
-    service: NovaPassword
-    apiDatabase: NovaAPIDatabasePassword
-    apiMessageBus: NovaAPIMessageBusPassword
-    cellDatabase: NovaCell1DatabasePassword
-    cellMessageBus: NovaCell1MessageBusPassword
-  serviceUser: nova
-  keystoneAuthURL: http://keystone-internal-openstack.apps-crc.testing
-  apiDatabaseUser: nova
-  # This is the hostname of the default DB today
+  # By having access to the API DB this cell has upcall support
   apiDatabaseHostname: openstack
-  # Q: do we need db an rabbit port? it seems today we use the default port
-  # This is the hostname of the default Rabbit today
-  apiMessageBusHostname: default-security-context
-  cellDatabaseUser: nova
   cellDatabaseHostname: openstack
-  cellMessageBusUser: nova
-  cellMessageBusHostname: default-security-context
-  conductorServiceTemplate:
-    customServiceConfig: >
-      # service config customization
-      [DEFAULT]
-      debug=True
-    defaultConfigOverwrite:
-      logging.conf: >
-      # my custom logging configuration
-    containerImage: quay.io/tripleozedcentos9/openstack-nova-conductor:current-tripleo
-    replicate: 3
-    nodeSelector: {}
-    resources:
-      limits:
-        cpu: 500m
-        memory: 128Mi
-      requests:
-        cpu: 10m
-        memory: 64Mi
-  # lets assume in this example that metadata is at the top
-  metadataServiceTemplate: null
-  noVNCProxyServiceTemplate:
-    customServiceConfig: >
-      # service config customization
-      [DEFAULT]
-      debug=True
-    defaultConfigOverwrite:
-      logging.conf: >
-      # my custom logging configuration
-    containerImage: quay.io/tripleozedcentos9/openstack-nova-novncproxy:current-tripleo
-    replicate: 3
-    nodeSelector: {}
-    resources:
-      limits:
-        cpu: 500m
-        memory: 128Mi
-      requests:
-        cpu: 10m
-        memory: 64Mi
+  cellMessageBusSecretName: rabbitmq-transport-url-cell1-transport
+  cellName: cell1
+  conductorServiceTemplate: {}
+  keystoneAuthURL: http://keystone-public-openstack.apps-crc.testing
+  noVNCProxyServiceTemplate: {}
+  secret: osp-secret

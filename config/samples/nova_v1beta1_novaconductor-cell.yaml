@@ -1,0 +1,10 @@
+apiVersion: nova.openstack.org/v1beta1
+kind: NovaConductor
+metadata:
+  name: novaconductor-sample
+spec:
+  cellMessageBusSecretName: rabbitmq-transport-url-cell1-transport
+  cellName: cell1
+  containerImage: quay.io/tripleozedcentos9/openstack-nova-conductor:current-tripleo
+  keystoneAuthURL: http://keystone-public-openstack.apps-crc.testing
+  secret: osp-secret
