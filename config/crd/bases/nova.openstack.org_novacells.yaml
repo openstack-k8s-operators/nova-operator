@@ -99,7 +99,8 @@ spec:
                     additionalProperties:
                       type: string
                     description: NodeSelector to target subset of worker nodes running
-                      this service
+                      this service. Setting here overrides any global NodeSelector
+                      settings within the Nova CR.
                     type: object
                   replicas:
                     default: 1
@@ -420,7 +421,8 @@ spec:
                 additionalProperties:
                   type: string
                 description: NodeSelector to target subset of worker nodes running
-                  this service
+                  this service. Setting here overrides any global NodeSelector settings
+                  within the Nova CR.
                 type: object
               passwordSelectors:
                 default:
