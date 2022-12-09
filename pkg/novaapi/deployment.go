@@ -37,17 +37,22 @@ func StatefulSet(
 ) *appsv1.StatefulSet {
 	runAsUser := int64(0)
 
+	// This allows the pod to start up slowly. The pod will only be killed
+	// if it does not succeed a probe in 60 seconds.
+	startupProbe := &corev1.Probe{
+		FailureThreshold: 6,
+		PeriodSeconds:    10,
+	}
+	// After the first successful startupProbe, livenesProbe takes over
 	livenessProbe := &corev1.Probe{
 		// TODO might need tuning
-		TimeoutSeconds:      5,
-		PeriodSeconds:       3,
-		InitialDelaySeconds: 3,
+		TimeoutSeconds: 10,
+		PeriodSeconds:  10,
 	}
 	readinessProbe := &corev1.Probe{
 		// TODO might need tuning
-		TimeoutSeconds:      5,
-		PeriodSeconds:       5,
-		InitialDelaySeconds: 5,
+		TimeoutSeconds: 5,
+		PeriodSeconds:  5,
 	}
 
 	args := []string{"-c"}
@@ -64,12 +69,20 @@ func StatefulSet(
 				"/bin/true",
 			},
 		}
+		startupProbe.Exec = &corev1.ExecAction{
+			Command: []string{
+				"/bin/true",
+			},
+		}
 	} else {
 		args = append(args, nova.KollaServiceCommand)
 		livenessProbe.HTTPGet = &corev1.HTTPGetAction{
 			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(APIServicePort)},
 		}
 		readinessProbe.HTTPGet = &corev1.HTTPGetAction{
+			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(APIServicePort)},
+		}
+		startupProbe.HTTPGet = &corev1.HTTPGetAction{
 			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(APIServicePort)},
 		}
 	}
@@ -124,6 +137,7 @@ func StatefulSet(
 							Env:            env,
 							VolumeMounts:   nova.GetOpenstackVolumeMounts(),
 							Resources:      instance.Spec.Resources,
+							StartupProbe:   startupProbe,
 							ReadinessProbe: readinessProbe,
 							LivenessProbe:  livenessProbe,
 						},
@@ -140,6 +154,7 @@ func StatefulSet(
 							Env:            env,
 							VolumeMounts:   nova.GetOpenstackVolumeMounts(),
 							Resources:      instance.Spec.Resources,
+							StartupProbe:   startupProbe,
 							ReadinessProbe: readinessProbe,
 							LivenessProbe:  livenessProbe,
 						},
