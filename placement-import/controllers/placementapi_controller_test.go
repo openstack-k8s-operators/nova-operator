@@ -22,13 +22,12 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
@@ -125,25 +124,6 @@ func (t TestPlacementAPI) GetCondition(conditionType condition.Type, reason cond
 
 	return condition.Condition{}
 
-}
-
-// Gets the ConfigMap with the given name suffix. E.g. "config-data" or "scripts"
-func (t TestPlacementAPI) GetConfigMap(suffix string) *corev1.ConfigMap {
-	name := fmt.Sprintf("%s-%s", t.LookupKey.Name, suffix)
-	configList := &corev1.ConfigMapList{}
-	listOpts := []client.ListOption{
-		client.InNamespace(t.LookupKey.Namespace),
-	}
-
-	err := k8sClient.List(ctx, configList, listOpts...)
-	Expect(err).NotTo(HaveOccurred())
-
-	for _, c := range configList.Items {
-		if c.ObjectMeta.Name == name {
-			return &c
-		}
-	}
-	return nil
 }
 
 type TestKeystoneAPI struct {
@@ -300,10 +280,14 @@ var _ = Describe("PlacementAPI controller", func() {
 			keystoneAPI = NewTestKeystoneAPI(TestNamespace)
 			keystoneAPI.Create()
 
-			Eventually(func() *corev1.ConfigMap {
-				return placementAPI.GetConfigMap("config-data")
-			}, timeout, interval).ShouldNot(BeNil())
-			configData := placementAPI.GetConfigMap("config-data")
+			configData := th.GetConfigMap(
+				types.NamespacedName{
+					Namespace: placementAPI.LookupKey.Namespace,
+					Name:      fmt.Sprintf("%s-%s", placementAPI.LookupKey.Name, "config-data"),
+				},
+			)
+
+			Eventually(configData).ShouldNot(BeNil())
 			Expect(configData.Data["placement.conf"]).Should(
 				ContainSubstring("auth_url = %s", keystoneAPI.Template.Status.APIEndpoints["public"]))
 		})
