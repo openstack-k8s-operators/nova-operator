@@ -487,6 +487,94 @@ func SimulateAEESucceeded(name types.NamespacedName) {
 	logger.Info("Simulated AEE success", "on", name)
 }
 
+type CellNames struct {
+	CellName                 types.NamespacedName
+	MariaDBDatabaseName      types.NamespacedName
+	CellConductorName        types.NamespacedName
+	CellDBSyncJobName        types.NamespacedName
+	ConductorStatefulSetName types.NamespacedName
+	TransportURLName         types.NamespacedName
+	CellMappingJobName       types.NamespacedName
+}
+
+func GetCellNames(novaName types.NamespacedName, cell string) CellNames {
+	cellName := types.NamespacedName{
+		Namespace: novaName.Namespace,
+		Name:      novaName.Name + "-" + cell,
+	}
+	c := CellNames{
+		CellName: cellName,
+		MariaDBDatabaseName: types.NamespacedName{
+			Namespace: novaName.Namespace,
+			Name:      "nova-" + cell,
+		},
+		CellConductorName: types.NamespacedName{
+			Namespace: novaName.Namespace,
+			Name:      cellName.Name + "-conductor",
+		},
+		CellDBSyncJobName: types.NamespacedName{
+			Namespace: novaName.Namespace,
+			Name:      cellName.Name + "-conductor-db-sync",
+		},
+		ConductorStatefulSetName: types.NamespacedName{
+			Namespace: novaName.Namespace,
+			Name:      cellName.Name + "-conductor",
+		},
+		TransportURLName: types.NamespacedName{
+			Namespace: novaName.Namespace,
+			Name:      cellName.Name + "-transport",
+		},
+		CellMappingJobName: types.NamespacedName{
+			Namespace: novaName.Namespace,
+			Name:      cellName.Name + "-cell-mapping",
+		},
+	}
+
+	if cell == "cell0" {
+		c.TransportURLName = types.NamespacedName{
+			Namespace: novaName.Namespace,
+			Name:      novaName.Name + "-api-transport",
+		}
+	}
+
+	return c
+}
+
+type NovaNames struct {
+	NovaName               types.NamespacedName
+	APIName                types.NamespacedName
+	APIMariaDBDatabaseName types.NamespacedName
+	APIDeploymentName      types.NamespacedName
+	KeystoneServiceName    types.NamespacedName
+	Cells                  map[string]CellNames
+}
+
+func GetNovaNames(novaName types.NamespacedName, cellNames []string) NovaNames {
+	novaAPI := types.NamespacedName{
+		Namespace: novaName.Namespace,
+		Name:      novaName.Name + "-api",
+	}
+	cells := map[string]CellNames{}
+	for _, cellName := range cellNames {
+		cells[cellName] = GetCellNames(novaName, cellName)
+	}
+	return NovaNames{
+		NovaName: novaName,
+		APIName:  novaAPI,
+		APIMariaDBDatabaseName: types.NamespacedName{
+			Namespace: novaName.Namespace,
+			Name:      "nova-api",
+		},
+		APIDeploymentName: novaAPI,
+		KeystoneServiceName: types.NamespacedName{
+			Namespace: novaName.Namespace,
+			Name:      "nova",
+		},
+
+		Cells: cells,
+	}
+}
+
 func CreateNovaMetadata(namespace string, spec map[string]interface{}) client.Object {
 	novaMetadataName := uuid.New().String()
 

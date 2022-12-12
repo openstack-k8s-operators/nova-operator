@@ -31,64 +31,21 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-func CreateNovaWith3CellsAndEnsureReady(namespace string) types.NamespacedName {
+func CreateNovaWith3CellsAndEnsureReady(namespace string) NovaNames {
 	var novaName types.NamespacedName
-	var mariaDBDatabaseNameForAPI types.NamespacedName
-	var cell0 Cell
-	var cell1 Cell
-	var cell2 Cell
-	var novaAPIName types.NamespacedName
-	var novaAPIdeploymentName types.NamespacedName
-	var novaAPIKeystoneEndpointName types.NamespacedName
-	var novaKeystoneServiceName types.NamespacedName
-	var novaSchedulerName types.NamespacedName
-	var novaSchedulerStatefulSetName types.NamespacedName
-	var novaMetadataName types.NamespacedName
-	var novaMetadataStatefulSetName types.NamespacedName
+	var novaNames NovaNames
+	var cell0 CellNames
+	var cell1 CellNames
+	var cell2 CellNames
 
 	novaName = types.NamespacedName{
 		Namespace: namespace,
 		Name:      uuid.New().String(),
 	}
-	mariaDBDatabaseNameForAPI = types.NamespacedName{
-		Namespace: namespace,
-		Name:      "nova-api",
-	}
-	novaAPIName = types.NamespacedName{
-		Namespace: namespace,
-		Name:      novaName.Name + "-api",
-	}
-	novaAPIdeploymentName = types.NamespacedName{
-		Namespace: namespace,
-		Name:      novaAPIName.Name,
-	}
-	novaAPIKeystoneEndpointName = types.NamespacedName{
-		Namespace: namespace,
-		Name:      "nova",
-	}
-	novaKeystoneServiceName = types.NamespacedName{
-		Namespace: namespace,
-		Name:      "nova",
-	}
-	novaSchedulerName = types.NamespacedName{
-		Namespace: namespace,
-		Name:      novaName.Name + "-scheduler",
-	}
-	novaSchedulerStatefulSetName = types.NamespacedName{
-		Namespace: namespace,
-		Name:      novaSchedulerName.Name,
-	}
-	novaMetadataName = types.NamespacedName{
-		Namespace: namespace,
-		Name:      novaName.Name + "-metadata",
-	}
-	novaMetadataStatefulSetName = types.NamespacedName{
-		Namespace: namespace,
-		Name:      novaMetadataName.Name,
-	}
-	cell0 = NewCell(novaName, "cell0")
-	cell1 = NewCell(novaName, "cell1")
-	cell2 = NewCell(novaName, "cell2")
+	novaNames = GetNovaNames(novaName, []string{"cell0", "cell1", "cell2"})
+	cell0 = novaNames.Cells["cell0"]
+	cell1 = novaNames.Cells["cell1"]
+	cell2 = novaNames.Cells["cell2"]
 
 	DeferCleanup(k8sClient.Delete, ctx, CreateNovaSecret(namespace, SecretName))
 	DeferCleanup(
@@ -145,9 +102,9 @@ func CreateNovaWith3CellsAndEnsureReady(namespace string) types.NamespacedName {
 		g.Expect(k8sClient.Status().Update(ctx, keystoneAPI.DeepCopy())).Should(Succeed())
 	}, timeout, interval).Should(Succeed())
 
-	th.SimulateKeystoneServiceReady(novaKeystoneServiceName)
+	th.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
 
-	th.SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
+	th.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
 	th.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
 	th.SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
 	th.SimulateMariaDBDatabaseCompleted(cell2.MariaDBDatabaseName)
@@ -160,8 +117,8 @@ func CreateNovaWith3CellsAndEnsureReady(namespace string) types.NamespacedName {
 	th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 	th.SimulateJobSuccess(cell0.CellMappingJobName)
 
-	th.SimulateStatefulSetReplicaReady(novaAPIdeploymentName)
-	th.SimulateKeystoneEndpointReady(novaAPIKeystoneEndpointName)
+	th.SimulateStatefulSetReplicaReady(novaNames.APIDeploymentName)
+	th.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
 
 	th.SimulateJobSuccess(cell1.CellDBSyncJobName)
 	th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
@@ -184,23 +141,23 @@ func CreateNovaWith3CellsAndEnsureReady(namespace string) types.NamespacedName {
 		condition.ReadyCondition,
 		corev1.ConditionTrue,
 	)
-	return novaName
+	return novaNames
 }
 
 var _ = Describe("Nova reconfiguration", func() {
-	var novaName types.NamespacedName
+	var novaNames NovaNames
 
 	BeforeEach(func() {
 		// Uncomment this if you need the full output in the logs from gomega
 		// matchers
 		// format.MaxLength = 0
 
-		novaName = CreateNovaWith3CellsAndEnsureReady(namespace)
+		novaNames = CreateNovaWith3CellsAndEnsureReady(namespace)
 
 	})
 	When("cell0 conductor replicas is set to 0", func() {
 		It("sets the deployment replicas to 0", func() {
-			cell0DeploymentName := NewCell(novaName, "cell0").ConductorStatefulSetName
+			cell0DeploymentName := novaNames.Cells["cell0"].ConductorStatefulSetName
 
 			deployment := th.GetStatefulSet(cell0DeploymentName)
 			one := int32(1)
@@ -210,7 +167,7 @@ var _ = Describe("Nova reconfiguration", func() {
 			// return a Conflict and then we have to retry by re-reading Nova,
 			// and updating the Replicas again.
 			Eventually(func(g Gomega) {
-				nova := GetNova(novaName)
+				nova := GetNova(novaNames.NovaName)
 
 				// TODO(gibi): Is there a simpler way to achieve this update
 				// in golang?
