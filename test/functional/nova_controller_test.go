@@ -32,16 +32,8 @@ import (
 var _ = Describe("Nova controller", func() {
 	var namespace string
 	var novaName types.NamespacedName
-	var mariaDBDatabaseNameForAPI types.NamespacedName
-	var mariaDBDatabaseNameForCell0 types.NamespacedName
-	var cell0Name types.NamespacedName
-	var cell0ConductorName types.NamespacedName
-	var cell0DBSyncJobName types.NamespacedName
-	var novaAPIName types.NamespacedName
-	var novaAPIdeploymentName types.NamespacedName
-	var novaKeystoneServiceName types.NamespacedName
-	var novaCell0ConductorStatefulSetName types.NamespacedName
-	var apiTransportURLName types.NamespacedName
+	var novaNames NovaNames
+	var cell0 CellNames
 
 	BeforeEach(func() {
 		// NOTE(gibi): We need to create a unique namespace for each test run
@@ -65,46 +57,8 @@ var _ = Describe("Nova controller", func() {
 			Namespace: namespace,
 			Name:      uuid.New().String(),
 		}
-		mariaDBDatabaseNameForAPI = types.NamespacedName{
-			Namespace: namespace,
-			Name:      "nova-api",
-		}
-		mariaDBDatabaseNameForCell0 = types.NamespacedName{
-			Namespace: namespace,
-			Name:      "nova-cell0",
-		}
-		cell0Name = types.NamespacedName{
-			Namespace: namespace,
-			Name:      novaName.Name + "-cell0",
-		}
-		cell0ConductorName = types.NamespacedName{
-			Namespace: namespace,
-			Name:      cell0Name.Name + "-conductor",
-		}
-		cell0DBSyncJobName = types.NamespacedName{
-			Namespace: namespace,
-			Name:      cell0ConductorName.Name + "-db-sync",
-		}
-		novaAPIName = types.NamespacedName{
-			Namespace: namespace,
-			Name:      novaName.Name + "-api",
-		}
-		novaAPIdeploymentName = types.NamespacedName{
-			Namespace: namespace,
-			Name:      novaAPIName.Name,
-		}
-		novaKeystoneServiceName = types.NamespacedName{
-			Namespace: namespace,
-			Name:      "nova",
-		}
-		novaCell0ConductorStatefulSetName = types.NamespacedName{
-			Namespace: namespace,
-			Name:      cell0ConductorName.Name,
-		}
-		apiTransportURLName = types.NamespacedName{
-			Namespace: namespace,
-			Name:      "nova-api-transport",
-		}
+		novaNames = GetNovaNames(novaName, []string{"cell0"})
+		cell0 = novaNames.Cells["cell0"]
 	})
 
 	When("Nova CR instance is created without cell0", func() {
@@ -169,10 +123,10 @@ var _ = Describe("Nova controller", func() {
 
 		It("registers nova service to keystone", func() {
 			// assert that the KeystoneService for nova is created
-			GetKeystoneService(novaKeystoneServiceName)
+			GetKeystoneService(novaNames.KeystoneServiceName)
 			// and simulate that it becomes ready i.e. the keystone-operator
 			// did its job and registered the nova service
-			SimulateKeystoneServiceReady(novaKeystoneServiceName)
+			SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
 
 			ExpectCondition(
 				novaName,
@@ -183,16 +137,16 @@ var _ = Describe("Nova controller", func() {
 		})
 
 		It("creates nova_api DB", func() {
-			SimulateKeystoneServiceReady(novaKeystoneServiceName)
+			SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
 			ExpectCondition(
 				novaName,
 				conditionGetterFunc(NovaConditionGetter),
 				novav1.NovaAPIDBReadyCondition,
 				corev1.ConditionFalse,
 			)
-			GetMariaDBDatabase(mariaDBDatabaseNameForAPI)
+			GetMariaDBDatabase(novaNames.APIMariaDBDatabaseName)
 
-			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
+			SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
 			ExpectCondition(
 				novaName,
 				conditionGetterFunc(NovaConditionGetter),
@@ -202,16 +156,16 @@ var _ = Describe("Nova controller", func() {
 		})
 
 		It("creates nova-api MQ", func() {
-			SimulateKeystoneServiceReady(novaKeystoneServiceName)
+			SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
 			ExpectCondition(
 				novaName,
 				conditionGetterFunc(NovaConditionGetter),
 				novav1.NovaAPIMQReadyCondition,
 				corev1.ConditionFalse,
 			)
-			GetTransportURL(apiTransportURLName)
+			GetTransportURL(cell0.TransportURLName)
 
-			SimulateTransportURLReady(apiTransportURLName)
+			SimulateTransportURLReady(cell0.TransportURLName)
 			ExpectCondition(
 				novaName,
 				conditionGetterFunc(NovaConditionGetter),
@@ -221,16 +175,16 @@ var _ = Describe("Nova controller", func() {
 		})
 
 		It("creates nova_cell0 DB", func() {
-			SimulateKeystoneServiceReady(novaKeystoneServiceName)
+			SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
 			ExpectCondition(
 				novaName,
 				conditionGetterFunc(NovaConditionGetter),
 				novav1.NovaAllCellsDBReadyCondition,
 				corev1.ConditionFalse,
 			)
-			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
-			GetMariaDBDatabase(mariaDBDatabaseNameForCell0)
-			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForCell0)
+			SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
+			GetMariaDBDatabase(cell0.MariaDBDatabaseName)
+			SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
 			ExpectCondition(
 				novaName,
 				conditionGetterFunc(NovaConditionGetter),
@@ -240,36 +194,36 @@ var _ = Describe("Nova controller", func() {
 		})
 
 		It("creates cell0 NovaCell", func() {
-			SimulateKeystoneServiceReady(novaKeystoneServiceName)
-			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
-			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForCell0)
-			SimulateTransportURLReady(apiTransportURLName)
+			SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
+			SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
+			SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
+			SimulateTransportURLReady(cell0.TransportURLName)
 			// assert that cell related CRs are created
-			cell := GetNovaCell(cell0Name)
+			cell := GetNovaCell(cell0.CellName)
 			Expect(cell.Spec.CellMessageBusSecretName).To(Equal("rabbitmq-secret"))
 			Expect(cell.Spec.ServiceUser).To(Equal("nova"))
 
-			conductor := GetNovaConductor(cell0ConductorName)
+			conductor := GetNovaConductor(cell0.CellConductorName)
 			Expect(conductor.Spec.CellMessageBusSecretName).To(Equal("rabbitmq-secret"))
 			Expect(conductor.Spec.ServiceUser).To(Equal("nova"))
 
 			ExpectCondition(
-				cell0ConductorName,
+				cell0.CellConductorName,
 				conditionGetterFunc(NovaConductorConditionGetter),
 				condition.DBSyncReadyCondition,
 				corev1.ConditionFalse,
 			)
 
-			SimulateJobSuccess(cell0DBSyncJobName)
+			SimulateJobSuccess(cell0.CellDBSyncJobName)
 			ExpectCondition(
-				cell0ConductorName,
+				cell0.CellConductorName,
 				conditionGetterFunc(NovaConductorConditionGetter),
 				condition.DBSyncReadyCondition,
 				corev1.ConditionTrue,
 			)
-			SimulateStatefulSetReplicaReady(novaCell0ConductorStatefulSetName)
+			SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 			ExpectCondition(
-				cell0Name,
+				cell0.CellName,
 				conditionGetterFunc(NovaCellConditionGetter),
 				novav1.NovaConductorReadyCondition,
 				corev1.ConditionTrue,
@@ -283,21 +237,21 @@ var _ = Describe("Nova controller", func() {
 		})
 
 		It("create NovaAPI", func() {
-			SimulateKeystoneServiceReady(novaKeystoneServiceName)
-			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
-			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForCell0)
-			SimulateTransportURLReady(apiTransportURLName)
-			SimulateJobSuccess(cell0DBSyncJobName)
-			SimulateStatefulSetReplicaReady(novaCell0ConductorStatefulSetName)
+			SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
+			SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
+			SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
+			SimulateTransportURLReady(cell0.TransportURLName)
+			SimulateJobSuccess(cell0.CellDBSyncJobName)
+			SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 
-			api := GetNovaAPI(novaAPIName)
+			api := GetNovaAPI(novaNames.APIName)
 			Expect(api.Spec.APIMessageBusSecretName).To(Equal("rabbitmq-secret"))
 			Expect(api.Spec.ServiceUser).To(Equal("nova"))
 
-			SimulateStatefulSetReplicaReady(novaAPIdeploymentName)
+			SimulateStatefulSetReplicaReady(novaNames.APIDeploymentName)
 
 			ExpectCondition(
-				novaAPIName,
+				novaNames.APIName,
 				conditionGetterFunc(NovaAPIConditionGetter),
 				condition.DeploymentReadyCondition,
 				corev1.ConditionTrue,
@@ -343,22 +297,22 @@ var _ = Describe("Nova controller", func() {
 		})
 
 		It("does not create NovaAPI", func() {
-			SimulateKeystoneServiceReady(novaKeystoneServiceName)
-			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
-			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForCell0)
-			SimulateTransportURLReady(apiTransportURLName)
-			GetNovaCell(cell0Name)
-			GetNovaConductor(cell0ConductorName)
+			SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
+			SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
+			SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
+			SimulateTransportURLReady(cell0.TransportURLName)
+			GetNovaCell(cell0.CellName)
+			GetNovaConductor(cell0.CellConductorName)
 
-			SimulateJobFailure(cell0DBSyncJobName)
+			SimulateJobFailure(cell0.CellDBSyncJobName)
 			ExpectCondition(
-				cell0ConductorName,
+				cell0.CellConductorName,
 				conditionGetterFunc(NovaConductorConditionGetter),
 				condition.DBSyncReadyCondition,
 				corev1.ConditionFalse,
 			)
 			ExpectCondition(
-				cell0Name,
+				cell0.CellName,
 				conditionGetterFunc(NovaCellConditionGetter),
 				novav1.NovaConductorReadyCondition,
 				corev1.ConditionFalse,
@@ -370,7 +324,7 @@ var _ = Describe("Nova controller", func() {
 				corev1.ConditionFalse,
 			)
 
-			NovaAPINotExists(novaAPIName)
+			NovaAPINotExists(novaNames.APIName)
 		})
 	})
 
@@ -417,12 +371,12 @@ var _ = Describe("Nova controller", func() {
 		})
 
 		It("uses the correct hostnames to access the different DB services", func() {
-			SimulateKeystoneServiceReady(novaKeystoneServiceName)
-			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
-			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForCell0)
-			SimulateTransportURLReady(apiTransportURLName)
+			SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
+			SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
+			SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
+			SimulateTransportURLReady(cell0.TransportURLName)
 
-			cell0DBSync := GetJob(cell0DBSyncJobName)
+			cell0DBSync := GetJob(cell0.CellDBSyncJobName)
 			cell0DBSyncJobEnv := cell0DBSync.Spec.Template.Spec.InitContainers[0].Env
 			Expect(cell0DBSyncJobEnv).To(
 				ContainElements(
@@ -433,13 +387,13 @@ var _ = Describe("Nova controller", func() {
 				),
 			)
 
-			SimulateJobSuccess(cell0DBSyncJobName)
-			SimulateStatefulSetReplicaReady(novaCell0ConductorStatefulSetName)
+			SimulateJobSuccess(cell0.CellDBSyncJobName)
+			SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 
 			configDataMap := th.GetConfigMap(
 				types.NamespacedName{
 					Namespace: namespace,
-					Name:      fmt.Sprintf("%s-config-data", novaAPIName.Name),
+					Name:      fmt.Sprintf("%s-config-data", novaNames.APIName.Name),
 				},
 			)
 			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
@@ -450,16 +404,16 @@ var _ = Describe("Nova controller", func() {
 				ContainSubstring("[api_database]\nconnection = mysql+pymysql://nova_api:12345678@hostname-for-db-for-api/nova_api"),
 			)
 
-			SimulateStatefulSetReplicaReady(novaAPIdeploymentName)
+			SimulateStatefulSetReplicaReady(novaNames.APIName)
 
 			ExpectCondition(
-				cell0ConductorName,
+				cell0.CellConductorName,
 				conditionGetterFunc(NovaConductorConditionGetter),
 				condition.DBSyncReadyCondition,
 				corev1.ConditionTrue,
 			)
 			ExpectCondition(
-				cell0Name,
+				cell0.CellName,
 				conditionGetterFunc(NovaCellConditionGetter),
 				novav1.NovaConductorReadyCondition,
 				corev1.ConditionTrue,
@@ -510,7 +464,7 @@ var _ = Describe("Nova controller", func() {
 		})
 
 		It("removes the finalizer from KeystoneService", func() {
-			SimulateKeystoneServiceReady(novaKeystoneServiceName)
+			SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
 			ExpectCondition(
 				novaName,
 				conditionGetterFunc(NovaConditionGetter),
@@ -518,11 +472,11 @@ var _ = Describe("Nova controller", func() {
 				corev1.ConditionTrue,
 			)
 
-			service := GetKeystoneService(novaKeystoneServiceName)
+			service := GetKeystoneService(novaNames.KeystoneServiceName)
 			Expect(service.Finalizers).To(ContainElement("Nova"))
 
 			DeleteNova(novaName)
-			service = GetKeystoneService(novaKeystoneServiceName)
+			service = GetKeystoneService(novaNames.KeystoneServiceName)
 			Expect(service.Finalizers).NotTo(ContainElement("Nova"))
 		})
 	})
