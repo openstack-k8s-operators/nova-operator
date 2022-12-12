@@ -320,4 +320,100 @@ var _ = Describe("Nova reconfiguration", func() {
 		})
 	})
 
+	When("global NodeSelector is set", func() {
+		It("is propagated to the pods", func() {
+			// We need this big Eventually block because the Update() call might
+			// return a Conflict and then we have to retry by re-reading Nova,
+			// and updating it again.
+			Eventually(func(g Gomega) {
+				nova := GetNova(novaName)
+
+				newSelector := map[string]string{"foo": "bar"}
+				nova.Spec.NodeSelector = newSelector
+
+				err := k8sClient.Update(ctx, nova)
+				g.Expect(err == nil || k8s_errors.IsConflict(err)).To(BeTrue())
+
+				novaAPIdeploymentName := types.NamespacedName{
+					Namespace: namespace,
+					Name:      novaName.Name + "-api",
+				}
+				apiDeployment := GetStatefulSet(novaAPIdeploymentName)
+				g.Expect(apiDeployment.Spec.Template.Spec.NodeSelector).To(Equal(newSelector))
+
+				for _, cell := range []string{"cell0", "cell1", "cell2"} {
+					cellDeploymentName := NewCell(novaName, cell).ConductorStatefulSetName
+					cellDeployment := GetStatefulSet(cellDeploymentName)
+					g.Expect(cellDeployment.Spec.Template.Spec.NodeSelector).To(Equal(newSelector))
+				}
+			}, timeout, interval).Should(Succeed())
+
+			// Now reset it back to empty and see that it is propagates too
+			Eventually(func(g Gomega) {
+				nova := GetNova(novaName)
+
+				newSelector := map[string]string{}
+				nova.Spec.NodeSelector = newSelector
+
+				err := k8sClient.Update(ctx, nova)
+				g.Expect(err == nil || k8s_errors.IsConflict(err)).To(BeTrue())
+
+				novaAPIdeploymentName := types.NamespacedName{
+					Namespace: namespace,
+					Name:      novaName.Name + "-api",
+				}
+				apiDeployment := GetStatefulSet(novaAPIdeploymentName)
+				g.Expect(apiDeployment.Spec.Template.Spec.NodeSelector).To(BeNil())
+
+				for _, cell := range []string{"cell0", "cell1", "cell2"} {
+					cellDeploymentName := NewCell(novaName, cell).ConductorStatefulSetName
+					cellDeployment := GetStatefulSet(cellDeploymentName)
+					g.Expect(cellDeployment.Spec.Template.Spec.NodeSelector).To(BeNil())
+				}
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("does not override non empty NodeSelector defined in the service template", func() {
+			apiSelector := map[string]string{"foo": "api"}
+			globalSelector := map[string]string{"foo": "global"}
+			novaAPIdeploymentName := types.NamespacedName{
+				Namespace: namespace,
+				Name:      novaName.Name + "-api",
+			}
+
+			// Set NovaAPI specific NodeSelector first
+			Eventually(func(g Gomega) {
+				nova := GetNova(novaName)
+
+				nova.Spec.APIServiceTemplate.NodeSelector = apiSelector
+				err := k8sClient.Update(ctx, nova)
+				g.Expect(err == nil || k8s_errors.IsConflict(err)).To(BeTrue())
+
+				apiDeployment := GetStatefulSet(novaAPIdeploymentName)
+				g.Expect(apiDeployment.Spec.Template.Spec.NodeSelector).To(Equal(apiSelector))
+
+			}, timeout, interval).Should(Succeed())
+
+			// Set the global NodeSelector and assert that it is propagated
+			// except to the NovaAPI
+			Eventually(func(g Gomega) {
+				nova := GetNova(novaName)
+
+				nova.Spec.NodeSelector = globalSelector
+				err := k8sClient.Update(ctx, nova)
+				g.Expect(err == nil || k8s_errors.IsConflict(err)).To(BeTrue())
+
+				// NovaAPI's deployment keeps it own selector
+				apiDeployment := GetStatefulSet(novaAPIdeploymentName)
+				g.Expect(apiDeployment.Spec.Template.Spec.NodeSelector).To(Equal(apiSelector))
+
+				// But cell conductors get the global one
+				for _, cell := range []string{"cell0", "cell1", "cell2"} {
+					cellDeploymentName := NewCell(novaName, cell).ConductorStatefulSetName
+					cellDeployment := GetStatefulSet(cellDeploymentName)
+					g.Expect(cellDeployment.Spec.Template.Spec.NodeSelector).To(Equal(globalSelector))
+				}
+			}, timeout, interval).Should(Succeed())
+		})
+	})
 })
