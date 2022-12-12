@@ -221,6 +221,7 @@ func (r *NovaAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (re
 
 	// Only expose the service is the deployment succeeded
 	if !instance.Status.Conditions.IsTrue(condition.DeploymentReadyCondition) {
+		util.LogForObject(h, "Waiting for the Deployment to become Ready before exposing the sevice in Keystone", instance)
 		return ctrl.Result{}, nil
 	}
 
@@ -237,6 +238,7 @@ func (r *NovaAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (re
 		return ctrl.Result{}, err
 	}
 
+	util.LogForObject(h, "Successfully reconciled", instance)
 	return ctrl.Result{}, nil
 }
 

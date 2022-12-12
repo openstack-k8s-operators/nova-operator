@@ -124,6 +124,7 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 		return result, err
 	}
 
+	util.LogForObject(h, "Successfully reconciled", instance)
 	return ctrl.Result{}, nil
 }
 
