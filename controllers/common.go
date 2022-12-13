@@ -256,7 +256,8 @@ func (r *ReconcilerBase) GenerateConfigs(
 	extraData map[string]string, cmLabels map[string]string,
 ) error {
 	additionalTemplates := map[string]string{
-		"01-nova.conf": "/nova.conf",
+		"01-nova.conf":    "/nova.conf",
+		"nova-blank.conf": "/nova-blank.conf",
 	}
 	cms := []util.Template{
 		// ConfigMap
