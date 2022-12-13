@@ -39,6 +39,8 @@ const (
 	// NovaAllCellsMQReadyCondition indicates that the message bus for each
 	// configured Cell is created successfully
 	NovaAllCellsMQReadyCondition condition.Type = "NovaAllCellsMQReady"
+	// NovaSchedulerReadyCondition indicates if the NovaScheduler is operational
+	NovaSchedulerReadyCondition condition.Type = "NovaSchedulerReady"
 )
 
 // Common Messages used by API objects.
@@ -105,4 +107,10 @@ const (
 
 	// NovaAllCellsMQReadyMessage
 	NovaAllCellsMQReadyMessage = "All message busses created successfully"
+
+	// NovaSchedulerReadyInitMessage
+	NovaSchedulerReadyInitMessage = "NovaScheduler not started"
+
+	// NovaSchedulerReadyErrorMessage
+	NovaSchedulerReadyErrorMessage = "NovaScheduler error occured %s"
 )

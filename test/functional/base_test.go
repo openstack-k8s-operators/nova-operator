@@ -601,3 +601,65 @@ func SimulateTransportURLReady(name types.NamespacedName) {
 	}, timeout, interval).Should(Succeed())
 	logger.Info("Simulated TransportURL ready", "on", name)
 }
+
+func GetDefaultNovaSchedulerSpec() map[string]interface{} {
+	return map[string]interface{}{
+		"secret":                  SecretName,
+		"apiDatabaseHostname":     "nova-api-db-hostname",
+		"apiMessageBusSecretName": MessageBusSecretName,
+		"cell0DatabaseHostname":   "nova-cell0-db-hostname",
+		"keystoneAuthURL":         "keystone-auth-url",
+		"containerImage":          ContainerImage,
+	}
+}
+
+func CreateNovaScheduler(namespace string, spec map[string]interface{}) types.NamespacedName {
+	name := uuid.New().String()
+
+	raw := map[string]interface{}{
+		"apiVersion": "nova.openstack.org/v1beta1",
+		"kind":       "NovaScheduler",
+		"metadata": map[string]interface{}{
+			"name":      name,
+			"namespace": namespace,
+		},
+		"spec": spec,
+	}
+	CreateUnstructured(raw)
+
+	return types.NamespacedName{Name: name, Namespace: namespace}
+}
+
+func DeleteNovaScheduler(name types.NamespacedName) {
+	// We have to wait for the controller to fully delete the instance
+	Eventually(func(g Gomega) {
+		instance := &novav1.NovaScheduler{}
+		err := k8sClient.Get(ctx, name, instance)
+		// if it is already gone that is OK
+		if k8s_errors.IsNotFound(err) {
+			return
+		}
+		g.Expect(err).Should(BeNil())
+
+		g.Expect(k8sClient.Delete(ctx, instance)).Should(Succeed())
+
+		err = k8sClient.Get(ctx, name, instance)
+		g.Expect(k8s_errors.IsNotFound(err)).To(BeTrue())
+	}, timeout, interval).Should(Succeed())
+}
+
+func GetNovaScheduler(name types.NamespacedName) *novav1.NovaScheduler {
+	instance := &novav1.NovaScheduler{}
+	Eventually(func(g Gomega) {
+		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
+	}, timeout, interval).Should(Succeed())
+	return instance
+}
+
+func NovaSchedulerNotExists(name types.NamespacedName) {
+	Consistently(func(g Gomega) {
+		instance := &novav1.NovaScheduler{}
+		err := k8sClient.Get(ctx, name, instance)
+		g.Expect(k8s_errors.IsNotFound(err)).To(BeTrue())
+	}, consistencyTimeout, interval).Should(Succeed())
+}

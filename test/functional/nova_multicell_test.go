@@ -88,6 +88,8 @@ var _ = Describe("Nova controller", func() {
 	var novaAPIName types.NamespacedName
 	var novaAPIdeploymentName types.NamespacedName
 	var novaKeystoneServiceName types.NamespacedName
+	var novaSchedulerName types.NamespacedName
+	var novaSchedulerStatefulSetName types.NamespacedName
 
 	BeforeEach(func() {
 		// NOTE(gibi): We need to create a unique namespace for each test run
@@ -126,6 +128,14 @@ var _ = Describe("Nova controller", func() {
 		novaKeystoneServiceName = types.NamespacedName{
 			Namespace: namespace,
 			Name:      "nova",
+		}
+		novaSchedulerName = types.NamespacedName{
+			Namespace: namespace,
+			Name:      novaName.Name + "-scheduler",
+		}
+		novaSchedulerStatefulSetName = types.NamespacedName{
+			Namespace: namespace,
+			Name:      novaSchedulerName.Name,
 		}
 		cell0 = NewCell(novaName, "cell0")
 		cell1 = NewCell(novaName, "cell1")
@@ -388,6 +398,7 @@ var _ = Describe("Nova controller", func() {
 			th.SimulateJobSuccess(cell0.CellDBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 			th.SimulateStatefulSetReplicaReady(novaAPIdeploymentName)
+			th.SimulateStatefulSetReplicaReady(novaSchedulerStatefulSetName)
 			SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
 			SimulateTransportURLReady(cell1.TransportURLName)
 			th.SimulateJobSuccess(cell1.CellDBSyncJobName)

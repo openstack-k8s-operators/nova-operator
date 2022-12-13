@@ -43,6 +43,8 @@ var _ = Describe("Nova controller", func() {
 	var novaKeystoneServiceName types.NamespacedName
 	var novaCell0ConductorStatefulSetName types.NamespacedName
 	var apiTransportURLName types.NamespacedName
+	var novaSchedulerName types.NamespacedName
+	var novaSchedulerStatefulSetName types.NamespacedName
 
 	BeforeEach(func() {
 		// NOTE(gibi): We need to create a unique namespace for each test run
@@ -105,6 +107,14 @@ var _ = Describe("Nova controller", func() {
 		apiTransportURLName = types.NamespacedName{
 			Namespace: namespace,
 			Name:      "nova-api-transport",
+		}
+		novaSchedulerName = types.NamespacedName{
+			Namespace: namespace,
+			Name:      novaName.Name + "-scheduler",
+		}
+		novaSchedulerStatefulSetName = types.NamespacedName{
+			Namespace: namespace,
+			Name:      novaSchedulerName.Name,
 		}
 	})
 
@@ -290,6 +300,7 @@ var _ = Describe("Nova controller", func() {
 			SimulateTransportURLReady(apiTransportURLName)
 			th.SimulateJobSuccess(cell0DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(novaCell0ConductorStatefulSetName)
+			th.SimulateStatefulSetReplicaReady(novaSchedulerStatefulSetName)
 
 			api := GetNovaAPI(novaAPIName)
 			Expect(api.Spec.APIMessageBusSecretName).To(Equal("rabbitmq-secret"))
@@ -436,6 +447,7 @@ var _ = Describe("Nova controller", func() {
 
 			th.SimulateJobSuccess(cell0DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(novaCell0ConductorStatefulSetName)
+			th.SimulateStatefulSetReplicaReady(novaSchedulerStatefulSetName)
 
 			configDataMap := th.GetConfigMap(
 				types.NamespacedName{
