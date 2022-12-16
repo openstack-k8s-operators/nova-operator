@@ -188,6 +188,16 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		instance.Status.Conditions.MarkTrue(novav1.NovaAPIDBReadyCondition, condition.DBReadyMessage)
 	}
 
+	// We need to create a list of cellNames to iterate on and as the map
+	// iteration order is undefined we need to make sure that cell0 is the
+	// first to allow dependency handling during ensureCell calls.
+	orderedCellNames := []string{Cell0Name}
+	for cellName := range instance.Spec.CellTemplates {
+		if cellName != Cell0Name {
+			orderedCellNames = append(orderedCellNames, cellName)
+		}
+	}
+
 	// Create the Cell DBs. Note that we are not returning on error or if the
 	// DB creation is still in progress. We move forward with whathever we can
 	// and relay on the watch to get reconciled if some of the resources change
@@ -195,7 +205,8 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	cellDBs := map[string]*nova.Database{}
 	var failedDBs []string
 	var creatingDBs []string
-	for cellName, cellTemplate := range instance.Spec.CellTemplates {
+	for _, cellName := range orderedCellNames {
+		cellTemplate := instance.Spec.CellTemplates[cellName]
 		cellDB, status, err := r.ensureCellDB(ctx, h, instance, cellName, cellTemplate)
 		if err != nil {
 			failedDBs = append(failedDBs, fmt.Sprintf("%s(%v)", cellName, err.Error()))
@@ -255,10 +266,11 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	cellMQs := map[string]*nova.MessageBus{}
 	var failedMQs []string
 	var creatingMQs []string
-	for cellName, cellTemplate := range instance.Spec.CellTemplates {
+	for _, cellName := range orderedCellNames {
 		var cellMQ string
 		var status nova.MessageBusStatus
 		var err error
+		cellTemplate := instance.Spec.CellTemplates[cellName]
 		// cell0 does not need its own cell message bus it uses the
 		// API message bus instead
 		if cellName == Cell0Name {
@@ -306,7 +318,8 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	readyCells := []string{}
 	cells := map[string]*novav1.NovaCell{}
 	allCellsReady := true
-	for cellName, cellTemplate := range instance.Spec.CellTemplates {
+	for _, cellName := range orderedCellNames {
+		cellTemplate := instance.Spec.CellTemplates[cellName]
 		cellDB := cellDBs[cellName]
 		cellMQ := cellMQs[cellName]
 		if cellDB.Status != nova.DBCompleted {
@@ -326,8 +339,10 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 			continue
 		}
 
-		cell0, ok := cells[Cell0Name]
-		if cellName != Cell0Name && cellTemplate.HasAPIAccess && (!ok || !cell0.IsReady()) {
+		// The cell0 is always handled first in the loop as we iterate on
+		// orderdCellNames. So for any other cells we can get cell0 from cells
+		// as it is already there.
+		if cellName != Cell0Name && cellTemplate.HasAPIAccess && !cells[Cell0Name].IsReady() {
 			allCellsReady = false
 			skippedCells = append(skippedCells, cellName)
 			util.LogForObject(
