@@ -56,3 +56,13 @@ jobs:
         uses: actions/checkout@v2
       - name: Run operator-lint
         run: make operator-lint
+
+  check-go-mod-replace-lines:
+    name: check for replace lines in go.mod files
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout project code
+        uses: actions/checkout@v2
+      - name: check for replace lines in go.mod files
+        run: |
+          ! egrep --invert-match -e '^replace.*/api => \./api|^replace.*//allow-merging$'  `find . -name 'go.mod'` | egrep -e 'go.mod:replace'
