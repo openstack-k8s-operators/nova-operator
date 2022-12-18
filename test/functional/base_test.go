@@ -811,14 +811,14 @@ func GetCellNames(novaName types.NamespacedName, cell string) CellNames {
 		},
 		TransportURLName: types.NamespacedName{
 			Namespace: novaName.Namespace,
-			Name:      cell + "-transport",
+			Name:      cellName.Name + "-transport",
 		},
 	}
 
 	if cell == "cell0" {
 		c.TransportURLName = types.NamespacedName{
 			Namespace: novaName.Namespace,
-			Name:      "nova-api-transport",
+			Name:      novaName.Name + "-api-transport",
 		}
 	}
 
