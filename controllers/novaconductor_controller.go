@@ -106,7 +106,7 @@ func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			instance.Status.Conditions.MarkTrue(
 				condition.ReadyCondition, condition.ReadyMessage)
 		}
-		err := r.patchInstance(ctx, h, instance)
+		err := h.PatchInstance(ctx, instance)
 		if err != nil {
 			_err = err
 			return

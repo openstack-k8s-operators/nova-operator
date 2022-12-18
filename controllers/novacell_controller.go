@@ -96,7 +96,7 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 			instance.Status.Conditions.MarkTrue(
 				condition.ReadyCondition, condition.ReadyMessage)
 		}
-		err := r.patchInstance(ctx, h, instance)
+		err := h.PatchInstance(ctx, instance)
 		if err != nil {
 			_err = err
 			return
