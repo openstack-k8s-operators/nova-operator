@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controllers
+package functional_test
 
 import (
 	"fmt"
@@ -194,7 +194,7 @@ var _ = Describe("PlacementAPI controller", func() {
 		// lib-common uses OPERATOR_TEMPLATES env var to locate the "templates"
 		// directory of the operator. We need to set them othervise lib-common
 		// will fail to generate the ConfigMap as it does not find common.sh
-		err := os.Setenv("OPERATOR_TEMPLATES", "../templates")
+		err := os.Setenv("OPERATOR_TEMPLATES", "../../templates")
 		Expect(err).NotTo(HaveOccurred())
 
 		placementAPI = NewTestPlacementAPI(TestNamespace)
