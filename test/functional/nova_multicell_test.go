@@ -22,6 +22,8 @@ import (
 	"github.com/google/uuid"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	. "github.com/openstack-k8s-operators/lib-common/modules/test/helpers"
+
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
@@ -92,10 +94,10 @@ var _ = Describe("Nova controller", func() {
 		// as namespaces cannot be deleted in a locally running envtest. See
 		// https://book.kubebuilder.io/reference/envtest.html#namespace-usage-limitation
 		namespace = uuid.New().String()
-		CreateNamespace(namespace)
+		th.CreateNamespace(namespace)
 		// We still request the delete of the Namespace to properly cleanup if
 		// we run the test in an existing cluster.
-		DeferCleanup(DeleteNamespace, namespace)
+		DeferCleanup(th.DeleteNamespace, namespace)
 		// NOTE(gibi): ConfigMap generation looks up the local templates
 		// directory via ENV, so provide it
 		DeferCleanup(os.Setenv, "OPERATOR_TEMPLATES", os.Getenv("OPERATOR_TEMPLATES"))
@@ -198,14 +200,14 @@ var _ = Describe("Nova controller", func() {
 			conductor := GetNovaConductor(cell0.CellConductorName)
 			Expect(conductor.Spec.CellMessageBusSecretName).To(Equal("mq-for-api-secret"))
 
-			ExpectCondition(
+			th.ExpectCondition(
 				cell0.CellConductorName,
-				conditionGetterFunc(NovaConductorConditionGetter),
+				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.DBSyncReadyCondition,
 				corev1.ConditionFalse,
 			)
 			// assert that cell0 using the same DB as the API
-			dbSync := GetJob(cell0.CellDBSyncJobName)
+			dbSync := th.GetJob(cell0.CellDBSyncJobName)
 			dbSyncJobEnv := dbSync.Spec.Template.Spec.InitContainers[0].Env
 			Expect(dbSyncJobEnv).To(
 				ContainElements(
@@ -216,23 +218,23 @@ var _ = Describe("Nova controller", func() {
 				),
 			)
 
-			SimulateJobSuccess(cell0.CellDBSyncJobName)
-			ExpectCondition(
+			th.SimulateJobSuccess(cell0.CellDBSyncJobName)
+			th.ExpectCondition(
 				cell0.CellConductorName,
-				conditionGetterFunc(NovaConductorConditionGetter),
+				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.DBSyncReadyCondition,
 				corev1.ConditionTrue,
 			)
-			SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
-			ExpectCondition(
+			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
+			th.ExpectCondition(
 				cell0.CellName,
-				conditionGetterFunc(NovaCellConditionGetter),
+				ConditionGetterFunc(NovaCellConditionGetter),
 				novav1.NovaConductorReadyCondition,
 				corev1.ConditionTrue,
 			)
-			ExpectCondition(
+			th.ExpectCondition(
 				novaName,
-				conditionGetterFunc(NovaConditionGetter),
+				ConditionGetterFunc(NovaConditionGetter),
 				novav1.NovaAllCellsReadyCondition,
 				corev1.ConditionFalse,
 			)
@@ -242,8 +244,8 @@ var _ = Describe("Nova controller", func() {
 			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
 			SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
 			SimulateTransportURLReady(cell0.TransportURLName)
-			SimulateJobSuccess(cell0.CellDBSyncJobName)
-			SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
+			th.SimulateJobSuccess(cell0.CellDBSyncJobName)
+			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 
 			api := GetNovaAPI(novaAPIName)
 			Expect(api.Spec.Replicas).Should(BeEquivalentTo(1))
@@ -265,17 +267,17 @@ var _ = Describe("Nova controller", func() {
 				ContainSubstring("[api_database]\nconnection = mysql+pymysql://nova_api:12345678@hostname-for-db-for-api/nova_api"),
 			)
 
-			SimulateStatefulSetReplicaReady(novaAPIdeploymentName)
+			th.SimulateStatefulSetReplicaReady(novaAPIdeploymentName)
 
-			ExpectCondition(
+			th.ExpectCondition(
 				novaAPIName,
-				conditionGetterFunc(NovaAPIConditionGetter),
+				ConditionGetterFunc(NovaAPIConditionGetter),
 				condition.DeploymentReadyCondition,
 				corev1.ConditionTrue,
 			)
-			ExpectCondition(
+			th.ExpectCondition(
 				novaName,
-				conditionGetterFunc(NovaConditionGetter),
+				ConditionGetterFunc(NovaConditionGetter),
 				novav1.NovaAPIReadyCondition,
 				corev1.ConditionTrue,
 			)
@@ -285,21 +287,21 @@ var _ = Describe("Nova controller", func() {
 			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
 			SimulateTransportURLReady(cell0.TransportURLName)
 			SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
-			SimulateJobSuccess(cell0.CellDBSyncJobName)
-			SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
-			SimulateStatefulSetReplicaReady(novaAPIdeploymentName)
+			th.SimulateJobSuccess(cell0.CellDBSyncJobName)
+			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
+			th.SimulateStatefulSetReplicaReady(novaAPIdeploymentName)
 
 			SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
-			ExpectCondition(
+			th.ExpectCondition(
 				novaName,
-				conditionGetterFunc(NovaConditionGetter),
+				ConditionGetterFunc(NovaConditionGetter),
 				novav1.NovaAllCellsDBReadyCondition,
 				corev1.ConditionFalse,
 			)
 			SimulateMariaDBDatabaseCompleted(cell2.MariaDBDatabaseName)
-			ExpectCondition(
+			th.ExpectCondition(
 				novaName,
-				conditionGetterFunc(NovaConditionGetter),
+				ConditionGetterFunc(NovaConditionGetter),
 				novav1.NovaAllCellsDBReadyCondition,
 				corev1.ConditionTrue,
 			)
@@ -309,16 +311,16 @@ var _ = Describe("Nova controller", func() {
 		It("creates all cell MQs", func() {
 			SimulateTransportURLReady(cell0.TransportURLName)
 			SimulateTransportURLReady(cell1.TransportURLName)
-			ExpectCondition(
+			th.ExpectCondition(
 				novaName,
-				conditionGetterFunc(NovaConditionGetter),
+				ConditionGetterFunc(NovaConditionGetter),
 				novav1.NovaAllCellsMQReadyCondition,
 				corev1.ConditionFalse,
 			)
 			SimulateTransportURLReady(cell2.TransportURLName)
-			ExpectCondition(
+			th.ExpectCondition(
 				novaName,
-				conditionGetterFunc(NovaConditionGetter),
+				ConditionGetterFunc(NovaConditionGetter),
 				novav1.NovaAllCellsMQReadyCondition,
 				corev1.ConditionTrue,
 			)
@@ -329,9 +331,9 @@ var _ = Describe("Nova controller", func() {
 			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
 			SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
 			SimulateTransportURLReady(cell0.TransportURLName)
-			SimulateJobSuccess(cell0.CellDBSyncJobName)
-			SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
-			SimulateStatefulSetReplicaReady(novaAPIdeploymentName)
+			th.SimulateJobSuccess(cell0.CellDBSyncJobName)
+			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
+			th.SimulateStatefulSetReplicaReady(novaAPIdeploymentName)
 			SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
 			SimulateTransportURLReady(cell1.TransportURLName)
 
@@ -341,14 +343,14 @@ var _ = Describe("Nova controller", func() {
 			c1Conductor := GetNovaConductor(cell1.CellConductorName)
 			Expect(c1Conductor.Spec.CellMessageBusSecretName).To(Equal("mq-for-cell1-secret"))
 
-			ExpectCondition(
+			th.ExpectCondition(
 				cell1.CellConductorName,
-				conditionGetterFunc(NovaConductorConditionGetter),
+				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.DBSyncReadyCondition,
 				corev1.ConditionFalse,
 			)
 			// assert that cell1 using its own DB but has access to the API DB
-			dbSync := GetJob(cell1.CellDBSyncJobName)
+			dbSync := th.GetJob(cell1.CellDBSyncJobName)
 			dbSyncJobEnv := dbSync.Spec.Template.Spec.InitContainers[0].Env
 			Expect(dbSyncJobEnv).To(
 				ContainElements(
@@ -358,23 +360,23 @@ var _ = Describe("Nova controller", func() {
 					},
 				),
 			)
-			SimulateJobSuccess(cell1.CellDBSyncJobName)
-			ExpectCondition(
+			th.SimulateJobSuccess(cell1.CellDBSyncJobName)
+			th.ExpectCondition(
 				cell1.CellConductorName,
-				conditionGetterFunc(NovaConductorConditionGetter),
+				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.DBSyncReadyCondition,
 				corev1.ConditionTrue,
 			)
-			SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
-			ExpectCondition(
+			th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
+			th.ExpectCondition(
 				cell1.CellName,
-				conditionGetterFunc(NovaCellConditionGetter),
+				ConditionGetterFunc(NovaCellConditionGetter),
 				novav1.NovaConductorReadyCondition,
 				corev1.ConditionTrue,
 			)
-			ExpectCondition(
+			th.ExpectCondition(
 				novaName,
-				conditionGetterFunc(NovaConditionGetter),
+				ConditionGetterFunc(NovaConditionGetter),
 				novav1.NovaAllCellsReadyCondition,
 				corev1.ConditionFalse,
 			)
@@ -383,13 +385,13 @@ var _ = Describe("Nova controller", func() {
 			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
 			SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
 			SimulateTransportURLReady(cell0.TransportURLName)
-			SimulateJobSuccess(cell0.CellDBSyncJobName)
-			SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
-			SimulateStatefulSetReplicaReady(novaAPIdeploymentName)
+			th.SimulateJobSuccess(cell0.CellDBSyncJobName)
+			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
+			th.SimulateStatefulSetReplicaReady(novaAPIdeploymentName)
 			SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
 			SimulateTransportURLReady(cell1.TransportURLName)
-			SimulateJobSuccess(cell1.CellDBSyncJobName)
-			SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
+			th.SimulateJobSuccess(cell1.CellDBSyncJobName)
+			th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
 
 			SimulateMariaDBDatabaseCompleted(cell2.MariaDBDatabaseName)
 			SimulateTransportURLReady(cell2.TransportURLName)
@@ -399,14 +401,14 @@ var _ = Describe("Nova controller", func() {
 			Expect(c2.Spec.CellMessageBusSecretName).To(Equal("mq-for-cell2-secret"))
 			c2Conductor := GetNovaConductor(cell2.CellConductorName)
 			Expect(c2Conductor.Spec.CellMessageBusSecretName).To(Equal("mq-for-cell2-secret"))
-			ExpectCondition(
+			th.ExpectCondition(
 				cell2.CellConductorName,
-				conditionGetterFunc(NovaConductorConditionGetter),
+				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.DBSyncReadyCondition,
 				corev1.ConditionFalse,
 			)
 			// assert that cell2 using its own DB but has *no* access to the API DB
-			dbSync := GetJob(cell2.CellDBSyncJobName)
+			dbSync := th.GetJob(cell2.CellDBSyncJobName)
 			dbSyncJobEnv := dbSync.Spec.Template.Spec.InitContainers[0].Env
 			Expect(dbSyncJobEnv).To(
 				ContainElements(
@@ -422,31 +424,31 @@ var _ = Describe("Nova controller", func() {
 					},
 				),
 			)
-			SimulateJobSuccess(cell2.CellDBSyncJobName)
-			ExpectCondition(
+			th.SimulateJobSuccess(cell2.CellDBSyncJobName)
+			th.ExpectCondition(
 				cell2.CellConductorName,
-				conditionGetterFunc(NovaConductorConditionGetter),
+				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.DBSyncReadyCondition,
 				corev1.ConditionTrue,
 			)
-			SimulateStatefulSetReplicaReady(cell2.ConductorStatefulSetName)
-			ExpectCondition(
+			th.SimulateStatefulSetReplicaReady(cell2.ConductorStatefulSetName)
+			th.ExpectCondition(
 				cell2.CellName,
-				conditionGetterFunc(NovaCellConditionGetter),
+				ConditionGetterFunc(NovaCellConditionGetter),
 				novav1.NovaConductorReadyCondition,
 				corev1.ConditionTrue,
 			)
 			// As cell2 was the last cell to deploy all cells is ready now and
 			// Nova becomes ready
-			ExpectCondition(
+			th.ExpectCondition(
 				novaName,
-				conditionGetterFunc(NovaConditionGetter),
+				ConditionGetterFunc(NovaConditionGetter),
 				novav1.NovaAllCellsReadyCondition,
 				corev1.ConditionTrue,
 			)
-			ExpectCondition(
+			th.ExpectCondition(
 				novaName,
-				conditionGetterFunc(NovaConditionGetter),
+				ConditionGetterFunc(NovaConditionGetter),
 				condition.ReadyCondition,
 				corev1.ConditionTrue,
 			)
@@ -461,30 +463,30 @@ var _ = Describe("Nova controller", func() {
 			GetNovaCell(cell2.CellName)
 			GetNovaConductor(cell2.CellConductorName)
 
-			SimulateJobSuccess(cell2.CellDBSyncJobName)
-			ExpectCondition(
+			th.SimulateJobSuccess(cell2.CellDBSyncJobName)
+			th.ExpectCondition(
 				cell2.CellConductorName,
-				conditionGetterFunc(NovaConductorConditionGetter),
+				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.DBSyncReadyCondition,
 				corev1.ConditionTrue,
 			)
-			SimulateStatefulSetReplicaReady(cell2.ConductorStatefulSetName)
-			ExpectCondition(
+			th.SimulateStatefulSetReplicaReady(cell2.ConductorStatefulSetName)
+			th.ExpectCondition(
 				cell2.CellName,
-				conditionGetterFunc(NovaCellConditionGetter),
+				ConditionGetterFunc(NovaCellConditionGetter),
 				novav1.NovaConductorReadyCondition,
 				corev1.ConditionTrue,
 			)
-			ExpectCondition(
+			th.ExpectCondition(
 				cell2.CellName,
-				conditionGetterFunc(NovaCellConditionGetter),
+				ConditionGetterFunc(NovaCellConditionGetter),
 				condition.ReadyCondition,
 				corev1.ConditionTrue,
 			)
 			// Only cell2 succeeded so Nova is not ready yet
-			ExpectCondition(
+			th.ExpectCondition(
 				novaName,
-				conditionGetterFunc(NovaConditionGetter),
+				ConditionGetterFunc(NovaConditionGetter),
 				novav1.NovaAllCellsReadyCondition,
 				corev1.ConditionFalse,
 			)
@@ -493,27 +495,27 @@ var _ = Describe("Nova controller", func() {
 			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
 			SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
 			SimulateTransportURLReady(cell0.TransportURLName)
-			SimulateJobSuccess(cell0.CellDBSyncJobName)
-			SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
+			th.SimulateJobSuccess(cell0.CellDBSyncJobName)
+			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 
 			// Simulate that cell1 DB sync failed and do not simulate
 			// cell2 DB creation success so that will be in Creating state.
 			SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
 			SimulateTransportURLReady(cell1.TransportURLName)
-			SimulateJobFailure(cell1.CellDBSyncJobName)
+			th.SimulateJobFailure(cell1.CellDBSyncJobName)
 
 			// NovaAPI is still created
 			GetNovaAPI(novaAPIName)
-			SimulateStatefulSetReplicaReady(novaAPIdeploymentName)
-			ExpectCondition(
+			th.SimulateStatefulSetReplicaReady(novaAPIdeploymentName)
+			th.ExpectCondition(
 				novaName,
-				conditionGetterFunc(NovaConditionGetter),
+				ConditionGetterFunc(NovaConditionGetter),
 				novav1.NovaAPIReadyCondition,
 				corev1.ConditionTrue,
 			)
-			ExpectCondition(
+			th.ExpectCondition(
 				novaName,
-				conditionGetterFunc(NovaConditionGetter),
+				ConditionGetterFunc(NovaConditionGetter),
 				novav1.NovaAllCellsReadyCondition,
 				corev1.ConditionFalse,
 			)
@@ -525,7 +527,7 @@ var _ = Describe("Nova controller", func() {
 			SimulateTransportURLReady(cell0.TransportURLName)
 			SimulateTransportURLReady(cell1.TransportURLName)
 
-			SimulateJobFailure(cell0.CellDBSyncJobName)
+			th.SimulateJobFailure(cell0.CellDBSyncJobName)
 
 			NovaCellNotExists(cell1.CellName)
 		})

@@ -21,6 +21,8 @@ import (
 	"github.com/google/uuid"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	. "github.com/openstack-k8s-operators/lib-common/modules/test/helpers"
+
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -127,26 +129,26 @@ func CreateNovaWith3CellsAndEnsureReady(namespace string) types.NamespacedName {
 	SimulateTransportURLReady(cell1.TransportURLName)
 	SimulateTransportURLReady(cell2.TransportURLName)
 
-	SimulateJobSuccess(cell0.CellDBSyncJobName)
-	SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
+	th.SimulateJobSuccess(cell0.CellDBSyncJobName)
+	th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 
-	SimulateStatefulSetReplicaReady(novaAPIdeploymentName)
+	th.SimulateStatefulSetReplicaReady(novaAPIdeploymentName)
 
-	SimulateJobSuccess(cell1.CellDBSyncJobName)
-	SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
+	th.SimulateJobSuccess(cell1.CellDBSyncJobName)
+	th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
 
-	SimulateJobSuccess(cell2.CellDBSyncJobName)
-	SimulateStatefulSetReplicaReady(cell2.ConductorStatefulSetName)
+	th.SimulateJobSuccess(cell2.CellDBSyncJobName)
+	th.SimulateStatefulSetReplicaReady(cell2.ConductorStatefulSetName)
 
-	ExpectCondition(
+	th.ExpectCondition(
 		novaName,
-		conditionGetterFunc(NovaConditionGetter),
+		ConditionGetterFunc(NovaConditionGetter),
 		novav1.NovaAllCellsReadyCondition,
 		corev1.ConditionTrue,
 	)
-	ExpectCondition(
+	th.ExpectCondition(
 		novaName,
-		conditionGetterFunc(NovaConditionGetter),
+		ConditionGetterFunc(NovaConditionGetter),
 		condition.ReadyCondition,
 		corev1.ConditionTrue,
 	)
@@ -162,10 +164,10 @@ var _ = Describe("Nova reconfiguration", func() {
 		// as namespaces cannot be deleted in a locally running envtest. See
 		// https://book.kubebuilder.io/reference/envtest.html#namespace-usage-limitation
 		namespace = uuid.New().String()
-		CreateNamespace(namespace)
+		th.CreateNamespace(namespace)
 		// We still request the delete of the Namespace to properly cleanup if
 		// we run the test in an existing cluster.
-		DeferCleanup(DeleteNamespace, namespace)
+		DeferCleanup(th.DeleteNamespace, namespace)
 		// NOTE(gibi): ConfigMap generation looks up the local templates
 		// directory via ENV, so provide it
 		DeferCleanup(os.Setenv, "OPERATOR_TEMPLATES", os.Getenv("OPERATOR_TEMPLATES"))
@@ -182,7 +184,7 @@ var _ = Describe("Nova reconfiguration", func() {
 		It("sets the deployment replicas to 0", func() {
 			cell0DeploymentName := NewCell(novaName, "cell0").ConductorStatefulSetName
 
-			deployment := GetStatefulSet(cell0DeploymentName)
+			deployment := th.GetStatefulSet(cell0DeploymentName)
 			one := int32(1)
 			Expect(deployment.Spec.Replicas).To(Equal(&one))
 

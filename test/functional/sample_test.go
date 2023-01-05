@@ -84,10 +84,10 @@ var _ = Describe("Samples", func() {
 		// as namespaces cannot be deleted in a locally running envtest. See
 		// https://book.kubebuilder.io/reference/envtest.html#namespace-usage-limitation
 		namespace = uuid.New().String()
-		CreateNamespace(namespace)
+		th.CreateNamespace(namespace)
 		// We still request the delete of the Namespace to properly cleanup if
 		// we run the test in an existing cluster.
-		DeferCleanup(DeleteNamespace, namespace)
+		DeferCleanup(th.DeleteNamespace, namespace)
 		// NOTE(gibi): ConfigMap generation looks up the local templates
 		// directory via ENV, so provide it
 		DeferCleanup(os.Setenv, "OPERATOR_TEMPLATES", os.Getenv("OPERATOR_TEMPLATES"))

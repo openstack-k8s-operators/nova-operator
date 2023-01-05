@@ -22,6 +22,8 @@ import (
 	"github.com/google/uuid"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	. "github.com/openstack-k8s-operators/lib-common/modules/test/helpers"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -38,10 +40,10 @@ var _ = Describe("NovaAPI controller", func() {
 		// as namespaces cannot be deleted in a locally running envtest. See
 		// https://book.kubebuilder.io/reference/envtest.html#namespace-usage-limitation
 		namespace = uuid.New().String()
-		CreateNamespace(namespace)
+		th.CreateNamespace(namespace)
 		// We still request the delete of the Namespace to properly cleanup if
 		// we run the test in an existing cluster.
-		DeferCleanup(DeleteNamespace, namespace)
+		DeferCleanup(th.DeleteNamespace, namespace)
 		// NOTE(gibi): ConfigMap generation looks up the local templates
 		// directory via ENV, so provide it
 		DeferCleanup(os.Setenv, "OPERATOR_TEMPLATES", os.Getenv("OPERATOR_TEMPLATES"))
@@ -64,9 +66,9 @@ var _ = Describe("NovaAPI controller", func() {
 		})
 
 		It("is not Ready", func() {
-			ExpectCondition(
+			th.ExpectCondition(
 				novaAPIName,
-				conditionGetterFunc(NovaAPIConditionGetter),
+				ConditionGetterFunc(NovaAPIConditionGetter),
 				condition.ReadyCondition, corev1.ConditionUnknown,
 			)
 		})
@@ -83,9 +85,9 @@ var _ = Describe("NovaAPI controller", func() {
 		})
 
 		It("is missing the secret", func() {
-			ExpectCondition(
+			th.ExpectCondition(
 				novaAPIName,
-				conditionGetterFunc(NovaAPIConditionGetter),
+				ConditionGetterFunc(NovaAPIConditionGetter),
 				condition.InputReadyCondition,
 				corev1.ConditionFalse,
 			)
@@ -104,18 +106,18 @@ var _ = Describe("NovaAPI controller", func() {
 			})
 
 			It("is not Ready", func() {
-				ExpectCondition(
+				th.ExpectCondition(
 					novaAPIName,
-					conditionGetterFunc(NovaAPIConditionGetter),
+					ConditionGetterFunc(NovaAPIConditionGetter),
 					condition.ReadyCondition,
 					corev1.ConditionUnknown,
 				)
 			})
 
 			It("is missing the secret", func() {
-				ExpectCondition(
+				th.ExpectCondition(
 					novaAPIName,
-					conditionGetterFunc(NovaAPIConditionGetter),
+					ConditionGetterFunc(NovaAPIConditionGetter),
 					condition.InputReadyCondition,
 					corev1.ConditionFalse,
 				)
@@ -139,18 +141,18 @@ var _ = Describe("NovaAPI controller", func() {
 			})
 
 			It("is not Ready", func() {
-				ExpectCondition(
+				th.ExpectCondition(
 					novaAPIName,
-					conditionGetterFunc(NovaAPIConditionGetter),
+					ConditionGetterFunc(NovaAPIConditionGetter),
 					condition.ReadyCondition,
 					corev1.ConditionUnknown,
 				)
 			})
 
 			It("reports that the inputes are not ready", func() {
-				ExpectCondition(
+				th.ExpectCondition(
 					novaAPIName,
-					conditionGetterFunc(NovaAPIConditionGetter),
+					ConditionGetterFunc(NovaAPIConditionGetter),
 					condition.InputReadyCondition,
 					corev1.ConditionFalse,
 				)
@@ -164,9 +166,9 @@ var _ = Describe("NovaAPI controller", func() {
 			})
 
 			It("reports that input is ready", func() {
-				ExpectCondition(
+				th.ExpectCondition(
 					novaAPIName,
-					conditionGetterFunc(NovaAPIConditionGetter),
+					ConditionGetterFunc(NovaAPIConditionGetter),
 					condition.InputReadyCondition,
 					corev1.ConditionTrue,
 				)
@@ -175,9 +177,9 @@ var _ = Describe("NovaAPI controller", func() {
 			It("generated configs successfully", func() {
 				// NOTE(gibi): NovaAPI has no external dependency right now to
 				// generate the configs.
-				ExpectCondition(
+				th.ExpectCondition(
 					novaAPIName,
-					conditionGetterFunc(NovaAPIConditionGetter),
+					ConditionGetterFunc(NovaAPIConditionGetter),
 					condition.ServiceConfigReadyCondition,
 					corev1.ConditionTrue,
 				)
@@ -207,9 +209,9 @@ var _ = Describe("NovaAPI controller", func() {
 
 			When("the NovaAPI is deleted", func() {
 				It("deletes the generated ConfigMaps", func() {
-					ExpectCondition(
+					th.ExpectCondition(
 						novaAPIName,
-						conditionGetterFunc(NovaAPIConditionGetter),
+						ConditionGetterFunc(NovaAPIConditionGetter),
 						condition.ServiceConfigReadyCondition,
 						corev1.ConditionTrue,
 					)
@@ -234,9 +236,9 @@ var _ = Describe("NovaAPI controller", func() {
 			novaAPIName = CreateNovaAPI(namespace, GetDefaultNovaAPISpec())
 			DeferCleanup(DeleteNovaAPI, novaAPIName)
 
-			ExpectCondition(
+			th.ExpectCondition(
 				novaAPIName,
-				conditionGetterFunc(NovaAPIConditionGetter),
+				ConditionGetterFunc(NovaAPIConditionGetter),
 				condition.InputReadyCondition,
 				corev1.ConditionTrue,
 			)
@@ -255,9 +257,9 @@ var _ = Describe("NovaAPI controller", func() {
 			novaAPIName = CreateNovaAPI(namespace, GetDefaultNovaAPISpec())
 			DeferCleanup(DeleteNovaAPI, novaAPIName)
 
-			ExpectCondition(
+			th.ExpectCondition(
 				novaAPIName,
-				conditionGetterFunc(NovaAPIConditionGetter),
+				ConditionGetterFunc(NovaAPIConditionGetter),
 				condition.ServiceConfigReadyCondition,
 				corev1.ConditionTrue,
 			)
@@ -269,16 +271,16 @@ var _ = Describe("NovaAPI controller", func() {
 		})
 
 		It("creates a StatefulSet for the nova-api service", func() {
-			ExpectConditionWithDetails(
+			th.ExpectConditionWithDetails(
 				novaAPIName,
-				conditionGetterFunc(NovaAPIConditionGetter),
+				ConditionGetterFunc(NovaAPIConditionGetter),
 				condition.DeploymentReadyCondition,
 				corev1.ConditionFalse,
 				condition.RequestedReason,
 				condition.DeploymentReadyRunningMessage,
 			)
 
-			ss := GetStatefulSet(statefulSetName)
+			ss := th.GetStatefulSet(statefulSetName)
 			Expect(int(*ss.Spec.Replicas)).To(Equal(1))
 			Expect(ss.Spec.Template.Spec.Volumes).To(HaveLen(2))
 			Expect(ss.Spec.Template.Spec.Containers).To(HaveLen(2))
@@ -294,21 +296,21 @@ var _ = Describe("NovaAPI controller", func() {
 
 		When("the StatefulSet has at least one Replica ready", func() {
 			BeforeEach(func() {
-				ExpectConditionWithDetails(
+				th.ExpectConditionWithDetails(
 					novaAPIName,
-					conditionGetterFunc(NovaAPIConditionGetter),
+					ConditionGetterFunc(NovaAPIConditionGetter),
 					condition.DeploymentReadyCondition,
 					corev1.ConditionFalse,
 					condition.RequestedReason,
 					condition.DeploymentReadyRunningMessage,
 				)
-				SimulateStatefulSetReplicaReady(statefulSetName)
+				th.SimulateStatefulSetReplicaReady(statefulSetName)
 			})
 
 			It("reports that the StatefulSet is ready", func() {
-				ExpectCondition(
+				th.ExpectCondition(
 					novaAPIName,
-					conditionGetterFunc(NovaAPIConditionGetter),
+					ConditionGetterFunc(NovaAPIConditionGetter),
 					condition.DeploymentReadyCondition,
 					corev1.ConditionTrue,
 				)
@@ -319,10 +321,10 @@ var _ = Describe("NovaAPI controller", func() {
 		})
 
 		It("exposes the service", func() {
-			SimulateStatefulSetReplicaReady(statefulSetName)
-			ExpectCondition(
+			th.SimulateStatefulSetReplicaReady(statefulSetName)
+			th.ExpectCondition(
 				novaAPIName,
-				conditionGetterFunc(NovaAPIConditionGetter),
+				ConditionGetterFunc(NovaAPIConditionGetter),
 				condition.ExposeServiceReadyCondition,
 				corev1.ConditionTrue,
 			)
@@ -335,7 +337,7 @@ var _ = Describe("NovaAPI controller", func() {
 		})
 
 		It("creates KeystoneEndpoint", func() {
-			SimulateStatefulSetReplicaReady(statefulSetName)
+			th.SimulateStatefulSetReplicaReady(statefulSetName)
 			SimulateKeystoneEndpointReady(types.NamespacedName{Namespace: namespace, Name: "nova"})
 
 			keystoneEndpoint := GetKeystoneEndpoint(types.NamespacedName{Namespace: namespace, Name: "nova"})
@@ -344,21 +346,21 @@ var _ = Describe("NovaAPI controller", func() {
 			Expect(endpoints).To(HaveKeyWithValue("internal", "http:/v2.1"))
 			Expect(endpoints).To(HaveKeyWithValue("admin", "http:/v2.1"))
 
-			ExpectCondition(
+			th.ExpectCondition(
 				novaAPIName,
-				conditionGetterFunc(NovaAPIConditionGetter),
+				ConditionGetterFunc(NovaAPIConditionGetter),
 				condition.KeystoneEndpointReadyCondition,
 				corev1.ConditionTrue,
 			)
 		})
 
 		It("is Ready", func() {
-			SimulateStatefulSetReplicaReady(statefulSetName)
+			th.SimulateStatefulSetReplicaReady(statefulSetName)
 			SimulateKeystoneEndpointReady(types.NamespacedName{Namespace: namespace, Name: "nova"})
 
-			ExpectCondition(
+			th.ExpectCondition(
 				novaAPIName,
-				conditionGetterFunc(NovaAPIConditionGetter),
+				ConditionGetterFunc(NovaAPIConditionGetter),
 				condition.ReadyCondition,
 				corev1.ConditionTrue,
 			)
@@ -380,11 +382,11 @@ var _ = Describe("NovaAPI controller", func() {
 		})
 
 		It("removes the finalizer from KeystoneEndpoint", func() {
-			SimulateStatefulSetReplicaReady(statefulSetName)
+			th.SimulateStatefulSetReplicaReady(statefulSetName)
 			SimulateKeystoneEndpointReady(keystoneEndpointName)
-			ExpectCondition(
+			th.ExpectCondition(
 				novaAPIName,
-				conditionGetterFunc(NovaAPIConditionGetter),
+				ConditionGetterFunc(NovaAPIConditionGetter),
 				condition.ReadyCondition,
 				corev1.ConditionTrue,
 			)
