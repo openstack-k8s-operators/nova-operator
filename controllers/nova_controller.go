@@ -26,12 +26,12 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/endpoint"
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
-	log "github.com/openstack-k8s-operators/lib-common/modules/common/log"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	database "github.com/openstack-k8s-operators/lib-common/modules/database"
 
@@ -67,7 +67,6 @@ type NovaReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.2/pkg/reconcile
 func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, _err error) {
-	ctx = log.IntoContext(ctx, req, "Nova")
 	l := log.FromContext(ctx)
 
 	// Fetch the NovaAPI instance that needs to be reconciled
@@ -97,7 +96,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		l.Error(err, "Failed to create lib-common Helper")
 		return ctrl.Result{}, err
 	}
-	l.Info("Reconciling")
+	util.LogForObject(h, "Reconciling", instance)
 
 	// initialize status fields
 	if err = r.initStatus(ctx, h, instance); err != nil {
@@ -129,7 +128,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	// the our KeystoneService so that is also deleted.
 	updated := controllerutil.AddFinalizer(instance, h.GetFinalizer())
 	if updated {
-		l.Info("Added finalizer to ourselves")
+		util.LogForObject(h, "Added finalizer to ourselves", instance)
 		// we intentionally return imediately to force the deferred function
 		// to persist the Instance with the finalizer. We need to have our own
 		// finalizer persisted before we try to create the KeystoneService with
@@ -151,7 +150,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 
 	// We have to wait until our service is registered to keystone
 	if !instance.Status.Conditions.IsTrue(condition.KeystoneServiceReadyCondition) {
-		l.Info("Waiting for the KeystoneService to become Ready")
+		util.LogForObject(h, "Waiting for the KeystoneService to become Ready", instance)
 		return ctrl.Result{}, nil
 	}
 
@@ -326,13 +325,17 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		if cellDB.Status != nova.DBCompleted {
 			allCellsReady = false
 			skippedCells = append(skippedCells, cellName)
-			l.Info("Skipping NovaCell as waiting for the cell DB to be created", "CellName", cellName)
+			util.LogForObject(
+				h, "Skipping NovaCell as waiting for the cell DB to be created",
+				instance, "CellName", cellName)
 			continue
 		}
 		if cellMQ.Status != nova.MQCompleted {
 			allCellsReady = false
 			skippedCells = append(skippedCells, cellName)
-			l.Info("Skipping NovaCell as waiting for the cell MQ to be created", "CellName", cellName)
+			util.LogForObject(
+				h, "Skipping NovaCell as waiting for the cell MQ to be created",
+				instance, "CellName", cellName)
 			continue
 		}
 
@@ -342,8 +345,9 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		if cellName != Cell0Name && cellTemplate.HasAPIAccess && !cells[Cell0Name].IsReady() {
 			allCellsReady = false
 			skippedCells = append(skippedCells, cellName)
-			l.Info(
-				"Skippig NovaCell as cell0 is not ready yet and this cell needs API DB access", "CellName", cellName)
+			util.LogForObject(
+				h, "Skippig NovaCell as cell0 is not ready yet and this cell needs API DB access",
+				instance, "CellName", cellName)
 			continue
 		}
 
@@ -362,14 +366,10 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 
 		allCellsReady = allCellsReady && cell.IsReady()
 	}
-	l.Info(
-		"Cell statuses",
-		"failed", failedCells,
-		"creating", creatingCells,
-		"waiting", skippedCells,
-		"ready", readyCells,
-		"all cells ready", allCellsReady,
-	)
+	util.LogForObject(
+		h, "Cell statuses", instance, "failed", failedCells,
+		"creating", creatingCells, "waiting", skippedCells,
+		"ready", readyCells, "all cells ready", allCellsReady)
 	if len(failedCells) > 0 {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			novav1.NovaAllCellsReadyCondition,
@@ -403,7 +403,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	// until cell0 is ready as top level services need cell0 to register in
 	if cell0, ok := cells[Cell0Name]; !ok || !cell0.IsReady() {
 		// we need to stop here until cell0 is ready
-		l.Info("Waiting for cell0 to become Ready before creating the top level services")
+		util.LogForObject(h, "Waiting for cell0 to become Ready before creating the top level services", instance)
 		return ctrl.Result{}, nil
 	}
 
@@ -415,7 +415,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		return result, err
 	}
 
-	l.Info("Successfully reconciled")
+	util.LogForObject(h, "Successfully reconciled", instance)
 	return ctrl.Result{}, nil
 }
 
@@ -644,7 +644,7 @@ func (r *NovaReconciler) ensureCell(
 	}
 
 	if op != controllerutil.OperationResultNone {
-		log.FromContext(ctx).Info(fmt.Sprintf("NovaCell %s.", string(op)), "NovaCell.Name", cell.Name)
+		util.LogForObject(h, fmt.Sprintf("NovaCell %s.", string(op)), instance, "NovaCell.Name", cell.Name)
 	}
 
 	return cell, ctrl.Result{}, nil
@@ -709,7 +709,7 @@ func (r *NovaReconciler) ensureAPI(
 	}
 
 	if op != controllerutil.OperationResultNone {
-		log.FromContext(ctx).Info(fmt.Sprintf("NovaAPI %s.", string(op)), "NovaAPI.Name", api.Name)
+		util.LogForObject(h, fmt.Sprintf("NovaAPI %s.", string(op)), instance, "NovaAPI.Name", api.Name)
 	}
 
 	c := api.Status.Conditions.Mirror(novav1.NovaAPIReadyCondition)
@@ -788,7 +788,7 @@ func (r *NovaReconciler) ensureKeystoneServiceUserDeletion(
 	if err = h.GetClient().Update(ctx, service); err != nil && !k8s_errors.IsNotFound(err) {
 		return err
 	}
-	log.FromContext(ctx).Info("Removed finalizer from nova KeystoneService")
+	util.LogForObject(h, "Removed finalizer from nova KeystoneService", instance)
 
 	return nil
 }
@@ -817,8 +817,7 @@ func (r *NovaReconciler) reconcileDelete(
 	h *helper.Helper,
 	instance *novav1.Nova,
 ) error {
-	l := log.FromContext(ctx)
-	l.Info("Reconciling delete")
+	util.LogForObject(h, "Reconciling delete", instance)
 
 	err := r.ensureKeystoneServiceUserDeletion(ctx, h, instance)
 	if err != nil {
@@ -829,10 +828,10 @@ func (r *NovaReconciler) reconcileDelete(
 	// finalizer from ourselves to allow the deletion of Nova CR itself
 	updated := controllerutil.RemoveFinalizer(instance, h.GetFinalizer())
 	if updated {
-		l.Info("Removed finalizer from ourselves")
+		util.LogForObject(h, "Removed finalizer from ourselves", instance)
 	}
 
-	l.Info("Reconciled delete successfully")
+	util.LogForObject(h, "Reconciled delete successfully", instance)
 	return nil
 }
 
@@ -866,7 +865,7 @@ func (r *NovaReconciler) ensureMQ(
 	}
 
 	if op != controllerutil.OperationResultNone {
-		log.FromContext(ctx).Info("TransportURL created or patched", "TransportURL", transportURL)
+		util.LogForObject(h, fmt.Sprintf("TransportURL object %s created or patched", transportName), transportURL)
 		return "", nova.MQCreating, nil
 	}
 
