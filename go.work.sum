@@ -75,6 +75,8 @@ github.com/fsnotify/fsnotify v1.4.9/go.mod h1:znqG4EE+3YCdAaPaxE2ZRY/06pZUdp0tY4
 github.com/fsnotify/fsnotify v1.5.1/go.mod h1:T3375wBYaZdLLcVNkcVbzGHY7f1l/uK5T5Ai1i3InKU=
 github.com/getkin/kin-openapi v0.76.0/go.mod h1:660oXbgy5JFMKreazJaQTw7o+X00qeSyhcnluiMv+Xg=
 github.com/getsentry/raven-go v0.2.0/go.mod h1:KungGk8q33+aIAZUIVWZDr2OfAEBsO49PX4NzFV5kcQ=
+github.com/gibizer/lib-common/modules/common v0.0.0-20221219140315-47b042183a5b h1:J7HneemRRPUAFpBUxlTEIXQ3za4J/kUwpSwWf8fNchw=
+github.com/gibizer/lib-common/modules/common v0.0.0-20221219140315-47b042183a5b/go.mod h1:qV9OlokZRpqbHI3lmeN5EOmIKynWphw6GPl3zP9KOGM=
 github.com/gibizer/openstack-operator/apis v0.0.0-20221117131348-5458078589f5/go.mod h1:ScmKvwvPeQv9qbFQ5wPnVE3y7iRuxic29NxX+P7iWG8=
 github.com/go-logr/logr v0.1.0/go.mod h1:ixOQHD9gLJUVQQ2ZOR7zLEifBX6tGkNJF4QyIY7sIas=
 github.com/go-logr/logr v0.2.0/go.mod h1:z6/tIYblkpsD+a4lm/fGIIU9mZ+XfAiaFtq7xTgseGU=

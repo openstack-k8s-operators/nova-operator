@@ -199,7 +199,7 @@ func (s NovaCellStatus) GetConditions() condition.Conditions {
 	return s.Conditions
 }
 
-//IsReady returns true if the Cell reconciled successfully
+// IsReady returns true if the Cell reconciled successfully
 func (c NovaCell) IsReady() bool {
 	readyCond := c.Status.Conditions.Get(condition.ReadyCondition)
 	return readyCond != nil && readyCond.Status == corev1.ConditionTrue
