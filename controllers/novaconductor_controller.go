@@ -253,7 +253,6 @@ func (r *NovaConductorReconciler) ensureConfigMaps(
 //
 // generateServiceConfigMaps - create create configmaps which hold scripts and service configuration
 // TODO add DefaultConfigOverwrite
-//
 func (r *NovaConductorReconciler) generateServiceConfigMaps(
 	ctx context.Context,
 	h *helper.Helper,
