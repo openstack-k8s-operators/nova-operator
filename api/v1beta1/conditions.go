@@ -20,9 +20,7 @@ import (
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 )
 
-//
 // Nova Condition Types used by API objects.
-//
 const (
 	// NovaAPIReadyCondition indicates if the NovaAPI is operational
 	NovaAPIReadyCondition condition.Type = "NovaAPIReady"
@@ -43,9 +41,7 @@ const (
 	NovaAllCellsMQReadyCondition condition.Type = "NovaAllCellsMQReady"
 )
 
-//
 // Common Messages used by API objects.
-//
 const (
 	// NovaAPIReadyInitMessage
 	NovaAPIReadyInitMessage = "NovaAPI not started"
