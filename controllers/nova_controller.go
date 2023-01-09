@@ -111,7 +111,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 			instance.Status.Conditions.MarkTrue(
 				condition.ReadyCondition, condition.ReadyMessage)
 		}
-		err := r.patchInstance(ctx, h, instance)
+		err := h.PatchInstance(ctx, instance)
 		if err != nil {
 			_err = err
 			return

@@ -274,39 +274,3 @@ func (r *ReconcilerBase) GenerateConfigs(
 	// to enable unit testing at some point.
 	return configmap.EnsureConfigMaps(ctx, h, instance, cms, envVars)
 }
-
-func (r *ReconcilerBase) patchInstance(ctx context.Context, h *helper.Helper, instance client.Object) error {
-	var err error
-
-	if err = h.SetAfter(instance); err != nil {
-		util.LogErrorForObject(h, err, "Set after and calc patch/diff", instance)
-		return err
-	}
-
-	changes := h.GetChanges()
-	patch := client.MergeFrom(h.GetBeforeObject())
-
-	if changes["metadata"] {
-		err = r.Client.Patch(ctx, instance, patch)
-		if k8s_errors.IsConflict(err) {
-			util.LogForObject(h, "Metadata update conflict", instance)
-			return err
-		} else if err != nil && !k8s_errors.IsNotFound(err) {
-			util.LogErrorForObject(h, err, "Metadate update failed", instance)
-			return err
-		}
-	}
-
-	if changes["status"] {
-		err = r.Client.Status().Patch(ctx, instance, patch)
-		if k8s_errors.IsConflict(err) {
-			util.LogForObject(h, "Status update conflict", instance)
-			return err
-
-		} else if err != nil && !k8s_errors.IsNotFound(err) {
-			util.LogErrorForObject(h, err, "Status update failed", instance)
-			return err
-		}
-	}
-	return nil
-}
