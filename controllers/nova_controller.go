@@ -167,7 +167,8 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	// Cell DBs and Cells without upcall support). Eventually we rely on the
 	// watch to get reconciled if the status of the API DB resource changes.
 	apiDB, apiDBStatus, apiDBError := r.ensureAPIDB(ctx, h, instance)
-	if apiDBStatus == nova.DBFailed {
+	switch apiDBStatus {
+	case nova.DBFailed:
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			novav1.NovaAPIDBReadyCondition,
 			condition.ErrorReason,
@@ -175,17 +176,17 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 			condition.DBReadyErrorMessage,
 			apiDBError.Error(),
 		))
-	}
-	if apiDBStatus == nova.DBCreating {
+	case nova.DBCreating:
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			novav1.NovaAPIDBReadyCondition,
 			condition.ErrorReason,
 			condition.SeverityError,
 			condition.DBReadyRunningMessage,
 		))
-	}
-	if apiDBStatus == nova.DBCompleted {
+	case nova.DBCompleted:
 		instance.Status.Conditions.MarkTrue(novav1.NovaAPIDBReadyCondition, condition.DBReadyMessage)
+	default:
+		return ctrl.Result{}, fmt.Errorf("Invalid DatabaseStatus from ensureAPIDB: %d", apiDBStatus)
 	}
 
 	// We need to create a list of cellNames to iterate on and as the map
@@ -208,12 +209,14 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	for _, cellName := range orderedCellNames {
 		cellTemplate := instance.Spec.CellTemplates[cellName]
 		cellDB, status, err := r.ensureCellDB(ctx, h, instance, cellName, cellTemplate)
-		if err != nil {
+		switch status {
+		case nova.DBFailed:
 			failedDBs = append(failedDBs, fmt.Sprintf("%s(%v)", cellName, err.Error()))
-
-		}
-		if status == nova.DBCreating {
+		case nova.DBCreating:
 			creatingDBs = append(creatingDBs, cellName)
+		case nova.DBCompleted:
+		default:
+			return ctrl.Result{}, fmt.Errorf("Invalid DatabaseStatus from ensureCellDB: %d for cell %s", status, cellName)
 		}
 		cellDBs[cellName] = &nova.Database{Database: cellDB, Status: status}
 	}
@@ -241,7 +244,8 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	// we create API MQ separately first
 	apiMQSecretName, apiMQStatus, apiMQError := r.ensureMQ(
 		ctx, h, instance, "nova-api-transport", instance.Spec.APIMessageBusInstance)
-	if apiMQStatus == nova.MQFailed {
+	switch apiMQStatus {
+	case nova.MQFailed:
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			novav1.NovaAPIMQReadyCondition,
 			condition.ErrorReason,
@@ -249,18 +253,18 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 			novav1.NovaAPIMQReadyErrorMessage,
 			apiDBError.Error(),
 		))
-	}
-	if apiMQStatus == nova.MQCreating {
+	case nova.MQCreating:
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			novav1.NovaAPIMQReadyCondition,
 			condition.ErrorReason,
 			condition.SeverityError,
 			novav1.NovaAPIMQReadyCreatingMessage,
 		))
-	}
-	if apiMQStatus == nova.MQCompleted {
+	case nova.MQCompleted:
 		instance.Status.Conditions.MarkTrue(
 			novav1.NovaAPIMQReadyCondition, novav1.NovaAPIMQReadyMessage)
+	default:
+		return ctrl.Result{}, fmt.Errorf("Invalid MessageBusStatus from ensureMQ for the API MQ: %d", apiMQStatus)
 	}
 
 	cellMQs := map[string]*nova.MessageBus{}
@@ -281,12 +285,14 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 			cellMQ, status, err = r.ensureMQ(
 				ctx, h, instance, cellName+"-transport", cellTemplate.CellMessageBusInstance)
 		}
-		if err != nil {
+		switch status {
+		case nova.MQFailed:
 			failedMQs = append(failedMQs, fmt.Sprintf("%s(%v)", cellName, err.Error()))
-
-		}
-		if status == nova.MQCreating {
+		case nova.MQCreating:
 			creatingMQs = append(creatingMQs, cellName)
+		case nova.MQCompleted:
+		default:
+			return ctrl.Result{}, fmt.Errorf("Invalid MessageBusStatus from ensureMQ: %d for cell %s", status, cellName)
 		}
 		cellMQs[cellName] = &nova.MessageBus{SecretName: cellMQ, Status: status}
 	}
