@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controllers
+package functional_test
 
 import (
 	"context"
@@ -42,6 +42,7 @@ import (
 	test "github.com/openstack-k8s-operators/lib-common/modules/test"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	placementv1beta1 "github.com/openstack-k8s-operators/placement-operator/api/v1beta1"
+	"github.com/openstack-k8s-operators/placement-operator/controllers"
 
 	. "github.com/openstack-k8s-operators/lib-common/modules/test/helpers"
 	//+kubebuilder:scaffold:imports
@@ -72,18 +73,18 @@ var _ = BeforeSuite(func() {
 	ctx, cancel = context.WithCancel(context.TODO())
 
 	keystoneCRDs, err := test.GetCRDDirFromModule(
-		"github.com/openstack-k8s-operators/keystone-operator/api", "../go.mod", "bases")
+		"github.com/openstack-k8s-operators/keystone-operator/api", "../../go.mod", "bases")
 	Expect(err).ShouldNot(HaveOccurred())
 	mariaDBCRDs, err := test.GetCRDDirFromModule(
-		"github.com/openstack-k8s-operators/mariadb-operator/api", "../go.mod", "bases")
+		"github.com/openstack-k8s-operators/mariadb-operator/api", "../../go.mod", "bases")
 	Expect(err).ShouldNot(HaveOccurred())
-	routev1CRDs, err := test.GetOpenShiftCRDDir("route/v1", "../go.mod")
+	routev1CRDs, err := test.GetOpenShiftCRDDir("route/v1", "../../go.mod")
 	Expect(err).ShouldNot(HaveOccurred())
 
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
 		CRDDirectoryPaths: []string{
-			filepath.Join("..", "config", "crd", "bases"),
+			filepath.Join("..", "..", "config", "crd", "bases"),
 			// NOTE(gibi): we need to list all the external CRDs our operator depends on
 			keystoneCRDs,
 			mariaDBCRDs,
@@ -131,7 +132,7 @@ var _ = BeforeSuite(func() {
 
 	kclient, err := kubernetes.NewForConfig(cfg)
 	Expect(err).ToNot(HaveOccurred(), "failed to create kclient")
-	err = (&PlacementAPIReconciler{
+	err = (&controllers.PlacementAPIReconciler{
 		Client:  k8sManager.GetClient(),
 		Scheme:  k8sManager.GetScheme(),
 		Kclient: kclient,
