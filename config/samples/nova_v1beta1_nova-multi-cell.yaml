@@ -10,7 +10,7 @@ spec:
   # This is the name of the single RabbitMqCluster CR we deploy today
   # The Service is labelled with
   # app.kubernetes.io/component=rabbitmq, app.kubernetes.io/name=<RabbitMqCluster.Name>
-  apiMessageBusInstance: default-security-context
+  apiMessageBusInstance: rabbitmq
   # This is the name of the KeystoneAPI CR we deploy today
   # The Service is labelled with service=keystone,internal=true
   keystoneInstance: keystone
@@ -24,14 +24,13 @@ spec:
   passwordSelectors:
     service: NovaPassword
     apiDatabase: NovaAPIDatabasePassword
-    apiMessageBus: NovaAPIMessageBusPassword
+    cellDatabse: NovaCell0DatabasePassword
   serviceUser: nova
   debug:
     stopDBSync: False
     stopService: False
     preserveJob: False
   apiServiceTemplate:
-    #NOTE(gibi): secret with users is automatically passed by Nova CR
     customServiceConfig: |
       # service config customization
       debug=True
@@ -43,10 +42,10 @@ spec:
     nodeSelector: {}
     resources:
       limits:
-        cpu: 0.5
+        cpu: "0.5"
         memory: 512Mi
       requests:
-        cpu: 0.1
+        cpu: "0.1"
         memory: 200Mi
   schedulerServiceTemplate:
     customServiceConfig: |
@@ -92,7 +91,7 @@ spec:
     cell0:
       cellDatabaseInstance: mariadb-cell0
       cellDatabaseUser: nova_cell0
-      cellMessageBusInstance: rabbitmq-cell0
+      cellMessageBusInstance: rabbitmq
       # cell0 alway needs access to the API DB and MQ as it hosts the super
       # conductor. It will inherit the API DB and MQ access from the Nova CR
       # that creates it.
@@ -169,7 +168,7 @@ spec:
       cellDatabaseInstance: mariadb-cell2
       cellDatabaseUser: nova_cell2
       cellMessageBusInstance: rabbitmq-cell2
-      # cell2 will not get the API DB and MQ connection if from the Nova CR
+      # cell2 will not get the API DB and MQ connection info from the Nova CR
       hasAPIAccess: false
       conductorServiceTemplate:
         customServiceConfig: |
