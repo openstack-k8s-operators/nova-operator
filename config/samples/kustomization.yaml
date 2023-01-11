@@ -2,9 +2,9 @@
 resources:
 - nova_v1beta1_novaapi.yaml
 - nova_v1beta1_novascheduler.yaml
-- nova_v1beta1_novaconductor.yaml
+- nova_v1beta1_novaconductor-cell.yaml
 - nova_v1beta1_novametadata.yaml
 - nova_v1beta1_novanovncproxy.yaml
-- nova_v1beta1_novacell.yaml
+- nova_v1beta1_novacell1-upcall.yaml
 - nova_v1beta1_nova.yaml
 #+kubebuilder:scaffold:manifestskustomizesamples
