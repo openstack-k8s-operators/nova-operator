@@ -124,6 +124,11 @@ func NovaAPIConditionGetter(name types.NamespacedName) condition.Conditions {
 	return instance.Status.Conditions
 }
 
+func NovaSchedulerConditionGetter(name types.NamespacedName) condition.Conditions {
+	instance := GetNovaScheduler(name)
+	return instance.Status.Conditions
+}
+
 // CreateSecret creates a secret that has all the information NovaAPI needs
 func CreateNovaAPISecret(namespace string, name string) *corev1.Secret {
 	secret := &corev1.Secret{
