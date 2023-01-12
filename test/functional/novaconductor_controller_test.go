@@ -20,6 +20,8 @@ import (
 	"github.com/google/uuid"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	. "github.com/openstack-k8s-operators/lib-common/modules/test/helpers"
+
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,10 +41,10 @@ var _ = Describe("NovaConductor controller", func() {
 		// as namespaces cannot be deleted in a locally running envtest. See
 		// https://book.kubebuilder.io/reference/envtest.html#namespace-usage-limitation
 		namespace = uuid.New().String()
-		CreateNamespace(namespace)
+		th.CreateNamespace(namespace)
 		// We still request the delete of the Namespace to properly cleanup if
 		// we run the test in an existing cluster.
-		DeferCleanup(DeleteNamespace, namespace)
+		DeferCleanup(th.DeleteNamespace, namespace)
 		// NOTE(gibi): ConfigMap generation looks up the local templates
 		// directory via ENV, so provide it
 		DeferCleanup(os.Setenv, "OPERATOR_TEMPLATES", os.Getenv("OPERATOR_TEMPLATES"))
@@ -61,9 +63,9 @@ var _ = Describe("NovaConductor controller", func() {
 		})
 
 		It("is not Ready", func() {
-			ExpectCondition(
+			th.ExpectCondition(
 				novaConductorName,
-				conditionGetterFunc(NovaConductorConditionGetter),
+				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.ReadyCondition, corev1.ConditionUnknown,
 			)
 		})
@@ -78,9 +80,9 @@ var _ = Describe("NovaConductor controller", func() {
 		})
 
 		It("is missing the secret", func() {
-			ExpectCondition(
+			th.ExpectCondition(
 				novaConductorName,
-				conditionGetterFunc(NovaConductorConditionGetter),
+				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.InputReadyCondition,
 				corev1.ConditionFalse,
 			)
@@ -99,18 +101,18 @@ var _ = Describe("NovaConductor controller", func() {
 			})
 
 			It("is not Ready", func() {
-				ExpectCondition(
+				th.ExpectCondition(
 					novaConductorName,
-					conditionGetterFunc(NovaConductorConditionGetter),
+					ConditionGetterFunc(NovaConductorConditionGetter),
 					condition.ReadyCondition,
 					corev1.ConditionUnknown,
 				)
 			})
 
 			It("is missing the secret", func() {
-				ExpectCondition(
+				th.ExpectCondition(
 					novaConductorName,
-					conditionGetterFunc(NovaConductorConditionGetter),
+					ConditionGetterFunc(NovaConductorConditionGetter),
 					condition.InputReadyCondition,
 					corev1.ConditionFalse,
 				)
@@ -134,18 +136,18 @@ var _ = Describe("NovaConductor controller", func() {
 			})
 
 			It("is not Ready", func() {
-				ExpectCondition(
+				th.ExpectCondition(
 					novaConductorName,
-					conditionGetterFunc(NovaConductorConditionGetter),
+					ConditionGetterFunc(NovaConductorConditionGetter),
 					condition.ReadyCondition,
 					corev1.ConditionUnknown,
 				)
 			})
 
 			It("reports that the inputes are not ready", func() {
-				ExpectCondition(
+				th.ExpectCondition(
 					novaConductorName,
-					conditionGetterFunc(NovaConductorConditionGetter),
+					ConditionGetterFunc(NovaConductorConditionGetter),
 					condition.InputReadyCondition,
 					corev1.ConditionFalse,
 				)
@@ -162,9 +164,9 @@ var _ = Describe("NovaConductor controller", func() {
 			})
 
 			It("reports that input is ready", func() {
-				ExpectCondition(
+				th.ExpectCondition(
 					novaConductorName,
-					conditionGetterFunc(NovaConductorConditionGetter),
+					ConditionGetterFunc(NovaConductorConditionGetter),
 					condition.InputReadyCondition,
 					corev1.ConditionTrue,
 				)
@@ -172,9 +174,9 @@ var _ = Describe("NovaConductor controller", func() {
 			It("generated configs successfully", func() {
 				// NOTE(gibi): NovaConductor has no external dependency right now to
 				// generate the configs.
-				ExpectCondition(
+				th.ExpectCondition(
 					novaConductorName,
-					conditionGetterFunc(NovaConductorConditionGetter),
+					ConditionGetterFunc(NovaConductorConditionGetter),
 					condition.ServiceConfigReadyCondition,
 					corev1.ConditionTrue,
 				)
@@ -218,9 +220,9 @@ var _ = Describe("NovaConductor controller", func() {
 
 			When("the NovaConductor is deleted", func() {
 				It("deletes the generated ConfigMaps", func() {
-					ExpectCondition(
+					th.ExpectCondition(
 						novaConductorName,
-						conditionGetterFunc(NovaConductorConditionGetter),
+						ConditionGetterFunc(NovaConductorConditionGetter),
 						condition.ServiceConfigReadyCondition,
 						corev1.ConditionTrue,
 					)
@@ -250,9 +252,9 @@ var _ = Describe("NovaConductor controller", func() {
 			novaConductorName = CreateNovaConductor(namespace, spec)
 			DeferCleanup(DeleteNovaConductor, novaConductorName)
 
-			ExpectCondition(
+			th.ExpectCondition(
 				novaConductorName,
-				conditionGetterFunc(NovaConductorConditionGetter),
+				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.InputReadyCondition,
 				corev1.ConditionTrue,
 			)
@@ -273,15 +275,15 @@ var _ = Describe("NovaConductor controller", func() {
 		// assert the in progress state. Fortunately the real env is slow so
 		// this actually passes.
 		It("started the dbsync job and it reports waiting for that job to finish", func() {
-			ExpectConditionWithDetails(
+			th.ExpectConditionWithDetails(
 				novaConductorName,
-				conditionGetterFunc(NovaConductorConditionGetter),
+				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.DBSyncReadyCondition,
 				corev1.ConditionFalse,
 				condition.RequestedReason,
 				condition.DBSyncReadyRunningMessage,
 			)
-			job := GetJob(jobName)
+			job := th.GetJob(jobName)
 			// TODO(gibi): We could verify a lot of fields but should we?
 			Expect(job.Spec.Template.Spec.Volumes).To(HaveLen(3))
 			Expect(job.Spec.Template.Spec.InitContainers).To(HaveLen(1))
@@ -311,21 +313,21 @@ var _ = Describe("NovaConductor controller", func() {
 
 		When("DB sync fails", func() {
 			BeforeEach(func() {
-				SimulateJobFailure(jobName)
+				th.SimulateJobFailure(jobName)
 			})
 
 			// NOTE(gibi): lib-common only deletes the job if the job succeeds
 			It("reports that DB sync is failed and the job is not deleted", func() {
-				ExpectConditionWithDetails(
+				th.ExpectConditionWithDetails(
 					novaConductorName,
-					conditionGetterFunc(NovaConductorConditionGetter),
+					ConditionGetterFunc(NovaConductorConditionGetter),
 					condition.DBSyncReadyCondition,
 					corev1.ConditionFalse,
 					condition.ErrorReason,
 					"DBsync job error occured Internal error occurred: Job Failed. Check job logs",
 				)
 				// This would fail the test case if the job does not exists
-				GetJob(jobName)
+				th.GetJob(jobName)
 
 				// We don't store the failed job's hash.
 				novaConductor := GetNovaConductor(novaConductorName)
@@ -335,9 +337,9 @@ var _ = Describe("NovaConductor controller", func() {
 
 			When("NovaConductor is deleted", func() {
 				It("deletes the failed job", func() {
-					ExpectConditionWithDetails(
+					th.ExpectConditionWithDetails(
 						novaConductorName,
-						conditionGetterFunc(NovaConductorConditionGetter),
+						ConditionGetterFunc(NovaConductorConditionGetter),
 						condition.DBSyncReadyCondition,
 						corev1.ConditionFalse,
 						condition.ErrorReason,
@@ -347,7 +349,7 @@ var _ = Describe("NovaConductor controller", func() {
 					DeleteNovaConductor(novaConductorName)
 
 					Eventually(func() []batchv1.Job {
-						return ListJobs(novaConductorName.Name).Items
+						return th.ListJobs(novaConductorName.Name).Items
 					}, timeout, interval).Should(BeEmpty())
 				})
 			})
@@ -355,17 +357,17 @@ var _ = Describe("NovaConductor controller", func() {
 
 		When("DB sync job finishes successfully", func() {
 			BeforeEach(func() {
-				SimulateJobSuccess(jobName)
+				th.SimulateJobSuccess(jobName)
 			})
 
 			It("reports that DB sync is ready and the job is configured to be deleted", func() {
-				ExpectCondition(
+				th.ExpectCondition(
 					novaConductorName,
-					conditionGetterFunc(NovaConductorConditionGetter),
+					ConditionGetterFunc(NovaConductorConditionGetter),
 					condition.DBSyncReadyCondition,
 					corev1.ConditionTrue,
 				)
-				job := GetJob(jobName)
+				job := th.GetJob(jobName)
 				Expect(job.Spec.TTLSecondsAfterFinished).NotTo(BeNil())
 			})
 
@@ -378,13 +380,13 @@ var _ = Describe("NovaConductor controller", func() {
 			})
 
 			It("creates a StatefulSet for the nova-conductor service", func() {
-				ExpectCondition(
+				th.ExpectCondition(
 					novaConductorName,
-					conditionGetterFunc(NovaConductorConditionGetter),
+					ConditionGetterFunc(NovaConductorConditionGetter),
 					condition.DeploymentReadyCondition,
 					corev1.ConditionFalse,
 				)
-				ss := GetStatefulSet(statefulSetName)
+				ss := th.GetStatefulSet(statefulSetName)
 				Expect(ss.Spec.Template.Spec.Containers).To(HaveLen(1))
 				container := ss.Spec.Template.Spec.Containers[0]
 				Expect(container.LivenessProbe.Exec.Command).To(
@@ -392,16 +394,16 @@ var _ = Describe("NovaConductor controller", func() {
 				Expect(container.ReadinessProbe.Exec.Command).To(
 					Equal([]string{"/usr/bin/pgrep", "-r", "DRST", "nova-conductor"}))
 
-				SimulateStatefulSetReplicaReady(statefulSetName)
-				ExpectCondition(
+				th.SimulateStatefulSetReplicaReady(statefulSetName)
+				th.ExpectCondition(
 					novaConductorName,
-					conditionGetterFunc(NovaConductorConditionGetter),
+					ConditionGetterFunc(NovaConductorConditionGetter),
 					condition.DeploymentReadyCondition,
 					corev1.ConditionTrue,
 				)
-				ExpectCondition(
+				th.ExpectCondition(
 					novaConductorName,
-					conditionGetterFunc(NovaConductorConditionGetter),
+					ConditionGetterFunc(NovaConductorConditionGetter),
 					condition.ReadyCondition,
 					corev1.ConditionTrue,
 				)
@@ -427,9 +429,9 @@ var _ = Describe("NovaConductor controller", func() {
 			novaConductorName = CreateNovaConductor(namespace, spec)
 			DeferCleanup(DeleteNovaConductor, novaConductorName)
 
-			ExpectCondition(
+			th.ExpectCondition(
 				novaConductorName,
-				conditionGetterFunc(NovaConductorConditionGetter),
+				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.DBSyncReadyCondition,
 				corev1.ConditionFalse,
 			)
@@ -441,29 +443,29 @@ var _ = Describe("NovaConductor controller", func() {
 		})
 
 		It("does not configure DB sync job to be deleted after it finished", func() {
-			SimulateJobSuccess(jobName)
+			th.SimulateJobSuccess(jobName)
 
-			ExpectCondition(
+			th.ExpectCondition(
 				novaConductorName,
-				conditionGetterFunc(NovaConductorConditionGetter),
+				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.DBSyncReadyCondition,
 				corev1.ConditionTrue,
 			)
-			Expect(GetJob(jobName).Spec.TTLSecondsAfterFinished).To(BeNil())
+			Expect(th.GetJob(jobName).Spec.TTLSecondsAfterFinished).To(BeNil())
 		})
 
 		It("does not configure DB sync job to be deleted after it failed", func() {
-			SimulateJobFailure(jobName)
+			th.SimulateJobFailure(jobName)
 
-			ExpectConditionWithDetails(
+			th.ExpectConditionWithDetails(
 				novaConductorName,
-				conditionGetterFunc(NovaConductorConditionGetter),
+				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.DBSyncReadyCondition,
 				corev1.ConditionFalse,
 				condition.ErrorReason,
 				"DBsync job error occured Internal error occurred: Job Failed. Check job logs",
 			)
-			Expect(GetJob(jobName).Spec.TTLSecondsAfterFinished).To(BeNil())
+			Expect(th.GetJob(jobName).Spec.TTLSecondsAfterFinished).To(BeNil())
 		})
 	})
 
@@ -488,15 +490,15 @@ var _ = Describe("NovaConductor controller", func() {
 				Name:      novaConductorName.Name + "-db-sync",
 			}
 
-			SimulateJobSuccess(jobName)
-			ExpectCondition(
+			th.SimulateJobSuccess(jobName)
+			th.ExpectCondition(
 				novaConductorName,
-				conditionGetterFunc(NovaConductorConditionGetter),
+				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.DBSyncReadyCondition,
 				corev1.ConditionTrue,
 			)
 
-			Expect(GetJob(jobName).Spec.TTLSecondsAfterFinished).To(BeNil())
+			Expect(th.GetJob(jobName).Spec.TTLSecondsAfterFinished).To(BeNil())
 
 			// Update the NovaConductor to not preserve Jobs
 			// Eventually is needed here to retry if the update returns conflict
@@ -509,7 +511,7 @@ var _ = Describe("NovaConductor controller", func() {
 
 		It("marks the job to be deleted", func() {
 			Eventually(func(g Gomega) {
-				g.Expect(GetJob(jobName).Spec.TTLSecondsAfterFinished).NotTo(BeNil())
+				g.Expect(th.GetJob(jobName).Spec.TTLSecondsAfterFinished).NotTo(BeNil())
 			}, timeout, interval).Should(Succeed())
 		})
 	})

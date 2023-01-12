@@ -126,10 +126,12 @@ var _ = BeforeSuite(func() {
 
 	//+kubebuilder:scaffold:scheme
 
+	logger = ctrl.Log.WithName("---Test---")
+
 	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
 	Expect(err).NotTo(HaveOccurred())
 	Expect(k8sClient).NotTo(BeNil())
-	th = NewTestHelper(ctx, k8sClient, timeout, interval)
+	th = NewTestHelper(ctx, k8sClient, timeout, interval, logger)
 	Expect(th).NotTo(BeNil())
 
 	// Start the controller-manager in a goroutine
@@ -152,8 +154,6 @@ var _ = BeforeSuite(func() {
 	reconcilers.OverriedRequeueTimeout(time.Duration(10) * time.Millisecond)
 	err = reconcilers.Setup(k8sManager, ctrl.Log.WithName("testSetup"))
 	Expect(err).ToNot(HaveOccurred())
-
-	logger = ctrl.Log.WithName("---Test---")
 
 	go func() {
 		defer GinkgoRecover()

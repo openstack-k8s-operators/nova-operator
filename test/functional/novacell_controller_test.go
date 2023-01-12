@@ -21,6 +21,8 @@ import (
 	"github.com/google/uuid"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	. "github.com/openstack-k8s-operators/lib-common/modules/test/helpers"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -37,10 +39,10 @@ var _ = Describe("NovaCell controller", func() {
 		// as namespaces cannot be deleted in a locally running envtest. See
 		// https://book.kubebuilder.io/reference/envtest.html#namespace-usage-limitation
 		namespace = uuid.New().String()
-		CreateNamespace(namespace)
+		th.CreateNamespace(namespace)
 		// We still request the delete of the Namespace to properly cleanup if
 		// we run the test in an existing cluster.
-		DeferCleanup(DeleteNamespace, namespace)
+		DeferCleanup(th.DeleteNamespace, namespace)
 		// NOTE(gibi): ConfigMap generation looks up the local templates
 		// directory via ENV, so provide it
 		DeferCleanup(os.Setenv, "OPERATOR_TEMPLATES", os.Getenv("OPERATOR_TEMPLATES"))
@@ -59,9 +61,9 @@ var _ = Describe("NovaCell controller", func() {
 		})
 
 		It("is not Ready", func() {
-			ExpectCondition(
+			th.ExpectCondition(
 				novaCellName,
-				conditionGetterFunc(NovaCellConditionGetter),
+				ConditionGetterFunc(NovaCellConditionGetter),
 				condition.ReadyCondition,
 				corev1.ConditionUnknown,
 			)
@@ -101,9 +103,9 @@ var _ = Describe("NovaCell controller", func() {
 
 		It("creates the NovaConductor and tracks its readiness", func() {
 			GetNovaConductor(novaConductorName)
-			ExpectCondition(
+			th.ExpectCondition(
 				novaCellName,
-				conditionGetterFunc(NovaCellConditionGetter),
+				ConditionGetterFunc(NovaCellConditionGetter),
 				novav1.NovaConductorReadyCondition,
 				corev1.ConditionFalse,
 			)
@@ -116,9 +118,9 @@ var _ = Describe("NovaCell controller", func() {
 			var conductorStatefulSetName types.NamespacedName
 
 			BeforeEach(func() {
-				ExpectCondition(
+				th.ExpectCondition(
 					novaConductorName,
-					conditionGetterFunc(NovaConductorConditionGetter),
+					ConditionGetterFunc(NovaConductorConditionGetter),
 					condition.DBSyncReadyCondition,
 					corev1.ConditionFalse,
 				)
@@ -126,35 +128,35 @@ var _ = Describe("NovaCell controller", func() {
 					Namespace: namespace,
 					Name:      novaConductorName.Name + "-db-sync",
 				}
-				SimulateJobSuccess(novaConductorDBSyncJobName)
+				th.SimulateJobSuccess(novaConductorDBSyncJobName)
 
 				conductorStatefulSetName = types.NamespacedName{
 					Namespace: namespace,
 					Name:      novaConductorName.Name,
 				}
-				SimulateStatefulSetReplicaReady(conductorStatefulSetName)
+				th.SimulateStatefulSetReplicaReady(conductorStatefulSetName)
 
-				ExpectCondition(
+				th.ExpectCondition(
 					novaConductorName,
-					conditionGetterFunc(NovaConductorConditionGetter),
+					ConditionGetterFunc(NovaConductorConditionGetter),
 					condition.DBSyncReadyCondition,
 					corev1.ConditionTrue,
 				)
 			})
 
 			It("reports that NovaConductor is ready", func() {
-				ExpectCondition(
+				th.ExpectCondition(
 					novaCellName,
-					conditionGetterFunc(NovaCellConditionGetter),
+					ConditionGetterFunc(NovaCellConditionGetter),
 					novav1.NovaConductorReadyCondition,
 					corev1.ConditionTrue,
 				)
 			})
 
 			It("is Ready", func() {
-				ExpectCondition(
+				th.ExpectCondition(
 					novaCellName,
-					conditionGetterFunc(NovaCellConditionGetter),
+					ConditionGetterFunc(NovaCellConditionGetter),
 					condition.ReadyCondition,
 					corev1.ConditionTrue,
 				)

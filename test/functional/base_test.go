@@ -20,8 +20,6 @@ import (
 
 	"github.com/google/uuid"
 	. "github.com/onsi/gomega"
-	appsv1 "k8s.io/api/apps/v1"
-	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -50,24 +48,6 @@ const (
 	// asserts using `Consistently`.
 	consistencyTimeout = interval * 200
 )
-
-func CreateNamespace(name string) {
-	ns := &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
-		},
-	}
-	Expect(k8sClient.Create(ctx, ns)).Should(Succeed())
-}
-
-func DeleteNamespace(name string) {
-	ns := &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
-		},
-	}
-	Expect(k8sClient.Delete(ctx, ns)).Should(Succeed())
-}
 
 func CreateUnstructured(rawObj map[string]interface{}) {
 	logger.Info("Creating", "raw", rawObj)
@@ -139,72 +119,9 @@ func NovaAPINotExists(name types.NamespacedName) {
 	}, consistencyTimeout, interval).Should(Succeed())
 }
 
-type conditionsGetter interface {
-	GetConditions(name types.NamespacedName) condition.Conditions
-}
-
-type conditionGetterFunc func(name types.NamespacedName) condition.Conditions
-
-func (f conditionGetterFunc) GetConditions(name types.NamespacedName) condition.Conditions {
-	return f(name)
-}
-
 func NovaAPIConditionGetter(name types.NamespacedName) condition.Conditions {
 	instance := GetNovaAPI(name)
 	return instance.Status.Conditions
-}
-
-func ExpectCondition(
-	name types.NamespacedName,
-	getter conditionsGetter,
-	conditionType condition.Type,
-	expectedStatus corev1.ConditionStatus,
-) {
-	logger.Info("ExpectCondition", "type", conditionType, "expected status", expectedStatus, "on", name)
-	Eventually(func(g Gomega) {
-		conditions := getter.GetConditions(name)
-		g.Expect(conditions).NotTo(
-			BeNil(), "Conditions in nil")
-		g.Expect(conditions.Has(conditionType)).To(
-			BeTrue(), "Does not have condition type %s", conditionType)
-		actual := conditions.Get(conditionType).Status
-		g.Expect(actual).To(
-			Equal(expectedStatus),
-			"%s condition is in an unexpected state. Expected: %s, Actual: %s, instance name: %s, Conditions: %v",
-			conditionType, expectedStatus, actual, name, conditions)
-	}, timeout, interval).Should(Succeed())
-	logger.Info("ExpectCondition succeeded", "type", conditionType, "expected status", expectedStatus, "on", name)
-}
-
-func ExpectConditionWithDetails(
-	name types.NamespacedName,
-	getter conditionsGetter,
-	conditionType condition.Type,
-	expectedStatus corev1.ConditionStatus,
-	expectedReason condition.Reason,
-	expecteMessage string,
-) {
-	logger.Info("ExpectConditionWithDetails", "type", conditionType, "expected status", expectedStatus, "on", name)
-	Eventually(func(g Gomega) {
-		conditions := getter.GetConditions(name)
-		g.Expect(conditions).NotTo(
-			BeNil(), "Status.Conditions in nil")
-		g.Expect(conditions.Has(conditionType)).To(
-			BeTrue(), "Condition type is not in Status.Conditions %s", conditionType)
-		actualCondition := conditions.Get(conditionType)
-		g.Expect(actualCondition.Status).To(
-			Equal(expectedStatus),
-			"%s condition is in an unexpected state. Expected: %s, Actual: %s",
-			conditionType, expectedStatus, actualCondition.Status)
-		g.Expect(actualCondition.Reason).To(
-			Equal(expectedReason),
-			"%s condition has a different reason. Actual condition: %v", conditionType, actualCondition)
-		g.Expect(actualCondition.Message).To(
-			Equal(expecteMessage),
-			"%s condition has a different message. Actual condition: %v", conditionType, actualCondition)
-	}, timeout, interval).Should(Succeed())
-
-	logger.Info("ExpectConditionWithDetails succeeded", "type", conditionType, "expected status", expectedStatus, "on", name)
 }
 
 // CreateSecret creates a secret that has all the information NovaAPI needs
@@ -222,72 +139,6 @@ func CreateNovaAPISecret(namespace string, name string) *corev1.Secret {
 	}
 	Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
 	return secret
-}
-
-func GetJob(name types.NamespacedName) *batchv1.Job {
-	job := &batchv1.Job{}
-	Eventually(func(g Gomega) {
-		g.Expect(k8sClient.Get(ctx, name, job)).Should(Succeed())
-	}, timeout, interval).Should(Succeed())
-	return job
-}
-
-func ListJobs(namespace string) *batchv1.JobList {
-	jobs := &batchv1.JobList{}
-	Expect(k8sClient.List(ctx, jobs, client.InNamespace(namespace))).Should(Succeed())
-	return jobs
-
-}
-
-func SimulateJobFailure(name types.NamespacedName) {
-	Eventually(func(g Gomega) {
-		job := GetJob(name)
-		// Simulate that the job is failed
-		job.Status.Failed = 1
-		job.Status.Active = 0
-		// This can return conflict so we need the Eventually block to retry
-		g.Expect(k8sClient.Status().Update(ctx, job)).To(Succeed())
-	}, timeout, interval).Should(Succeed())
-	logger.Info("Simulated job failure", "on", name)
-}
-
-func SimulateJobSuccess(name types.NamespacedName) {
-	Eventually(func(g Gomega) {
-
-		job := GetJob(name)
-		// Simulate that the job is succeeded
-		job.Status.Succeeded = 1
-		job.Status.Active = 0
-		// This can return conflict so we need the Eventually block to retry
-		g.Expect(k8sClient.Status().Update(ctx, job)).To(Succeed())
-	}, timeout, interval).Should(Succeed())
-	logger.Info("Simulated job success", "on", name)
-}
-
-func GetDeployment(name types.NamespacedName) *appsv1.Deployment {
-	deployment := &appsv1.Deployment{}
-	Eventually(func(g Gomega) {
-		g.Expect(k8sClient.Get(ctx, name, deployment)).Should(Succeed())
-	}, timeout, interval).Should(Succeed())
-	return deployment
-}
-
-func ListDeployments(namespace string) *appsv1.DeploymentList {
-	deployments := &appsv1.DeploymentList{}
-	Expect(k8sClient.List(ctx, deployments, client.InNamespace(namespace))).Should(Succeed())
-	return deployments
-
-}
-
-func SimulateDeploymentReplicaReady(name types.NamespacedName) {
-	Eventually(func(g Gomega) {
-		deployment := GetDeployment(name)
-		deployment.Status.Replicas = 1
-		deployment.Status.ReadyReplicas = 1
-		g.Expect(k8sClient.Status().Update(ctx, deployment)).To(Succeed())
-
-	}, timeout, interval).Should(Succeed())
-	logger.Info("Simulated deployment success", "on", name)
 }
 
 func GetDefaultNovaSpec() map[string]interface{} {
@@ -628,32 +479,6 @@ func CreateNovaSecret(namespace string, name string) *corev1.Secret {
 	}
 	Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
 	return secret
-}
-
-func GetStatefulSet(name types.NamespacedName) *appsv1.StatefulSet {
-	ss := &appsv1.StatefulSet{}
-	Eventually(func(g Gomega) {
-		g.Expect(k8sClient.Get(ctx, name, ss)).Should(Succeed())
-	}, timeout, interval).Should(Succeed())
-	return ss
-}
-
-func ListStatefulSets(namespace string) *appsv1.StatefulSetList {
-	sss := &appsv1.StatefulSetList{}
-	Expect(k8sClient.List(ctx, sss, client.InNamespace(namespace))).Should(Succeed())
-	return sss
-
-}
-
-func SimulateStatefulSetReplicaReady(name types.NamespacedName) {
-	Eventually(func(g Gomega) {
-		ss := GetStatefulSet(name)
-		ss.Status.Replicas = 1
-		ss.Status.ReadyReplicas = 1
-		g.Expect(k8sClient.Status().Update(ctx, ss)).To(Succeed())
-
-	}, timeout, interval).Should(Succeed())
-	logger.Info("Simulated statefulset success", "on", name)
 }
 
 func CreateKeystoneAPI(namespace string) types.NamespacedName {
