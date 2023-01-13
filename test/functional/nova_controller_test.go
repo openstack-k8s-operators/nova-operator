@@ -43,6 +43,8 @@ var _ = Describe("Nova controller", func() {
 	var novaKeystoneServiceName types.NamespacedName
 	var novaCell0ConductorStatefulSetName types.NamespacedName
 	var apiTransportURLName types.NamespacedName
+	var novaSchedulerName types.NamespacedName
+	var novaSchedulerStatefulSetName types.NamespacedName
 
 	BeforeEach(func() {
 		// NOTE(gibi): We need to create a unique namespace for each test run
@@ -105,6 +107,14 @@ var _ = Describe("Nova controller", func() {
 		apiTransportURLName = types.NamespacedName{
 			Namespace: namespace,
 			Name:      "nova-api-transport",
+		}
+		novaSchedulerName = types.NamespacedName{
+			Namespace: namespace,
+			Name:      novaName.Name + "-scheduler",
+		}
+		novaSchedulerStatefulSetName = types.NamespacedName{
+			Namespace: namespace,
+			Name:      novaSchedulerName.Name,
 		}
 	})
 
@@ -290,6 +300,7 @@ var _ = Describe("Nova controller", func() {
 			SimulateTransportURLReady(apiTransportURLName)
 			th.SimulateJobSuccess(cell0DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(novaCell0ConductorStatefulSetName)
+			th.SimulateStatefulSetReplicaReady(novaSchedulerStatefulSetName)
 
 			api := GetNovaAPI(novaAPIName)
 			Expect(api.Spec.APIMessageBusSecretName).To(Equal("rabbitmq-secret"))
@@ -307,6 +318,39 @@ var _ = Describe("Nova controller", func() {
 				novaName,
 				ConditionGetterFunc(NovaConditionGetter),
 				novav1.NovaAPIReadyCondition,
+				corev1.ConditionTrue,
+			)
+			th.ExpectCondition(
+				novaName,
+				ConditionGetterFunc(NovaConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
+
+		It("create NovaScheduler", func() {
+			SimulateKeystoneServiceReady(novaKeystoneServiceName)
+			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
+			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForCell0)
+			SimulateTransportURLReady(apiTransportURLName)
+			th.SimulateJobSuccess(cell0DBSyncJobName)
+			th.SimulateStatefulSetReplicaReady(novaCell0ConductorStatefulSetName)
+			th.SimulateStatefulSetReplicaReady(novaAPIdeploymentName)
+
+			scheduler := GetNovaScheduler(novaSchedulerName)
+			Expect(scheduler.Spec.APIMessageBusSecretName).To(Equal("rabbitmq-secret"))
+			th.SimulateStatefulSetReplicaReady(novaSchedulerStatefulSetName)
+
+			th.ExpectCondition(
+				novaSchedulerName,
+				ConditionGetterFunc(NovaSchedulerConditionGetter),
+				condition.DeploymentReadyCondition,
+				corev1.ConditionTrue,
+			)
+			th.ExpectCondition(
+				novaName,
+				ConditionGetterFunc(NovaConditionGetter),
+				novav1.NovaSchedulerReadyCondition,
 				corev1.ConditionTrue,
 			)
 			th.ExpectCondition(
@@ -341,37 +385,50 @@ var _ = Describe("Nova controller", func() {
 
 			CreateNovaWithCell0(novaName)
 			DeferCleanup(DeleteNova, novaName)
-		})
 
-		It("does not create NovaAPI", func() {
 			SimulateKeystoneServiceReady(novaKeystoneServiceName)
 			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
 			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForCell0)
 			SimulateTransportURLReady(apiTransportURLName)
 			GetNovaCell(cell0Name)
 			GetNovaConductor(cell0ConductorName)
-
 			th.SimulateJobFailure(cell0DBSyncJobName)
+
+		})
+
+		It("does not set the cell db sync ready condtion to true", func() {
 			th.ExpectCondition(
 				cell0ConductorName,
 				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.DBSyncReadyCondition,
 				corev1.ConditionFalse,
 			)
+		})
+
+		It("does not set the cell0 ready condtion to ture", func() {
 			th.ExpectCondition(
 				cell0Name,
 				ConditionGetterFunc(NovaCellConditionGetter),
 				novav1.NovaConductorReadyCondition,
 				corev1.ConditionFalse,
 			)
+		})
+
+		It("does not set the all cell ready condtion", func() {
 			th.ExpectCondition(
 				novaName,
 				ConditionGetterFunc(NovaConditionGetter),
 				novav1.NovaAllCellsReadyCondition,
 				corev1.ConditionFalse,
 			)
+		})
 
+		It("does not create NovaAPI", func() {
 			NovaAPINotExists(novaAPIName)
+		})
+
+		It("does not create NovaScheduler", func() {
+			NovaSchedulerNotExists(novaSchedulerName)
 		})
 	})
 
@@ -436,11 +493,26 @@ var _ = Describe("Nova controller", func() {
 
 			th.SimulateJobSuccess(cell0DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(novaCell0ConductorStatefulSetName)
+			th.SimulateStatefulSetReplicaReady(novaSchedulerStatefulSetName)
 
 			configDataMap := th.GetConfigMap(
 				types.NamespacedName{
 					Namespace: namespace,
 					Name:      fmt.Sprintf("%s-config-data", novaAPIName.Name),
+				},
+			)
+			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
+			Expect(configDataMap.Data["01-nova.conf"]).To(
+				ContainSubstring("[database]\nconnection = mysql+pymysql://nova_cell0:12345678@hostname-for-db-for-cell0/nova_cell0"),
+			)
+			Expect(configDataMap.Data["01-nova.conf"]).To(
+				ContainSubstring("[api_database]\nconnection = mysql+pymysql://nova_api:12345678@hostname-for-db-for-api/nova_api"),
+			)
+
+			configDataMap = th.GetConfigMap(
+				types.NamespacedName{
+					Namespace: namespace,
+					Name:      fmt.Sprintf("%s-config-data", novaSchedulerName.Name),
 				},
 			)
 			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
@@ -480,11 +552,18 @@ var _ = Describe("Nova controller", func() {
 			th.ExpectCondition(
 				novaName,
 				ConditionGetterFunc(NovaConditionGetter),
+				novav1.NovaSchedulerReadyCondition,
+				corev1.ConditionTrue,
+			)
+			th.ExpectCondition(
+				novaName,
+				ConditionGetterFunc(NovaConditionGetter),
 				condition.ReadyCondition,
 				corev1.ConditionTrue,
 			)
 		})
 	})
+
 	When("Nova CR instance is deleted", func() {
 		BeforeEach(func() {
 			DeferCleanup(

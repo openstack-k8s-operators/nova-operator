@@ -421,6 +421,14 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		return result, err
 	}
 
+	result, err = r.ensureScheduler(
+		ctx, h, instance, cell0Template,
+		cellDBs[Cell0Name].Database, apiDB, apiMQSecretName, keystoneAuthURL,
+	)
+	if err != nil {
+		return result, err
+	}
+
 	util.LogForObject(h, "Successfully reconciled", instance)
 	return ctrl.Result{}, nil
 }
@@ -479,6 +487,11 @@ func (r *NovaReconciler) initConditions(
 				novav1.NovaAllCellsMQReadyCondition,
 				condition.InitReason,
 				novav1.NovaAllCellsMQReadyInitMessage,
+			),
+			condition.UnknownCondition(
+				novav1.NovaSchedulerReadyCondition,
+				condition.InitReason,
+				novav1.NovaSchedulerReadyInitMessage,
 			),
 		)
 		instance.Status.Conditions.Init(&cl)
@@ -729,6 +742,80 @@ func (r *NovaReconciler) ensureAPI(
 	return ctrl.Result{}, nil
 }
 
+func (r *NovaReconciler) ensureScheduler(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *novav1.Nova,
+	cell0Template novav1.NovaCellTemplate,
+	cell0DB *database.Database,
+	apiDB *database.Database,
+	apiMQSecretName string,
+	keystoneAuthURL string,
+) (ctrl.Result, error) {
+	// TODO(gibi): Pass down a narroved secret that only hold
+	// specific information but also holds user names
+	spec := novav1.NovaSchedulerSpec{
+		Secret:                  instance.Spec.Secret,
+		APIDatabaseHostname:     apiDB.GetDatabaseHostname(),
+		APIDatabaseUser:         instance.Spec.APIDatabaseUser,
+		APIMessageBusSecretName: apiMQSecretName,
+		Cell0DatabaseHostname:   cell0DB.GetDatabaseHostname(),
+		Cell0DatabaseUser:       cell0Template.CellDatabaseUser,
+		Debug:                   instance.Spec.Debug,
+		// This is a coincidence that the NovaServiceBase
+		// has exactly the same fields as the SchedulerServiceTemplate so we
+		// can convert between them directly. As soon as these two structs
+		// start to diverge we need to copy fields one by one here.
+		NovaServiceBase:   novav1.NovaServiceBase(instance.Spec.SchedulerServiceTemplate),
+		KeystoneAuthURL:   keystoneAuthURL,
+		ServiceUser:       instance.Spec.ServiceUser,
+		PasswordSelectors: instance.Spec.PasswordSelectors,
+	}
+	scheduler := &novav1.NovaScheduler{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      instance.Name + "-scheduler",
+			Namespace: instance.Namespace,
+		},
+	}
+
+	op, err := controllerutil.CreateOrPatch(ctx, r.Client, scheduler, func() error {
+		scheduler.Spec = spec
+		err := controllerutil.SetControllerReference(instance, scheduler, r.Scheme)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+
+	if err != nil {
+		condition.FalseCondition(
+			novav1.NovaSchedulerReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityError,
+			novav1.NovaSchedulerReadyErrorMessage,
+			err.Error(),
+		)
+		return ctrl.Result{}, err
+	}
+
+	if op != controllerutil.OperationResultNone {
+		util.LogForObject(
+			h, fmt.Sprintf("NovaScheduler %s.", string(op)), instance,
+			"NovaScheduler.Name", scheduler.Name,
+		)
+	}
+
+	c := scheduler.Status.Conditions.Mirror(novav1.NovaSchedulerReadyCondition)
+	// NOTE(gibi): it can be nil if the NovaScheduler CR is created but no
+	// reconciliation is run on it to initialize the ReadyCondition yet.
+	if c != nil {
+		instance.Status.Conditions.Set(c)
+	}
+	instance.Status.SchedulerServiceReadyCount = scheduler.Status.ReadyCount
+
+	return ctrl.Result{}, nil
+}
+
 func (r *NovaReconciler) ensureKeystoneServiceUser(
 	ctx context.Context,
 	h *helper.Helper,
@@ -898,6 +985,7 @@ func (r *NovaReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&mariadbv1.MariaDBDatabase{}).
 		Owns(&keystonev1.KeystoneService{}).
 		Owns(&novav1.NovaAPI{}).
+		Owns(&novav1.NovaScheduler{}).
 		Owns(&novav1.NovaCell{}).
 		Owns(&rabbitmqv1.TransportURL{}).
 		Complete(r)

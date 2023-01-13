@@ -89,7 +89,7 @@ type NovaSchedulerSpec struct {
 	KeystoneAuthURL string `json:"keystoneAuthURL"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=nova
+	// +kubebuilder:default=nova_api
 	// APIDatabaseUser - username to use when accessing the API DB
 	APIDatabaseUser string `json:"apiDatabaseUser"`
 
@@ -98,9 +98,19 @@ type NovaSchedulerSpec struct {
 	APIDatabaseHostname string `json:"apiDatabaseHostname"`
 
 	// +kubebuilder:validation:Required
-	// APIMessageBusHostname - hostname to use when accessing the API message
-	// bus
-	APIMessageBusHostname string `json:"apiMessageBusHostname"`
+	// APIMessageBusSecretName - the name of the Secret conntaining the
+	// transport URL information to use when accessing the API message
+	// bus.
+	APIMessageBusSecretName string `json:"apiMessageBusSecretName"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default="nova_cell0"
+	// Cell0DatabaseUser - username to use when accessing the cell0 DB
+	Cell0DatabaseUser string `json:"cell0DatabaseUser"`
+
+	// +kubebuilder:validation:Required
+	// Cell0DatabaseHostname - hostname to use when accessing the cell0 DB
+	Cell0DatabaseHostname string `json:"cell0DatabaseHostname"`
 
 	// +kubebuilder:validation:Optional
 	// Debug - enable debug for different deploy stages. If an init container
@@ -150,4 +160,9 @@ type NovaSchedulerList struct {
 
 func init() {
 	SchemeBuilder.Register(&NovaScheduler{}, &NovaSchedulerList{})
+}
+
+// GetConditions returns the list of conditions from the status
+func (s NovaSchedulerStatus) GetConditions() condition.Conditions {
+	return s.Conditions
 }

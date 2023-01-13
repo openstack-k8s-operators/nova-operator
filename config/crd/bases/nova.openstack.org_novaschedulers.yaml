@@ -40,13 +40,23 @@ spec:
                   the API DB
                 type: string
               apiDatabaseUser:
-                default: nova
+                default: nova_api
                 description: APIDatabaseUser - username to use when accessing the
                   API DB
                 type: string
-              apiMessageBusHostname:
-                description: APIMessageBusHostname - hostname to use when accessing
-                  the API message bus
+              apiMessageBusSecretName:
+                description: APIMessageBusSecretName - the name of the Secret conntaining
+                  the transport URL information to use when accessing the API message
+                  bus.
+                type: string
+              cell0DatabaseHostname:
+                description: Cell0DatabaseHostname - hostname to use when accessing
+                  the cell0 DB
+                type: string
+              cell0DatabaseUser:
+                default: nova_cell0
+                description: Cell0DatabaseUser - username to use when accessing the
+                  cell0 DB
                 type: string
               containerImage:
                 description: The service specific Container Image URL
@@ -170,7 +180,8 @@ spec:
                 type: string
             required:
             - apiDatabaseHostname
-            - apiMessageBusHostname
+            - apiMessageBusSecretName
+            - cell0DatabaseHostname
             - containerImage
             - keystoneAuthURL
             - secret

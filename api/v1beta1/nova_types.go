@@ -85,11 +85,12 @@ type NovaSpec struct {
 	Debug Debug `json:"debug,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default={containerImage: "quay.io/tripleozedcentos9/openstack-nova-api:current-tripleo"}
+	// +kubebuilder:default={replicas:1}
 	// APIServiceTemplate - define the nova-api service
 	APIServiceTemplate NovaAPITemplate `json:"apiServiceTemplate"`
 
 	// +kubebuilder:validation:Optional
+	// +kubebuilder:default={replicas:1}
 	// SchedulerServiceTemplate- define the nova-scheduler service
 	SchedulerServiceTemplate NovaSchedulerTemplate `json:"schedulerServiceTemplate"`
 

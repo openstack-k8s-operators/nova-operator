@@ -235,7 +235,9 @@ var _ = Describe("NovaAPI controller", func() {
 
 			novaAPIName = CreateNovaAPI(namespace, GetDefaultNovaAPISpec())
 			DeferCleanup(DeleteNovaAPI, novaAPIName)
+		})
 
+		It(" reports input ready", func() {
 			th.ExpectCondition(
 				novaAPIName,
 				ConditionGetterFunc(NovaAPIConditionGetter),
