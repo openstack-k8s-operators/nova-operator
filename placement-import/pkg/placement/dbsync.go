@@ -35,6 +35,7 @@ const (
 func DbSyncJob(
 	instance *placementv1.PlacementAPI,
 	labels map[string]string,
+	annotations map[string]string,
 ) *batchv1.Job {
 	runAsUser := int64(0)
 
@@ -58,6 +59,9 @@ func DbSyncJob(
 		},
 		Spec: batchv1.JobSpec{
 			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: annotations,
+				},
 				Spec: corev1.PodSpec{
 					RestartPolicy:      "OnFailure",
 					ServiceAccountName: ServiceAccount,
