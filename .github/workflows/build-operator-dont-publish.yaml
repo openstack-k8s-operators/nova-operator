@@ -1,0 +1,29 @@
+name: Build operator without publishing it
+
+on:
+  pull_request:
+    branches:
+      - '*'
+
+jobs:
+  build-nova-operator-with-bunlde-and-index:
+    name: Build
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout nova-operator repository
+      uses: actions/checkout@v3
+
+    - name: Build
+      env:
+        # By not providing any remote repository here the build artifact will not be pushed
+        IMAGE_TAG_BASE: nova-operator
+      # Ideally we would add catalog-build target at the end but that requires
+      # the bundle to be pushed to a registry due to opm limitations:
+      # https://github.com/operator-framework/operator-registry/issues/933
+      # Having a local registry for the catalog-build is would require a
+      # registry with TLS support or we would need to modify the catalog-build
+      # target to add flags to the opm call. None of which worth the effort
+      # since right now I don't how a change of this repo could break that
+      # step.
+      run: make manifests generate build docker-build bundle bundle-build
