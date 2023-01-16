@@ -339,9 +339,9 @@ var _ = Describe("NovaAPI controller", func() {
 
 		It("creates KeystoneEndpoint", func() {
 			th.SimulateStatefulSetReplicaReady(statefulSetName)
-			SimulateKeystoneEndpointReady(types.NamespacedName{Namespace: namespace, Name: "nova"})
+			th.SimulateKeystoneEndpointReady(types.NamespacedName{Namespace: namespace, Name: "nova"})
 
-			keystoneEndpoint := GetKeystoneEndpoint(types.NamespacedName{Namespace: namespace, Name: "nova"})
+			keystoneEndpoint := th.GetKeystoneEndpoint(types.NamespacedName{Namespace: namespace, Name: "nova"})
 			endpoints := keystoneEndpoint.Spec.Endpoints
 			Expect(endpoints).To(HaveKeyWithValue("public", "http:/v2.1"))
 			Expect(endpoints).To(HaveKeyWithValue("internal", "http://nova-internal."+namespace+".svc:8774/v2.1"))
@@ -356,7 +356,7 @@ var _ = Describe("NovaAPI controller", func() {
 
 		It("is Ready", func() {
 			th.SimulateStatefulSetReplicaReady(statefulSetName)
-			SimulateKeystoneEndpointReady(types.NamespacedName{Namespace: namespace, Name: "nova"})
+			th.SimulateKeystoneEndpointReady(types.NamespacedName{Namespace: namespace, Name: "nova"})
 
 			th.ExpectCondition(
 				novaAPIName,
@@ -383,7 +383,7 @@ var _ = Describe("NovaAPI controller", func() {
 
 		It("removes the finalizer from KeystoneEndpoint", func() {
 			th.SimulateStatefulSetReplicaReady(statefulSetName)
-			SimulateKeystoneEndpointReady(keystoneEndpointName)
+			th.SimulateKeystoneEndpointReady(keystoneEndpointName)
 			th.ExpectCondition(
 				novaAPIName,
 				ConditionGetterFunc(NovaAPIConditionGetter),
@@ -391,11 +391,11 @@ var _ = Describe("NovaAPI controller", func() {
 				corev1.ConditionTrue,
 			)
 
-			endpoint := GetKeystoneEndpoint(keystoneEndpointName)
+			endpoint := th.GetKeystoneEndpoint(keystoneEndpointName)
 			Expect(endpoint.Finalizers).To(ContainElement("NovaAPI"))
 
 			DeleteNovaAPI(novaAPIName)
-			endpoint = GetKeystoneEndpoint(keystoneEndpointName)
+			endpoint = th.GetKeystoneEndpoint(keystoneEndpointName)
 			Expect(endpoint.Finalizers).NotTo(ContainElement("NovaAPI"))
 		})
 	})
@@ -532,7 +532,7 @@ var _ = Describe("NovaAPI controller", func() {
 			}, timeout, interval).Should(Succeed())
 
 			keystoneEndpointName := types.NamespacedName{Namespace: namespace, Name: "nova"}
-			SimulateKeystoneEndpointReady(keystoneEndpointName)
+			th.SimulateKeystoneEndpointReady(keystoneEndpointName)
 
 			th.ExpectCondition(
 				novaAPIName,
@@ -576,7 +576,7 @@ var _ = Describe("NovaAPI controller", func() {
 			th.SimulateStatefulSetReplicaReady(statefulSetName)
 
 			keystoneEndpointName := types.NamespacedName{Namespace: namespace, Name: "nova"}
-			SimulateKeystoneEndpointReady(keystoneEndpointName)
+			th.SimulateKeystoneEndpointReady(keystoneEndpointName)
 
 			// As the internal enpoint is configured in ExternalEndpoints it does not
 			// get a Route but a Service with MetalLB annotations instead

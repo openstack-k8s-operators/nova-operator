@@ -162,9 +162,9 @@ var _ = Describe("Nova controller", func() {
 			)
 
 			serviceSpec := corev1.ServiceSpec{Ports: []corev1.ServicePort{{Port: 3306}}}
-			DeferCleanup(DeleteDBService, CreateDBService(namespace, "db-for-api", serviceSpec))
-			DeferCleanup(DeleteDBService, CreateDBService(namespace, "db-for-cell1", serviceSpec))
-			DeferCleanup(DeleteDBService, CreateDBService(namespace, "db-for-cell2", serviceSpec))
+			DeferCleanup(th.DeleteDBService, th.CreateDBService(namespace, "db-for-api", serviceSpec))
+			DeferCleanup(th.DeleteDBService, th.CreateDBService(namespace, "db-for-cell1", serviceSpec))
+			DeferCleanup(th.DeleteDBService, th.CreateDBService(namespace, "db-for-cell2", serviceSpec))
 
 			spec := GetDefaultNovaSpec()
 			cell0 := GetDefaultNovaCellTemplate()
@@ -195,14 +195,14 @@ var _ = Describe("Nova controller", func() {
 
 			CreateNova(novaName, spec)
 			DeferCleanup(DeleteNova, novaName)
-			DeferCleanup(DeleteKeystoneAPI, CreateKeystoneAPI(namespace))
-			SimulateKeystoneServiceReady(novaKeystoneServiceName)
+			DeferCleanup(th.DeleteKeystoneAPI, th.CreateKeystoneAPI(namespace))
+			th.SimulateKeystoneServiceReady(novaKeystoneServiceName)
 		})
 
 		It("creates cell0 NovaCell", func() {
-			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
-			SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
-			SimulateTransportURLReady(cell0.TransportURLName)
+			th.SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
+			th.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
+			th.SimulateTransportURLReady(cell0.TransportURLName)
 
 			// assert that cell related CRs are created pointing to the API MQ
 			cell := GetNovaCell(cell0.CellName)
@@ -251,9 +251,9 @@ var _ = Describe("Nova controller", func() {
 		})
 
 		It("creates NovaAPI", func() {
-			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
-			SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
-			SimulateTransportURLReady(cell0.TransportURLName)
+			th.SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
+			th.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
+			th.SimulateTransportURLReady(cell0.TransportURLName)
 			th.SimulateJobSuccess(cell0.CellDBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 
@@ -294,21 +294,21 @@ var _ = Describe("Nova controller", func() {
 		})
 
 		It("creates all cell DBs", func() {
-			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
-			SimulateTransportURLReady(cell0.TransportURLName)
-			SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
+			th.SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
+			th.SimulateTransportURLReady(cell0.TransportURLName)
+			th.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
 			th.SimulateJobSuccess(cell0.CellDBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 			th.SimulateStatefulSetReplicaReady(novaAPIdeploymentName)
 
-			SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
+			th.SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
 			th.ExpectCondition(
 				novaName,
 				ConditionGetterFunc(NovaConditionGetter),
 				novav1.NovaAllCellsDBReadyCondition,
 				corev1.ConditionFalse,
 			)
-			SimulateMariaDBDatabaseCompleted(cell2.MariaDBDatabaseName)
+			th.SimulateMariaDBDatabaseCompleted(cell2.MariaDBDatabaseName)
 			th.ExpectCondition(
 				novaName,
 				ConditionGetterFunc(NovaConditionGetter),
@@ -319,15 +319,15 @@ var _ = Describe("Nova controller", func() {
 		})
 
 		It("creates all cell MQs", func() {
-			SimulateTransportURLReady(cell0.TransportURLName)
-			SimulateTransportURLReady(cell1.TransportURLName)
+			th.SimulateTransportURLReady(cell0.TransportURLName)
+			th.SimulateTransportURLReady(cell1.TransportURLName)
 			th.ExpectCondition(
 				novaName,
 				ConditionGetterFunc(NovaConditionGetter),
 				novav1.NovaAllCellsMQReadyCondition,
 				corev1.ConditionFalse,
 			)
-			SimulateTransportURLReady(cell2.TransportURLName)
+			th.SimulateTransportURLReady(cell2.TransportURLName)
 			th.ExpectCondition(
 				novaName,
 				ConditionGetterFunc(NovaConditionGetter),
@@ -338,14 +338,14 @@ var _ = Describe("Nova controller", func() {
 		})
 
 		It("creates cell1 NovaCell", func() {
-			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
-			SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
-			SimulateTransportURLReady(cell0.TransportURLName)
+			th.SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
+			th.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
+			th.SimulateTransportURLReady(cell0.TransportURLName)
 			th.SimulateJobSuccess(cell0.CellDBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 			th.SimulateStatefulSetReplicaReady(novaAPIdeploymentName)
-			SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
-			SimulateTransportURLReady(cell1.TransportURLName)
+			th.SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
+			th.SimulateTransportURLReady(cell1.TransportURLName)
 
 			// assert that cell related CRs are created pointing to the cell1 MQ
 			c1 := GetNovaCell(cell1.CellName)
@@ -392,20 +392,20 @@ var _ = Describe("Nova controller", func() {
 			)
 		})
 		It("creates cell2 NovaCell", func() {
-			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
-			SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
-			SimulateTransportURLReady(cell0.TransportURLName)
+			th.SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
+			th.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
+			th.SimulateTransportURLReady(cell0.TransportURLName)
 			th.SimulateJobSuccess(cell0.CellDBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 			th.SimulateStatefulSetReplicaReady(novaAPIdeploymentName)
 			th.SimulateStatefulSetReplicaReady(novaSchedulerStatefulSetName)
-			SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
-			SimulateTransportURLReady(cell1.TransportURLName)
+			th.SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
+			th.SimulateTransportURLReady(cell1.TransportURLName)
 			th.SimulateJobSuccess(cell1.CellDBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
 
-			SimulateMariaDBDatabaseCompleted(cell2.MariaDBDatabaseName)
-			SimulateTransportURLReady(cell2.TransportURLName)
+			th.SimulateMariaDBDatabaseCompleted(cell2.MariaDBDatabaseName)
+			th.SimulateTransportURLReady(cell2.TransportURLName)
 
 			// assert that cell related CRs are created pointing to the Cell 2 MQ
 			c2 := GetNovaCell(cell2.CellName)
@@ -467,8 +467,8 @@ var _ = Describe("Nova controller", func() {
 		It("creates cell2 NovaCell even if everthing else fails", func() {
 			// Don't simulate any success for any other DBs MQs or Cells
 			// just for cell2
-			SimulateMariaDBDatabaseCompleted(cell2.MariaDBDatabaseName)
-			SimulateTransportURLReady(cell2.TransportURLName)
+			th.SimulateMariaDBDatabaseCompleted(cell2.MariaDBDatabaseName)
+			th.SimulateTransportURLReady(cell2.TransportURLName)
 
 			// assert that cell related CRs are created
 			GetNovaCell(cell2.CellName)
@@ -503,16 +503,16 @@ var _ = Describe("Nova controller", func() {
 			)
 		})
 		It("creates Nova API even if cell1 and cell2 fails", func() {
-			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
-			SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
-			SimulateTransportURLReady(cell0.TransportURLName)
+			th.SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
+			th.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
+			th.SimulateTransportURLReady(cell0.TransportURLName)
 			th.SimulateJobSuccess(cell0.CellDBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 
 			// Simulate that cell1 DB sync failed and do not simulate
 			// cell2 DB creation success so that will be in Creating state.
-			SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
-			SimulateTransportURLReady(cell1.TransportURLName)
+			th.SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
+			th.SimulateTransportURLReady(cell1.TransportURLName)
 			th.SimulateJobFailure(cell1.CellDBSyncJobName)
 
 			// NovaAPI is still created
@@ -532,11 +532,11 @@ var _ = Describe("Nova controller", func() {
 			)
 		})
 		It("does not create cell1 if cell0 fails as cell1 needs API access", func() {
-			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
-			SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
-			SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
-			SimulateTransportURLReady(cell0.TransportURLName)
-			SimulateTransportURLReady(cell1.TransportURLName)
+			th.SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
+			th.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
+			th.SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
+			th.SimulateTransportURLReady(cell0.TransportURLName)
+			th.SimulateTransportURLReady(cell1.TransportURLName)
 
 			th.SimulateJobFailure(cell0.CellDBSyncJobName)
 
@@ -554,7 +554,7 @@ var _ = Describe("Nova controller", func() {
 			)
 
 			serviceSpec := corev1.ServiceSpec{Ports: []corev1.ServicePort{{Port: 3306}}}
-			DeferCleanup(DeleteDBService, CreateDBService(namespace, "openstack", serviceSpec))
+			DeferCleanup(th.DeleteDBService, th.CreateDBService(namespace, "openstack", serviceSpec))
 
 			spec := GetDefaultNovaSpec()
 			cell0 := GetDefaultNovaCellTemplate()
@@ -586,15 +586,15 @@ var _ = Describe("Nova controller", func() {
 
 			CreateNova(novaName, spec)
 			DeferCleanup(DeleteNova, novaName)
-			DeferCleanup(DeleteKeystoneAPI, CreateKeystoneAPI(namespace))
-			SimulateKeystoneServiceReady(novaKeystoneServiceName)
+			DeferCleanup(th.DeleteKeystoneAPI, th.CreateKeystoneAPI(namespace))
+			th.SimulateKeystoneServiceReady(novaKeystoneServiceName)
 		})
 		It("cell0 becomes ready with 0 conductor replicas and the rest of nova is deployed", func() {
-			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
-			SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
-			SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
-			SimulateTransportURLReady(cell0.TransportURLName)
-			SimulateTransportURLReady(cell1.TransportURLName)
+			th.SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
+			th.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
+			th.SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
+			th.SimulateTransportURLReady(cell0.TransportURLName)
+			th.SimulateTransportURLReady(cell1.TransportURLName)
 
 			// We requested 0 replicas from the cell0 conductor so the
 			// conductor is ready even if 0 replicas is running but all
