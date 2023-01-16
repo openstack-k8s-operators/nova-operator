@@ -1,0 +1,61 @@
+---
+- hosts: all
+  tasks:
+    - name: create nova config dirs
+      become: true
+      ansible.builtin.file:
+        path: '{{ item.path }}'
+        state: directory
+        setype: "{{ item.setype | default('container_file_t') }}"
+        owner: '{{ansible_user}}'
+        group: '{{ansible_user}}'
+        mode: "{{ item.mode | default('750') }}"
+        recurse: true
+      with_items:
+      - { 'path': /var/lib/openstack/config/nova}
+      - { 'path': /var/lib/openstack/config/containers}
+    - name: create persistent directories
+      become: true
+      file:
+        path: "{{ item.path }}"
+        setype: "{{ item.setype }}"
+        state: directory
+        owner: '{{ansible_user}}'
+        group: '{{ansible_user}}'
+        mode: "{{ item.mode | default(omit) }}"
+      with_items:
+      - { 'path': /var/lib/nova, 'setype': container_file_t }
+      - { 'path': /var/lib/_nova_secontext, 'setype': container_file_t}
+      - { 'path': /var/lib/nova/instances, 'setype': container_file_t }
+      - { 'path': /var/log/containers/nova, 'setype': container_file_t, 'mode': '0750' }
+      # this should be done in bootstrap
+      - { 'path': /var/log/containers/stdouts, 'setype': container_file_t, 'mode': '0750' }
+    - name: Copy generated nova configs
+      ansible.builtin.copy:
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+        mode: "{{ item.mode | default('640') }}"
+      with_items:
+      - { 'src': "/var/lib/openstack/config/01-nova.conf", "dest": "/var/lib/openstack/config/nova/01-nova.conf" }
+      - { 'src': "/var/lib/openstack/config/nova-blank.conf", "dest": "/var/lib/openstack/config/nova/nova-blank.conf" }
+      - { 'src': "/var/lib/openstack/config/nova_compute.json", "dest": "/var/lib/openstack/config/containers/nova_compute.json"}
+      - { 'src': "/var/lib/openstack/config/nova-compute.json", "dest": "/var/lib/openstack/config/nova/nova-compute.json"}
+    - name: check if config override exists
+      stat:
+        path: "/var/lib/openstack/config/02-nova-override.conf"
+      register: nova_override
+    - name: Copy generated nova-override.conf
+      ansible.builtin.copy:
+        src: /var/lib/openstack/config/02-nova-override.conf
+        dest: /var/lib/openstack/config/nova/02-nova-override.conf
+        mode: '0640'
+      when: nova_override.stat.exists
+    - name: deploy nova container
+      ansible.builtin.include_role:
+        name: edpm_container_manage
+      vars:
+        edpm_container_manage_config: '/var/lib/openstack/config/containers'
+        edpm_container_manage_healthcheck_disabled: true
+        edpm_container_manage_debug: true
+        edpm_container_manage_config_patterns: 'nova_compute.json'
+        edpm_container_manage_clean_orphans: false

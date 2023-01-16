@@ -1,0 +1,19 @@
+{
+    "image": "quay.io/tripleozedcentos9/openstack-nova-libvirt:current-tripleo",
+    "restart": "always",
+    "command": "kolla_start",
+    "net": "host",
+    "privileged": "true",
+    "environment": {
+        "KOLLA_CONFIG_STRATEGY":"COPY_ALWAYS",
+        "KOLLA_CONFIG_FILE":"/var/lib/openstack/config/libvirt-virtnodedevd.json"
+    },
+    "volumes": [
+        "/var/lib/openstack/config/libvirt:/var/lib/openstack/config:ro",
+        "/etc/localtime:/etc/localtime:ro",
+        "/var/log/containers/libvirt:/var/log/containers/libvirt",
+        "/var/lib/libvirt:/var/lib/libvirt",
+        "/run/libvirt:/run/libvirt",
+        "/dev:/dev"
+    ]
+  }
