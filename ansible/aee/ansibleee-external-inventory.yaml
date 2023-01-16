@@ -1,0 +1,44 @@
+apiVersion: ansibleee.openstack.org/v1alpha1
+kind: OpenStackAnsibleEE
+metadata:
+  name: ansibleee-external-inventory
+  namespace: openstack
+spec:
+  image: "quay.io/tripleomastercentos9/openstack-tripleo-ansible-ee:current-tripleo"
+  env:
+    - name: ANSIBLE_FORCE_COLOR
+      value: "True"
+    - name: ANSIBLE_SSH_ARGS
+      value: "-C -o ControlMaster=auto -o ControlPersist=80s"
+    - name: ANSIBLE_ENABLE_TASK_DEBUGGER
+      value: "True"
+  extraMounts:
+    - volumes:
+        - name: inventory
+          configMap:
+            name: inventory-configmap
+        - name: ssh-key
+          secret:
+            secretName: edpm-ssh-key
+            items:
+              - key: ssh_private_key
+                path: ssh_key
+      mounts:
+        - name: inventory
+          mountPath: /runner/inventory/inventory.yaml
+          subPath: inventory.yaml
+        - name: ssh-key
+          mountPath: /runner/env/ssh_key
+          subPath: ssh_key
+  play: |
+    - hosts: all
+      gather_facts: false
+      vars:
+        cmd: "lsblk"
+      tasks:
+        - name: run command
+          shell: "{{ cmd }}"
+          register: cmd_out
+        - name: show command output
+          debug:
+            msg: "{{ cmd_out.stdout }}"

@@ -1,0 +1,12 @@
+---
+- hosts: all
+  gather_facts: false
+  vars:
+    cmd: "lsblk"
+  tasks:
+    - name: run command
+      shell: "{{ cmd }}"
+      register: cmd_out
+    - name: show command output
+      debug:
+        msg: "{{ cmd_out.stdout }}"
