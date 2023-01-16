@@ -109,7 +109,7 @@ PROC_CMD = --procs ${PROCS}
 
 .PHONY: test
 test: manifests generate fmt vet envtest ginkgo ## Run tests.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" $(GINKGO) --trace --cover --coverpkg=../../pkg/nova,../../pkg/novaapi,../../pkg/novaconductor,../../controllers,../../api/v1beta1 --coverprofile cover.out --covermode=atomic --randomize-all ${PROC_CMD} ./test/...
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) -v debug --bin-dir $(LOCALBIN) use $(ENVTEST_K8S_VERSION) -p path)" $(GINKGO) --trace --cover --coverpkg=../../pkg/nova,../../pkg/novaapi,../../pkg/novaconductor,../../controllers,../../api/v1beta1 --coverprofile cover.out --covermode=atomic --randomize-all ${PROC_CMD} ./test/...
 
 ##@ Build
 
@@ -274,8 +274,7 @@ govet: get-ci-tools
 	GOWORK=off $(CI_TOOLS_REPO_DIR)/test-runner/govet.sh ./api
 
 # Run go test against code
-gotest: get-ci-tools envtest
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) -v debug --bin-dir $(LOCALBIN) use $(ENVTEST_K8S_VERSION) -p path)" $(CI_TOOLS_REPO_DIR)/test-runner/gotest.sh
+gotest: test
 
 # Run golangci-lint test against code
 golangci: get-ci-tools
