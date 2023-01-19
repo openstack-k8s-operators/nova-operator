@@ -41,12 +41,13 @@ const (
 	MessageBusSecretName = "rabbitmq-secret"
 	ContainerImage       = "test://nova"
 
-	interval = time.Millisecond * 10
-	timeout  = interval * 200
+	timeout = 10 * time.Second
+	// have maximum 100 retries before the timeout hits
+	interval = timeout / 100
 	// consistencyTimeout is the amount of time we use to repeatedly check
 	// that a condition is still valid. This is intendet to be used in
 	// asserts using `Consistently`.
-	consistencyTimeout = interval * 200
+	consistencyTimeout = timeout
 )
 
 func CreateUnstructured(rawObj map[string]interface{}) {
