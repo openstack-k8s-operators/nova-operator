@@ -4,17 +4,6 @@ on:
   push:
     branches:
       - '*'
-    paths-ignore:
-      - .gitignore
-      - .pull_request_pipeline
-      - changelog.txt
-      - LICENSE
-      - Makefile
-      - OWNERS
-      - PROJECT
-      - README.md
-      - .github/
-      - build/
 
 env:
   imageregistry: 'quay.io'
