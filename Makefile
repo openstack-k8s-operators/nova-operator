@@ -100,7 +100,7 @@ fmt: ## Run go fmt against code.
 	go fmt ./...
 
 .PHONY: vet
-vet: ## Run go vet against code.
+vet: gowork ## Run go vet against code.
 	go vet ./...
 	go vet ./api/...
 
@@ -287,7 +287,7 @@ golint: get-ci-tools
 	export GOWORK=off && PATH=$(GOBIN):$(PATH); $(CI_TOOLS_REPO_DIR)/test-runner/golint.sh ./api
 
 .PHONY: operator-lint
-operator-lint: $(LOCALBIN) ## Runs operator-lint
+operator-lint: $(LOCALBIN) gowork ## Runs operator-lint
 	#TODO(gibi): bump this to v0.2.2 as soon as that version is tagged
 	GOBIN=$(LOCALBIN) go install github.com/gibizer/operator-lint@2ffa25b7f1c13fb2bdae5444a3dd1b5bbad529b1
 	go vet -vettool=$(LOCALBIN)/operator-lint ./... ./api/...
@@ -296,3 +296,9 @@ operator-lint: $(LOCALBIN) ## Runs operator-lint
 operator-sdk: $(OPERATOR_SDK) ## Download operator-sdk locally if necessary.
 $(OPERATOR_SDK): $(LOCALBIN)
 	test -s $(OPERATOR_SDK) || curl -o $(LOCALBIN)/operator-sdk -L https://github.com/operator-framework/operator-sdk/releases/download/$(OPERATOR_SDK_VERSION)/operator-sdk_linux_amd64 && chmod +x $(LOCALBIN)/operator-sdk
+
+.PHONY: gowork
+gowork: ## Generate go.work file
+	test -f go.work || go work init
+	go work use .
+	go work use ./api
