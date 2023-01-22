@@ -50,7 +50,7 @@ type NovaSpec struct {
 	APIMessageBusInstance string `json:"apiMessageBusInstance"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default={cell0: {cellDatabaseInstance: openstack, cellDatabaseUser: nova_cell0, cellMessageBusInstance: unused, hasAPIAccess: true, conductorServiceTemplate: {containerImage: "quay.io/tripleozedcentos9/openstack-nova-conductor:current-tripleo"}}}
+	// +kubebuilder:default={cell0: {cellDatabaseUser: nova_cell0, hasAPIAccess: true}, cell1: {cellDatabaseUser: nova_cell1, cellMessageBusInstance: rabbitmq-cell1, hasAPIAccess: true}}
 	// Cells is a mapping of cell names to NovaCellTemplate objects defining
 	// the cells in the deployment. The "cell0" cell is a mandatory cell in
 	// every deployment. Moreover any real deployment needs at least one

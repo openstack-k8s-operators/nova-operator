@@ -105,12 +105,6 @@ var _ = Describe("Samples", func() {
 			GetNova(name)
 		})
 	})
-	When("nova_v1beta1_nova_only_cell0.yaml sample is applied", func() {
-		It("Nova is created", func() {
-			name := CreateNovaFromSample("nova_v1beta1_nova_only_cell0.yaml", namespace)
-			GetNova(name)
-		})
-	})
 	When("nova_v1beta1_nova-multi-cell.yaml sample is applied", func() {
 		It("Nova is created", func() {
 			name := CreateNovaFromSample("nova_v1beta1_nova-multi-cell.yaml", namespace)

@@ -4,11 +4,3 @@ metadata:
   name: nova
 spec:
   secret: osp-secret
-  cellTemplates:
-    cell0:
-      cellDatabaseUser: nova_cell0
-      # cell0 always needs API access as it hosts the super conductor
-      hasAPIAccess: true
-    cell1:
-      cellDatabaseUser: nova_cell1
-      hasAPIAccess: true

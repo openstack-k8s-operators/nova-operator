@@ -436,11 +436,11 @@ spec:
                   type: object
                 default:
                   cell0:
-                    cellDatabaseInstance: openstack
                     cellDatabaseUser: nova_cell0
-                    cellMessageBusInstance: unused
-                    conductorServiceTemplate:
-                      containerImage: quay.io/tripleozedcentos9/openstack-nova-conductor:current-tripleo
+                    hasAPIAccess: true
+                  cell1:
+                    cellDatabaseUser: nova_cell1
+                    cellMessageBusInstance: rabbitmq-cell1
                     hasAPIAccess: true
                 description: Cells is a mapping of cell names to NovaCellTemplate
                   objects defining the cells in the deployment. The "cell0" cell is
