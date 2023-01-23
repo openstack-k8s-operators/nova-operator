@@ -151,7 +151,7 @@ func NewTestKeystoneAPI(namespace string) *TestKeystoneAPI {
 			DatabaseUser: "foo-bar-baz",
 		},
 		Status: keystonev1.KeystoneAPIStatus{
-			APIEndpoints:     map[string]string{
+			APIEndpoints: map[string]string{
 				"internal": "fake-keystone-internal-endpoint",
 				"public":   "fake-keystone-public-endpoint",
 			},
