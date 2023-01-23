@@ -151,7 +151,10 @@ func NewTestKeystoneAPI(namespace string) *TestKeystoneAPI {
 			DatabaseUser: "foo-bar-baz",
 		},
 		Status: keystonev1.KeystoneAPIStatus{
-			APIEndpoints:     map[string]string{"public": "fake-keystone-public-endpoint"},
+			APIEndpoints:     map[string]string{
+				"internal": "fake-keystone-internal-endpoint",
+				"public":   "fake-keystone-public-endpoint",
+			},
 			DatabaseHostname: "fake-database-hostname",
 		},
 	}
@@ -268,7 +271,7 @@ var _ = Describe("PlacementAPI controller", func() {
 	})
 
 	When("keystoneAPI instance is available", func() {
-		It("should create a ConfigMap for placement.conf with the auth_url config option set based on the KeystoneAPI", func() {
+		It("should create a ConfigMap for placement.conf with some config options set based on the KeystoneAPI", func() {
 			secret = &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      SecretName,
@@ -289,7 +292,9 @@ var _ = Describe("PlacementAPI controller", func() {
 
 			Eventually(configData).ShouldNot(BeNil())
 			Expect(configData.Data["placement.conf"]).Should(
-				ContainSubstring("auth_url = %s", keystoneAPI.Template.Status.APIEndpoints["public"]))
+				ContainSubstring("auth_url = %s", keystoneAPI.Template.Status.APIEndpoints["internal"]))
+			Expect(configData.Data["placement.conf"]).Should(
+				ContainSubstring("www_authenticate_uri = %s", keystoneAPI.Template.Status.APIEndpoints["public"]))
 		})
 	})
 })
