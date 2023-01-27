@@ -543,4 +543,116 @@ var _ = Describe("Nova controller", func() {
 			NovaCellNotExists(cell1.CellName)
 		})
 	})
+
+	When("Nova CR instance is created with collapsed cell deployment", func() {
+		BeforeEach(func() {
+			DeferCleanup(k8sClient.Delete, ctx, CreateNovaSecret(namespace, SecretName))
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateNovaMessageBusSecret(namespace, "mq-for-api-secret"),
+			)
+
+			serviceSpec := corev1.ServiceSpec{Ports: []corev1.ServicePort{{Port: 3306}}}
+			DeferCleanup(DeleteDBService, CreateDBService(namespace, "openstack", serviceSpec))
+
+			spec := GetDefaultNovaSpec()
+			cell0 := GetDefaultNovaCellTemplate()
+			cell0["cellName"] = "cell0"
+			cell0["cellDatabaseInstance"] = "openstack"
+			cell0["cellDatabaseUser"] = "nova_cell0"
+			cell0["hasAPIAccess"] = true
+			// disable cell0 conductor
+			cell0["conductorServiceTemplate"] = map[string]interface{}{
+				"replicas": 0,
+			}
+
+			cell1 := GetDefaultNovaCellTemplate()
+			// cell1 is configured to have API access and use the same
+			// message bus as the top level services. Hence cell1 conductor
+			// will act both as a super conductor and as cell1 conductor
+			cell1["cellName"] = "cell1"
+			cell1["cellDatabaseInstance"] = "openstack"
+			cell1["cellDatabaseUser"] = "nova_cell1"
+			cell1["cellMessageBusInstance"] = "mq-for-api"
+			cell1["hasAPIAccess"] = true
+
+			spec["cellTemplates"] = map[string]interface{}{
+				"cell0": cell0,
+				"cell1": cell1,
+			}
+			spec["apiDatabaseInstance"] = "openstack"
+			spec["apiMessageBusInstance"] = "mq-for-api"
+
+			CreateNova(novaName, spec)
+			DeferCleanup(DeleteNova, novaName)
+			DeferCleanup(DeleteKeystoneAPI, CreateKeystoneAPI(namespace))
+			SimulateKeystoneServiceReady(novaKeystoneServiceName)
+		})
+		It("cell0 becomes ready with 0 conductor replicas and the rest of nova is deployed", func() {
+			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
+			SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
+			SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
+			SimulateTransportURLReady(cell0.TransportURLName)
+			SimulateTransportURLReady(cell1.TransportURLName)
+
+			// We requested 0 replicas from the cell0 conductor so the
+			// conductor is ready even if 0 replicas is running but all
+			// the necessary steps, i.e. db-sync is run successfully
+			th.SimulateJobSuccess(cell0.CellDBSyncJobName)
+			th.ExpectCondition(
+				cell0.CellConductorName,
+				ConditionGetterFunc(NovaConductorConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			th.ExpectCondition(
+				cell0.CellName,
+				ConditionGetterFunc(NovaCellConditionGetter),
+				novav1.NovaConductorReadyCondition,
+				corev1.ConditionTrue,
+			)
+			ss := th.GetStatefulSet(cell0.ConductorStatefulSetName)
+			Expect(ss.Status.Replicas).To(Equal(int32(0)))
+			Expect(ss.Status.AvailableReplicas).To(Equal(int32(0)))
+
+			// As cell0 is ready cell1 is deployed
+			th.SimulateJobSuccess(cell1.CellDBSyncJobName)
+			th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
+
+			th.ExpectCondition(
+				cell1.CellName,
+				ConditionGetterFunc(NovaCellConditionGetter),
+				novav1.NovaConductorReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			// As cell0 is ready API is deployed
+			th.SimulateStatefulSetReplicaReady(novaAPIdeploymentName)
+			th.ExpectCondition(
+				novaName,
+				ConditionGetterFunc(NovaConditionGetter),
+				novav1.NovaAPIReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			// As cell0 is ready scheduler is deployed
+			th.SimulateStatefulSetReplicaReady(novaSchedulerStatefulSetName)
+			th.ExpectCondition(
+				novaName,
+				ConditionGetterFunc(NovaConditionGetter),
+				novav1.NovaSchedulerReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			// So the whole Nova deployment is ready
+			th.ExpectCondition(
+				novaName,
+				ConditionGetterFunc(NovaConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
+	})
 })

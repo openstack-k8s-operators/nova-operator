@@ -393,6 +393,9 @@ func (r *NovaConductorReconciler) ensureDeployment(
 	if instance.Status.ReadyCount > 0 {
 		util.LogForObject(h, "Deployment is ready", instance)
 		instance.Status.Conditions.MarkTrue(condition.DeploymentReadyCondition, condition.DeploymentReadyMessage)
+	} else if instance.Spec.Replicas == 0 {
+		util.LogForObject(h, "Deployment with 0 replicas is ready", instance)
+		instance.Status.Conditions.MarkTrue(condition.DeploymentReadyCondition, condition.DeploymentReadyMessage)
 	} else {
 		util.LogForObject(h, "Deployment is not ready", instance, "Status", ss.GetStatefulSet().Status)
 		instance.Status.Conditions.Set(condition.FalseCondition(
