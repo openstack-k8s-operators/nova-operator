@@ -45,6 +45,7 @@ spec:
             description: PlacementAPISpec defines the desired state of PlacementAPI
             properties:
               containerImage:
+                default: quay.io/tripleozedcentos9/openstack-placement-api:current-tripleo
                 description: PlacementAPI Container Image URL
                 type: string
               customServiceConfig:
@@ -161,7 +162,6 @@ spec:
                   to register in keystone
                 type: string
             required:
-            - containerImage
             - databaseInstance
             - secret
             type: object

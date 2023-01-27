@@ -53,7 +53,8 @@ type PlacementAPISpec struct {
 	// TODO: -> implement needs work in mariadb-operator, right now only placement
 	DatabaseUser string `json:"databaseUser"`
 
-	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default="quay.io/tripleozedcentos9/openstack-placement-api:current-tripleo"
 	// PlacementAPI Container Image URL
 	ContainerImage string `json:"containerImage"`
 
@@ -152,12 +153,11 @@ type PlacementAPIStatus struct {
 	ServiceID string `json:"serviceID,omitempty"`
 }
 
-//+kubebuilder:object:root=true
-//+kubebuilder:subresource:status
-//+kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.conditions[0].status",description="Status"
-//+kubebuilder:printcolumn:name="Message",type="string",JSONPath=".status.conditions[0].message",description="Message"
-
 // PlacementAPI is the Schema for the placementapis API
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.conditions[0].status",description="Status"
+// +kubebuilder:printcolumn:name="Message",type="string",JSONPath=".status.conditions[0].message",description="Message"
 type PlacementAPI struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -166,9 +166,8 @@ type PlacementAPI struct {
 	Status PlacementAPIStatus `json:"status,omitempty"`
 }
 
-//+kubebuilder:object:root=true
-
 // PlacementAPIList contains a list of PlacementAPI
+// +kubebuilder:object:root=true
 type PlacementAPIList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
