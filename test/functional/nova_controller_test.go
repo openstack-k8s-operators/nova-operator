@@ -605,5 +605,21 @@ var _ = Describe("Nova controller", func() {
 			service = GetKeystoneService(novaKeystoneServiceName)
 			Expect(service.Finalizers).NotTo(ContainElement("Nova"))
 		})
+
+		It("removes the finalizers from the nova dbs", func() {
+			SimulateKeystoneServiceReady(novaKeystoneServiceName)
+
+			apiDB := GetMariaDBDatabase(mariaDBDatabaseNameForAPI)
+			Expect(apiDB.Finalizers).To(ContainElement("Nova"))
+			cell0DB := GetMariaDBDatabase(mariaDBDatabaseNameForCell0)
+			Expect(cell0DB.Finalizers).To(ContainElement("Nova"))
+
+			DeleteNova(novaName)
+
+			apiDB = GetMariaDBDatabase(mariaDBDatabaseNameForAPI)
+			Expect(apiDB.Finalizers).NotTo(ContainElement("Nova"))
+			cell0DB = GetMariaDBDatabase(mariaDBDatabaseNameForCell0)
+			Expect(cell0DB.Finalizers).NotTo(ContainElement("Nova"))
+		})
 	})
 })

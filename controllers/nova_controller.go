@@ -37,6 +37,7 @@ import (
 
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/nova-operator/pkg/nova"
+	"github.com/openstack-k8s-operators/nova-operator/pkg/novaapi"
 
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
@@ -854,6 +855,36 @@ func (r *NovaReconciler) ensureKeystoneServiceUser(
 	return nil
 }
 
+func (r *NovaReconciler) ensureDBDeletion(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *novav1.Nova,
+) error {
+	// remove finalizers from all of our MariaDBDatabases to ensure they
+	// are deleted
+
+	// initialize a nova dbs list with default db names and add used cells:
+	novaDbs := []string{"nova-api"}
+	for cellName := range instance.Spec.CellTemplates {
+		novaDbs = append(novaDbs, novaapi.ServiceName+"-"+cellName)
+	}
+	// iterate over novaDbs and remove finalizers
+	for _, dbName := range novaDbs {
+		db, err := database.GetDatabaseByName(ctx, h, dbName)
+		if err != nil && !k8s_errors.IsNotFound(err) {
+			return err
+		}
+		if !k8s_errors.IsNotFound(err) {
+			if err := db.DeleteFinalizer(ctx, h); err != nil {
+				return err
+			}
+		}
+	}
+
+	util.LogForObject(h, "Removed finalizer from MariaDBDatabase CRs", instance, "MariaDBDatabase names", novaDbs)
+	return nil
+}
+
 func (r *NovaReconciler) ensureKeystoneServiceUserDeletion(
 	ctx context.Context,
 	h *helper.Helper,
@@ -912,7 +943,12 @@ func (r *NovaReconciler) reconcileDelete(
 ) error {
 	util.LogForObject(h, "Reconciling delete", instance)
 
-	err := r.ensureKeystoneServiceUserDeletion(ctx, h, instance)
+	err := r.ensureDBDeletion(ctx, h, instance)
+	if err != nil {
+		return err
+	}
+
+	err = r.ensureKeystoneServiceUserDeletion(ctx, h, instance)
 	if err != nil {
 		return err
 	}
