@@ -1,0 +1,19 @@
+apiVersion: nova.openstack.org/v1beta1
+kind: Nova
+metadata:
+  name: nova
+spec:
+  secret: osp-secret
+  cellTemplates:
+    cell0:
+      cellDatabaseUser: nova_cell0
+      conductorServiceTemplate:
+        # conductor in cell1 will act both as the super conductor and as the
+        # cell1 conductor
+        replicas: 0
+      hasAPIAccess: true
+    cell1:
+      cellDatabaseUser: nova_cell1
+      conductorServiceTemplate:
+        replicas: 1
+      hasAPIAccess: true
