@@ -1,6 +1,6 @@
 module github.com/openstack-k8s-operators/nova-operator/api
 
-go 1.18
+go 1.19
 
 require (
 	github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20230130113944-08eaed348cec
