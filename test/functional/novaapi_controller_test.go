@@ -332,7 +332,6 @@ var _ = Describe("NovaAPI controller", func() {
 			)
 			AssertServiceExists(types.NamespacedName{Namespace: namespace, Name: "nova-public"})
 			AssertServiceExists(types.NamespacedName{Namespace: namespace, Name: "nova-internal"})
-			AssertServiceExists(types.NamespacedName{Namespace: namespace, Name: "nova-admin"})
 			AssertRouteExists(types.NamespacedName{Namespace: namespace, Name: "nova-public"})
 		})
 

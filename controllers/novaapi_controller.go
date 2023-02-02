@@ -455,7 +455,6 @@ func (r *NovaAPIReconciler) ensureServiceExposed(
 	instance *novav1.NovaAPI,
 ) (ctrl.Result, error) {
 	var ports = map[endpoint.Endpoint]endpoint.Data{
-		endpoint.EndpointAdmin:    {Port: novaapi.APIServicePort},
 		endpoint.EndpointPublic:   {Port: novaapi.APIServicePort},
 		endpoint.EndpointInternal: {Port: novaapi.APIServicePort},
 	}
