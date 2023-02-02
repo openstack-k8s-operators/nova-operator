@@ -37,6 +37,7 @@ const (
 func CellDBSyncJob(
 	instance *novav1.NovaConductor,
 	labels map[string]string,
+	annotations map[string]string,
 ) *batchv1.Job {
 
 	initContainerDetails := ContainerInput{
@@ -78,9 +79,10 @@ func CellDBSyncJob(
 
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      instance.Name + "-db-sync",
-			Namespace: instance.Namespace,
-			Labels:    labels,
+			Name:        instance.Name + "-db-sync",
+			Namespace:   instance.Namespace,
+			Annotations: annotations,
+			Labels:      labels,
 		},
 		Spec: batchv1.JobSpec{
 			Template: corev1.PodTemplateSpec{
