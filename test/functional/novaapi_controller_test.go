@@ -334,8 +334,6 @@ var _ = Describe("NovaAPI controller", func() {
 			AssertServiceExists(types.NamespacedName{Namespace: namespace, Name: "nova-internal"})
 			AssertServiceExists(types.NamespacedName{Namespace: namespace, Name: "nova-admin"})
 			AssertRouteExists(types.NamespacedName{Namespace: namespace, Name: "nova-public"})
-			AssertRouteExists(types.NamespacedName{Namespace: namespace, Name: "nova-internal"})
-			AssertRouteExists(types.NamespacedName{Namespace: namespace, Name: "nova-admin"})
 		})
 
 		It("creates KeystoneEndpoint", func() {
@@ -345,8 +343,7 @@ var _ = Describe("NovaAPI controller", func() {
 			keystoneEndpoint := GetKeystoneEndpoint(types.NamespacedName{Namespace: namespace, Name: "nova"})
 			endpoints := keystoneEndpoint.Spec.Endpoints
 			Expect(endpoints).To(HaveKeyWithValue("public", "http:/v2.1"))
-			Expect(endpoints).To(HaveKeyWithValue("internal", "http:/v2.1"))
-			Expect(endpoints).To(HaveKeyWithValue("admin", "http:/v2.1"))
+			Expect(endpoints).To(HaveKeyWithValue("internal", "http://nova-internal."+namespace+".svc:8774/v2.1"))
 
 			th.ExpectCondition(
 				novaAPIName,

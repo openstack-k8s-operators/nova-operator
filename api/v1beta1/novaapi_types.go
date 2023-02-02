@@ -67,6 +67,10 @@ type NovaAPITemplate struct {
 	// +kubebuilder:validation:Optional
 	// NetworkAttachments is a list of NetworkAttachment resource names to expose the services to the given network
 	NetworkAttachments []string `json:"networkAttachments"`
+
+	// +kubebuilder:validation:Optional
+	// ExternalEndpoints, expose a VIP via MetalLB on the pre-created address pool
+	ExternalEndpoints []MetalLBConfig `json:"externalEndpoints"`
 }
 
 // NovaAPISpec defines the desired state of NovaAPI
@@ -127,6 +131,10 @@ type NovaAPISpec struct {
 	// +kubebuilder:validation:Required
 	// NovaServiceBase specifies the generic fields of the service
 	NovaServiceBase `json:",inline"`
+
+	// +kubebuilder:validation:Optional
+	// ExternalEndpoints, expose a VIP via MetalLB on the pre-created address pool
+	ExternalEndpoints []MetalLBConfig `json:"externalEndpoints"`
 }
 
 // NovaAPIStatus defines the observed state of NovaAPI

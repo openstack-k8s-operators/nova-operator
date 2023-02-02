@@ -690,11 +690,16 @@ func (r *NovaReconciler) ensureAPI(
 		Cell0DatabaseUser:       cell0Template.CellDatabaseUser,
 		APIMessageBusSecretName: apiMQSecretName,
 		Debug:                   instance.Spec.Debug,
-		// NOTE(gibi): this is a coincidence that the NovaServiceBase
-		// has exactly the same fields as the NovaAPITemplate so we can convert
-		// between them directly. As soon as these two structs start to diverge
-		// we need to copy fields one by one here.
-		NovaServiceBase:   novav1.NovaServiceBase(instance.Spec.APIServiceTemplate),
+		NovaServiceBase: novav1.NovaServiceBase{
+			ContainerImage:         instance.Spec.APIServiceTemplate.ContainerImage,
+			Replicas:               instance.Spec.APIServiceTemplate.Replicas,
+			NodeSelector:           instance.Spec.APIServiceTemplate.NodeSelector,
+			CustomServiceConfig:    instance.Spec.APIServiceTemplate.CustomServiceConfig,
+			DefaultConfigOverwrite: instance.Spec.APIServiceTemplate.DefaultConfigOverwrite,
+			Resources:              instance.Spec.APIServiceTemplate.Resources,
+			NetworkAttachments:     instance.Spec.APIServiceTemplate.NetworkAttachments,
+		},
+		ExternalEndpoints: instance.Spec.APIServiceTemplate.ExternalEndpoints,
 		KeystoneAuthURL:   keystoneAuthURL,
 		ServiceUser:       instance.Spec.ServiceUser,
 		PasswordSelectors: instance.Spec.PasswordSelectors,
