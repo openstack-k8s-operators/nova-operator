@@ -36,5 +36,10 @@
       ],
       "allowedVersions": "< 1.0.0"
     }
-  ]
+  ],
+  "postUpgradeTasks": {
+    "commands": ["go mod tidy", "make manifests generate"],
+    "fileFilters": ["**/go.mod", "**/go.sum", "**/*.go", "**/*.yaml"],
+    "executionMode": "update"
+  }
 }
