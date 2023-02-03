@@ -1,0 +1,68 @@
+---
+- hosts: all
+  tasks:
+    - name: create nova config dir
+      become: true
+      ansible.builtin.file:
+        path: '/etc/nova/nova.conf.d/'
+        state: directory
+        owner: '{{ansible_user}}'
+        group: '{{ansible_user}}'
+        mode: '0750'
+        recurse: true
+    # TODO: put these copies in a loop
+    - name: Copy generated nova.conf
+      ansible.builtin.copy:
+        src: /var/lib/openstack/config/01-nova.conf
+        dest: /etc/nova/01-nova.conf
+        mode: '0640'
+    - name: Copy generated nova-blank.conf
+      ansible.builtin.copy:
+        src: /var/lib/openstack/config/nova-blank.conf
+        dest: /etc/nova/nova-blank.conf
+        mode: '0640'
+    - name: check if config override exists
+      stat:
+        path: "/path/to/something"
+      register: nova_override
+    - name: Copy generated nova-override.conf
+      ansible.builtin.copy:
+        src: /var/lib/openstack/config/02-nova-override.conf
+        dest: /etc/nova/02-nova-override.conf
+        mode: '0640'
+      when: nova_override.stat.exists
+    - name: create persistent directories
+      become: true
+      file:
+        path: "{{ item.path }}"
+        setype: "{{ item.setype }}"
+        state: directory
+        owner: '{{ansible_user}}'
+        group: '{{ansible_user}}'
+        mode: "{{ item.mode | default(omit) }}"
+      with_items:
+      - { 'path': /var/lib/nova, 'setype': container_file_t }
+      - { 'path': /var/lib/_nova_secontext, 'setype': container_file_t}
+      - { 'path': /var/lib/nova/instances, 'setype': container_file_t }
+      - { 'path': /var/lib/libvirt, 'setype': container_file_t }
+      - { 'path': /var/log/containers/nova, 'setype': container_file_t, 'mode': '0750' }
+      # this should be done in bootstrap
+      - { 'path': /var/log/containers/stdouts, 'setype': container_file_t, 'mode': '0750' }
+    - name: Copy nova container template
+      ansible.builtin.copy:
+        src: /var/lib/openstack/config/nova-compute-container.json
+        dest: /etc/nova/nova-compute-container.json
+        mode: '0640'
+    - name: Copy kolla_start config
+      ansible.builtin.copy:
+        src: /var/lib/openstack/config/nova-compute.json
+        dest: /etc/nova/nova-compute.json
+        mode: '0640'
+    - name: deploy nova container
+      ansible.builtin.include_role:
+        name: edpm_container_manage
+      vars:
+        edpm_container_manage_config: '/etc/nova/'
+        edpm_container_manage_healthcheck_disabled: true
+        edpm_container_manage_debug: true
+        edpm_container_manage_config_patterns: 'nova-compute-container.json'
