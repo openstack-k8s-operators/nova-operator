@@ -226,6 +226,8 @@ github.com/onsi/gomega v1.26.0 h1:03cDLK28U6hWvCAns6NeydX3zIm4SF3ci69ulidS32Q=
 github.com/onsi/gomega v1.26.0/go.mod h1:r+zV744Re+DiYCIPRlYOTxn0YkOLcAnW8k1xXdMPGhM=
 github.com/openshift/api v3.9.0+incompatible h1:fJ/KsefYuZAjmrr3+5U9yZIZbTOpVkDDLDLFresAeYs=
 github.com/openshift/api v3.9.0+incompatible/go.mod h1:dh9o4Fs58gpFXGSYfnVxGR9PnV53I8TW84pQaJDdGiY=
+github.com/openstack-k8s-operators/infra-operator/apis v0.0.0-20230203151002-5ca00e898340 h1:iR0ccbzWxDf2ZsnwXx8gBEmELYay6KeTMcaqUXVA7Tk=
+github.com/openstack-k8s-operators/infra-operator/apis v0.0.0-20230203151002-5ca00e898340/go.mod h1:1eXDVJYo3+NPrAyvrDo9BTcc2W/v+b6Jw/cL7O0aAno=
 github.com/openstack-k8s-operators/keystone-operator/api v0.0.0-20230127072022-efdd85d844e1 h1:dYVGTV28cAET2JF7BIJF4GXUKL3NfJEi/8WKh/mKnT0=
 github.com/openstack-k8s-operators/keystone-operator/api v0.0.0-20230127072022-efdd85d844e1/go.mod h1:XFyHi+hnGUkiwgD2swefHjq8tSRzjq2tmbfP4MvRyTs=
 github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20230130113944-08eaed348cec h1:97n+9M5HQt+RxnA/DOAtAgcVnqpA3TaT9w3QgtbHp4g=
@@ -238,8 +240,6 @@ github.com/openstack-k8s-operators/lib-common/modules/test v0.0.0-20230130113944
 github.com/openstack-k8s-operators/lib-common/modules/test v0.0.0-20230130113944-08eaed348cec/go.mod h1:2RQGkwzHPwk5XYUgODeVpZpM7qFGH+nU/lvTNun2pzg=
 github.com/openstack-k8s-operators/mariadb-operator/api v0.0.0-20230118093207-9764a3d19c85 h1:HIMPgHdwRDSXeXBoBVuyK3DeaI7CpS901PPNG3PwLgA=
 github.com/openstack-k8s-operators/mariadb-operator/api v0.0.0-20230118093207-9764a3d19c85/go.mod h1:HiEKXmDSJ6Gl+pN7kK5CX1sgOjrxybux4Ob5pdUim1M=
-github.com/openstack-k8s-operators/openstack-operator/apis v0.0.0-20230130144155-534f09255ae4 h1:L5wD2iSld7WS6tq6cfhAwyaZFOjrA11BxmB+KPRMgLI=
-github.com/openstack-k8s-operators/openstack-operator/apis v0.0.0-20230130144155-534f09255ae4/go.mod h1:QotukBY4y9/lQBj3pnvFV1FAiChSuKW/sCLKs4ssJp4=
 github.com/pkg/errors v0.8.0/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pkg/errors v0.8.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
