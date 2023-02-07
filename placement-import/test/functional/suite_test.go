@@ -118,10 +118,12 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	//+kubebuilder:scaffold:scheme
 
+	logger = ctrl.Log.WithName("---Test---")
+
 	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
 	Expect(err).NotTo(HaveOccurred())
 	Expect(k8sClient).NotTo(BeNil())
-	th = NewTestHelper(ctx, k8sClient, timeout, interval)
+	th = NewTestHelper(ctx, k8sClient, timeout, interval, logger)
 	Expect(th).NotTo(BeNil())
 
 	// Start the controller-manager if goroutine
@@ -139,8 +141,6 @@ var _ = BeforeSuite(func() {
 		Log:     ctrl.Log.WithName("controllers").WithName("PlacementAPI"),
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
-
-	logger = ctrl.Log.WithName("---Test---")
 
 	go func() {
 		defer GinkgoRecover()
