@@ -8,12 +8,12 @@ require (
 	github.com/onsi/ginkgo/v2 v2.8.0
 	github.com/onsi/gomega v1.26.0
 	github.com/openshift/api v3.9.0+incompatible
-	github.com/openstack-k8s-operators/infra-operator/apis v0.0.0-20230203151002-5ca00e898340
-	github.com/openstack-k8s-operators/keystone-operator/api v0.0.0-20230127072022-efdd85d844e1
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20230130113944-08eaed348cec
-	github.com/openstack-k8s-operators/lib-common/modules/database v0.0.0-20230130113944-08eaed348cec
-	github.com/openstack-k8s-operators/lib-common/modules/test v0.0.0-20230130113944-08eaed348cec
-	github.com/openstack-k8s-operators/mariadb-operator/api v0.0.0-20230118093207-9764a3d19c85
+	github.com/openstack-k8s-operators/infra-operator/apis v0.0.0-20230206011116-de79e1982b80
+	github.com/openstack-k8s-operators/keystone-operator/api v0.0.0-20230206150337-d6671c8d0e22
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20230206165951-67c8c5c32476
+	github.com/openstack-k8s-operators/lib-common/modules/database v0.0.0-20230206165951-67c8c5c32476
+	github.com/openstack-k8s-operators/lib-common/modules/test v0.0.0-20230206165951-67c8c5c32476
+	github.com/openstack-k8s-operators/mariadb-operator/api v0.0.0-20230206135206-4970c77d3d00
 	github.com/openstack-k8s-operators/nova-operator/api v0.0.0-20230127170258-ba3b9bd6497e
 	go.uber.org/zap v1.24.0
 	gopkg.in/yaml.v3 v3.0.1
@@ -49,7 +49,7 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
-	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.0.0-20230130113944-08eaed348cec // indirect
+	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.0.0-20230131105859-675e99666dbc // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_golang v1.14.0 // indirect
 	github.com/prometheus/client_model v0.3.0 // indirect
@@ -73,7 +73,7 @@ require (
 	k8s.io/apiextensions-apiserver v0.26.1 // indirect
 	k8s.io/component-base v0.26.1 // indirect
 	k8s.io/klog/v2 v2.80.1 // indirect
-	k8s.io/kube-openapi v0.0.0-20230127205639-68031ae9242a // indirect
+	k8s.io/kube-openapi v0.0.0-20230131200451-5e46c6e584a1 // indirect
 	k8s.io/utils v0.0.0-20230115233650-391b47cb4029 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.3 // indirect
