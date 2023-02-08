@@ -332,6 +332,7 @@ func (r *PlacementAPIReconciler) reconcileInit(
 		placement.ServiceName,
 		serviceLabels,
 		ports,
+		time.Duration(5)*time.Second,
 	)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
@@ -374,7 +375,7 @@ func (r *PlacementAPIReconciler) reconcileInit(
 		Secret:             instance.Spec.Secret,
 		PasswordSelector:   instance.Spec.PasswordSelectors.Service,
 	}
-	ksSvc := keystonev1.NewKeystoneService(ksSvcSpec, instance.Namespace, serviceLabels, 10)
+	ksSvc := keystonev1.NewKeystoneService(ksSvcSpec, instance.Namespace, serviceLabels, time.Duration(10)*time.Second)
 	ctrlResult, err = ksSvc.CreateOrPatch(ctx, helper)
 	if err != nil {
 		return ctrlResult, err
@@ -404,7 +405,8 @@ func (r *PlacementAPIReconciler) reconcileInit(
 		instance.Namespace,
 		ksEndptSpec,
 		serviceLabels,
-		10)
+		time.Duration(10)*time.Second,
+	)
 	ctrlResult, err = ksEndpt.CreateOrPatch(ctx, helper)
 	if err != nil {
 		return ctrlResult, err
@@ -429,7 +431,7 @@ func (r *PlacementAPIReconciler) reconcileInit(
 		jobDef,
 		placementv1.DbSyncHash,
 		instance.Spec.PreserveJobs,
-		5,
+		time.Duration(5)*time.Second,
 		dbSyncHash,
 	)
 	ctrlResult, err = dbSyncjob.DoJob(
@@ -591,7 +593,7 @@ func (r *PlacementAPIReconciler) reconcileNormal(ctx context.Context, instance *
 	// Define a new Deployment object
 	depl := deployment.NewDeployment(
 		placement.Deployment(instance, inputHash, serviceLabels),
-		5,
+		time.Duration(5)*time.Second,
 	)
 
 	ctrlResult, err = depl.CreateOrPatch(ctx, helper)
