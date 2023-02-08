@@ -838,7 +838,7 @@ func (r *NovaReconciler) ensureKeystoneServiceUser(
 		common.AppSelector: "nova",
 	}
 
-	service := keystonev1.NewKeystoneService(serviceSpec, instance.Namespace, serviceLabels, 10)
+	service := keystonev1.NewKeystoneService(serviceSpec, instance.Namespace, serviceLabels, r.RequeueTimeout)
 	result, err := service.CreateOrPatch(ctx, h)
 	if k8s_errors.IsNotFound(err) {
 		return nil
