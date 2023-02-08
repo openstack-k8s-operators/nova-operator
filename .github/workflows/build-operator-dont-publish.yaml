@@ -18,6 +18,9 @@ jobs:
       env:
         # By not providing any remote repository here the build artifact will not be pushed
         IMAGE_TAG_BASE: nova-operator
+        # To avoid getting rate limited during kustomize install
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       # Ideally we would add catalog-build target at the end but that requires
       # the bundle to be pushed to a registry due to opm limitations:
       # https://github.com/operator-framework/operator-registry/issues/933
