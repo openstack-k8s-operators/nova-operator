@@ -313,8 +313,7 @@ func (r *NovaSchedulerReconciler) ensureDeployment(
 	instance *novav1.NovaScheduler,
 	inputHash string,
 ) (ctrl.Result, error) {
-	ss := statefulset.NewStatefulSet(novascheduler.StatefulSet(instance, inputHash, getServiceLabels()), 1)
-	ss.SetTimeout(r.RequeueTimeout)
+	ss := statefulset.NewStatefulSet(novascheduler.StatefulSet(instance, inputHash, getServiceLabels()), r.RequeueTimeout)
 	ctrlResult, err := ss.CreateOrPatch(ctx, h)
 	if err != nil && !k8s_errors.IsNotFound(err) {
 		util.LogErrorForObject(h, err, "Deployment failed", instance)

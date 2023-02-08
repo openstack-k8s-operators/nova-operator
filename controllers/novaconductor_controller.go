@@ -327,8 +327,7 @@ func (r *NovaConductorReconciler) ensureCellDBSynced(
 
 	dbSyncHash := instance.Status.Hash[DbSyncHash]
 	jobDef := novaconductor.CellDBSyncJob(instance, serviceLabels)
-	dbSyncJob := job.NewJob(jobDef, "dbsync", instance.Spec.Debug.PreserveJobs, 1, dbSyncHash)
-	dbSyncJob.SetTimeout(r.RequeueTimeout)
+	dbSyncJob := job.NewJob(jobDef, "dbsync", instance.Spec.Debug.PreserveJobs, r.RequeueTimeout, dbSyncHash)
 	ctrlResult, err := dbSyncJob.DoJob(ctx, h)
 	if (ctrlResult != ctrl.Result{}) {
 		instance.Status.Conditions.Set(condition.FalseCondition(
@@ -366,8 +365,7 @@ func (r *NovaConductorReconciler) ensureDeployment(
 		common.AppSelector: NovaConductorLabelPrefix,
 	}
 
-	ss := statefulset.NewStatefulSet(novaconductor.StatefulSet(instance, inputHash, serviceLabels), 1)
-	ss.SetTimeout(r.RequeueTimeout)
+	ss := statefulset.NewStatefulSet(novaconductor.StatefulSet(instance, inputHash, serviceLabels), r.RequeueTimeout)
 	ctrlResult, err := ss.CreateOrPatch(ctx, h)
 	if err != nil && !k8s_errors.IsNotFound(err) {
 		util.LogErrorForObject(h, err, "Deployment failed", instance)

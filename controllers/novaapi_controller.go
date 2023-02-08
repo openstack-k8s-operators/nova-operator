@@ -365,8 +365,7 @@ func (r *NovaAPIReconciler) ensureDeployment(
 	instance *novav1.NovaAPI,
 	inputHash string,
 ) (ctrl.Result, error) {
-	ss := statefulset.NewStatefulSet(novaapi.StatefulSet(instance, inputHash, getServiceLabels()), 1)
-	ss.SetTimeout(r.RequeueTimeout)
+	ss := statefulset.NewStatefulSet(novaapi.StatefulSet(instance, inputHash, getServiceLabels()), r.RequeueTimeout)
 	ctrlResult, err := ss.CreateOrPatch(ctx, h)
 	if err != nil && !k8s_errors.IsNotFound(err) {
 		util.LogErrorForObject(h, err, "Deployment failed", instance)
@@ -422,6 +421,7 @@ func (r *NovaAPIReconciler) ensureServiceExposed(
 		novaapi.ServiceName,
 		getServiceLabels(),
 		ports,
+		r.RequeueTimeout,
 	)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
@@ -463,7 +463,7 @@ func (r *NovaAPIReconciler) ensureKeystoneEndpoint(
 		instance.Namespace,
 		endpointSpec,
 		getServiceLabels(),
-		10,
+		r.RequeueTimeout,
 	)
 	ctrlResult, err := endpoint.CreateOrPatch(ctx, h)
 	if err != nil {
