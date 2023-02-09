@@ -14,7 +14,7 @@ spec:
     - name: ANSIBLE_ENABLE_TASK_DEBUGGER
       value: "True"
     - name: ANSIBLE_VERBOSITY
-      value: "2"
+      value: "1"
     - name: NOVA_COMPUTE_CONTAINER_IMAGE
       value: "quay.io/tripleomastercentos9/openstack-nova-compute:current-tripleo"
     - name: LIBVIRT_CONTAINER_IMAGE
