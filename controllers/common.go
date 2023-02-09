@@ -273,6 +273,9 @@ func NewReconcilers(mgr ctrl.Manager, kclient *kubernetes.Clientset) *Reconciler
 			"NovaNoVNCProxy": &NovaNoVNCProxyReconciler{
 				ReconcilerBase: NewReconcilerBase("NovaNoVNCProxy", mgr, kclient),
 			},
+			"NovaExternalCompute": &NovaExternalComputeReconciler{
+				ReconcilerBase: NewReconcilerBase("NovaExternalCompute", mgr, kclient),
+			},
 		}}
 }
 
