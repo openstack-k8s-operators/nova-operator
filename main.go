@@ -44,6 +44,7 @@ import (
 	rabbitmqv1 "github.com/openstack-k8s-operators/infra-operator/apis/rabbitmq/v1beta1"
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
+
 	novav1beta1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 
 	"github.com/openstack-k8s-operators/nova-operator/controllers"
@@ -130,6 +131,13 @@ func main() {
 		os.Exit(1)
 	}
 
+	if err = (&controllers.NovaExternalComputeReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "NovaExternalCompute")
+		os.Exit(1)
+	}
 	//+kubebuilder:scaffold:builder
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up health check")

@@ -231,6 +231,32 @@ rules:
 - apiGroups:
   - nova.openstack.org
   resources:
+  - novaexternalcomputes
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - nova.openstack.org
+  resources:
+  - novaexternalcomputes/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - nova.openstack.org
+  resources:
+  - novaexternalcomputes/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - nova.openstack.org
+  resources:
   - novametadata
   verbs:
   - create
