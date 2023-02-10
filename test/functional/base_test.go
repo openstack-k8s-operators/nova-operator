@@ -22,7 +22,6 @@ import (
 	"github.com/google/uuid"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -535,10 +534,49 @@ func DeleteNetworkAttachmentDefinition(name types.NamespacedName) {
 	}, timeout, interval).Should(Succeed())
 }
 
+func GetDefaultNovaExternalComputeSpec(computeName string) map[string]interface{} {
+	return map[string]interface{}{
+		"inventoryConfigMapName": computeName + "-inventory-configmap",
+		"sshKeySecretName":       computeName + "-ssh-key-secret",
+	}
+}
+
+func CreateNovaExternalCompute(name types.NamespacedName, spec map[string]interface{}) {
+
+	raw := map[string]interface{}{
+		"apiVersion": "nova.openstack.org/v1beta1",
+		"kind":       "NovaExternalCompute",
+		"metadata": map[string]interface{}{
+			"name":      name.Name,
+			"namespace": name.Namespace,
+		},
+		"spec": spec,
+	}
+	CreateUnstructured(raw)
+}
+
+func DeleteNovaExternalCompute(name types.NamespacedName) {
+	// We have to wait for the controller to fully delete the instance
+	Eventually(func(g Gomega) {
+		instance := &novav1.NovaExternalCompute{}
+		err := k8sClient.Get(ctx, name, instance)
+		// if it is already gone that is OK
+		if k8s_errors.IsNotFound(err) {
+			return
+		}
+		g.Expect(err).Should(BeNil())
+
+		g.Expect(k8sClient.Delete(ctx, instance)).Should(Succeed())
+
+		err = k8sClient.Get(ctx, name, instance)
+		g.Expect(k8s_errors.IsNotFound(err)).To(BeTrue())
+	}, timeout, interval).Should(Succeed())
+}
+
 func SimulateStatefulSetReplicaReadyWithPods(name types.NamespacedName, networkIPs map[string][]string) {
 	ss := th.GetStatefulSet(name)
 	for i := 0; i < int(*ss.Spec.Replicas); i++ {
-		pod := &v1.Pod{
+		pod := &corev1.Pod{
 			ObjectMeta: ss.Spec.Template.ObjectMeta,
 			Spec:       ss.Spec.Template.Spec,
 		}
@@ -571,4 +609,17 @@ func SimulateStatefulSetReplicaReadyWithPods(name types.NamespacedName, networkI
 	}, timeout, interval).Should(Succeed())
 
 	logger.Info("Simulated statefulset success", "on", name)
+}
+
+func GetNovaExternalCompute(name types.NamespacedName) *novav1.NovaExternalCompute {
+	instance := &novav1.NovaExternalCompute{}
+	Eventually(func(g Gomega) {
+		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
+	}, timeout, interval).Should(Succeed())
+	return instance
+}
+
+func NovaExternalComputeConditionGetter(name types.NamespacedName) condition.Conditions {
+	instance := GetNovaExternalCompute(name)
+	return instance.Status.Conditions
 }
