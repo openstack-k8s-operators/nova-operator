@@ -113,4 +113,7 @@ const (
 
 	// NovaSchedulerReadyErrorMessage
 	NovaSchedulerReadyErrorMessage = "NovaScheduler error occured %s"
+
+	// InputReadyWaitingMessage
+	InputReadyWaitingMessage = "Input data resources missing: %s"
 )

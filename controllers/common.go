@@ -30,6 +30,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
+
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/configmap"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
@@ -93,16 +95,14 @@ func ensureSecret(
 	err := reader.Get(ctx, secretName, secret)
 	if err != nil {
 		if k8s_errors.IsNotFound(err) {
-			// TODO(gibi): Change the message to state which input
-			// (i.e. Secret with a given name) is missing
 			conditionUpdater.Set(condition.FalseCondition(
 				condition.InputReadyCondition,
 				condition.RequestedReason,
 				condition.SeverityInfo,
-				condition.InputReadyWaitingMessage))
+				fmt.Sprintf(novav1.InputReadyWaitingMessage, "secret/"+secretName.Name)))
 			return "",
 				ctrl.Result{RequeueAfter: requeueTimeout},
-				fmt.Errorf("OpenStack secret %s not found", secretName)
+				fmt.Errorf("Secret %s not found", secretName)
 		}
 		conditionUpdater.Set(condition.FalseCondition(
 			condition.InputReadyCondition,
