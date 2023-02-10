@@ -190,6 +190,71 @@ func ensureNetworkAttachments(
 	return nadAnnotations, ctrl.Result{}, nil
 }
 
+// ensureConfigMap - ensures that the ConfigMap object exists and the expected
+// fields are in the map. It returns a hash of the values of the expected fields.
+func ensureConfigMap(
+	ctx context.Context,
+	configMapName types.NamespacedName,
+	expectedFields []string,
+	reader client.Reader,
+	conditionUpdater conditionUpdater,
+	requeueTimeout time.Duration,
+) (string, ctrl.Result, error) {
+	configMap := &corev1.ConfigMap{}
+	err := reader.Get(ctx, configMapName, configMap)
+	if err != nil {
+		if k8s_errors.IsNotFound(err) {
+			conditionUpdater.Set(condition.FalseCondition(
+				condition.InputReadyCondition,
+				condition.RequestedReason,
+				condition.SeverityInfo,
+				fmt.Sprintf(novav1.InputReadyWaitingMessage, "configmap/"+configMapName.Name)))
+			return "",
+				ctrl.Result{RequeueAfter: requeueTimeout},
+				fmt.Errorf("ConfigMap %s not found", configMapName)
+		}
+		conditionUpdater.Set(condition.FalseCondition(
+			condition.InputReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.InputReadyErrorMessage,
+			err.Error()))
+		return "", ctrl.Result{}, err
+	}
+
+	// collect the secret values the caller expects to exist
+	values := [][]byte{}
+	for _, field := range expectedFields {
+		val, ok := configMap.Data[field]
+		if !ok {
+			err := fmt.Errorf("field %s not found in ConfigMap %s", field, configMapName)
+			conditionUpdater.Set(condition.FalseCondition(
+				condition.InputReadyCondition,
+				condition.ErrorReason,
+				condition.SeverityWarning,
+				condition.InputReadyErrorMessage,
+				err.Error()))
+			return "", ctrl.Result{}, err
+		}
+		values = append(values, []byte(val))
+	}
+
+	// TODO(gibi): Do we need to watch the ConfigMap for changes?
+
+	hash, err := util.ObjectHash(values)
+	if err != nil {
+		conditionUpdater.Set(condition.FalseCondition(
+			condition.InputReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.InputReadyErrorMessage,
+			err.Error()))
+		return "", ctrl.Result{}, err
+	}
+
+	return hash, ctrl.Result{}, nil
+}
+
 // hashOfInputHashes - calculates the overal hash of all our inputs
 func hashOfInputHashes(
 	ctx context.Context,

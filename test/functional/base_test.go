@@ -623,3 +623,63 @@ func NovaExternalComputeConditionGetter(name types.NamespacedName) condition.Con
 	instance := GetNovaExternalCompute(name)
 	return instance.Status.Conditions
 }
+
+func CreateNovaExternalComputeInventoryConfigMap(name types.NamespacedName) *corev1.ConfigMap {
+	configMap := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name.Name,
+			Namespace: name.Namespace,
+		},
+		// TODO(gibi): populate the fields nova uses
+		Data: map[string]string{},
+	}
+	Expect(k8sClient.Create(ctx, configMap)).Should(Succeed())
+	return configMap
+}
+
+func CreateNovaExternalComputeSSHSecret(name types.NamespacedName) *corev1.Secret {
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name.Name,
+			Namespace: name.Namespace,
+		},
+		// TODO(gibi): populate the fields nova uses
+		Data: map[string][]byte{},
+	}
+	Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
+	return secret
+}
+
+func DeleteSecret(name types.NamespacedName) {
+	Eventually(func(g Gomega) {
+		secret := &corev1.Secret{}
+		err := k8sClient.Get(ctx, name, secret)
+		// if it is already gone that is OK
+		if k8s_errors.IsNotFound(err) {
+			return
+		}
+		g.Expect(err).Should(BeNil())
+
+		g.Expect(k8sClient.Delete(ctx, secret)).Should(Succeed())
+
+		err = k8sClient.Get(ctx, name, secret)
+		g.Expect(k8s_errors.IsNotFound(err)).To(BeTrue())
+	}, timeout, interval).Should(Succeed())
+}
+
+func DeleteConfigMap(name types.NamespacedName) {
+	Eventually(func(g Gomega) {
+		configMap := &corev1.ConfigMap{}
+		err := k8sClient.Get(ctx, name, configMap)
+		// if it is already gone that is OK
+		if k8s_errors.IsNotFound(err) {
+			return
+		}
+		g.Expect(err).Should(BeNil())
+
+		g.Expect(k8sClient.Delete(ctx, configMap)).Should(Succeed())
+
+		err = k8sClient.Get(ctx, name, configMap)
+		g.Expect(k8s_errors.IsNotFound(err)).To(BeTrue())
+	}, timeout, interval).Should(Succeed())
+}

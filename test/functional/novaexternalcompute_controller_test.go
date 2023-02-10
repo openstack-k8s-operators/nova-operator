@@ -58,6 +58,21 @@ var _ = Describe("NovaExternalCompute", func() {
 		BeforeEach(func() {
 			CreateNovaExternalCompute(computeName, GetDefaultNovaExternalComputeSpec(computeName.Name))
 			DeferCleanup(DeleteNovaExternalCompute, computeName)
+
+			compute := GetNovaExternalCompute(computeName)
+			inventorySecretName := types.NamespacedName{
+				Namespace: namespace,
+				Name:      compute.Spec.InventoryConfigMapName,
+			}
+			CreateNovaExternalComputeInventoryConfigMap(inventorySecretName)
+			DeferCleanup(DeleteConfigMap, inventorySecretName)
+
+			sshSecretName := types.NamespacedName{
+				Namespace: namespace,
+				Name:      compute.Spec.SSHKeySecretName,
+			}
+			CreateNovaExternalComputeSSHSecret(sshSecretName)
+			DeferCleanup(DeleteSecret, sshSecretName)
 		})
 
 		It("adds Finalizer to itself", func() {
@@ -72,8 +87,20 @@ var _ = Describe("NovaExternalCompute", func() {
 			Eventually(func(g Gomega) {
 				compute := GetNovaExternalCompute(computeName)
 				g.Expect(compute.Status.Conditions).NotTo(BeEmpty())
+				g.Expect(compute.Status.Hash).NotTo(BeNil())
 
 			}, timeout, interval).Should(Succeed())
+		})
+
+		It("reports InputReady and stores that input hash", func() {
+			th.ExpectCondition(
+				computeName,
+				ConditionGetterFunc(NovaExternalComputeConditionGetter),
+				condition.InputReadyCondition,
+				corev1.ConditionTrue,
+			)
+			compute := GetNovaExternalCompute(computeName)
+			Expect(compute.Status.Hash["input"]).NotTo(BeEmpty())
 		})
 
 		It("is Ready", func() {
@@ -97,6 +124,43 @@ var _ = Describe("NovaExternalCompute", func() {
 			// removed and that can only happen if the finalizer is removed from
 			// it first
 			DeleteNovaExternalCompute(computeName)
+		})
+	})
+	When("created but Secrets are missing", func() {
+		BeforeEach(func() {
+			CreateNovaExternalCompute(computeName, GetDefaultNovaExternalComputeSpec(computeName.Name))
+			DeferCleanup(DeleteNovaExternalCompute, computeName)
+		})
+
+		It("reports missing Inventory configmap", func() {
+			compute := GetNovaExternalCompute(computeName)
+			th.ExpectConditionWithDetails(
+				computeName,
+				ConditionGetterFunc(NovaExternalComputeConditionGetter),
+				condition.InputReadyCondition,
+				corev1.ConditionFalse,
+				condition.RequestedReason,
+				"Input data resources missing: configmap/"+compute.Spec.InventoryConfigMapName,
+			)
+			compute = GetNovaExternalCompute(computeName)
+			Expect(compute.Status.Hash["input"]).To(BeEmpty())
+		})
+
+		It("reports missing SSH key secret", func() {
+			compute := GetNovaExternalCompute(computeName)
+			inventorySecretName := types.NamespacedName{Namespace: namespace, Name: compute.Spec.InventoryConfigMapName}
+			CreateNovaExternalComputeInventoryConfigMap(inventorySecretName)
+			DeferCleanup(DeleteConfigMap, inventorySecretName)
+			th.ExpectConditionWithDetails(
+				computeName,
+				ConditionGetterFunc(NovaExternalComputeConditionGetter),
+				condition.InputReadyCondition,
+				corev1.ConditionFalse,
+				condition.RequestedReason,
+				"Input data resources missing: secret/"+compute.Spec.SSHKeySecretName,
+			)
+			compute = GetNovaExternalCompute(computeName)
+			Expect(compute.Status.Hash["input"]).To(BeEmpty())
 		})
 	})
 })
