@@ -120,9 +120,12 @@ func (r *NovaExternalComputeReconciler) Reconcile(ctx context.Context, req ctrl.
 
 	inventoryHash, result, err := ensureConfigMap(
 		ctx,
+
 		types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.InventoryConfigMapName},
-		// TODO(gibi): Add the fileds we expect to exists in the InventorySecret
-		[]string{},
+		// NOTE(gibi): Add the fields here we expect to exists in the InventorySecret
+		[]string{
+			"inventory",
+		},
 		h.GetClient(),
 		&instance.Status.Conditions,
 		r.RequeueTimeout,
@@ -135,8 +138,12 @@ func (r *NovaExternalComputeReconciler) Reconcile(ctx context.Context, req ctrl.
 	sshKeyHHash, result, err := ensureSecret(
 		ctx,
 		types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.SSHKeySecretName},
-		// TODO(gibi): Add the fileds we expect to exists in the SSHKeySecret
-		[]string{},
+		// NOTE(gibi): Add the fields here we expect to exists in the SSHKeySecret
+		// This is based on the structure defined in the schema of kubernetes.io/ssh-auth
+		//  https://kubernetes.io/docs/concepts/configuration/secret/#ssh-authentication-secrets
+		[]string{
+			"ssh-privatekey",
+		},
 		h.GetClient(),
 		&instance.Status.Conditions,
 		r.RequeueTimeout,

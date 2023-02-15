@@ -624,14 +624,39 @@ func NovaExternalComputeConditionGetter(name types.NamespacedName) condition.Con
 	return instance.Status.Conditions
 }
 
+func CreateEmptySecret(name types.NamespacedName) *corev1.Secret {
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name.Name,
+			Namespace: name.Namespace,
+		},
+		Data: map[string][]byte{},
+	}
+	Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
+	return secret
+}
+
+func CreateEmptyConfigMap(name types.NamespacedName) *corev1.ConfigMap {
+	configMap := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name.Name,
+			Namespace: name.Namespace,
+		},
+		Data: map[string]string{},
+	}
+	Expect(k8sClient.Create(ctx, configMap)).Should(Succeed())
+	return configMap
+}
+
 func CreateNovaExternalComputeInventoryConfigMap(name types.NamespacedName) *corev1.ConfigMap {
 	configMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name.Name,
 			Namespace: name.Namespace,
 		},
-		// TODO(gibi): populate the fields nova uses
-		Data: map[string]string{},
+		Data: map[string]string{
+			"inventory": "an ansible inventory",
+		},
 	}
 	Expect(k8sClient.Create(ctx, configMap)).Should(Succeed())
 	return configMap
@@ -643,8 +668,9 @@ func CreateNovaExternalComputeSSHSecret(name types.NamespacedName) *corev1.Secre
 			Name:      name.Name,
 			Namespace: name.Namespace,
 		},
-		// TODO(gibi): populate the fields nova uses
-		Data: map[string][]byte{},
+		Data: map[string][]byte{
+			"ssh-privatekey": []byte("a private key"),
+		},
 	}
 	Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
 	return secret

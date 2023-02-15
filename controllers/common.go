@@ -118,7 +118,7 @@ func ensureSecret(
 	for _, field := range expectedFields {
 		val, ok := secret.Data[field]
 		if !ok {
-			err := fmt.Errorf("field %s not found in Secret %s", field, secretName)
+			err := fmt.Errorf("field '%s' not found in secret/%s", field, secretName.Name)
 			conditionUpdater.Set(condition.FalseCondition(
 				condition.InputReadyCondition,
 				condition.ErrorReason,
@@ -227,7 +227,7 @@ func ensureConfigMap(
 	for _, field := range expectedFields {
 		val, ok := configMap.Data[field]
 		if !ok {
-			err := fmt.Errorf("field %s not found in ConfigMap %s", field, configMapName)
+			err := fmt.Errorf("field '%s' not found in configmap/%s", field, configMapName.Name)
 			conditionUpdater.Set(condition.FalseCondition(
 				condition.InputReadyCondition,
 				condition.ErrorReason,

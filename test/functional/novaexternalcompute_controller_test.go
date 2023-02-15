@@ -60,12 +60,12 @@ var _ = Describe("NovaExternalCompute", func() {
 			DeferCleanup(DeleteNovaExternalCompute, computeName)
 
 			compute := GetNovaExternalCompute(computeName)
-			inventorySecretName := types.NamespacedName{
+			inventoryName := types.NamespacedName{
 				Namespace: namespace,
 				Name:      compute.Spec.InventoryConfigMapName,
 			}
-			CreateNovaExternalComputeInventoryConfigMap(inventorySecretName)
-			DeferCleanup(DeleteConfigMap, inventorySecretName)
+			CreateNovaExternalComputeInventoryConfigMap(inventoryName)
+			DeferCleanup(DeleteConfigMap, inventoryName)
 
 			sshSecretName := types.NamespacedName{
 				Namespace: namespace,
@@ -126,7 +126,7 @@ var _ = Describe("NovaExternalCompute", func() {
 			DeleteNovaExternalCompute(computeName)
 		})
 	})
-	When("created but Secrets are missing", func() {
+	When("created but Secrets are missing or fields missing", func() {
 		BeforeEach(func() {
 			CreateNovaExternalCompute(computeName, GetDefaultNovaExternalComputeSpec(computeName.Name))
 			DeferCleanup(DeleteNovaExternalCompute, computeName)
@@ -146,11 +146,27 @@ var _ = Describe("NovaExternalCompute", func() {
 			Expect(compute.Status.Hash["input"]).To(BeEmpty())
 		})
 
+		It("reports missing field from Inventory configmap", func() {
+			compute := GetNovaExternalCompute(computeName)
+			CreateEmptyConfigMap(
+				types.NamespacedName{Namespace: namespace, Name: compute.Spec.InventoryConfigMapName})
+			th.ExpectConditionWithDetails(
+				computeName,
+				ConditionGetterFunc(NovaExternalComputeConditionGetter),
+				condition.InputReadyCondition,
+				corev1.ConditionFalse,
+				condition.ErrorReason,
+				"Input data error occured field 'inventory' not found in configmap/"+compute.Spec.InventoryConfigMapName,
+			)
+			compute = GetNovaExternalCompute(computeName)
+			Expect(compute.Status.Hash["input"]).To(BeEmpty())
+		})
+
 		It("reports missing SSH key secret", func() {
 			compute := GetNovaExternalCompute(computeName)
-			inventorySecretName := types.NamespacedName{Namespace: namespace, Name: compute.Spec.InventoryConfigMapName}
-			CreateNovaExternalComputeInventoryConfigMap(inventorySecretName)
-			DeferCleanup(DeleteConfigMap, inventorySecretName)
+			inventoryName := types.NamespacedName{Namespace: namespace, Name: compute.Spec.InventoryConfigMapName}
+			CreateNovaExternalComputeInventoryConfigMap(inventoryName)
+			DeferCleanup(DeleteConfigMap, inventoryName)
 			th.ExpectConditionWithDetails(
 				computeName,
 				ConditionGetterFunc(NovaExternalComputeConditionGetter),
@@ -158,6 +174,24 @@ var _ = Describe("NovaExternalCompute", func() {
 				corev1.ConditionFalse,
 				condition.RequestedReason,
 				"Input data resources missing: secret/"+compute.Spec.SSHKeySecretName,
+			)
+			compute = GetNovaExternalCompute(computeName)
+			Expect(compute.Status.Hash["input"]).To(BeEmpty())
+		})
+
+		It("reports missing field from SSH key secret", func() {
+			compute := GetNovaExternalCompute(computeName)
+			CreateNovaExternalComputeInventoryConfigMap(
+				types.NamespacedName{Namespace: namespace, Name: compute.Spec.InventoryConfigMapName})
+			CreateEmptySecret(
+				types.NamespacedName{Namespace: namespace, Name: compute.Spec.SSHKeySecretName})
+			th.ExpectConditionWithDetails(
+				computeName,
+				ConditionGetterFunc(NovaExternalComputeConditionGetter),
+				condition.InputReadyCondition,
+				corev1.ConditionFalse,
+				condition.ErrorReason,
+				"Input data error occured field 'ssh-privatekey' not found in secret/"+compute.Spec.SSHKeySecretName,
 			)
 			compute = GetNovaExternalCompute(computeName)
 			Expect(compute.Status.Hash["input"]).To(BeEmpty())
