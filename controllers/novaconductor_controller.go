@@ -381,6 +381,7 @@ func (r *NovaConductorReconciler) ensureDeployment(
 ) (ctrl.Result, error) {
 	serviceLabels := map[string]string{
 		common.AppSelector: NovaConductorLabelPrefix,
+		CellSelector:       instance.Spec.CellName,
 	}
 
 	ss := statefulset.NewStatefulSet(novaconductor.StatefulSet(instance, inputHash, serviceLabels, annotations), r.RequeueTimeout)
@@ -412,7 +413,7 @@ func (r *NovaConductorReconciler) ensureDeployment(
 		ctx,
 		h,
 		instance.Spec.NetworkAttachments,
-		getServiceLabels(),
+		serviceLabels,
 		instance.Status.ReadyCount)
 	if err != nil {
 		return ctrl.Result{}, err
