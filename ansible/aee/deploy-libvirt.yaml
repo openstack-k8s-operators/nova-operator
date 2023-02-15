@@ -1,11 +1,11 @@
 apiVersion: ansibleee.openstack.org/v1alpha1
 kind: OpenStackAnsibleEE
 metadata:
-  name: deploy-nova
+  name: deploy-libvirt
   namespace: openstack
 spec:
   image: "quay.io/openstack-k8s-operators/openstack-ansibleee-runner:latest"
-  playbook: "deploy-nova.yaml"
+  playbook: "deploy-libvirt.yaml"
   env:
     - name: ANSIBLE_FORCE_COLOR
       value: "True"
@@ -40,7 +40,7 @@ spec:
           mountPath: /runner/env/ssh_key
           subPath: ssh_key
         - name: playbooks
-          mountPath: /runner/project/deploy-nova.yaml
-          subPath: deploy-nova.yaml
+          mountPath: /runner/project/deploy-libvirt.yaml
+          subPath: deploy-libvirt.yaml
         - name: compute-configs
           mountPath: /var/lib/openstack/config

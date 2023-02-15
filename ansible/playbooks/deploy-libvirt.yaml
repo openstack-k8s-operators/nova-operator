@@ -1,0 +1,56 @@
+---
+- hosts: all
+  tasks:
+    - name: create libvirt config dir
+      become: true
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: directory
+        setype: "{{ item.setype | default('container_file_t') }}"
+        owner: "{{ item.owner | default(ansible_user) }}"
+        group: "{{ item.group | default(ansible_user) }}"
+        mode: "{{ item.mode | default('750') }}"
+        recurse: true
+      with_items:
+      - { "path": /var/lib/openstack/config/libvirt}
+      - { "path": /var/lib/openstack/config/containers}
+      - { "path": /etc/tmpfiles.d/, "owner": "root", "group": "root"}
+    - name: ensure /var/run/libvirt is present upon reboot
+      become: true
+      ansible.builtin.copy:
+            dest: /etc/tmpfiles.d/run-libvirt.conf
+            content: |
+              d /run/libvirt 0755 root root - -
+    - name: create tempfiles
+      become: true
+      command: systemd-tmpfiles --create
+    - name: create persistent directories
+      become: true
+      file:
+        path: "{{ item.path }}"
+        setype: "{{ item.setype }}"
+        state: directory
+        owner: "{{ansible_user}}"
+        group: "{{ansible_user}}"
+        mode: "{{ item.mode | default(omit) }}"
+      with_items:
+      - { "path": /var/lib/libvirt, "setype": container_file_t }
+      - { "path": /var/log/containers/libvirt, "setype": container_file_t, "mode": "0750" }
+      - { "path": /var/log/containers/stdouts, "setype": container_file_t, "mode": "0750" }
+    - name: Copy generated nova configs
+      ansible.builtin.copy:
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+        mode: "{{ item.mode | default('640') }}"
+      with_items:
+      - { "src": "/var/lib/openstack/config/virtlogd.conf", "dest": "/var/lib/openstack/config/libvirt/virtlogd.conf" }
+      - { "src": "/var/lib/openstack/config/libvirt_virtlogd.json", "dest": "/var/lib/openstack/config/containers/libvirt_virtlogd.json"}
+      - { "src": "/var/lib/openstack/config/libvirt-virtlogd.json", "dest": "/var/lib/openstack/config/libvirt/libvirt-virtlogd.json"}
+    - name: deploy nova container
+      ansible.builtin.include_role:
+        name: edpm_container_manage
+      vars:
+        edpm_container_manage_config: "/var/lib/openstack/config/containers"
+        edpm_container_manage_healthcheck_disabled: true
+        edpm_container_manage_debug: true
+        edpm_container_manage_config_patterns: "libvirt*.json"

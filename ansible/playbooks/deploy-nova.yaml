@@ -1,7 +1,7 @@
 ---
 - hosts: all
   tasks:
-    - name: create nova config dir
+    - name: create nova config dirs
       become: true
       ansible.builtin.file:
         path: '{{ item.path }}'
@@ -27,21 +27,19 @@
       - { 'path': /var/lib/nova, 'setype': container_file_t }
       - { 'path': /var/lib/_nova_secontext, 'setype': container_file_t}
       - { 'path': /var/lib/nova/instances, 'setype': container_file_t }
-      - { 'path': /var/lib/libvirt, 'setype': container_file_t }
       - { 'path': /var/log/containers/nova, 'setype': container_file_t, 'mode': '0750' }
       # this should be done in bootstrap
       - { 'path': /var/log/containers/stdouts, 'setype': container_file_t, 'mode': '0750' }
-    # TODO: put these copies in a loop
-    - name: Copy generated nova.conf
+    - name: Copy generated nova configs
       ansible.builtin.copy:
-        src: /var/lib/openstack/config/01-nova.conf
-        dest: /var/lib/openstack/config/nova/01-nova.conf
-        mode: '0640'
-    - name: Copy generated nova-blank.conf
-      ansible.builtin.copy:
-        src: /var/lib/openstack/config/nova-blank.conf
-        dest: /var/lib/openstack/config/nova/nova-blank.conf
-        mode: '0640'
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+        mode: "{{ item.mode | default('640') }}"
+      with_items:
+      - { 'src': "/var/lib/openstack/config/01-nova.conf", "dest": "/var/lib/openstack/config/nova/01-nova.conf" }
+      - { 'src': "/var/lib/openstack/config/nova-blank.conf", "dest": "/var/lib/openstack/config/nova/nova-blank.conf" }
+      - { 'src': "/var/lib/openstack/config/nova_compute.json", "dest": "/var/lib/openstack/config/containers/nova_compute.json"}
+      - { 'src': "/var/lib/openstack/config/nova-compute.json", "dest": "/var/lib/openstack/config/nova/nova-compute.json"}
     - name: check if config override exists
       stat:
         path: "/var/lib/openstack/config/02-nova-override.conf"
@@ -52,16 +50,6 @@
         dest: /var/lib/openstack/config/nova/02-nova-override.conf
         mode: '0640'
       when: nova_override.stat.exists
-    - name: Copy nova container template
-      ansible.builtin.copy:
-        src: /var/lib/openstack/config/nova_compute.json
-        dest: /var/lib/openstack/config/containers/nova_compute.json
-        mode: '0640'
-    - name: Copy kolla_start config
-      ansible.builtin.copy:
-        src: /var/lib/openstack/config/nova-compute.json
-        dest: /var/lib/openstack/config/nova/nova-compute.json
-        mode: '0640'
     - name: deploy nova container
       ansible.builtin.include_role:
         name: edpm_container_manage

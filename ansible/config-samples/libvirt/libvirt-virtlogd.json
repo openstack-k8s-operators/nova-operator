@@ -4,32 +4,19 @@
         {
             "source": "/var/lib/openstack/config/virtlogd.conf",
             "dest": "/etc/libvirt/virtlogd.conf",
-            "owner": "nova",
+            "owner": "libvirt",
             "perm": "0600"
-        },
-        {
-            "source": "/var/lib/openstack/config/01-nova.conf",
-            "dest": "/etc/nova/nova.conf.d/01-nova.conf",
-            "owner": "nova",
-            "perm": "0600"
-        },
-        {
-            "source": "/var/lib/openstack/config/02-nova-override.conf",
-            "dest": "/etc/nova/nova.conf.d/02-nova-override.conf",
-            "owner": "nova",
-            "perm": "0600",
-            "optional": true
         }
     ],
     "permissions": [
         {
-            "path": "/var/log/containers/nova",
-            "owner": "nova:nova",
+            "path": "/var/log/containers/libvirt",
+            "owner": "libvirt:libvirt",
             "recurse": true
         },
         {
-            "path": "/var/lib/nova",
-            "owner": "nova:nova",
+            "path": "/var/lib/libvirt",
+            "owner": "libvirt:libvirt",
             "recurse": true
         }
     ]

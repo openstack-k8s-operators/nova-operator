@@ -1,10 +1,7 @@
 {
     "image": "quay.io/tripleozedcentos9/openstack-nova-libvirt:current-tripleo",
-    "user": "nova",
     "restart": "always",
     "command": "kolla_start",
-    "net": "host",
-    "pid": "host",
     "environment": {
         "KOLLA_CONFIG_STRATEGY":"COPY_ALWAYS",
         "KOLLA_CONFIG_FILE":"/var/lib/openstack/config/libvirt-virtlogd.json"
@@ -14,6 +11,6 @@
         "/etc/localtime:/etc/localtime:ro",
         "/var/log/containers/libvirt:/var/log/containers/libvirt",
         "/var/lib/libvirt:/var/lib/libvirt",
-        "/run/libvirt:/run/libvirt"
+        "/run/libvirt:/run/libvirt:shared"
     ]
   }
