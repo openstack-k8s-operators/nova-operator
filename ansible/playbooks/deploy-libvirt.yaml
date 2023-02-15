@@ -54,3 +54,4 @@
         edpm_container_manage_healthcheck_disabled: true
         edpm_container_manage_debug: true
         edpm_container_manage_config_patterns: "libvirt*.json"
+        edpm_container_manage_clean_orphans: false
