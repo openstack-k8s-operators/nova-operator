@@ -71,6 +71,18 @@ func CreateNovaConductorFromSample(sampleFileName string, namespace string) type
 	return name
 }
 
+func CreateNovaExternalComputeFromSample(sampleFileName string, namespace string) types.NamespacedName {
+	raw := ReadSample(sampleFileName)
+	computeName := types.NamespacedName{
+		Namespace: namespace,
+		Name:      uuid.New().String(),
+	}
+
+	CreateNovaExternalCompute(computeName, raw["spec"].(map[string]interface{}))
+	DeferCleanup(DeleteNovaExternalCompute, computeName)
+	return computeName
+}
+
 // This is a set of test for our samples. It only validates that the sample
 // file has all the required field with proper types. But it does not
 // validate that using a sample file will result in a working deployment.
@@ -151,6 +163,12 @@ var _ = Describe("Samples", func() {
 		It("NovaConductor is created", func() {
 			name := CreateNovaConductorFromSample("nova_v1beta1_novaconductor-cell.yaml", namespace)
 			GetNovaConductor(name)
+		})
+	})
+	When("nova_v1beta1_novaexternalcompute.yaml sample is applied", func() {
+		It("NovaExternalCompute is created", func() {
+			name := CreateNovaExternalComputeFromSample("nova_v1beta1_novaexternalcompute.yaml", namespace)
+			GetNovaExternalCompute(name)
 		})
 	})
 })
