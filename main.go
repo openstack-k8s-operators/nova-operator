@@ -125,6 +125,7 @@ func main() {
 		setupLog.Error(err, "unable to create k8s client")
 		os.Exit(1)
 	}
+
 	reconcilers := controllers.NewReconcilers(mgr, kclient)
 	err = reconcilers.Setup(mgr, setupLog)
 	if err != nil {

@@ -393,3 +393,7 @@ func (r *ReconcilerBase) GenerateConfigs(
 	// to enable unit testing at some point.
 	return configmap.EnsureConfigMaps(ctx, h, instance, cms, envVars)
 }
+
+func getNovaCellCRName(novaCRName string, cellName string) string {
+	return novaCRName + "-" + cellName
+}

@@ -24,11 +24,15 @@ import (
 	. "github.com/openstack-k8s-operators/lib-common/modules/test/helpers"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
+
+	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 )
 
 var _ = Describe("NovaExternalCompute", func() {
 	var namespace string
 	var computeName types.NamespacedName
+	var novaName types.NamespacedName
+	var novaCellName types.NamespacedName
 
 	BeforeEach(func() {
 		// NOTE(gibi): We need to create a unique namespace for each test run
@@ -52,13 +56,55 @@ var _ = Describe("NovaExternalCompute", func() {
 			Namespace: namespace,
 			Name:      uuid.New().String(),
 		}
+		novaName = types.NamespacedName{
+			Namespace: namespace,
+			Name:      uuid.New().String(),
+		}
+		novaCellName = types.NamespacedName{
+			Namespace: namespace,
+			Name:      novaName.Name + "-" + "cell1",
+		}
 	})
 
 	When("created", func() {
 		BeforeEach(func() {
-			CreateNovaExternalCompute(computeName, GetDefaultNovaExternalComputeSpec(computeName.Name))
-			DeferCleanup(DeleteNovaExternalCompute, computeName)
+			// Create the NovaCell the compute will belong to
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateNovaConductorSecret(namespace, SecretName))
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(namespace, MessageBusSecretName))
 
+			spec := GetDefaultNovaCellSpec()
+			spec["cellName"] = "cell1"
+			cellName := CreateNovaCell(novaCellName, spec)
+			DeferCleanup(DeleteNovaCell, cellName)
+
+			novaConductorName := types.NamespacedName{
+				Namespace: namespace,
+				Name:      cellName.Name + "-conductor",
+			}
+			novaConductorDBSyncJobName := types.NamespacedName{
+				Namespace: namespace,
+				Name:      novaConductorName.Name + "-db-sync",
+			}
+			th.SimulateJobSuccess(novaConductorDBSyncJobName)
+
+			conductorStatefulSetName := types.NamespacedName{
+				Namespace: namespace,
+				Name:      novaConductorName.Name,
+			}
+			th.SimulateStatefulSetReplicaReady(conductorStatefulSetName)
+
+			th.ExpectCondition(
+				cellName,
+				ConditionGetterFunc(NovaCellConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			// Create the compute
+			CreateNovaExternalCompute(computeName, GetDefaultNovaExternalComputeSpec(novaName.Name, computeName.Name))
+			DeferCleanup(DeleteNovaExternalCompute, computeName)
 			compute := GetNovaExternalCompute(computeName)
 			inventoryName := types.NamespacedName{
 				Namespace: namespace,
@@ -128,7 +174,7 @@ var _ = Describe("NovaExternalCompute", func() {
 	})
 	When("created but Secrets are missing or fields missing", func() {
 		BeforeEach(func() {
-			CreateNovaExternalCompute(computeName, GetDefaultNovaExternalComputeSpec(computeName.Name))
+			CreateNovaExternalCompute(computeName, GetDefaultNovaExternalComputeSpec(novaName.Name, computeName.Name))
 			DeferCleanup(DeleteNovaExternalCompute, computeName)
 		})
 
@@ -195,6 +241,57 @@ var _ = Describe("NovaExternalCompute", func() {
 			)
 			compute = GetNovaExternalCompute(computeName)
 			Expect(compute.Status.Hash["input"]).To(BeEmpty())
+		})
+	})
+
+	When("created but NovaCell is not Ready", func() {
+		BeforeEach(func() {
+			// Create the compute
+			CreateNovaExternalCompute(computeName, GetDefaultNovaExternalComputeSpec(novaName.Name, computeName.Name))
+			DeferCleanup(DeleteNovaExternalCompute, computeName)
+			compute := GetNovaExternalCompute(computeName)
+			inventoryName := types.NamespacedName{
+				Namespace: namespace,
+				Name:      compute.Spec.InventoryConfigMapName,
+			}
+			CreateNovaExternalComputeInventoryConfigMap(inventoryName)
+			DeferCleanup(DeleteSecret, inventoryName)
+
+			sshSecretName := types.NamespacedName{
+				Namespace: namespace,
+				Name:      compute.Spec.SSHKeySecretName,
+			}
+			CreateNovaExternalComputeSSHSecret(sshSecretName)
+			DeferCleanup(DeleteSecret, sshSecretName)
+		})
+
+		It("reports if NovaCell is missing", func() {
+			th.ExpectConditionWithDetails(
+				computeName,
+				ConditionGetterFunc(NovaExternalComputeConditionGetter),
+				novav1.NovaCellReadyCondition,
+				corev1.ConditionFalse,
+				condition.RequestedReason,
+				"Waiting for NovaCell "+novaCellName.Name+" to exists",
+			)
+		})
+
+		It("reports if NovaCell is not Ready", func() {
+			// Create the NovaCell but keep in unready by not simulating
+			// deployment success
+			spec := GetDefaultNovaCellSpec()
+			spec["cellName"] = "cell1"
+			cellName := CreateNovaCell(novaCellName, spec)
+			DeferCleanup(DeleteNovaCell, cellName)
+
+			th.ExpectConditionWithDetails(
+				computeName,
+				ConditionGetterFunc(NovaExternalComputeConditionGetter),
+				novav1.NovaCellReadyCondition,
+				corev1.ConditionFalse,
+				condition.RequestedReason,
+				"Waiting for NovaCell "+novaCellName.Name+" to become Ready",
+			)
 		})
 	})
 })

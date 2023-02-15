@@ -641,7 +641,7 @@ func (r *NovaReconciler) ensureCell(
 
 	cell := &novav1.NovaCell{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      instance.Name + "-" + cellSpec.CellName,
+			Name:      getNovaCellCRName(instance.Name, cellSpec.CellName),
 			Namespace: instance.Namespace,
 		},
 	}

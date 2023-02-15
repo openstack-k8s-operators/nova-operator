@@ -59,7 +59,10 @@ func CreateNovaAPIFromSample(sampleFileName string, namespace string) types.Name
 
 func CreateNovaCellFromSample(sampleFileName string, namespace string) types.NamespacedName {
 	raw := ReadSample(sampleFileName)
-	name := CreateNovaCell(namespace, raw["spec"].(map[string]interface{}))
+	name := CreateNovaCell(
+		types.NamespacedName{Namespace: namespace, Name: uuid.NewString()},
+		raw["spec"].(map[string]interface{}),
+	)
 	DeferCleanup(DeleteNova, name)
 	return name
 }

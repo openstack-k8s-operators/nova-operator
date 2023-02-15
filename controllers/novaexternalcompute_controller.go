@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
@@ -153,6 +154,15 @@ func (r *NovaExternalComputeReconciler) Reconcile(ctx context.Context, req ctrl.
 	}
 	hashes[instance.Spec.SSHKeySecretName] = env.SetValue(sshKeyHHash)
 
+	_, result, err = r.ensureCellReady(ctx, instance)
+
+	if (err != nil || result != ctrl.Result{}) {
+		return result, err
+	}
+
+	// TODO(gibi): gather the information from the cell we need for the config
+	// and hash that into our input hash
+
 	// all our input checks out so report InputReady
 	instance.Status.Conditions.MarkTrue(condition.InputReadyCondition, condition.InputReadyMessage)
 
@@ -199,6 +209,12 @@ func (r *NovaExternalComputeReconciler) initConditions(
 				condition.InitReason,
 				condition.InputReadyInitMessage,
 			),
+			condition.UnknownCondition(
+				novav1.NovaCellReadyCondition,
+				condition.InitReason,
+				novav1.NovaCellReadyInitMessage,
+				instance.Spec.CellName,
+			),
 		/*
 			condition.UnknownCondition(
 				condition.ServiceConfigReadyCondition,
@@ -238,6 +254,72 @@ func (r *NovaExternalComputeReconciler) reconcileDelete(
 
 	l.Info("Reconciled delete successfully")
 	return nil
+}
+
+func (r *NovaExternalComputeReconciler) ensureCellReady(
+	ctx context.Context,
+	instance *novav1.NovaExternalCompute,
+) (*novav1.NovaCell, ctrl.Result, error) {
+	cell := &novav1.NovaCell{}
+	cellCRName := getNovaCellCRName(instance.Spec.NovaInstance, instance.Spec.CellName)
+	err := r.Client.Get(
+		ctx, types.NamespacedName{
+			Namespace: instance.Namespace,
+			Name:      cellCRName,
+		},
+		cell,
+	)
+
+	if err != nil && !k8s_errors.IsNotFound(err) {
+		instance.Status.Conditions.Set(
+			condition.FalseCondition(
+				novav1.NovaCellReadyCondition,
+				condition.ErrorReason,
+				condition.SeverityError,
+				novav1.NovaCellReadyErrorMessage,
+				cellCRName,
+				err.Error(),
+			),
+		)
+		return nil, ctrl.Result{}, fmt.Errorf("failed to query NovaCells %w", err)
+	}
+
+	if k8s_errors.IsNotFound(err) {
+		instance.Status.Conditions.Set(
+			condition.FalseCondition(
+				novav1.NovaCellReadyCondition,
+				condition.RequestedReason,
+				condition.SeverityInfo,
+				novav1.NovaCellReadyNotExistsMessage,
+				cellCRName,
+			),
+		)
+		// Here we need to wait for the NovaCell to be created so we requeue explicitly
+		return nil, ctrl.Result{RequeueAfter: r.RequeueTimeout}, nil
+	}
+
+	// We cannot move forward while the cell is not ready as we need to gather
+	// information from the NovaCell to generate the compute config
+	if !cell.IsReady() {
+		instance.Status.Conditions.Set(
+			condition.FalseCondition(
+				novav1.NovaCellReadyCondition,
+				condition.RequestedReason,
+				condition.SeverityInfo,
+				novav1.NovaCellReadyNotReadyMessage,
+				cellCRName,
+			),
+		)
+		// TODO(gibi): this should not be an explicit requeue, instead we need
+		// to add a watch for the NovaCell and just return without requeue here.
+		return cell, ctrl.Result{RequeueAfter: r.RequeueTimeout}, nil
+	}
+
+	// our NovaCell is Ready
+	instance.Status.Conditions.MarkTrue(
+		novav1.NovaCellReadyCondition, novav1.NovaCellReadyMessage, cellCRName)
+
+	return cell, ctrl.Result{}, err
 }
 
 // SetupWithManager sets up the controller with the Manager.

@@ -342,21 +342,20 @@ func GetDefaultNovaCellSpec() map[string]interface{} {
 	}
 }
 
-func CreateNovaCell(namespace string, spec map[string]interface{}) types.NamespacedName {
-	novaAPIName := uuid.New().String()
+func CreateNovaCell(name types.NamespacedName, spec map[string]interface{}) types.NamespacedName {
 
 	raw := map[string]interface{}{
 		"apiVersion": "nova.openstack.org/v1beta1",
 		"kind":       "NovaCell",
 		"metadata": map[string]interface{}{
-			"name":      novaAPIName,
-			"namespace": namespace,
+			"name":      name.Name,
+			"namespace": name.Namespace,
 		},
 		"spec": spec,
 	}
 	CreateUnstructured(raw)
 
-	return types.NamespacedName{Name: novaAPIName, Namespace: namespace}
+	return name
 }
 
 func DeleteNovaCell(name types.NamespacedName) {
@@ -526,8 +525,9 @@ func DeleteNetworkAttachmentDefinition(name types.NamespacedName) {
 	}, timeout, interval).Should(Succeed())
 }
 
-func GetDefaultNovaExternalComputeSpec(computeName string) map[string]interface{} {
+func GetDefaultNovaExternalComputeSpec(novaName string, computeName string) map[string]interface{} {
 	return map[string]interface{}{
+		"novaInstance":           novaName,
 		"inventoryConfigMapName": computeName + "-inventory-configmap",
 		"sshKeySecretName":       computeName + "-ssh-key-secret",
 	}

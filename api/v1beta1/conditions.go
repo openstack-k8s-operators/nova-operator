@@ -41,6 +41,8 @@ const (
 	NovaAllCellsMQReadyCondition condition.Type = "NovaAllCellsMQReady"
 	// NovaSchedulerReadyCondition indicates if the NovaScheduler is operational
 	NovaSchedulerReadyCondition condition.Type = "NovaSchedulerReady"
+	// NovaCellReadyCondition indicates when the given NovaCell instance is Ready
+	NovaCellReadyCondition condition.Type = "NovaCellReady"
 )
 
 // Common Messages used by API objects.
@@ -116,4 +118,19 @@ const (
 
 	// InputReadyWaitingMessage
 	InputReadyWaitingMessage = "Input data resources missing: %s"
+
+	// NovaCellReadyInitMessage
+	NovaCellReadyInitMessage = "The status of NovaCell %s is unkown"
+
+	// NovaCellReadyNotExistsMessage
+	NovaCellReadyNotExistsMessage = "Waiting for NovaCell %s to exists"
+
+	// NovaCellReadyNotReadyMessage
+	NovaCellReadyNotReadyMessage = "Waiting for NovaCell %s to become Ready"
+
+	//NovaCellReadyErrorMessage
+	NovaCellReadyErrorMessage = "Error occured while querying NovaCell %s: %s"
+
+	//NovaCellReadyMessage
+	NovaCellReadyMessage = "NovaCell %s is Ready"
 )
