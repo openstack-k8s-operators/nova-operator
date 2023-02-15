@@ -128,21 +128,28 @@ func NovaSchedulerConditionGetter(name types.NamespacedName) condition.Condition
 	return instance.Status.Conditions
 }
 
-// CreateSecret creates a secret that has all the information NovaAPI needs
-func CreateNovaAPISecret(namespace string, name string) *corev1.Secret {
+func CreateSecret(name types.NamespacedName, data map[string][]byte) *corev1.Secret {
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
+			Name:      name.Name,
+			Namespace: name.Namespace,
 		},
-		Data: map[string][]byte{
+		Data: data,
+	}
+	Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
+	return secret
+}
+
+// CreateSecret creates a secret that has all the information NovaAPI needs
+func CreateNovaAPISecret(namespace string, name string) *corev1.Secret {
+	return CreateSecret(
+		types.NamespacedName{Namespace: namespace, Name: name},
+		map[string][]byte{
 			"NovaPassword":              []byte("12345678"),
 			"NovaAPIDatabasePassword":   []byte("12345678"),
 			"NovaCell0DatabasePassword": []byte("12345678"),
 		},
-	}
-	Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
-	return secret
+	)
 }
 
 func GetDefaultNovaSpec() map[string]interface{} {
@@ -306,31 +313,21 @@ func NovaConductorConditionGetter(name types.NamespacedName) condition.Condition
 // CreateNovaConductorSecret creates a secret that has all the information
 // NovaConductor needs
 func CreateNovaConductorSecret(namespace string, name string) *corev1.Secret {
-	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
-		Data: map[string][]byte{
+	return CreateSecret(
+		types.NamespacedName{Namespace: namespace, Name: name},
+		map[string][]byte{
 			"NovaCell0DatabasePassword": []byte("12345678"),
 		},
-	}
-	Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
-	return secret
+	)
 }
-func CreateNovaMessageBusSecret(namespace string, name string) *corev1.Secret {
-	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
-		Data: map[string][]byte{
 
+func CreateNovaMessageBusSecret(namespace string, name string) *corev1.Secret {
+	return CreateSecret(
+		types.NamespacedName{Namespace: namespace, Name: name},
+		map[string][]byte{
 			"transport_url": []byte("rabbit://fake"),
 		},
-	}
-	Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
-	return secret
+	)
 }
 
 func GetDefaultNovaCellSpec() map[string]interface{} {
@@ -402,19 +399,14 @@ func NovaCellConditionGetter(name types.NamespacedName) condition.Conditions {
 }
 
 func CreateNovaSecret(namespace string, name string) *corev1.Secret {
-	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
-		Data: map[string][]byte{
+	return CreateSecret(
+		types.NamespacedName{Namespace: namespace, Name: name},
+		map[string][]byte{
 			"NovaPassword":              []byte("12345678"),
 			"NovaAPIDatabasePassword":   []byte("12345678"),
 			"NovaCell0DatabasePassword": []byte("12345678"),
 		},
-	}
-	Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
-	return secret
+	)
 }
 
 func GetService(name types.NamespacedName) *corev1.Service {
@@ -625,15 +617,7 @@ func NovaExternalComputeConditionGetter(name types.NamespacedName) condition.Con
 }
 
 func CreateEmptySecret(name types.NamespacedName) *corev1.Secret {
-	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name.Name,
-			Namespace: name.Namespace,
-		},
-		Data: map[string][]byte{},
-	}
-	Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
-	return secret
+	return CreateSecret(name, map[string][]byte{})
 }
 
 func CreateEmptyConfigMap(name types.NamespacedName) *corev1.ConfigMap {
@@ -663,17 +647,12 @@ func CreateNovaExternalComputeInventoryConfigMap(name types.NamespacedName) *cor
 }
 
 func CreateNovaExternalComputeSSHSecret(name types.NamespacedName) *corev1.Secret {
-	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name.Name,
-			Namespace: name.Namespace,
-		},
-		Data: map[string][]byte{
+	return CreateSecret(
+		name,
+		map[string][]byte{
 			"ssh-privatekey": []byte("a private key"),
 		},
-	}
-	Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
-	return secret
+	)
 }
 
 func DeleteSecret(name types.NamespacedName) {
