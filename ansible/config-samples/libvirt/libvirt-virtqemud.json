@@ -1,9 +1,9 @@
 {
-    "command": "/usr/sbin/virtlogd --config /etc/libvirt/virtlogd.conf",
+    "command": "/usr/sbin/virtqemud --config /etc/libvirt/virtqemud.conf",
     "config_files": [
         {
-            "source": "/var/lib/openstack/config/virtlogd.conf",
-            "dest": "/etc/libvirt/virtlogd.conf",
+            "source": "/var/lib/openstack/config/virtqemud.conf",
+            "dest": "/etc/libvirt/virtqemud.conf",
             "owner": "libvirt",
             "perm": "0600"
         }
@@ -18,7 +18,7 @@
             "path": "/var/lib/libvirt",
             "owner": "libvirt:libvirt",
             "recurse": true
-        },
+        } ,
         {
             "path": "/run/libvirt",
             "owner": "libvirt:libvirt",
