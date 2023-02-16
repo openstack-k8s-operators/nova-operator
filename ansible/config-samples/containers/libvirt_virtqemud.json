@@ -15,6 +15,7 @@
         "/var/log/containers/libvirt:/var/log/containers/libvirt",
         "/var/lib/libvirt:/var/lib/libvirt",
         "/var/lib/nova:/var/lib/nova",
-        "/run/libvirt:/run/libvirt"
+        "/run/libvirt:/run/libvirt",
+        "/dev:/dev"
     ]
   }
