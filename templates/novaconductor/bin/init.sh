@@ -38,9 +38,8 @@ SCRIPTPATH="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 cp -a ${SVC_CFG} ${SVC_CFG_MERGED}
 
 # Merge all templates from config CM
-for dir in /var/lib/config-data/default
-do
-  merge_config_dir ${dir}
+for dir in /var/lib/config-data/default; do
+    merge_config_dir ${dir}
 done
 
 # set secrets
@@ -52,7 +51,6 @@ crudini --set ${SVC_CFG_MERGED} placement password $PASSWORD
 crudini --set ${SVC_CFG_MERGED} DEFAULT transport_url $TRANSPORT_URL
 
 # set api database connection if provided
-if [ ! -z "$APIDatabaseHost" ]
-then
-  crudini --set ${SVC_CFG_MERGED} api_database connection mysql+pymysql://${APIDatabaseUser}:${APIDatabasePassword}@${APIDatabaseHost}/${APIDatabaseName}
+if [ ! -z "$APIDatabaseHost" ]; then
+    crudini --set ${SVC_CFG_MERGED} api_database connection mysql+pymysql://${APIDatabaseUser}:${APIDatabasePassword}@${APIDatabaseHost}/${APIDatabaseName}
 fi

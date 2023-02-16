@@ -1,14 +1,17 @@
-ci:
-  autofix_prs: false
-  skip:
-   - 'make-manifests'
-   - 'make-generate'
-   - 'go-vet'
-   - 'golangci-lint'
-   - 'go-lint'
-   - 'make-operator-lint'
-
 repos:
+- repo: https://github.com/dnephin/pre-commit-golang
+  rev: v0.5.1
+  hooks:
+    - id: go-fmt
+      exclude: ^vendor
+    - id: go-vet
+    - id: go-mod-tidy
+
+- repo: https://github.com/golangci/golangci-lint
+  rev: v1.50.1
+  hooks:
+    - id: golangci-lint
+
 - repo: local
   hooks:
     - id: make-manifests
@@ -29,20 +32,6 @@ repos:
       entry: make
       args: ['operator-lint']
       pass_filenames: false
-
-- repo: https://github.com/dnephin/pre-commit-golang
-  rev: v0.5.1
-  hooks:
-    - id: go-fmt
-      exclude: ^vendor
-    - id: go-vet
-    - id: go-mod-tidy
-    - id: go-lint
-
-- repo: https://github.com/golangci/golangci-lint
-  rev: v1.50.1
-  hooks:
-    - id: golangci-lint
 
 - repo: https://github.com/pre-commit/pre-commit-hooks
   rev: v4.4.0
@@ -66,3 +55,9 @@ repos:
     - id: no-commit-to-branch
     - id: trailing-whitespace
       exclude: ^vendor
+
+- repo: https://github.com/openstack/bashate.git
+  rev: 2.1.1
+  hooks:
+    - id: bashate
+      entry: bashate --error . --ignore=E006,E040,E043
