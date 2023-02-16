@@ -8,12 +8,12 @@ require (
 	github.com/onsi/ginkgo/v2 v2.8.0
 	github.com/onsi/gomega v1.26.0
 	github.com/openshift/api v3.9.0+incompatible
-	github.com/openstack-k8s-operators/keystone-operator/api v0.0.0-20230208150008-87df8c2f32cb
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20230208113903-f7b52e2a2ccb
-	github.com/openstack-k8s-operators/lib-common/modules/database v0.0.0-20230208113903-f7b52e2a2ccb
-	github.com/openstack-k8s-operators/lib-common/modules/test v0.0.0-20230208113903-f7b52e2a2ccb
-	github.com/openstack-k8s-operators/mariadb-operator/api v0.0.0-20230206135206-4970c77d3d00
-	github.com/openstack-k8s-operators/placement-operator/api v0.0.0-20230207121650-3782a3072861
+	github.com/openstack-k8s-operators/keystone-operator/api v0.0.0-20230216151118-46f22afe65cd
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20230216124714-dd23df83ccb7
+	github.com/openstack-k8s-operators/lib-common/modules/database v0.0.0-20230216124714-dd23df83ccb7
+	github.com/openstack-k8s-operators/lib-common/modules/test v0.0.0-20230216124714-dd23df83ccb7
+	github.com/openstack-k8s-operators/mariadb-operator/api v0.0.0-20230216151116-2ff4f7be323b
+	github.com/openstack-k8s-operators/placement-operator/api v0.0.0-20230216144758-8877d8cd8963
 	go.uber.org/zap v1.24.0
 	k8s.io/api v0.26.1
 	k8s.io/apimachinery v0.26.1
@@ -21,13 +21,16 @@ require (
 	sigs.k8s.io/controller-runtime v0.14.4
 )
 
-require golang.org/x/mod v0.7.0 // indirect
+require (
+	github.com/openstack-k8s-operators/infra-operator/apis v0.0.0-20230210143210-6e3aad14c3aa // indirect
+	golang.org/x/mod v0.7.0 // indirect
+)
 
 require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/emicklei/go-restful/v3 v3.9.0 // indirect
+	github.com/emicklei/go-restful/v3 v3.10.1 // indirect
 	github.com/evanphx/json-patch/v5 v5.6.0 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/go-logr/zapr v1.2.3 // indirect
@@ -45,11 +48,11 @@ require (
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
-	github.com/matttproud/golang_protobuf_extensions v1.0.2 // indirect
+	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
-	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.0.0-20230208113903-f7b52e2a2ccb // indirect; indirect // indirect // indirect
+	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.0.0-20230216124714-dd23df83ccb7 // indirect; indirect // indirect // indirect // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_golang v1.14.0 // indirect
 	github.com/prometheus/client_model v0.3.0 // indirect
