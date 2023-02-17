@@ -332,8 +332,8 @@ var _ = Describe("NovaAPI controller", func() {
 				condition.ExposeServiceReadyCondition,
 				corev1.ConditionTrue,
 			)
-			AssertServiceExists(types.NamespacedName{Namespace: namespace, Name: "nova-public"})
-			AssertServiceExists(types.NamespacedName{Namespace: namespace, Name: "nova-internal"})
+			GetService(types.NamespacedName{Namespace: namespace, Name: "nova-public"})
+			GetService(types.NamespacedName{Namespace: namespace, Name: "nova-internal"})
 			AssertRouteExists(types.NamespacedName{Namespace: namespace, Name: "nova-public"})
 		})
 
@@ -533,6 +533,69 @@ var _ = Describe("NovaAPI controller", func() {
 
 			keystoneEndpointName := types.NamespacedName{Namespace: namespace, Name: "nova"}
 			SimulateKeystoneEndpointReady(keystoneEndpointName)
+
+			th.ExpectCondition(
+				novaAPIName,
+				ConditionGetterFunc(NovaAPIConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
+	})
+
+	When("NovaAPI is created with externalEndpoints", func() {
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateNovaAPISecret(namespace, SecretName))
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(namespace, MessageBusSecretName))
+
+			spec := GetDefaultNovaAPISpec()
+			// NOTE(gibi): We need to create the data as raw list of maps
+			// to allow defaulting to happen according to the kubebuilder
+			// definitions
+			var externalEndpoints []interface{}
+			externalEndpoints = append(
+				externalEndpoints, map[string]interface{}{
+					"endpoint":        "internal",
+					"ipAddressPool":   "osp-internalapi",
+					"loadBalancerIPs": []string{"internal-lb-ip-1", "internal-lb-ip-2"},
+				},
+			)
+			spec["externalEndpoints"] = externalEndpoints
+
+			novaAPIName = CreateNovaAPI(namespace, spec)
+			DeferCleanup(DeleteNovaAPI, novaAPIName)
+		})
+
+		It("creates MetalLB service", func() {
+			statefulSetName := types.NamespacedName{
+				Namespace: namespace,
+				Name:      novaAPIName.Name,
+			}
+			th.SimulateStatefulSetReplicaReady(statefulSetName)
+
+			keystoneEndpointName := types.NamespacedName{Namespace: namespace, Name: "nova"}
+			SimulateKeystoneEndpointReady(keystoneEndpointName)
+
+			// As the internal enpoint is configured in ExternalEndpoints it does not
+			// get a Route but a Service with MetalLB annotations instead
+			service := GetService(types.NamespacedName{Namespace: namespace, Name: "nova-internal"})
+			Expect(service.Annotations).To(
+				HaveKeyWithValue("metallb.universe.tf/address-pool", "osp-internalapi"))
+			Expect(service.Annotations).To(
+				HaveKeyWithValue("metallb.universe.tf/allow-shared-ip", "osp-internalapi"))
+			Expect(service.Annotations).To(
+				HaveKeyWithValue("metallb.universe.tf/loadBalancerIPs", "internal-lb-ip-1,internal-lb-ip-2"))
+			AssertRouteNotExists(types.NamespacedName{Namespace: namespace, Name: "nova-internal"})
+
+			// As the public endpoint is not mentioned in the ExternalEndpoints a generic Service and
+			// a Route is created
+			service = GetService(types.NamespacedName{Namespace: namespace, Name: "nova-public"})
+			Expect(service.Annotations).NotTo(HaveKey("metallb.universe.tf/address-pool"))
+			Expect(service.Annotations).NotTo(HaveKey("metallb.universe.tf/allow-shared-ip"))
+			Expect(service.Annotations).NotTo(HaveKey("metallb.universe.tf/loadBalancerIPs"))
+			AssertRouteExists(types.NamespacedName{Namespace: namespace, Name: "nova-public"})
 
 			th.ExpectCondition(
 				novaAPIName,

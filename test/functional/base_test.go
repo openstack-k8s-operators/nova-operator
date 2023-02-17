@@ -559,7 +559,7 @@ func SimulateKeystoneServiceReady(name types.NamespacedName) {
 	logger.Info("Simulated KeystoneService ready", "on", name)
 }
 
-func AssertServiceExists(name types.NamespacedName) *corev1.Service {
+func GetService(name types.NamespacedName) *corev1.Service {
 	instance := &corev1.Service{}
 	Eventually(func(g Gomega) {
 		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
@@ -572,6 +572,15 @@ func AssertRouteExists(name types.NamespacedName) *routev1.Route {
 	Eventually(func(g Gomega) {
 		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
 	}, timeout, interval).Should(Succeed())
+	return instance
+}
+
+func AssertRouteNotExists(name types.NamespacedName) *routev1.Route {
+	instance := &routev1.Route{}
+	Consistently(func(g Gomega) {
+		err := k8sClient.Get(ctx, name, instance)
+		g.Expect(k8s_errors.IsNotFound(err)).To(BeTrue())
+	}, consistencyTimeout, interval).Should(Succeed())
 	return instance
 }
 
