@@ -19,6 +19,7 @@ import (
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	affinity "github.com/openstack-k8s-operators/lib-common/modules/common/affinity"
 	env "github.com/openstack-k8s-operators/lib-common/modules/common/env"
+
 	placementv1 "github.com/openstack-k8s-operators/placement-operator/api/v1beta1"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -37,6 +38,7 @@ func Deployment(
 	instance *placementv1.PlacementAPI,
 	configHash string,
 	labels map[string]string,
+	annotations map[string]string,
 ) *appsv1.Deployment {
 	runAsUser := int64(0)
 
@@ -97,7 +99,8 @@ func Deployment(
 			Replicas: &instance.Spec.Replicas,
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: labels,
+					Annotations: annotations,
+					Labels:      labels,
 				},
 				Spec: corev1.PodSpec{
 					ServiceAccountName: ServiceAccount,
@@ -123,6 +126,7 @@ func Deployment(
 			},
 		},
 	}
+
 	deployment.Spec.Template.Spec.Volumes = getVolumes(instance.Name)
 	// If possible two pods of the same service should not
 	// run on the same worker node. If this is not possible
