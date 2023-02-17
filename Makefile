@@ -105,7 +105,7 @@ docker-buildx: test ## Build and push docker image for the manager for cross-pla
 ##@ Development
 
 .PHONY: manifests
-manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
+manifests: gowork controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
 	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
 .PHONY: generate
@@ -319,3 +319,4 @@ gowork: ## Generate go.work file
 	test -f go.work || go work init
 	go work use .
 	go work use ./api
+	go work sync
