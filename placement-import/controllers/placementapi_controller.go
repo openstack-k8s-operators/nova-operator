@@ -689,7 +689,7 @@ func (r *PlacementAPIReconciler) reconcileNormal(ctx context.Context, instance *
 			condition.NetworkAttachmentsReadyErrorMessage,
 			err.Error()))
 
-		return ctrlResult, nil
+		return ctrl.Result{}, err
 	}
 
 	if instance.Status.ReadyCount > 0 {
