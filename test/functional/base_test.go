@@ -16,11 +16,13 @@ limitations under the License.
 package functional_test
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -28,6 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
+	networkv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	rabbitmqv1 "github.com/openstack-k8s-operators/infra-operator/apis/rabbitmq/v1beta1"
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
@@ -668,4 +671,72 @@ func NovaSchedulerNotExists(name types.NamespacedName) {
 		err := k8sClient.Get(ctx, name, instance)
 		g.Expect(k8s_errors.IsNotFound(err)).To(BeTrue())
 	}, consistencyTimeout, interval).Should(Succeed())
+}
+
+func CreateNetworkAttachmentDefinition(name types.NamespacedName) {
+	instance := &networkv1.NetworkAttachmentDefinition{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name.Name,
+			Namespace: name.Namespace,
+		},
+		Spec: networkv1.NetworkAttachmentDefinitionSpec{
+			Config: "",
+		},
+	}
+	Expect(k8sClient.Create(ctx, instance)).Should(Succeed())
+}
+
+func DeleteNetworkAttachmentDefinition(name types.NamespacedName) {
+	Eventually(func(g Gomega) {
+		instance := &networkv1.NetworkAttachmentDefinition{}
+		err := k8sClient.Get(ctx, name, instance)
+		// if it is already gone that is OK
+		if k8s_errors.IsNotFound(err) {
+			return
+		}
+		g.Expect(err).Should(BeNil())
+
+		g.Expect(k8sClient.Delete(ctx, instance)).Should(Succeed())
+
+		err = k8sClient.Get(ctx, name, instance)
+		g.Expect(k8s_errors.IsNotFound(err)).To(BeTrue())
+	}, timeout, interval).Should(Succeed())
+}
+
+func SimulateStatefulSetReplicaReadyWithPods(name types.NamespacedName, networkIPs map[string][]string) {
+	ss := th.GetStatefulSet(name)
+	for i := 0; i < int(*ss.Spec.Replicas); i++ {
+		pod := &v1.Pod{
+			ObjectMeta: ss.Spec.Template.ObjectMeta,
+			Spec:       ss.Spec.Template.Spec,
+		}
+		pod.ObjectMeta.Namespace = name.Namespace
+		pod.ObjectMeta.GenerateName = name.Name
+
+		var netStatus []networkv1.NetworkStatus
+		for network, IPs := range networkIPs {
+			netStatus = append(
+				netStatus,
+				networkv1.NetworkStatus{
+					Name: network,
+					IPs:  IPs,
+				},
+			)
+		}
+		netStatusAnnotation, err := json.Marshal(netStatus)
+		Expect(err).NotTo(HaveOccurred())
+		pod.Annotations[networkv1.NetworkStatusAnnot] = string(netStatusAnnotation)
+
+		Expect(k8sClient.Create(ctx, pod)).Should(Succeed())
+	}
+
+	Eventually(func(g Gomega) {
+		ss := th.GetStatefulSet(name)
+		ss.Status.Replicas = 1
+		ss.Status.ReadyReplicas = 1
+		g.Expect(k8sClient.Status().Update(ctx, ss)).To(Succeed())
+
+	}, timeout, interval).Should(Succeed())
+
+	logger.Info("Simulated statefulset success", "on", name)
 }
