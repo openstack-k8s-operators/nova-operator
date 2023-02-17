@@ -27,6 +27,7 @@ import (
 	. "github.com/onsi/gomega"
 	"go.uber.org/zap/zapcore"
 
+	networkv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -91,6 +92,11 @@ var _ = BeforeSuite(func() {
 	Expect(err).ShouldNot(HaveOccurred())
 	routev1CRDs, err := test.GetOpenShiftCRDDir("route/v1", gomod)
 	Expect(err).ShouldNot(HaveOccurred())
+	// NOTE(gibi): there are packages where the CRD directory has other
+	// yamls files as well, then we need to specify the extac file to load
+	networkv1CRD, err := test.GetCRDDirFromModule(
+		"github.com/k8snetworkplumbingwg/network-attachment-definition-client", gomod, "artifacts/networks-crd.yaml")
+	Expect(err).ShouldNot(HaveOccurred())
 
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
@@ -101,6 +107,11 @@ var _ = BeforeSuite(func() {
 			keystoneCRDs,
 			rabbitCRDs,
 			routev1CRDs,
+		},
+		CRDInstallOptions: envtest.CRDInstallOptions{
+			Paths: []string{
+				networkv1CRD,
+			},
 		},
 		ErrorIfCRDPathMissing: true,
 	}
@@ -127,6 +138,8 @@ var _ = BeforeSuite(func() {
 	err = routev1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 	err = rabbitmqv1.AddToScheme(scheme.Scheme)
+	Expect(err).NotTo(HaveOccurred())
+	err = networkv1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 
 	//+kubebuilder:scaffold:scheme
