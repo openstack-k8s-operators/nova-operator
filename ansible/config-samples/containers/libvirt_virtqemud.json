@@ -4,6 +4,7 @@
     "command": "kolla_start",
     "pid": "host",
     "net": "host",
+    "cgroupns": "host",
     "privileged": "true",
     "environment": {
         "KOLLA_CONFIG_STRATEGY":"COPY_ALWAYS",
