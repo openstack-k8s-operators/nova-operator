@@ -9,12 +9,12 @@ require (
 	github.com/onsi/ginkgo/v2 v2.8.0
 	github.com/onsi/gomega v1.26.0
 	github.com/openshift/api v3.9.0+incompatible
-	github.com/openstack-k8s-operators/keystone-operator/api v0.0.0-20230216151118-46f22afe65cd
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20230216124714-dd23df83ccb7
-	github.com/openstack-k8s-operators/lib-common/modules/database v0.0.0-20230216124714-dd23df83ccb7
-	github.com/openstack-k8s-operators/lib-common/modules/test v0.0.0-20230216124714-dd23df83ccb7
+	github.com/openstack-k8s-operators/keystone-operator/api v0.0.0-20230217165024-22a34597a601
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20230221132038-4d837b4ac7d2
+	github.com/openstack-k8s-operators/lib-common/modules/database v0.0.0-20230221132038-4d837b4ac7d2
+	github.com/openstack-k8s-operators/lib-common/modules/test v0.0.0-20230221132038-4d837b4ac7d2
 	github.com/openstack-k8s-operators/mariadb-operator/api v0.0.0-20230216151116-2ff4f7be323b
-	github.com/openstack-k8s-operators/placement-operator/api v0.0.0-20230216144758-8877d8cd8963
+	github.com/openstack-k8s-operators/placement-operator/api v0.0.0-20230220090217-e2618f6c8748
 	go.uber.org/zap v1.24.0
 	k8s.io/api v0.26.1
 	k8s.io/apimachinery v0.26.1
@@ -48,8 +48,8 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
-	github.com/openstack-k8s-operators/infra-operator/apis v0.0.0-20230210143210-6e3aad14c3aa // indirect
-	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.0.0-20230216124714-dd23df83ccb7 // indirect; indirect // indirect // indirect // indirect
+	github.com/openstack-k8s-operators/infra-operator/apis v0.0.0-20230221114633-d3cedda6974d // indirect; indirect // indirect
+	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.0.0-20230221132038-4d837b4ac7d2 // indirect; indirect // indirect // indirect // indirect // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_golang v1.14.0 // indirect
 	github.com/prometheus/client_model v0.3.0 // indirect
