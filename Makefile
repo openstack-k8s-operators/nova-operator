@@ -119,6 +119,19 @@ vet: gowork ## Run go vet against code.
 	go vet ./...
 	go vet ./api/...
 
+.PHONY: tidy
+tidy: fmt
+	go mod tidy; \
+	pushd "$(LOCALBIN)/../api"; \
+	go mod tidy; \
+	popd
+
+.PHONY: golangci-lint
+golangci-lint:
+	# NOTE this will install golangci-lint in to local bin dir
+	test -s $(LOCALBIN)/golangci-lint || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s v1.51.2
+	$(LOCALBIN)/golangci-lint run --fix
+
 PROCS?=$(shell expr $(shell nproc --ignore 2) / 2)
 PROC_CMD = --procs ${PROCS}
 
