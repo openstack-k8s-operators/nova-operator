@@ -622,4 +622,102 @@ var _ = Describe("Nova controller", func() {
 			Expect(cell0DB.Finalizers).NotTo(ContainElement("Nova"))
 		})
 	})
+	When("Nova CR instance is created with NetworkAttachment and ExternalEndpoints", func() {
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateNovaSecret(namespace, SecretName))
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateNovaMessageBusSecret(namespace, MessageBusSecretName),
+			)
+			DeferCleanup(
+				DeleteDBService,
+				CreateDBService(
+					namespace,
+					"openstack",
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+			DeferCleanup(DeleteKeystoneAPI, CreateKeystoneAPI(namespace))
+
+			internalAPINADName := types.NamespacedName{Namespace: namespace, Name: "internalapi"}
+			CreateNetworkAttachmentDefinition(internalAPINADName)
+			DeferCleanup(DeleteNetworkAttachmentDefinition, internalAPINADName)
+
+			var externalEndpoints []interface{}
+			externalEndpoints = append(
+				externalEndpoints, map[string]interface{}{
+					"endpoint":        "internal",
+					"ipAddressPool":   "osp-internalapi",
+					"loadBalancerIPs": []string{"10.1.0.1", "10.1.0.2"},
+				},
+			)
+			rawSpec := map[string]interface{}{
+				"secret": SecretName,
+				"cellTemplates": map[string]interface{}{
+					"cell0": map[string]interface{}{
+						"cellDatabaseUser": "nova_cell0",
+						"hasAPIAccess":     true,
+						"conductorServiceTemplate": map[string]interface{}{
+							"networkAttachments": []string{"internalapi"},
+						},
+					},
+				},
+				"apiServiceTemplate": map[string]interface{}{
+					"networkAttachments": []string{"internalapi"},
+					"externalEndpoints":  externalEndpoints,
+				},
+				"schedulerServiceTemplate": map[string]interface{}{
+					"networkAttachments": []string{"internalapi"},
+				},
+			}
+			CreateNova(novaName, rawSpec)
+			DeferCleanup(DeleteNova, novaName)
+
+			SimulateKeystoneServiceReady(novaKeystoneServiceName)
+			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
+			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForCell0)
+			SimulateTransportURLReady(apiTransportURLName)
+			th.SimulateJobSuccess(cell0DBSyncJobName)
+		})
+
+		It("creates all the sub CRs and passes down the network parameters", func() {
+			SimulateStatefulSetReplicaReadyWithPods(
+				novaCell0ConductorStatefulSetName,
+				map[string][]string{namespace + "/internalapi": {"10.0.0.1"}},
+			)
+			SimulateStatefulSetReplicaReadyWithPods(
+				novaSchedulerStatefulSetName,
+				map[string][]string{namespace + "/internalapi": {"10.0.0.1"}},
+			)
+			SimulateStatefulSetReplicaReadyWithPods(
+				novaAPIdeploymentName,
+				map[string][]string{namespace + "/internalapi": {"10.0.0.1"}},
+			)
+
+			th.ExpectCondition(
+				novaName,
+				ConditionGetterFunc(NovaConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			nova := GetNova(novaName)
+
+			conductor := GetNovaConductor(cell0ConductorName)
+			Expect(conductor.Spec.NetworkAttachments).To(
+				Equal(nova.Spec.CellTemplates["cell0"].ConductorServiceTemplate.NetworkAttachments))
+
+			api := GetNovaAPI(novaAPIName)
+			Expect(api.Spec.NetworkAttachments).To(Equal(nova.Spec.APIServiceTemplate.NetworkAttachments))
+			Expect(api.Spec.ExternalEndpoints).To(Equal(nova.Spec.APIServiceTemplate.ExternalEndpoints))
+
+			scheduler := GetNovaScheduler(novaSchedulerName)
+			Expect(scheduler.Spec.NetworkAttachments).To(Equal(nova.Spec.APIServiceTemplate.NetworkAttachments))
+		})
+
+	})
 })

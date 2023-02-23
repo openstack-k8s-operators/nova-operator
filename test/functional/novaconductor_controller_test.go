@@ -14,10 +14,12 @@ limitations under the License.
 package functional_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 
 	"github.com/google/uuid"
+	networkv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/openstack-k8s-operators/lib-common/modules/test/helpers"
@@ -513,6 +515,155 @@ var _ = Describe("NovaConductor controller", func() {
 			Eventually(func(g Gomega) {
 				g.Expect(th.GetJob(jobName).Spec.TTLSecondsAfterFinished).NotTo(BeNil())
 			}, timeout, interval).Should(Succeed())
+		})
+	})
+
+	When("NovaConductor is created with networkAttachments", func() {
+		var jobName types.NamespacedName
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateNovaConductorSecret(namespace, SecretName))
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(namespace, MessageBusSecretName))
+
+			spec := GetDefaultNovaConductorSpec()
+			spec["networkAttachments"] = []string{"internalapi"}
+			novaConductorName = CreateNovaConductor(namespace, spec)
+			DeferCleanup(DeleteNovaConductor, novaConductorName)
+			jobName = types.NamespacedName{
+				Namespace: namespace,
+				Name:      novaConductorName.Name + "-db-sync",
+			}
+
+		})
+
+		It("reports that the definition is missing", func() {
+			th.ExpectConditionWithDetails(
+				novaConductorName,
+				ConditionGetterFunc(NovaConductorConditionGetter),
+				condition.NetworkAttachmentsReadyCondition,
+				corev1.ConditionFalse,
+				condition.RequestedReason,
+				"NetworkAttachment resources missing: internalapi",
+			)
+			th.ExpectCondition(
+				novaConductorName,
+				ConditionGetterFunc(NovaConductorConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionUnknown,
+			)
+		})
+		It("reports that network attachment is missing", func() {
+			internalAPINADName := types.NamespacedName{Namespace: namespace, Name: "internalapi"}
+			CreateNetworkAttachmentDefinition(internalAPINADName)
+			DeferCleanup(DeleteNetworkAttachmentDefinition, internalAPINADName)
+			th.SimulateJobSuccess(jobName)
+
+			statefulSetName := types.NamespacedName{
+				Namespace: namespace,
+				Name:      novaConductorName.Name,
+			}
+			ss := th.GetStatefulSet(statefulSetName)
+
+			expectedAnnotation, err := json.Marshal(
+				[]networkv1.NetworkSelectionElement{
+					{
+						Name:      "internalapi",
+						Namespace: namespace,
+					}})
+			Expect(err).ShouldNot(HaveOccurred())
+			Expect(ss.Spec.Template.ObjectMeta.Annotations).To(
+				HaveKeyWithValue("k8s.v1.cni.cncf.io/networks", string(expectedAnnotation)),
+			)
+
+			// We don't add network attachment status annotations to the Pods
+			// to simulate that the network attachments are missing.
+			SimulateStatefulSetReplicaReadyWithPods(statefulSetName, map[string][]string{})
+
+			th.ExpectConditionWithDetails(
+				novaConductorName,
+				ConditionGetterFunc(NovaConductorConditionGetter),
+				condition.NetworkAttachmentsReadyCondition,
+				corev1.ConditionFalse,
+				condition.ErrorReason,
+				"NetworkAttachments error occured "+
+					"not all pods have interfaces with ips as configured in NetworkAttachments: [internalapi]",
+			)
+		})
+		It("reports that an IP is missing", func() {
+			internalAPINADName := types.NamespacedName{Namespace: namespace, Name: "internalapi"}
+			CreateNetworkAttachmentDefinition(internalAPINADName)
+			DeferCleanup(DeleteNetworkAttachmentDefinition, internalAPINADName)
+			th.SimulateJobSuccess(jobName)
+
+			statefulSetName := types.NamespacedName{
+				Namespace: namespace,
+				Name:      novaConductorName.Name,
+			}
+			ss := th.GetStatefulSet(statefulSetName)
+
+			expectedAnnotation, err := json.Marshal(
+				[]networkv1.NetworkSelectionElement{
+					{
+						Name:      "internalapi",
+						Namespace: namespace,
+					}})
+			Expect(err).ShouldNot(HaveOccurred())
+			Expect(ss.Spec.Template.ObjectMeta.Annotations).To(
+				HaveKeyWithValue("k8s.v1.cni.cncf.io/networks", string(expectedAnnotation)),
+			)
+
+			// We simulat that there is no IP associated with the internalapi
+			// network attachment
+			SimulateStatefulSetReplicaReadyWithPods(
+				statefulSetName,
+				map[string][]string{namespace + "/internalapi": {}},
+			)
+
+			th.ExpectConditionWithDetails(
+				novaConductorName,
+				ConditionGetterFunc(NovaConductorConditionGetter),
+				condition.NetworkAttachmentsReadyCondition,
+				corev1.ConditionFalse,
+				condition.ErrorReason,
+				"NetworkAttachments error occured "+
+					"not all pods have interfaces with ips as configured in NetworkAttachments: [internalapi]",
+			)
+		})
+		It("reports NetworkAttachmentsReady if the Pods got the proper annotiations", func() {
+			internalAPINADName := types.NamespacedName{Namespace: namespace, Name: "internalapi"}
+			CreateNetworkAttachmentDefinition(internalAPINADName)
+			DeferCleanup(DeleteNetworkAttachmentDefinition, internalAPINADName)
+			th.SimulateJobSuccess(jobName)
+
+			statefulSetName := types.NamespacedName{
+				Namespace: namespace,
+				Name:      novaConductorName.Name,
+			}
+			SimulateStatefulSetReplicaReadyWithPods(
+				statefulSetName,
+				map[string][]string{namespace + "/internalapi": {"10.0.0.1"}},
+			)
+
+			th.ExpectCondition(
+				novaConductorName,
+				ConditionGetterFunc(NovaConductorConditionGetter),
+				condition.NetworkAttachmentsReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			Eventually(func(g Gomega) {
+				novaConductor := GetNovaConductor(novaConductorName)
+				g.Expect(novaConductor.Status.NetworkAttachments).To(
+					Equal(map[string][]string{namespace + "/internalapi": {"10.0.0.1"}}))
+			}, timeout, interval).Should(Succeed())
+
+			th.ExpectCondition(
+				novaConductorName,
+				ConditionGetterFunc(NovaConductorConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
 		})
 	})
 })

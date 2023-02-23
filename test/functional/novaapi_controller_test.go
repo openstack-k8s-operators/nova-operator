@@ -16,6 +16,7 @@ limitations under the License.
 package functional_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 
@@ -24,6 +25,7 @@ import (
 	. "github.com/onsi/gomega"
 	. "github.com/openstack-k8s-operators/lib-common/modules/test/helpers"
 
+	networkv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -330,8 +332,8 @@ var _ = Describe("NovaAPI controller", func() {
 				condition.ExposeServiceReadyCondition,
 				corev1.ConditionTrue,
 			)
-			AssertServiceExists(types.NamespacedName{Namespace: namespace, Name: "nova-public"})
-			AssertServiceExists(types.NamespacedName{Namespace: namespace, Name: "nova-internal"})
+			GetService(types.NamespacedName{Namespace: namespace, Name: "nova-public"})
+			GetService(types.NamespacedName{Namespace: namespace, Name: "nova-internal"})
 			AssertRouteExists(types.NamespacedName{Namespace: namespace, Name: "nova-public"})
 		})
 
@@ -395,6 +397,212 @@ var _ = Describe("NovaAPI controller", func() {
 			DeleteNovaAPI(novaAPIName)
 			endpoint = GetKeystoneEndpoint(keystoneEndpointName)
 			Expect(endpoint.Finalizers).NotTo(ContainElement("NovaAPI"))
+		})
+	})
+	When("NovaAPI is created with networkAttachments", func() {
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateNovaAPISecret(namespace, SecretName))
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(namespace, MessageBusSecretName))
+
+			spec := GetDefaultNovaAPISpec()
+			spec["networkAttachments"] = []string{"internalapi"}
+			novaAPIName = CreateNovaAPI(namespace, spec)
+			DeferCleanup(DeleteNovaAPI, novaAPIName)
+		})
+
+		It("reports that the definition is missing", func() {
+			th.ExpectConditionWithDetails(
+				novaAPIName,
+				ConditionGetterFunc(NovaAPIConditionGetter),
+				condition.NetworkAttachmentsReadyCondition,
+				corev1.ConditionFalse,
+				condition.RequestedReason,
+				"NetworkAttachment resources missing: internalapi",
+			)
+			th.ExpectCondition(
+				novaAPIName,
+				ConditionGetterFunc(NovaAPIConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionUnknown,
+			)
+		})
+		It("reports that network attachment is missing", func() {
+			internalAPINADName := types.NamespacedName{Namespace: namespace, Name: "internalapi"}
+			CreateNetworkAttachmentDefinition(internalAPINADName)
+			DeferCleanup(DeleteNetworkAttachmentDefinition, internalAPINADName)
+
+			statefulSetName := types.NamespacedName{
+				Namespace: namespace,
+				Name:      novaAPIName.Name,
+			}
+			ss := th.GetStatefulSet(statefulSetName)
+
+			expectedAnnotation, err := json.Marshal(
+				[]networkv1.NetworkSelectionElement{
+					{
+						Name:      "internalapi",
+						Namespace: namespace,
+					}})
+			Expect(err).ShouldNot(HaveOccurred())
+			Expect(ss.Spec.Template.ObjectMeta.Annotations).To(
+				HaveKeyWithValue("k8s.v1.cni.cncf.io/networks", string(expectedAnnotation)),
+			)
+
+			// We don't add network attachment status annotations to the Pods
+			// to simulate that the network attachments are missing.
+			SimulateStatefulSetReplicaReadyWithPods(statefulSetName, map[string][]string{})
+
+			th.ExpectConditionWithDetails(
+				novaAPIName,
+				ConditionGetterFunc(NovaAPIConditionGetter),
+				condition.NetworkAttachmentsReadyCondition,
+				corev1.ConditionFalse,
+				condition.ErrorReason,
+				"NetworkAttachments error occured "+
+					"not all pods have interfaces with ips as configured in NetworkAttachments: [internalapi]",
+			)
+		})
+		It("reports that an IP is missing", func() {
+			internalAPINADName := types.NamespacedName{Namespace: namespace, Name: "internalapi"}
+			CreateNetworkAttachmentDefinition(internalAPINADName)
+			DeferCleanup(DeleteNetworkAttachmentDefinition, internalAPINADName)
+
+			statefulSetName := types.NamespacedName{
+				Namespace: namespace,
+				Name:      novaAPIName.Name,
+			}
+			ss := th.GetStatefulSet(statefulSetName)
+
+			expectedAnnotation, err := json.Marshal(
+				[]networkv1.NetworkSelectionElement{
+					{
+						Name:      "internalapi",
+						Namespace: namespace,
+					}})
+			Expect(err).ShouldNot(HaveOccurred())
+			Expect(ss.Spec.Template.ObjectMeta.Annotations).To(
+				HaveKeyWithValue("k8s.v1.cni.cncf.io/networks", string(expectedAnnotation)),
+			)
+
+			// We simulat that there is no IP associated with the internalapi
+			// network attachment
+			SimulateStatefulSetReplicaReadyWithPods(
+				statefulSetName,
+				map[string][]string{namespace + "/internalapi": {}},
+			)
+
+			th.ExpectConditionWithDetails(
+				novaAPIName,
+				ConditionGetterFunc(NovaAPIConditionGetter),
+				condition.NetworkAttachmentsReadyCondition,
+				corev1.ConditionFalse,
+				condition.ErrorReason,
+				"NetworkAttachments error occured "+
+					"not all pods have interfaces with ips as configured in NetworkAttachments: [internalapi]",
+			)
+		})
+		It("reports NetworkAttachmentsReady if the Pods got the proper annotiations", func() {
+			internalAPINADName := types.NamespacedName{Namespace: namespace, Name: "internalapi"}
+			CreateNetworkAttachmentDefinition(internalAPINADName)
+			DeferCleanup(DeleteNetworkAttachmentDefinition, internalAPINADName)
+
+			statefulSetName := types.NamespacedName{
+				Namespace: namespace,
+				Name:      novaAPIName.Name,
+			}
+			SimulateStatefulSetReplicaReadyWithPods(
+				statefulSetName,
+				map[string][]string{namespace + "/internalapi": {"10.0.0.1"}},
+			)
+
+			th.ExpectCondition(
+				novaAPIName,
+				ConditionGetterFunc(NovaAPIConditionGetter),
+				condition.NetworkAttachmentsReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			Eventually(func(g Gomega) {
+				novaAPI := GetNovaAPI(novaAPIName)
+				g.Expect(novaAPI.Status.NetworkAttachments).To(
+					Equal(map[string][]string{namespace + "/internalapi": {"10.0.0.1"}}))
+
+			}, timeout, interval).Should(Succeed())
+
+			keystoneEndpointName := types.NamespacedName{Namespace: namespace, Name: "nova"}
+			SimulateKeystoneEndpointReady(keystoneEndpointName)
+
+			th.ExpectCondition(
+				novaAPIName,
+				ConditionGetterFunc(NovaAPIConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
+	})
+
+	When("NovaAPI is created with externalEndpoints", func() {
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateNovaAPISecret(namespace, SecretName))
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(namespace, MessageBusSecretName))
+
+			spec := GetDefaultNovaAPISpec()
+			// NOTE(gibi): We need to create the data as raw list of maps
+			// to allow defaulting to happen according to the kubebuilder
+			// definitions
+			var externalEndpoints []interface{}
+			externalEndpoints = append(
+				externalEndpoints, map[string]interface{}{
+					"endpoint":        "internal",
+					"ipAddressPool":   "osp-internalapi",
+					"loadBalancerIPs": []string{"internal-lb-ip-1", "internal-lb-ip-2"},
+				},
+			)
+			spec["externalEndpoints"] = externalEndpoints
+
+			novaAPIName = CreateNovaAPI(namespace, spec)
+			DeferCleanup(DeleteNovaAPI, novaAPIName)
+		})
+
+		It("creates MetalLB service", func() {
+			statefulSetName := types.NamespacedName{
+				Namespace: namespace,
+				Name:      novaAPIName.Name,
+			}
+			th.SimulateStatefulSetReplicaReady(statefulSetName)
+
+			keystoneEndpointName := types.NamespacedName{Namespace: namespace, Name: "nova"}
+			SimulateKeystoneEndpointReady(keystoneEndpointName)
+
+			// As the internal enpoint is configured in ExternalEndpoints it does not
+			// get a Route but a Service with MetalLB annotations instead
+			service := GetService(types.NamespacedName{Namespace: namespace, Name: "nova-internal"})
+			Expect(service.Annotations).To(
+				HaveKeyWithValue("metallb.universe.tf/address-pool", "osp-internalapi"))
+			Expect(service.Annotations).To(
+				HaveKeyWithValue("metallb.universe.tf/allow-shared-ip", "osp-internalapi"))
+			Expect(service.Annotations).To(
+				HaveKeyWithValue("metallb.universe.tf/loadBalancerIPs", "internal-lb-ip-1,internal-lb-ip-2"))
+			AssertRouteNotExists(types.NamespacedName{Namespace: namespace, Name: "nova-internal"})
+
+			// As the public endpoint is not mentioned in the ExternalEndpoints a generic Service and
+			// a Route is created
+			service = GetService(types.NamespacedName{Namespace: namespace, Name: "nova-public"})
+			Expect(service.Annotations).NotTo(HaveKey("metallb.universe.tf/address-pool"))
+			Expect(service.Annotations).NotTo(HaveKey("metallb.universe.tf/allow-shared-ip"))
+			Expect(service.Annotations).NotTo(HaveKey("metallb.universe.tf/loadBalancerIPs"))
+			AssertRouteExists(types.NamespacedName{Namespace: namespace, Name: "nova-public"})
+
+			th.ExpectCondition(
+				novaAPIName,
+				ConditionGetterFunc(NovaAPIConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
 		})
 	})
 })
