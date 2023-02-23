@@ -1,0 +1,28 @@
+apiVersion: dataplane.openstack.org/v1beta1
+kind: OpenStackDataPlaneNode
+metadata:
+  name: compute-1
+spec:
+  role: compute
+  hostName: nova-compute-1
+  ansibleHost:  console-openshift-console.apps.oks-dev.seanmooney.info
+  node:
+    networks:
+      - network: ctlplane
+        fixedIP: 10.0.2.2
+    ansibleUser: centos
+    ansiblePort: 30067
+    ansibleVars: |
+      edpm_network_config_template: templates/net_config_bridge.j2
+      edpm_network_config_hide_sensitive_logs: false
+      neutron_physical_bridge_name: br-ex
+      neutron_public_interface_name: eth0
+      ctlplane_dns_nameservers:
+      - 8.8.8.8
+      - 172.30.0.10
+      dns_search_domains: []
+      internal_api_ip: 10.0.2.2
+      tenant_ip: 10.0.2.2
+      fqdn_internal_api: '{{ ansible_fqdn }}'
+    deploy: true
+    ansibleSSHPrivateKeySecret: edpm-ssh-key

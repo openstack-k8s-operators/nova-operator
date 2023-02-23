@@ -1,0 +1,14 @@
+apiVersion: dataplane.openstack.org/v1beta1
+kind: OpenStackDataPlaneRole
+metadata:
+  name: compute
+spec:
+  dataPlaneNodes:
+    - name: nova-compute-1
+      nodeFrom: compute-1
+  nodeTemplate:
+    networkConfig:
+      template: templates/net_config_bridge.j2
+    managed: false
+    managementNetwork: ctlplane
+    ansibleUser: centos
