@@ -34,6 +34,7 @@ import (
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 	job "github.com/openstack-k8s-operators/lib-common/modules/common/job"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/labels"
+	nad "github.com/openstack-k8s-operators/lib-common/modules/common/networkattachment"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/statefulset"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
@@ -49,9 +50,11 @@ type NovaConductorReconciler struct {
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=novaconductors,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=novaconductors/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=novaconductors/finalizers,verbs=update
+//+kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;
 //+kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch;delete;
 //+kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete;
 //+kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete;
+//+kubebuilder:rbac:groups=k8s.cni.cncf.io,resources=network-attachment-definitions,verbs=get;list;watch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -157,12 +160,17 @@ func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	instance.Status.Conditions.MarkTrue(condition.ServiceConfigReadyCondition, condition.ServiceConfigReadyMessage)
 
-	result, err = r.ensureCellDBSynced(ctx, h, instance)
+	serviceAnnotations, result, err := ensureNetworkAttachments(ctx, h, instance.Spec.NetworkAttachments, &instance.Status.Conditions, r.RequeueTimeout)
 	if (err != nil || result != ctrl.Result{}) {
 		return result, err
 	}
 
-	result, err = r.ensureDeployment(ctx, h, instance, inputHash)
+	result, err = r.ensureCellDBSynced(ctx, h, instance, serviceAnnotations)
+	if (err != nil || result != ctrl.Result{}) {
+		return result, err
+	}
+
+	result, err = r.ensureDeployment(ctx, h, instance, inputHash, serviceAnnotations)
 	if (err != nil || result != ctrl.Result{}) {
 		return result, err
 	}
@@ -182,6 +190,9 @@ func (r *NovaConductorReconciler) initStatus(
 	// so that the reconcile loop later can assume they are not nil.
 	if instance.Status.Hash == nil {
 		instance.Status.Hash = map[string]string{}
+	}
+	if instance.Status.NetworkAttachments == nil {
+		instance.Status.NetworkAttachments = map[string][]string{}
 	}
 
 	return nil
@@ -216,6 +227,11 @@ func (r *NovaConductorReconciler) initConditions(
 				condition.DeploymentReadyCondition,
 				condition.InitReason,
 				condition.DeploymentReadyInitMessage,
+			),
+			condition.UnknownCondition(
+				condition.NetworkAttachmentsReadyCondition,
+				condition.InitReason,
+				condition.NetworkAttachmentsReadyInitMessage,
 			),
 		)
 
@@ -320,13 +336,14 @@ func (r *NovaConductorReconciler) ensureCellDBSynced(
 	ctx context.Context,
 	h *helper.Helper,
 	instance *novav1.NovaConductor,
+	annotations map[string]string,
 ) (ctrl.Result, error) {
 	serviceLabels := map[string]string{
 		common.AppSelector: NovaConductorLabelPrefix,
 	}
 
 	dbSyncHash := instance.Status.Hash[DbSyncHash]
-	jobDef := novaconductor.CellDBSyncJob(instance, serviceLabels)
+	jobDef := novaconductor.CellDBSyncJob(instance, serviceLabels, annotations)
 	dbSyncJob := job.NewJob(jobDef, "dbsync", instance.Spec.Debug.PreserveJobs, r.RequeueTimeout, dbSyncHash)
 	ctrlResult, err := dbSyncJob.DoJob(ctx, h)
 	if (ctrlResult != ctrl.Result{}) {
@@ -360,12 +377,14 @@ func (r *NovaConductorReconciler) ensureDeployment(
 	h *helper.Helper,
 	instance *novav1.NovaConductor,
 	inputHash string,
+	annotations map[string]string,
 ) (ctrl.Result, error) {
 	serviceLabels := map[string]string{
 		common.AppSelector: NovaConductorLabelPrefix,
+		CellSelector:       instance.Spec.CellName,
 	}
 
-	ss := statefulset.NewStatefulSet(novaconductor.StatefulSet(instance, inputHash, serviceLabels), r.RequeueTimeout)
+	ss := statefulset.NewStatefulSet(novaconductor.StatefulSet(instance, inputHash, serviceLabels, annotations), r.RequeueTimeout)
 	ctrlResult, err := ss.CreateOrPatch(ctx, h)
 	if err != nil && !k8s_errors.IsNotFound(err) {
 		util.LogErrorForObject(h, err, "Deployment failed", instance)
@@ -388,6 +407,33 @@ func (r *NovaConductorReconciler) ensureDeployment(
 	}
 
 	instance.Status.ReadyCount = ss.GetStatefulSet().Status.ReadyReplicas
+
+	// verify if network attachment matches expectations
+	networkReady, networkAttachmentStatus, err := nad.VerifyNetworkStatusFromAnnotation(
+		ctx,
+		h,
+		instance.Spec.NetworkAttachments,
+		serviceLabels,
+		instance.Status.ReadyCount)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	instance.Status.NetworkAttachments = networkAttachmentStatus
+	if networkReady {
+		instance.Status.Conditions.MarkTrue(condition.NetworkAttachmentsReadyCondition, condition.NetworkAttachmentsReadyMessage)
+	} else {
+		err := fmt.Errorf("not all pods have interfaces with ips as configured in NetworkAttachments: %s", instance.Spec.NetworkAttachments)
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.NetworkAttachmentsReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.NetworkAttachmentsReadyErrorMessage,
+			err.Error()))
+
+		return ctrl.Result{}, err
+	}
+
 	if instance.Status.ReadyCount > 0 {
 		util.LogForObject(h, "Deployment is ready", instance)
 		instance.Status.Conditions.MarkTrue(condition.DeploymentReadyCondition, condition.DeploymentReadyMessage)

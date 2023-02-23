@@ -18,6 +18,8 @@ package v1beta1
 
 import (
 	corev1 "k8s.io/api/core/v1"
+
+	"github.com/openstack-k8s-operators/lib-common/modules/common/endpoint"
 )
 
 // NovaServiceBase contains the fields that are needed for each nova service CRD
@@ -52,6 +54,10 @@ type NovaServiceBase struct {
 	// Resources - Compute Resources required by this service (Limits/Requests).
 	// https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
 	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// NetworkAttachments is a list of NetworkAttachment resource names to expose the services to the given network
+	NetworkAttachments []string `json:"networkAttachments"`
 }
 
 // Debug allows enabling different debug option for the operator
@@ -95,4 +101,33 @@ type PasswordSelector struct {
 	// CellDatabase - the name of the field to get the Cell DB password from
 	// the Secret
 	CellDatabase string `json:"cellDatabase"`
+}
+
+// MetalLBConfig to configure the MetalLB loadbalancer service
+type MetalLBConfig struct {
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Enum=internal;public
+	// Endpoint, OpenStack endpoint this service maps to
+	Endpoint endpoint.Endpoint `json:"endpoint"`
+
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
+	// IPAddressPool expose VIP via MetalLB on the IPAddressPool
+	IPAddressPool string `json:"ipAddressPool"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=true
+	// SharedIP if true, VIP/VIPs get shared with multiple services
+	SharedIP bool `json:"sharedIP"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=""
+	// SharedIPKey specifies the sharing key which gets set as the annotation on the LoadBalancer service.
+	// Services which share the same VIP must have the same SharedIPKey. Defaults to the IPAddressPool if
+	// SharedIP is true, but no SharedIPKey specified.
+	SharedIPKey string `json:"sharedIPKey"`
+
+	// +kubebuilder:validation:Optional
+	// LoadBalancerIPs, request given IPs from the pool if available. Using a list to allow dual stack (IPv4/IPv6) support
+	LoadBalancerIPs []string `json:"loadBalancerIPs"`
 }

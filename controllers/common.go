@@ -34,6 +34,7 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/configmap"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
+	nad "github.com/openstack-k8s-operators/lib-common/modules/common/networkattachment"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 )
 
@@ -52,6 +53,8 @@ const (
 	DbSyncHash = "dbsync"
 	// Cell0Name is the name of Cell0 cell that is mandatory in every deployment
 	Cell0Name = "cell0"
+	// CellSelector is the key name of a cell label
+	CellSelector = "cell"
 )
 
 type conditionsGetter interface {
@@ -141,6 +144,50 @@ func ensureSecret(
 	}
 
 	return hash, ctrl.Result{}, nil
+}
+
+// ensureNetworkAttachments - checks the requested network attachments exists and
+// returns the annotation to be set on the deployment objects.
+func ensureNetworkAttachments(
+	ctx context.Context,
+	h *helper.Helper,
+	networkAttachments []string,
+	conditionUpdater conditionUpdater,
+	requeueTimeout time.Duration,
+) (map[string]string, ctrl.Result, error) {
+	var nadAnnotations map[string]string
+	var err error
+
+	// networks to attach to
+	for _, netAtt := range networkAttachments {
+		_, err := nad.GetNADWithName(ctx, h, netAtt, h.GetBeforeObject().GetNamespace())
+		if err != nil {
+			if k8s_errors.IsNotFound(err) {
+				conditionUpdater.Set(condition.FalseCondition(
+					condition.NetworkAttachmentsReadyCondition,
+					condition.RequestedReason,
+					condition.SeverityInfo,
+					condition.NetworkAttachmentsReadyWaitingMessage,
+					netAtt))
+				return nadAnnotations, ctrl.Result{RequeueAfter: requeueTimeout}, fmt.Errorf("network-attachment-definition %s not found", netAtt)
+			}
+			conditionUpdater.Set(condition.FalseCondition(
+				condition.NetworkAttachmentsReadyCondition,
+				condition.ErrorReason,
+				condition.SeverityWarning,
+				condition.NetworkAttachmentsReadyErrorMessage,
+				err.Error()))
+			return nadAnnotations, ctrl.Result{}, err
+		}
+	}
+
+	nadAnnotations, err = nad.CreateNetworksAnnotation(h.GetBeforeObject().GetNamespace(), networkAttachments)
+	if err != nil {
+		return nadAnnotations, ctrl.Result{}, fmt.Errorf("failed create network annotation from %s: %w",
+			networkAttachments, err)
+	}
+
+	return nadAnnotations, ctrl.Result{}, nil
 }
 
 // hashOfInputHashes - calculates the overal hash of all our inputs

@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -31,6 +32,7 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/labels"
+	nad "github.com/openstack-k8s-operators/lib-common/modules/common/networkattachment"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/statefulset"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 
@@ -49,7 +51,9 @@ type NovaSchedulerReconciler struct {
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete;
+// +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;
 // +kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;list;watch;create;update;patch;delete;
+// +kubebuilder:rbac:groups=k8s.cni.cncf.io,resources=network-attachment-definitions,verbs=get;list;watch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -157,7 +161,12 @@ func (r *NovaSchedulerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	instance.Status.Conditions.MarkTrue(condition.ServiceConfigReadyCondition, condition.ServiceConfigReadyMessage)
 
-	result, err = r.ensureDeployment(ctx, h, instance, inputHash)
+	serviceAnnotations, result, err := ensureNetworkAttachments(ctx, h, instance.Spec.NetworkAttachments, &instance.Status.Conditions, r.RequeueTimeout)
+	if (err != nil || result != ctrl.Result{}) {
+		return result, err
+	}
+
+	result, err = r.ensureDeployment(ctx, h, instance, inputHash, serviceAnnotations)
 	if (err != nil || result != ctrl.Result{}) {
 		return result, err
 	}
@@ -185,6 +194,9 @@ func (r *NovaSchedulerReconciler) initStatus(
 	// so that the reconcile loop later can assume they are not nil.
 	if instance.Status.Hash == nil {
 		instance.Status.Hash = map[string]string{}
+	}
+	if instance.Status.NetworkAttachments == nil {
+		instance.Status.NetworkAttachments = map[string][]string{}
 	}
 
 	return nil
@@ -214,6 +226,11 @@ func (r *NovaSchedulerReconciler) initConditions(
 				condition.DeploymentReadyCondition,
 				condition.InitReason,
 				condition.DeploymentReadyInitMessage,
+			),
+			condition.UnknownCondition(
+				condition.NetworkAttachmentsReadyCondition,
+				condition.InitReason,
+				condition.NetworkAttachmentsReadyInitMessage,
 			),
 		)
 
@@ -312,8 +329,14 @@ func (r *NovaSchedulerReconciler) ensureDeployment(
 	h *helper.Helper,
 	instance *novav1.NovaScheduler,
 	inputHash string,
+	annotations map[string]string,
 ) (ctrl.Result, error) {
-	ss := statefulset.NewStatefulSet(novascheduler.StatefulSet(instance, inputHash, getServiceLabels()), r.RequeueTimeout)
+	serviceLabels := map[string]string{
+		common.AppSelector: NovaSchedulerLabelPrefix,
+	}
+
+	ss := statefulset.NewStatefulSet(novascheduler.StatefulSet(instance, inputHash, serviceLabels, annotations), r.RequeueTimeout)
+
 	ctrlResult, err := ss.CreateOrPatch(ctx, h)
 	if err != nil && !k8s_errors.IsNotFound(err) {
 		util.LogErrorForObject(h, err, "Deployment failed", instance)
@@ -336,6 +359,33 @@ func (r *NovaSchedulerReconciler) ensureDeployment(
 	}
 
 	instance.Status.ReadyCount = ss.GetStatefulSet().Status.ReadyReplicas
+
+	// verify if network attachment matches expectations
+	networkReady, networkAttachmentStatus, err := nad.VerifyNetworkStatusFromAnnotation(
+		ctx,
+		h,
+		instance.Spec.NetworkAttachments,
+		serviceLabels,
+		instance.Status.ReadyCount)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	instance.Status.NetworkAttachments = networkAttachmentStatus
+	if networkReady {
+		instance.Status.Conditions.MarkTrue(condition.NetworkAttachmentsReadyCondition, condition.NetworkAttachmentsReadyMessage)
+	} else {
+		err := fmt.Errorf("not all pods have interfaces with ips as configured in NetworkAttachments: %s", instance.Spec.NetworkAttachments)
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.NetworkAttachmentsReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.NetworkAttachmentsReadyErrorMessage,
+			err.Error()))
+
+		return ctrl.Result{}, err
+	}
+
 	if instance.Status.ReadyCount > 0 {
 		util.LogForObject(h, "Deployment is ready", instance)
 		instance.Status.Conditions.MarkTrue(condition.DeploymentReadyCondition, condition.DeploymentReadyMessage)

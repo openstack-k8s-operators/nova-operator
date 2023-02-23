@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -34,6 +35,7 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/labels"
+	nad "github.com/openstack-k8s-operators/lib-common/modules/common/networkattachment"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/statefulset"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 
@@ -54,11 +56,13 @@ type NovaAPIReconciler struct {
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=novaapis/finalizers,verbs=update
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;watch;create;update;patch;delete;
+// +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;
 // +kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=route.openshift.io,resources=routes,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneendpoints,verbs=get;list;watch;create;update;patch;delete;
+// +kubebuilder:rbac:groups=k8s.cni.cncf.io,resources=network-attachment-definitions,verbs=get;list;watch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -183,7 +187,12 @@ func (r *NovaAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (re
 
 	instance.Status.Conditions.MarkTrue(condition.ServiceConfigReadyCondition, condition.ServiceConfigReadyMessage)
 
-	result, err = r.ensureDeployment(ctx, h, instance, inputHash)
+	serviceAnnotations, result, err := ensureNetworkAttachments(ctx, h, instance.Spec.NetworkAttachments, &instance.Status.Conditions, r.RequeueTimeout)
+	if (err != nil || result != ctrl.Result{}) {
+		return result, err
+	}
+
+	result, err = r.ensureDeployment(ctx, h, instance, inputHash, serviceAnnotations)
 	if (err != nil || result != ctrl.Result{}) {
 		return result, err
 	}
@@ -226,6 +235,9 @@ func (r *NovaAPIReconciler) initStatus(
 	if instance.Status.APIEndpoints == nil {
 		instance.Status.APIEndpoints = map[string]string{}
 	}
+	if instance.Status.NetworkAttachments == nil {
+		instance.Status.NetworkAttachments = map[string][]string{}
+	}
 
 	return nil
 }
@@ -264,6 +276,11 @@ func (r *NovaAPIReconciler) initConditions(
 				condition.KeystoneEndpointReadyCondition,
 				condition.InitReason,
 				"KeystoneEndpoint not created",
+			),
+			condition.UnknownCondition(
+				condition.NetworkAttachmentsReadyCondition,
+				condition.InitReason,
+				condition.NetworkAttachmentsReadyInitMessage,
 			),
 		)
 
@@ -364,8 +381,9 @@ func (r *NovaAPIReconciler) ensureDeployment(
 	h *helper.Helper,
 	instance *novav1.NovaAPI,
 	inputHash string,
+	annotations map[string]string,
 ) (ctrl.Result, error) {
-	ss := statefulset.NewStatefulSet(novaapi.StatefulSet(instance, inputHash, getServiceLabels()), r.RequeueTimeout)
+	ss := statefulset.NewStatefulSet(novaapi.StatefulSet(instance, inputHash, getServiceLabels(), annotations), r.RequeueTimeout)
 	ctrlResult, err := ss.CreateOrPatch(ctx, h)
 	if err != nil && !k8s_errors.IsNotFound(err) {
 		util.LogErrorForObject(h, err, "Deployment failed", instance)
@@ -388,6 +406,33 @@ func (r *NovaAPIReconciler) ensureDeployment(
 	}
 
 	instance.Status.ReadyCount = ss.GetStatefulSet().Status.ReadyReplicas
+
+	// verify if network attachment matches expectations
+	networkReady, networkAttachmentStatus, err := nad.VerifyNetworkStatusFromAnnotation(
+		ctx,
+		h,
+		instance.Spec.NetworkAttachments,
+		getServiceLabels(),
+		instance.Status.ReadyCount)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	instance.Status.NetworkAttachments = networkAttachmentStatus
+	if networkReady {
+		instance.Status.Conditions.MarkTrue(condition.NetworkAttachmentsReadyCondition, condition.NetworkAttachmentsReadyMessage)
+	} else {
+		err := fmt.Errorf("not all pods have interfaces with ips as configured in NetworkAttachments: %s", instance.Spec.NetworkAttachments)
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.NetworkAttachmentsReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.NetworkAttachmentsReadyErrorMessage,
+			err.Error()))
+
+		return ctrl.Result{}, err
+	}
+
 	if instance.Status.ReadyCount > 0 {
 		util.LogForObject(h, "Deployment is ready", instance)
 		instance.Status.Conditions.MarkTrue(condition.DeploymentReadyCondition, condition.DeploymentReadyMessage)
@@ -410,9 +455,20 @@ func (r *NovaAPIReconciler) ensureServiceExposed(
 	instance *novav1.NovaAPI,
 ) (ctrl.Result, error) {
 	var ports = map[endpoint.Endpoint]endpoint.Data{
-		endpoint.EndpointAdmin:    {Port: novaapi.APIServicePort},
 		endpoint.EndpointPublic:   {Port: novaapi.APIServicePort},
 		endpoint.EndpointInternal: {Port: novaapi.APIServicePort},
+	}
+
+	for _, metallbcfg := range instance.Spec.ExternalEndpoints {
+		portCfg := ports[metallbcfg.Endpoint]
+		portCfg.MetalLB = &endpoint.MetalLBData{
+			IPAddressPool:   metallbcfg.IPAddressPool,
+			SharedIP:        metallbcfg.SharedIP,
+			SharedIPKey:     metallbcfg.SharedIPKey,
+			LoadBalancerIPs: metallbcfg.LoadBalancerIPs,
+		}
+
+		ports[metallbcfg.Endpoint] = portCfg
 	}
 
 	apiEndpoints, ctrlResult, err := endpoint.ExposeEndpoints(
