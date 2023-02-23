@@ -73,7 +73,8 @@ var _ = Describe("NovaAPI controller", func() {
 			th.ExpectCondition(
 				novaAPIName,
 				ConditionGetterFunc(NovaAPIConditionGetter),
-				condition.ReadyCondition, corev1.ConditionUnknown,
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
 			)
 		})
 
@@ -116,7 +117,7 @@ var _ = Describe("NovaAPI controller", func() {
 					novaAPIName,
 					ConditionGetterFunc(NovaAPIConditionGetter),
 					condition.ReadyCondition,
-					corev1.ConditionUnknown,
+					corev1.ConditionFalse,
 				)
 			})
 
@@ -152,7 +153,7 @@ var _ = Describe("NovaAPI controller", func() {
 					novaAPIName,
 					ConditionGetterFunc(NovaAPIConditionGetter),
 					condition.ReadyCondition,
-					corev1.ConditionUnknown,
+					corev1.ConditionFalse,
 				)
 			})
 
@@ -434,7 +435,7 @@ var _ = Describe("NovaAPI controller", func() {
 				novaAPIName,
 				ConditionGetterFunc(NovaAPIConditionGetter),
 				condition.ReadyCondition,
-				corev1.ConditionUnknown,
+				corev1.ConditionFalse,
 			)
 		})
 		It("reports that network attachment is missing", func() {
@@ -667,23 +668,14 @@ var _ = Describe("NovaAPI controller", func() {
 				condition.RequestedReason,
 				"NetworkAttachment resources missing: internalapi",
 			)
-
-			// This is a bug that Ready is not reset
-			th.ExpectCondition(
+			th.ExpectConditionWithDetails(
 				novaAPIName,
 				ConditionGetterFunc(NovaAPIConditionGetter),
 				condition.ReadyCondition,
-				corev1.ConditionTrue,
+				corev1.ConditionFalse,
+				condition.RequestedReason,
+				"NetworkAttachment resources missing: internalapi",
 			)
-			// It is expecte that Ready is reset to False
-			// th.ExpectConditionWithDetails(
-			// 	novaAPIName,
-			// 	ConditionGetterFunc(NovaAPIConditionGetter),
-			// 	condition.ReadyCondition,
-			// 	corev1.ConditionFalse,
-			// 	condition.RequestedReason,
-			// 	"NetworkAttachment resources missing: internalapi",
-			// )
 
 			internalAPINADName := types.NamespacedName{Namespace: namespace, Name: "internalapi"}
 			DeferCleanup(DeleteInstance, CreateNetworkAttachmentDefinition(internalAPINADName))
@@ -697,23 +689,15 @@ var _ = Describe("NovaAPI controller", func() {
 				"NetworkAttachments error occured "+
 					"not all pods have interfaces with ips as configured in NetworkAttachments: [internalapi]",
 			)
-			// This is a bug that Ready is not reset
-			th.ExpectCondition(
+			th.ExpectConditionWithDetails(
 				novaAPIName,
 				ConditionGetterFunc(NovaAPIConditionGetter),
 				condition.ReadyCondition,
-				corev1.ConditionTrue,
+				corev1.ConditionFalse,
+				condition.ErrorReason,
+				"NetworkAttachments error occured "+
+					"not all pods have interfaces with ips as configured in NetworkAttachments: [internalapi]",
 			)
-			// It is expecte that Ready is reset to False
-			// th.ExpectConditionWithDetails(
-			// 	novaAPIName,
-			// 	ConditionGetterFunc(NovaAPIConditionGetter),
-			// 	condition.ReadyCondition,
-			// 	corev1.ConditionFalse,
-			// 	condition.ErrorReason,
-			// 	"NetworkAttachments error occured "+
-			// 		"not all pods have interfaces with ips as configured in NetworkAttachments: [internalapi]",
-			// )
 
 			SimulateStatefulSetReplicaReadyWithPods(
 				statefulSetName,
