@@ -1,0 +1,6 @@
+---
+- project:
+    name: openstack-k8s-operators/nova-operator
+    github-check:
+      jobs:
+        - noop
