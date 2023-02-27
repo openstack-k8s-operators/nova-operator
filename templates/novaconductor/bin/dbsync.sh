@@ -18,4 +18,4 @@ else
     fi
 fi
 
-nova-manage db sync
+nova-manage db sync --local_cell
