@@ -441,7 +441,6 @@ func GetDefaultNovaExternalComputeSpec(novaName string, computeName string) map[
 }
 
 func CreateNovaExternalCompute(name types.NamespacedName, spec map[string]interface{}) client.Object {
-
 	raw := map[string]interface{}{
 		"apiVersion": "nova.openstack.org/v1beta1",
 		"kind":       "NovaExternalCompute",
@@ -453,6 +452,7 @@ func CreateNovaExternalCompute(name types.NamespacedName, spec map[string]interf
 	}
 	return CreateUnstructured(raw)
 }
+
 
 func SimulateStatefulSetReplicaReadyWithPods(name types.NamespacedName, networkIPs map[string][]string) {
 	ss := th.GetStatefulSet(name)
@@ -494,6 +494,7 @@ func SimulateStatefulSetReplicaReadyWithPods(name types.NamespacedName, networkI
 
 func GetNovaExternalCompute(name types.NamespacedName) *novav1.NovaExternalCompute {
 	instance := &novav1.NovaExternalCompute{}
+
 	Eventually(func(g Gomega) {
 		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
 	}, timeout, interval).Should(Succeed())
@@ -578,8 +579,10 @@ func DeleteConfigMap(name types.NamespacedName) {
 	}, timeout, interval).Should(Succeed())
 }
 
+
 func GetAEE(name types.NamespacedName) *aee.OpenStackAnsibleEE {
 	instance := &aee.OpenStackAnsibleEE{}
+
 	Eventually(func(g Gomega) {
 		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
 	}, timeout, interval).Should(Succeed())
@@ -595,4 +598,58 @@ func SimulateAEESucceded(name types.NamespacedName) {
 	}, timeout, interval).Should(Succeed())
 
 	logger.Info("Simulated AEE success", "on", name)
+}
+
+func CreateNovaMetadata(namespace string, spec map[string]interface{}) client.Object {
+	novaMetadataName := uuid.New().String()
+
+	raw := map[string]interface{}{
+		"apiVersion": "nova.openstack.org/v1beta1",
+		"kind":       "NovaMetadata",
+		"metadata": map[string]interface{}{
+			"name":      novaMetadataName,
+			"namespace": namespace,
+		},
+		"spec": spec,
+	}
+	return CreateUnstructured(raw)
+}
+
+func GetNovaMetadata(name types.NamespacedName) *novav1.NovaMetadata {
+	instance := &novav1.NovaMetadata{}
+	Eventually(func(g Gomega) {
+		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
+	}, timeout, interval).Should(Succeed())
+	return instance
+}
+
+func NovaMetadataConditionGetter(name types.NamespacedName) condition.Conditions {
+	instance := GetNovaMetadata(name)
+	return instance.Status.Conditions
+}
+
+func CreateNovaMetadataSecret(namespace string, name string) *corev1.Secret {
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Data: map[string][]byte{
+			"NovaPassword":              []byte("12345678"),
+			"NovaAPIDatabasePassword":   []byte("12345678"),
+			"NovaCell0DatabasePassword": []byte("12345678"),
+		},
+	}
+	Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
+	return secret
+}
+
+func GetDefaultNovaMetadataSpec() map[string]interface{} {
+	return map[string]interface{}{
+		"secret":                  SecretName,
+		"apiDatabaseHostname":     "nova-api-db-hostname",
+		"apiMessageBusSecretName": MessageBusSecretName,
+		"cellDatabaseHostname":    "nova-cell-db-hostname",
+		"containerImage":          ContainerImage,
+	}
 }

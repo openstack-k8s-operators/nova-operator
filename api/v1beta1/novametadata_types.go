@@ -92,7 +92,7 @@ type NovaMetadataSpec struct {
 	// keystone
 	ServiceUser string `json:"serviceUser"`
 
-	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Optional
 	// KeystoneAuthURL - the URL that the nova-metadata service can use to talk
 	// to keystone
 	KeystoneAuthURL string `json:"keystoneAuthURL"`
@@ -119,6 +119,12 @@ type NovaMetadataSpec struct {
 	// CellDatabaseHostName is also Required.
 	// TODO(gibi): add webhook to validate this CellName constraint
 	CellDatabaseHostname string `json:"cellDatabaseHostname"`
+
+	// +kubebuilder:validation:Required
+	// APIMessageBusSecretName - the name of the Secret conntaining the
+	// transport URL information to use when accessing the API message
+	// bus.
+	APIMessageBusSecretName string `json:"apiMessageBusSecretName"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=nova
@@ -187,4 +193,9 @@ type NovaMetadataList struct {
 
 func init() {
 	SchemeBuilder.Register(&NovaMetadata{}, &NovaMetadataList{})
+}
+
+// GetConditions returns the list of conditions from the status
+func (s NovaMetadataStatus) GetConditions() condition.Conditions {
+	return s.Conditions
 }
