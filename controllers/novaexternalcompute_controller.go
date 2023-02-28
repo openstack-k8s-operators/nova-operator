@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 
+	corev1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -30,6 +31,8 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/labels"
+	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 )
 
@@ -161,7 +164,7 @@ func (r *NovaExternalComputeReconciler) Reconcile(ctx context.Context, req ctrl.
 	}
 	hashes[instance.Spec.SSHKeySecretName] = env.SetValue(sshKeyHHash)
 
-	_, result, err = r.ensureCellReady(ctx, instance)
+	cell, result, err := r.ensureCellReady(ctx, instance)
 
 	if (err != nil || result != ctrl.Result{}) {
 		return result, err
@@ -175,6 +178,11 @@ func (r *NovaExternalComputeReconciler) Reconcile(ctx context.Context, req ctrl.
 
 	// TODO(gibi): generate service config here and include the hash of that
 	// into the hashes
+
+	err = r.ensureConfigMaps(ctx, h, instance, cell, &hashes)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
 
 	// create hash over all the different input resources to identify if any of
 	// those changed and a restart/recreate is required.
@@ -334,4 +342,89 @@ func (r *NovaExternalComputeReconciler) SetupWithManager(mgr ctrl.Manager) error
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&novav1.NovaExternalCompute{}).
 		Complete(r)
+}
+
+func (r *NovaExternalComputeReconciler) ensureConfigMaps(
+	ctx context.Context, h *helper.Helper, instance *novav1.NovaExternalCompute,
+	cell *novav1.NovaCell, hashes *map[string]env.Setter,
+) error {
+	err := r.generateConfigs(ctx, h, instance, cell, hashes)
+	if err != nil {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.ServiceConfigReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.ServiceConfigReadyErrorMessage,
+			err.Error()))
+		return err
+	}
+	return nil
+}
+
+func (r *NovaExternalComputeReconciler) generateConfigs(
+	ctx context.Context, h *helper.Helper, instance *novav1.NovaExternalCompute,
+	cell *novav1.NovaCell, hashes *map[string]env.Setter,
+) error {
+	secret := &corev1.Secret{}
+	// we will lookup the cell based on the current namesapce of the cell.
+	// however this should be the same as the current namespace of the instance.
+	// should we assert that?
+	namespace := cell.GetNamespace()
+	secretName := types.NamespacedName{
+		Namespace: namespace,
+		Name:      cell.Spec.Secret,
+	}
+	err := h.GetClient().Get(ctx, secretName, secret)
+	if err != nil {
+		return err
+	}
+
+	cellMessageBusSecret := &corev1.Secret{}
+	secretName = types.NamespacedName{
+		Namespace: cell.Namespace,
+		Name:      cell.Spec.CellMessageBusSecretName,
+	}
+	err = h.GetClient().Get(ctx, secretName, cellMessageBusSecret)
+	if err != nil {
+		util.LogForObject(
+			h, "Failed reading Secret", instance,
+			"CellMessageBusSecretName", cell.Spec.CellMessageBusSecretName)
+		return err
+	}
+
+	templateParameters := map[string]interface{}{
+		"service_name":           "nova-compute",
+		"keystone_internal_url":  cell.Spec.KeystoneAuthURL,
+		"nova_keystone_user":     cell.Spec.ServiceUser,
+		"nova_keystone_password": string(secret.Data[cell.Spec.PasswordSelectors.Service]),
+		"openstack_cacert":       "",          // fixme
+		"openstack_region_name":  "regionOne", // fixme
+		"default_project_domain": "Default",   // fixme
+		"default_user_domain":    "Default",   // fixme
+		"transport_url":          string(cellMessageBusSecret.Data["transport_url"]),
+		"nova_compute_image":     instance.Spec.NovaComputeContainerImage,
+		"log_file":               "/var/log/containers/nova/nova-compute.log",
+	}
+	extraData := map[string]string{}
+	// always generate this file even if empty to simplfy copying it
+	// to the external compute.
+	extraData["02-nova-override.conf"] = ""
+	if instance.Spec.CustomServiceConfig != "" {
+		extraData["02-nova-override.conf"] = instance.Spec.CustomServiceConfig
+	}
+
+	for key, data := range instance.Spec.DefaultConfigOverwrite {
+		extraData[key] = data
+	}
+
+	cmLabels := labels.GetLabels(
+		instance, labels.GetGroupLabel(NovaExternaComputeLabelPrefix), map[string]string{},
+	)
+
+	addtionalTemplates := map[string]string{
+		"novacompute__nova_compute.json": "/novacompute/nova_compute.json",
+	}
+	return r.GenerateConfigs(
+		ctx, h, instance, hashes, templateParameters, extraData, cmLabels, addtionalTemplates,
+	)
 }

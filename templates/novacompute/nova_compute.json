@@ -1,5 +1,5 @@
 {
-    "image": "quay.io/tripleozedcentos9/openstack-nova-compute:current-tripleo",
+    "image": "{{ .nova_compute_image }}",
     "privileged": true,
     "user": "nova",
     "restart": "always",
@@ -20,4 +20,4 @@
         "/var/lib/libvirt:/var/lib/libvirt",
         "/var/lib/nova/:/var/lib/nova/"
     ]
-  }
+}
