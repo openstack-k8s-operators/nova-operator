@@ -403,6 +403,7 @@ func (r *NovaExternalComputeReconciler) generateConfigs(
 		"default_user_domain":    "Default",   // fixme
 		"transport_url":          string(cellMessageBusSecret.Data["transport_url"]),
 		"nova_compute_image":     instance.Spec.NovaComputeContainerImage,
+		"nova_libvirt_image":     instance.Spec.NovaLibvirtContainerImage,
 		"log_file":               "/var/log/containers/nova/nova-compute.log",
 	}
 	extraData := map[string]string{}
@@ -422,7 +423,24 @@ func (r *NovaExternalComputeReconciler) generateConfigs(
 	)
 
 	addtionalTemplates := map[string]string{
-		"novacompute__nova_compute.json": "/novacompute/nova_compute.json",
+		"novacompute__nova_compute.json":                  "/novacompute/nova_compute.json",
+		"novacompute__nova-compute.json":                  "/novacompute/nova-compute.json",
+		"libvirt_virtsecretd__libvirt_virtsecretd.json":   "/libvirt_virtsecretd/libvirt_virtsecretd.json",
+		"libvirt_virtsecretd__libvirt-virtsecretd.json":   "/libvirt_virtsecretd/libvirt-virtsecretd.json",
+		"libvirt_virtsecretd__virtsecretd.conf":           "/libvirt_virtsecretd/virtsecretd.conf",
+		"libvirt_virtqemud__libvirt_virtqemud.json":       "/libvirt_virtqemud/libvirt_virtqemud.json",
+		"libvirt_virtqemud__libvirt-virtqemud.json":       "/libvirt_virtqemud/libvirt-virtqemud.json",
+		"libvirt_virtqemud__virtqemud.conf":               "/libvirt_virtqemud/virtqemud.conf",
+		"libvirt_virtqemud__qemu.conf":                    "/libvirt_virtqemud/qemu.conf",
+		"libvirt_virtproxyd__libvirt_virtproxyd.json":     "/libvirt_virtproxyd/libvirt_virtproxyd.json",
+		"libvirt_virtproxyd__libvirt-virtproxyd.json":     "/libvirt_virtproxyd/libvirt-virtproxyd.json",
+		"libvirt_virtproxyd__virtproxyd.conf":             "/libvirt_virtproxyd/virtproxyd.conf",
+		"libvirt_virtnodedevd__libvirt_virtnodedevd.json": "/libvirt_virtnodedevd/libvirt_virtnodedevd.json",
+		"libvirt_virtnodedevd__libvirt-virtnodedevd.json": "/libvirt_virtnodedevd/libvirt-virtnodedevd.json",
+		"libvirt_virtnodedevd__virtnodedevd.conf":         "/libvirt_virtnodedevd/virtnodedevd.conf",
+		"libvirt_virtlogd__libvirt_virtlogd.json":         "/libvirt_virtlogd/libvirt_virtlogd.json",
+		"libvirt_virtlogd__libvirt-virtlogd.json":         "/libvirt_virtlogd/libvirt-virtlogd.json",
+		"libvirt_virtlogd__virtlogd.conf":                 "/libvirt_virtlogd/virtlogd.conf",
 	}
 	return r.GenerateConfigs(
 		ctx, h, instance, hashes, templateParameters, extraData, cmLabels, addtionalTemplates,

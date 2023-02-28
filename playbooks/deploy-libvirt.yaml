@@ -43,21 +43,54 @@
         dest: "{{ item.dest }}"
         mode: "{{ item.mode | default('640') }}"
       with_items:
-      - { "src": "/var/lib/openstack/config/virtlogd.conf", "dest": "/var/lib/openstack/config/libvirt/virtlogd.conf" }
-      - { "src": "/var/lib/openstack/config/libvirt_virtlogd.json", "dest": "/var/lib/openstack/config/containers/libvirt_virtlogd.json"}
-      - { "src": "/var/lib/openstack/config/libvirt-virtlogd.json", "dest": "/var/lib/openstack/config/libvirt/libvirt-virtlogd.json"}
-      - { "src": "/var/lib/openstack/config/virtproxyd.conf", "dest": "/var/lib/openstack/config/libvirt/virtproxyd.conf" }
-      - { "src": "/var/lib/openstack/config/libvirt_virtproxyd.json", "dest": "/var/lib/openstack/config/containers/libvirt_virtproxyd.json"}
-      - { "src": "/var/lib/openstack/config/libvirt-virtproxyd.json", "dest": "/var/lib/openstack/config/libvirt/libvirt-virtproxyd.json"}
-      - { "src": "/var/lib/openstack/config/virtnodedevd.conf", "dest": "/var/lib/openstack/config/libvirt/virtnodedevd.conf" }
-      - { "src": "/var/lib/openstack/config/libvirt_virtnodedevd.json", "dest": "/var/lib/openstack/config/containers/libvirt_virtnodedevd.json"}
-      - { "src": "/var/lib/openstack/config/libvirt-virtnodedevd.json", "dest": "/var/lib/openstack/config/libvirt/libvirt-virtnodedevd.json"}
-      - { "src": "/var/lib/openstack/config/virtqemud.conf", "dest": "/var/lib/openstack/config/libvirt/virtqemud.conf" }
-      - { "src": "/var/lib/openstack/config/libvirt_virtqemud.json", "dest": "/var/lib/openstack/config/containers/libvirt_virtqemud.json"}
-      - { "src": "/var/lib/openstack/config/libvirt-virtqemud.json", "dest": "/var/lib/openstack/config/libvirt/libvirt-virtqemud.json"}
-      - { "src": "/var/lib/openstack/config/virtsecretd.conf", "dest": "/var/lib/openstack/config/libvirt/virtsecretd.conf" }
-      - { "src": "/var/lib/openstack/config/libvirt_virtsecretd.json", "dest": "/var/lib/openstack/config/containers/libvirt_virtsecretd.json"}
-      - { "src": "/var/lib/openstack/config/libvirt-virtsecretd.json", "dest": "/var/lib/openstack/config/libvirt/libvirt-virtsecretd.json"}
+      - { "src": "/var/lib/openstack/config/libvirt_virtlogd__virtlogd.conf",
+          "dest": "/var/lib/openstack/config/libvirt/virtlogd.conf"
+        }
+      - { "src": "/var/lib/openstack/config/libvirt_virtlogd__libvirt_virtlogd.json",
+          "dest": "/var/lib/openstack/config/containers/libvirt_virtlogd.json"
+        }
+      - { "src": "/var/lib/openstack/config/libvirt_virtlogd__libvirt-virtlogd.json",
+          "dest": "/var/lib/openstack/config/libvirt/libvirt-virtlogd.json"
+        }
+      - { "src": "/var/lib/openstack/config/libvirt_virtproxyd__virtproxyd.conf",
+          "dest": "/var/lib/openstack/config/libvirt/virtproxyd.conf"
+        }
+      - { "src": "/var/lib/openstack/config/libvirt_virtproxyd__libvirt_virtproxyd.json",
+          "dest": "/var/lib/openstack/config/containers/libvirt_virtproxyd.json"
+        }
+      - { "src": "/var/lib/openstack/config/libvirt_virtproxyd__libvirt-virtproxyd.json",
+          "dest": "/var/lib/openstack/config/libvirt/libvirt-virtproxyd.json"
+        }
+      - { "src": "/var/lib/openstack/config/libvirt_virtnodedevd__virtnodedevd.conf",
+          "dest": "/var/lib/openstack/config/libvirt/virtnodedevd.conf"
+        }
+      - { "src": "/var/lib/openstack/config/libvirt_virtnodedevd__libvirt_virtnodedevd.json",
+          "dest": "/var/lib/openstack/config/containers/libvirt_virtnodedevd.json"
+        }
+      - { "src": "/var/lib/openstack/config/libvirt_virtnodedevd__libvirt-virtnodedevd.json",
+          "dest": "/var/lib/openstack/config/libvirt/libvirt-virtnodedevd.json"
+        }
+      - { "src": "/var/lib/openstack/config/libvirt_virtqemud__virtqemud.conf",
+          "dest": "/var/lib/openstack/config/libvirt/virtqemud.conf"
+        }
+      - { "src": "/var/lib/openstack/config/libvirt_virtqemud__libvirt_virtqemud.json",
+          "dest": "/var/lib/openstack/config/containers/libvirt_virtqemud.json"
+        }
+      - { "src": "/var/lib/openstack/config/libvirt_virtqemud__libvirt-virtqemud.json",
+          "dest": "/var/lib/openstack/config/libvirt/libvirt-virtqemud.json"
+        }
+      - { "src": "/var/lib/openstack/config/libvirt_virtqemud__qemu.conf",
+          "dest": "/var/lib/openstack/config/libvirt/qemu.conf"
+        }
+      - { "src": "/var/lib/openstack/config/libvirt_virtsecretd__virtsecretd.conf",
+          "dest": "/var/lib/openstack/config/libvirt/virtsecretd.conf"
+        }
+      - { "src": "/var/lib/openstack/config/libvirt_virtsecretd__libvirt_virtsecretd.json",
+          "dest": "/var/lib/openstack/config/containers/libvirt_virtsecretd.json"
+        }
+      - { "src": "/var/lib/openstack/config/libvirt_virtsecretd__libvirt-virtsecretd.json",
+          "dest": "/var/lib/openstack/config/libvirt/libvirt-virtsecretd.json"
+        }
     - name: deploy nova container
       ansible.builtin.include_role:
         name: edpm_container_manage

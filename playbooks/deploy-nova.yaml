@@ -37,19 +37,10 @@
         mode: "{{ item.mode | default('640') }}"
       with_items:
       - { 'src': "/var/lib/openstack/config/01-nova.conf", "dest": "/var/lib/openstack/config/nova/01-nova.conf" }
+      - { 'src': "/var/lib/openstack/config/02-nova-override.conf", "dest": "/var/lib/openstack/config/nova/02-nova-override.conf" }
       - { 'src': "/var/lib/openstack/config/nova-blank.conf", "dest": "/var/lib/openstack/config/nova/nova-blank.conf" }
-      - { 'src': "/var/lib/openstack/config/nova_compute.json", "dest": "/var/lib/openstack/config/containers/nova_compute.json"}
-      - { 'src': "/var/lib/openstack/config/nova-compute.json", "dest": "/var/lib/openstack/config/nova/nova-compute.json"}
-    - name: check if config override exists
-      stat:
-        path: "/var/lib/openstack/config/02-nova-override.conf"
-      register: nova_override
-    - name: Copy generated nova-override.conf
-      ansible.builtin.copy:
-        src: /var/lib/openstack/config/02-nova-override.conf
-        dest: /var/lib/openstack/config/nova/02-nova-override.conf
-        mode: '0640'
-      when: nova_override.stat.exists
+      - { 'src': "/var/lib/openstack/config/novacompute__nova_compute.json", "dest": "/var/lib/openstack/config/containers/nova_compute.json" }
+      - { 'src': "/var/lib/openstack/config/novacompute__nova-compute.json", "dest": "/var/lib/openstack/config/nova/nova-compute.json" }
     - name: deploy nova container
       ansible.builtin.include_role:
         name: edpm_container_manage
