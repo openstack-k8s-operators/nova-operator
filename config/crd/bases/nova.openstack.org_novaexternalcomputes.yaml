@@ -36,6 +36,11 @@ spec:
           spec:
             description: NovaExternalComputeSpec defines the desired state of NovaExternalCompute
             properties:
+              ansibleEEContainerImage:
+                default: quay.io/openstack-k8s-operators/openstack-ansibleee-runner:latest
+                description: AnsibleEEContainerImage is the Container Image URL for
+                  the ansible execution environment
+                type: string
               cellName:
                 default: cell1
                 description: CellName defines the name of the cell this compute should
@@ -68,10 +73,20 @@ spec:
                 description: InventoryConfigMapName is the name of the k8s config
                   map that contains the ansible inventory information for this node
                 type: string
+              novaComputeContainerImage:
+                default: quay.io/tripleozedcentos9/openstack-nova-compute:current-tripleo
+                description: NovaComputeContainerImage is the Container Image URL
+                  for the nova-compute container
+                type: string
               novaInstance:
                 default: nova
                 description: NovaInstance is the name of the Nova CR that represents
                   the deployment this compute belongs to
+                type: string
+              novaLibvirtContainerImage:
+                default: quay.io/tripleozedcentos9/openstack-nova-libvirt:current-tripleo
+                description: NovaLibvirtContainerImage is the Container Image URL
+                  for the nova-libvirt container
                 type: string
               sshKeySecretName:
                 description: SSHKeySecretName is the name of the k8s Secret that contains

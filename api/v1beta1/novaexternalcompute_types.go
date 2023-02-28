@@ -65,6 +65,21 @@ type NovaExternalComputeSpec struct {
 	// if necessary. If set to false then the operator will only generate the pre-requisite data (e.g. config maps)
 	// but does not do any modification on the compute node itself.
 	Deploy bool `json:"deploy"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default="quay.io/tripleozedcentos9/openstack-nova-compute:current-tripleo"
+	// NovaComputeContainerImage is the Container Image URL for the nova-compute container
+	NovaComputeContainerImage string `json:"novaComputeContainerImage"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default="quay.io/tripleozedcentos9/openstack-nova-libvirt:current-tripleo"
+	// NovaLibvirtContainerImage is the Container Image URL for the nova-libvirt container
+	NovaLibvirtContainerImage string `json:"novaLibvirtContainerImage"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default="quay.io/openstack-k8s-operators/openstack-ansibleee-runner:latest"
+	// AnsibleEEContainerImage is the Container Image URL for the ansible execution environment
+	AnsibleEEContainerImage string `json:"ansibleEEContainerImage"`
 }
 
 // NovaExternalComputeStatus defines the observed state of NovaExternalCompute
