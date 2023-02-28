@@ -93,9 +93,9 @@ func CreateNovaWith3CellsAndEnsureReady(namespace string) types.NamespacedName {
 	)
 
 	serviceSpec := corev1.ServiceSpec{Ports: []corev1.ServicePort{{Port: 3306}}}
-	DeferCleanup(DeleteDBService, CreateDBService(namespace, "db-for-api", serviceSpec))
-	DeferCleanup(DeleteDBService, CreateDBService(namespace, "db-for-cell1", serviceSpec))
-	DeferCleanup(DeleteDBService, CreateDBService(namespace, "db-for-cell2", serviceSpec))
+	DeferCleanup(th.DeleteDBService, th.CreateDBService(namespace, "db-for-api", serviceSpec))
+	DeferCleanup(th.DeleteDBService, th.CreateDBService(namespace, "db-for-cell1", serviceSpec))
+	DeferCleanup(th.DeleteDBService, th.CreateDBService(namespace, "db-for-cell2", serviceSpec))
 
 	spec := GetDefaultNovaSpec()
 	cell0Template := GetDefaultNovaCellTemplate()
@@ -126,18 +126,18 @@ func CreateNovaWith3CellsAndEnsureReady(namespace string) types.NamespacedName {
 
 	CreateNova(novaName, spec)
 	DeferCleanup(DeleteNova, novaName)
-	DeferCleanup(DeleteKeystoneAPI, CreateKeystoneAPI(namespace))
+	DeferCleanup(th.DeleteKeystoneAPI, th.CreateKeystoneAPI(namespace))
 
-	SimulateKeystoneServiceReady(novaKeystoneServiceName)
+	th.SimulateKeystoneServiceReady(novaKeystoneServiceName)
 
-	SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
-	SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
-	SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
-	SimulateMariaDBDatabaseCompleted(cell2.MariaDBDatabaseName)
+	th.SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
+	th.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
+	th.SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
+	th.SimulateMariaDBDatabaseCompleted(cell2.MariaDBDatabaseName)
 
-	SimulateTransportURLReady(cell0.TransportURLName)
-	SimulateTransportURLReady(cell1.TransportURLName)
-	SimulateTransportURLReady(cell2.TransportURLName)
+	th.SimulateTransportURLReady(cell0.TransportURLName)
+	th.SimulateTransportURLReady(cell1.TransportURLName)
+	th.SimulateTransportURLReady(cell2.TransportURLName)
 
 	th.SimulateJobSuccess(cell0.CellDBSyncJobName)
 	th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)

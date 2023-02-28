@@ -163,8 +163,8 @@ var _ = Describe("Nova controller", func() {
 				CreateNovaMessageBusSecret(namespace, MessageBusSecretName),
 			)
 			DeferCleanup(
-				DeleteDBService,
-				CreateDBService(
+				th.DeleteDBService,
+				th.CreateDBService(
 					namespace,
 					"openstack",
 					corev1.ServiceSpec{
@@ -172,7 +172,7 @@ var _ = Describe("Nova controller", func() {
 					},
 				),
 			)
-			DeferCleanup(DeleteKeystoneAPI, CreateKeystoneAPI(namespace))
+			DeferCleanup(th.DeleteKeystoneAPI, th.CreateKeystoneAPI(namespace))
 
 			CreateNovaWithCell0(novaName)
 			DeferCleanup(DeleteNova, novaName)
@@ -180,10 +180,10 @@ var _ = Describe("Nova controller", func() {
 
 		It("registers nova service to keystone", func() {
 			// assert that the KeystoneService for nova is created
-			GetKeystoneService(novaKeystoneServiceName)
+			th.GetKeystoneService(novaKeystoneServiceName)
 			// and simulate that it becomes ready i.e. the keystone-operator
 			// did its job and registered the nova service
-			SimulateKeystoneServiceReady(novaKeystoneServiceName)
+			th.SimulateKeystoneServiceReady(novaKeystoneServiceName)
 
 			th.ExpectCondition(
 				novaName,
@@ -194,16 +194,16 @@ var _ = Describe("Nova controller", func() {
 		})
 
 		It("creates nova_api DB", func() {
-			SimulateKeystoneServiceReady(novaKeystoneServiceName)
+			th.SimulateKeystoneServiceReady(novaKeystoneServiceName)
 			th.ExpectCondition(
 				novaName,
 				ConditionGetterFunc(NovaConditionGetter),
 				novav1.NovaAPIDBReadyCondition,
 				corev1.ConditionFalse,
 			)
-			GetMariaDBDatabase(mariaDBDatabaseNameForAPI)
+			th.GetMariaDBDatabase(mariaDBDatabaseNameForAPI)
 
-			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
+			th.SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
 			th.ExpectCondition(
 				novaName,
 				ConditionGetterFunc(NovaConditionGetter),
@@ -213,16 +213,16 @@ var _ = Describe("Nova controller", func() {
 		})
 
 		It("creates nova-api MQ", func() {
-			SimulateKeystoneServiceReady(novaKeystoneServiceName)
+			th.SimulateKeystoneServiceReady(novaKeystoneServiceName)
 			th.ExpectCondition(
 				novaName,
 				ConditionGetterFunc(NovaConditionGetter),
 				novav1.NovaAPIMQReadyCondition,
 				corev1.ConditionFalse,
 			)
-			GetTransportURL(apiTransportURLName)
+			th.GetTransportURL(apiTransportURLName)
 
-			SimulateTransportURLReady(apiTransportURLName)
+			th.SimulateTransportURLReady(apiTransportURLName)
 			th.ExpectCondition(
 				novaName,
 				ConditionGetterFunc(NovaConditionGetter),
@@ -232,16 +232,16 @@ var _ = Describe("Nova controller", func() {
 		})
 
 		It("creates nova_cell0 DB", func() {
-			SimulateKeystoneServiceReady(novaKeystoneServiceName)
+			th.SimulateKeystoneServiceReady(novaKeystoneServiceName)
 			th.ExpectCondition(
 				novaName,
 				ConditionGetterFunc(NovaConditionGetter),
 				novav1.NovaAllCellsDBReadyCondition,
 				corev1.ConditionFalse,
 			)
-			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
-			GetMariaDBDatabase(mariaDBDatabaseNameForCell0)
-			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForCell0)
+			th.SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
+			th.GetMariaDBDatabase(mariaDBDatabaseNameForCell0)
+			th.SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForCell0)
 			th.ExpectCondition(
 				novaName,
 				ConditionGetterFunc(NovaConditionGetter),
@@ -251,10 +251,10 @@ var _ = Describe("Nova controller", func() {
 		})
 
 		It("creates cell0 NovaCell", func() {
-			SimulateKeystoneServiceReady(novaKeystoneServiceName)
-			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
-			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForCell0)
-			SimulateTransportURLReady(apiTransportURLName)
+			th.SimulateKeystoneServiceReady(novaKeystoneServiceName)
+			th.SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
+			th.SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForCell0)
+			th.SimulateTransportURLReady(apiTransportURLName)
 			// assert that cell related CRs are created
 			cell := GetNovaCell(cell0Name)
 			Expect(cell.Spec.CellMessageBusSecretName).To(Equal("rabbitmq-secret"))
@@ -294,10 +294,10 @@ var _ = Describe("Nova controller", func() {
 		})
 
 		It("create NovaAPI", func() {
-			SimulateKeystoneServiceReady(novaKeystoneServiceName)
-			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
-			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForCell0)
-			SimulateTransportURLReady(apiTransportURLName)
+			th.SimulateKeystoneServiceReady(novaKeystoneServiceName)
+			th.SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
+			th.SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForCell0)
+			th.SimulateTransportURLReady(apiTransportURLName)
 			th.SimulateJobSuccess(cell0DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(novaCell0ConductorStatefulSetName)
 			th.SimulateStatefulSetReplicaReady(novaSchedulerStatefulSetName)
@@ -329,10 +329,10 @@ var _ = Describe("Nova controller", func() {
 		})
 
 		It("create NovaScheduler", func() {
-			SimulateKeystoneServiceReady(novaKeystoneServiceName)
-			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
-			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForCell0)
-			SimulateTransportURLReady(apiTransportURLName)
+			th.SimulateKeystoneServiceReady(novaKeystoneServiceName)
+			th.SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
+			th.SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForCell0)
+			th.SimulateTransportURLReady(apiTransportURLName)
 			th.SimulateJobSuccess(cell0DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(novaCell0ConductorStatefulSetName)
 			th.SimulateStatefulSetReplicaReady(novaAPIdeploymentName)
@@ -372,8 +372,8 @@ var _ = Describe("Nova controller", func() {
 				CreateNovaMessageBusSecret(namespace, MessageBusSecretName),
 			)
 			DeferCleanup(
-				DeleteDBService,
-				CreateDBService(
+				th.DeleteDBService,
+				th.CreateDBService(
 					namespace,
 					"openstack",
 					corev1.ServiceSpec{
@@ -381,15 +381,15 @@ var _ = Describe("Nova controller", func() {
 					},
 				),
 			)
-			DeferCleanup(DeleteKeystoneAPI, CreateKeystoneAPI(namespace))
+			DeferCleanup(th.DeleteKeystoneAPI, th.CreateKeystoneAPI(namespace))
 
 			CreateNovaWithCell0(novaName)
 			DeferCleanup(DeleteNova, novaName)
 
-			SimulateKeystoneServiceReady(novaKeystoneServiceName)
-			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
-			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForCell0)
-			SimulateTransportURLReady(apiTransportURLName)
+			th.SimulateKeystoneServiceReady(novaKeystoneServiceName)
+			th.SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
+			th.SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForCell0)
+			th.SimulateTransportURLReady(apiTransportURLName)
 			GetNovaCell(cell0Name)
 			GetNovaConductor(cell0ConductorName)
 			th.SimulateJobFailure(cell0DBSyncJobName)
@@ -443,8 +443,8 @@ var _ = Describe("Nova controller", func() {
 			)
 
 			DeferCleanup(
-				DeleteDBService,
-				CreateDBService(
+				th.DeleteDBService,
+				th.CreateDBService(
 					namespace,
 					"db-for-cell0",
 					corev1.ServiceSpec{
@@ -453,8 +453,8 @@ var _ = Describe("Nova controller", func() {
 				),
 			)
 			DeferCleanup(
-				DeleteDBService,
-				CreateDBService(
+				th.DeleteDBService,
+				th.CreateDBService(
 					namespace,
 					"db-for-api",
 					corev1.ServiceSpec{
@@ -462,7 +462,7 @@ var _ = Describe("Nova controller", func() {
 					},
 				),
 			)
-			DeferCleanup(DeleteKeystoneAPI, CreateKeystoneAPI(namespace))
+			DeferCleanup(th.DeleteKeystoneAPI, th.CreateKeystoneAPI(namespace))
 
 			spec := GetDefaultNovaSpec()
 			cell0 := GetDefaultNovaCellTemplate()
@@ -475,10 +475,10 @@ var _ = Describe("Nova controller", func() {
 		})
 
 		It("uses the correct hostnames to access the different DB services", func() {
-			SimulateKeystoneServiceReady(novaKeystoneServiceName)
-			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
-			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForCell0)
-			SimulateTransportURLReady(apiTransportURLName)
+			th.SimulateKeystoneServiceReady(novaKeystoneServiceName)
+			th.SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
+			th.SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForCell0)
+			th.SimulateTransportURLReady(apiTransportURLName)
 
 			cell0DBSync := th.GetJob(cell0DBSyncJobName)
 			cell0DBSyncJobEnv := cell0DBSync.Spec.Template.Spec.InitContainers[0].Env
@@ -574,8 +574,8 @@ var _ = Describe("Nova controller", func() {
 				CreateNovaMessageBusSecret(namespace, MessageBusSecretName),
 			)
 			DeferCleanup(
-				DeleteDBService,
-				CreateDBService(
+				th.DeleteDBService,
+				th.CreateDBService(
 					namespace,
 					"openstack",
 					corev1.ServiceSpec{
@@ -583,14 +583,14 @@ var _ = Describe("Nova controller", func() {
 					},
 				),
 			)
-			DeferCleanup(DeleteKeystoneAPI, CreateKeystoneAPI(namespace))
+			DeferCleanup(th.DeleteKeystoneAPI, th.CreateKeystoneAPI(namespace))
 
 			CreateNovaWithCell0(novaName)
 			DeferCleanup(DeleteNova, novaName)
 		})
 
 		It("removes the finalizer from KeystoneService", func() {
-			SimulateKeystoneServiceReady(novaKeystoneServiceName)
+			th.SimulateKeystoneServiceReady(novaKeystoneServiceName)
 			th.ExpectCondition(
 				novaName,
 				ConditionGetterFunc(NovaConditionGetter),
@@ -598,27 +598,27 @@ var _ = Describe("Nova controller", func() {
 				corev1.ConditionTrue,
 			)
 
-			service := GetKeystoneService(novaKeystoneServiceName)
+			service := th.GetKeystoneService(novaKeystoneServiceName)
 			Expect(service.Finalizers).To(ContainElement("Nova"))
 
 			DeleteNova(novaName)
-			service = GetKeystoneService(novaKeystoneServiceName)
+			service = th.GetKeystoneService(novaKeystoneServiceName)
 			Expect(service.Finalizers).NotTo(ContainElement("Nova"))
 		})
 
 		It("removes the finalizers from the nova dbs", func() {
-			SimulateKeystoneServiceReady(novaKeystoneServiceName)
+			th.SimulateKeystoneServiceReady(novaKeystoneServiceName)
 
-			apiDB := GetMariaDBDatabase(mariaDBDatabaseNameForAPI)
+			apiDB := th.GetMariaDBDatabase(mariaDBDatabaseNameForAPI)
 			Expect(apiDB.Finalizers).To(ContainElement("Nova"))
-			cell0DB := GetMariaDBDatabase(mariaDBDatabaseNameForCell0)
+			cell0DB := th.GetMariaDBDatabase(mariaDBDatabaseNameForCell0)
 			Expect(cell0DB.Finalizers).To(ContainElement("Nova"))
 
 			DeleteNova(novaName)
 
-			apiDB = GetMariaDBDatabase(mariaDBDatabaseNameForAPI)
+			apiDB = th.GetMariaDBDatabase(mariaDBDatabaseNameForAPI)
 			Expect(apiDB.Finalizers).NotTo(ContainElement("Nova"))
-			cell0DB = GetMariaDBDatabase(mariaDBDatabaseNameForCell0)
+			cell0DB = th.GetMariaDBDatabase(mariaDBDatabaseNameForCell0)
 			Expect(cell0DB.Finalizers).NotTo(ContainElement("Nova"))
 		})
 	})
@@ -632,8 +632,8 @@ var _ = Describe("Nova controller", func() {
 				CreateNovaMessageBusSecret(namespace, MessageBusSecretName),
 			)
 			DeferCleanup(
-				DeleteDBService,
-				CreateDBService(
+				th.DeleteDBService,
+				th.CreateDBService(
 					namespace,
 					"openstack",
 					corev1.ServiceSpec{
@@ -641,7 +641,7 @@ var _ = Describe("Nova controller", func() {
 					},
 				),
 			)
-			DeferCleanup(DeleteKeystoneAPI, CreateKeystoneAPI(namespace))
+			DeferCleanup(th.DeleteKeystoneAPI, th.CreateKeystoneAPI(namespace))
 
 			internalAPINADName := types.NamespacedName{Namespace: namespace, Name: "internalapi"}
 			CreateNetworkAttachmentDefinition(internalAPINADName)
@@ -677,10 +677,10 @@ var _ = Describe("Nova controller", func() {
 			CreateNova(novaName, rawSpec)
 			DeferCleanup(DeleteNova, novaName)
 
-			SimulateKeystoneServiceReady(novaKeystoneServiceName)
-			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
-			SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForCell0)
-			SimulateTransportURLReady(apiTransportURLName)
+			th.SimulateKeystoneServiceReady(novaKeystoneServiceName)
+			th.SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
+			th.SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForCell0)
+			th.SimulateTransportURLReady(apiTransportURLName)
 			th.SimulateJobSuccess(cell0DBSyncJobName)
 		})
 

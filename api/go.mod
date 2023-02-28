@@ -3,7 +3,7 @@ module github.com/openstack-k8s-operators/nova-operator/api
 go 1.19
 
 require (
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20230220103808-bd9bda2ad709
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20230221132038-4d837b4ac7d2
 	k8s.io/api v0.26.1
 	k8s.io/apimachinery v0.26.1
 	sigs.k8s.io/controller-runtime v0.14.4
@@ -27,6 +27,7 @@ require (
 	github.com/google/gnostic v0.6.9 // indirect
 	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
+	github.com/google/pprof v0.0.0-20210720184732-4bb14d4b1be1 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/imdario/mergo v0.3.13 // indirect
 	github.com/josharian/intern v1.0.0 // indirect

@@ -27,15 +27,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	networkv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	routev1 "github.com/openshift/api/route/v1"
-	rabbitmqv1 "github.com/openstack-k8s-operators/infra-operator/apis/rabbitmq/v1beta1"
-	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
-	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 )
 
@@ -250,74 +246,6 @@ func NovaConditionGetter(name types.NamespacedName) condition.Conditions {
 	return instance.Status.Conditions
 }
 
-// CreateDBService creates a k8s Service object that matches with the
-// expectations of lib-common database module as a Service for the MariaDB
-func CreateDBService(namespace string, mariadbCRName string, spec corev1.ServiceSpec) types.NamespacedName {
-	// The Name is used as the hostname to access the service. So
-	// we generate something unique for the MariaDB CR it represents
-	// so we can assert that the correct Service is selected.
-	serviceName := "hostname-for-" + mariadbCRName
-	service := &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      serviceName,
-			Namespace: namespace,
-			// NOTE(gibi): The lib-common databvase module looks up the
-			// Service exposed by MariaDB via these labels.
-			Labels: map[string]string{
-				"app": "mariadb",
-				"cr":  "mariadb-" + mariadbCRName,
-			},
-		},
-		Spec: spec,
-	}
-	Expect(k8sClient.Create(ctx, service)).Should(Succeed())
-
-	return types.NamespacedName{Name: serviceName, Namespace: namespace}
-}
-
-func DeleteDBService(name types.NamespacedName) {
-	Eventually(func(g Gomega) {
-		service := &corev1.Service{}
-		err := k8sClient.Get(ctx, name, service)
-		// if it is already gone that is OK
-		if k8s_errors.IsNotFound(err) {
-			return
-		}
-		g.Expect(err).Should(BeNil())
-
-		g.Expect(k8sClient.Delete(ctx, service)).Should(Succeed())
-
-		err = k8sClient.Get(ctx, name, service)
-		g.Expect(k8s_errors.IsNotFound(err)).To(BeTrue())
-	}, timeout, interval).Should(Succeed())
-}
-
-func GetMariaDBDatabase(name types.NamespacedName) *mariadbv1.MariaDBDatabase {
-	instance := &mariadbv1.MariaDBDatabase{}
-	Eventually(func(g Gomega) {
-		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
-	}, timeout, interval).Should(Succeed())
-	return instance
-}
-
-func ListMariaDBDatabase(namespace string) *mariadbv1.MariaDBDatabaseList {
-	mariaDBDatabases := &mariadbv1.MariaDBDatabaseList{}
-	Expect(k8sClient.List(ctx, mariaDBDatabases, client.InNamespace(namespace))).Should(Succeed())
-	return mariaDBDatabases
-}
-
-func SimulateMariaDBDatabaseCompleted(name types.NamespacedName) {
-	Eventually(func(g Gomega) {
-		db := GetMariaDBDatabase(name)
-		db.Status.Completed = true
-		// This can return conflict so we have the Eventually block to retry
-		g.Expect(k8sClient.Status().Update(ctx, db)).To(Succeed())
-
-	}, timeout, interval).Should(Succeed())
-
-	logger.Info("Simulated DB completed", "on", name)
-}
-
 func GetDefaultNovaConductorSpec() map[string]interface{} {
 	return map[string]interface{}{
 		"cellName":                 "cell0",
@@ -490,75 +418,6 @@ func CreateNovaSecret(namespace string, name string) *corev1.Secret {
 	return secret
 }
 
-func CreateKeystoneAPI(namespace string) types.NamespacedName {
-	keystone := &keystonev1.KeystoneAPI{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "keystone.openstack.org/v1beta1",
-			Kind:       "KeystoneAPI",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "keystone-" + uuid.New().String(),
-			Namespace: namespace,
-		},
-		Spec: keystonev1.KeystoneAPISpec{},
-	}
-
-	Expect(k8sClient.Create(ctx, keystone.DeepCopy())).Should(Succeed())
-	name := types.NamespacedName{Namespace: namespace, Name: keystone.Name}
-
-	// the Status field needs to be written via a separate client
-	keystone = GetKeystoneAPI(name)
-	keystone.Status = keystonev1.KeystoneAPIStatus{
-		APIEndpoints: map[string]string{"public": "http://keystone-public-openstack.testing"},
-	}
-	Expect(k8sClient.Status().Update(ctx, keystone.DeepCopy())).Should(Succeed())
-
-	logger.Info("KeystoneAPI created", "KeystoneAPI", name)
-	return name
-}
-
-func DeleteKeystoneAPI(name types.NamespacedName) {
-	Eventually(func(g Gomega) {
-		keystone := &keystonev1.KeystoneAPI{}
-		err := k8sClient.Get(ctx, name, keystone)
-		// if it is already gone that is OK
-		if k8s_errors.IsNotFound(err) {
-			return
-		}
-		g.Expect(err).Should(BeNil())
-
-		g.Expect(k8sClient.Delete(ctx, keystone)).Should(Succeed())
-
-		err = k8sClient.Get(ctx, name, keystone)
-		g.Expect(k8s_errors.IsNotFound(err)).To(BeTrue())
-	}, timeout, interval).Should(Succeed())
-}
-
-func GetKeystoneAPI(name types.NamespacedName) *keystonev1.KeystoneAPI {
-	instance := &keystonev1.KeystoneAPI{}
-	Eventually(func(g Gomega) {
-		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
-	}, timeout, interval).Should(Succeed())
-	return instance
-}
-
-func GetKeystoneService(name types.NamespacedName) *keystonev1.KeystoneService {
-	instance := &keystonev1.KeystoneService{}
-	Eventually(func(g Gomega) {
-		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
-	}, timeout, interval).Should(Succeed())
-	return instance
-}
-
-func SimulateKeystoneServiceReady(name types.NamespacedName) {
-	Eventually(func(g Gomega) {
-		service := GetKeystoneService(name)
-		service.Status.Conditions.MarkTrue(condition.ReadyCondition, "Ready")
-		g.Expect(k8sClient.Status().Update(ctx, service)).To(Succeed())
-	}, timeout, interval).Should(Succeed())
-	logger.Info("Simulated KeystoneService ready", "on", name)
-}
-
 func GetService(name types.NamespacedName) *corev1.Service {
 	instance := &corev1.Service{}
 	Eventually(func(g Gomega) {
@@ -582,42 +441,6 @@ func AssertRouteNotExists(name types.NamespacedName) *routev1.Route {
 		g.Expect(k8s_errors.IsNotFound(err)).To(BeTrue())
 	}, consistencyTimeout, interval).Should(Succeed())
 	return instance
-}
-
-func GetKeystoneEndpoint(name types.NamespacedName) *keystonev1.KeystoneEndpoint {
-	instance := &keystonev1.KeystoneEndpoint{}
-	Eventually(func(g Gomega) {
-		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
-	}, timeout, interval).Should(Succeed())
-	return instance
-}
-
-func SimulateKeystoneEndpointReady(name types.NamespacedName) {
-	Eventually(func(g Gomega) {
-		endpoint := GetKeystoneEndpoint(name)
-		endpoint.Status.Conditions.MarkTrue(condition.ReadyCondition, "Ready")
-		g.Expect(k8sClient.Status().Update(ctx, endpoint)).To(Succeed())
-	}, timeout, interval).Should(Succeed())
-	logger.Info("Simulated KeystoneEndpoint ready", "on", name)
-}
-
-func GetTransportURL(name types.NamespacedName) *rabbitmqv1.TransportURL {
-	instance := &rabbitmqv1.TransportURL{}
-	Eventually(func(g Gomega) {
-		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
-	}, timeout, interval).Should(Succeed())
-	return instance
-}
-
-func SimulateTransportURLReady(name types.NamespacedName) {
-	Eventually(func(g Gomega) {
-		transport := GetTransportURL(name)
-		transport.Status.SecretName = transport.Spec.RabbitmqClusterName + "-secret"
-		transport.Status.Conditions.MarkTrue("TransportURLReady", "Ready")
-		g.Expect(k8sClient.Status().Update(ctx, transport)).To(Succeed())
-
-	}, timeout, interval).Should(Succeed())
-	logger.Info("Simulated TransportURL ready", "on", name)
 }
 
 func GetDefaultNovaSchedulerSpec() map[string]interface{} {

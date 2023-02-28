@@ -11,11 +11,11 @@ require (
 	github.com/openshift/api v3.9.0+incompatible
 	github.com/openstack-k8s-operators/infra-operator/apis v0.0.0-20230210143210-6e3aad14c3aa
 	github.com/openstack-k8s-operators/keystone-operator/api v0.0.0-20230208150008-87df8c2f32cb
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20230220103808-bd9bda2ad709
-	github.com/openstack-k8s-operators/lib-common/modules/database v0.0.0-20230215134634-d31141e5bbba
-	github.com/openstack-k8s-operators/lib-common/modules/test v0.0.0-20230215134634-d31141e5bbba
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20230221132038-4d837b4ac7d2
+	github.com/openstack-k8s-operators/lib-common/modules/database v0.0.0-20230208113903-f7b52e2a2ccb
+	github.com/openstack-k8s-operators/lib-common/modules/test v0.0.0-20230221132038-4d837b4ac7d2
 	github.com/openstack-k8s-operators/mariadb-operator/api v0.0.0-20230206135206-4970c77d3d00
-	github.com/openstack-k8s-operators/nova-operator/api v0.0.0-20230127170258-ba3b9bd6497e
+	github.com/openstack-k8s-operators/nova-operator/api v0.0.0-20221209164002-f9e6b9363961
 	go.uber.org/zap v1.24.0
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.26.1
@@ -42,7 +42,7 @@ require (
 	github.com/google/gnostic v0.6.9 // indirect
 	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
-	github.com/google/pprof v0.0.0-20210407192527-94a9f03dee38 // indirect
+	github.com/google/pprof v0.0.0-20210720184732-4bb14d4b1be1 // indirect
 	github.com/gophercloud/gophercloud v1.2.0 // indirect
 	github.com/imdario/mergo v0.3.13 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
@@ -53,7 +53,6 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.0.0-20230208113903-f7b52e2a2ccb // indirect
-	github.com/openstack-k8s-operators/openstack-operator/apis v0.0.0-20230110193440-5da705fb9753 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_golang v1.14.0 // indirect
 	github.com/prometheus/client_model v0.3.0 // indirect
