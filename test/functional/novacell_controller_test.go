@@ -70,7 +70,7 @@ var _ = Describe("NovaCell controller", func() {
 				novaCellName,
 				ConditionGetterFunc(NovaCellConditionGetter),
 				condition.ReadyCondition,
-				corev1.ConditionUnknown,
+				corev1.ConditionFalse,
 			)
 		})
 
@@ -227,23 +227,14 @@ var _ = Describe("NovaCell controller", func() {
 				"NetworkAttachment resources missing: internalapi",
 			)
 
-			// This is a bug that Ready is not reset
-			th.ExpectCondition(
+			th.ExpectConditionWithDetails(
 				novaCellName,
 				ConditionGetterFunc(NovaCellConditionGetter),
 				condition.ReadyCondition,
-				corev1.ConditionTrue,
+				corev1.ConditionFalse,
+				condition.RequestedReason,
+				"NetworkAttachment resources missing: internalapi",
 			)
-
-			// but it should be reset to False
-			// th.ExpectConditionWithDetails(
-			// 	novaCellName,
-			// 	ConditionGetterFunc(NovaCellConditionGetter),
-			// 	condition.ReadyCondition,
-			// 	corev1.ConditionFalse,
-			// 	condition.RequestedReason,
-			// 	"NetworkAttachment resources missing: internalapi",
-			// )
 
 			internalAPINADName := types.NamespacedName{Namespace: namespace, Name: "internalapi"}
 			DeferCleanup(DeleteInstance, CreateNetworkAttachmentDefinition(internalAPINADName))
@@ -257,24 +248,16 @@ var _ = Describe("NovaCell controller", func() {
 				"NetworkAttachments error occured "+
 					"not all pods have interfaces with ips as configured in NetworkAttachments: [internalapi]",
 			)
-			// This is a bug that Ready is not reset
-			th.ExpectCondition(
+
+			th.ExpectConditionWithDetails(
 				novaCellName,
 				ConditionGetterFunc(NovaCellConditionGetter),
 				condition.ReadyCondition,
-				corev1.ConditionTrue,
+				corev1.ConditionFalse,
+				condition.ErrorReason,
+				"NetworkAttachments error occured "+
+					"not all pods have interfaces with ips as configured in NetworkAttachments: [internalapi]",
 			)
-
-			// but it should be reset to False
-			// th.ExpectConditionWithDetails(
-			// 	novaCellName,
-			// 	ConditionGetterFunc(NovaCellConditionGetter),
-			// 	condition.ReadyCondition,
-			// 	corev1.ConditionFalse,
-			// 	condition.ErrorReason,
-			// 	"NetworkAttachments error occured "+
-			// 		"not all pods have interfaces with ips as configured in NetworkAttachments: [internalapi]",
-			// )
 
 			SimulateStatefulSetReplicaReadyWithPods(
 				conductorStatefulSetName,
