@@ -242,45 +242,68 @@ var _ = Describe("Nova reconfiguration", func() {
 				g.Expect(err == nil || k8s_errors.IsConflict(err)).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 
-			// This is a bug that Ready is not reset
-			th.ExpectCondition(
+			th.ExpectConditionWithDetails(
+				cell1Names.CellConductorName,
+				ConditionGetterFunc(NovaConductorConditionGetter),
+				condition.NetworkAttachmentsReadyCondition,
+				corev1.ConditionFalse,
+				condition.RequestedReason,
+				"NetworkAttachment resources missing: internalapi",
+			)
+			th.ExpectConditionWithDetails(
+				cell1Names.CellConductorName,
+				ConditionGetterFunc(NovaConductorConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+				condition.RequestedReason,
+				"NetworkAttachment resources missing: internalapi",
+			)
+
+			th.ExpectConditionWithDetails(
+				cell1Names.CellName,
+				ConditionGetterFunc(NovaCellConditionGetter),
+				novav1.NovaConductorReadyCondition,
+				corev1.ConditionFalse,
+				condition.RequestedReason,
+				"NetworkAttachment resources missing: internalapi",
+			)
+			th.ExpectConditionWithDetails(
+				cell1Names.CellName,
+				ConditionGetterFunc(NovaCellConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+				condition.RequestedReason,
+				"NetworkAttachment resources missing: internalapi",
+			)
+
+			th.ExpectConditionWithDetails(
+				novaName,
+				ConditionGetterFunc(NovaConditionGetter),
+				novav1.NovaAllCellsReadyCondition,
+				corev1.ConditionFalse,
+				condition.ErrorReason,
+				"NovaCell cell1 is not Ready",
+			)
+			th.ExpectConditionWithDetails(
 				novaName,
 				ConditionGetterFunc(NovaConditionGetter),
 				condition.ReadyCondition,
-				corev1.ConditionTrue,
+				corev1.ConditionFalse,
+				condition.ErrorReason,
+				"NovaCell cell1 is not Ready",
 			)
-
-			// but it should be reset to False
-			// th.ExpectConditionWithDetails(
-			// 	novaName,
-			// 	ConditionGetterFunc(NovaConditionGetter),
-			// 	condition.ReadyCondition,
-			// 	corev1.ConditionFalse,
-			// 	condition.RequestedReason,
-			// 	"NetworkAttachment resources missing: internalapi",
-			// )
 
 			internalAPINADName := types.NamespacedName{Namespace: namespace, Name: "internalapi"}
 			DeferCleanup(DeleteInstance, CreateNetworkAttachmentDefinition(internalAPINADName))
 
-			// This is a bug that Ready is not reset
-			th.ExpectCondition(
+			th.ExpectConditionWithDetails(
 				novaName,
 				ConditionGetterFunc(NovaConditionGetter),
 				condition.ReadyCondition,
-				corev1.ConditionTrue,
+				corev1.ConditionFalse,
+				condition.ErrorReason,
+				"NovaCell cell1 is not Ready",
 			)
-
-			// but it should be reset to False
-			// th.ExpectConditionWithDetails(
-			// 	novaCellName,
-			// 	ConditionGetterFunc(NovaCellConditionGetter),
-			// 	condition.ReadyCondition,
-			// 	corev1.ConditionFalse,
-			// 	condition.ErrorReason,
-			// 	"NetworkAttachments error occured "+
-			// 		"not all pods have interfaces with ips as configured in NetworkAttachments: [internalapi]",
-			// )
 
 			SimulateStatefulSetReplicaReadyWithPods(
 				cell1Names.ConductorStatefulSetName,

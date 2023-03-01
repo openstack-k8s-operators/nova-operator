@@ -107,10 +107,17 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	// Always update the instance status when exiting this function so we can
 	// persist any changes happend during the current reconciliation.
 	defer func() {
-		// update the overall status condition if service is ready
+		// update the Ready condition based on the sub conditions
 		if allSubConditionIsTrue(instance.Status) {
 			instance.Status.Conditions.MarkTrue(
 				condition.ReadyCondition, condition.ReadyMessage)
+		} else {
+			// something is not ready so reset the Ready condition
+			instance.Status.Conditions.MarkUnknown(
+				condition.ReadyCondition, condition.InitReason, condition.ReadyInitMessage)
+			// and recalculate it based on the state of the rest of the conditions
+			instance.Status.Conditions.Set(
+				instance.Status.Conditions.Mirror(condition.ReadyCondition))
 		}
 		err := h.PatchInstance(ctx, instance)
 		if err != nil {
@@ -320,7 +327,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	// DB or MQ is not yet created and those which needs API DB access but
 	// cell0 is not ready yet
 	failedCells := []string{}
-	creatingCells := []string{}
+	notReadyCells := []string{}
 	skippedCells := []string{}
 	readyCells := []string{}
 	cells := map[string]*novav1.NovaCell{}
@@ -366,7 +373,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		if err != nil {
 			failedCells = append(failedCells, fmt.Sprintf("%s(%v)", cellName, err.Error()))
 		} else if !cell.IsReady() {
-			creatingCells = append(creatingCells, cellName)
+			notReadyCells = append(notReadyCells, cellName)
 		} else {
 			readyCells = append(readyCells, cellName)
 		}
@@ -375,7 +382,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	}
 	util.LogForObject(
 		h, "Cell statuses", instance, "failed", failedCells,
-		"creating", creatingCells, "waiting", skippedCells,
+		"not ready", notReadyCells, "waiting", skippedCells,
 		"ready", readyCells, "all cells ready", allCellsReady)
 	if len(failedCells) > 0 {
 		instance.Status.Conditions.Set(condition.FalseCondition(
@@ -385,13 +392,13 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 			novav1.NovaAllCellsReadyErrorMessage,
 			strings.Join(failedCells, ","),
 		))
-	} else if len(creatingCells) > 0 {
+	} else if len(notReadyCells) > 0 {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			novav1.NovaAllCellsReadyCondition,
 			condition.ErrorReason,
 			condition.SeverityError,
-			novav1.NovaAllCellsReadyCreatingMessage,
-			strings.Join(creatingCells, ","),
+			novav1.NovaAllCellsReadyNotReadyMessage,
+			strings.Join(notReadyCells, ","),
 		))
 	} else if len(skippedCells) > 0 {
 		instance.Status.Conditions.Set(condition.FalseCondition(

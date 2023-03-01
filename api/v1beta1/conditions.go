@@ -75,7 +75,7 @@ const (
 	NovaAllCellsReadyInitMessage = "NovaCells are not started"
 
 	// NovaAllCellsReadyCreatingMessage
-	NovaAllCellsReadyCreatingMessage = "NovaCell creation ongoing for %s"
+	NovaAllCellsReadyNotReadyMessage = "NovaCell %s is not Ready"
 
 	// NovaAllCellsReadyWaitingMessage
 	NovaAllCellsReadyWaitingMessage = "NovaCell creation waits for DB creation for %s"

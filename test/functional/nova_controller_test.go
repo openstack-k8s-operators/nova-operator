@@ -134,7 +134,7 @@ var _ = Describe("Nova controller", func() {
 				novaName,
 				ConditionGetterFunc(NovaConditionGetter),
 				condition.ReadyCondition,
-				corev1.ConditionUnknown,
+				corev1.ConditionFalse,
 			)
 		})
 
