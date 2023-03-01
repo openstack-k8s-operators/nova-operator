@@ -19,9 +19,12 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"os"
+	"path"
 
 	corev1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -109,6 +112,10 @@ func (r *NovaExternalComputeReconciler) Reconcile(ctx context.Context, req ctrl.
 			return
 		}
 	}()
+
+	if err = r.ensurePlaybooks(ctx, h, instance); err != nil {
+		return ctrl.Result{}, err
+	}
 
 	if !instance.DeletionTimestamp.IsZero() {
 		return ctrl.Result{}, r.reconcileDelete(ctx, h, instance)
@@ -230,12 +237,12 @@ func (r *NovaExternalComputeReconciler) initConditions(
 				novav1.NovaCellReadyInitMessage,
 				instance.Spec.CellName,
 			),
-		/*
 			condition.UnknownCondition(
 				condition.ServiceConfigReadyCondition,
 				condition.InitReason,
 				condition.ServiceConfigReadyInitMessage,
 			),
+		/*
 			condition.UnknownCondition(
 				condition.DeploymentReadyCondition,
 				condition.InitReason,
@@ -358,6 +365,9 @@ func (r *NovaExternalComputeReconciler) ensureConfigMaps(
 			err.Error()))
 		return err
 	}
+	instance.Status.Conditions.MarkTrue(
+		condition.ServiceConfigReadyCondition, condition.ServiceConfigReadyMessage,
+	)
 	return nil
 }
 
@@ -366,9 +376,6 @@ func (r *NovaExternalComputeReconciler) generateConfigs(
 	cell *novav1.NovaCell, hashes *map[string]env.Setter,
 ) error {
 	secret := &corev1.Secret{}
-	// we will lookup the cell based on the current namesapce of the cell.
-	// however this should be the same as the current namespace of the instance.
-	// should we assert that?
 	namespace := cell.GetNamespace()
 	secretName := types.NamespacedName{
 		Namespace: namespace,
@@ -445,4 +452,77 @@ func (r *NovaExternalComputeReconciler) generateConfigs(
 	return r.GenerateConfigs(
 		ctx, h, instance, hashes, templateParameters, extraData, cmLabels, addtionalTemplates,
 	)
+}
+
+// we do not include the input hash as the playbooks are not part of the CR input they
+// are part of the operator state.
+func (r *NovaExternalComputeReconciler) ensurePlaybooks(
+	ctx context.Context, h *helper.Helper, instance *novav1.NovaExternalCompute,
+) error {
+	playbookPath, found := os.LookupEnv("OPERATOR_PLAYBOOKS")
+	if !found {
+		playbookPath = "../../playbooks"
+		os.Setenv("OPERATOR_PLAYBOOKS", playbookPath)
+		util.LogForObject(
+			h, "OPERATOR_PLAYBOOKS not set in env when reconsileing ", instance,
+			"defaulting to ", playbookPath)
+	}
+
+	util.LogForObject(
+		h, "using playbooks for instance ", instance, "from ", playbookPath,
+	)
+	playbookDirEnteries, err := os.ReadDir(playbookPath)
+	if err != nil {
+		return err
+	}
+	// EnsureConfigMaps is not used as we do not want the templating behavior that adds.
+	configMap := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        fmt.Sprintf("%s-external-compute-playbooks", instance.Spec.NovaInstance),
+			Namespace:   instance.Namespace,
+			Annotations: map[string]string{},
+		},
+		Data: map[string]string{},
+	}
+	_, err = controllerutil.CreateOrPatch(ctx, h.GetClient(), configMap, func() error {
+
+		// FIXME: This is wrong we shoudl not be makeing the nova instnace CR own this.
+		// it should be owned by the operator... for now im just going to make sure
+		// it exits and leak it it on operator removal.
+		// novaInstance := &novav1.Nova{}
+		// novaInstanceName := types.NamespacedName{
+		// 	Namespace: instance.Namespace,
+		// 	Name:      instance.Spec.NovaInstance,
+		// }
+		// err = h.GetClient().Get(ctx, novaInstanceName, novaInstance)
+		// if err != nil {
+		// 	util.LogForObject(
+		// 		h, "Failed parent nova instance cr", instance,
+		// 		"Nova ", instance.Spec.NovaInstance,
+		// 	)
+		// 	return err
+		// }
+		// configMap.Labels = labels.GetLabels(
+		// 	novaInstance, labels.GetGroupLabel(NovaLabelPrefix), map[string]string{},
+		// )
+		// err = controllerutil.SetControllerReference(novaInstance, configMap, h.GetScheme())
+		// if err != nil {
+		// 	return err
+		// }
+		for _, entry := range playbookDirEnteries {
+			filename := entry.Name()
+			filePath := path.Join(playbookPath, filename)
+			data, err := os.ReadFile(filePath)
+			if err != nil {
+				return err
+			}
+			configMap.Data[filename] = string(data)
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("error create/updating configmap: %w", err)
+	}
+
+	return nil
 }
