@@ -26,6 +26,7 @@ import (
 
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -657,6 +658,139 @@ var _ = Describe("NovaConductor controller", func() {
 				novaConductor := GetNovaConductor(novaConductorName)
 				g.Expect(novaConductor.Status.NetworkAttachments).To(
 					Equal(map[string][]string{namespace + "/internalapi": {"10.0.0.1"}}))
+			}, timeout, interval).Should(Succeed())
+
+			th.ExpectCondition(
+				novaConductorName,
+				ConditionGetterFunc(NovaConductorConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
+	})
+	When("NovaConductor is reconfigured", func() {
+		var statefulSetName types.NamespacedName
+		var jobName types.NamespacedName
+
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateNovaConductorSecret(namespace, SecretName))
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(namespace, MessageBusSecretName))
+
+			conductor := CreateNovaConductor(namespace, GetDefaultNovaConductorSpec())
+			novaConductorName = types.NamespacedName{Name: conductor.GetName(), Namespace: conductor.GetNamespace()}
+			DeferCleanup(DeleteInstance, conductor)
+
+			th.ExpectCondition(
+				novaConductorName,
+				ConditionGetterFunc(NovaConductorConditionGetter),
+				condition.ServiceConfigReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			jobName = types.NamespacedName{
+				Namespace: namespace,
+				Name:      novaConductorName.Name + "-db-sync",
+			}
+			th.SimulateJobSuccess(jobName)
+			statefulSetName = types.NamespacedName{
+				Namespace: namespace,
+				Name:      novaConductorName.Name,
+			}
+			th.SimulateStatefulSetReplicaReady(statefulSetName)
+			th.ExpectCondition(
+				novaConductorName,
+				ConditionGetterFunc(NovaConductorConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
+
+		It("applys new NetworkAttachments configuration", func() {
+			Eventually(func(g Gomega) {
+				novaConductor := GetNovaConductor(novaConductorName)
+				novaConductor.Spec.NetworkAttachments = append(novaConductor.Spec.NetworkAttachments, "internalapi")
+
+				err := k8sClient.Update(ctx, novaConductor)
+				g.Expect(err == nil || k8s_errors.IsConflict(err)).To(BeTrue())
+			}, timeout, interval).Should(Succeed())
+
+			th.ExpectConditionWithDetails(
+				novaConductorName,
+				ConditionGetterFunc(NovaConductorConditionGetter),
+				condition.NetworkAttachmentsReadyCondition,
+				corev1.ConditionFalse,
+				condition.RequestedReason,
+				"NetworkAttachment resources missing: internalapi",
+			)
+
+			// This is a bug that Ready is not reset
+			th.ExpectCondition(
+				novaConductorName,
+				ConditionGetterFunc(NovaConductorConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			// but it should be reset to False
+			// th.ExpectConditionWithDetails(
+			// 	novaConductorName,
+			// 	ConditionGetterFunc(NovaConductorConditionGetter),
+			// 	condition.ReadyCondition,
+			// 	corev1.ConditionFalse,
+			// 	condition.RequestedReason,
+			// 	"NetworkAttachment resources missing: internalapi",
+			// )
+
+			internalAPINADName := types.NamespacedName{Namespace: namespace, Name: "internalapi"}
+			DeferCleanup(DeleteInstance, CreateNetworkAttachmentDefinition(internalAPINADName))
+
+			th.ExpectConditionWithDetails(
+				novaConductorName,
+				ConditionGetterFunc(NovaConductorConditionGetter),
+				condition.NetworkAttachmentsReadyCondition,
+				corev1.ConditionFalse,
+				condition.ErrorReason,
+				"NetworkAttachments error occured "+
+					"not all pods have interfaces with ips as configured in NetworkAttachments: [internalapi]",
+			)
+			// This is a bug that Ready is not reset
+			th.ExpectCondition(
+				novaConductorName,
+				ConditionGetterFunc(NovaConductorConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			// but it should be reset to False
+			// th.ExpectConditionWithDetails(
+			// 	novaConductorName,
+			// 	ConditionGetterFunc(NovaConductorConditionGetter),
+			// 	condition.ReadyCondition,
+			// 	corev1.ConditionFalse,
+			// 	condition.ErrorReason,
+			// 	"NetworkAttachments error occured "+
+			// 		"not all pods have interfaces with ips as configured in NetworkAttachments: [internalapi]",
+			// )
+
+			SimulateStatefulSetReplicaReadyWithPods(
+				statefulSetName,
+				map[string][]string{namespace + "/internalapi": {"10.0.0.1"}},
+			)
+
+			th.ExpectCondition(
+				novaConductorName,
+				ConditionGetterFunc(NovaConductorConditionGetter),
+				condition.NetworkAttachmentsReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			Eventually(func(g Gomega) {
+				novaConductor := GetNovaConductor(novaConductorName)
+				g.Expect(novaConductor.Status.NetworkAttachments).To(
+					Equal(map[string][]string{namespace + "/internalapi": {"10.0.0.1"}}))
+
 			}, timeout, interval).Should(Succeed())
 
 			th.ExpectCondition(

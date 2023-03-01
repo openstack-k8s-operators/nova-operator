@@ -225,4 +225,75 @@ var _ = Describe("Nova reconfiguration", func() {
 			}, timeout, interval).Should(Succeed())
 		})
 	})
+	When("networkAttachemnt is added to a conductor while the definition is missing", func() {
+		It("applys new NetworkAttachments configuration to that Conductor", func() {
+			cell1Names := NewCell(novaName, "cell1")
+
+			Eventually(func(g Gomega) {
+				nova := GetNova(novaName)
+
+				cell1 := nova.Spec.CellTemplates["cell1"]
+				attachments := cell1.ConductorServiceTemplate.NetworkAttachments
+				attachments = append(attachments, "internalapi")
+				(&cell1).ConductorServiceTemplate.NetworkAttachments = attachments
+				nova.Spec.CellTemplates["cell1"] = cell1
+
+				err := k8sClient.Update(ctx, nova)
+				g.Expect(err == nil || k8s_errors.IsConflict(err)).To(BeTrue())
+			}, timeout, interval).Should(Succeed())
+
+			// This is a bug that Ready is not reset
+			th.ExpectCondition(
+				novaName,
+				ConditionGetterFunc(NovaConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			// but it should be reset to False
+			// th.ExpectConditionWithDetails(
+			// 	novaName,
+			// 	ConditionGetterFunc(NovaConditionGetter),
+			// 	condition.ReadyCondition,
+			// 	corev1.ConditionFalse,
+			// 	condition.RequestedReason,
+			// 	"NetworkAttachment resources missing: internalapi",
+			// )
+
+			internalAPINADName := types.NamespacedName{Namespace: namespace, Name: "internalapi"}
+			DeferCleanup(DeleteInstance, CreateNetworkAttachmentDefinition(internalAPINADName))
+
+			// This is a bug that Ready is not reset
+			th.ExpectCondition(
+				novaName,
+				ConditionGetterFunc(NovaConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			// but it should be reset to False
+			// th.ExpectConditionWithDetails(
+			// 	novaCellName,
+			// 	ConditionGetterFunc(NovaCellConditionGetter),
+			// 	condition.ReadyCondition,
+			// 	corev1.ConditionFalse,
+			// 	condition.ErrorReason,
+			// 	"NetworkAttachments error occured "+
+			// 		"not all pods have interfaces with ips as configured in NetworkAttachments: [internalapi]",
+			// )
+
+			SimulateStatefulSetReplicaReadyWithPods(
+				cell1Names.ConductorStatefulSetName,
+				map[string][]string{namespace + "/internalapi": {"10.0.0.1"}},
+			)
+
+			th.ExpectCondition(
+				novaName,
+				ConditionGetterFunc(NovaConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
+	})
+
 })
