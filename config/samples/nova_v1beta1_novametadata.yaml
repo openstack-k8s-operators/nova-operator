@@ -3,4 +3,9 @@ kind: NovaMetadata
 metadata:
   name: novametadata-sample
 spec:
-  # TODO(user): Add fields here
+  apiDatabaseHostname: openstack
+  apiMessageBusSecretName: rabbitmq-transport-url-nova-api-transport
+  cell0DatabaseHostname: openstack
+  containerImage: quay.io/tripleozedcentos9/openstack-nova-api:current-tripleo
+  keystoneAuthURL: http://keystone-public-openstack.apps-crc.testing
+  secret: osp-secret

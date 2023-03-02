@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.10.0
+    controller-gen.kubebuilder.io/version: v0.9.2
   creationTimestamp: null
   name: novametadata.nova.openstack.org
 spec:
@@ -57,6 +57,11 @@ spec:
                 default: nova
                 description: APIDatabaseUser - username to use when accessing the
                   API DB
+                type: string
+              apiMessageBusSecretName:
+                description: APIMessageBusSecretName - the name of the Secret conntaining
+                  the transport URL information to use when accessing the API message
+                  bus.
                 type: string
               cellDatabaseHostname:
                 description: 'CellDatabaseHostname - hostname to use when accessing
@@ -130,6 +135,48 @@ spec:
                   to add additional files. Those get added to the service config dir
                   in /etc/<service> .
                 type: object
+              externalEndpoints:
+                description: ExternalEndpoints, expose a VIP via MetalLB on the pre-created
+                  address pool
+                items:
+                  description: MetalLBConfig to configure the MetalLB loadbalancer
+                    service
+                  properties:
+                    endpoint:
+                      description: Endpoint, OpenStack endpoint this service maps
+                        to
+                      enum:
+                      - internal
+                      - public
+                      type: string
+                    ipAddressPool:
+                      description: IPAddressPool expose VIP via MetalLB on the IPAddressPool
+                      minLength: 1
+                      type: string
+                    loadBalancerIPs:
+                      description: LoadBalancerIPs, request given IPs from the pool
+                        if available. Using a list to allow dual stack (IPv4/IPv6)
+                        support
+                      items:
+                        type: string
+                      type: array
+                    sharedIP:
+                      default: true
+                      description: SharedIP if true, VIP/VIPs get shared with multiple
+                        services
+                      type: boolean
+                    sharedIPKey:
+                      default: ""
+                      description: SharedIPKey specifies the sharing key which gets
+                        set as the annotation on the LoadBalancer service. Services
+                        which share the same VIP must have the same SharedIPKey. Defaults
+                        to the IPAddressPool if SharedIP is true, but no SharedIPKey
+                        specified.
+                      type: string
+                  required:
+                  - ipAddressPool
+                  type: object
+                type: array
               keystoneAuthURL:
                 description: KeystoneAuthURL - the URL that the nova-metadata service
                   can use to talk to keystone
@@ -232,13 +279,18 @@ spec:
                   to register in keystone
                 type: string
             required:
+            - apiMessageBusSecretName
             - containerImage
-            - keystoneAuthURL
             - secret
             type: object
           status:
             description: NovaMetadataStatus defines the observed state of NovaMetadata
             properties:
+              apiEndpoint:
+                additionalProperties:
+                  type: string
+                description: API endpoint
+                type: object
               conditions:
                 description: Conditions
                 items:

@@ -63,6 +63,10 @@ type NovaMetadataTemplate struct {
 	// +kubebuilder:validation:Optional
 	// NetworkAttachments is a list of NetworkAttachment resource names to expose the services to the given network
 	NetworkAttachments []string `json:"networkAttachments,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// ExternalEndpoints, expose a VIP via MetalLB on the pre-created address pool
+	ExternalEndpoints []MetalLBConfig `json:"externalEndpoints"`
 }
 
 // NovaMetadataSpec defines the desired state of NovaMetadata
@@ -147,6 +151,10 @@ type NovaMetadataSpec struct {
 	// +kubebuilder:validation:Required
 	// NovaServiceBase specifies the generic fields of the service
 	NovaServiceBase `json:",inline"`
+
+	// +kubebuilder:validation:Optional
+	// ExternalEndpoints, expose a VIP via MetalLB on the pre-created address pool
+	ExternalEndpoints []MetalLBConfig `json:"externalEndpoints"`
 }
 
 // NovaMetadataStatus defines the observed state of NovaMetadata
@@ -165,6 +173,9 @@ type NovaMetadataStatus struct {
 
 	// NetworkAttachments status of the deployment pods
 	NetworkAttachments map[string][]string `json:"networkAttachments,omitempty"`
+
+	// API endpoint
+	APIEndpoints map[string]string `json:"apiEndpoint,omitempty"`
 }
 
 //+kubebuilder:object:root=true

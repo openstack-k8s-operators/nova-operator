@@ -453,7 +453,6 @@ func CreateNovaExternalCompute(name types.NamespacedName, spec map[string]interf
 	return CreateUnstructured(raw)
 }
 
-
 func SimulateStatefulSetReplicaReadyWithPods(name types.NamespacedName, networkIPs map[string][]string) {
 	ss := th.GetStatefulSet(name)
 	for i := 0; i < int(*ss.Spec.Replicas); i++ {

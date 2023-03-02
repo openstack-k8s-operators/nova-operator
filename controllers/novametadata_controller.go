@@ -28,6 +28,7 @@ import (
 
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/endpoint"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/labels"
@@ -157,6 +158,13 @@ func (r *NovaMetadataReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return result, err
 	}
 
+	result, err = r.ensureServiceExposed(ctx, h, instance)
+	if (err != nil || result != ctrl.Result{}) {
+		// We can ignore RequeueAfter as we are watching the Service and Route resource
+		// but we have to return while waiting for the service to be exposed
+		return ctrl.Result{}, err
+	}
+
 	util.LogForObject(h, "Successfully reconciled", instance)
 	return ctrl.Result{}, nil
 }
@@ -254,7 +262,7 @@ func (r *NovaMetadataReconciler) generateConfigs(
 	}
 
 	templateParameters := map[string]interface{}{
-		"service_name":           "nova-metadata",
+		"service_name":           novametadata.ServiceName,
 		"api_db_name":            instance.Spec.APIDatabaseUser, // fixme
 		"api_db_user":            instance.Spec.APIDatabaseUser,
 		"api_db_password":        string(secret.Data[instance.Spec.PasswordSelectors.APIDatabase]),
@@ -344,7 +352,54 @@ func (r *NovaMetadataReconciler) ensureServiceExposed(
 	h *helper.Helper,
 	instance *novav1beta1.NovaMetadata,
 ) (ctrl.Result, error) {
-	// TODO (ksambor) add logic to check exposed api 169.254.169.254
+	var ports = map[endpoint.Endpoint]endpoint.Data{
+		endpoint.EndpointPublic:   {Port: novametadata.APIServicePort},
+		endpoint.EndpointInternal: {Port: novametadata.APIServicePort},
+	}
+
+	for _, metallbcfg := range instance.Spec.ExternalEndpoints {
+		portCfg := ports[metallbcfg.Endpoint]
+		portCfg.MetalLB = &endpoint.MetalLBData{
+			IPAddressPool:   metallbcfg.IPAddressPool,
+			SharedIP:        metallbcfg.SharedIP,
+			SharedIPKey:     metallbcfg.SharedIPKey,
+			LoadBalancerIPs: metallbcfg.LoadBalancerIPs,
+		}
+
+		ports[metallbcfg.Endpoint] = portCfg
+	}
+
+	apiEndpoints, ctrlResult, err := endpoint.ExposeEndpoints(
+		ctx,
+		h,
+		novametadata.ServiceName,
+		getServiceLabels(),
+		ports,
+		r.RequeueTimeout,
+	)
+	if err != nil {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.ExposeServiceReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.ExposeServiceReadyErrorMessage,
+			err.Error()))
+		return ctrlResult, err
+	} else if (ctrlResult != ctrl.Result{}) {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.ExposeServiceReadyCondition,
+			condition.RequestedReason,
+			condition.SeverityInfo,
+			condition.ExposeServiceReadyRunningMessage))
+		return ctrlResult, err
+	}
+	instance.Status.Conditions.MarkTrue(condition.ExposeServiceReadyCondition, condition.ExposeServiceReadyMessage)
+
+	for k, v := range apiEndpoints {
+		apiEndpoints[k] = v
+	}
+
+	instance.Status.APIEndpoints = apiEndpoints
 	return ctrl.Result{}, nil
 }
 

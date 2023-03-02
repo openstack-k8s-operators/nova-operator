@@ -63,7 +63,6 @@ var _ = Describe("NovaMetadata controller", func() {
 
 	When("a NovaMetadata CR is created pointing to a non existent Secret", func() {
 
-
 		It("is not Ready", func() {
 			th.ExpectCondition(
 				novaMetadataName,
@@ -264,7 +263,6 @@ var _ = Describe("NovaMetadata controller", func() {
 			)
 		})
 
-
 		It("creates a StatefulSet for the nova-metadata service", func() {
 			th.ExpectConditionWithDetails(
 				novaMetadataName,
@@ -284,8 +282,8 @@ var _ = Describe("NovaMetadata controller", func() {
 			Expect(container.VolumeMounts).To(HaveLen(2))
 			Expect(container.Image).To(Equal(ContainerImage))
 
-			Expect(container.LivenessProbe.HTTPGet.Port.IntVal).To(Equal(int32(0)))
-			Expect(container.ReadinessProbe.HTTPGet.Port.IntVal).To(Equal(int32(0)))
+			Expect(container.LivenessProbe.HTTPGet.Port.IntVal).To(Equal(int32(8775)))
+			Expect(container.ReadinessProbe.HTTPGet.Port.IntVal).To(Equal(int32(8775)))
 
 		})
 
@@ -317,15 +315,15 @@ var _ = Describe("NovaMetadata controller", func() {
 			})
 		})
 
-		// It("exposes the service", func() {
-		// 	th.SimulateStatefulSetReplicaReady(statefulSetName)
-		// 	th.ExpectCondition(
-		// 		novaMetadataName,
-		// 		ConditionGetterFunc(NovaAPIConditionGetter),
-		// 		condition.ExposeServiceReadyCondition,
-		// 		corev1.ConditionTrue,
-		// 	)
-		// })
+		It("exposes the service", func() {
+			th.SimulateStatefulSetReplicaReady(statefulSetName)
+			th.ExpectCondition(
+				novaMetadataName,
+				ConditionGetterFunc(NovaMetadataConditionGetter),
+				condition.ExposeServiceReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
 
 		It("is Ready", func() {
 			th.SimulateStatefulSetReplicaReady(statefulSetName)
