@@ -62,7 +62,7 @@ type NovaConductorTemplate struct {
 
 	// +kubebuilder:validation:Optional
 	// NetworkAttachments is a list of NetworkAttachment resource names to expose the services to the given network
-	NetworkAttachments []string `json:"networkAttachments"`
+	NetworkAttachments []string `json:"networkAttachments,omitempty"`
 }
 
 // NovaConductorSpec defines the desired state of NovaConductor
