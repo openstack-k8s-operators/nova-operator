@@ -73,6 +73,12 @@ spec:
                 description: InventoryConfigMapName is the name of the k8s config
                   map that contains the ansible inventory information for this node
                 type: string
+              networkAttachments:
+                description: NetworkAttachments is a list of NetworkAttachment resource
+                  names to expose the services to the given network
+                items:
+                  type: string
+                type: array
               novaComputeContainerImage:
                 default: quay.io/tripleozedcentos9/openstack-nova-compute:current-tripleo
                 description: NovaComputeContainerImage is the Container Image URL

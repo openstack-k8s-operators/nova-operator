@@ -80,6 +80,10 @@ type NovaExternalComputeSpec struct {
 	// +kubebuilder:default="quay.io/openstack-k8s-operators/openstack-ansibleee-runner:latest"
 	// AnsibleEEContainerImage is the Container Image URL for the ansible execution environment
 	AnsibleEEContainerImage string `json:"ansibleEEContainerImage"`
+
+	// +kubebuilder:validation:Optional
+	// NetworkAttachments is a list of NetworkAttachment resource names to expose the services to the given network
+	NetworkAttachments []string `json:"networkAttachments,omitempty"`
 }
 
 // NovaExternalComputeStatus defines the observed state of NovaExternalCompute
