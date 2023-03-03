@@ -11,6 +11,7 @@ repos:
   rev: v1.50.1
   hooks:
     - id: golangci-lint
+      args: ["--verbose"]
 
 - repo: local
   hooks:
