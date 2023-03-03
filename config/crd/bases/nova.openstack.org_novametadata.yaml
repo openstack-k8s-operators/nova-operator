@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.9.2
+    controller-gen.kubebuilder.io/version: v0.10.0
   creationTimestamp: null
   name: novametadata.nova.openstack.org
 spec:
@@ -59,9 +59,10 @@ spec:
                   API DB
                 type: string
               apiMessageBusSecretName:
-                description: APIMessageBusSecretName - the name of the Secret conntaining
+                description: 'APIMessageBusSecretName - the name of the Secret conntaining
                   the transport URL information to use when accessing the API message
-                  bus.
+                  bus. TODO(ksambor): add a validation webhook to enforce that it
+                  is required for the CellName == ""'
                 type: string
               cellDatabaseHostname:
                 description: 'CellDatabaseHostname - hostname to use when accessing
@@ -179,7 +180,8 @@ spec:
                 type: array
               keystoneAuthURL:
                 description: KeystoneAuthURL - the URL that the nova-metadata service
-                  can use to talk to keystone
+                  can use to talk to keystone TODO(ksambor) Add checking if dynamic
+                  vendor data is configured
                 type: string
               networkAttachments:
                 description: NetworkAttachments is a list of NetworkAttachment resource
@@ -279,7 +281,6 @@ spec:
                   to register in keystone
                 type: string
             required:
-            - apiMessageBusSecretName
             - containerImage
             - secret
             type: object

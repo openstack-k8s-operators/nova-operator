@@ -67,7 +67,7 @@ var _ = Describe("NovaMetadata controller", func() {
 			th.ExpectCondition(
 				novaMetadataName,
 				ConditionGetterFunc(NovaMetadataConditionGetter),
-				condition.ReadyCondition, corev1.ConditionUnknown,
+				condition.ReadyCondition, corev1.ConditionFalse,
 			)
 		})
 
@@ -106,7 +106,7 @@ var _ = Describe("NovaMetadata controller", func() {
 				novaMetadataName,
 				ConditionGetterFunc(NovaMetadataConditionGetter),
 				condition.ReadyCondition,
-				corev1.ConditionUnknown,
+				corev1.ConditionFalse,
 			)
 		})
 
@@ -140,7 +140,7 @@ var _ = Describe("NovaMetadata controller", func() {
 				novaMetadataName,
 				ConditionGetterFunc(NovaMetadataConditionGetter),
 				condition.ReadyCondition,
-				corev1.ConditionUnknown,
+				corev1.ConditionFalse,
 			)
 		})
 
@@ -336,5 +336,4 @@ var _ = Describe("NovaMetadata controller", func() {
 			)
 		})
 	})
-
 })

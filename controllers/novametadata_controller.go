@@ -18,13 +18,15 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+
+	routev1 "github.com/openshift/api/route/v1"
 
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
@@ -32,6 +34,7 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/labels"
+	nad "github.com/openstack-k8s-operators/lib-common/modules/common/networkattachment"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/statefulset"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	novav1beta1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
@@ -47,6 +50,13 @@ type NovaMetadataReconciler struct {
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=novametadata,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=novametadata/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=novametadata/finalizers,verbs=update
+// +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;
+// +kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;watch;create;update;patch;delete;
+// +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;
+// +kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete;
+// +kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;list;watch;create;update;patch;delete;
+// +kubebuilder:rbac:groups=route.openshift.io,resources=routes,verbs=get;list;watch;create;update;patch;delete;
+// +kubebuilder:rbac:groups=k8s.cni.cncf.io,resources=network-attachment-definitions,verbs=get;list;watch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -102,6 +112,13 @@ func (r *NovaMetadataReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		if allSubConditionIsTrue(instance.Status) {
 			instance.Status.Conditions.MarkTrue(
 				condition.ReadyCondition, condition.ReadyMessage)
+		} else {
+			// something is not ready so reset the Ready condition
+			instance.Status.Conditions.MarkUnknown(
+				condition.ReadyCondition, condition.InitReason, condition.ReadyInitMessage)
+			// and recalculate it based on the state of the rest of the conditions
+			instance.Status.Conditions.Set(
+				instance.Status.Conditions.Mirror(condition.ReadyCondition))
 		}
 		err := h.PatchInstance(ctx, instance)
 		if err != nil {
@@ -179,6 +196,12 @@ func (r *NovaMetadataReconciler) initStatus(
 	if instance.Status.Hash == nil {
 		instance.Status.Hash = map[string]string{}
 	}
+	if instance.Status.APIEndpoints == nil {
+		instance.Status.APIEndpoints = map[string]string{}
+	}
+	if instance.Status.NetworkAttachments == nil {
+		instance.Status.NetworkAttachments = map[string][]string{}
+	}
 
 	return nil
 }
@@ -207,6 +230,16 @@ func (r *NovaMetadataReconciler) initConditions(
 				condition.DeploymentReadyCondition,
 				condition.InitReason,
 				condition.DeploymentReadyInitMessage,
+			),
+			condition.UnknownCondition(
+				condition.ExposeServiceReadyCondition,
+				condition.InitReason,
+				condition.ExposeServiceReadyInitMessage,
+			),
+			condition.UnknownCondition(
+				condition.NetworkAttachmentsReadyCondition,
+				condition.InitReason,
+				condition.NetworkAttachmentsReadyInitMessage,
 			),
 		)
 
@@ -306,7 +339,7 @@ func (r *NovaMetadataReconciler) ensureDeployment(
 	inputHash string,
 ) (ctrl.Result, error) {
 	serviceLabels := map[string]string{
-		common.AppSelector: NovaConductorLabelPrefix,
+		common.AppSelector: NovaMetadataLabelPrefix,
 	}
 	ss := statefulset.NewStatefulSet(novametadata.StatefulSet(instance, inputHash, serviceLabels), r.RequeueTimeout)
 	ctrlResult, err := ss.CreateOrPatch(ctx, h)
@@ -331,6 +364,33 @@ func (r *NovaMetadataReconciler) ensureDeployment(
 	}
 
 	instance.Status.ReadyCount = ss.GetStatefulSet().Status.ReadyReplicas
+
+	// verify if network attachment matches expectations
+	networkReady, networkAttachmentStatus, err := nad.VerifyNetworkStatusFromAnnotation(
+		ctx,
+		h,
+		instance.Spec.NetworkAttachments,
+		getServiceLabels(),
+		instance.Status.ReadyCount)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	instance.Status.NetworkAttachments = networkAttachmentStatus
+	if networkReady {
+		instance.Status.Conditions.MarkTrue(condition.NetworkAttachmentsReadyCondition, condition.NetworkAttachmentsReadyMessage)
+	} else {
+		err := fmt.Errorf("not all pods have interfaces with ips as configured in NetworkAttachments: %s", instance.Spec.NetworkAttachments)
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.NetworkAttachmentsReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.NetworkAttachmentsReadyErrorMessage,
+			err.Error()))
+
+		return ctrl.Result{}, err
+	}
+
 	if instance.Status.ReadyCount > 0 {
 		util.LogForObject(h, "Deployment is ready", instance)
 		instance.Status.Conditions.MarkTrue(condition.DeploymentReadyCondition, condition.DeploymentReadyMessage)
@@ -409,14 +469,8 @@ func (r *NovaMetadataReconciler) reconcileDelete(
 	instance *novav1beta1.NovaMetadata,
 ) error {
 	util.LogForObject(h, "Reconciling delete", instance)
-
-	// Successfully cleaned up everyting. So as the final step let's remove the
-	// finalizer from ourselves to allow the deletion of NovaMetadata CR itself
-	updated := controllerutil.RemoveFinalizer(instance, h.GetFinalizer())
-	if updated {
-		util.LogForObject(h, "Removed finalizer from ourselves", instance)
-	}
-
+	// TODO(ksambor): add cleanup for the service rows in the nova DB
+	// when the service is scaled in or deleted
 	util.LogForObject(h, "Reconciled delete successfully", instance)
 	return nil
 }
@@ -427,5 +481,7 @@ func (r *NovaMetadataReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&novav1beta1.NovaMetadata{}).
 		Owns(&v1.StatefulSet{}).
 		Owns(&corev1.ConfigMap{}).
+		Owns(&corev1.Service{}).
+		Owns(&routev1.Route{}).
 		Complete(r)
 }

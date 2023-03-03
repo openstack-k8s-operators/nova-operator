@@ -66,7 +66,8 @@ type NovaMetadataTemplate struct {
 
 	// +kubebuilder:validation:Optional
 	// ExternalEndpoints, expose a VIP via MetalLB on the pre-created address pool
-	ExternalEndpoints []MetalLBConfig `json:"externalEndpoints"`
+	//
+	ExternalEndpoints []MetalLBConfig `json:"externalEndpoints,omitempty"`
 }
 
 // NovaMetadataSpec defines the desired state of NovaMetadata
@@ -99,6 +100,7 @@ type NovaMetadataSpec struct {
 	// +kubebuilder:validation:Optional
 	// KeystoneAuthURL - the URL that the nova-metadata service can use to talk
 	// to keystone
+	// TODO(ksambor) Add checking if dynamic vendor data is configured
 	KeystoneAuthURL string `json:"keystoneAuthURL"`
 
 	// +kubebuilder:validation:Optional
@@ -124,10 +126,12 @@ type NovaMetadataSpec struct {
 	// TODO(gibi): add webhook to validate this CellName constraint
 	CellDatabaseHostname string `json:"cellDatabaseHostname"`
 
-	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Optional
 	// APIMessageBusSecretName - the name of the Secret conntaining the
 	// transport URL information to use when accessing the API message
 	// bus.
+	// TODO(ksambor): add a validation webhook to enforce that it is required
+	// for the CellName == ""
 	APIMessageBusSecretName string `json:"apiMessageBusSecretName"`
 
 	// +kubebuilder:validation:Optional
@@ -154,7 +158,7 @@ type NovaMetadataSpec struct {
 
 	// +kubebuilder:validation:Optional
 	// ExternalEndpoints, expose a VIP via MetalLB on the pre-created address pool
-	ExternalEndpoints []MetalLBConfig `json:"externalEndpoints"`
+	ExternalEndpoints []MetalLBConfig `json:"externalEndpoints,omitempty"`
 }
 
 // NovaMetadataStatus defines the observed state of NovaMetadata
