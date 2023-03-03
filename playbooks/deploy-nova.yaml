@@ -50,3 +50,8 @@
         edpm_container_manage_debug: true
         edpm_container_manage_config_patterns: 'nova_compute.json'
         edpm_container_manage_clean_orphans: false
+    - name: restart nova_compute
+      become: true
+      ansible.builtin.systemd:
+        state: restarted
+        name: edpm_nova_compute.service

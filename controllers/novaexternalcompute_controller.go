@@ -30,12 +30,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
+	aee "github.com/openstack-k8s-operators/openstack-ansibleee-operator/api/v1alpha1"
+
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/labels"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
+	"github.com/openstack-k8s-operators/lib-common/modules/storage"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 )
 
@@ -44,11 +47,12 @@ type NovaExternalComputeReconciler struct {
 	ReconcilerBase
 }
 
-//+kubebuilder:rbac:groups=nova.openstack.org,resources=novaexternalcomputes,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=nova.openstack.org,resources=novaexternalcomputes/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=nova.openstack.org,resources=novaexternalcomputes/finalizers,verbs=update
+// +kubebuilder:rbac:groups=nova.openstack.org,resources=novaexternalcomputes,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=nova.openstack.org,resources=novaexternalcomputes/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=nova.openstack.org,resources=novaexternalcomputes/finalizers,verbs=update
+// +kubebuilder:rbac:groups=ansibleee.openstack.org,resources=openstackansibleees,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;
-//+kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;watch;create;update;patch;delete;
+// +kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;watch;create;update;patch;delete;
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -199,6 +203,15 @@ func (r *NovaExternalComputeReconciler) Reconcile(ctx context.Context, req ctrl.
 	}
 	instance.Status.Hash[common.InputHashName] = inputHash
 
+	// TODO check if this already exits and  add cleanup
+	err = r.ensureAEEDeployNova(ctx, h, instance)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	// TODO deploy libvirt
+	instance.Status.Conditions.MarkTrue(
+		condition.DeploymentReadyCondition, condition.DeploymentReadyMessage,
+	)
 	return ctrl.Result{}, nil
 }
 
@@ -242,13 +255,11 @@ func (r *NovaExternalComputeReconciler) initConditions(
 				condition.InitReason,
 				condition.ServiceConfigReadyInitMessage,
 			),
-		/*
 			condition.UnknownCondition(
 				condition.DeploymentReadyCondition,
 				condition.InitReason,
 				condition.DeploymentReadyInitMessage,
 			),
-		*/
 		)
 		instance.Status.Conditions.Init(&cl)
 	}
@@ -348,6 +359,8 @@ func (r *NovaExternalComputeReconciler) ensureCellReady(
 func (r *NovaExternalComputeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&novav1.NovaExternalCompute{}).
+		Owns(&corev1.ConfigMap{}).
+		Owns(&aee.OpenStackAnsibleEE{}).
 		Complete(r)
 }
 
@@ -464,7 +477,7 @@ func (r *NovaExternalComputeReconciler) ensurePlaybooks(
 		playbookPath = "../../playbooks"
 		os.Setenv("OPERATOR_PLAYBOOKS", playbookPath)
 		util.LogForObject(
-			h, "OPERATOR_PLAYBOOKS not set in env when reconsileing ", instance,
+			h, "OPERATOR_PLAYBOOKS not set in env when reconciling ", instance,
 			"defaulting to ", playbookPath)
 	}
 
@@ -476,9 +489,10 @@ func (r *NovaExternalComputeReconciler) ensurePlaybooks(
 		return err
 	}
 	// EnsureConfigMaps is not used as we do not want the templating behavior that adds.
+	playbookCMName := fmt.Sprintf("%s-external-compute-playbooks", instance.Spec.NovaInstance)
 	configMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        fmt.Sprintf("%s-external-compute-playbooks", instance.Spec.NovaInstance),
+			Name:        playbookCMName,
 			Namespace:   instance.Namespace,
 			Annotations: map[string]string{},
 		},
@@ -525,4 +539,147 @@ func (r *NovaExternalComputeReconciler) ensurePlaybooks(
 	}
 
 	return nil
+}
+
+func (r *NovaExternalComputeReconciler) ensureAEEDeployNova(
+	ctx context.Context, h *helper.Helper, instance *novav1.NovaExternalCompute,
+) error {
+
+	_labels := labels.GetLabels(
+		instance, labels.GetGroupLabel(NovaExternaComputeLabelPrefix), map[string]string{},
+	)
+	ansibleEE := &aee.OpenStackAnsibleEE{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("%s-%s-deploy-nova", instance.Spec.NovaInstance, instance.Name),
+			Namespace: instance.Namespace,
+			Labels:    _labels,
+		},
+	}
+
+	_, err := controllerutil.CreateOrPatch(ctx, h.GetClient(), ansibleEE, func() error {
+		initAEE(instance, ansibleEE, "deploy-nova.yaml")
+
+		return nil
+	})
+	if err != nil {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.DeploymentReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.DeploymentReadyErrorMessage,
+			fmt.Errorf("during provisioning of nova: %w", err),
+		))
+		return err
+	}
+	return nil
+}
+
+func initAEE(
+	instance *novav1.NovaExternalCompute, ansibleEE *aee.OpenStackAnsibleEE,
+	playbook string,
+) {
+	ansibleEE.Spec.Image = instance.Spec.AnsibleEEContainerImage
+	// TODO we dont currently have this on the NovaExternalComputeCR
+	// ansibleEE.Spec.NetworkAttachments = instance.Spec.NetworkAttachments
+	ansibleEE.Spec.Playbook = playbook
+	ansibleEE.Spec.Env = []corev1.EnvVar{
+		{Name: "ANSIBLE_FORCE_COLOR", Value: "True"},
+		{Name: "ANSIBLE_SSH_ARGS", Value: "-C -o ControlMaster=auto -o ControlPersist=80s"},
+		{Name: "ANSIBLE_ENABLE_TASK_DEBUGGER", Value: "True"},
+		{Name: "ANSIBLE_VERBOSITY", Value: "1"},
+	}
+	// allocate tempory storage for the extra volume mounts to avoid
+	// pointer indirection via ansibleEE.Spec.ExtraMounts
+	ansibleEEMounts := storage.VolMounts{}
+
+	// mount ssh keys
+	sshKeyVolume := corev1.Volume{
+		Name: "ssh-key",
+		VolumeSource: corev1.VolumeSource{
+			Secret: &corev1.SecretVolumeSource{
+				SecretName: instance.Spec.SSHKeySecretName,
+				Items: []corev1.KeyToPath{
+					{
+						Key:  "ssh-privatekey",
+						Path: "ssh_key",
+					},
+				},
+			},
+		},
+	}
+	ansibleEEMounts.Volumes = append(ansibleEEMounts.Volumes, sshKeyVolume)
+	sshKeyMount := corev1.VolumeMount{
+		Name:      "ssh-key",
+		MountPath: "/runner/env/ssh_key",
+		SubPath:   "ssh_key",
+	}
+	ansibleEEMounts.Mounts = append(ansibleEEMounts.Mounts, sshKeyMount)
+
+	// mount inventory
+	inventoryVolume := corev1.Volume{
+		Name: "inventory",
+		VolumeSource: corev1.VolumeSource{
+			ConfigMap: &corev1.ConfigMapVolumeSource{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: instance.Spec.InventoryConfigMapName,
+				},
+				Items: []corev1.KeyToPath{
+					{
+						Key:  "inventory",
+						Path: "inventory",
+					},
+				},
+			},
+		},
+	}
+	ansibleEEMounts.Volumes = append(ansibleEEMounts.Volumes, inventoryVolume)
+	inventoryMount := corev1.VolumeMount{
+		Name:      "inventory",
+		MountPath: "/runner/inventory/hosts",
+		SubPath:   "inventory",
+	}
+	ansibleEEMounts.Mounts = append(ansibleEEMounts.Mounts, inventoryMount)
+
+	// mount nova playbooks
+	playbookCMName := fmt.Sprintf("%s-external-compute-playbooks", instance.Spec.NovaInstance)
+	playbookVolume := corev1.Volume{
+		Name: "playbooks",
+		VolumeSource: corev1.VolumeSource{
+			ConfigMap: &corev1.ConfigMapVolumeSource{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: playbookCMName,
+				},
+			},
+		},
+	}
+	ansibleEEMounts.Volumes = append(ansibleEEMounts.Volumes, playbookVolume)
+	playbookMount := corev1.VolumeMount{
+		Name:      "playbooks",
+		MountPath: fmt.Sprintf("/runner/project/%s", playbook),
+		SubPath:   playbook,
+	}
+	ansibleEEMounts.Mounts = append(ansibleEEMounts.Mounts, playbookMount)
+
+	// mount nova and libvirt configs
+	serviceConfigCMName := fmt.Sprintf("%s-config-data", instance.Name)
+	serviceConfigVolume := corev1.Volume{
+		Name: "compute-configs",
+		VolumeSource: corev1.VolumeSource{
+			ConfigMap: &corev1.ConfigMapVolumeSource{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: serviceConfigCMName,
+				},
+			},
+		},
+	}
+	ansibleEEMounts.Volumes = append(ansibleEEMounts.Volumes, serviceConfigVolume)
+	serviceConfigMount := corev1.VolumeMount{
+		Name:      "compute-configs",
+		MountPath: "/var/lib/openstack/config",
+	}
+	ansibleEEMounts.Mounts = append(ansibleEEMounts.Mounts, serviceConfigMount)
+
+	// initalise ansibleEE.Spec.ExtraMounts from local ansibleEEMounts
+	ansibleEE.Spec.ExtraMounts = []storage.VolMounts{ansibleEEMounts}
+
 }

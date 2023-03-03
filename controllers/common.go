@@ -50,10 +50,10 @@ const (
 	// NovaSchedulerLabelPrefix - a unique, service binary specific prefix for
 	// the labeles the NovaScheduler controller uses on children objects
 	NovaSchedulerLabelPrefix = "nova-scheduler"
-	// NovaExternaComputeLabelPrefix- a unique, prefix used for the AEE CR
+	// NovaExternaComputeLabelPrefix - a unique, prefix used for the AEE CR
 	// and other children objects created to mange external computes
 	NovaExternaComputeLabelPrefix = "nova-external-compute"
-	// NovaLabelPrefix- a unique, prefix used for the playbooks owned by
+	// NovaLabelPrefix - a unique, prefix used for the playbooks owned by
 	// the nova operator
 	NovaLabelPrefix = "nova"
 	// DbSyncHash - the field name in Status.Hashes storing the has of the DB
