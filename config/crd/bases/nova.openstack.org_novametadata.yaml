@@ -75,16 +75,10 @@ spec:
                 description: CellDatabaseUser - username to use when accessing the
                   cell DB
                 type: string
-              cellMessageBusHostname:
-                description: 'CellMessageBusHostname - hostname to use when accessing
-                  the cell message bus. This is unused if CellName is not provided.
-                  But if it is provided then CellMessageBusHostname is required. TODO(gibi):
-                  add webhook to validate this CellName constraint'
-                type: string
-              cellMessageBusUser:
-                default: nova
-                description: CellMessageBusUser - username to use when accessing the
-                  cell message bus
+              cellMessageBusSecretName:
+                description: CellMessageBusSecretName - the name of the Secret conntaining
+                  the transport URL information to use when accessing the Cell message
+                  bus.
                 type: string
               cellName:
                 description: CellName is the name of the Nova Cell this metadata service

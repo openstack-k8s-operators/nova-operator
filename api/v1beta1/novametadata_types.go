@@ -135,16 +135,10 @@ type NovaMetadataSpec struct {
 	APIMessageBusSecretName string `json:"apiMessageBusSecretName"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=nova
-	// CellMessageBusUser - username to use when accessing the cell message bus
-	CellMessageBusUser string `json:"cellMessageBusUser"`
-
-	// +kubebuilder:validation:Optional
-	// CellMessageBusHostname - hostname to use when accessing the cell message
-	// bus. This is unused if CellName is not provided. But if it is provided
-	// then CellMessageBusHostname is required.
-	// TODO(gibi): add webhook to validate this CellName constraint
-	CellMessageBusHostname string `json:"cellMessageBusHostname"`
+	// CellMessageBusSecretName - the name of the Secret conntaining the
+	// transport URL information to use when accessing the Cell message
+	// bus.
+	CellMessageBusSecretName string `json:"cellMessageBusSecretName"`
 
 	// +kubebuilder:validation:Optional
 	// Debug - enable debug for different deploy stages. If an init container

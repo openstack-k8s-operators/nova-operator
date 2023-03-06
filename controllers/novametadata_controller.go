@@ -170,7 +170,12 @@ func (r *NovaMetadataReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	instance.Status.Conditions.MarkTrue(condition.ServiceConfigReadyCondition, condition.ServiceConfigReadyMessage)
 
-	result, err = r.ensureDeployment(ctx, h, instance, inputHash)
+	serviceAnnotations, result, err := ensureNetworkAttachments(ctx, h, instance.Spec.NetworkAttachments, &instance.Status.Conditions, r.RequeueTimeout)
+	if (err != nil || result != ctrl.Result{}) {
+		return result, err
+	}
+
+	result, err = r.ensureDeployment(ctx, h, instance, inputHash, serviceAnnotations)
 	if (err != nil || result != ctrl.Result{}) {
 		return result, err
 	}
@@ -337,11 +342,12 @@ func (r *NovaMetadataReconciler) ensureDeployment(
 	h *helper.Helper,
 	instance *novav1beta1.NovaMetadata,
 	inputHash string,
+	annotations map[string]string,
 ) (ctrl.Result, error) {
 	serviceLabels := map[string]string{
 		common.AppSelector: NovaMetadataLabelPrefix,
 	}
-	ss := statefulset.NewStatefulSet(novametadata.StatefulSet(instance, inputHash, serviceLabels), r.RequeueTimeout)
+	ss := statefulset.NewStatefulSet(novametadata.StatefulSet(instance, inputHash, serviceLabels, annotations), r.RequeueTimeout)
 	ctrlResult, err := ss.CreateOrPatch(ctx, h)
 	if err != nil && !k8s_errors.IsNotFound(err) {
 		util.LogErrorForObject(h, err, "Deployment failed", instance)
@@ -370,7 +376,7 @@ func (r *NovaMetadataReconciler) ensureDeployment(
 		ctx,
 		h,
 		instance.Spec.NetworkAttachments,
-		getServiceLabels(),
+		serviceLabels,
 		instance.Status.ReadyCount)
 	if err != nil {
 		return ctrl.Result{}, err
