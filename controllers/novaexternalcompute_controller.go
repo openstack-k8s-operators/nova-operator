@@ -204,11 +204,15 @@ func (r *NovaExternalComputeReconciler) Reconcile(ctx context.Context, req ctrl.
 	instance.Status.Hash[common.InputHashName] = inputHash
 
 	// TODO check if this already exits and  add cleanup
+	err = r.ensureAEEDeployLibvirt(ctx, h, instance)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	// TODO check if this already exits and  add cleanup
 	err = r.ensureAEEDeployNova(ctx, h, instance)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-	// TODO deploy libvirt
 	instance.Status.Conditions.MarkTrue(
 		condition.DeploymentReadyCondition, condition.DeploymentReadyMessage,
 	)
@@ -439,7 +443,7 @@ func (r *NovaExternalComputeReconciler) generateConfigs(
 	}
 
 	cmLabels := labels.GetLabels(
-		instance, labels.GetGroupLabel(NovaExternaComputeLabelPrefix), map[string]string{},
+		instance, labels.GetGroupLabel(NovaExternalComputeLabelPrefix), map[string]string{},
 	)
 
 	addtionalTemplates := map[string]string{
@@ -541,12 +545,45 @@ func (r *NovaExternalComputeReconciler) ensurePlaybooks(
 	return nil
 }
 
+func (r *NovaExternalComputeReconciler) ensureAEEDeployLibvirt(
+	ctx context.Context, h *helper.Helper, instance *novav1.NovaExternalCompute,
+) error {
+
+	_labels := labels.GetLabels(
+		instance, labels.GetGroupLabel(NovaExternalComputeLabelPrefix), map[string]string{},
+	)
+	ansibleEE := &aee.OpenStackAnsibleEE{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("%s-%s-deploy-libvirt", instance.Spec.NovaInstance, instance.Name),
+			Namespace: instance.Namespace,
+			Labels:    _labels,
+		},
+	}
+
+	_, err := controllerutil.CreateOrPatch(ctx, h.GetClient(), ansibleEE, func() error {
+		initAEE(instance, ansibleEE, "deploy-libvirt.yaml")
+
+		return nil
+	})
+	if err != nil {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.DeploymentReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.DeploymentReadyErrorMessage,
+			fmt.Errorf("during provisioning of libvirt: %w", err),
+		))
+		return err
+	}
+	return nil
+}
+
 func (r *NovaExternalComputeReconciler) ensureAEEDeployNova(
 	ctx context.Context, h *helper.Helper, instance *novav1.NovaExternalCompute,
 ) error {
 
 	_labels := labels.GetLabels(
-		instance, labels.GetGroupLabel(NovaExternaComputeLabelPrefix), map[string]string{},
+		instance, labels.GetGroupLabel(NovaExternalComputeLabelPrefix), map[string]string{},
 	)
 	ansibleEE := &aee.OpenStackAnsibleEE{
 		ObjectMeta: metav1.ObjectMeta{

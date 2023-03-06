@@ -100,3 +100,14 @@
         edpm_container_manage_debug: true
         edpm_container_manage_config_patterns: "libvirt*.json"
         edpm_container_manage_clean_orphans: false
+    - name: restart libvirt containers
+      become: true
+      ansible.builtin.systemd:
+        state: restarted
+        name: "{{item.name}}"
+      with_items:
+        - {"name": "edpm_libvirt_virtlogd.service"}
+        - {"name": "edpm_libvirt_virtnodedevd.service"}
+        - {"name": "edpm_libvirt_virtproxyd.service"}
+        - {"name": "edpm_libvirt_virtqemud.service"}
+        - {"name": "edpm_libvirt_virtsecretd.service"}
