@@ -33,6 +33,7 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
+	aee "github.com/openstack-k8s-operators/openstack-ansibleee-operator/api/v1alpha1"
 )
 
 const (
@@ -575,4 +576,23 @@ func DeleteConfigMap(name types.NamespacedName) {
 		err = k8sClient.Get(ctx, name, configMap)
 		g.Expect(k8s_errors.IsNotFound(err)).To(BeTrue())
 	}, timeout, interval).Should(Succeed())
+}
+
+func GetAEE(name types.NamespacedName) *aee.OpenStackAnsibleEE {
+	instance := &aee.OpenStackAnsibleEE{}
+	Eventually(func(g Gomega) {
+		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
+	}, timeout, interval).Should(Succeed())
+	return instance
+}
+
+func SimulateAEESucceded(name types.NamespacedName) {
+	Eventually(func(g Gomega) {
+		ansibleEE := GetAEE(name)
+		ansibleEE.Status.JobStatus = "Succeeded"
+		g.Expect(k8sClient.Status().Update(ctx, ansibleEE)).To(Succeed())
+
+	}, timeout, interval).Should(Succeed())
+
+	logger.Info("Simulated AEE success", "on", name)
 }

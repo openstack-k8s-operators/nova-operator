@@ -84,6 +84,7 @@ func (r *NovaExternalComputeReconciler) Reconcile(ctx context.Context, req ctrl.
 		r.Scheme,
 		r.Log,
 	)
+
 	if err != nil {
 		l.Error(err, "Failed to create lib-common Helper")
 		return ctrl.Result{}, err
@@ -203,19 +204,47 @@ func (r *NovaExternalComputeReconciler) Reconcile(ctx context.Context, req ctrl.
 	}
 	instance.Status.Hash[common.InputHashName] = inputHash
 
-	// TODO check if this already exits and  add cleanup
-	err = r.ensureAEEDeployLibvirt(ctx, h, instance)
-	if err != nil {
-		return ctrl.Result{}, err
+	// we support stopping before deploying the compute node
+	// so only create the AAE CRs if we have deployment enabled.
+	if instance.Spec.Deploy {
+		// create all AEE resouce in parallel
+		libvirtAEE, err := r.ensureAEEDeployLibvirt(ctx, h, instance)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+		novaAEE, err := r.ensureAEEDeployNova(ctx, h, instance)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+
+		// then check if they have compelted and requeue if not.
+		if libvirtAEE.Status.JobStatus != "Succeeded" {
+			return ctrl.Result{RequeueAfter: r.RequeueTimeout}, fmt.Errorf(
+				"libvirt deployment %s for %s", libvirtAEE.Status.JobStatus, instance.Name,
+			)
+		}
+		if novaAEE.Status.JobStatus != "Succeeded" {
+			return ctrl.Result{RequeueAfter: r.RequeueTimeout}, fmt.Errorf(
+				"nova deployment %s for %s", novaAEE.Status.JobStatus, instance.Name,
+			)
+		}
+
+		// we only get here if we completed succesffuly so we can just delete them
+		err = r.cleanupAEE(ctx, h, libvirtAEE)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+		err = r.cleanupAEE(ctx, h, novaAEE)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+		// only mark true if we have completed all steps
+		// this should be at the end of the function to ensure we dont set the status
+		// if we can fail later in the function.
+		instance.Status.Conditions.MarkTrue(
+			condition.DeploymentReadyCondition, condition.DeploymentReadyMessage,
+		)
 	}
-	// TODO check if this already exits and  add cleanup
-	err = r.ensureAEEDeployNova(ctx, h, instance)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-	instance.Status.Conditions.MarkTrue(
-		condition.DeploymentReadyCondition, condition.DeploymentReadyMessage,
-	)
 	return ctrl.Result{}, nil
 }
 
@@ -547,7 +576,7 @@ func (r *NovaExternalComputeReconciler) ensurePlaybooks(
 
 func (r *NovaExternalComputeReconciler) ensureAEEDeployLibvirt(
 	ctx context.Context, h *helper.Helper, instance *novav1.NovaExternalCompute,
-) error {
+) (*aee.OpenStackAnsibleEE, error) {
 
 	_labels := labels.GetLabels(
 		instance, labels.GetGroupLabel(NovaExternalComputeLabelPrefix), map[string]string{},
@@ -560,27 +589,39 @@ func (r *NovaExternalComputeReconciler) ensureAEEDeployLibvirt(
 		},
 	}
 
-	_, err := controllerutil.CreateOrPatch(ctx, h.GetClient(), ansibleEE, func() error {
-		initAEE(instance, ansibleEE, "deploy-libvirt.yaml")
-
-		return nil
-	})
-	if err != nil {
-		instance.Status.Conditions.Set(condition.FalseCondition(
-			condition.DeploymentReadyCondition,
-			condition.ErrorReason,
-			condition.SeverityWarning,
-			condition.DeploymentReadyErrorMessage,
-			fmt.Errorf("during provisioning of libvirt: %w", err),
-		))
-		return err
+	aeeName := types.NamespacedName{
+		Namespace: instance.Namespace,
+		Name:      ansibleEE.Name,
 	}
-	return nil
+	err := h.GetClient().Get(ctx, aeeName, ansibleEE)
+	if err != nil && !k8s_errors.IsNotFound(err) {
+		return ansibleEE, err
+	}
+
+	if k8s_errors.IsNotFound(err) {
+		_, err = controllerutil.CreateOrPatch(ctx, h.GetClient(), ansibleEE, func() error {
+			initAEE(instance, ansibleEE, "deploy-libvirt.yaml")
+
+			return nil
+		})
+
+		if err != nil {
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				condition.DeploymentReadyCondition,
+				condition.ErrorReason,
+				condition.SeverityWarning,
+				condition.DeploymentReadyErrorMessage,
+				fmt.Errorf("during provisioning of libvirt: %w", err),
+			))
+			return ansibleEE, err
+		}
+	}
+	return ansibleEE, nil
 }
 
 func (r *NovaExternalComputeReconciler) ensureAEEDeployNova(
 	ctx context.Context, h *helper.Helper, instance *novav1.NovaExternalCompute,
-) error {
+) (*aee.OpenStackAnsibleEE, error) {
 
 	_labels := labels.GetLabels(
 		instance, labels.GetGroupLabel(NovaExternalComputeLabelPrefix), map[string]string{},
@@ -592,23 +633,33 @@ func (r *NovaExternalComputeReconciler) ensureAEEDeployNova(
 			Labels:    _labels,
 		},
 	}
-
-	_, err := controllerutil.CreateOrPatch(ctx, h.GetClient(), ansibleEE, func() error {
-		initAEE(instance, ansibleEE, "deploy-nova.yaml")
-
-		return nil
-	})
-	if err != nil {
-		instance.Status.Conditions.Set(condition.FalseCondition(
-			condition.DeploymentReadyCondition,
-			condition.ErrorReason,
-			condition.SeverityWarning,
-			condition.DeploymentReadyErrorMessage,
-			fmt.Errorf("during provisioning of nova: %w", err),
-		))
-		return err
+	aeeName := types.NamespacedName{
+		Namespace: instance.Namespace,
+		Name:      ansibleEE.Name,
 	}
-	return nil
+	err := h.GetClient().Get(ctx, aeeName, ansibleEE)
+	if err != nil && !k8s_errors.IsNotFound(err) {
+		return ansibleEE, err
+	}
+
+	if k8s_errors.IsNotFound(err) {
+		_, err = controllerutil.CreateOrPatch(ctx, h.GetClient(), ansibleEE, func() error {
+			initAEE(instance, ansibleEE, "deploy-nova.yaml")
+
+			return nil
+		})
+		if err != nil {
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				condition.DeploymentReadyCondition,
+				condition.ErrorReason,
+				condition.SeverityWarning,
+				condition.DeploymentReadyErrorMessage,
+				fmt.Errorf("during provisioning of nova: %w", err),
+			))
+			return ansibleEE, err
+		}
+	}
+	return ansibleEE, nil
 }
 
 func initAEE(
@@ -719,4 +770,14 @@ func initAEE(
 	// initalise ansibleEE.Spec.ExtraMounts from local ansibleEEMounts
 	ansibleEE.Spec.ExtraMounts = []storage.VolMounts{ansibleEEMounts}
 
+}
+
+func (r *NovaExternalComputeReconciler) cleanupAEE(
+	ctx context.Context, h *helper.Helper, instance *aee.OpenStackAnsibleEE,
+) error {
+	err := h.GetClient().Delete(ctx, instance)
+	if err != nil && !k8s_errors.IsNotFound(err) {
+		return err
+	}
+	return nil
 }
