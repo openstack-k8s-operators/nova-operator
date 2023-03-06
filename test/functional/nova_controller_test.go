@@ -40,6 +40,7 @@ var _ = Describe("Nova controller", func() {
 	var cell0DBSyncJobName types.NamespacedName
 	var novaAPIName types.NamespacedName
 	var novaAPIdeploymentName types.NamespacedName
+	var novaAPIKeystoneEndpointName types.NamespacedName
 	var novaKeystoneServiceName types.NamespacedName
 	var novaCell0ConductorStatefulSetName types.NamespacedName
 	var apiTransportURLName types.NamespacedName
@@ -95,6 +96,10 @@ var _ = Describe("Nova controller", func() {
 		novaAPIdeploymentName = types.NamespacedName{
 			Namespace: namespace,
 			Name:      novaAPIName.Name,
+		}
+		novaAPIKeystoneEndpointName = types.NamespacedName{
+			Namespace: namespace,
+			Name:      "nova",
 		}
 		novaKeystoneServiceName = types.NamespacedName{
 			Namespace: namespace,
@@ -307,7 +312,7 @@ var _ = Describe("Nova controller", func() {
 			Expect(api.Spec.ServiceUser).To(Equal("nova"))
 
 			th.SimulateStatefulSetReplicaReady(novaAPIdeploymentName)
-
+			th.SimulateKeystoneEndpointReady(novaAPIKeystoneEndpointName)
 			th.ExpectCondition(
 				novaAPIName,
 				ConditionGetterFunc(NovaAPIConditionGetter),
@@ -336,6 +341,7 @@ var _ = Describe("Nova controller", func() {
 			th.SimulateJobSuccess(cell0DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(novaCell0ConductorStatefulSetName)
 			th.SimulateStatefulSetReplicaReady(novaAPIdeploymentName)
+			th.SimulateKeystoneEndpointReady(novaAPIKeystoneEndpointName)
 
 			scheduler := GetNovaScheduler(novaSchedulerName)
 			Expect(scheduler.Spec.APIMessageBusSecretName).To(Equal("rabbitmq-secret"))
@@ -524,6 +530,7 @@ var _ = Describe("Nova controller", func() {
 			)
 
 			th.SimulateStatefulSetReplicaReady(novaAPIdeploymentName)
+			th.SimulateKeystoneEndpointReady(novaAPIKeystoneEndpointName)
 
 			th.ExpectCondition(
 				cell0ConductorName,
@@ -697,6 +704,7 @@ var _ = Describe("Nova controller", func() {
 				novaAPIdeploymentName,
 				map[string][]string{namespace + "/internalapi": {"10.0.0.1"}},
 			)
+			th.SimulateKeystoneEndpointReady(novaAPIKeystoneEndpointName)
 
 			th.ExpectCondition(
 				novaName,

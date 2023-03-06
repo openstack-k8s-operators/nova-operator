@@ -87,6 +87,7 @@ var _ = Describe("Nova controller", func() {
 	var cell2 Cell
 	var novaAPIName types.NamespacedName
 	var novaAPIdeploymentName types.NamespacedName
+	var novaAPIKeystoneEndpointName types.NamespacedName
 	var novaKeystoneServiceName types.NamespacedName
 	var novaSchedulerName types.NamespacedName
 	var novaSchedulerStatefulSetName types.NamespacedName
@@ -126,6 +127,10 @@ var _ = Describe("Nova controller", func() {
 			Name:      novaAPIName.Name,
 		}
 		novaKeystoneServiceName = types.NamespacedName{
+			Namespace: namespace,
+			Name:      "nova",
+		}
+		novaAPIKeystoneEndpointName = types.NamespacedName{
 			Namespace: namespace,
 			Name:      "nova",
 		}
@@ -285,6 +290,8 @@ var _ = Describe("Nova controller", func() {
 				condition.DeploymentReadyCondition,
 				corev1.ConditionTrue,
 			)
+
+			th.SimulateKeystoneEndpointReady(novaAPIKeystoneEndpointName)
 			th.ExpectCondition(
 				novaName,
 				ConditionGetterFunc(NovaConditionGetter),
@@ -300,6 +307,7 @@ var _ = Describe("Nova controller", func() {
 			th.SimulateJobSuccess(cell0.CellDBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 			th.SimulateStatefulSetReplicaReady(novaAPIdeploymentName)
+			th.SimulateKeystoneEndpointReady(novaAPIKeystoneEndpointName)
 
 			th.SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
 			th.ExpectCondition(
@@ -344,6 +352,7 @@ var _ = Describe("Nova controller", func() {
 			th.SimulateJobSuccess(cell0.CellDBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 			th.SimulateStatefulSetReplicaReady(novaAPIdeploymentName)
+			th.SimulateKeystoneEndpointReady(novaAPIKeystoneEndpointName)
 			th.SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
 			th.SimulateTransportURLReady(cell1.TransportURLName)
 
@@ -398,6 +407,7 @@ var _ = Describe("Nova controller", func() {
 			th.SimulateJobSuccess(cell0.CellDBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 			th.SimulateStatefulSetReplicaReady(novaAPIdeploymentName)
+			th.SimulateKeystoneEndpointReady(novaAPIKeystoneEndpointName)
 			th.SimulateStatefulSetReplicaReady(novaSchedulerStatefulSetName)
 			th.SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
 			th.SimulateTransportURLReady(cell1.TransportURLName)
@@ -518,6 +528,7 @@ var _ = Describe("Nova controller", func() {
 			// NovaAPI is still created
 			GetNovaAPI(novaAPIName)
 			th.SimulateStatefulSetReplicaReady(novaAPIdeploymentName)
+			th.SimulateKeystoneEndpointReady(novaAPIKeystoneEndpointName)
 			th.ExpectCondition(
 				novaName,
 				ConditionGetterFunc(NovaConditionGetter),
@@ -630,6 +641,7 @@ var _ = Describe("Nova controller", func() {
 
 			// As cell0 is ready API is deployed
 			th.SimulateStatefulSetReplicaReady(novaAPIdeploymentName)
+			th.SimulateKeystoneEndpointReady(novaAPIKeystoneEndpointName)
 			th.ExpectCondition(
 				novaName,
 				ConditionGetterFunc(NovaConditionGetter),
