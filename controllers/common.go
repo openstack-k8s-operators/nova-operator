@@ -30,6 +30,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
+
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/configmap"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
@@ -93,16 +95,14 @@ func ensureSecret(
 	err := reader.Get(ctx, secretName, secret)
 	if err != nil {
 		if k8s_errors.IsNotFound(err) {
-			// TODO(gibi): Change the message to state which input
-			// (i.e. Secret with a given name) is missing
 			conditionUpdater.Set(condition.FalseCondition(
 				condition.InputReadyCondition,
 				condition.RequestedReason,
 				condition.SeverityInfo,
-				condition.InputReadyWaitingMessage))
+				fmt.Sprintf(novav1.InputReadyWaitingMessage, "secret/"+secretName.Name)))
 			return "",
 				ctrl.Result{RequeueAfter: requeueTimeout},
-				fmt.Errorf("OpenStack secret %s not found", secretName)
+				fmt.Errorf("Secret %s not found", secretName)
 		}
 		conditionUpdater.Set(condition.FalseCondition(
 			condition.InputReadyCondition,
@@ -118,7 +118,7 @@ func ensureSecret(
 	for _, field := range expectedFields {
 		val, ok := secret.Data[field]
 		if !ok {
-			err := fmt.Errorf("field %s not found in Secret %s", field, secretName)
+			err := fmt.Errorf("field '%s' not found in secret/%s", field, secretName.Name)
 			conditionUpdater.Set(condition.FalseCondition(
 				condition.InputReadyCondition,
 				condition.ErrorReason,
@@ -188,6 +188,71 @@ func ensureNetworkAttachments(
 	}
 
 	return nadAnnotations, ctrl.Result{}, nil
+}
+
+// ensureConfigMap - ensures that the ConfigMap object exists and the expected
+// fields are in the map. It returns a hash of the values of the expected fields.
+func ensureConfigMap(
+	ctx context.Context,
+	configMapName types.NamespacedName,
+	expectedFields []string,
+	reader client.Reader,
+	conditionUpdater conditionUpdater,
+	requeueTimeout time.Duration,
+) (string, ctrl.Result, error) {
+	configMap := &corev1.ConfigMap{}
+	err := reader.Get(ctx, configMapName, configMap)
+	if err != nil {
+		if k8s_errors.IsNotFound(err) {
+			conditionUpdater.Set(condition.FalseCondition(
+				condition.InputReadyCondition,
+				condition.RequestedReason,
+				condition.SeverityInfo,
+				fmt.Sprintf(novav1.InputReadyWaitingMessage, "configmap/"+configMapName.Name)))
+			return "",
+				ctrl.Result{RequeueAfter: requeueTimeout},
+				fmt.Errorf("ConfigMap %s not found", configMapName)
+		}
+		conditionUpdater.Set(condition.FalseCondition(
+			condition.InputReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.InputReadyErrorMessage,
+			err.Error()))
+		return "", ctrl.Result{}, err
+	}
+
+	// collect the secret values the caller expects to exist
+	values := [][]byte{}
+	for _, field := range expectedFields {
+		val, ok := configMap.Data[field]
+		if !ok {
+			err := fmt.Errorf("field '%s' not found in configmap/%s", field, configMapName.Name)
+			conditionUpdater.Set(condition.FalseCondition(
+				condition.InputReadyCondition,
+				condition.ErrorReason,
+				condition.SeverityWarning,
+				condition.InputReadyErrorMessage,
+				err.Error()))
+			return "", ctrl.Result{}, err
+		}
+		values = append(values, []byte(val))
+	}
+
+	// TODO(gibi): Do we need to watch the ConfigMap for changes?
+
+	hash, err := util.ObjectHash(values)
+	if err != nil {
+		conditionUpdater.Set(condition.FalseCondition(
+			condition.InputReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.InputReadyErrorMessage,
+			err.Error()))
+		return "", ctrl.Result{}, err
+	}
+
+	return hash, ctrl.Result{}, nil
 }
 
 // hashOfInputHashes - calculates the overal hash of all our inputs
@@ -273,6 +338,9 @@ func NewReconcilers(mgr ctrl.Manager, kclient *kubernetes.Clientset) *Reconciler
 			"NovaNoVNCProxy": &NovaNoVNCProxyReconciler{
 				ReconcilerBase: NewReconcilerBase("NovaNoVNCProxy", mgr, kclient),
 			},
+			"NovaExternalCompute": &NovaExternalComputeReconciler{
+				ReconcilerBase: NewReconcilerBase("NovaExternalCompute", mgr, kclient),
+			},
 		}}
 }
 
@@ -324,4 +392,8 @@ func (r *ReconcilerBase) GenerateConfigs(
 	// consider taking this as a function pointer or interface
 	// to enable unit testing at some point.
 	return configmap.EnsureConfigMaps(ctx, h, instance, cms, envVars)
+}
+
+func getNovaCellCRName(novaCRName string, cellName string) string {
+	return novaCRName + "-" + cellName
 }

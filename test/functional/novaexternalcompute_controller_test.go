@@ -1,0 +1,356 @@
+/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+	http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package functional_test
+
+import (
+	"os"
+
+	"github.com/google/uuid"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
+	. "github.com/openstack-k8s-operators/lib-common/modules/test/helpers"
+	corev1 "k8s.io/api/core/v1"
+	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
+
+	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
+)
+
+func CreateNovaCellAndEnsureReady(namespace string, novaCellName types.NamespacedName) {
+	DeferCleanup(
+		k8sClient.Delete, ctx, CreateNovaConductorSecret(namespace, SecretName))
+	DeferCleanup(
+		k8sClient.Delete, ctx, CreateNovaMessageBusSecret(namespace, MessageBusSecretName))
+
+	spec := GetDefaultNovaCellSpec()
+	spec["cellName"] = "cell1"
+	cellName := CreateNovaCell(novaCellName, spec)
+	DeferCleanup(DeleteNovaCell, cellName)
+
+	novaConductorName := types.NamespacedName{
+		Namespace: namespace,
+		Name:      cellName.Name + "-conductor",
+	}
+	novaConductorDBSyncJobName := types.NamespacedName{
+		Namespace: namespace,
+		Name:      novaConductorName.Name + "-db-sync",
+	}
+	th.SimulateJobSuccess(novaConductorDBSyncJobName)
+
+	conductorStatefulSetName := types.NamespacedName{
+		Namespace: namespace,
+		Name:      novaConductorName.Name,
+	}
+	th.SimulateStatefulSetReplicaReady(conductorStatefulSetName)
+
+	th.ExpectCondition(
+		cellName,
+		ConditionGetterFunc(NovaCellConditionGetter),
+		condition.ReadyCondition,
+		corev1.ConditionTrue,
+	)
+
+}
+
+var _ = Describe("NovaExternalCompute", func() {
+	var namespace string
+	var computeName types.NamespacedName
+	var novaName types.NamespacedName
+	var novaCellName types.NamespacedName
+
+	BeforeEach(func() {
+		// NOTE(gibi): We need to create a unique namespace for each test run
+		// as namespaces cannot be deleted in a locally running envtest. See
+		// https://book.kubebuilder.io/reference/envtest.html#namespace-usage-limitation
+		namespace = uuid.New().String()
+		th.CreateNamespace(namespace)
+		// We still request the delete of the Namespace to properly cleanup if
+		// we run the test in an existing cluster.
+		DeferCleanup(th.DeleteNamespace, namespace)
+		// NOTE(gibi): ConfigMap generation looks up the local templates
+		// directory via ENV, so provide it
+		DeferCleanup(os.Setenv, "OPERATOR_TEMPLATES", os.Getenv("OPERATOR_TEMPLATES"))
+		os.Setenv("OPERATOR_TEMPLATES", "../../templates")
+
+		// Uncomment this if you need the full output in the logs from gomega
+		// matchers
+		// format.MaxLength = 0
+
+		computeName = types.NamespacedName{
+			Namespace: namespace,
+			Name:      uuid.New().String(),
+		}
+		novaName = types.NamespacedName{
+			Namespace: namespace,
+			Name:      uuid.New().String(),
+		}
+		novaCellName = types.NamespacedName{
+			Namespace: namespace,
+			Name:      novaName.Name + "-" + "cell1",
+		}
+	})
+
+	When("created", func() {
+		BeforeEach(func() {
+			// Create the NovaCell the compute will belong to
+			CreateNovaCellAndEnsureReady(namespace, novaCellName)
+			// Create the compute
+			CreateNovaExternalCompute(computeName, GetDefaultNovaExternalComputeSpec(novaName.Name, computeName.Name))
+			DeferCleanup(DeleteNovaExternalCompute, computeName)
+			compute := GetNovaExternalCompute(computeName)
+			inventoryName := types.NamespacedName{
+				Namespace: namespace,
+				Name:      compute.Spec.InventoryConfigMapName,
+			}
+			CreateNovaExternalComputeInventoryConfigMap(inventoryName)
+			DeferCleanup(DeleteConfigMap, inventoryName)
+
+			sshSecretName := types.NamespacedName{
+				Namespace: namespace,
+				Name:      compute.Spec.SSHKeySecretName,
+			}
+			CreateNovaExternalComputeSSHSecret(sshSecretName)
+			DeferCleanup(DeleteSecret, sshSecretName)
+		})
+
+		It("adds Finalizer to itself", func() {
+			Eventually(func(g Gomega) {
+				compute := GetNovaExternalCompute(computeName)
+				g.Expect(compute.Finalizers).To(ContainElement("NovaExternalCompute"))
+
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("initializes Status", func() {
+			Eventually(func(g Gomega) {
+				compute := GetNovaExternalCompute(computeName)
+				g.Expect(compute.Status.Conditions).NotTo(BeEmpty())
+				g.Expect(compute.Status.Hash).NotTo(BeNil())
+
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("reports InputReady and stores that input hash", func() {
+			th.ExpectCondition(
+				computeName,
+				ConditionGetterFunc(NovaExternalComputeConditionGetter),
+				condition.InputReadyCondition,
+				corev1.ConditionTrue,
+			)
+			compute := GetNovaExternalCompute(computeName)
+			Expect(compute.Status.Hash["input"]).NotTo(BeEmpty())
+		})
+
+		It("is Ready", func() {
+			th.ExpectCondition(
+				computeName,
+				ConditionGetterFunc(NovaExternalComputeConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
+		It("can be deleted as the finalizer is automatically removed", func() {
+			th.ExpectCondition(
+				computeName,
+				ConditionGetterFunc(NovaExternalComputeConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			// This would fail if the NovaExternalCompute CR is still exists
+			// after the timeout. So if this passes then we know the the CR is
+			// removed and that can only happen if the finalizer is removed from
+			// it first
+			DeleteNovaExternalCompute(computeName)
+		})
+	})
+	When("created but Secrets are missing or fields missing", func() {
+		BeforeEach(func() {
+			CreateNovaExternalCompute(computeName, GetDefaultNovaExternalComputeSpec(novaName.Name, computeName.Name))
+			DeferCleanup(DeleteNovaExternalCompute, computeName)
+		})
+
+		It("reports missing Inventory configmap", func() {
+			compute := GetNovaExternalCompute(computeName)
+			th.ExpectConditionWithDetails(
+				computeName,
+				ConditionGetterFunc(NovaExternalComputeConditionGetter),
+				condition.InputReadyCondition,
+				corev1.ConditionFalse,
+				condition.RequestedReason,
+				"Input data resources missing: configmap/"+compute.Spec.InventoryConfigMapName,
+			)
+			compute = GetNovaExternalCompute(computeName)
+			Expect(compute.Status.Hash["input"]).To(BeEmpty())
+		})
+
+		It("reports missing field from Inventory configmap", func() {
+			compute := GetNovaExternalCompute(computeName)
+			CreateEmptyConfigMap(
+				types.NamespacedName{Namespace: namespace, Name: compute.Spec.InventoryConfigMapName})
+			th.ExpectConditionWithDetails(
+				computeName,
+				ConditionGetterFunc(NovaExternalComputeConditionGetter),
+				condition.InputReadyCondition,
+				corev1.ConditionFalse,
+				condition.ErrorReason,
+				"Input data error occured field 'inventory' not found in configmap/"+compute.Spec.InventoryConfigMapName,
+			)
+			compute = GetNovaExternalCompute(computeName)
+			Expect(compute.Status.Hash["input"]).To(BeEmpty())
+		})
+
+		It("reports missing SSH key secret", func() {
+			compute := GetNovaExternalCompute(computeName)
+			inventoryName := types.NamespacedName{Namespace: namespace, Name: compute.Spec.InventoryConfigMapName}
+			CreateNovaExternalComputeInventoryConfigMap(inventoryName)
+			DeferCleanup(DeleteConfigMap, inventoryName)
+			th.ExpectConditionWithDetails(
+				computeName,
+				ConditionGetterFunc(NovaExternalComputeConditionGetter),
+				condition.InputReadyCondition,
+				corev1.ConditionFalse,
+				condition.RequestedReason,
+				"Input data resources missing: secret/"+compute.Spec.SSHKeySecretName,
+			)
+			compute = GetNovaExternalCompute(computeName)
+			Expect(compute.Status.Hash["input"]).To(BeEmpty())
+		})
+
+		It("reports missing field from SSH key secret", func() {
+			compute := GetNovaExternalCompute(computeName)
+			CreateNovaExternalComputeInventoryConfigMap(
+				types.NamespacedName{Namespace: namespace, Name: compute.Spec.InventoryConfigMapName})
+			CreateEmptySecret(
+				types.NamespacedName{Namespace: namespace, Name: compute.Spec.SSHKeySecretName})
+			th.ExpectConditionWithDetails(
+				computeName,
+				ConditionGetterFunc(NovaExternalComputeConditionGetter),
+				condition.InputReadyCondition,
+				corev1.ConditionFalse,
+				condition.ErrorReason,
+				"Input data error occured field 'ssh-privatekey' not found in secret/"+compute.Spec.SSHKeySecretName,
+			)
+			compute = GetNovaExternalCompute(computeName)
+			Expect(compute.Status.Hash["input"]).To(BeEmpty())
+		})
+	})
+
+	When("created but NovaCell is not Ready", func() {
+		BeforeEach(func() {
+			// Create the compute
+			CreateNovaExternalCompute(computeName, GetDefaultNovaExternalComputeSpec(novaName.Name, computeName.Name))
+			DeferCleanup(DeleteNovaExternalCompute, computeName)
+			compute := GetNovaExternalCompute(computeName)
+			inventoryName := types.NamespacedName{
+				Namespace: namespace,
+				Name:      compute.Spec.InventoryConfigMapName,
+			}
+			CreateNovaExternalComputeInventoryConfigMap(inventoryName)
+			DeferCleanup(DeleteSecret, inventoryName)
+
+			sshSecretName := types.NamespacedName{
+				Namespace: namespace,
+				Name:      compute.Spec.SSHKeySecretName,
+			}
+			CreateNovaExternalComputeSSHSecret(sshSecretName)
+			DeferCleanup(DeleteSecret, sshSecretName)
+		})
+
+		It("reports if NovaCell is missing", func() {
+			th.ExpectConditionWithDetails(
+				computeName,
+				ConditionGetterFunc(NovaExternalComputeConditionGetter),
+				novav1.NovaCellReadyCondition,
+				corev1.ConditionFalse,
+				condition.RequestedReason,
+				"Waiting for NovaCell "+novaCellName.Name+" to exists",
+			)
+		})
+
+		It("reports if NovaCell is not Ready", func() {
+			// Create the NovaCell but keep in unready by not simulating
+			// deployment success
+			spec := GetDefaultNovaCellSpec()
+			spec["cellName"] = "cell1"
+			cellName := CreateNovaCell(novaCellName, spec)
+			DeferCleanup(DeleteNovaCell, cellName)
+
+			th.ExpectConditionWithDetails(
+				computeName,
+				ConditionGetterFunc(NovaExternalComputeConditionGetter),
+				novav1.NovaCellReadyCondition,
+				corev1.ConditionFalse,
+				condition.RequestedReason,
+				"Waiting for NovaCell "+novaCellName.Name+" to become Ready",
+			)
+		})
+	})
+	When("inventory is reconfigured to a non existing ConfigMap", func() {
+		BeforeEach(func() {
+			// Create the NovaCell the compute will belong to
+			CreateNovaCellAndEnsureReady(namespace, novaCellName)
+			// Create the compute
+			CreateNovaExternalCompute(computeName, GetDefaultNovaExternalComputeSpec(novaName.Name, computeName.Name))
+			DeferCleanup(DeleteNovaExternalCompute, computeName)
+			compute := GetNovaExternalCompute(computeName)
+			inventoryName := types.NamespacedName{
+				Namespace: namespace,
+				Name:      compute.Spec.InventoryConfigMapName,
+			}
+			CreateNovaExternalComputeInventoryConfigMap(inventoryName)
+			DeferCleanup(DeleteConfigMap, inventoryName)
+
+			sshSecretName := types.NamespacedName{
+				Namespace: namespace,
+				Name:      compute.Spec.SSHKeySecretName,
+			}
+			CreateNovaExternalComputeSSHSecret(sshSecretName)
+			DeferCleanup(DeleteSecret, sshSecretName)
+
+			th.ExpectCondition(
+				computeName,
+				ConditionGetterFunc(NovaExternalComputeConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
+
+		It("reports that the inventory is missing", func() {
+			Eventually(func(g Gomega) {
+				compute := GetNovaExternalCompute(computeName)
+				compute.Spec.InventoryConfigMapName = "non-existent"
+				err := k8sClient.Update(ctx, compute)
+				g.Expect(err == nil || k8s_errors.IsConflict(err)).To(BeTrue())
+			}, timeout, interval).Should(Succeed())
+
+			th.ExpectConditionWithDetails(
+				computeName,
+				ConditionGetterFunc(NovaExternalComputeConditionGetter),
+				condition.InputReadyCondition,
+				corev1.ConditionFalse,
+				condition.RequestedReason,
+				"Input data resources missing: configmap/non-existent",
+			)
+			th.ExpectCondition(
+				computeName,
+				ConditionGetterFunc(NovaExternalComputeConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+			)
+		})
+	})
+})

@@ -7,4 +7,5 @@ resources:
 - nova_v1beta1_novanovncproxy.yaml
 - nova_v1beta1_novacell1-upcall.yaml
 - nova_v1beta1_nova.yaml
+- nova_v1beta1_novaexternalcompute.yaml
 #+kubebuilder:scaffold:manifestskustomizesamples

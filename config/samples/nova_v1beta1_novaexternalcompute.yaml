@@ -1,0 +1,7 @@
+apiVersion: nova.openstack.org/v1beta1
+kind: NovaExternalCompute
+metadata:
+  name: compute1
+spec:
+  inventoryConfigMapName: dataplanenode-compute1-inventory
+  sshKeySecretName: dataplane-ssh-private-key-compute1

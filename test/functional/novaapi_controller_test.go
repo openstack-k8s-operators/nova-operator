@@ -87,11 +87,13 @@ var _ = Describe("NovaAPI controller", func() {
 		})
 
 		It("is missing the secret", func() {
-			th.ExpectCondition(
+			th.ExpectConditionWithDetails(
 				novaAPIName,
 				ConditionGetterFunc(NovaAPIConditionGetter),
 				condition.InputReadyCondition,
 				corev1.ConditionFalse,
+				condition.RequestedReason,
+				"Input data resources missing: secret/test-secret",
 			)
 		})
 
@@ -117,14 +119,15 @@ var _ = Describe("NovaAPI controller", func() {
 			})
 
 			It("is missing the secret", func() {
-				th.ExpectCondition(
+				th.ExpectConditionWithDetails(
 					novaAPIName,
 					ConditionGetterFunc(NovaAPIConditionGetter),
 					condition.InputReadyCondition,
 					corev1.ConditionFalse,
+					condition.RequestedReason,
+					"Input data resources missing: secret/test-secret",
 				)
 			})
-
 		})
 
 		When("the Secret is created but some fields are missing", func() {

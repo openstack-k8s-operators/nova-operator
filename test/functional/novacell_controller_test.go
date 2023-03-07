@@ -52,11 +52,16 @@ var _ = Describe("NovaCell controller", func() {
 		// matchers
 		// format.MaxLength = 0
 
+		novaCellName = types.NamespacedName{
+			Namespace: namespace,
+			Name:      uuid.NewString(),
+		}
+
 	})
 
 	When("A NovaCell CR instance is created without any input", func() {
 		BeforeEach(func() {
-			novaCellName = CreateNovaCell(namespace, GetDefaultNovaCellSpec())
+			CreateNovaCell(novaCellName, GetDefaultNovaCellSpec())
 			DeferCleanup(DeleteNovaCell, novaCellName)
 		})
 
@@ -93,7 +98,7 @@ var _ = Describe("NovaCell controller", func() {
 				CreateNovaMessageBusSecret(namespace, MessageBusSecretName),
 			)
 
-			novaCellName = CreateNovaCell(namespace, GetDefaultNovaCellSpec())
+			CreateNovaCell(novaCellName, GetDefaultNovaCellSpec())
 			DeferCleanup(DeleteNovaCell, novaCellName)
 			novaConductorName = types.NamespacedName{
 				Namespace: namespace,
