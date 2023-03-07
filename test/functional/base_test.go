@@ -26,6 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	networkv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
@@ -48,12 +49,13 @@ const (
 	consistencyTimeout = timeout
 )
 
-func CreateUnstructured(rawObj map[string]interface{}) {
+func CreateUnstructured(rawObj map[string]interface{}) *unstructured.Unstructured {
 	logger.Info("Creating", "raw", rawObj)
 	unstructuredObj := &unstructured.Unstructured{Object: rawObj}
 	_, err := controllerutil.CreateOrPatch(
 		ctx, k8sClient, unstructuredObj, func() error { return nil })
 	Expect(err).ShouldNot(HaveOccurred())
+	return unstructuredObj
 }
 
 func GetDefaultNovaAPISpec() map[string]interface{} {
@@ -67,7 +69,7 @@ func GetDefaultNovaAPISpec() map[string]interface{} {
 	}
 }
 
-func CreateNovaAPI(namespace string, spec map[string]interface{}) types.NamespacedName {
+func CreateNovaAPI(namespace string, spec map[string]interface{}) client.Object {
 	novaAPIName := uuid.New().String()
 
 	raw := map[string]interface{}{
@@ -79,27 +81,8 @@ func CreateNovaAPI(namespace string, spec map[string]interface{}) types.Namespac
 		},
 		"spec": spec,
 	}
-	CreateUnstructured(raw)
+	return CreateUnstructured(raw)
 
-	return types.NamespacedName{Name: novaAPIName, Namespace: namespace}
-}
-
-func DeleteNovaAPI(name types.NamespacedName) {
-	// We have to wait for the controller to fully delete the instance
-	Eventually(func(g Gomega) {
-		novaAPI := &novav1.NovaAPI{}
-		err := k8sClient.Get(ctx, name, novaAPI)
-		// if it is already gone that is OK
-		if k8s_errors.IsNotFound(err) {
-			return
-		}
-		g.Expect(err).Should(BeNil())
-
-		g.Expect(k8sClient.Delete(ctx, novaAPI)).Should(Succeed())
-
-		err = k8sClient.Get(ctx, name, novaAPI)
-		g.Expect(k8s_errors.IsNotFound(err)).To(BeTrue())
-	}, timeout, interval).Should(Succeed())
 }
 
 func GetNovaAPI(name types.NamespacedName) *novav1.NovaAPI {
@@ -167,7 +150,7 @@ func GetDefaultNovaCellTemplate() map[string]interface{} {
 	}
 }
 
-func CreateNova(name types.NamespacedName, spec map[string]interface{}) {
+func CreateNova(name types.NamespacedName, spec map[string]interface{}) client.Object {
 	raw := map[string]interface{}{
 		"apiVersion": "nova.openstack.org/v1beta1",
 		"kind":       "Nova",
@@ -177,10 +160,10 @@ func CreateNova(name types.NamespacedName, spec map[string]interface{}) {
 		},
 		"spec": spec,
 	}
-	CreateUnstructured(raw)
+	return CreateUnstructured(raw)
 }
 
-func CreateNovaWithoutCell0(name types.NamespacedName) {
+func CreateNovaWithoutCell0(name types.NamespacedName) client.Object {
 	rawNova := map[string]interface{}{
 		"apiVersion": "nova.openstack.org/v1beta1",
 		"kind":       "Nova",
@@ -194,10 +177,10 @@ func CreateNovaWithoutCell0(name types.NamespacedName) {
 		},
 	}
 
-	CreateUnstructured(rawNova)
+	return CreateUnstructured(rawNova)
 }
 
-func CreateNovaWithCell0(name types.NamespacedName) {
+func CreateNovaWithCell0(name types.NamespacedName) client.Object {
 	rawNova := map[string]interface{}{
 		"apiVersion": "nova.openstack.org/v1beta1",
 		"kind":       "Nova",
@@ -216,27 +199,26 @@ func CreateNovaWithCell0(name types.NamespacedName) {
 		},
 	}
 
-	CreateUnstructured(rawNova)
+	return CreateUnstructured(rawNova)
 }
 
-func DeleteNova(name types.NamespacedName) {
-	logger.Info("Deleting Nova", "Nova", name)
+func DeleteInstance(instance client.Object) {
 	// We have to wait for the controller to fully delete the instance
+	logger.Info("Deleting", "Name", instance.GetName(), "Namespace", instance.GetNamespace(), "Kind", instance.GetObjectKind().GroupVersionKind().Kind)
 	Eventually(func(g Gomega) {
-		nova := &novav1.Nova{}
-		err := k8sClient.Get(ctx, name, nova)
+		name := types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
+		err := k8sClient.Get(ctx, name, instance)
 		// if it is already gone that is OK
 		if k8s_errors.IsNotFound(err) {
 			return
 		}
 		g.Expect(err).Should(BeNil())
 
-		g.Expect(k8sClient.Delete(ctx, nova)).Should(Succeed())
+		g.Expect(k8sClient.Delete(ctx, instance)).Should(Succeed())
 
-		err = k8sClient.Get(ctx, name, nova)
+		err = k8sClient.Get(ctx, name, instance)
 		g.Expect(k8s_errors.IsNotFound(err)).To(BeTrue())
 	}, timeout, interval).Should(Succeed())
-	logger.Info("Nova deleted", "Nova", name)
 }
 
 func GetNova(name types.NamespacedName) *novav1.Nova {
@@ -262,7 +244,7 @@ func GetDefaultNovaConductorSpec() map[string]interface{} {
 	}
 }
 
-func CreateNovaConductor(namespace string, spec map[string]interface{}) types.NamespacedName {
+func CreateNovaConductor(namespace string, spec map[string]interface{}) client.Object {
 	novaAPIName := uuid.New().String()
 
 	raw := map[string]interface{}{
@@ -274,27 +256,7 @@ func CreateNovaConductor(namespace string, spec map[string]interface{}) types.Na
 		},
 		"spec": spec,
 	}
-	CreateUnstructured(raw)
-
-	return types.NamespacedName{Name: novaAPIName, Namespace: namespace}
-}
-
-func DeleteNovaConductor(name types.NamespacedName) {
-	// We have to wait for the controller to fully delete the instance
-	Eventually(func(g Gomega) {
-		novaConductor := &novav1.NovaConductor{}
-		err := k8sClient.Get(ctx, name, novaConductor)
-		// if it is already gone that is OK
-		if k8s_errors.IsNotFound(err) {
-			return
-		}
-		g.Expect(err).Should(BeNil())
-
-		g.Expect(k8sClient.Delete(ctx, novaConductor)).Should(Succeed())
-
-		err = k8sClient.Get(ctx, name, novaConductor)
-		g.Expect(k8s_errors.IsNotFound(err)).To(BeTrue())
-	}, timeout, interval).Should(Succeed())
+	return CreateUnstructured(raw)
 }
 
 func GetNovaConductor(name types.NamespacedName) *novav1.NovaConductor {
@@ -342,7 +304,7 @@ func GetDefaultNovaCellSpec() map[string]interface{} {
 	}
 }
 
-func CreateNovaCell(name types.NamespacedName, spec map[string]interface{}) types.NamespacedName {
+func CreateNovaCell(name types.NamespacedName, spec map[string]interface{}) client.Object {
 
 	raw := map[string]interface{}{
 		"apiVersion": "nova.openstack.org/v1beta1",
@@ -353,27 +315,7 @@ func CreateNovaCell(name types.NamespacedName, spec map[string]interface{}) type
 		},
 		"spec": spec,
 	}
-	CreateUnstructured(raw)
-
-	return name
-}
-
-func DeleteNovaCell(name types.NamespacedName) {
-	// We have to wait for the controller to fully delete the instance
-	Eventually(func(g Gomega) {
-		novaCell := &novav1.NovaCell{}
-		err := k8sClient.Get(ctx, name, novaCell)
-		// if it is already gone that is OK
-		if k8s_errors.IsNotFound(err) {
-			return
-		}
-		g.Expect(err).Should(BeNil())
-
-		g.Expect(k8sClient.Delete(ctx, novaCell)).Should(Succeed())
-
-		err = k8sClient.Get(ctx, name, novaCell)
-		g.Expect(k8s_errors.IsNotFound(err)).To(BeTrue())
-	}, timeout, interval).Should(Succeed())
+	return CreateUnstructured(raw)
 }
 
 func GetNovaCell(name types.NamespacedName) *novav1.NovaCell {
@@ -444,7 +386,7 @@ func GetDefaultNovaSchedulerSpec() map[string]interface{} {
 	}
 }
 
-func CreateNovaScheduler(namespace string, spec map[string]interface{}) types.NamespacedName {
+func CreateNovaScheduler(namespace string, spec map[string]interface{}) client.Object {
 	name := uuid.New().String()
 
 	raw := map[string]interface{}{
@@ -456,27 +398,7 @@ func CreateNovaScheduler(namespace string, spec map[string]interface{}) types.Na
 		},
 		"spec": spec,
 	}
-	CreateUnstructured(raw)
-
-	return types.NamespacedName{Name: name, Namespace: namespace}
-}
-
-func DeleteNovaScheduler(name types.NamespacedName) {
-	// We have to wait for the controller to fully delete the instance
-	Eventually(func(g Gomega) {
-		instance := &novav1.NovaScheduler{}
-		err := k8sClient.Get(ctx, name, instance)
-		// if it is already gone that is OK
-		if k8s_errors.IsNotFound(err) {
-			return
-		}
-		g.Expect(err).Should(BeNil())
-
-		g.Expect(k8sClient.Delete(ctx, instance)).Should(Succeed())
-
-		err = k8sClient.Get(ctx, name, instance)
-		g.Expect(k8s_errors.IsNotFound(err)).To(BeTrue())
-	}, timeout, interval).Should(Succeed())
+	return CreateUnstructured(raw)
 }
 
 func GetNovaScheduler(name types.NamespacedName) *novav1.NovaScheduler {
@@ -495,7 +417,7 @@ func NovaSchedulerNotExists(name types.NamespacedName) {
 	}, consistencyTimeout, interval).Should(Succeed())
 }
 
-func CreateNetworkAttachmentDefinition(name types.NamespacedName) {
+func CreateNetworkAttachmentDefinition(name types.NamespacedName) client.Object {
 	instance := &networkv1.NetworkAttachmentDefinition{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name.Name,
@@ -506,23 +428,7 @@ func CreateNetworkAttachmentDefinition(name types.NamespacedName) {
 		},
 	}
 	Expect(k8sClient.Create(ctx, instance)).Should(Succeed())
-}
-
-func DeleteNetworkAttachmentDefinition(name types.NamespacedName) {
-	Eventually(func(g Gomega) {
-		instance := &networkv1.NetworkAttachmentDefinition{}
-		err := k8sClient.Get(ctx, name, instance)
-		// if it is already gone that is OK
-		if k8s_errors.IsNotFound(err) {
-			return
-		}
-		g.Expect(err).Should(BeNil())
-
-		g.Expect(k8sClient.Delete(ctx, instance)).Should(Succeed())
-
-		err = k8sClient.Get(ctx, name, instance)
-		g.Expect(k8s_errors.IsNotFound(err)).To(BeTrue())
-	}, timeout, interval).Should(Succeed())
+	return instance
 }
 
 func GetDefaultNovaExternalComputeSpec(novaName string, computeName string) map[string]interface{} {
@@ -533,7 +439,7 @@ func GetDefaultNovaExternalComputeSpec(novaName string, computeName string) map[
 	}
 }
 
-func CreateNovaExternalCompute(name types.NamespacedName, spec map[string]interface{}) {
+func CreateNovaExternalCompute(name types.NamespacedName, spec map[string]interface{}) client.Object {
 
 	raw := map[string]interface{}{
 		"apiVersion": "nova.openstack.org/v1beta1",
@@ -544,25 +450,7 @@ func CreateNovaExternalCompute(name types.NamespacedName, spec map[string]interf
 		},
 		"spec": spec,
 	}
-	CreateUnstructured(raw)
-}
-
-func DeleteNovaExternalCompute(name types.NamespacedName) {
-	// We have to wait for the controller to fully delete the instance
-	Eventually(func(g Gomega) {
-		instance := &novav1.NovaExternalCompute{}
-		err := k8sClient.Get(ctx, name, instance)
-		// if it is already gone that is OK
-		if k8s_errors.IsNotFound(err) {
-			return
-		}
-		g.Expect(err).Should(BeNil())
-
-		g.Expect(k8sClient.Delete(ctx, instance)).Should(Succeed())
-
-		err = k8sClient.Get(ctx, name, instance)
-		g.Expect(k8s_errors.IsNotFound(err)).To(BeTrue())
-	}, timeout, interval).Should(Succeed())
+	return CreateUnstructured(raw)
 }
 
 func SimulateStatefulSetReplicaReadyWithPods(name types.NamespacedName, networkIPs map[string][]string) {

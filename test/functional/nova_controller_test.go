@@ -125,8 +125,8 @@ var _ = Describe("Nova controller", func() {
 
 	When("Nova CR instance is created without cell0", func() {
 		BeforeEach(func() {
-			CreateNovaWithoutCell0(novaName)
-			DeferCleanup(DeleteNova, novaName)
+
+			DeferCleanup(DeleteInstance, CreateNovaWithoutCell0(novaName))
 		})
 
 		It("is not Ready", func() {
@@ -179,8 +179,7 @@ var _ = Describe("Nova controller", func() {
 			)
 			DeferCleanup(th.DeleteKeystoneAPI, th.CreateKeystoneAPI(namespace))
 
-			CreateNovaWithCell0(novaName)
-			DeferCleanup(DeleteNova, novaName)
+			DeferCleanup(DeleteInstance, CreateNovaWithCell0(novaName))
 		})
 
 		It("registers nova service to keystone", func() {
@@ -389,8 +388,7 @@ var _ = Describe("Nova controller", func() {
 			)
 			DeferCleanup(th.DeleteKeystoneAPI, th.CreateKeystoneAPI(namespace))
 
-			CreateNovaWithCell0(novaName)
-			DeferCleanup(DeleteNova, novaName)
+			DeferCleanup(DeleteInstance, CreateNovaWithCell0(novaName))
 
 			th.SimulateKeystoneServiceReady(novaKeystoneServiceName)
 			th.SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
@@ -475,9 +473,8 @@ var _ = Describe("Nova controller", func() {
 			cell0["cellDatabaseInstance"] = "db-for-cell0"
 			spec["cellTemplates"] = map[string]interface{}{"cell0": cell0}
 			spec["apiDatabaseInstance"] = "db-for-api"
-			CreateNova(novaName, spec)
 
-			DeferCleanup(DeleteNova, novaName)
+			DeferCleanup(DeleteInstance, CreateNova(novaName, spec))
 		})
 
 		It("uses the correct hostnames to access the different DB services", func() {
@@ -592,8 +589,7 @@ var _ = Describe("Nova controller", func() {
 			)
 			DeferCleanup(th.DeleteKeystoneAPI, th.CreateKeystoneAPI(namespace))
 
-			CreateNovaWithCell0(novaName)
-			DeferCleanup(DeleteNova, novaName)
+			DeferCleanup(DeleteInstance, CreateNovaWithCell0(novaName))
 		})
 
 		It("removes the finalizer from KeystoneService", func() {
@@ -608,7 +604,7 @@ var _ = Describe("Nova controller", func() {
 			service := th.GetKeystoneService(novaKeystoneServiceName)
 			Expect(service.Finalizers).To(ContainElement("Nova"))
 
-			DeleteNova(novaName)
+			DeleteInstance(GetNova(novaName))
 			service = th.GetKeystoneService(novaKeystoneServiceName)
 			Expect(service.Finalizers).NotTo(ContainElement("Nova"))
 		})
@@ -621,7 +617,7 @@ var _ = Describe("Nova controller", func() {
 			cell0DB := th.GetMariaDBDatabase(mariaDBDatabaseNameForCell0)
 			Expect(cell0DB.Finalizers).To(ContainElement("Nova"))
 
-			DeleteNova(novaName)
+			DeleteInstance(GetNova(novaName))
 
 			apiDB = th.GetMariaDBDatabase(mariaDBDatabaseNameForAPI)
 			Expect(apiDB.Finalizers).NotTo(ContainElement("Nova"))
@@ -651,8 +647,8 @@ var _ = Describe("Nova controller", func() {
 			DeferCleanup(th.DeleteKeystoneAPI, th.CreateKeystoneAPI(namespace))
 
 			internalAPINADName := types.NamespacedName{Namespace: namespace, Name: "internalapi"}
-			CreateNetworkAttachmentDefinition(internalAPINADName)
-			DeferCleanup(DeleteNetworkAttachmentDefinition, internalAPINADName)
+			nad := CreateNetworkAttachmentDefinition(internalAPINADName)
+			DeferCleanup(DeleteInstance, nad)
 
 			var externalEndpoints []interface{}
 			externalEndpoints = append(
@@ -681,8 +677,7 @@ var _ = Describe("Nova controller", func() {
 					"networkAttachments": []string{"internalapi"},
 				},
 			}
-			CreateNova(novaName, rawSpec)
-			DeferCleanup(DeleteNova, novaName)
+			DeferCleanup(DeleteInstance, CreateNova(novaName, rawSpec))
 
 			th.SimulateKeystoneServiceReady(novaKeystoneServiceName)
 			th.SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)

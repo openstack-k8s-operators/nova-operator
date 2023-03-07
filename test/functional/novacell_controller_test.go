@@ -61,8 +61,7 @@ var _ = Describe("NovaCell controller", func() {
 
 	When("A NovaCell CR instance is created without any input", func() {
 		BeforeEach(func() {
-			CreateNovaCell(novaCellName, GetDefaultNovaCellSpec())
-			DeferCleanup(DeleteNovaCell, novaCellName)
+			DeferCleanup(DeleteInstance, CreateNovaCell(novaCellName, GetDefaultNovaCellSpec()))
 		})
 
 		It("is not Ready", func() {
@@ -98,8 +97,7 @@ var _ = Describe("NovaCell controller", func() {
 				CreateNovaMessageBusSecret(namespace, MessageBusSecretName),
 			)
 
-			CreateNovaCell(novaCellName, GetDefaultNovaCellSpec())
-			DeferCleanup(DeleteNovaCell, novaCellName)
+			DeferCleanup(DeleteInstance, CreateNovaCell(novaCellName, GetDefaultNovaCellSpec()))
 			novaConductorName = types.NamespacedName{
 				Namespace: namespace,
 				Name:      novaCellName.Name + "-conductor",

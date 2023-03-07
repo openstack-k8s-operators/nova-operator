@@ -37,8 +37,9 @@ func CreateNovaCellAndEnsureReady(namespace string, novaCellName types.Namespace
 
 	spec := GetDefaultNovaCellSpec()
 	spec["cellName"] = "cell1"
-	cellName := CreateNovaCell(novaCellName, spec)
-	DeferCleanup(DeleteNovaCell, cellName)
+	instance := CreateNovaCell(novaCellName, spec)
+	DeferCleanup(DeleteInstance, instance)
+	cellName := types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
 
 	novaConductorName := types.NamespacedName{
 		Namespace: namespace,
@@ -104,12 +105,13 @@ var _ = Describe("NovaExternalCompute", func() {
 	})
 
 	When("created", func() {
+
 		BeforeEach(func() {
 			// Create the NovaCell the compute will belong to
 			CreateNovaCellAndEnsureReady(namespace, novaCellName)
 			// Create the compute
-			CreateNovaExternalCompute(computeName, GetDefaultNovaExternalComputeSpec(novaName.Name, computeName.Name))
-			DeferCleanup(DeleteNovaExternalCompute, computeName)
+			instance := CreateNovaExternalCompute(computeName, GetDefaultNovaExternalComputeSpec(novaName.Name, computeName.Name))
+			DeferCleanup(DeleteInstance, instance)
 			compute := GetNovaExternalCompute(computeName)
 			inventoryName := types.NamespacedName{
 				Namespace: namespace,
@@ -174,13 +176,14 @@ var _ = Describe("NovaExternalCompute", func() {
 			// after the timeout. So if this passes then we know the the CR is
 			// removed and that can only happen if the finalizer is removed from
 			// it first
-			DeleteNovaExternalCompute(computeName)
+			compute := GetNovaExternalCompute(computeName)
+			DeleteInstance(compute)
 		})
 	})
 	When("created but Secrets are missing or fields missing", func() {
 		BeforeEach(func() {
-			CreateNovaExternalCompute(computeName, GetDefaultNovaExternalComputeSpec(novaName.Name, computeName.Name))
-			DeferCleanup(DeleteNovaExternalCompute, computeName)
+			compute := CreateNovaExternalCompute(computeName, GetDefaultNovaExternalComputeSpec(novaName.Name, computeName.Name))
+			DeferCleanup(DeleteInstance, compute)
 		})
 
 		It("reports missing Inventory configmap", func() {
@@ -252,8 +255,8 @@ var _ = Describe("NovaExternalCompute", func() {
 	When("created but NovaCell is not Ready", func() {
 		BeforeEach(func() {
 			// Create the compute
-			CreateNovaExternalCompute(computeName, GetDefaultNovaExternalComputeSpec(novaName.Name, computeName.Name))
-			DeferCleanup(DeleteNovaExternalCompute, computeName)
+			instance := CreateNovaExternalCompute(computeName, GetDefaultNovaExternalComputeSpec(novaName.Name, computeName.Name))
+			DeferCleanup(DeleteInstance, instance)
 			compute := GetNovaExternalCompute(computeName)
 			inventoryName := types.NamespacedName{
 				Namespace: namespace,
@@ -286,8 +289,9 @@ var _ = Describe("NovaExternalCompute", func() {
 			// deployment success
 			spec := GetDefaultNovaCellSpec()
 			spec["cellName"] = "cell1"
-			cellName := CreateNovaCell(novaCellName, spec)
-			DeferCleanup(DeleteNovaCell, cellName)
+			instance := CreateNovaCell(novaCellName, spec)
+
+			DeferCleanup(DeleteInstance, instance)
 
 			th.ExpectConditionWithDetails(
 				computeName,
@@ -304,8 +308,8 @@ var _ = Describe("NovaExternalCompute", func() {
 			// Create the NovaCell the compute will belong to
 			CreateNovaCellAndEnsureReady(namespace, novaCellName)
 			// Create the compute
-			CreateNovaExternalCompute(computeName, GetDefaultNovaExternalComputeSpec(novaName.Name, computeName.Name))
-			DeferCleanup(DeleteNovaExternalCompute, computeName)
+			instance := CreateNovaExternalCompute(computeName, GetDefaultNovaExternalComputeSpec(novaName.Name, computeName.Name))
+			DeferCleanup(DeleteInstance, instance)
 			compute := GetNovaExternalCompute(computeName)
 			inventoryName := types.NamespacedName{
 				Namespace: namespace,

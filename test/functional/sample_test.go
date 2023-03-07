@@ -45,32 +45,33 @@ func CreateNovaFromSample(sampleFileName string, namespace string) types.Namespa
 	}
 
 	raw := ReadSample(sampleFileName)
-	CreateNova(novaName, raw["spec"].(map[string]interface{}))
-	DeferCleanup(DeleteNova, novaName)
+	DeferCleanup(DeleteInstance, CreateNova(novaName, raw["spec"].(map[string]interface{})))
 	return novaName
 }
 
 func CreateNovaAPIFromSample(sampleFileName string, namespace string) types.NamespacedName {
 	raw := ReadSample(sampleFileName)
-	name := CreateNovaAPI(namespace, raw["spec"].(map[string]interface{}))
-	DeferCleanup(DeleteNova, name)
+	instance := CreateNovaAPI(namespace, raw["spec"].(map[string]interface{}))
+	name := types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
+	DeferCleanup(DeleteInstance, instance)
 	return name
 }
 
 func CreateNovaCellFromSample(sampleFileName string, namespace string) types.NamespacedName {
 	raw := ReadSample(sampleFileName)
-	name := CreateNovaCell(
+	instance := CreateNovaCell(
 		types.NamespacedName{Namespace: namespace, Name: uuid.NewString()},
 		raw["spec"].(map[string]interface{}),
 	)
-	DeferCleanup(DeleteNova, name)
-	return name
+	DeferCleanup(DeleteInstance, instance)
+	return types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
 }
 
 func CreateNovaConductorFromSample(sampleFileName string, namespace string) types.NamespacedName {
 	raw := ReadSample(sampleFileName)
-	name := CreateNovaConductor(namespace, raw["spec"].(map[string]interface{}))
-	DeferCleanup(DeleteNova, name)
+	instance := CreateNovaConductor(namespace, raw["spec"].(map[string]interface{}))
+	name := types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
+	DeferCleanup(DeleteInstance, instance)
 	return name
 }
 
@@ -81,8 +82,8 @@ func CreateNovaExternalComputeFromSample(sampleFileName string, namespace string
 		Name:      uuid.New().String(),
 	}
 
-	CreateNovaExternalCompute(computeName, raw["spec"].(map[string]interface{}))
-	DeferCleanup(DeleteNovaExternalCompute, computeName)
+	compute := CreateNovaExternalCompute(computeName, raw["spec"].(map[string]interface{}))
+	DeferCleanup(DeleteInstance, compute)
 	return computeName
 }
 
