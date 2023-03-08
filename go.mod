@@ -11,9 +11,9 @@ require (
 	github.com/openshift/api v3.9.0+incompatible
 	github.com/openstack-k8s-operators/infra-operator/apis v0.0.0-20230221114633-d3cedda6974d
 	github.com/openstack-k8s-operators/keystone-operator/api v0.0.0-20230228092947-37346b60ff49
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20230227110324-8f0c518c552b
-	github.com/openstack-k8s-operators/lib-common/modules/database v0.0.0-20230227110324-8f0c518c552b
-	github.com/openstack-k8s-operators/lib-common/modules/test v0.0.0-20230227110324-8f0c518c552b
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20230307144813-39ed0da90b23
+	github.com/openstack-k8s-operators/lib-common/modules/database v0.0.0-20230307144813-39ed0da90b23
+	github.com/openstack-k8s-operators/lib-common/modules/test v0.0.0-20230307144813-39ed0da90b23
 	github.com/openstack-k8s-operators/mariadb-operator/api v0.0.0-20230227100533-e49b65b3e3df
 	github.com/openstack-k8s-operators/nova-operator/api v0.0.0-20221209164002-f9e6b9363961
 	go.uber.org/zap v1.24.0

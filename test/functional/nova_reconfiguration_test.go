@@ -39,6 +39,7 @@ func CreateNovaWith3CellsAndEnsureReady(namespace string) types.NamespacedName {
 	var cell2 Cell
 	var novaAPIName types.NamespacedName
 	var novaAPIdeploymentName types.NamespacedName
+	var novaAPIKeystoneEndpointName types.NamespacedName
 	var novaKeystoneServiceName types.NamespacedName
 	var novaSchedulerName types.NamespacedName
 	var novaSchedulerStatefulSetName types.NamespacedName
@@ -58,6 +59,10 @@ func CreateNovaWith3CellsAndEnsureReady(namespace string) types.NamespacedName {
 	novaAPIdeploymentName = types.NamespacedName{
 		Namespace: namespace,
 		Name:      novaAPIName.Name,
+	}
+	novaAPIKeystoneEndpointName = types.NamespacedName{
+		Namespace: namespace,
+		Name:      "nova",
 	}
 	novaKeystoneServiceName = types.NamespacedName{
 		Namespace: namespace,
@@ -143,6 +148,7 @@ func CreateNovaWith3CellsAndEnsureReady(namespace string) types.NamespacedName {
 	th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 
 	th.SimulateStatefulSetReplicaReady(novaAPIdeploymentName)
+	th.SimulateKeystoneEndpointReady(novaAPIKeystoneEndpointName)
 
 	th.SimulateJobSuccess(cell1.CellDBSyncJobName)
 	th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
