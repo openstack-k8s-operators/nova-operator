@@ -129,8 +129,7 @@ func CreateNovaWith3CellsAndEnsureReady(namespace string) types.NamespacedName {
 	spec["apiDatabaseInstance"] = "db-for-api"
 	spec["apiMessageBusInstance"] = "mq-for-api"
 
-	CreateNova(novaName, spec)
-	DeferCleanup(DeleteNova, novaName)
+	DeferCleanup(DeleteInstance, CreateNova(novaName, spec))
 	DeferCleanup(th.DeleteKeystoneAPI, th.CreateKeystoneAPI(namespace))
 
 	th.SimulateKeystoneServiceReady(novaKeystoneServiceName)

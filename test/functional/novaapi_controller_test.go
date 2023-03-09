@@ -63,8 +63,9 @@ var _ = Describe("NovaAPI controller", func() {
 				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(namespace, MessageBusSecretName))
 			spec := GetDefaultNovaAPISpec()
 			spec["customServiceConfig"] = "foo=bar"
-			novaAPIName = CreateNovaAPI(namespace, spec)
-			DeferCleanup(DeleteNovaAPI, novaAPIName)
+			instance := CreateNovaAPI(namespace, spec)
+			novaAPIName = types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
+			DeferCleanup(DeleteInstance, instance)
 		})
 
 		It("is not Ready", func() {
@@ -221,7 +222,7 @@ var _ = Describe("NovaAPI controller", func() {
 						corev1.ConditionTrue,
 					)
 
-					DeleteNovaAPI(novaAPIName)
+					DeleteInstance(GetNovaAPI(novaAPIName))
 
 					Eventually(func() []corev1.ConfigMap {
 						return th.ListConfigMaps(novaAPIName.Name).Items
@@ -238,8 +239,9 @@ var _ = Describe("NovaAPI controller", func() {
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(namespace, MessageBusSecretName))
 
-			novaAPIName = CreateNovaAPI(namespace, GetDefaultNovaAPISpec())
-			DeferCleanup(DeleteNovaAPI, novaAPIName)
+			instance := CreateNovaAPI(namespace, GetDefaultNovaAPISpec())
+			novaAPIName = types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
+			DeferCleanup(DeleteInstance, instance)
 		})
 
 		It(" reports input ready", func() {
@@ -261,8 +263,9 @@ var _ = Describe("NovaAPI controller", func() {
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(namespace, MessageBusSecretName))
 
-			novaAPIName = CreateNovaAPI(namespace, GetDefaultNovaAPISpec())
-			DeferCleanup(DeleteNovaAPI, novaAPIName)
+			instance := CreateNovaAPI(namespace, GetDefaultNovaAPISpec())
+			novaAPIName = types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
+			DeferCleanup(DeleteInstance, instance)
 
 			th.ExpectCondition(
 				novaAPIName,
@@ -378,8 +381,9 @@ var _ = Describe("NovaAPI controller", func() {
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(namespace, MessageBusSecretName))
 
-			novaAPIName = CreateNovaAPI(namespace, GetDefaultNovaAPISpec())
-			DeferCleanup(DeleteNovaAPI, novaAPIName)
+			instance := CreateNovaAPI(namespace, GetDefaultNovaAPISpec())
+			novaAPIName = types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
+			DeferCleanup(DeleteInstance, instance)
 			statefulSetName = types.NamespacedName{Namespace: namespace, Name: novaAPIName.Name}
 			keystoneEndpointName = types.NamespacedName{Namespace: namespace, Name: "nova"}
 		})
@@ -397,7 +401,7 @@ var _ = Describe("NovaAPI controller", func() {
 			endpoint := th.GetKeystoneEndpoint(keystoneEndpointName)
 			Expect(endpoint.Finalizers).To(ContainElement("NovaAPI"))
 
-			DeleteNovaAPI(novaAPIName)
+			DeleteInstance(GetNovaAPI(novaAPIName))
 			endpoint = th.GetKeystoneEndpoint(keystoneEndpointName)
 			Expect(endpoint.Finalizers).NotTo(ContainElement("NovaAPI"))
 		})
@@ -411,8 +415,9 @@ var _ = Describe("NovaAPI controller", func() {
 
 			spec := GetDefaultNovaAPISpec()
 			spec["networkAttachments"] = []string{"internalapi"}
-			novaAPIName = CreateNovaAPI(namespace, spec)
-			DeferCleanup(DeleteNovaAPI, novaAPIName)
+			instance := CreateNovaAPI(namespace, spec)
+			novaAPIName = types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
+			DeferCleanup(DeleteInstance, instance)
 		})
 
 		It("reports that the definition is missing", func() {
@@ -433,8 +438,8 @@ var _ = Describe("NovaAPI controller", func() {
 		})
 		It("reports that network attachment is missing", func() {
 			internalAPINADName := types.NamespacedName{Namespace: namespace, Name: "internalapi"}
-			CreateNetworkAttachmentDefinition(internalAPINADName)
-			DeferCleanup(DeleteNetworkAttachmentDefinition, internalAPINADName)
+			nad := CreateNetworkAttachmentDefinition(internalAPINADName)
+			DeferCleanup(DeleteInstance, nad)
 
 			statefulSetName := types.NamespacedName{
 				Namespace: namespace,
@@ -469,8 +474,8 @@ var _ = Describe("NovaAPI controller", func() {
 		})
 		It("reports that an IP is missing", func() {
 			internalAPINADName := types.NamespacedName{Namespace: namespace, Name: "internalapi"}
-			CreateNetworkAttachmentDefinition(internalAPINADName)
-			DeferCleanup(DeleteNetworkAttachmentDefinition, internalAPINADName)
+			nad := CreateNetworkAttachmentDefinition(internalAPINADName)
+			DeferCleanup(DeleteInstance, nad)
 
 			statefulSetName := types.NamespacedName{
 				Namespace: namespace,
@@ -508,8 +513,8 @@ var _ = Describe("NovaAPI controller", func() {
 		})
 		It("reports NetworkAttachmentsReady if the Pods got the proper annotiations", func() {
 			internalAPINADName := types.NamespacedName{Namespace: namespace, Name: "internalapi"}
-			CreateNetworkAttachmentDefinition(internalAPINADName)
-			DeferCleanup(DeleteNetworkAttachmentDefinition, internalAPINADName)
+			nad := CreateNetworkAttachmentDefinition(internalAPINADName)
+			DeferCleanup(DeleteInstance, nad)
 
 			statefulSetName := types.NamespacedName{
 				Namespace: namespace,
@@ -567,8 +572,9 @@ var _ = Describe("NovaAPI controller", func() {
 			)
 			spec["externalEndpoints"] = externalEndpoints
 
-			novaAPIName = CreateNovaAPI(namespace, spec)
-			DeferCleanup(DeleteNovaAPI, novaAPIName)
+			instance := CreateNovaAPI(namespace, spec)
+			novaAPIName = types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
+			DeferCleanup(DeleteInstance, instance)
 		})
 
 		It("creates MetalLB service", func() {

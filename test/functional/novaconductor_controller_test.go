@@ -60,8 +60,9 @@ var _ = Describe("NovaConductor controller", func() {
 
 	When("a NovaConductor CR is created pointing to a non existent Secret", func() {
 		BeforeEach(func() {
-			novaConductorName = CreateNovaConductor(namespace, GetDefaultNovaConductorSpec())
-			DeferCleanup(DeleteNovaConductor, novaConductorName)
+			instance := CreateNovaConductor(namespace, GetDefaultNovaConductorSpec())
+			novaConductorName = types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
+			DeferCleanup(DeleteInstance, instance)
 		})
 
 		It("is not Ready", func() {
@@ -229,8 +230,7 @@ var _ = Describe("NovaConductor controller", func() {
 						corev1.ConditionTrue,
 					)
 
-					DeleteNovaConductor(novaConductorName)
-
+					DeleteInstance(GetNovaConductor(novaConductorName))
 					Eventually(func() []corev1.ConfigMap {
 						return th.ListConfigMaps(novaConductorName.Name).Items
 					}, timeout, interval).Should(BeEmpty())
@@ -251,8 +251,9 @@ var _ = Describe("NovaConductor controller", func() {
 
 			spec := GetDefaultNovaConductorSpec()
 			spec["cellMessageBusSecretName"] = CellMessageBusSecretName
-			novaConductorName = CreateNovaConductor(namespace, spec)
-			DeferCleanup(DeleteNovaConductor, novaConductorName)
+			instance := CreateNovaConductor(namespace, spec)
+			novaConductorName = types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
+			DeferCleanup(DeleteInstance, instance)
 
 			th.ExpectCondition(
 				novaConductorName,
@@ -348,7 +349,7 @@ var _ = Describe("NovaConductor controller", func() {
 						"DBsync job error occured Internal error occurred: Job Failed. Check job logs",
 					)
 
-					DeleteNovaConductor(novaConductorName)
+					DeleteInstance(GetNovaConductor(novaConductorName))
 
 					Eventually(func() []batchv1.Job {
 						return th.ListJobs(novaConductorName.Name).Items
@@ -428,8 +429,8 @@ var _ = Describe("NovaConductor controller", func() {
 			spec["debug"] = map[string]interface{}{
 				"preserveJobs": true,
 			}
-			novaConductorName = CreateNovaConductor(namespace, spec)
-			DeferCleanup(DeleteNovaConductor, novaConductorName)
+			instance := CreateNovaConductor(namespace, spec)
+			novaConductorName = types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
 
 			th.ExpectCondition(
 				novaConductorName,
@@ -484,8 +485,8 @@ var _ = Describe("NovaConductor controller", func() {
 			spec["debug"] = map[string]interface{}{
 				"preserveJobs": true,
 			}
-			novaConductorName = CreateNovaConductor(namespace, spec)
-			DeferCleanup(DeleteNovaConductor, novaConductorName)
+			instance := CreateNovaConductor(namespace, spec)
+			novaConductorName = types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
 
 			jobName = types.NamespacedName{
 				Namespace: namespace,
@@ -528,8 +529,8 @@ var _ = Describe("NovaConductor controller", func() {
 
 			spec := GetDefaultNovaConductorSpec()
 			spec["networkAttachments"] = []string{"internalapi"}
-			novaConductorName = CreateNovaConductor(namespace, spec)
-			DeferCleanup(DeleteNovaConductor, novaConductorName)
+			instance := CreateNovaConductor(namespace, spec)
+			novaConductorName = types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
 			jobName = types.NamespacedName{
 				Namespace: namespace,
 				Name:      novaConductorName.Name + "-db-sync",
@@ -555,8 +556,8 @@ var _ = Describe("NovaConductor controller", func() {
 		})
 		It("reports that network attachment is missing", func() {
 			internalAPINADName := types.NamespacedName{Namespace: namespace, Name: "internalapi"}
-			CreateNetworkAttachmentDefinition(internalAPINADName)
-			DeferCleanup(DeleteNetworkAttachmentDefinition, internalAPINADName)
+			nad := CreateNetworkAttachmentDefinition(internalAPINADName)
+			DeferCleanup(DeleteInstance, nad)
 			th.SimulateJobSuccess(jobName)
 
 			statefulSetName := types.NamespacedName{
@@ -592,8 +593,8 @@ var _ = Describe("NovaConductor controller", func() {
 		})
 		It("reports that an IP is missing", func() {
 			internalAPINADName := types.NamespacedName{Namespace: namespace, Name: "internalapi"}
-			CreateNetworkAttachmentDefinition(internalAPINADName)
-			DeferCleanup(DeleteNetworkAttachmentDefinition, internalAPINADName)
+			nad := CreateNetworkAttachmentDefinition(internalAPINADName)
+			DeferCleanup(DeleteInstance, nad)
 			th.SimulateJobSuccess(jobName)
 
 			statefulSetName := types.NamespacedName{
@@ -632,8 +633,8 @@ var _ = Describe("NovaConductor controller", func() {
 		})
 		It("reports NetworkAttachmentsReady if the Pods got the proper annotiations", func() {
 			internalAPINADName := types.NamespacedName{Namespace: namespace, Name: "internalapi"}
-			CreateNetworkAttachmentDefinition(internalAPINADName)
-			DeferCleanup(DeleteNetworkAttachmentDefinition, internalAPINADName)
+			nad := CreateNetworkAttachmentDefinition(internalAPINADName)
+			DeferCleanup(DeleteInstance, nad)
 			th.SimulateJobSuccess(jobName)
 
 			statefulSetName := types.NamespacedName{
