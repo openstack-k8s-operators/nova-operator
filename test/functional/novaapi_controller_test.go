@@ -27,6 +27,7 @@ import (
 
 	networkv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	corev1 "k8s.io/api/core/v1"
+	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -72,7 +73,8 @@ var _ = Describe("NovaAPI controller", func() {
 			th.ExpectCondition(
 				novaAPIName,
 				ConditionGetterFunc(NovaAPIConditionGetter),
-				condition.ReadyCondition, corev1.ConditionUnknown,
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
 			)
 		})
 
@@ -115,7 +117,7 @@ var _ = Describe("NovaAPI controller", func() {
 					novaAPIName,
 					ConditionGetterFunc(NovaAPIConditionGetter),
 					condition.ReadyCondition,
-					corev1.ConditionUnknown,
+					corev1.ConditionFalse,
 				)
 			})
 
@@ -151,7 +153,7 @@ var _ = Describe("NovaAPI controller", func() {
 					novaAPIName,
 					ConditionGetterFunc(NovaAPIConditionGetter),
 					condition.ReadyCondition,
-					corev1.ConditionUnknown,
+					corev1.ConditionFalse,
 				)
 			})
 
@@ -433,7 +435,7 @@ var _ = Describe("NovaAPI controller", func() {
 				novaAPIName,
 				ConditionGetterFunc(NovaAPIConditionGetter),
 				condition.ReadyCondition,
-				corev1.ConditionUnknown,
+				corev1.ConditionFalse,
 			)
 		})
 		It("reports that network attachment is missing", func() {
@@ -605,6 +607,116 @@ var _ = Describe("NovaAPI controller", func() {
 			Expect(service.Annotations).NotTo(HaveKey("metallb.universe.tf/allow-shared-ip"))
 			Expect(service.Annotations).NotTo(HaveKey("metallb.universe.tf/loadBalancerIPs"))
 			AssertRouteExists(types.NamespacedName{Namespace: namespace, Name: "nova-public"})
+
+			th.ExpectCondition(
+				novaAPIName,
+				ConditionGetterFunc(NovaAPIConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
+	})
+
+	When("NovAPI is reconfigured", func() {
+		var statefulSetName types.NamespacedName
+
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateNovaAPISecret(namespace, SecretName))
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(namespace, MessageBusSecretName))
+
+			api := CreateNovaAPI(namespace, GetDefaultNovaAPISpec())
+			novaAPIName = types.NamespacedName{Name: api.GetName(), Namespace: api.GetNamespace()}
+			DeferCleanup(DeleteInstance, api)
+
+			th.ExpectCondition(
+				novaAPIName,
+				ConditionGetterFunc(NovaAPIConditionGetter),
+				condition.ServiceConfigReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			statefulSetName = types.NamespacedName{
+				Namespace: namespace,
+				Name:      novaAPIName.Name,
+			}
+			th.SimulateStatefulSetReplicaReady(statefulSetName)
+			th.SimulateKeystoneEndpointReady(types.NamespacedName{Namespace: namespace, Name: "nova"})
+			th.ExpectCondition(
+				novaAPIName,
+				ConditionGetterFunc(NovaAPIConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
+
+		It("applys new NetworkAttachments configuration", func() {
+			Eventually(func(g Gomega) {
+				novaAPI := GetNovaAPI(novaAPIName)
+				novaAPI.Spec.NetworkAttachments = append(novaAPI.Spec.NetworkAttachments, "internalapi")
+
+				err := k8sClient.Update(ctx, novaAPI)
+				g.Expect(err == nil || k8s_errors.IsConflict(err)).To(BeTrue())
+			}, timeout, interval).Should(Succeed())
+
+			th.ExpectConditionWithDetails(
+				novaAPIName,
+				ConditionGetterFunc(NovaAPIConditionGetter),
+				condition.NetworkAttachmentsReadyCondition,
+				corev1.ConditionFalse,
+				condition.RequestedReason,
+				"NetworkAttachment resources missing: internalapi",
+			)
+			th.ExpectConditionWithDetails(
+				novaAPIName,
+				ConditionGetterFunc(NovaAPIConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+				condition.RequestedReason,
+				"NetworkAttachment resources missing: internalapi",
+			)
+
+			internalAPINADName := types.NamespacedName{Namespace: namespace, Name: "internalapi"}
+			DeferCleanup(DeleteInstance, CreateNetworkAttachmentDefinition(internalAPINADName))
+
+			th.ExpectConditionWithDetails(
+				novaAPIName,
+				ConditionGetterFunc(NovaAPIConditionGetter),
+				condition.NetworkAttachmentsReadyCondition,
+				corev1.ConditionFalse,
+				condition.ErrorReason,
+				"NetworkAttachments error occured "+
+					"not all pods have interfaces with ips as configured in NetworkAttachments: [internalapi]",
+			)
+			th.ExpectConditionWithDetails(
+				novaAPIName,
+				ConditionGetterFunc(NovaAPIConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+				condition.ErrorReason,
+				"NetworkAttachments error occured "+
+					"not all pods have interfaces with ips as configured in NetworkAttachments: [internalapi]",
+			)
+
+			SimulateStatefulSetReplicaReadyWithPods(
+				statefulSetName,
+				map[string][]string{namespace + "/internalapi": {"10.0.0.1"}},
+			)
+
+			th.ExpectCondition(
+				novaAPIName,
+				ConditionGetterFunc(NovaAPIConditionGetter),
+				condition.NetworkAttachmentsReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			Eventually(func(g Gomega) {
+				novaAPI := GetNovaAPI(novaAPIName)
+				g.Expect(novaAPI.Status.NetworkAttachments).To(
+					Equal(map[string][]string{namespace + "/internalapi": {"10.0.0.1"}}))
+
+			}, timeout, interval).Should(Succeed())
 
 			th.ExpectCondition(
 				novaAPIName,

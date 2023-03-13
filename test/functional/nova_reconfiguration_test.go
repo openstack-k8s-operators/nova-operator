@@ -225,4 +225,98 @@ var _ = Describe("Nova reconfiguration", func() {
 			}, timeout, interval).Should(Succeed())
 		})
 	})
+	When("networkAttachemnt is added to a conductor while the definition is missing", func() {
+		It("applys new NetworkAttachments configuration to that Conductor", func() {
+			cell1Names := NewCell(novaName, "cell1")
+
+			Eventually(func(g Gomega) {
+				nova := GetNova(novaName)
+
+				cell1 := nova.Spec.CellTemplates["cell1"]
+				attachments := cell1.ConductorServiceTemplate.NetworkAttachments
+				attachments = append(attachments, "internalapi")
+				(&cell1).ConductorServiceTemplate.NetworkAttachments = attachments
+				nova.Spec.CellTemplates["cell1"] = cell1
+
+				err := k8sClient.Update(ctx, nova)
+				g.Expect(err == nil || k8s_errors.IsConflict(err)).To(BeTrue())
+			}, timeout, interval).Should(Succeed())
+
+			th.ExpectConditionWithDetails(
+				cell1Names.CellConductorName,
+				ConditionGetterFunc(NovaConductorConditionGetter),
+				condition.NetworkAttachmentsReadyCondition,
+				corev1.ConditionFalse,
+				condition.RequestedReason,
+				"NetworkAttachment resources missing: internalapi",
+			)
+			th.ExpectConditionWithDetails(
+				cell1Names.CellConductorName,
+				ConditionGetterFunc(NovaConductorConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+				condition.RequestedReason,
+				"NetworkAttachment resources missing: internalapi",
+			)
+
+			th.ExpectConditionWithDetails(
+				cell1Names.CellName,
+				ConditionGetterFunc(NovaCellConditionGetter),
+				novav1.NovaConductorReadyCondition,
+				corev1.ConditionFalse,
+				condition.RequestedReason,
+				"NetworkAttachment resources missing: internalapi",
+			)
+			th.ExpectConditionWithDetails(
+				cell1Names.CellName,
+				ConditionGetterFunc(NovaCellConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+				condition.RequestedReason,
+				"NetworkAttachment resources missing: internalapi",
+			)
+
+			th.ExpectConditionWithDetails(
+				novaName,
+				ConditionGetterFunc(NovaConditionGetter),
+				novav1.NovaAllCellsReadyCondition,
+				corev1.ConditionFalse,
+				condition.ErrorReason,
+				"NovaCell cell1 is not Ready",
+			)
+			th.ExpectConditionWithDetails(
+				novaName,
+				ConditionGetterFunc(NovaConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+				condition.ErrorReason,
+				"NovaCell cell1 is not Ready",
+			)
+
+			internalAPINADName := types.NamespacedName{Namespace: namespace, Name: "internalapi"}
+			DeferCleanup(DeleteInstance, CreateNetworkAttachmentDefinition(internalAPINADName))
+
+			th.ExpectConditionWithDetails(
+				novaName,
+				ConditionGetterFunc(NovaConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+				condition.ErrorReason,
+				"NovaCell cell1 is not Ready",
+			)
+
+			SimulateStatefulSetReplicaReadyWithPods(
+				cell1Names.ConductorStatefulSetName,
+				map[string][]string{namespace + "/internalapi": {"10.0.0.1"}},
+			)
+
+			th.ExpectCondition(
+				novaName,
+				ConditionGetterFunc(NovaConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
+	})
+
 })

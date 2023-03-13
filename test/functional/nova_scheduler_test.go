@@ -24,6 +24,7 @@ import (
 	. "github.com/onsi/gomega"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	corev1 "k8s.io/api/core/v1"
+	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -66,7 +67,8 @@ var _ = Describe("NovaScheduler controller", func() {
 			th.ExpectCondition(
 				novaSchedulerName,
 				ConditionGetterFunc(NovaSchedulerConditionGetter),
-				condition.ReadyCondition, corev1.ConditionUnknown,
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
 			)
 		})
 
@@ -107,7 +109,7 @@ var _ = Describe("NovaScheduler controller", func() {
 				novaSchedulerName,
 				ConditionGetterFunc(NovaSchedulerConditionGetter),
 				condition.ReadyCondition,
-				corev1.ConditionUnknown,
+				corev1.ConditionFalse,
 			)
 		})
 
@@ -142,7 +144,7 @@ var _ = Describe("NovaScheduler controller", func() {
 				novaSchedulerName,
 				ConditionGetterFunc(NovaSchedulerConditionGetter),
 				condition.ReadyCondition,
-				corev1.ConditionUnknown,
+				corev1.ConditionFalse,
 			)
 		})
 
@@ -328,7 +330,7 @@ var _ = Describe("NovaScheduler controller", func() {
 				novaSchedulerName,
 				ConditionGetterFunc(NovaSchedulerConditionGetter),
 				condition.ReadyCondition,
-				corev1.ConditionUnknown,
+				corev1.ConditionFalse,
 			)
 		})
 		It("reports that network attachment is missing", func() {
@@ -431,6 +433,114 @@ var _ = Describe("NovaScheduler controller", func() {
 				novaScheduler := GetNovaScheduler(novaSchedulerName)
 				g.Expect(novaScheduler.Status.NetworkAttachments).To(
 					Equal(map[string][]string{namespace + "/internalapi": {"10.0.0.1"}}))
+			}, timeout, interval).Should(Succeed())
+
+			th.ExpectCondition(
+				novaSchedulerName,
+				ConditionGetterFunc(NovaSchedulerConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
+	})
+	When("NovaScheduler is reconfigured", func() {
+		var statefulSetName types.NamespacedName
+
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateNovaAPISecret(namespace, SecretName))
+
+			instance := CreateNovaScheduler(namespace, GetDefaultNovaSchedulerSpec())
+			novaSchedulerName = types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
+			DeferCleanup(DeleteInstance, instance)
+
+			th.ExpectCondition(
+				novaSchedulerName,
+				ConditionGetterFunc(NovaSchedulerConditionGetter),
+				condition.ServiceConfigReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			statefulSetName = types.NamespacedName{
+				Namespace: namespace,
+				Name:      novaSchedulerName.Name,
+			}
+			th.SimulateStatefulSetReplicaReady(statefulSetName)
+			th.ExpectCondition(
+				novaSchedulerName,
+				ConditionGetterFunc(NovaSchedulerConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
+
+		It("applys new NetworkAttachments configuration", func() {
+			Eventually(func(g Gomega) {
+				novaScheduler := GetNovaScheduler(novaSchedulerName)
+				novaScheduler.Spec.NetworkAttachments = append(novaScheduler.Spec.NetworkAttachments, "internalapi")
+
+				err := k8sClient.Update(ctx, novaScheduler)
+				g.Expect(err == nil || k8s_errors.IsConflict(err)).To(BeTrue())
+			}, timeout, interval).Should(Succeed())
+
+			th.ExpectConditionWithDetails(
+				novaSchedulerName,
+				ConditionGetterFunc(NovaSchedulerConditionGetter),
+				condition.NetworkAttachmentsReadyCondition,
+				corev1.ConditionFalse,
+				condition.RequestedReason,
+				"NetworkAttachment resources missing: internalapi",
+			)
+
+			th.ExpectConditionWithDetails(
+				novaSchedulerName,
+				ConditionGetterFunc(NovaSchedulerConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+				condition.RequestedReason,
+				"NetworkAttachment resources missing: internalapi",
+			)
+
+			internalAPINADName := types.NamespacedName{Namespace: namespace, Name: "internalapi"}
+			DeferCleanup(DeleteInstance, CreateNetworkAttachmentDefinition(internalAPINADName))
+
+			th.ExpectConditionWithDetails(
+				novaSchedulerName,
+				ConditionGetterFunc(NovaSchedulerConditionGetter),
+				condition.NetworkAttachmentsReadyCondition,
+				corev1.ConditionFalse,
+				condition.ErrorReason,
+				"NetworkAttachments error occured "+
+					"not all pods have interfaces with ips as configured in NetworkAttachments: [internalapi]",
+			)
+
+			th.ExpectConditionWithDetails(
+				novaSchedulerName,
+				ConditionGetterFunc(NovaSchedulerConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+				condition.ErrorReason,
+				"NetworkAttachments error occured "+
+					"not all pods have interfaces with ips as configured in NetworkAttachments: [internalapi]",
+			)
+
+			SimulateStatefulSetReplicaReadyWithPods(
+				statefulSetName,
+				map[string][]string{namespace + "/internalapi": {"10.0.0.1"}},
+			)
+
+			th.ExpectCondition(
+				novaSchedulerName,
+				ConditionGetterFunc(NovaSchedulerConditionGetter),
+				condition.NetworkAttachmentsReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			Eventually(func(g Gomega) {
+				novaScheduler := GetNovaScheduler(novaSchedulerName)
+				g.Expect(novaScheduler.Status.NetworkAttachments).To(
+					Equal(map[string][]string{namespace + "/internalapi": {"10.0.0.1"}}))
+
 			}, timeout, interval).Should(Succeed())
 
 			th.ExpectCondition(
