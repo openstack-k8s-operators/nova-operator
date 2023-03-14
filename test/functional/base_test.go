@@ -578,7 +578,6 @@ func DeleteConfigMap(name types.NamespacedName) {
 	}, timeout, interval).Should(Succeed())
 }
 
-
 func GetAEE(name types.NamespacedName) *aee.OpenStackAnsibleEE {
 	instance := &aee.OpenStackAnsibleEE{}
 

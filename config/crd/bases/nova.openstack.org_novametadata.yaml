@@ -54,7 +54,7 @@ spec:
                   TODO(gibi): Add a webhook to validate the CellName constraint'
                 type: string
               apiDatabaseUser:
-                default: nova
+                default: nova_api
                 description: APIDatabaseUser - username to use when accessing the
                   API DB
                 type: string

@@ -437,6 +437,14 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		return result, err
 	}
 
+	result, err = r.ensureMetadata(
+		ctx, h, instance, cell0Template,
+		cellDBs[Cell0Name].Database, apiDB, apiMQSecretName, keystoneAuthURL,
+	)
+	if err != nil {
+		return result, err
+	}
+
 	util.LogForObject(h, "Successfully reconciled", instance)
 	return ctrl.Result{}, nil
 }
@@ -500,6 +508,11 @@ func (r *NovaReconciler) initConditions(
 				novav1.NovaSchedulerReadyCondition,
 				condition.InitReason,
 				novav1.NovaSchedulerReadyInitMessage,
+			),
+			condition.UnknownCondition(
+				novav1.NovaMetadataReadyCondition,
+				condition.InitReason,
+				novav1.NovaMetadataReadyInitMessage,
 			),
 		)
 		instance.Status.Conditions.Init(&cl)
@@ -1029,6 +1042,85 @@ func (r *NovaReconciler) ensureMQ(
 	return transportURL.Status.SecretName, nova.MQCompleted, nil
 }
 
+func (r *NovaReconciler) ensureMetadata(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *novav1.Nova,
+	cell0Template novav1.NovaCellTemplate,
+	cell0DB *database.Database,
+	apiDB *database.Database,
+	apiMQSecretName string,
+	keystoneAuthURL string,
+) (ctrl.Result, error) {
+
+	// TODO(gibi): Pass down a narroved secret that only hold
+	// specific information but also holds user names
+	apiSpec := novav1.NovaMetadataSpec{
+		Secret:                  instance.Spec.Secret,
+		APIDatabaseHostname:     apiDB.GetDatabaseHostname(),
+		APIDatabaseUser:         instance.Spec.APIDatabaseUser,
+		CellDatabaseHostname:    cell0DB.GetDatabaseHostname(),
+		CellDatabaseUser:        cell0Template.CellDatabaseUser,
+		APIMessageBusSecretName: apiMQSecretName,
+		Debug:                   instance.Spec.Debug,
+		NovaServiceBase: novav1.NovaServiceBase{
+			ContainerImage:         instance.Spec.MetadataServiceTemplate.ContainerImage,
+			Replicas:               instance.Spec.MetadataServiceTemplate.Replicas,
+			NodeSelector:           instance.Spec.MetadataServiceTemplate.NodeSelector,
+			CustomServiceConfig:    instance.Spec.MetadataServiceTemplate.CustomServiceConfig,
+			DefaultConfigOverwrite: instance.Spec.MetadataServiceTemplate.DefaultConfigOverwrite,
+			Resources:              instance.Spec.MetadataServiceTemplate.Resources,
+			NetworkAttachments:     instance.Spec.MetadataServiceTemplate.NetworkAttachments,
+		},
+		ExternalEndpoints: instance.Spec.MetadataServiceTemplate.ExternalEndpoints,
+		ServiceUser:       instance.Spec.ServiceUser,
+		PasswordSelectors: instance.Spec.PasswordSelectors,
+		KeystoneAuthURL:   keystoneAuthURL,
+	}
+	metadata := &novav1.NovaMetadata{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      instance.Name + "-metadata",
+			Namespace: instance.Namespace,
+		},
+	}
+
+	op, err := controllerutil.CreateOrPatch(ctx, r.Client, metadata, func() error {
+		metadata.Spec = apiSpec
+
+		err := controllerutil.SetControllerReference(instance, metadata, r.Scheme)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		condition.FalseCondition(
+			novav1.NovaMetadataReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityError,
+			novav1.NovaMetadataReadyErrorMessage,
+			err.Error(),
+		)
+		return ctrl.Result{}, err
+	}
+
+	if op != controllerutil.OperationResultNone {
+		util.LogForObject(h, fmt.Sprintf("NovaMetadata %s.", string(op)), instance, "NovaMetadata.Name", metadata.Name)
+	}
+
+	c := metadata.Status.Conditions.Mirror(novav1.NovaMetadataReadyCondition)
+	// NOTE(gibi): it can be nil if the NovaMetadata CR is created but no
+	// reconciliation is run on it to initialize the ReadyCondition yet.
+	if c != nil {
+		instance.Status.Conditions.Set(c)
+	}
+	instance.Status.APIServiceReadyCount = metadata.Status.ReadyCount
+
+	return ctrl.Result{}, nil
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *NovaReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
@@ -1038,6 +1130,7 @@ func (r *NovaReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&novav1.NovaAPI{}).
 		Owns(&novav1.NovaScheduler{}).
 		Owns(&novav1.NovaCell{}).
+		Owns(&novav1.NovaMetadata{}).
 		Owns(&rabbitmqv1.TransportURL{}).
 		Complete(r)
 }

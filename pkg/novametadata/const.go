@@ -22,5 +22,6 @@ const (
 	MergedServiceConfigPath = "/var/lib/openstack/config/nova-metadata-config.json"
 	//APIServicePort - The port the nova-api service is exposed on
 	APIServicePort = 8775
-	ServiceName    = "nova-metadata"
+	// ServiceName - The name of the service exposed to k8s
+	ServiceName = "nova-metadata"
 )

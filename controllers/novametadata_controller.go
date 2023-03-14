@@ -108,7 +108,7 @@ func (r *NovaMetadataReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	// Always update the instance status when exiting this function so we can
 	// persist any changes happend during the current reconciliation.
 	defer func() {
-		// update the overall status condition if service is ready
+		// update the Ready condition based on the sub conditions
 		if allSubConditionIsTrue(instance.Status) {
 			instance.Status.Conditions.MarkTrue(
 				condition.ReadyCondition, condition.ReadyMessage)
@@ -332,7 +332,7 @@ func (r *NovaMetadataReconciler) generateConfigs(
 	)
 
 	err = r.GenerateConfigs(
-		ctx, h, instance, hashes, templateParameters, extraData, cmLabels,
+		ctx, h, instance, hashes, templateParameters, extraData, cmLabels, map[string]string{},
 	)
 	return err
 }

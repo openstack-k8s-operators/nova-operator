@@ -104,7 +104,7 @@ type NovaMetadataSpec struct {
 	KeystoneAuthURL string `json:"keystoneAuthURL"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=nova
+	// +kubebuilder:default="nova_api"
 	// APIDatabaseUser - username to use when accessing the API DB
 	APIDatabaseUser string `json:"apiDatabaseUser"`
 

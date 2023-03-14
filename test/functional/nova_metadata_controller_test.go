@@ -18,9 +18,6 @@ package functional_test
 import (
 	"encoding/json"
 	"fmt"
-	"os"
-
-	"github.com/google/uuid"
 	networkv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -34,23 +31,9 @@ import (
 )
 
 var _ = Describe("NovaMetadata controller", func() {
-	var namespace string
 	var novaMetadataName types.NamespacedName
 
 	BeforeEach(func() {
-		// NOTE(gibi): We need to create a unique namespace for each test run
-		// as namespaces cannot be deleted in a locally running envtest. See
-		// https://book.kubebuilder.io/reference/envtest.html#namespace-usage-limitation
-		namespace = uuid.New().String()
-		th.CreateNamespace(namespace)
-		// We still request the delete of the Namespace to properly cleanup if
-		// we run the test in an existing cluster.
-		DeferCleanup(th.DeleteNamespace, namespace)
-		// NOTE(gibi): ConfigMap generation looks up the local templates
-		// directory via ENV, so provide it
-		DeferCleanup(os.Setenv, "OPERATOR_TEMPLATES", os.Getenv("OPERATOR_TEMPLATES"))
-		os.Setenv("OPERATOR_TEMPLATES", "../../templates")
-
 		// Uncomment this if you need the full output in the logs from gomega
 		// matchers
 		// format.MaxLength = 0
@@ -62,8 +45,9 @@ var _ = Describe("NovaMetadata controller", func() {
 		BeforeEach(func() {
 			spec := GetDefaultNovaMetadataSpec()
 			spec["customServiceConfig"] = "foo=bar"
-			novaMetadataName = CreateNovaMetadata(namespace, spec)
-			DeferCleanup(DeleteNovaMetadata, novaMetadataName)
+			metadata := CreateNovaMetadata(namespace, spec)
+			novaMetadataName = types.NamespacedName{Name: metadata.GetName(), Namespace: metadata.GetNamespace()}
+			DeferCleanup(DeleteInstance, metadata)
 		})
 		When("a NovaMetadata CR is created pointing to a non existent Secret", func() {
 
@@ -215,7 +199,7 @@ var _ = Describe("NovaMetadata controller", func() {
 						corev1.ConditionTrue,
 					)
 
-					DeleteNovaConductor(novaMetadataName)
+					DeleteInstance(GetNovaMetadata(novaMetadataName))
 
 					Eventually(func() []corev1.ConfigMap {
 						return th.ListConfigMaps(novaMetadataName.Name).Items
@@ -237,7 +221,7 @@ var _ = Describe("NovaMetadata controller", func() {
 					corev1.ConditionTrue,
 				)
 
-				DeleteNovaScheduler(novaMetadataName)
+				DeleteInstance(GetNovaMetadata(novaMetadataName))
 
 				Eventually(func() []corev1.ConfigMap {
 					return th.ListConfigMaps(novaMetadataName.Name).Items
@@ -347,8 +331,9 @@ var _ = Describe("NovaMetadata controller", func() {
 				k8sClient.Delete, ctx, CreateNovaMetadataSecret(namespace, SecretName))
 			spec := GetDefaultNovaMetadataSpec()
 			spec["networkAttachments"] = []string{"internalapi"}
-			novaMetadataName = CreateNovaMetadata(namespace, spec)
-			DeferCleanup(DeleteNovaMetadata, novaMetadataName)
+			metadata := CreateNovaMetadata(namespace, spec)
+			novaMetadataName = types.NamespacedName{Name: metadata.GetName(), Namespace: metadata.GetNamespace()}
+			DeferCleanup(DeleteInstance, metadata)
 		})
 
 		It("reports that the definition is missing", func() {
@@ -369,8 +354,8 @@ var _ = Describe("NovaMetadata controller", func() {
 		})
 		It("reports that network attachment is missing", func() {
 			internalMetadataName := types.NamespacedName{Namespace: namespace, Name: "internalapi"}
-			CreateNetworkAttachmentDefinition(internalMetadataName)
-			DeferCleanup(DeleteNetworkAttachmentDefinition, internalMetadataName)
+			nad := CreateNetworkAttachmentDefinition(internalMetadataName)
+			DeferCleanup(DeleteInstance, nad)
 
 			statefulSetName := types.NamespacedName{
 				Namespace: namespace,
@@ -405,8 +390,8 @@ var _ = Describe("NovaMetadata controller", func() {
 		})
 		It("reports that an IP is missing", func() {
 			internalMetadataName := types.NamespacedName{Namespace: namespace, Name: "internalapi"}
-			CreateNetworkAttachmentDefinition(internalMetadataName)
-			DeferCleanup(DeleteNetworkAttachmentDefinition, internalMetadataName)
+			nad := CreateNetworkAttachmentDefinition(internalMetadataName)
+			DeferCleanup(DeleteInstance, nad)
 
 			statefulSetName := types.NamespacedName{
 				Namespace: namespace,
@@ -444,8 +429,8 @@ var _ = Describe("NovaMetadata controller", func() {
 		})
 		It("reports NetworkAttachmentsReady if the Pods got the proper annotiations", func() {
 			internalMetadataName := types.NamespacedName{Namespace: namespace, Name: "internalapi"}
-			CreateNetworkAttachmentDefinition(internalMetadataName)
-			DeferCleanup(DeleteNetworkAttachmentDefinition, internalMetadataName)
+			nad := CreateNetworkAttachmentDefinition(internalMetadataName)
+			DeferCleanup(DeleteInstance, nad)
 
 			statefulSetName := types.NamespacedName{
 				Namespace: namespace,
@@ -494,8 +479,9 @@ var _ = Describe("NovaMetadata controller", func() {
 			)
 			spec["externalEndpoints"] = externalEndpoints
 
-			novaMetadataName = CreateNovaMetadata(namespace, spec)
-			DeferCleanup(DeleteNovaMetadata, novaMetadataName)
+			metadata := CreateNovaMetadata(namespace, spec)
+			novaMetadataName = types.NamespacedName{Name: metadata.GetName(), Namespace: metadata.GetNamespace()}
+			DeferCleanup(DeleteInstance, metadata)
 		})
 
 		It("creates MetalLB service", func() {
