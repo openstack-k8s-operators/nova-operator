@@ -941,7 +941,10 @@ func (r *NovaReconciler) getKeystoneAuthURL(
 	if err != nil {
 		return "", err
 	}
-	authURL, err := keystoneAPI.GetEndpoint(endpoint.EndpointPublic)
+	// NOTE(gibi): we use the internal enpoint as that is expected to be
+	// available on the external compute nodes as well and we want to keep
+	// thing consistent
+	authURL, err := keystoneAPI.GetEndpoint(endpoint.EndpointInternal)
 	if err != nil {
 		return "", err
 	}
