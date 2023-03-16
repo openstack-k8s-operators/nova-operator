@@ -378,7 +378,7 @@ func (r *NovaAPIReconciler) generateConfigs(
 	)
 
 	err = r.GenerateConfigs(
-		ctx, h, instance, hashes, templateParameters, extraData, cmLabels,
+		ctx, h, instance, hashes, templateParameters, extraData, cmLabels, map[string]string{},
 	)
 	return err
 }

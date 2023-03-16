@@ -244,10 +244,14 @@ github.com/openstack-k8s-operators/lib-common/modules/database v0.0.0-2023030714
 github.com/openstack-k8s-operators/lib-common/modules/database v0.0.0-20230307144813-39ed0da90b23/go.mod h1:vqeexlJ8MOtp4N72V9I4Zdz02l/g9jO+wehVJDMoOOY=
 github.com/openstack-k8s-operators/lib-common/modules/openstack v0.0.0-20230215134634-d31141e5bbba h1:gwYazA5cJmHle3bXkpxz/iZcx6IZW5HmKaKQVgZPHxQ=
 github.com/openstack-k8s-operators/lib-common/modules/openstack v0.0.0-20230215134634-d31141e5bbba/go.mod h1:9tj29SmyP9izLIEKj5E44F7M7a82UwcPdIufc3MQpcY=
+github.com/openstack-k8s-operators/lib-common/modules/storage v0.0.0-20221207150746-c4fe7a228d42 h1:i4rlmlVfAeoQQGKYCsPvcGosDoAtBpwiQpY/bJ+uqaw=
+github.com/openstack-k8s-operators/lib-common/modules/storage v0.0.0-20221207150746-c4fe7a228d42/go.mod h1:I8t9nOD+GpfOakInGk9C47aIrI0ZvKTKiuhz9G3tehU=
 github.com/openstack-k8s-operators/lib-common/modules/test v0.0.0-20230307144813-39ed0da90b23 h1:Gfes1OAFn5NLu94xX5I2uhdmxZyLV6YdGybGuSxBCxQ=
 github.com/openstack-k8s-operators/lib-common/modules/test v0.0.0-20230307144813-39ed0da90b23/go.mod h1:tyzJ76+tCchxmRqQxD4SIzN3wxKwSWnc/XmVC0bz3KE=
 github.com/openstack-k8s-operators/mariadb-operator/api v0.0.0-20230227100533-e49b65b3e3df h1:Ec7t8MVfLxZPcvWROqr1K7O0V1GAae995xlwojU1flY=
 github.com/openstack-k8s-operators/mariadb-operator/api v0.0.0-20230227100533-e49b65b3e3df/go.mod h1:PM7XY+2Uq+rVQ53I/+IbLFUH22b67xMgnBsKJhQmBcA=
+github.com/openstack-k8s-operators/openstack-ansibleee-operator/api v0.0.0-20230310124740-a27b51d6c6ca h1:/it7Pp6oMmCsOMCwEsvDXqKXmwQtkIHniotf8kt2zfY=
+github.com/openstack-k8s-operators/openstack-ansibleee-operator/api v0.0.0-20230310124740-a27b51d6c6ca/go.mod h1:NI3NHazp637VOmH/hWgnH50uE5gj+YXF2aIFNh5z/28=
 github.com/pkg/errors v0.8.0/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pkg/errors v0.8.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=

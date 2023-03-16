@@ -27,6 +27,7 @@ RUN if [ ! -f $CACHITO_ENV_FILE ]; then go mod download ; fi
 RUN if [ -f $CACHITO_ENV_FILE ] ; then source $CACHITO_ENV_FILE ; fi ; export GIT_COMMIT=$(git describe --always --dirty 2>/dev/null || echo "<failed to generate>") && echo $GIT_COMMIT && CGO_ENABLED=0  GO111MODULE=on go build -ldflags "-X main.gitBuildHash=$GIT_COMMIT" ${GO_BUILD_EXTRA_ARGS} -a -o ${DEST_ROOT}/manager main.go
 
 RUN cp -r templates ${DEST_ROOT}/templates
+RUN cp -r playbooks ${DEST_ROOT}/playbooks
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
@@ -58,15 +59,17 @@ LABEL com.redhat.component="${IMAGE_COMPONENT}" \
 ### DO NOT EDIT LINES ABOVE
 
 ENV USER_UID=$USER_ID \
-    OPERATOR_TEMPLATES=/usr/share/nova-operator/templates/
+    OPERATOR_TEMPLATES=/usr/share/nova-operator/templates/ \
+    OPERATOR_PLAYBOOKS=/usr/share/nova-operator/playbooks/
 
 WORKDIR /
 
 # Install operator binary to WORKDIR
 COPY --from=builder ${DEST_ROOT}/manager .
 
-# Install templates
+# Install templates and playbooks
 COPY --from=builder ${DEST_ROOT}/templates ${OPERATOR_TEMPLATES}
+COPY --from=builder ${DEST_ROOT}/playbooks ${OPERATOR_PLAYBOOKS}
 
 USER $USER_ID
 

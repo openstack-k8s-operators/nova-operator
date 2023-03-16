@@ -15,6 +15,7 @@ limitations under the License.
 package functional_test
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/google/uuid"
@@ -126,6 +127,17 @@ var _ = Describe("NovaExternalCompute", func() {
 			}
 			CreateNovaExternalComputeSSHSecret(sshSecretName)
 			DeferCleanup(DeleteSecret, sshSecretName)
+			libvirtAEEName := types.NamespacedName{
+				Namespace: namespace,
+				Name:      fmt.Sprintf("%s-%s-deploy-libvirt", compute.Spec.NovaInstance, compute.Name),
+			}
+			SimulateAEESucceded(libvirtAEEName)
+			novaAEEName := types.NamespacedName{
+				Namespace: namespace,
+				Name:      fmt.Sprintf("%s-%s-deploy-nova", compute.Spec.NovaInstance, compute.Name),
+			}
+			SimulateAEESucceded(novaAEEName)
+
 		})
 
 		It("adds Finalizer to itself", func() {
@@ -324,6 +336,17 @@ var _ = Describe("NovaExternalCompute", func() {
 			}
 			CreateNovaExternalComputeSSHSecret(sshSecretName)
 			DeferCleanup(DeleteSecret, sshSecretName)
+
+			libvirtAEEName := types.NamespacedName{
+				Namespace: namespace,
+				Name:      fmt.Sprintf("%s-%s-deploy-libvirt", compute.Spec.NovaInstance, compute.Name),
+			}
+			SimulateAEESucceded(libvirtAEEName)
+			novaAEEName := types.NamespacedName{
+				Namespace: namespace,
+				Name:      fmt.Sprintf("%s-%s-deploy-nova", compute.Spec.NovaInstance, compute.Name),
+			}
+			SimulateAEESucceded(novaAEEName)
 
 			th.ExpectCondition(
 				computeName,

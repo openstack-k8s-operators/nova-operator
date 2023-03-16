@@ -325,10 +325,9 @@ func (r *NovaSchedulerReconciler) generateConfigs(
 		instance, labels.GetGroupLabel(NovaSchedulerLabelPrefix), map[string]string{},
 	)
 
-	err = r.GenerateConfigs(
-		ctx, h, instance, hashes, templateParameters, extraData, cmLabels,
+	return r.GenerateConfigs(
+		ctx, h, instance, hashes, templateParameters, extraData, cmLabels, map[string]string{},
 	)
-	return err
 }
 
 func (r *NovaSchedulerReconciler) ensureDeployment(

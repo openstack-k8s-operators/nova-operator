@@ -177,7 +177,13 @@ var _ = Describe("Nova controller", func() {
 					},
 				),
 			)
-			DeferCleanup(th.DeleteKeystoneAPI, th.CreateKeystoneAPI(namespace))
+			keystoneApiName := th.CreateKeystoneAPI(namespace)
+			DeferCleanup(th.DeleteKeystoneAPI, keystoneApiName)
+			keystoneApi := th.GetKeystoneAPI(keystoneApiName)
+			keystoneApi.Status.APIEndpoints["internal"] = "http://keystone-internal-openstack.testing"
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Status().Update(ctx, keystoneApi.DeepCopy())).Should(Succeed())
+			}, timeout, interval).Should(Succeed())
 
 			DeferCleanup(DeleteInstance, CreateNovaWithCell0(novaName))
 		})
@@ -188,6 +194,8 @@ var _ = Describe("Nova controller", func() {
 			// and simulate that it becomes ready i.e. the keystone-operator
 			// did its job and registered the nova service
 			th.SimulateKeystoneServiceReady(novaKeystoneServiceName)
+			keystone := th.GetKeystoneService(novaKeystoneServiceName)
+			Expect(keystone.Status.Conditions).ToNot(BeNil())
 
 			th.ExpectCondition(
 				novaName,
@@ -386,7 +394,13 @@ var _ = Describe("Nova controller", func() {
 					},
 				),
 			)
-			DeferCleanup(th.DeleteKeystoneAPI, th.CreateKeystoneAPI(namespace))
+			keystoneApiName := th.CreateKeystoneAPI(namespace)
+			DeferCleanup(th.DeleteKeystoneAPI, keystoneApiName)
+			keystoneApi := th.GetKeystoneAPI(keystoneApiName)
+			keystoneApi.Status.APIEndpoints["internal"] = "http://keystone-internal-openstack.testing"
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Status().Update(ctx, keystoneApi.DeepCopy())).Should(Succeed())
+			}, timeout, interval).Should(Succeed())
 
 			DeferCleanup(DeleteInstance, CreateNovaWithCell0(novaName))
 
@@ -466,7 +480,13 @@ var _ = Describe("Nova controller", func() {
 					},
 				),
 			)
-			DeferCleanup(th.DeleteKeystoneAPI, th.CreateKeystoneAPI(namespace))
+			keystoneApiName := th.CreateKeystoneAPI(namespace)
+			DeferCleanup(th.DeleteKeystoneAPI, keystoneApiName)
+			keystoneApi := th.GetKeystoneAPI(keystoneApiName)
+			keystoneApi.Status.APIEndpoints["internal"] = "http://keystone-internal-openstack.testing"
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Status().Update(ctx, keystoneApi.DeepCopy())).Should(Succeed())
+			}, timeout, interval).Should(Succeed())
 
 			spec := GetDefaultNovaSpec()
 			cell0 := GetDefaultNovaCellTemplate()
@@ -587,7 +607,13 @@ var _ = Describe("Nova controller", func() {
 					},
 				),
 			)
-			DeferCleanup(th.DeleteKeystoneAPI, th.CreateKeystoneAPI(namespace))
+			keystoneApiName := th.CreateKeystoneAPI(namespace)
+			DeferCleanup(th.DeleteKeystoneAPI, keystoneApiName)
+			keystoneApi := th.GetKeystoneAPI(keystoneApiName)
+			keystoneApi.Status.APIEndpoints["internal"] = "http://keystone-internal-openstack.testing"
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Status().Update(ctx, keystoneApi.DeepCopy())).Should(Succeed())
+			}, timeout, interval).Should(Succeed())
 
 			DeferCleanup(DeleteInstance, CreateNovaWithCell0(novaName))
 		})
@@ -644,7 +670,13 @@ var _ = Describe("Nova controller", func() {
 					},
 				),
 			)
-			DeferCleanup(th.DeleteKeystoneAPI, th.CreateKeystoneAPI(namespace))
+			keystoneApiName := th.CreateKeystoneAPI(namespace)
+			DeferCleanup(th.DeleteKeystoneAPI, keystoneApiName)
+			keystoneApi := th.GetKeystoneAPI(keystoneApiName)
+			keystoneApi.Status.APIEndpoints["internal"] = "http://keystone-internal-openstack.testing"
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Status().Update(ctx, keystoneApi.DeepCopy())).Should(Succeed())
+			}, timeout, interval).Should(Succeed())
 
 			internalAPINADName := types.NamespacedName{Namespace: namespace, Name: "internalapi"}
 			nad := CreateNetworkAttachmentDefinition(internalAPINADName)

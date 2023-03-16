@@ -50,6 +50,12 @@ const (
 	// NovaSchedulerLabelPrefix - a unique, service binary specific prefix for
 	// the labeles the NovaScheduler controller uses on children objects
 	NovaSchedulerLabelPrefix = "nova-scheduler"
+	// NovaExternalComputeLabelPrefix - a unique, prefix used for the AEE CR
+	// and other children objects created to mange external computes
+	NovaExternalComputeLabelPrefix = "nova-external-compute"
+	// NovaLabelPrefix - a unique, prefix used for the playbooks owned by
+	// the nova operator
+	NovaLabelPrefix = "nova"
 	// DbSyncHash - the field name in Status.Hashes storing the has of the DB
 	// sync job
 	DbSyncHash = "dbsync"
@@ -369,10 +375,16 @@ func (r *ReconcilerBase) GenerateConfigs(
 	instance client.Object, envVars *map[string]env.Setter,
 	templateParameters map[string]interface{},
 	extraData map[string]string, cmLabels map[string]string,
+	additionalTemplates map[string]string,
 ) error {
-	additionalTemplates := map[string]string{
+
+	extraTemplates := map[string]string{
 		"01-nova.conf":    "/nova.conf",
 		"nova-blank.conf": "/nova-blank.conf",
+	}
+
+	for k, v := range additionalTemplates {
+		extraTemplates[k] = v
 	}
 	cms := []util.Template{
 		// ConfigMap
@@ -385,7 +397,7 @@ func (r *ReconcilerBase) GenerateConfigs(
 			Labels:             cmLabels,
 			CustomData:         extraData,
 			Annotations:        map[string]string{},
-			AdditionalTemplate: additionalTemplates,
+			AdditionalTemplate: extraTemplates,
 		},
 	}
 	// TODO(sean): make this create a secret instead.

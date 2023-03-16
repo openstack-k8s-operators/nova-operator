@@ -199,7 +199,13 @@ var _ = Describe("Nova controller", func() {
 			spec["apiMessageBusInstance"] = "mq-for-api"
 
 			DeferCleanup(DeleteInstance, CreateNova(novaName, spec))
-			DeferCleanup(th.DeleteKeystoneAPI, th.CreateKeystoneAPI(namespace))
+			keystoneApiName := th.CreateKeystoneAPI(namespace)
+			DeferCleanup(th.DeleteKeystoneAPI, keystoneApiName)
+			keystoneApi := th.GetKeystoneAPI(keystoneApiName)
+			keystoneApi.Status.APIEndpoints["internal"] = "http://keystone-internal-openstack.testing"
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Status().Update(ctx, keystoneApi.DeepCopy())).Should(Succeed())
+			}, timeout, interval).Should(Succeed())
 			th.SimulateKeystoneServiceReady(novaKeystoneServiceName)
 		})
 
@@ -595,7 +601,13 @@ var _ = Describe("Nova controller", func() {
 			spec["apiMessageBusInstance"] = "mq-for-api"
 
 			DeferCleanup(DeleteInstance, CreateNova(novaName, spec))
-			DeferCleanup(th.DeleteKeystoneAPI, th.CreateKeystoneAPI(namespace))
+			keystoneApiName := th.CreateKeystoneAPI(namespace)
+			DeferCleanup(th.DeleteKeystoneAPI, keystoneApiName)
+			keystoneApi := th.GetKeystoneAPI(keystoneApiName)
+			keystoneApi.Status.APIEndpoints["internal"] = "http://keystone-internal-openstack.testing"
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Status().Update(ctx, keystoneApi.DeepCopy())).Should(Succeed())
+			}, timeout, interval).Should(Succeed())
 			th.SimulateKeystoneServiceReady(novaKeystoneServiceName)
 		})
 		It("cell0 becomes ready with 0 conductor replicas and the rest of nova is deployed", func() {

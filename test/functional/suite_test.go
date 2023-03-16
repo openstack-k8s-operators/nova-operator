@@ -47,6 +47,7 @@ import (
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	novav1beta1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/nova-operator/controllers"
+	aee "github.com/openstack-k8s-operators/openstack-ansibleee-operator/api/v1alpha1"
 
 	. "github.com/openstack-k8s-operators/lib-common/modules/test/helpers"
 	//+kubebuilder:scaffold:imports
@@ -82,10 +83,10 @@ var _ = BeforeSuite(func() {
 	const gomod = "../../go.mod"
 
 	keystoneCRDs, err := test.GetCRDDirFromModule(
-		"github.com/openstack-k8s-operators/mariadb-operator/api", gomod, "bases")
+		"github.com/openstack-k8s-operators/keystone-operator/api", gomod, "bases")
 	Expect(err).ShouldNot(HaveOccurred())
 	mariadbCRDs, err := test.GetCRDDirFromModule(
-		"github.com/openstack-k8s-operators/keystone-operator/api", gomod, "bases")
+		"github.com/openstack-k8s-operators/mariadb-operator/api", gomod, "bases")
 	Expect(err).ShouldNot(HaveOccurred())
 	rabbitCRDs, err := test.GetCRDDirFromModule(
 		"github.com/openstack-k8s-operators/infra-operator/apis", gomod, "bases")
@@ -97,6 +98,9 @@ var _ = BeforeSuite(func() {
 	networkv1CRD, err := test.GetCRDDirFromModule(
 		"github.com/k8snetworkplumbingwg/network-attachment-definition-client", gomod, "artifacts/networks-crd.yaml")
 	Expect(err).ShouldNot(HaveOccurred())
+	aeeCRDs, err := test.GetCRDDirFromModule(
+		"github.com/openstack-k8s-operators/openstack-ansibleee-operator/api", gomod, "bases")
+	Expect(err).ShouldNot(HaveOccurred())
 
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
@@ -107,6 +111,7 @@ var _ = BeforeSuite(func() {
 			keystoneCRDs,
 			rabbitCRDs,
 			routev1CRDs,
+			aeeCRDs,
 		},
 		CRDInstallOptions: envtest.CRDInstallOptions{
 			Paths: []string{
@@ -140,6 +145,8 @@ var _ = BeforeSuite(func() {
 	err = rabbitmqv1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 	err = networkv1.AddToScheme(scheme.Scheme)
+	Expect(err).NotTo(HaveOccurred())
+	err = aee.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 
 	//+kubebuilder:scaffold:scheme
