@@ -16,7 +16,6 @@ package functional_test
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 
 	"github.com/google/uuid"
 	networkv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
@@ -46,8 +45,6 @@ var _ = Describe("NovaScheduler controller", func() {
 		DeferCleanup(th.DeleteNamespace, namespace)
 		// NOTE(gibi): ConfigMap generation looks up the local templates
 		// directory via ENV, so provide it
-		DeferCleanup(os.Setenv, "OPERATOR_TEMPLATES", os.Getenv("OPERATOR_TEMPLATES"))
-		os.Setenv("OPERATOR_TEMPLATES", "../../templates")
 
 		// Uncomment this if you need the full output in the logs from gomega
 		// matchers
