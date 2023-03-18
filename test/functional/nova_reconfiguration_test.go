@@ -16,8 +16,6 @@ limitations under the License.
 package functional_test
 
 import (
-	"os"
-
 	"github.com/google/uuid"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -191,8 +189,6 @@ var _ = Describe("Nova reconfiguration", func() {
 		DeferCleanup(th.DeleteNamespace, namespace)
 		// NOTE(gibi): ConfigMap generation looks up the local templates
 		// directory via ENV, so provide it
-		DeferCleanup(os.Setenv, "OPERATOR_TEMPLATES", os.Getenv("OPERATOR_TEMPLATES"))
-		os.Setenv("OPERATOR_TEMPLATES", "../../templates")
 
 		// Uncomment this if you need the full output in the logs from gomega
 		// matchers

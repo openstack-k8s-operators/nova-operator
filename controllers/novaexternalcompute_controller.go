@@ -507,7 +507,7 @@ func (r *NovaExternalComputeReconciler) ensurePlaybooks(
 ) error {
 	playbookPath, found := os.LookupEnv("OPERATOR_PLAYBOOKS")
 	if !found {
-		playbookPath = "../../playbooks"
+		playbookPath = "playbooks"
 		os.Setenv("OPERATOR_PLAYBOOKS", playbookPath)
 		util.LogForObject(
 			h, "OPERATOR_PLAYBOOKS not set in env when reconciling ", instance,
