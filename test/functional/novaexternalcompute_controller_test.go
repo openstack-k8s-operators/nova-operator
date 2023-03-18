@@ -25,6 +25,7 @@ import (
 	. "github.com/openstack-k8s-operators/lib-common/modules/test/helpers"
 	corev1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
@@ -378,6 +379,34 @@ var _ = Describe("NovaExternalCompute", func() {
 				condition.ReadyCondition,
 				corev1.ConditionFalse,
 			)
+		})
+	})
+	When("created as unstructured and created from golang", func() {
+		It("has the same defaults", func() {
+			computeNameUnstructured := types.NamespacedName{Namespace: computeName.Namespace, Name: "compute-default-unstructured"}
+			computeNameGolang := types.NamespacedName{Namespace: computeName.Namespace, Name: "compute-default-golang"}
+			CreateNovaExternalCompute(
+				computeNameUnstructured,
+				map[string]interface{}{
+					"inventoryConfigMapName": "foo-inventory-configmap",
+					"sshKeySecretName":       "foo-ssh-key-secret",
+				})
+			computeFromUnstructured := GetNovaExternalCompute(computeNameUnstructured)
+			DeferCleanup(DeleteInstance, computeFromUnstructured)
+
+			spec := novav1.NewNovaExternalComputeSpec("foo-inventory-configmap", "foo-ssh-key-secret")
+			err := k8sClient.Create(ctx, &novav1.NovaExternalCompute{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      computeNameGolang.Name,
+					Namespace: computeNameGolang.Namespace,
+				},
+				Spec: spec,
+			})
+			Expect(err).ShouldNot(HaveOccurred())
+			computeFromGolang := GetNovaExternalCompute(computeNameGolang)
+			DeferCleanup(DeleteInstance, computeFromGolang)
+
+			Expect(computeFromUnstructured.Spec).To(Equal(computeFromGolang.Spec))
 		})
 	})
 })

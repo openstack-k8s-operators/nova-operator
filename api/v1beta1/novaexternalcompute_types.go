@@ -137,3 +137,21 @@ func (c NovaExternalCompute) IsReady() bool {
 	readyCond := c.Status.Conditions.Get(condition.ReadyCondition)
 	return readyCond != nil && readyCond.Status == corev1.ConditionTrue
 }
+
+// NewNovaExternalComputeSpec returns a NovaExternalComputeSpec where the fields are defaulted according
+// to the CRD definition
+func NewNovaExternalComputeSpec(inventoryConfigMapName string, sshKeySecretName string) NovaExternalComputeSpec {
+	return NovaExternalComputeSpec{
+		NovaInstance:              "nova",
+		CellName:                  "cell1",
+		CustomServiceConfig:       "",
+		DefaultConfigOverwrite:    nil,
+		InventoryConfigMapName:    inventoryConfigMapName,
+		SSHKeySecretName:          sshKeySecretName,
+		Deploy:                    true,
+		NovaComputeContainerImage: "quay.io/tripleozedcentos9/openstack-nova-compute:current-tripleo",
+		NovaLibvirtContainerImage: "quay.io/tripleozedcentos9/openstack-nova-libvirt:current-tripleo",
+		AnsibleEEContainerImage:   "quay.io/openstack-k8s-operators/openstack-ansibleee-runner:latest",
+		NetworkAttachments:        nil,
+	}
+}
