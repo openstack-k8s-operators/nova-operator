@@ -311,3 +311,17 @@ gowork: ## Generate go.work file to support our multi module repository
 operator-lint: gowork ## Runs operator-lint
 	GOBIN=$(LOCALBIN) go install github.com/gibizer/operator-lint@v0.3.0
 	go vet -vettool=$(LOCALBIN)/operator-lint ./... ./api/...
+
+# Used for webhook testing
+# Please ensure the placement-controller-manager deployment and
+# webhook definitions are removed from the csv before running
+# this. Also, cleanup the webhook configuration for local testing
+# before deplying with olm again.
+# $oc delete -n openstack validatingwebhookconfiguration/vplacementapi.kb.io
+# $oc delete -n openstack mutatingwebhookconfiguration/mplacementapi.kb.io
+SKIP_CERT ?=false
+.PHONY: run-with-webhook
+run-with-webhook: export PLACEMENT_API_IMAGE_URL_DEFAULT=quay.io/tripleozedcentos9/openstack-placement-api:current-tripleo
+run-with-webhook: manifests generate fmt vet ## Run a controller from your host.
+	/bin/bash hack/configure_local_webhook.sh
+	go run ./main.go
