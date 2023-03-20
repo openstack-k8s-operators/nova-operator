@@ -21,7 +21,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
-
+	"os"
+	"github.com/google/uuid"
 	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -64,6 +65,7 @@ var (
 	cancel    context.CancelFunc
 	logger    logr.Logger
 	th        *TestHelper
+	namespace string
 )
 
 func TestAPIs(t *testing.T) {
@@ -193,4 +195,19 @@ var _ = AfterSuite(func() {
 	cancel()
 	err := testEnv.Stop()
 	Expect(err).NotTo(HaveOccurred())
+})
+
+var _ = BeforeEach(func() {
+	// NOTE(gibi): We need to create a unique namespace for each test run
+	// as namespaces cannot be deleted in a locally running envtest. See
+	// https://book.kubebuilder.io/reference/envtest.html#namespace-usage-limitation
+	namespace = uuid.New().String()
+	th.CreateNamespace(namespace)
+	// We still request the delete of the Namespace to properly cleanup if
+	// we run the test in an existing cluster.
+	DeferCleanup(th.DeleteNamespace, namespace)
+	// NOTE(gibi): ConfigMap generation looks up the local templates
+	// directory via ENV, so provide it
+	DeferCleanup(os.Setenv, "OPERATOR_TEMPLATES", os.Getenv("OPERATOR_TEMPLATES"))
+	os.Setenv("OPERATOR_TEMPLATES", "../../templates")
 })
