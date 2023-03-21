@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/google/uuid"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"go.uber.org/zap/zapcore"
@@ -64,6 +65,7 @@ var (
 	cancel    context.CancelFunc
 	logger    logr.Logger
 	th        *TestHelper
+	namespace string
 )
 
 func TestAPIs(t *testing.T) {
@@ -193,4 +195,15 @@ var _ = AfterSuite(func() {
 	cancel()
 	err := testEnv.Stop()
 	Expect(err).NotTo(HaveOccurred())
+})
+
+var _ = BeforeEach(func() {
+	// NOTE(gibi): We need to create a unique namespace for each test run
+	// as namespaces cannot be deleted in a locally running envtest. See
+	// https://book.kubebuilder.io/reference/envtest.html#namespace-usage-limitation
+	namespace = uuid.New().String()
+	th.CreateNamespace(namespace)
+	// We still request the delete of the Namespace to properly cleanup if
+	// we run the test in an existing cluster.
+	DeferCleanup(th.DeleteNamespace, namespace)
 })

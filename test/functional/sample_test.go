@@ -94,24 +94,6 @@ func CreateNovaExternalComputeFromSample(sampleFileName string, namespace string
 // the test and by simulating Job and Deploymnet success we could assert
 // that each sample creates a CR in Ready state.
 var _ = Describe("Samples", func() {
-	var namespace string
-	BeforeEach(func() {
-		// NOTE(gibi): We need to create a unique namespace for each test run
-		// as namespaces cannot be deleted in a locally running envtest. See
-		// https://book.kubebuilder.io/reference/envtest.html#namespace-usage-limitation
-		namespace = uuid.New().String()
-		th.CreateNamespace(namespace)
-		// We still request the delete of the Namespace to properly cleanup if
-		// we run the test in an existing cluster.
-		DeferCleanup(th.DeleteNamespace, namespace)
-		// NOTE(gibi): ConfigMap generation looks up the local templates
-		// directory via ENV, so provide it
-
-		// Uncomment this if you need the full output in the logs from gomega
-		// matchers
-		// format.MaxLength = 0
-
-	})
 
 	When("nova_v1beta1_nova.yaml sample is applied", func() {
 		It("Nova is created", func() {

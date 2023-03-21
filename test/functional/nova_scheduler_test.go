@@ -17,7 +17,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/google/uuid"
 	networkv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -31,21 +30,9 @@ import (
 )
 
 var _ = Describe("NovaScheduler controller", func() {
-	var namespace string
 	var novaSchedulerName types.NamespacedName
 
 	BeforeEach(func() {
-		// NOTE(gibi): We need to create a unique namespace for each test run
-		// as namespaces cannot be deleted in a locally running envtest. See
-		// https://book.kubebuilder.io/reference/envtest.html#namespace-usage-limitation
-		namespace = uuid.New().String()
-		th.CreateNamespace(namespace)
-		// We still request the delete of the Namespace to properly cleanup if
-		// we run the test in an existing cluster.
-		DeferCleanup(th.DeleteNamespace, namespace)
-		// NOTE(gibi): ConfigMap generation looks up the local templates
-		// directory via ENV, so provide it
-
 		// Uncomment this if you need the full output in the logs from gomega
 		// matchers
 		// format.MaxLength = 0
