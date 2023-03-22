@@ -47,7 +47,8 @@ crudini --set ${SVC_CFG_MERGED} database connection mysql+pymysql://${CELLDBUSER
 crudini --set ${SVC_CFG_MERGED} keystone_authtoken password $PASSWORD
 
 crudini --set ${SVC_CFG_MERGED} placement password $PASSWORD
-
+crudini --set ${SVC_CFG_MERGED} cinder password $PASSWORD
+crudini --set ${SVC_CFG_MERGED} neutron password $PASSWORD
 crudini --set ${SVC_CFG_MERGED} DEFAULT transport_url $TRANSPORT_URL
 
 # set api database connection if provided
