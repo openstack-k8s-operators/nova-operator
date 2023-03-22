@@ -18,18 +18,19 @@
       become: true
       file:
         path: "{{ item.path }}"
-        setype: "{{ item.setype }}"
+        setype: "{{ item.setype | default('container_file_t') }}"
         state: directory
-        owner: '{{ansible_user}}'
-        group: '{{ansible_user}}'
+        owner: "{{ item.owner | default(ansible_user) }}"
+        group: "{{ item.group | default(ansible_user) }}"
         mode: "{{ item.mode | default(omit) }}"
       with_items:
-      - { 'path': /var/lib/nova, 'setype': container_file_t }
-      - { 'path': /var/lib/_nova_secontext, 'setype': container_file_t}
-      - { 'path': /var/lib/nova/instances, 'setype': container_file_t }
-      - { 'path': /var/log/containers/nova, 'setype': container_file_t, 'mode': '0750' }
-      # this should be done in bootstrap
-      - { 'path': /var/log/containers/stdouts, 'setype': container_file_t, 'mode': '0750' }
+      - { 'path': /var/lib/nova}
+      - { 'path': /var/lib/_nova_secontext}
+      - { 'path': /var/lib/nova/instances}
+      - { 'path': /var/log/containers/nova, 'mode': '0750' }
+      # these should be done in bootstrap
+      - { 'path': /var/log/containers/stdouts, 'mode': '0750' }
+      - { "path": /etc/ceph, "mode": "0750", "owner": "root", "group": "root"}
     - name: Copy generated nova configs
       ansible.builtin.copy:
         src: "{{ item.src }}"
