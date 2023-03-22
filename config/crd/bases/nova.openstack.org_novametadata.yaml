@@ -276,6 +276,7 @@ spec:
                 type: string
             required:
             - containerImage
+            - keystoneAuthURL
             - secret
             type: object
           status:

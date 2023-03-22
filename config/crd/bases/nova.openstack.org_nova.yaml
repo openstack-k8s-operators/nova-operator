@@ -314,7 +314,7 @@ spec:
                         serive dedicated for the cell.
                       properties:
                         containerImage:
-                          default: quay.io/tripleozedcentos9/openstack-nova-metadata:current-tripleo
+                          default: quay.io/tripleozedcentos9/openstack-nova-api:current-tripleo
                           description: The service specific Container Image URL
                           type: string
                         customServiceConfig:
@@ -597,7 +597,7 @@ spec:
                   that is global for the deployment serving all the cells.
                 properties:
                   containerImage:
-                    default: quay.io/tripleozedcentos9/openstack-nova-metadata:current-tripleo
+                    default: quay.io/tripleozedcentos9/openstack-nova-api:current-tripleo
                     description: The service specific Container Image URL
                     type: string
                   customServiceConfig:

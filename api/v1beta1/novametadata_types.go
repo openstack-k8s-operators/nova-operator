@@ -29,7 +29,7 @@ import (
 // create a NovaMetadata via higher level CRDs.
 type NovaMetadataTemplate struct {
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default="quay.io/tripleozedcentos9/openstack-nova-metadata:current-tripleo"
+	// +kubebuilder:default="quay.io/tripleozedcentos9/openstack-nova-api:current-tripleo"
 	// The service specific Container Image URL
 	ContainerImage string `json:"containerImage"`
 
@@ -97,7 +97,7 @@ type NovaMetadataSpec struct {
 	// keystone
 	ServiceUser string `json:"serviceUser"`
 
-	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Required
 	// KeystoneAuthURL - the URL that the nova-metadata service can use to talk
 	// to keystone
 	// TODO(ksambor) Add checking if dynamic vendor data is configured

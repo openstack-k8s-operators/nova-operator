@@ -397,7 +397,7 @@ func (r *NovaMetadataReconciler) ensureDeployment(
 		return ctrl.Result{}, err
 	}
 
-	if instance.Status.ReadyCount > 0 {
+	if instance.Status.ReadyCount > 0 || instance.Spec.Replicas == 0 {
 		util.LogForObject(h, "Deployment is ready", instance)
 		instance.Status.Conditions.MarkTrue(condition.DeploymentReadyCondition, condition.DeploymentReadyMessage)
 	} else {
@@ -419,7 +419,6 @@ func (r *NovaMetadataReconciler) ensureServiceExposed(
 	instance *novav1beta1.NovaMetadata,
 ) (ctrl.Result, error) {
 	var ports = map[endpoint.Endpoint]endpoint.Data{
-		endpoint.EndpointPublic:   {Port: novametadata.APIServicePort},
 		endpoint.EndpointInternal: {Port: novametadata.APIServicePort},
 	}
 

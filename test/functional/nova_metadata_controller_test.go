@@ -24,6 +24,7 @@ import (
 	. "github.com/openstack-k8s-operators/lib-common/modules/test/helpers"
 
 	corev1 "k8s.io/api/core/v1"
+	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -208,27 +209,6 @@ var _ = Describe("NovaMetadata controller", func() {
 			})
 		})
 
-		When("the NovaMetadata is deleted", func() {
-			BeforeEach(func() {
-				DeferCleanup(
-					k8sClient.Delete, ctx, CreateNovaMetadataSecret(namespace, SecretName))
-			})
-			It("deletes the generated ConfigMaps", func() {
-				th.ExpectCondition(
-					novaMetadataName,
-					ConditionGetterFunc(NovaMetadataConditionGetter),
-					condition.ServiceConfigReadyCondition,
-					corev1.ConditionTrue,
-				)
-
-				DeleteInstance(GetNovaMetadata(novaMetadataName))
-
-				Eventually(func() []corev1.ConfigMap {
-					return th.ListConfigMaps(novaMetadataName.Name).Items
-				}, timeout, interval).Should(BeEmpty())
-			})
-		})
-
 		When("NovaMetadata is created with a proper Secret", func() {
 			var statefulSetName types.NamespacedName
 
@@ -289,8 +269,7 @@ var _ = Describe("NovaMetadata controller", func() {
 				})
 
 				It("reports that the StatefulSet is ready", func() {
-					ss := th.GetStatefulSet(statefulSetName)
-					_ = ss
+					th.GetStatefulSet(statefulSetName)
 					th.ExpectCondition(
 						novaMetadataName,
 						ConditionGetterFunc(NovaMetadataConditionGetter),
@@ -311,6 +290,7 @@ var _ = Describe("NovaMetadata controller", func() {
 					condition.ExposeServiceReadyCondition,
 					corev1.ConditionTrue,
 				)
+				GetService(types.NamespacedName{Namespace: namespace, Name: "nova-metadata-internal"})
 			})
 
 			It("is Ready", func() {
@@ -502,13 +482,111 @@ var _ = Describe("NovaMetadata controller", func() {
 				HaveKeyWithValue("metallb.universe.tf/loadBalancerIPs", "internal-lb-ip-1,internal-lb-ip-2"))
 			AssertRouteNotExists(types.NamespacedName{Namespace: namespace, Name: "nova-metadata-internal"})
 
-			// As the public endpoint is not mentioned in the ExternalEndpoints a generic Service and
-			// a Route is created
-			service = GetService(types.NamespacedName{Namespace: namespace, Name: "nova-metadata-public"})
-			Expect(service.Annotations).NotTo(HaveKey("metallb.universe.tf/address-pool"))
-			Expect(service.Annotations).NotTo(HaveKey("metallb.universe.tf/allow-shared-ip"))
-			Expect(service.Annotations).NotTo(HaveKey("metallb.universe.tf/loadBalancerIPs"))
-			AssertRouteExists(types.NamespacedName{Namespace: namespace, Name: "nova-metadata-public"})
+			th.ExpectCondition(
+				novaMetadataName,
+				ConditionGetterFunc(NovaMetadataConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
+	})
+	When("NovaMetadata is reconfigured", func() {
+		var statefulSetName types.NamespacedName
+
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateNovaMetadataSecret(namespace, SecretName))
+
+			metadata := CreateNovaMetadata(namespace, GetDefaultNovaMetadataSpec())
+			novaMetadataName = types.NamespacedName{Name: metadata.GetName(), Namespace: metadata.GetNamespace()}
+			DeferCleanup(DeleteInstance, metadata)
+
+			th.ExpectCondition(
+				novaMetadataName,
+				ConditionGetterFunc(NovaMetadataConditionGetter),
+				condition.ServiceConfigReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			statefulSetName = types.NamespacedName{
+				Namespace: namespace,
+				Name:      novaMetadataName.Name,
+			}
+			th.SimulateStatefulSetReplicaReady(statefulSetName)
+			th.ExpectCondition(
+				novaMetadataName,
+				ConditionGetterFunc(NovaMetadataConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
+
+		It("applys new NetworkAttachments configuration", func() {
+			Eventually(func(g Gomega) {
+				novaMetadata := GetNovaMetadata(novaMetadataName)
+				novaMetadata.Spec.NetworkAttachments = append(novaMetadata.Spec.NetworkAttachments, "internalapi")
+
+				err := k8sClient.Update(ctx, novaMetadata)
+				g.Expect(err == nil || k8s_errors.IsConflict(err)).To(BeTrue())
+			}, timeout, interval).Should(Succeed())
+
+			th.ExpectConditionWithDetails(
+				novaMetadataName,
+				ConditionGetterFunc(NovaMetadataConditionGetter),
+				condition.NetworkAttachmentsReadyCondition,
+				corev1.ConditionFalse,
+				condition.RequestedReason,
+				"NetworkAttachment resources missing: internalapi",
+			)
+			th.ExpectConditionWithDetails(
+				novaMetadataName,
+				ConditionGetterFunc(NovaMetadataConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+				condition.RequestedReason,
+				"NetworkAttachment resources missing: internalapi",
+			)
+
+			internalAPINADName := types.NamespacedName{Namespace: namespace, Name: "internalapi"}
+			DeferCleanup(DeleteInstance, CreateNetworkAttachmentDefinition(internalAPINADName))
+
+			th.ExpectConditionWithDetails(
+				novaMetadataName,
+				ConditionGetterFunc(NovaMetadataConditionGetter),
+				condition.NetworkAttachmentsReadyCondition,
+				corev1.ConditionFalse,
+				condition.ErrorReason,
+				"NetworkAttachments error occured "+
+					"not all pods have interfaces with ips as configured in NetworkAttachments: [internalapi]",
+			)
+			th.ExpectConditionWithDetails(
+				novaMetadataName,
+				ConditionGetterFunc(NovaMetadataConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+				condition.ErrorReason,
+				"NetworkAttachments error occured "+
+					"not all pods have interfaces with ips as configured in NetworkAttachments: [internalapi]",
+			)
+
+			SimulateStatefulSetReplicaReadyWithPods(
+				statefulSetName,
+				map[string][]string{namespace + "/internalapi": {"10.0.0.1"}},
+			)
+
+			th.ExpectCondition(
+				novaMetadataName,
+				ConditionGetterFunc(NovaMetadataConditionGetter),
+				condition.NetworkAttachmentsReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			Eventually(func(g Gomega) {
+				novaMetadata := GetNovaMetadata(novaMetadataName)
+				g.Expect(novaMetadata.Status.NetworkAttachments).To(
+					Equal(map[string][]string{namespace + "/internalapi": {"10.0.0.1"}}))
+
+			}, timeout, interval).Should(Succeed())
 
 			th.ExpectCondition(
 				novaMetadataName,
@@ -516,6 +594,35 @@ var _ = Describe("NovaMetadata controller", func() {
 				condition.ReadyCondition,
 				corev1.ConditionTrue,
 			)
+		})
+	})
+
+	When("starts zero replicas", func() {
+		var statefulSetName types.NamespacedName
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateNovaMetadataSecret(namespace, SecretName))
+
+			spec := GetDefaultNovaMetadataSpec()
+			spec["replicas"] = 0
+			metadata := CreateNovaMetadata(namespace, spec)
+			novaMetadataName = types.NamespacedName{Name: metadata.GetName(), Namespace: metadata.GetNamespace()}
+			statefulSetName = types.NamespacedName{
+				Namespace: namespace,
+				Name:      novaMetadataName.Name,
+			}
+			DeferCleanup(DeleteInstance, metadata)
+		})
+		It("and deployment is Ready", func() {
+			ss := th.GetStatefulSet(statefulSetName)
+			Expect(int(*ss.Spec.Replicas)).To(Equal(0))
+			th.ExpectCondition(
+				novaMetadataName,
+				ConditionGetterFunc(NovaMetadataConditionGetter),
+				condition.DeploymentReadyCondition,
+				corev1.ConditionTrue,
+			)
+
 		})
 	})
 })

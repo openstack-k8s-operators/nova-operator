@@ -649,5 +649,6 @@ func GetDefaultNovaMetadataSpec() map[string]interface{} {
 		"apiMessageBusSecretName": MessageBusSecretName,
 		"cellDatabaseHostname":    "nova-cell-db-hostname",
 		"containerImage":          ContainerImage,
+		"keystoneAuthURL":         "keystone-auth-url",
 	}
 }
