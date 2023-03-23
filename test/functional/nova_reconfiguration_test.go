@@ -41,6 +41,8 @@ func CreateNovaWith3CellsAndEnsureReady(namespace string) types.NamespacedName {
 	var novaKeystoneServiceName types.NamespacedName
 	var novaSchedulerName types.NamespacedName
 	var novaSchedulerStatefulSetName types.NamespacedName
+	var novaMetadataName types.NamespacedName
+	var novaMetadataStatefulSetName types.NamespacedName
 
 	novaName = types.NamespacedName{
 		Namespace: namespace,
@@ -73,6 +75,14 @@ func CreateNovaWith3CellsAndEnsureReady(namespace string) types.NamespacedName {
 	novaSchedulerStatefulSetName = types.NamespacedName{
 		Namespace: namespace,
 		Name:      novaSchedulerName.Name,
+	}
+	novaMetadataName = types.NamespacedName{
+		Namespace: namespace,
+		Name:      novaName.Name + "-metadata",
+	}
+	novaMetadataStatefulSetName = types.NamespacedName{
+		Namespace: namespace,
+		Name:      novaMetadataName.Name,
 	}
 	cell0 = NewCell(novaName, "cell0")
 	cell1 = NewCell(novaName, "cell1")
@@ -159,6 +169,7 @@ func CreateNovaWith3CellsAndEnsureReady(namespace string) types.NamespacedName {
 	th.SimulateJobSuccess(cell2.CellDBSyncJobName)
 	th.SimulateStatefulSetReplicaReady(cell2.ConductorStatefulSetName)
 	th.SimulateStatefulSetReplicaReady(novaSchedulerStatefulSetName)
+	th.SimulateStatefulSetReplicaReady(novaMetadataStatefulSetName)
 	th.ExpectCondition(
 		novaName,
 		ConditionGetterFunc(NovaConditionGetter),

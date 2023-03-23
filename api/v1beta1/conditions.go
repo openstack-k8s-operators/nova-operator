@@ -43,6 +43,8 @@ const (
 	NovaSchedulerReadyCondition condition.Type = "NovaSchedulerReady"
 	// NovaCellReadyCondition indicates when the given NovaCell instance is Ready
 	NovaCellReadyCondition condition.Type = "NovaCellReady"
+	// NovaMetadataReadyCondition indicates when the given NovaMetadata instance is Ready
+	NovaMetadataReadyCondition condition.Type = "NovaMetadataReady"
 )
 
 // Common Messages used by API objects.
@@ -133,4 +135,10 @@ const (
 
 	//NovaCellReadyMessage
 	NovaCellReadyMessage = "NovaCell %s is Ready"
+
+	//NovaAPIReadyErrorMessage
+	NovaMetadataReadyInitMessage = "NovaMetadata not started"
+
+	//NovaMetadataReadyInitMessage
+	NovaMetadataReadyErrorMessage = "NovaMetadata error occured %s"
 )

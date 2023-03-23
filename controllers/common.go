@@ -56,6 +56,9 @@ const (
 	// NovaLabelPrefix - a unique, prefix used for the playbooks owned by
 	// the nova operator
 	NovaLabelPrefix = "nova"
+	// NovaMetadataLabelPrefix - a unique, service binary specific prefix for
+	// the labeles the NovaMetadata controller uses on children objects
+	NovaMetadataLabelPrefix = "nova-metadata"
 	// DbSyncHash - the field name in Status.Hashes storing the has of the DB
 	// sync job
 	DbSyncHash = "dbsync"

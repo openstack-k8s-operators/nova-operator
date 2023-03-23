@@ -29,7 +29,7 @@ import (
 // create a NovaMetadata via higher level CRDs.
 type NovaMetadataTemplate struct {
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default="quay.io/tripleozedcentos9/openstack-nova-metadata:current-tripleo"
+	// +kubebuilder:default="quay.io/tripleozedcentos9/openstack-nova-api:current-tripleo"
 	// The service specific Container Image URL
 	ContainerImage string `json:"containerImage"`
 
@@ -63,6 +63,11 @@ type NovaMetadataTemplate struct {
 	// +kubebuilder:validation:Optional
 	// NetworkAttachments is a list of NetworkAttachment resource names to expose the services to the given network
 	NetworkAttachments []string `json:"networkAttachments,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// ExternalEndpoints, expose a VIP via MetalLB on the pre-created address pool
+	//
+	ExternalEndpoints []MetalLBConfig `json:"externalEndpoints,omitempty"`
 }
 
 // NovaMetadataSpec defines the desired state of NovaMetadata
@@ -95,10 +100,11 @@ type NovaMetadataSpec struct {
 	// +kubebuilder:validation:Required
 	// KeystoneAuthURL - the URL that the nova-metadata service can use to talk
 	// to keystone
+	// TODO(ksambor) Add checking if dynamic vendor data is configured
 	KeystoneAuthURL string `json:"keystoneAuthURL"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=nova
+	// +kubebuilder:default="nova_api"
 	// APIDatabaseUser - username to use when accessing the API DB
 	APIDatabaseUser string `json:"apiDatabaseUser"`
 
@@ -121,16 +127,18 @@ type NovaMetadataSpec struct {
 	CellDatabaseHostname string `json:"cellDatabaseHostname"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=nova
-	// CellMessageBusUser - username to use when accessing the cell message bus
-	CellMessageBusUser string `json:"cellMessageBusUser"`
+	// APIMessageBusSecretName - the name of the Secret conntaining the
+	// transport URL information to use when accessing the API message
+	// bus.
+	// TODO(ksambor): add a validation webhook to enforce that it is required
+	// for the CellName == ""
+	APIMessageBusSecretName string `json:"apiMessageBusSecretName"`
 
 	// +kubebuilder:validation:Optional
-	// CellMessageBusHostname - hostname to use when accessing the cell message
-	// bus. This is unused if CellName is not provided. But if it is provided
-	// then CellMessageBusHostname is required.
-	// TODO(gibi): add webhook to validate this CellName constraint
-	CellMessageBusHostname string `json:"cellMessageBusHostname"`
+	// CellMessageBusSecretName - the name of the Secret conntaining the
+	// transport URL information to use when accessing the Cell message
+	// bus.
+	CellMessageBusSecretName string `json:"cellMessageBusSecretName"`
 
 	// +kubebuilder:validation:Optional
 	// Debug - enable debug for different deploy stages. If an init container
@@ -141,6 +149,10 @@ type NovaMetadataSpec struct {
 	// +kubebuilder:validation:Required
 	// NovaServiceBase specifies the generic fields of the service
 	NovaServiceBase `json:",inline"`
+
+	// +kubebuilder:validation:Optional
+	// ExternalEndpoints, expose a VIP via MetalLB on the pre-created address pool
+	ExternalEndpoints []MetalLBConfig `json:"externalEndpoints,omitempty"`
 }
 
 // NovaMetadataStatus defines the observed state of NovaMetadata
@@ -159,6 +171,9 @@ type NovaMetadataStatus struct {
 
 	// NetworkAttachments status of the deployment pods
 	NetworkAttachments map[string][]string `json:"networkAttachments,omitempty"`
+
+	// API endpoint
+	APIEndpoints map[string]string `json:"apiEndpoint,omitempty"`
 }
 
 //+kubebuilder:object:root=true
@@ -187,4 +202,9 @@ type NovaMetadataList struct {
 
 func init() {
 	SchemeBuilder.Register(&NovaMetadata{}, &NovaMetadataList{})
+}
+
+// GetConditions returns the list of conditions from the status
+func (s NovaMetadataStatus) GetConditions() condition.Conditions {
+	return s.Conditions
 }
