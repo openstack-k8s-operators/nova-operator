@@ -53,9 +53,8 @@ type PlacementAPISpec struct {
 	// TODO: -> implement needs work in mariadb-operator, right now only placement
 	DatabaseUser string `json:"databaseUser"`
 
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default="quay.io/tripleozedcentos9/openstack-placement-api:current-tripleo"
-	// PlacementAPI Container Image URL
+	// +kubebuilder:validation:Required
+	// PlacementAPI Container Image URL (will be set to environmental default if empty)
 	ContainerImage string `json:"containerImage"`
 
 	// +kubebuilder:validation:Optional

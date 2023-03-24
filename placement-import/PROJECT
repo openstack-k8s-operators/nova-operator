@@ -16,4 +16,8 @@ resources:
   kind: PlacementAPI
   path: github.com/openstack-k8s-operators/placement-operator/api/v1beta1
   version: v1beta1
+  webhooks:
+    defaulting: true
+    validation: true
+    webhookVersion: v1
 version: "3"
