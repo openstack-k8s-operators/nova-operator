@@ -24,7 +24,7 @@ RUN mkdir -p ${DEST_ROOT}/usr/local/bin/
 RUN if [ ! -f $CACHITO_ENV_FILE ]; then go mod download ; fi
 
 # Build manager
-RUN if [ -f $CACHITO_ENV_FILE ] ; then source $CACHITO_ENV_FILE ; fi ; export GIT_COMMIT=$(git describe --always --dirty 2>/dev/null || echo "<failed to generate>") && echo $GIT_COMMIT && CGO_ENABLED=0  GO111MODULE=on go build -ldflags "-X main.gitBuildHash=$GIT_COMMIT" ${GO_BUILD_EXTRA_ARGS} -a -o ${DEST_ROOT}/manager main.go
+RUN if [ -f $CACHITO_ENV_FILE ] ; then source $CACHITO_ENV_FILE ; fi ; CGO_ENABLED=0  GO111MODULE=on go build ${GO_BUILD_EXTRA_ARGS} -a -o ${DEST_ROOT}/manager main.go
 
 RUN cp -r templates ${DEST_ROOT}/templates
 RUN cp -r playbooks ${DEST_ROOT}/playbooks
