@@ -158,7 +158,7 @@ func (r *NovaExternalComputeReconciler) Reconcile(ctx context.Context, req ctrl.
 	}
 	hashes[instance.Spec.InventoryConfigMapName] = env.SetValue(inventoryHash)
 
-	sshKeyHHash, result, err := ensureSecret(
+	sshKeyHHash, result, secret, err := ensureSecret(
 		ctx,
 		types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.SSHKeySecretName},
 		// NOTE(gibi): Add the fields here we expect to exists in the SSHKeySecret
@@ -191,7 +191,7 @@ func (r *NovaExternalComputeReconciler) Reconcile(ctx context.Context, req ctrl.
 	// TODO(gibi): generate service config here and include the hash of that
 	// into the hashes
 
-	err = r.ensureConfigMaps(ctx, h, instance, cell, &hashes)
+	err = r.ensureConfigMaps(ctx, h, instance, cell, &hashes, secret)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -399,9 +399,9 @@ func (r *NovaExternalComputeReconciler) SetupWithManager(mgr ctrl.Manager) error
 
 func (r *NovaExternalComputeReconciler) ensureConfigMaps(
 	ctx context.Context, h *helper.Helper, instance *novav1.NovaExternalCompute,
-	cell *novav1.NovaCell, hashes *map[string]env.Setter,
+	cell *novav1.NovaCell, hashes *map[string]env.Setter, secret corev1.Secret,
 ) error {
-	err := r.generateConfigs(ctx, h, instance, cell, hashes)
+	err := r.generateConfigs(ctx, h, instance, cell, hashes, secret)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.ServiceConfigReadyCondition,
@@ -419,25 +419,15 @@ func (r *NovaExternalComputeReconciler) ensureConfigMaps(
 
 func (r *NovaExternalComputeReconciler) generateConfigs(
 	ctx context.Context, h *helper.Helper, instance *novav1.NovaExternalCompute,
-	cell *novav1.NovaCell, hashes *map[string]env.Setter,
+	cell *novav1.NovaCell, hashes *map[string]env.Setter, secret corev1.Secret,
 ) error {
-	secret := &corev1.Secret{}
-	namespace := cell.GetNamespace()
-	secretName := types.NamespacedName{
-		Namespace: namespace,
-		Name:      cell.Spec.Secret,
-	}
-	err := h.GetClient().Get(ctx, secretName, secret)
-	if err != nil {
-		return err
-	}
 
 	cellMessageBusSecret := &corev1.Secret{}
-	secretName = types.NamespacedName{
+	secretName := types.NamespacedName{
 		Namespace: cell.Namespace,
 		Name:      cell.Spec.CellMessageBusSecretName,
 	}
-	err = h.GetClient().Get(ctx, secretName, cellMessageBusSecret)
+	err := h.GetClient().Get(ctx, secretName, cellMessageBusSecret)
 	if err != nil {
 		util.LogForObject(
 			h, "Failed reading Secret", instance,

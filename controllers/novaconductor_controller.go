@@ -137,7 +137,7 @@ func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		required_secret_fields = append(required_secret_fields, instance.Spec.PasswordSelectors.APIDatabase)
 	}
 
-	secretHash, result, err := ensureSecret(
+	secretHash, result, _, err := ensureSecret(
 		ctx,
 		types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.Secret},
 		required_secret_fields,

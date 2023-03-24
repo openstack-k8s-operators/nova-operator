@@ -154,7 +154,7 @@ func (r *NovaAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (re
 	// detect if something is changed.
 	hashes := make(map[string]env.Setter)
 
-	secretHash, result, err := ensureSecret(
+	secretHash, result, secret, err := ensureSecret(
 		ctx,
 		types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.Secret},
 		// TODO(gibi): add keystoneAuthURL here is that is also passed via
@@ -178,7 +178,7 @@ func (r *NovaAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (re
 	// all our input checks out so report InputReady
 	instance.Status.Conditions.MarkTrue(condition.InputReadyCondition, condition.InputReadyMessage)
 
-	err = r.ensureConfigMaps(ctx, h, instance, &hashes)
+	err = r.ensureConfigMaps(ctx, h, instance, &hashes, secret)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -309,8 +309,9 @@ func (r *NovaAPIReconciler) ensureConfigMaps(
 	h *helper.Helper,
 	instance *novav1.NovaAPI,
 	hashes *map[string]env.Setter,
+	secret corev1.Secret,
 ) error {
-	err := r.generateConfigs(ctx, h, instance, hashes)
+	err := r.generateConfigs(ctx, h, instance, hashes, secret)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.ServiceConfigReadyCondition,
@@ -324,25 +325,15 @@ func (r *NovaAPIReconciler) ensureConfigMaps(
 }
 
 func (r *NovaAPIReconciler) generateConfigs(
-	ctx context.Context, h *helper.Helper, instance *novav1.NovaAPI, hashes *map[string]env.Setter,
+	ctx context.Context, h *helper.Helper, instance *novav1.NovaAPI, hashes *map[string]env.Setter, secret corev1.Secret,
 ) error {
-	secret := &corev1.Secret{}
-	namespace := instance.GetNamespace()
-	secretName := types.NamespacedName{
-		Namespace: namespace,
-		Name:      instance.Spec.Secret,
-	}
-	err := h.GetClient().Get(ctx, secretName, secret)
-	if err != nil {
-		return err
-	}
 
 	apiMessageBusSecret := &corev1.Secret{}
-	secretName = types.NamespacedName{
+	secretName := types.NamespacedName{
 		Namespace: instance.Namespace,
 		Name:      instance.Spec.APIMessageBusSecretName,
 	}
-	err = h.GetClient().Get(ctx, secretName, apiMessageBusSecret)
+	err := h.GetClient().Get(ctx, secretName, apiMessageBusSecret)
 	if err != nil {
 		util.LogForObject(
 			h, "Failed reading Secret", instance,

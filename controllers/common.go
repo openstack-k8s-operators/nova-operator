@@ -101,7 +101,7 @@ func ensureSecret(
 	reader client.Reader,
 	conditionUpdater conditionUpdater,
 	requeueTimeout time.Duration,
-) (string, ctrl.Result, error) {
+) (string, ctrl.Result, corev1.Secret, error) {
 	secret := &corev1.Secret{}
 	err := reader.Get(ctx, secretName, secret)
 	if err != nil {
@@ -113,6 +113,7 @@ func ensureSecret(
 				fmt.Sprintf(novav1.InputReadyWaitingMessage, "secret/"+secretName.Name)))
 			return "",
 				ctrl.Result{RequeueAfter: requeueTimeout},
+				*secret,
 				fmt.Errorf("Secret %s not found", secretName)
 		}
 		conditionUpdater.Set(condition.FalseCondition(
@@ -121,7 +122,7 @@ func ensureSecret(
 			condition.SeverityWarning,
 			condition.InputReadyErrorMessage,
 			err.Error()))
-		return "", ctrl.Result{}, err
+		return "", ctrl.Result{}, *secret, err
 	}
 
 	// collect the secret values the caller expects to exist
@@ -136,7 +137,7 @@ func ensureSecret(
 				condition.SeverityWarning,
 				condition.InputReadyErrorMessage,
 				err.Error()))
-			return "", ctrl.Result{}, err
+			return "", ctrl.Result{}, *secret, err
 		}
 		values = append(values, val)
 	}
@@ -151,10 +152,10 @@ func ensureSecret(
 			condition.SeverityWarning,
 			condition.InputReadyErrorMessage,
 			err.Error()))
-		return "", ctrl.Result{}, err
+		return "", ctrl.Result{}, *secret, err
 	}
 
-	return hash, ctrl.Result{}, nil
+	return hash, ctrl.Result{}, *secret, nil
 }
 
 // ensureNetworkAttachments - checks the requested network attachments exists and

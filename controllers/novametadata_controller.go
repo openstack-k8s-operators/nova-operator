@@ -133,7 +133,7 @@ func (r *NovaMetadataReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	hashes := make(map[string]env.Setter)
 
-	secretHash, result, err := ensureSecret(
+	secretHash, result, secret, err := ensureSecret(
 		ctx,
 		types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.Secret},
 		[]string{
@@ -155,7 +155,7 @@ func (r *NovaMetadataReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	// all our input checks out so report InputReady
 	instance.Status.Conditions.MarkTrue(condition.InputReadyCondition, condition.InputReadyMessage)
 
-	err = r.ensureConfigMaps(ctx, h, instance, &hashes)
+	err = r.ensureConfigMaps(ctx, h, instance, &hashes, secret)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -267,8 +267,9 @@ func (r *NovaMetadataReconciler) ensureConfigMaps(
 	h *helper.Helper,
 	instance *novav1beta1.NovaMetadata,
 	hashes *map[string]env.Setter,
+	secret corev1.Secret,
 ) error {
-	err := r.generateConfigs(ctx, h, instance, hashes)
+	err := r.generateConfigs(ctx, h, instance, hashes, secret)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.ServiceConfigReadyCondition,
@@ -283,24 +284,15 @@ func (r *NovaMetadataReconciler) ensureConfigMaps(
 
 func (r *NovaMetadataReconciler) generateConfigs(
 	ctx context.Context, h *helper.Helper, instance *novav1beta1.NovaMetadata, hashes *map[string]env.Setter,
+	secret corev1.Secret,
 ) error {
-	secret := &corev1.Secret{}
-	namespace := instance.GetNamespace()
-	secretName := types.NamespacedName{
-		Namespace: namespace,
-		Name:      instance.Spec.Secret,
-	}
-	err := h.GetClient().Get(ctx, secretName, secret)
-	if err != nil {
-		return err
-	}
 
 	apiMessageBusSecret := &corev1.Secret{}
-	secretName = types.NamespacedName{
+	secretName := types.NamespacedName{
 		Namespace: instance.Namespace,
 		Name:      instance.Spec.APIMessageBusSecretName,
 	}
-	err = h.GetClient().Get(ctx, secretName, apiMessageBusSecret)
+	err := h.GetClient().Get(ctx, secretName, apiMessageBusSecret)
 	if err != nil {
 		util.LogForObject(
 			h, "Failed reading Secret", instance,
