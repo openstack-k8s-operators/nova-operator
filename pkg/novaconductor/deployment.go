@@ -37,26 +37,6 @@ func StatefulSet(
 ) *appsv1.StatefulSet {
 	runAsUser := int64(0)
 
-	initContainerDetails := ContainerInput{
-		ContainerImage:       instance.Spec.ContainerImage,
-		CellDatabaseHostname: instance.Spec.CellDatabaseHostname,
-		CellDatabaseUser:     instance.Spec.CellDatabaseUser,
-		CellDatabaseName:     "nova_" + instance.Spec.CellName,
-		Secret:               instance.Spec.Secret,
-		// NOTE(gibi): this is a hack until we implement proper secret handling
-		// per cell
-		CellDatabasePasswordSelector:        "NovaCell0DatabasePassword",
-		KeystoneServiceUserPasswordSelector: instance.Spec.PasswordSelectors.Service,
-		// NOTE(gibi): these might be empty if the conductor does not support
-		// up-calls but that is OK
-		APIDatabaseHostname:         instance.Spec.APIDatabaseHostname,
-		APIDatabaseUser:             instance.Spec.APIDatabaseUser,
-		APIDatabaseName:             nova.NovaAPIDatabaseName,
-		APIDatabasePasswordSelector: instance.Spec.PasswordSelectors.APIDatabase,
-		VolumeMounts:                nova.GetAllVolumeMounts(),
-		CellMessageBusSecretName:    instance.Spec.CellMessageBusSecretName,
-	}
-
 	livenessProbe := &corev1.Probe{
 		// TODO might need tuning
 		TimeoutSeconds:      5,
@@ -137,11 +117,10 @@ func StatefulSet(
 				},
 				Spec: corev1.PodSpec{
 					ServiceAccountName: nova.ServiceAccount,
-					Volumes: nova.GetVolumes(
+					Volumes: nova.GetOpenstackVolumesWithScripts(
 						nova.GetScriptConfigMapName(instance.Name),
 						nova.GetServiceConfigConfigMapName(instance.Name),
 					),
-					InitContainers: initContainer(initContainerDetails),
 					Containers: []corev1.Container{
 						{
 							Name: instance.Name + "-conductor",
@@ -154,7 +133,7 @@ func StatefulSet(
 								RunAsUser: &runAsUser,
 							},
 							Env:            env,
-							VolumeMounts:   nova.GetServiceVolumeMounts(),
+							VolumeMounts:   nova.GetOpenstackVolumeMountsWithScripts(),
 							Resources:      instance.Spec.Resources,
 							ReadinessProbe: readinessProbe,
 							LivenessProbe:  livenessProbe,

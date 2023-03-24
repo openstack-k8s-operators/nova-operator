@@ -43,7 +43,9 @@ var _ = Describe("NovaConductor controller", func() {
 
 	When("a NovaConductor CR is created pointing to a non existent Secret", func() {
 		BeforeEach(func() {
-			instance := CreateNovaConductor(namespace, GetDefaultNovaConductorSpec())
+			spec := GetDefaultNovaConductorSpec()
+			spec["cellMessageBusSecretName"] = MessageBusSecretName
+			instance := CreateNovaConductor(namespace, spec)
 			novaConductorName = types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
 			DeferCleanup(DeleteInstance, instance)
 		})
@@ -148,6 +150,10 @@ var _ = Describe("NovaConductor controller", func() {
 					ctx,
 					CreateNovaConductorSecret(namespace, SecretName),
 				)
+				DeferCleanup(
+					k8sClient.Delete, ctx,
+					CreateNovaMessageBusSecret(namespace, MessageBusSecretName),
+				)
 			})
 
 			It("reports that input is ready", func() {
@@ -174,7 +180,7 @@ var _ = Describe("NovaConductor controller", func() {
 						Name:      fmt.Sprintf("%s-config-data", novaConductorName.Name),
 					},
 				)
-				Expect(configDataMap.Data).Should(HaveKeyWithValue("custom.conf", ""))
+				Expect(configDataMap.Data).Should(HaveKeyWithValue("nova-blank.conf", ""))
 
 				scriptMap := th.GetConfigMap(
 					types.NamespacedName{
@@ -182,13 +188,8 @@ var _ = Describe("NovaConductor controller", func() {
 						Name:      fmt.Sprintf("%s-scripts", novaConductorName.Name),
 					},
 				)
-				// This is explicitly added to the map by the controller
-				Expect(scriptMap.Data).Should(HaveKeyWithValue(
-					"common.sh", ContainSubstring("function merge_config_dir")))
 				// Everything under templates/novaconductor are added automatically by
 				// lib-common
-				Expect(scriptMap.Data).Should(HaveKeyWithValue(
-					"init.sh", ContainSubstring("database connection mysql+pymysql")))
 				Expect(scriptMap.Data).Should(HaveKeyWithValue(
 					"dbsync.sh", ContainSubstring("nova-manage db sync")))
 				Expect(scriptMap.Data).Should(HaveKeyWithValue(
@@ -272,27 +273,10 @@ var _ = Describe("NovaConductor controller", func() {
 			job := th.GetJob(jobName)
 			// TODO(gibi): We could verify a lot of fields but should we?
 			Expect(job.Spec.Template.Spec.Volumes).To(HaveLen(3))
-			Expect(job.Spec.Template.Spec.InitContainers).To(HaveLen(1))
-			initContainer := job.Spec.Template.Spec.InitContainers[0]
-			Expect(initContainer.VolumeMounts).To(HaveLen(3))
-			Expect(initContainer.Image).To(Equal(ContainerImage))
-			Expect(initContainer.Env).To(ContainElement(
-				corev1.EnvVar{
-					Name: "TransportURL",
-					ValueFrom: &corev1.EnvVarSource{
-						SecretKeyRef: &corev1.SecretKeySelector{
-							LocalObjectReference: corev1.LocalObjectReference{
-								Name: MessageBusSecretName,
-							},
-							Key: "transport_url",
-						},
-					},
-				},
-			))
-
+			Expect(job.Spec.Template.Spec.InitContainers).To(HaveLen(0))
 			Expect(job.Spec.Template.Spec.Containers).To(HaveLen(1))
 			container := job.Spec.Template.Spec.Containers[0]
-			Expect(container.VolumeMounts).To(HaveLen(2))
+			Expect(container.VolumeMounts).To(HaveLen(3))
 			Expect(container.Args[1]).To(ContainSubstring("dbsync.sh"))
 			Expect(container.Image).To(Equal(ContainerImage))
 		})

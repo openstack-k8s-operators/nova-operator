@@ -535,14 +535,19 @@ var _ = Describe("Nova controller", func() {
 			th.SimulateTransportURLReady(apiTransportURLName)
 
 			cell0DBSync := th.GetJob(cell0DBSyncJobName)
-			cell0DBSyncJobEnv := cell0DBSync.Spec.Template.Spec.InitContainers[0].Env
-			Expect(cell0DBSyncJobEnv).To(
-				ContainElements(
-					[]corev1.EnvVar{
-						{Name: "CellDatabaseHost", Value: "hostname-for-db-for-cell0"},
-						{Name: "APIDatabaseHost", Value: "hostname-for-db-for-api"},
-					},
-				),
+			Expect(len(cell0DBSync.Spec.Template.Spec.InitContainers)).To(Equal(0))
+			configDataMap := th.GetConfigMap(
+				types.NamespacedName{
+					Namespace: namespace,
+					Name:      fmt.Sprintf("%s-config-data", cell0ConductorName.Name),
+				},
+			)
+			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
+			Expect(configDataMap.Data["01-nova.conf"]).To(
+				ContainSubstring("[database]\nconnection = mysql+pymysql://nova_cell0:12345678@hostname-for-db-for-cell0/nova_cell0"),
+			)
+			Expect(configDataMap.Data["01-nova.conf"]).To(
+				ContainSubstring("[api_database]\nconnection = mysql+pymysql://nova_api:12345678@hostname-for-db-for-api/nova_api"),
 			)
 
 			th.SimulateJobSuccess(cell0DBSyncJobName)
@@ -550,7 +555,7 @@ var _ = Describe("Nova controller", func() {
 			th.SimulateStatefulSetReplicaReady(novaSchedulerStatefulSetName)
 			th.SimulateStatefulSetReplicaReady(novaMetadataStatefulSetName)
 
-			configDataMap := th.GetConfigMap(
+			configDataMap = th.GetConfigMap(
 				types.NamespacedName{
 					Namespace: namespace,
 					Name:      fmt.Sprintf("%s-config-data", novaAPIName.Name),

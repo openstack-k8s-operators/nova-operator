@@ -19,5 +19,5 @@ package novaconductor
 const (
 	// MergedServiceConfigPath - The location of the merged configuration file
 	// for the service
-	MergedServiceConfigPath = "/var/lib/config-data/merged/nova-conductor-config.json"
+	MergedServiceConfigPath = "/var/lib/openstack/config/nova-conductor-config.json"
 )

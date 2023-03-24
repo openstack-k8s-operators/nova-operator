@@ -31,6 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
+	"github.com/openstack-k8s-operators/nova-operator/pkg/nova"
 
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/configmap"
@@ -372,13 +373,14 @@ func (r *Reconcilers) OverrideRequeueTimeout(timeout time.Duration) {
 	}
 }
 
-// GenerateConfigs helper function to generate config maps
-func (r *ReconcilerBase) GenerateConfigs(
+// generateConfigsGeneric helper function to generate config maps
+func (r *ReconcilerBase) generateConfigsGeneric(
 	ctx context.Context, h *helper.Helper,
 	instance client.Object, envVars *map[string]env.Setter,
 	templateParameters map[string]interface{},
 	extraData map[string]string, cmLabels map[string]string,
 	additionalTemplates map[string]string,
+	withScripts bool,
 ) error {
 
 	extraTemplates := map[string]string{
@@ -392,7 +394,7 @@ func (r *ReconcilerBase) GenerateConfigs(
 	cms := []util.Template{
 		// ConfigMap
 		{
-			Name:               fmt.Sprintf("%s-config-data", instance.GetName()),
+			Name:               nova.GetServiceConfigConfigMapName(instance.GetName()),
 			Namespace:          instance.GetNamespace(),
 			Type:               util.TemplateTypeConfig,
 			InstanceType:       instance.GetObjectKind().GroupVersionKind().Kind,
@@ -403,10 +405,50 @@ func (r *ReconcilerBase) GenerateConfigs(
 			AdditionalTemplate: extraTemplates,
 		},
 	}
+	if withScripts {
+		cms = append(cms, util.Template{
+			Name:               nova.GetScriptConfigMapName(instance.GetName()),
+			Namespace:          instance.GetNamespace(),
+			Type:               util.TemplateTypeScripts,
+			InstanceType:       instance.GetObjectKind().GroupVersionKind().Kind,
+			AdditionalTemplate: map[string]string{},
+			Annotations:        map[string]string{},
+			Labels:             cmLabels,
+		})
+	}
 	// TODO(sean): make this create a secret instead.
 	// consider taking this as a function pointer or interface
 	// to enable unit testing at some point.
 	return configmap.EnsureConfigMaps(ctx, h, instance, cms, envVars)
+}
+
+// GenerateConfigs helper function to generate config maps
+func (r *ReconcilerBase) GenerateConfigs(
+	ctx context.Context, h *helper.Helper,
+	instance client.Object, envVars *map[string]env.Setter,
+	templateParameters map[string]interface{},
+	extraData map[string]string, cmLabels map[string]string,
+	additionalTemplates map[string]string,
+) error {
+	return r.generateConfigsGeneric(
+		ctx, h, instance, envVars, templateParameters, extraData,
+		cmLabels, additionalTemplates, false,
+	)
+}
+
+// GenerateConfigsWithScripts helper function to generate config maps
+// for service configs and scripts
+func (r *ReconcilerBase) GenerateConfigsWithScripts(
+	ctx context.Context, h *helper.Helper,
+	instance client.Object, envVars *map[string]env.Setter,
+	templateParameters map[string]interface{},
+	extraData map[string]string, cmLabels map[string]string,
+	additionalTemplates map[string]string,
+) error {
+	return r.generateConfigsGeneric(
+		ctx, h, instance, envVars, templateParameters, extraData,
+		cmLabels, additionalTemplates, true,
+	)
 }
 
 func getNovaCellCRName(novaCRName string, cellName string) string {

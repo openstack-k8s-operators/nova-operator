@@ -29,7 +29,6 @@ import (
 
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
-	"github.com/openstack-k8s-operators/lib-common/modules/common/configmap"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 	job "github.com/openstack-k8s-operators/lib-common/modules/common/job"
@@ -38,7 +37,6 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/statefulset"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
-	"github.com/openstack-k8s-operators/nova-operator/pkg/nova"
 	"github.com/openstack-k8s-operators/nova-operator/pkg/novaconductor"
 )
 
@@ -130,16 +128,18 @@ func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	// detect if something is changed.
 	hashes := make(map[string]env.Setter)
 
+	required_secret_fields := []string{
+		instance.Spec.PasswordSelectors.Service,
+		instance.Spec.PasswordSelectors.CellDatabase,
+	}
+	if len(instance.Spec.APIDatabaseHostname) > 0 {
+		required_secret_fields = append(required_secret_fields, instance.Spec.PasswordSelectors.APIDatabase)
+	}
+
 	secretHash, result, err := ensureSecret(
 		ctx,
 		types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.Secret},
-		// TODO(gibi): Add the rest of the secret fields here when they are
-		// needed for the controller to reconcile.
-		[]string{
-			// TODO(gibi): This is hardcode here until wil agree one the Secret
-			// handling tracked in issues/79
-			"NovaCell0DatabasePassword",
-		},
+		required_secret_fields,
 		h.GetClient(),
 		&instance.Status.Conditions,
 		r.RequeueTimeout,
@@ -260,7 +260,7 @@ func (r *NovaConductorReconciler) ensureConfigMaps(
 	//   the service up, user can add additional files to be added to the service
 	// - parameters which has passwords gets added from the OpenStack secret
 	//   via the init container
-	err := r.generateServiceConfigMaps(ctx, h, instance, hashes)
+	err := r.generateConfigs(ctx, h, instance, hashes)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.ServiceConfigReadyCondition,
@@ -273,16 +273,8 @@ func (r *NovaConductorReconciler) ensureConfigMaps(
 	return nil
 }
 
-// TODO(gibi): Carried over from placement, Sean started working on this
-// so integrate Sean's work here
-//
-// generateServiceConfigMaps - create create configmaps which hold scripts and service configuration
-// TODO add DefaultConfigOverwrite
-func (r *NovaConductorReconciler) generateServiceConfigMaps(
-	ctx context.Context,
-	h *helper.Helper,
-	instance *novav1.NovaConductor,
-	envVars *map[string]env.Setter,
+func (r *NovaConductorReconciler) generateConfigs(
+	ctx context.Context, h *helper.Helper, instance *novav1.NovaConductor, hashes *map[string]env.Setter,
 ) error {
 	//
 	// create Configmap/Secret required for nova-conductor input
@@ -293,51 +285,68 @@ func (r *NovaConductorReconciler) generateServiceConfigMaps(
 	//   init container
 	//
 
-	cmLabels := labels.GetLabels(
-		instance, labels.GetGroupLabel(NovaConductorLabelPrefix), map[string]string{})
-
-	// customData hold any customization for the service.
-	// custom.conf is going to /etc/<service>/<service>.conf.d
-	// all other files get placed into /etc/<service> to allow overwrite of
-	// e.g. logging.conf or policy.json
-	// TODO: make sure custom.conf can not be overwritten
-	customData := map[string]string{
-		common.CustomServiceConfigFileName: instance.Spec.CustomServiceConfig}
-	for key, data := range instance.Spec.DefaultConfigOverwrite {
-		customData[key] = data
+	secret := &corev1.Secret{}
+	namespace := instance.GetNamespace()
+	secretName := types.NamespacedName{
+		Namespace: namespace,
+		Name:      instance.Spec.Secret,
 	}
-
-	templateParameters := make(map[string]interface{})
-	templateParameters["ServiceUser"] = instance.Spec.ServiceUser
-	templateParameters["KeystonePublicURL"] = instance.Spec.KeystoneAuthURL
-
-	cms := []util.Template{
-		// ScriptsConfigMap
-		{
-			Name:               nova.GetScriptConfigMapName(instance.Name),
-			Namespace:          instance.Namespace,
-			Type:               util.TemplateTypeScripts,
-			InstanceType:       instance.Kind,
-			AdditionalTemplate: map[string]string{"common.sh": "/common/common.sh"},
-			Labels:             cmLabels,
-		},
-		// ConfigMap
-		{
-			Name:          nova.GetServiceConfigConfigMapName(instance.Name),
-			Namespace:     instance.Namespace,
-			Type:          util.TemplateTypeConfig,
-			InstanceType:  instance.Kind,
-			CustomData:    customData,
-			ConfigOptions: templateParameters,
-			Labels:        cmLabels,
-		},
-	}
-	err := configmap.EnsureConfigMaps(ctx, h, instance, cms, envVars)
+	err := h.GetClient().Get(ctx, secretName, secret)
 	if err != nil {
 		return err
 	}
 
-	return nil
+	messageBusSecret := &corev1.Secret{}
+	secretName = types.NamespacedName{
+		Namespace: instance.Namespace,
+		Name:      instance.Spec.CellMessageBusSecretName,
+	}
+	err = h.GetClient().Get(ctx, secretName, messageBusSecret)
+	if err != nil {
+		util.LogForObject(
+			h, "Failed reading Secret", instance,
+			"CellMessageBusSecretName", instance.Spec.CellMessageBusSecretName)
+		return err
+	}
+
+	templateParameters := map[string]interface{}{
+		"service_name":           "nova-conductor",
+		"keystone_internal_url":  instance.Spec.KeystoneAuthURL,
+		"nova_keystone_user":     instance.Spec.ServiceUser,
+		"nova_keystone_password": string(secret.Data[instance.Spec.PasswordSelectors.Service]),
+		"cell_db_name":           instance.Spec.CellDatabaseUser, // fixme
+		"cell_db_user":           instance.Spec.CellDatabaseUser,
+		"cell_db_password":       string(secret.Data[instance.Spec.PasswordSelectors.CellDatabase]),
+		"cell_db_address":        instance.Spec.CellDatabaseHostname,
+		"cell_db_port":           3306,
+		"openstack_cacert":       "",          // fixme
+		"openstack_region_name":  "regionOne", // fixme
+		"default_project_domain": "Default",   // fixme
+		"default_user_domain":    "Default",   // fixme
+		"transport_url":          string(messageBusSecret.Data["transport_url"]),
+	}
+	if len(instance.Spec.APIDatabaseHostname) > 0 && len(instance.Spec.APIDatabaseUser) > 0 {
+		templateParameters["api_db_name"] = instance.Spec.APIDatabaseUser // fixme
+		templateParameters["api_db_user"] = instance.Spec.APIDatabaseUser
+		templateParameters["api_db_password"] = string(secret.Data[instance.Spec.PasswordSelectors.APIDatabase])
+		templateParameters["api_db_address"] = instance.Spec.APIDatabaseHostname
+		templateParameters["api_db_port"] = 3306
+	}
+
+	extraData := map[string]string{}
+	if instance.Spec.CustomServiceConfig != "" {
+		extraData["02-nova-override.conf"] = instance.Spec.CustomServiceConfig
+	}
+	for key, data := range instance.Spec.DefaultConfigOverwrite {
+		extraData[key] = data
+	}
+
+	cmLabels := labels.GetLabels(
+		instance, labels.GetGroupLabel(NovaConductorLabelPrefix), map[string]string{})
+
+	return r.GenerateConfigsWithScripts(
+		ctx, h, instance, hashes, templateParameters, extraData, cmLabels, map[string]string{},
+	)
 }
 
 func (r *NovaConductorReconciler) ensureCellDBSynced(
