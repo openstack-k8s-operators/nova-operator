@@ -78,6 +78,7 @@ type NovaCellSpec struct {
 	CellName string `json:"cellName"`
 
 	// +kubebuilder:validation:Required
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:io.kubernetes:Secret"}
 	// Secret is the name of the Secret instance containing password
 	// information for the nova cell.
 	Secret string `json:"secret"`
@@ -121,6 +122,7 @@ type NovaCellSpec struct {
 	CellDatabaseHostname string `json:"cellDatabaseHostname"`
 
 	// +kubebuilder:validation:Required
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:io.kubernetes:Secret"}
 	// CellMessageBusSecretName - the name of the Secret conntaining the
 	// transport URL information to use when accessing the Cell message
 	// bus. For cell0 this should be the Secret for the API message bus.
@@ -153,6 +155,7 @@ type NovaCellStatus struct {
 	// Map of hashes to track e.g. job status
 	Hash map[string]string `json:"hash,omitempty"`
 
+	// +operator-sdk:csv:customresourcedefinitions:type=status,xDescriptors={"urn:alm:descriptor:io.kubernetes.conditions"}
 	// Conditions
 	Conditions condition.Conditions `json:"conditions,omitempty" optional:"true"`
 
@@ -171,6 +174,9 @@ type NovaCellStatus struct {
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+//+kubebuilder:printcolumn:name="NetworkAttachments",type="string",JSONPath=".spec.networkAttachments",description="NetworkAttachments"
+//+kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.conditions[0].status",description="Status"
+//+kubebuilder:printcolumn:name="Message",type="string",JSONPath=".status.conditions[0].message",description="Message"
 
 // NovaCell is the Schema for the novacells API
 type NovaCell struct {

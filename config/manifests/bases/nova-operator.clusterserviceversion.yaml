@@ -15,36 +15,255 @@ spec:
       displayName: Nova API
       kind: NovaAPI
       name: novaapis.nova.openstack.org
+      specDescriptors:
+      - description: APIMessageBusSecretName - the name of the Secret conntaining
+          the transport URL information to use when accessing the API message bus.
+        displayName: APIMessage Bus Secret Name
+        path: apiMessageBusSecretName
+        x-descriptors:
+        - urn:alm:descriptor:io.kubernetes:Secret
+      - description: Replicas of the service to run
+        displayName: Replicas
+        path: replicas
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:podCount
+      - description: Secret is the name of the Secret instance containing password
+          information for the nova-api sevice.
+        displayName: Secret
+        path: secret
+        x-descriptors:
+        - urn:alm:descriptor:io.kubernetes:Secret
+      statusDescriptors:
+      - description: Conditions
+        displayName: Conditions
+        path: conditions
+        x-descriptors:
+        - urn:alm:descriptor:io.kubernetes.conditions
       version: v1beta1
     - description: NovaCell is the Schema for the novacells API
       displayName: Nova Cell
       kind: NovaCell
       name: novacells.nova.openstack.org
+      specDescriptors:
+      - description: CellMessageBusSecretName - the name of the Secret conntaining
+          the transport URL information to use when accessing the Cell message bus.
+          For cell0 this should be the Secret for the API message bus.
+        displayName: Cell Message Bus Secret Name
+        path: cellMessageBusSecretName
+        x-descriptors:
+        - urn:alm:descriptor:io.kubernetes:Secret
+      - description: Replicas of the service to run
+        displayName: Replicas
+        path: conductorServiceTemplate.replicas
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:podCount
+      - description: Replicas of the service to run
+        displayName: Replicas
+        path: metadataServiceTemplate.replicas
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:podCount
+      - description: Replicas of the service to run
+        displayName: Replicas
+        path: noVNCProxyServiceTemplate.replicas
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:podCount
+      - description: Secret is the name of the Secret instance containing password
+          information for the nova cell.
+        displayName: Secret
+        path: secret
+        x-descriptors:
+        - urn:alm:descriptor:io.kubernetes:Secret
+      statusDescriptors:
+      - description: Conditions
+        displayName: Conditions
+        path: conditions
+        x-descriptors:
+        - urn:alm:descriptor:io.kubernetes.conditions
       version: v1beta1
     - description: NovaConductor is the Schema for the novaconductors API
       displayName: Nova Conductor
       kind: NovaConductor
       name: novaconductors.nova.openstack.org
+      specDescriptors:
+      - description: CellMessageBusSecretName - the name of the Secret conntaining
+          the transport URL information to use when accessing the Cell message bus.
+        displayName: Cell Message Bus Secret Name
+        path: cellMessageBusSecretName
+        x-descriptors:
+        - urn:alm:descriptor:io.kubernetes:Secret
+      - description: Replicas of the service to run
+        displayName: Replicas
+        path: replicas
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:podCount
+      - description: Secret is the name of the Secret instance containing password
+          information for the nova-conductor service.
+        displayName: Secret
+        path: secret
+        x-descriptors:
+        - urn:alm:descriptor:io.kubernetes:Secret
+      statusDescriptors:
+      - description: Conditions
+        displayName: Conditions
+        path: conditions
+        x-descriptors:
+        - urn:alm:descriptor:io.kubernetes.conditions
+      version: v1beta1
+    - description: NovaExternalCompute is the Schema for the novaexternalcomputes
+        API
+      displayName: Nova External Compute
+      kind: NovaExternalCompute
+      name: novaexternalcomputes.nova.openstack.org
+      specDescriptors:
+      - description: InventoryConfigMapName is the name of the k8s config map that
+          contains the ansible inventory information for this node
+        displayName: Inventory Config Map Name
+        path: inventoryConfigMapName
+        x-descriptors:
+        - urn:alm:descriptor:io.kubernetes:ConfigMap
+      - description: SSHKeySecretName is the name of the k8s Secret that contains
+          the ssh keys to access the node
+        displayName: SSHKey Secret Name
+        path: sshKeySecretName
+        x-descriptors:
+        - urn:alm:descriptor:io.kubernetes:Secret
+      statusDescriptors:
+      - description: Conditions
+        displayName: Conditions
+        path: conditions
+        x-descriptors:
+        - urn:alm:descriptor:io.kubernetes.conditions
       version: v1beta1
     - description: NovaMetadata is the Schema for the novametadata API
       displayName: Nova Metadata
       kind: NovaMetadata
       name: novametadata.nova.openstack.org
+      specDescriptors:
+      - description: 'APIMessageBusSecretName - the name of the Secret conntaining
+          the transport URL information to use when accessing the API message bus.
+          TODO(ksambor): add a validation webhook to enforce that it is required for
+          the CellName == ""'
+        displayName: APIMessage Bus Secret Name
+        path: apiMessageBusSecretName
+        x-descriptors:
+        - urn:alm:descriptor:io.kubernetes:Secret
+      - description: CellMessageBusSecretName - the name of the Secret conntaining
+          the transport URL information to use when accessing the Cell message bus.
+        displayName: Cell Message Bus Secret Name
+        path: cellMessageBusSecretName
+        x-descriptors:
+        - urn:alm:descriptor:io.kubernetes:Secret
+      - description: Replicas of the service to run
+        displayName: Replicas
+        path: replicas
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:podCount
+      - description: Secret is the name of the Secret instance containing password
+          information for the nova-conductor service.
+        displayName: Secret
+        path: secret
+        x-descriptors:
+        - urn:alm:descriptor:io.kubernetes:Secret
+      statusDescriptors:
+      - description: Conditions
+        displayName: Conditions
+        path: conditions
+        x-descriptors:
+        - urn:alm:descriptor:io.kubernetes.conditions
       version: v1beta1
     - description: NovaNoVNCProxy is the Schema for the novanovncproxies API
       displayName: Nova No VNCProxy
       kind: NovaNoVNCProxy
       name: novanovncproxies.nova.openstack.org
+      specDescriptors:
+      - description: Replicas of the service to run
+        displayName: Replicas
+        path: replicas
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:podCount
+      - description: Secret is the name of the Secret instance containing password
+          information for the nova-conductor service.
+        displayName: Secret
+        path: secret
+        x-descriptors:
+        - urn:alm:descriptor:io.kubernetes:Secret
+      statusDescriptors:
+      - description: Conditions
+        displayName: Conditions
+        path: conditions
+        x-descriptors:
+        - urn:alm:descriptor:io.kubernetes.conditions
       version: v1beta1
     - description: Nova is the Schema for the nova API
       displayName: Nova
       kind: Nova
       name: novas.nova.openstack.org
+      specDescriptors:
+      - description: Replicas of the service to run
+        displayName: Replicas
+        path: apiServiceTemplate.replicas
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:podCount
+      - description: Replicas of the service to run
+        displayName: Replicas
+        path: cellTemplates.conductorServiceTemplate.replicas
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:podCount
+      - description: Replicas of the service to run
+        displayName: Replicas
+        path: cellTemplates.metadataServiceTemplate.replicas
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:podCount
+      - description: Replicas of the service to run
+        displayName: Replicas
+        path: cellTemplates.noVNCProxyServiceTemplate.replicas
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:podCount
+      - description: Replicas of the service to run
+        displayName: Replicas
+        path: metadataServiceTemplate.replicas
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:podCount
+      - description: Replicas of the service to run
+        displayName: Replicas
+        path: schedulerServiceTemplate.replicas
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:podCount
+      - description: Secret is the name of the Secret instance containing password
+          information for nova like the keystone service password and DB passwords
+        displayName: Secret
+        path: secret
+        x-descriptors:
+        - urn:alm:descriptor:io.kubernetes:Secret
+      statusDescriptors:
+      - description: Conditions
+        displayName: Conditions
+        path: conditions
+        x-descriptors:
+        - urn:alm:descriptor:io.kubernetes.conditions
       version: v1beta1
     - description: NovaScheduler is the Schema for the novaschedulers API
       displayName: Nova Scheduler
       kind: NovaScheduler
       name: novaschedulers.nova.openstack.org
+      specDescriptors:
+      - description: Replicas of the service to run
+        displayName: Replicas
+        path: replicas
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:podCount
+      - description: Secret is the name of the Secret instance containing password
+          information for the nova-scheduler sevice.
+        displayName: Secret
+        path: secret
+        x-descriptors:
+        - urn:alm:descriptor:io.kubernetes:Secret
+      statusDescriptors:
+      - description: Conditions
+        displayName: Conditions
+        path: conditions
+        x-descriptors:
+        - urn:alm:descriptor:io.kubernetes.conditions
       version: v1beta1
   description: Nova Operator
   displayName: Nova Operator

@@ -41,6 +41,7 @@ type NovaAPITemplate struct {
 	// +kubebuilder:default=1
 	// +kubebuilder:validation:Maximum=32
 	// +kubebuilder:validation:Minimum=0
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:com.tectonic.ui:podCount"}
 	// Replicas of the service to run
 	Replicas int32 `json:"replicas"`
 
@@ -79,6 +80,7 @@ type NovaAPISpec struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	// +kubebuilder:validation:Required
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:io.kubernetes:Secret"}
 	// Secret is the name of the Secret instance containing password
 	// information for the nova-api sevice.
 	Secret string `json:"secret"`
@@ -108,6 +110,7 @@ type NovaAPISpec struct {
 	APIDatabaseHostname string `json:"apiDatabaseHostname"`
 
 	// +kubebuilder:validation:Required
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:io.kubernetes:Secret"}
 	// APIMessageBusSecretName - the name of the Secret conntaining the
 	// transport URL information to use when accessing the API message
 	// bus.
@@ -148,6 +151,7 @@ type NovaAPIStatus struct {
 	// API endpoint
 	APIEndpoints map[string]string `json:"apiEndpoint,omitempty"`
 
+	// +operator-sdk:csv:customresourcedefinitions:type=status,xDescriptors={"urn:alm:descriptor:io.kubernetes.conditions"}
 	// Conditions
 	Conditions condition.Conditions `json:"conditions,omitempty" optional:"true"`
 

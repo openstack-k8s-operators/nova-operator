@@ -51,11 +51,13 @@ type NovaExternalComputeSpec struct {
 	DefaultConfigOverwrite map[string]string `json:"defaultConfigOverwrite"`
 
 	// +kubebuilder:validation:Required
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:io.kubernetes:ConfigMap"}
 	// InventoryConfigMapName is the name of the k8s config map that contains the ansible inventory information
 	// for this node
 	InventoryConfigMapName string `json:"inventoryConfigMapName"`
 
 	// +kubebuilder:validation:Required
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:io.kubernetes:Secret"}
 	// SSHKeySecretName is the name of the k8s Secret that contains the ssh keys to access the node
 	SSHKeySecretName string `json:"sshKeySecretName"`
 
@@ -93,6 +95,7 @@ type NovaExternalComputeStatus struct {
 	// Map of hashes to track e.g. job status
 	Hash map[string]string `json:"hash,omitempty"`
 
+	// +operator-sdk:csv:customresourcedefinitions:type=status,xDescriptors={"urn:alm:descriptor:io.kubernetes.conditions"}
 	// Conditions
 	Conditions condition.Conditions `json:"conditions,omitempty" optional:"true"`
 
@@ -104,6 +107,9 @@ type NovaExternalComputeStatus struct {
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+//+kubebuilder:printcolumn:name="NetworkAttachments",type="string",JSONPath=".spec.networkAttachments",description="NetworkAttachments"
+//+kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.conditions[0].status",description="Status"
+//+kubebuilder:printcolumn:name="Message",type="string",JSONPath=".status.conditions[0].message",description="Message"
 
 // NovaExternalCompute is the Schema for the novaexternalcomputes API
 type NovaExternalCompute struct {
