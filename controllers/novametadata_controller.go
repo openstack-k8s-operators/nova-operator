@@ -301,6 +301,9 @@ func (r *NovaMetadataReconciler) generateConfigs(
 
 	templateParameters := map[string]interface{}{
 		"service_name":           novametadata.ServiceName,
+		"keystone_internal_url":  instance.Spec.KeystoneAuthURL,
+		"nova_keystone_user":     instance.Spec.ServiceUser,
+		"nova_keystone_password": string(secret.Data[instance.Spec.PasswordSelectors.Service]),
 		"api_db_name":            instance.Spec.APIDatabaseUser, // fixme
 		"api_db_user":            instance.Spec.APIDatabaseUser,
 		"api_db_password":        string(secret.Data[instance.Spec.PasswordSelectors.APIDatabase]),
