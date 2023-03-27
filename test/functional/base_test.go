@@ -213,7 +213,7 @@ func DeleteInstance(instance client.Object) {
 		if k8s_errors.IsNotFound(err) {
 			return
 		}
-		g.Expect(err).Should(BeNil())
+		g.Expect(err).ShouldNot(HaveOccurred())
 
 		g.Expect(k8sClient.Delete(ctx, instance)).Should(Succeed())
 
@@ -552,7 +552,7 @@ func DeleteSecret(name types.NamespacedName) {
 		if k8s_errors.IsNotFound(err) {
 			return
 		}
-		g.Expect(err).Should(BeNil())
+		g.Expect(err).ShouldNot(HaveOccurred())
 
 		g.Expect(k8sClient.Delete(ctx, secret)).Should(Succeed())
 
@@ -569,7 +569,7 @@ func DeleteConfigMap(name types.NamespacedName) {
 		if k8s_errors.IsNotFound(err) {
 			return
 		}
-		g.Expect(err).Should(BeNil())
+		g.Expect(err).ShouldNot(HaveOccurred())
 
 		g.Expect(k8sClient.Delete(ctx, configMap)).Should(Succeed())
 

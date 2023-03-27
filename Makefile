@@ -119,10 +119,12 @@ vet: gowork ## Run go vet against code.
 	go vet ./...
 	go vet ./api/...
 
+
+APIPATH ?= $(shell pwd)/api
 .PHONY: tidy
 tidy: fmt
 	go mod tidy; \
-	pushd "$(LOCALBIN)/../api"; \
+	pushd $(APIPATH); \
 	go mod tidy; \
 	popd
 
