@@ -344,9 +344,7 @@ func (r *NovaMetadataReconciler) ensureDeployment(
 	inputHash string,
 	annotations map[string]string,
 ) (ctrl.Result, error) {
-	serviceLabels := map[string]string{
-		common.AppSelector: NovaMetadataLabelPrefix,
-	}
+	serviceLabels := getMetadataServiceLabels()
 	ss := statefulset.NewStatefulSet(novametadata.StatefulSet(instance, inputHash, serviceLabels, annotations), r.RequeueTimeout)
 	ctrlResult, err := ss.CreateOrPatch(ctx, h)
 	if err != nil && !k8s_errors.IsNotFound(err) {
@@ -438,7 +436,7 @@ func (r *NovaMetadataReconciler) ensureServiceExposed(
 		ctx,
 		h,
 		novametadata.ServiceName,
-		getServiceLabels(),
+		getMetadataServiceLabels(),
 		ports,
 		r.RequeueTimeout,
 	)
@@ -478,6 +476,12 @@ func (r *NovaMetadataReconciler) reconcileDelete(
 	// when the service is scaled in or deleted
 	util.LogForObject(h, "Reconciled delete successfully", instance)
 	return nil
+}
+
+func getMetadataServiceLabels() map[string]string {
+	return map[string]string{
+		common.AppSelector: NovaMetadataLabelPrefix,
+	}
 }
 
 // SetupWithManager sets up the controller with the Manager.
