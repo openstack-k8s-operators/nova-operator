@@ -273,6 +273,7 @@ var _ = Describe("NovaAPI controller", func() {
 			Expect(int(*ss.Spec.Replicas)).To(Equal(1))
 			Expect(ss.Spec.Template.Spec.Volumes).To(HaveLen(2))
 			Expect(ss.Spec.Template.Spec.Containers).To(HaveLen(2))
+			Expect(ss.Spec.Selector.MatchLabels).To(Equal(map[string]string{"service": "nova-api"}))
 
 			container := ss.Spec.Template.Spec.Containers[0]
 			Expect(container.VolumeMounts).To(HaveLen(2))
@@ -317,8 +318,10 @@ var _ = Describe("NovaAPI controller", func() {
 				condition.ExposeServiceReadyCondition,
 				corev1.ConditionTrue,
 			)
-			GetService(types.NamespacedName{Namespace: namespace, Name: "nova-public"})
-			GetService(types.NamespacedName{Namespace: namespace, Name: "nova-internal"})
+			public := GetService(types.NamespacedName{Namespace: namespace, Name: "nova-public"})
+			Expect(public.Labels["service"]).To(Equal("nova-api"))
+			internal := GetService(types.NamespacedName{Namespace: namespace, Name: "nova-internal"})
+			Expect(internal.Labels["service"]).To(Equal("nova-api"))
 			AssertRouteExists(types.NamespacedName{Namespace: namespace, Name: "nova-public"})
 		})
 

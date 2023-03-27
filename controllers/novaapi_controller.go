@@ -390,7 +390,7 @@ func (r *NovaAPIReconciler) ensureDeployment(
 	inputHash string,
 	annotations map[string]string,
 ) (ctrl.Result, error) {
-	ss := statefulset.NewStatefulSet(novaapi.StatefulSet(instance, inputHash, getServiceLabels(), annotations), r.RequeueTimeout)
+	ss := statefulset.NewStatefulSet(novaapi.StatefulSet(instance, inputHash, getAPIServiceLabels(), annotations), r.RequeueTimeout)
 	ctrlResult, err := ss.CreateOrPatch(ctx, h)
 	if err != nil && !k8s_errors.IsNotFound(err) {
 		util.LogErrorForObject(h, err, "Deployment failed", instance)
@@ -419,7 +419,7 @@ func (r *NovaAPIReconciler) ensureDeployment(
 		ctx,
 		h,
 		instance.Spec.NetworkAttachments,
-		getServiceLabels(),
+		getAPIServiceLabels(),
 		instance.Status.ReadyCount)
 	if err != nil {
 		return ctrl.Result{}, err
@@ -482,7 +482,7 @@ func (r *NovaAPIReconciler) ensureServiceExposed(
 		ctx,
 		h,
 		novaapi.ServiceName,
-		getServiceLabels(),
+		getAPIServiceLabels(),
 		ports,
 		r.RequeueTimeout,
 	)
@@ -525,7 +525,7 @@ func (r *NovaAPIReconciler) ensureKeystoneEndpoint(
 		novaapi.ServiceName,
 		instance.Namespace,
 		endpointSpec,
-		getServiceLabels(),
+		getAPIServiceLabels(),
 		r.RequeueTimeout,
 	)
 	ctrlResult, err := endpoint.CreateOrPatch(ctx, h)
@@ -600,7 +600,7 @@ func (r *NovaAPIReconciler) reconcileDelete(
 	return nil
 }
 
-func getServiceLabels() map[string]string {
+func getAPIServiceLabels() map[string]string {
 	return map[string]string{
 		common.AppSelector: NovaAPILabelPrefix,
 	}

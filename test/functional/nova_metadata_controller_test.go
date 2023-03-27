@@ -18,6 +18,7 @@ package functional_test
 import (
 	"encoding/json"
 	"fmt"
+
 	networkv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -245,6 +246,7 @@ var _ = Describe("NovaMetadata controller", func() {
 				Expect(int(*ss.Spec.Replicas)).To(Equal(1))
 				Expect(ss.Spec.Template.Spec.Volumes).To(HaveLen(2))
 				Expect(ss.Spec.Template.Spec.Containers).To(HaveLen(2))
+				Expect(ss.Spec.Selector.MatchLabels).To(Equal(map[string]string{"service": "nova-metadata"}))
 
 				container := ss.Spec.Template.Spec.Containers[0]
 				Expect(container.VolumeMounts).To(HaveLen(2))
@@ -290,7 +292,8 @@ var _ = Describe("NovaMetadata controller", func() {
 					condition.ExposeServiceReadyCondition,
 					corev1.ConditionTrue,
 				)
-				GetService(types.NamespacedName{Namespace: namespace, Name: "nova-metadata-internal"})
+				service := GetService(types.NamespacedName{Namespace: namespace, Name: "nova-metadata-internal"})
+				Expect(service.Labels["service"]).To(Equal("nova-metadata"))
 			})
 
 			It("is Ready", func() {
