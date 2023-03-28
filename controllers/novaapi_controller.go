@@ -367,7 +367,7 @@ func (r *NovaAPIReconciler) generateConfigs(
 	}
 	extraData := map[string]string{}
 	if instance.Spec.CustomServiceConfig != "" {
-		extraData["03-nova-override.conf"] = instance.Spec.CustomServiceConfig
+		extraData["02-nova-override.conf"] = instance.Spec.CustomServiceConfig
 	}
 	for key, data := range instance.Spec.DefaultConfigOverwrite {
 		extraData[key] = data
