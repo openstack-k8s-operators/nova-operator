@@ -17,6 +17,7 @@
         "/var/lib/libvirt:/var/lib/libvirt",
         "/var/lib/nova:/var/lib/nova",
         "/run/libvirt:/run/libvirt",
-        "/dev:/dev"
+        "/dev:/dev",
+        "/etc/ceph:/etc/ceph:ro"
     ]
   }
