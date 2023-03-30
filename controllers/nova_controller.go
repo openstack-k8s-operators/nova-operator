@@ -259,7 +259,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 			condition.ErrorReason,
 			condition.SeverityError,
 			novav1.NovaAPIMQReadyErrorMessage,
-			apiDBError.Error(),
+			apiMQError.Error(),
 		))
 	case nova.MQCreating:
 		instance.Status.Conditions.Set(condition.FalseCondition(
