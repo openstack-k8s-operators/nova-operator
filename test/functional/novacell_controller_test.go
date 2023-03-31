@@ -16,7 +16,6 @@ limitations under the License.
 package functional_test
 
 import (
-	"github.com/google/uuid"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/openstack-k8s-operators/lib-common/modules/test/helpers"
@@ -30,28 +29,14 @@ import (
 )
 
 var _ = Describe("NovaCell controller", func() {
-	var novaCellName types.NamespacedName
-
-	BeforeEach(func() {
-		// Uncomment this if you need the full output in the logs from gomega
-		// matchers
-		// format.MaxLength = 0
-
-		novaCellName = types.NamespacedName{
-			Namespace: namespace,
-			Name:      uuid.NewString(),
-		}
-
-	})
-
 	When("A NovaCell CR instance is created without any input", func() {
 		BeforeEach(func() {
-			DeferCleanup(th.DeleteInstance, CreateNovaCell(novaCellName, GetDefaultNovaCellSpec()))
+			DeferCleanup(th.DeleteInstance, CreateNovaCell(cell0.CellName, GetDefaultNovaCellSpec()))
 		})
 
 		It("is not Ready", func() {
 			th.ExpectCondition(
-				novaCellName,
+				cell0.CellName,
 				ConditionGetterFunc(NovaCellConditionGetter),
 				condition.ReadyCondition,
 				corev1.ConditionFalse,
@@ -59,7 +44,7 @@ var _ = Describe("NovaCell controller", func() {
 		})
 
 		It("has no hash and no services ready", func() {
-			instance := GetNovaCell(novaCellName)
+			instance := GetNovaCell(cell0.CellName)
 			Expect(instance.Status.Hash).To(BeEmpty())
 			Expect(instance.Status.ConductorServiceReadyCount).To(Equal(int32(0)))
 			Expect(instance.Status.MetadataServiceReadyCount).To(Equal(int32(0)))
@@ -68,64 +53,47 @@ var _ = Describe("NovaCell controller", func() {
 	})
 
 	When("A NovaCell CR instance is created", func() {
-		var novaConductorName types.NamespacedName
-
 		BeforeEach(func() {
 			DeferCleanup(
 				k8sClient.Delete,
 				ctx,
-				CreateNovaConductorSecret(namespace, SecretName),
+				CreateNovaConductorSecret(cell0.CellName.Namespace, SecretName),
 			)
 			DeferCleanup(
 				k8sClient.Delete,
 				ctx,
-				CreateNovaMessageBusSecret(namespace, MessageBusSecretName),
+				CreateNovaMessageBusSecret(cell0.CellName.Namespace, MessageBusSecretName),
 			)
 
-			DeferCleanup(th.DeleteInstance, CreateNovaCell(novaCellName, GetDefaultNovaCellSpec()))
-			novaConductorName = types.NamespacedName{
-				Namespace: namespace,
-				Name:      novaCellName.Name + "-conductor",
-			}
+			DeferCleanup(th.DeleteInstance, CreateNovaCell(cell0.CellName, GetDefaultNovaCellSpec()))
 		})
 
 		It("creates the NovaConductor and tracks its readiness", func() {
-			GetNovaConductor(novaConductorName)
+			GetNovaConductor(cell0.CellConductorName)
 			th.ExpectCondition(
-				novaCellName,
+				cell0.CellName,
 				ConditionGetterFunc(NovaCellConditionGetter),
 				novav1.NovaConductorReadyCondition,
 				corev1.ConditionFalse,
 			)
-			novaCell := GetNovaCell(novaCellName)
+			novaCell := GetNovaCell(cell0.CellName)
 			Expect(novaCell.Status.ConductorServiceReadyCount).To(Equal(int32(0)))
 		})
 
 		When("NovaConductor is ready", func() {
-			var novaConductorDBSyncJobName types.NamespacedName
-			var conductorStatefulSetName types.NamespacedName
-
 			BeforeEach(func() {
 				th.ExpectCondition(
-					novaConductorName,
+					cell0.CellConductorName,
 					ConditionGetterFunc(NovaConductorConditionGetter),
 					condition.DBSyncReadyCondition,
 					corev1.ConditionFalse,
 				)
-				novaConductorDBSyncJobName = types.NamespacedName{
-					Namespace: namespace,
-					Name:      novaConductorName.Name + "-db-sync",
-				}
-				th.SimulateJobSuccess(novaConductorDBSyncJobName)
+				th.SimulateJobSuccess(cell0.CellDBSyncJobName)
 
-				conductorStatefulSetName = types.NamespacedName{
-					Namespace: namespace,
-					Name:      novaConductorName.Name,
-				}
-				th.SimulateStatefulSetReplicaReady(conductorStatefulSetName)
+				th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 
 				th.ExpectCondition(
-					novaConductorName,
+					cell0.CellConductorName,
 					ConditionGetterFunc(NovaConductorConditionGetter),
 					condition.DBSyncReadyCondition,
 					corev1.ConditionTrue,
@@ -134,7 +102,7 @@ var _ = Describe("NovaCell controller", func() {
 
 			It("reports that NovaConductor is ready", func() {
 				th.ExpectCondition(
-					novaCellName,
+					cell0.CellName,
 					ConditionGetterFunc(NovaCellConditionGetter),
 					novav1.NovaConductorReadyCondition,
 					corev1.ConditionTrue,
@@ -143,7 +111,7 @@ var _ = Describe("NovaCell controller", func() {
 
 			It("is Ready", func() {
 				th.ExpectCondition(
-					novaCellName,
+					cell0.CellName,
 					ConditionGetterFunc(NovaCellConditionGetter),
 					condition.ReadyCondition,
 					corev1.ConditionTrue,
@@ -152,40 +120,24 @@ var _ = Describe("NovaCell controller", func() {
 		})
 	})
 	When("NovaCell is reconfigured", func() {
-		var novaConductorName types.NamespacedName
-		var novaConductorDBSyncJobName types.NamespacedName
-		var conductorStatefulSetName types.NamespacedName
-
 		BeforeEach(func() {
 			DeferCleanup(
 				k8sClient.Delete,
 				ctx,
-				CreateNovaConductorSecret(namespace, SecretName),
+				CreateNovaConductorSecret(cell0.CellName.Namespace, SecretName),
 			)
 			DeferCleanup(
 				k8sClient.Delete,
 				ctx,
-				CreateNovaMessageBusSecret(namespace, MessageBusSecretName),
+				CreateNovaMessageBusSecret(cell0.CellName.Namespace, MessageBusSecretName),
 			)
 
-			DeferCleanup(th.DeleteInstance, CreateNovaCell(novaCellName, GetDefaultNovaCellSpec()))
-			novaConductorName = types.NamespacedName{
-				Namespace: namespace,
-				Name:      novaCellName.Name + "-conductor",
-			}
-			novaConductorDBSyncJobName = types.NamespacedName{
-				Namespace: namespace,
-				Name:      novaConductorName.Name + "-db-sync",
-			}
-			th.SimulateJobSuccess(novaConductorDBSyncJobName)
+			DeferCleanup(th.DeleteInstance, CreateNovaCell(cell0.CellName, GetDefaultNovaCellSpec()))
+			th.SimulateJobSuccess(cell0.CellDBSyncJobName)
 
-			conductorStatefulSetName = types.NamespacedName{
-				Namespace: namespace,
-				Name:      novaConductorName.Name,
-			}
-			th.SimulateStatefulSetReplicaReady(conductorStatefulSetName)
+			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 			th.ExpectCondition(
-				novaCellName,
+				cell0.CellName,
 				ConditionGetterFunc(NovaCellConditionGetter),
 				novav1.NovaConductorReadyCondition,
 				corev1.ConditionTrue,
@@ -194,7 +146,7 @@ var _ = Describe("NovaCell controller", func() {
 
 		It("applies new NetworkAttachments configuration to its Conductor", func() {
 			Eventually(func(g Gomega) {
-				novaCell := GetNovaCell(novaCellName)
+				novaCell := GetNovaCell(cell0.CellName)
 				novaCell.Spec.ConductorServiceTemplate.NetworkAttachments = append(
 					novaCell.Spec.ConductorServiceTemplate.NetworkAttachments, "internalapi")
 
@@ -203,7 +155,7 @@ var _ = Describe("NovaCell controller", func() {
 			}, timeout, interval).Should(Succeed())
 
 			th.ExpectConditionWithDetails(
-				novaConductorName,
+				cell0.CellConductorName,
 				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.NetworkAttachmentsReadyCondition,
 				corev1.ConditionFalse,
@@ -212,7 +164,7 @@ var _ = Describe("NovaCell controller", func() {
 			)
 
 			th.ExpectConditionWithDetails(
-				novaCellName,
+				cell0.CellName,
 				ConditionGetterFunc(NovaCellConditionGetter),
 				condition.ReadyCondition,
 				corev1.ConditionFalse,
@@ -220,11 +172,11 @@ var _ = Describe("NovaCell controller", func() {
 				"NetworkAttachment resources missing: internalapi",
 			)
 
-			internalAPINADName := types.NamespacedName{Namespace: namespace, Name: "internalapi"}
+			internalAPINADName := types.NamespacedName{Namespace: cell0.CellName.Namespace, Name: "internalapi"}
 			DeferCleanup(th.DeleteInstance, th.CreateNetworkAttachmentDefinition(internalAPINADName))
 
 			th.ExpectConditionWithDetails(
-				novaConductorName,
+				cell0.CellConductorName,
 				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.NetworkAttachmentsReadyCondition,
 				corev1.ConditionFalse,
@@ -234,7 +186,7 @@ var _ = Describe("NovaCell controller", func() {
 			)
 
 			th.ExpectConditionWithDetails(
-				novaCellName,
+				cell0.CellName,
 				ConditionGetterFunc(NovaCellConditionGetter),
 				condition.ReadyCondition,
 				corev1.ConditionFalse,
@@ -244,19 +196,19 @@ var _ = Describe("NovaCell controller", func() {
 			)
 
 			SimulateStatefulSetReplicaReadyWithPods(
-				conductorStatefulSetName,
-				map[string][]string{namespace + "/internalapi": {"10.0.0.1"}},
+				cell0.ConductorStatefulSetName,
+				map[string][]string{cell0.CellName.Namespace + "/internalapi": {"10.0.0.1"}},
 			)
 
 			th.ExpectCondition(
-				novaConductorName,
+				cell0.CellConductorName,
 				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.NetworkAttachmentsReadyCondition,
 				corev1.ConditionTrue,
 			)
 
 			th.ExpectCondition(
-				novaCellName,
+				cell0.CellName,
 				ConditionGetterFunc(NovaCellConditionGetter),
 				condition.ReadyCondition,
 				corev1.ConditionTrue,

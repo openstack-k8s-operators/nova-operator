@@ -37,6 +37,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	"k8s.io/apimachinery/pkg/types"
 
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -70,7 +71,10 @@ var (
 	cancel    context.CancelFunc
 	logger    logr.Logger
 	th        *TestHelper
-	namespace string
+	novaNames NovaNames
+	cell0     CellNames
+	cell1     CellNames
+	cell2     CellNames
 )
 
 func TestAPIs(t *testing.T) {
@@ -238,9 +242,19 @@ var _ = BeforeEach(func() {
 	// NOTE(gibi): We need to create a unique namespace for each test run
 	// as namespaces cannot be deleted in a locally running envtest. See
 	// https://book.kubebuilder.io/reference/envtest.html#namespace-usage-limitation
-	namespace = uuid.New().String()
+	namespace := uuid.New().String()
 	th.CreateNamespace(namespace)
 	// We still request the delete of the Namespace to properly cleanup if
 	// we run the test in an existing cluster.
 	DeferCleanup(th.DeleteNamespace, namespace)
+
+	novaName := types.NamespacedName{
+		Namespace: namespace,
+		Name:      uuid.New().String(),
+	}
+
+	novaNames = GetNovaNames(novaName, []string{"cell0", "cell1", "cell2"})
+	cell0 = novaNames.Cells["cell0"]
+	cell1 = novaNames.Cells["cell1"]
+	cell2 = novaNames.Cells["cell2"]
 })

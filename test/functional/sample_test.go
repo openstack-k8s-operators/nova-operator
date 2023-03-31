@@ -19,7 +19,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/google/uuid"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"gopkg.in/yaml.v3"
@@ -38,53 +37,42 @@ func ReadSample(sampleFileName string) map[string]interface{} {
 	return rawSample
 }
 
-func CreateNovaFromSample(sampleFileName string, namespace string) types.NamespacedName {
-	novaName := types.NamespacedName{
-		Namespace: namespace,
-		Name:      uuid.New().String(),
-	}
-
+func CreateNovaFromSample(sampleFileName string, name types.NamespacedName) types.NamespacedName {
 	raw := ReadSample(sampleFileName)
-	DeferCleanup(th.DeleteInstance, CreateNova(novaName, raw["spec"].(map[string]interface{})))
-	return novaName
-}
-
-func CreateNovaAPIFromSample(sampleFileName string, namespace string) types.NamespacedName {
-	raw := ReadSample(sampleFileName)
-	instance := CreateNovaAPI(namespace, raw["spec"].(map[string]interface{}))
-	name := types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
+	instance := CreateNova(name, raw["spec"].(map[string]interface{}))
 	DeferCleanup(th.DeleteInstance, instance)
-	return name
+	return types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
 }
 
-func CreateNovaCellFromSample(sampleFileName string, namespace string) types.NamespacedName {
+func CreateNovaAPIFromSample(sampleFileName string, name types.NamespacedName) types.NamespacedName {
+	raw := ReadSample(sampleFileName)
+	instance := CreateNovaAPI(name, raw["spec"].(map[string]interface{}))
+	DeferCleanup(th.DeleteInstance, instance)
+	return types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
+}
+
+func CreateNovaCellFromSample(sampleFileName string, name types.NamespacedName) types.NamespacedName {
 	raw := ReadSample(sampleFileName)
 	instance := CreateNovaCell(
-		types.NamespacedName{Namespace: namespace, Name: uuid.NewString()},
+		name,
 		raw["spec"].(map[string]interface{}),
 	)
 	DeferCleanup(th.DeleteInstance, instance)
 	return types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
 }
 
-func CreateNovaConductorFromSample(sampleFileName string, namespace string) types.NamespacedName {
+func CreateNovaConductorFromSample(sampleFileName string, name types.NamespacedName) types.NamespacedName {
 	raw := ReadSample(sampleFileName)
-	instance := CreateNovaConductor(namespace, raw["spec"].(map[string]interface{}))
-	name := types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
+	instance := CreateNovaConductor(name, raw["spec"].(map[string]interface{}))
 	DeferCleanup(th.DeleteInstance, instance)
-	return name
+	return types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
 }
 
-func CreateNovaExternalComputeFromSample(sampleFileName string, namespace string) types.NamespacedName {
+func CreateNovaExternalComputeFromSample(sampleFileName string, name types.NamespacedName) types.NamespacedName {
 	raw := ReadSample(sampleFileName)
-	computeName := types.NamespacedName{
-		Namespace: namespace,
-		Name:      uuid.New().String(),
-	}
-
-	compute := CreateNovaExternalCompute(computeName, raw["spec"].(map[string]interface{}))
+	compute := CreateNovaExternalCompute(name, raw["spec"].(map[string]interface{}))
 	DeferCleanup(th.DeleteInstance, compute)
-	return computeName
+	return types.NamespacedName{Name: compute.GetName(), Namespace: compute.GetNamespace()}
 }
 
 // This is a set of test for our samples. It only validates that the sample
@@ -97,61 +85,61 @@ var _ = Describe("Samples", func() {
 
 	When("nova_v1beta1_nova.yaml sample is applied", func() {
 		It("Nova is created", func() {
-			name := CreateNovaFromSample("nova_v1beta1_nova.yaml", namespace)
+			name := CreateNovaFromSample("nova_v1beta1_nova.yaml", novaNames.NovaName)
 			GetNova(name)
 		})
 	})
 	When("nova_v1beta1_nova-multi-cell.yaml sample is applied", func() {
 		It("Nova is created", func() {
-			name := CreateNovaFromSample("nova_v1beta1_nova-multi-cell.yaml", namespace)
+			name := CreateNovaFromSample("nova_v1beta1_nova-multi-cell.yaml", novaNames.NovaName)
 			GetNova(name)
 		})
 	})
 	When("nova_v1beta1_nova_collapsed_cell.yaml sample is applied", func() {
 		It("Nova is created", func() {
-			name := CreateNovaFromSample("nova_v1beta1_nova_collapsed_cell.yaml", namespace)
+			name := CreateNovaFromSample("nova_v1beta1_nova_collapsed_cell.yaml", novaNames.NovaName)
 			GetNova(name)
 		})
 	})
 	When("nova_v1beta1_novaapi.yaml sample is applied", func() {
 		It("NovaAPI is created", func() {
-			name := CreateNovaAPIFromSample("nova_v1beta1_novaapi.yaml", namespace)
+			name := CreateNovaAPIFromSample("nova_v1beta1_novaapi.yaml", novaNames.APIName)
 			GetNovaAPI(name)
 		})
 	})
 	When("nova_v1beta1_novacell0.yaml sample is applied", func() {
 		It("NovaCell is created", func() {
-			name := CreateNovaCellFromSample("nova_v1beta1_novacell0.yaml", namespace)
+			name := CreateNovaCellFromSample("nova_v1beta1_novacell0.yaml", cell0.CellName)
 			GetNovaCell(name)
 		})
 	})
 	When("nova_v1beta1_novacell1-upcall.yaml sample is applied", func() {
 		It("NovaCell is created", func() {
-			name := CreateNovaCellFromSample("nova_v1beta1_novacell1-upcall.yaml", namespace)
+			name := CreateNovaCellFromSample("nova_v1beta1_novacell1-upcall.yaml", cell1.CellName)
 			GetNovaCell(name)
 		})
 	})
 	When("nova_v1beta1_novacell2-without-upcall.yaml sample is applied", func() {
 		It("NovaCell is created", func() {
-			name := CreateNovaCellFromSample("nova_v1beta1_novacell2-without-upcall.yaml", namespace)
+			name := CreateNovaCellFromSample("nova_v1beta1_novacell2-without-upcall.yaml", cell2.CellName)
 			GetNovaCell(name)
 		})
 	})
 	When("nova_v1beta1_novaconductor-super.yaml sample is applied", func() {
 		It("NovaConductor is created", func() {
-			name := CreateNovaConductorFromSample("nova_v1beta1_novaconductor-super.yaml", namespace)
+			name := CreateNovaConductorFromSample("nova_v1beta1_novaconductor-super.yaml", novaNames.ConductorName)
 			GetNovaConductor(name)
 		})
 	})
 	When("nova_v1beta1_novaconductor-cell.yaml sample is applied", func() {
 		It("NovaConductor is created", func() {
-			name := CreateNovaConductorFromSample("nova_v1beta1_novaconductor-cell.yaml", namespace)
+			name := CreateNovaConductorFromSample("nova_v1beta1_novaconductor-cell.yaml", novaNames.ConductorName)
 			GetNovaConductor(name)
 		})
 	})
 	When("nova_v1beta1_novaexternalcompute.yaml sample is applied", func() {
 		It("NovaExternalCompute is created", func() {
-			name := CreateNovaExternalComputeFromSample("nova_v1beta1_novaexternalcompute.yaml", namespace)
+			name := CreateNovaExternalComputeFromSample("nova_v1beta1_novaexternalcompute.yaml", novaNames.ComputeName)
 			GetNovaExternalCompute(name)
 		})
 	})

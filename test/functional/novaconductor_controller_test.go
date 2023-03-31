@@ -32,26 +32,14 @@ import (
 )
 
 var _ = Describe("NovaConductor controller", func() {
-	var novaConductorName types.NamespacedName
-
-	BeforeEach(func() {
-		// Uncomment this if you need the full output in the logs from gomega
-		// matchers
-		// format.MaxLength = 0
-
-	})
-
 	When("a NovaConductor CR is created pointing to a non existent Secret", func() {
 		BeforeEach(func() {
-			spec := GetDefaultNovaConductorSpec()
-			instance := CreateNovaConductor(namespace, spec)
-			novaConductorName = types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
-			DeferCleanup(th.DeleteInstance, instance)
+			DeferCleanup(th.DeleteInstance, CreateNovaConductor(novaNames.ConductorName, GetDefaultNovaConductorSpec()))
 		})
 
 		It("is not Ready", func() {
 			th.ExpectCondition(
-				novaConductorName,
+				novaNames.ConductorName,
 				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.ReadyCondition,
 				corev1.ConditionFalse,
@@ -59,7 +47,7 @@ var _ = Describe("NovaConductor controller", func() {
 		})
 
 		It("has empty Status fields", func() {
-			instance := GetNovaConductor(novaConductorName)
+			instance := GetNovaConductor(novaNames.ConductorName)
 			// NOTE(gibi): Hash has `omitempty` tags so while
 			// they are initialized to an empty map that value is omitted from
 			// the output when sent to the client. So we see nils here.
@@ -69,7 +57,7 @@ var _ = Describe("NovaConductor controller", func() {
 
 		It("is missing the secret", func() {
 			th.ExpectCondition(
-				novaConductorName,
+				novaNames.ConductorName,
 				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.InputReadyCondition,
 				corev1.ConditionFalse,
@@ -81,7 +69,7 @@ var _ = Describe("NovaConductor controller", func() {
 				secret := &corev1.Secret{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "not-relevant-secret",
-						Namespace: namespace,
+						Namespace: novaNames.ConductorName.Namespace,
 					},
 				}
 				Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
@@ -90,7 +78,7 @@ var _ = Describe("NovaConductor controller", func() {
 
 			It("is not Ready", func() {
 				th.ExpectCondition(
-					novaConductorName,
+					novaNames.ConductorName,
 					ConditionGetterFunc(NovaConductorConditionGetter),
 					condition.ReadyCondition,
 					corev1.ConditionFalse,
@@ -99,7 +87,7 @@ var _ = Describe("NovaConductor controller", func() {
 
 			It("is missing the secret", func() {
 				th.ExpectCondition(
-					novaConductorName,
+					novaNames.ConductorName,
 					ConditionGetterFunc(NovaConductorConditionGetter),
 					condition.InputReadyCondition,
 					corev1.ConditionFalse,
@@ -113,7 +101,7 @@ var _ = Describe("NovaConductor controller", func() {
 				secret := &corev1.Secret{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      SecretName,
-						Namespace: namespace,
+						Namespace: novaNames.ConductorName.Namespace,
 					},
 					Data: map[string][]byte{
 						"NovaPassword": []byte("12345678"),
@@ -125,7 +113,7 @@ var _ = Describe("NovaConductor controller", func() {
 
 			It("is not Ready", func() {
 				th.ExpectCondition(
-					novaConductorName,
+					novaNames.ConductorName,
 					ConditionGetterFunc(NovaConductorConditionGetter),
 					condition.ReadyCondition,
 					corev1.ConditionFalse,
@@ -134,7 +122,7 @@ var _ = Describe("NovaConductor controller", func() {
 
 			It("reports that the inputs are not ready", func() {
 				th.ExpectCondition(
-					novaConductorName,
+					novaNames.ConductorName,
 					ConditionGetterFunc(NovaConductorConditionGetter),
 					condition.InputReadyCondition,
 					corev1.ConditionFalse,
@@ -147,17 +135,17 @@ var _ = Describe("NovaConductor controller", func() {
 				DeferCleanup(
 					k8sClient.Delete,
 					ctx,
-					CreateNovaConductorSecret(namespace, SecretName),
+					CreateNovaConductorSecret(novaNames.ConductorName.Namespace, SecretName),
 				)
 				DeferCleanup(
 					k8sClient.Delete, ctx,
-					CreateNovaMessageBusSecret(namespace, MessageBusSecretName),
+					CreateNovaMessageBusSecret(novaNames.ConductorName.Namespace, MessageBusSecretName),
 				)
 			})
 
 			It("reports that input is ready", func() {
 				th.ExpectCondition(
-					novaConductorName,
+					novaNames.ConductorName,
 					ConditionGetterFunc(NovaConductorConditionGetter),
 					condition.InputReadyCondition,
 					corev1.ConditionTrue,
@@ -167,7 +155,7 @@ var _ = Describe("NovaConductor controller", func() {
 				// NOTE(gibi): NovaConductor has no external dependency right now to
 				// generate the configs.
 				th.ExpectCondition(
-					novaConductorName,
+					novaNames.ConductorName,
 					ConditionGetterFunc(NovaConductorConditionGetter),
 					condition.ServiceConfigReadyCondition,
 					corev1.ConditionTrue,
@@ -175,16 +163,16 @@ var _ = Describe("NovaConductor controller", func() {
 
 				configDataMap := th.GetConfigMap(
 					types.NamespacedName{
-						Namespace: namespace,
-						Name:      fmt.Sprintf("%s-config-data", novaConductorName.Name),
+						Namespace: novaNames.ConductorName.Namespace,
+						Name:      fmt.Sprintf("%s-config-data", novaNames.ConductorName.Name),
 					},
 				)
 				Expect(configDataMap.Data).Should(HaveKeyWithValue("nova-blank.conf", ""))
 
 				scriptMap := th.GetConfigMap(
 					types.NamespacedName{
-						Namespace: namespace,
-						Name:      fmt.Sprintf("%s-scripts", novaConductorName.Name),
+						Namespace: novaNames.ConductorName.Namespace,
+						Name:      fmt.Sprintf("%s-scripts", novaNames.ConductorName.Name),
 					},
 				)
 				// Everything under templates/novaconductor are added automatically by
@@ -193,11 +181,14 @@ var _ = Describe("NovaConductor controller", func() {
 					"dbsync.sh", ContainSubstring("nova-manage db sync")))
 				Expect(scriptMap.Data).Should(HaveKeyWithValue(
 					"dbsync.sh", ContainSubstring("nova-manage api_db sync")))
+				// FIXME(bogdando): have I lost this change upon rebasing?
+				//Expect(scriptMap.Data).Should(HaveKeyWithValue(
+				//	"dbsync.sh", ContainSubstring("nova-manage cell_v2 map_cell0")))
 			})
 
 			It("stored the input hash in the Status", func() {
 				Eventually(func(g Gomega) {
-					novaConductor := GetNovaConductor(novaConductorName)
+					novaConductor := GetNovaConductor(novaNames.ConductorName)
 					g.Expect(novaConductor.Status.Hash).Should(HaveKeyWithValue("input", Not(BeEmpty())))
 				}, timeout, interval).Should(Succeed())
 
@@ -206,15 +197,15 @@ var _ = Describe("NovaConductor controller", func() {
 			When("the NovaConductor is deleted", func() {
 				It("deletes the generated ConfigMaps", func() {
 					th.ExpectCondition(
-						novaConductorName,
+						novaNames.ConductorName,
 						ConditionGetterFunc(NovaConductorConditionGetter),
 						condition.ServiceConfigReadyCondition,
 						corev1.ConditionTrue,
 					)
 
-					th.DeleteInstance(GetNovaConductor(novaConductorName))
+					th.DeleteInstance(GetNovaConductor(novaNames.ConductorName))
 					Eventually(func() []corev1.ConfigMap {
-						return th.ListConfigMaps(novaConductorName.Name).Items
+						return th.ListConfigMaps(novaNames.ConductorName.Name).Items
 					}, timeout, interval).Should(BeEmpty())
 				})
 			})
@@ -222,36 +213,21 @@ var _ = Describe("NovaConductor controller", func() {
 	})
 
 	When("NovConductor is created with a proper Secret", func() {
-		var jobName types.NamespacedName
-		var statefulSetName types.NamespacedName
-
 		BeforeEach(func() {
 			DeferCleanup(
-				k8sClient.Delete, ctx, CreateNovaConductorSecret(namespace, SecretName))
+				k8sClient.Delete, ctx, CreateNovaConductorSecret(novaNames.ConductorName.Namespace, SecretName))
 			DeferCleanup(
-				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(namespace, MessageBusSecretName))
+				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(novaNames.ConductorName.Namespace, MessageBusSecretName))
 
 			spec := GetDefaultNovaConductorSpec()
-			instance := CreateNovaConductor(namespace, spec)
-			novaConductorName = types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
-			DeferCleanup(th.DeleteInstance, instance)
+			DeferCleanup(th.DeleteInstance, CreateNovaConductor(novaNames.ConductorName, spec))
 
 			th.ExpectCondition(
-				novaConductorName,
+				novaNames.ConductorName,
 				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.InputReadyCondition,
 				corev1.ConditionTrue,
 			)
-
-			jobName = types.NamespacedName{
-				Namespace: namespace,
-				Name:      novaConductorName.Name + "-db-sync",
-			}
-			statefulSetName = types.NamespacedName{
-				Namespace: namespace,
-				Name:      novaConductorName.Name,
-			}
-
 		})
 
 		// NOTE(gibi): This could be racy when run against a real cluster
@@ -260,14 +236,14 @@ var _ = Describe("NovaConductor controller", func() {
 		// this actually passes.
 		It("started the dbsync job and it reports waiting for that job to finish", func() {
 			th.ExpectConditionWithDetails(
-				novaConductorName,
+				novaNames.ConductorName,
 				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.DBSyncReadyCondition,
 				corev1.ConditionFalse,
 				condition.RequestedReason,
 				condition.DBSyncReadyRunningMessage,
 			)
-			job := th.GetJob(jobName)
+			job := th.GetJob(novaNames.ConductorDBSyncJobName)
 			Expect(job.Spec.Template.Spec.Volumes).To(HaveLen(2))
 			Expect(job.Spec.Template.Spec.InitContainers).To(HaveLen(0))
 			Expect(job.Spec.Template.Spec.Containers).To(HaveLen(1))
@@ -279,13 +255,13 @@ var _ = Describe("NovaConductor controller", func() {
 
 		When("DB sync fails", func() {
 			BeforeEach(func() {
-				th.SimulateJobFailure(jobName)
+				th.SimulateJobFailure(novaNames.ConductorDBSyncJobName)
 			})
 
 			// NOTE(gibi): lib-common only deletes the job if the job succeeds
 			It("reports that DB sync is failed and the job is not deleted", func() {
 				th.ExpectConditionWithDetails(
-					novaConductorName,
+					novaNames.ConductorName,
 					ConditionGetterFunc(NovaConductorConditionGetter),
 					condition.DBSyncReadyCondition,
 					corev1.ConditionFalse,
@@ -293,10 +269,10 @@ var _ = Describe("NovaConductor controller", func() {
 					"DBsync job error occurred Internal error occurred: Job Failed. Check job logs",
 				)
 				// This would fail the test case if the job does not exists
-				th.GetJob(jobName)
+				th.GetJob(novaNames.ConductorDBSyncJobName)
 
 				// We don't store the failed job's hash.
-				novaConductor := GetNovaConductor(novaConductorName)
+				novaConductor := GetNovaConductor(novaNames.ConductorName)
 				Expect(novaConductor.Status.Hash).ShouldNot(HaveKey("dbsync"))
 
 			})
@@ -304,7 +280,7 @@ var _ = Describe("NovaConductor controller", func() {
 			When("NovaConductor is deleted", func() {
 				It("deletes the failed job", func() {
 					th.ExpectConditionWithDetails(
-						novaConductorName,
+						novaNames.ConductorName,
 						ConditionGetterFunc(NovaConductorConditionGetter),
 						condition.DBSyncReadyCondition,
 						corev1.ConditionFalse,
@@ -312,10 +288,10 @@ var _ = Describe("NovaConductor controller", func() {
 						"DBsync job error occurred Internal error occurred: Job Failed. Check job logs",
 					)
 
-					th.DeleteInstance(GetNovaConductor(novaConductorName))
+					th.DeleteInstance(GetNovaConductor(novaNames.ConductorName))
 
 					Eventually(func() []batchv1.Job {
-						return th.ListJobs(novaConductorName.Name).Items
+						return th.ListJobs(novaNames.ConductorName.Name).Items
 					}, timeout, interval).Should(BeEmpty())
 				})
 			})
@@ -323,23 +299,23 @@ var _ = Describe("NovaConductor controller", func() {
 
 		When("DB sync job finishes successfully", func() {
 			BeforeEach(func() {
-				th.SimulateJobSuccess(jobName)
+				th.SimulateJobSuccess(novaNames.ConductorDBSyncJobName)
 			})
 
 			It("reports that DB sync is ready and the job is configured to be deleted", func() {
 				th.ExpectCondition(
-					novaConductorName,
+					novaNames.ConductorName,
 					ConditionGetterFunc(NovaConductorConditionGetter),
 					condition.DBSyncReadyCondition,
 					corev1.ConditionTrue,
 				)
-				job := th.GetJob(jobName)
+				job := th.GetJob(novaNames.ConductorDBSyncJobName)
 				Expect(job.Spec.TTLSecondsAfterFinished).NotTo(BeNil())
 			})
 
 			It("stores the hash of the Job in the Status", func() {
 				Eventually(func(g Gomega) {
-					novaConductor := GetNovaConductor(novaConductorName)
+					novaConductor := GetNovaConductor(novaNames.ConductorName)
 					g.Expect(novaConductor.Status.Hash).Should(HaveKeyWithValue("dbsync", Not(BeEmpty())))
 				}, timeout, interval).Should(Succeed())
 
@@ -347,12 +323,12 @@ var _ = Describe("NovaConductor controller", func() {
 
 			It("creates a StatefulSet for the nova-conductor service", func() {
 				th.ExpectCondition(
-					novaConductorName,
+					novaNames.ConductorName,
 					ConditionGetterFunc(NovaConductorConditionGetter),
 					condition.DeploymentReadyCondition,
 					corev1.ConditionFalse,
 				)
-				ss := th.GetStatefulSet(statefulSetName)
+				ss := th.GetStatefulSet(novaNames.ConductorStatefulSetName)
 				Expect(ss.Spec.Template.Spec.Containers).To(HaveLen(1))
 				container := ss.Spec.Template.Spec.Containers[0]
 				Expect(container.LivenessProbe.Exec.Command).To(
@@ -360,116 +336,100 @@ var _ = Describe("NovaConductor controller", func() {
 				Expect(container.ReadinessProbe.Exec.Command).To(
 					Equal([]string{"/usr/bin/pgrep", "-r", "DRST", "nova-conductor"}))
 
-				th.SimulateStatefulSetReplicaReady(statefulSetName)
+				th.SimulateStatefulSetReplicaReady(novaNames.ConductorStatefulSetName)
 				th.ExpectCondition(
-					novaConductorName,
+					novaNames.ConductorName,
 					ConditionGetterFunc(NovaConductorConditionGetter),
 					condition.DeploymentReadyCondition,
 					corev1.ConditionTrue,
 				)
 				th.ExpectCondition(
-					novaConductorName,
+					novaNames.ConductorName,
 					ConditionGetterFunc(NovaConductorConditionGetter),
 					condition.ReadyCondition,
 					corev1.ConditionTrue,
 				)
-				conductor := GetNovaConductor(novaConductorName)
+				conductor := GetNovaConductor(novaNames.ConductorName)
 				Expect(conductor.Status.ReadyCount).To(BeNumerically(">", 0))
 			})
 		})
 	})
 
 	When("NovaConductor is configured to preserve jobs", func() {
-		var jobName types.NamespacedName
-
 		BeforeEach(func() {
 			DeferCleanup(
-				k8sClient.Delete, ctx, CreateNovaConductorSecret(namespace, SecretName))
+				k8sClient.Delete, ctx, CreateNovaConductorSecret(novaNames.ConductorName.Namespace, SecretName))
 			DeferCleanup(
-				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(namespace, MessageBusSecretName))
+				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(novaNames.ConductorName.Namespace, MessageBusSecretName))
 
 			spec := GetDefaultNovaConductorSpec()
 			spec["debug"] = map[string]interface{}{
 				"preserveJobs": true,
 			}
-			instance := CreateNovaConductor(namespace, spec)
-			novaConductorName = types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
+			DeferCleanup(th.DeleteInstance, CreateNovaConductor(novaNames.ConductorName, spec))
 
 			th.ExpectCondition(
-				novaConductorName,
+				novaNames.ConductorName,
 				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.DBSyncReadyCondition,
 				corev1.ConditionFalse,
 			)
-
-			jobName = types.NamespacedName{
-				Namespace: namespace,
-				Name:      novaConductorName.Name + "-db-sync",
-			}
 		})
 
 		It("does not configure DB sync job to be deleted after it finished", func() {
-			th.SimulateJobSuccess(jobName)
+			th.SimulateJobSuccess(novaNames.ConductorDBSyncJobName)
 
 			th.ExpectCondition(
-				novaConductorName,
+				novaNames.ConductorName,
 				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.DBSyncReadyCondition,
 				corev1.ConditionTrue,
 			)
-			Expect(th.GetJob(jobName).Spec.TTLSecondsAfterFinished).To(BeNil())
+			Expect(th.GetJob(novaNames.ConductorDBSyncJobName).Spec.TTLSecondsAfterFinished).To(BeNil())
 		})
 
 		It("does not configure DB sync job to be deleted after it failed", func() {
-			th.SimulateJobFailure(jobName)
+			th.SimulateJobFailure(novaNames.ConductorDBSyncJobName)
 
 			th.ExpectConditionWithDetails(
-				novaConductorName,
+				novaNames.ConductorName,
 				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.DBSyncReadyCondition,
 				corev1.ConditionFalse,
 				condition.ErrorReason,
 				"DBsync job error occurred Internal error occurred: Job Failed. Check job logs",
 			)
-			Expect(th.GetJob(jobName).Spec.TTLSecondsAfterFinished).To(BeNil())
+			Expect(th.GetJob(novaNames.ConductorDBSyncJobName).Spec.TTLSecondsAfterFinished).To(BeNil())
 		})
 	})
 
 	When("PreserveJobs changed from true to false", func() {
-		var jobName types.NamespacedName
-
 		BeforeEach(func() {
 			DeferCleanup(
-				k8sClient.Delete, ctx, CreateNovaConductorSecret(namespace, SecretName))
+				k8sClient.Delete, ctx, CreateNovaConductorSecret(novaNames.ConductorName.Namespace, SecretName))
 			DeferCleanup(
-				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(namespace, MessageBusSecretName))
+				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(novaNames.ConductorName.Namespace, MessageBusSecretName))
 
 			spec := GetDefaultNovaConductorSpec()
 			spec["debug"] = map[string]interface{}{
 				"preserveJobs": true,
 			}
-			instance := CreateNovaConductor(namespace, spec)
-			novaConductorName = types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
+			DeferCleanup(th.DeleteInstance, CreateNovaConductor(novaNames.ConductorName, spec))
 
-			jobName = types.NamespacedName{
-				Namespace: namespace,
-				Name:      novaConductorName.Name + "-db-sync",
-			}
-
-			th.SimulateJobSuccess(jobName)
+			th.SimulateJobSuccess(novaNames.ConductorDBSyncJobName)
 			th.ExpectCondition(
-				novaConductorName,
+				novaNames.ConductorName,
 				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.DBSyncReadyCondition,
 				corev1.ConditionTrue,
 			)
 
-			Expect(th.GetJob(jobName).Spec.TTLSecondsAfterFinished).To(BeNil())
+			Expect(th.GetJob(novaNames.ConductorDBSyncJobName).Spec.TTLSecondsAfterFinished).To(BeNil())
 
 			// Update the NovaConductor to not preserve Jobs
 			// Eventually is needed here to retry if the update returns conflict
 			Eventually(func(g Gomega) {
-				conductor := GetNovaConductor(novaConductorName)
+				conductor := GetNovaConductor(novaNames.ConductorName)
 				conductor.Spec.Debug.PreserveJobs = false
 				g.Expect(k8sClient.Update(ctx, conductor)).Should(Succeed())
 			}, timeout, interval).Should(Succeed())
@@ -477,33 +437,32 @@ var _ = Describe("NovaConductor controller", func() {
 
 		It("marks the job to be deleted", func() {
 			Eventually(func(g Gomega) {
-				g.Expect(th.GetJob(jobName).Spec.TTLSecondsAfterFinished).NotTo(BeNil())
+				g.Expect(th.GetJob(novaNames.ConductorDBSyncJobName).Spec.TTLSecondsAfterFinished).NotTo(BeNil())
 			}, timeout, interval).Should(Succeed())
 		})
 	})
 
+})
+
+var _ = Describe("NovaConductor controller", func() {
+	BeforeEach(func() {
+		DeferCleanup(
+			k8sClient.Delete, ctx, CreateNovaMessageBusSecret(novaNames.ConductorName.Namespace, MessageBusSecretName))
+	})
+
 	When("NovaConductor is created with networkAttachments", func() {
-		var jobName types.NamespacedName
 		BeforeEach(func() {
 			DeferCleanup(
-				k8sClient.Delete, ctx, CreateNovaConductorSecret(namespace, SecretName))
-			DeferCleanup(
-				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(namespace, MessageBusSecretName))
+				k8sClient.Delete, ctx, CreateNovaConductorSecret(novaNames.ConductorName.Namespace, SecretName))
 
 			spec := GetDefaultNovaConductorSpec()
 			spec["networkAttachments"] = []string{"internalapi"}
-			instance := CreateNovaConductor(namespace, spec)
-			novaConductorName = types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
-			jobName = types.NamespacedName{
-				Namespace: namespace,
-				Name:      novaConductorName.Name + "-db-sync",
-			}
-
+			DeferCleanup(th.DeleteInstance, CreateNovaConductor(novaNames.ConductorName, spec))
 		})
 
 		It("reports that the definition is missing", func() {
 			th.ExpectConditionWithDetails(
-				novaConductorName,
+				novaNames.ConductorName,
 				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.NetworkAttachmentsReadyCondition,
 				corev1.ConditionFalse,
@@ -511,29 +470,25 @@ var _ = Describe("NovaConductor controller", func() {
 				"NetworkAttachment resources missing: internalapi",
 			)
 			th.ExpectCondition(
-				novaConductorName,
+				novaNames.ConductorName,
 				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.ReadyCondition,
 				corev1.ConditionFalse,
 			)
 		})
 		It("reports that network attachment is missing", func() {
-			internalAPINADName := types.NamespacedName{Namespace: namespace, Name: "internalapi"}
+			internalAPINADName := types.NamespacedName{Namespace: novaNames.ConductorName.Namespace, Name: "internalapi"}
 			nad := th.CreateNetworkAttachmentDefinition(internalAPINADName)
 			DeferCleanup(th.DeleteInstance, nad)
-			th.SimulateJobSuccess(jobName)
+			th.SimulateJobSuccess(novaNames.ConductorDBSyncJobName)
 
-			statefulSetName := types.NamespacedName{
-				Namespace: namespace,
-				Name:      novaConductorName.Name,
-			}
-			ss := th.GetStatefulSet(statefulSetName)
+			ss := th.GetStatefulSet(novaNames.ConductorStatefulSetName)
 
 			expectedAnnotation, err := json.Marshal(
 				[]networkv1.NetworkSelectionElement{
 					{
 						Name:             "internalapi",
-						Namespace:        namespace,
+						Namespace:        novaNames.ConductorName.Namespace,
 						InterfaceRequest: "internalapi",
 					}})
 			Expect(err).ShouldNot(HaveOccurred())
@@ -543,10 +498,10 @@ var _ = Describe("NovaConductor controller", func() {
 
 			// We don't add network attachment status annotations to the Pods
 			// to simulate that the network attachments are missing.
-			SimulateStatefulSetReplicaReadyWithPods(statefulSetName, map[string][]string{})
+			SimulateStatefulSetReplicaReadyWithPods(novaNames.ConductorStatefulSetName, map[string][]string{})
 
 			th.ExpectConditionWithDetails(
-				novaConductorName,
+				novaNames.ConductorName,
 				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.NetworkAttachmentsReadyCondition,
 				corev1.ConditionFalse,
@@ -556,22 +511,18 @@ var _ = Describe("NovaConductor controller", func() {
 			)
 		})
 		It("reports that an IP is missing", func() {
-			internalAPINADName := types.NamespacedName{Namespace: namespace, Name: "internalapi"}
+			internalAPINADName := types.NamespacedName{Namespace: novaNames.ConductorName.Namespace, Name: "internalapi"}
 			nad := th.CreateNetworkAttachmentDefinition(internalAPINADName)
 			DeferCleanup(th.DeleteInstance, nad)
-			th.SimulateJobSuccess(jobName)
+			th.SimulateJobSuccess(novaNames.ConductorDBSyncJobName)
 
-			statefulSetName := types.NamespacedName{
-				Namespace: namespace,
-				Name:      novaConductorName.Name,
-			}
-			ss := th.GetStatefulSet(statefulSetName)
+			ss := th.GetStatefulSet(novaNames.ConductorStatefulSetName)
 
 			expectedAnnotation, err := json.Marshal(
 				[]networkv1.NetworkSelectionElement{
 					{
 						Name:             "internalapi",
-						Namespace:        namespace,
+						Namespace:        novaNames.ConductorName.Namespace,
 						InterfaceRequest: "internalapi",
 					}})
 			Expect(err).ShouldNot(HaveOccurred())
@@ -582,12 +533,12 @@ var _ = Describe("NovaConductor controller", func() {
 			// We simulate that there is no IP associated with the internalapi
 			// network attachment
 			SimulateStatefulSetReplicaReadyWithPods(
-				statefulSetName,
-				map[string][]string{namespace + "/internalapi": {}},
+				novaNames.ConductorStatefulSetName,
+				map[string][]string{novaNames.ConductorName.Namespace + "/internalapi": {}},
 			)
 
 			th.ExpectConditionWithDetails(
-				novaConductorName,
+				novaNames.ConductorName,
 				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.NetworkAttachmentsReadyCondition,
 				corev1.ConditionFalse,
@@ -597,35 +548,31 @@ var _ = Describe("NovaConductor controller", func() {
 			)
 		})
 		It("reports NetworkAttachmentsReady if the Pods got the proper annotations", func() {
-			internalAPINADName := types.NamespacedName{Namespace: namespace, Name: "internalapi"}
+			internalAPINADName := types.NamespacedName{Namespace: novaNames.ConductorName.Namespace, Name: "internalapi"}
 			nad := th.CreateNetworkAttachmentDefinition(internalAPINADName)
 			DeferCleanup(th.DeleteInstance, nad)
-			th.SimulateJobSuccess(jobName)
+			th.SimulateJobSuccess(novaNames.ConductorDBSyncJobName)
 
-			statefulSetName := types.NamespacedName{
-				Namespace: namespace,
-				Name:      novaConductorName.Name,
-			}
 			SimulateStatefulSetReplicaReadyWithPods(
-				statefulSetName,
-				map[string][]string{namespace + "/internalapi": {"10.0.0.1"}},
+				novaNames.ConductorStatefulSetName,
+				map[string][]string{novaNames.ConductorName.Namespace + "/internalapi": {"10.0.0.1"}},
 			)
 
 			th.ExpectCondition(
-				novaConductorName,
+				novaNames.ConductorName,
 				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.NetworkAttachmentsReadyCondition,
 				corev1.ConditionTrue,
 			)
 
 			Eventually(func(g Gomega) {
-				novaConductor := GetNovaConductor(novaConductorName)
+				novaConductor := GetNovaConductor(novaNames.ConductorName)
 				g.Expect(novaConductor.Status.NetworkAttachments).To(
-					Equal(map[string][]string{namespace + "/internalapi": {"10.0.0.1"}}))
+					Equal(map[string][]string{novaNames.ConductorName.Namespace + "/internalapi": {"10.0.0.1"}}))
 			}, timeout, interval).Should(Succeed())
 
 			th.ExpectCondition(
-				novaConductorName,
+				novaNames.ConductorName,
 				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.ReadyCondition,
 				corev1.ConditionTrue,
@@ -633,38 +580,22 @@ var _ = Describe("NovaConductor controller", func() {
 		})
 	})
 	When("NovaConductor is reconfigured", func() {
-		var statefulSetName types.NamespacedName
-		var jobName types.NamespacedName
-
 		BeforeEach(func() {
 			DeferCleanup(
-				k8sClient.Delete, ctx, CreateNovaConductorSecret(namespace, SecretName))
-			DeferCleanup(
-				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(namespace, MessageBusSecretName))
-
-			conductor := CreateNovaConductor(namespace, GetDefaultNovaConductorSpec())
-			novaConductorName = types.NamespacedName{Name: conductor.GetName(), Namespace: conductor.GetNamespace()}
-			DeferCleanup(th.DeleteInstance, conductor)
+				k8sClient.Delete, ctx, CreateNovaConductorSecret(novaNames.ConductorName.Namespace, SecretName))
+			DeferCleanup(th.DeleteInstance, CreateNovaConductor(novaNames.ConductorName, GetDefaultNovaConductorSpec()))
 
 			th.ExpectCondition(
-				novaConductorName,
+				novaNames.ConductorName,
 				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.ServiceConfigReadyCondition,
 				corev1.ConditionTrue,
 			)
 
-			jobName = types.NamespacedName{
-				Namespace: namespace,
-				Name:      novaConductorName.Name + "-db-sync",
-			}
-			th.SimulateJobSuccess(jobName)
-			statefulSetName = types.NamespacedName{
-				Namespace: namespace,
-				Name:      novaConductorName.Name,
-			}
-			th.SimulateStatefulSetReplicaReady(statefulSetName)
+			th.SimulateJobSuccess(novaNames.ConductorDBSyncJobName)
+			th.SimulateStatefulSetReplicaReady(novaNames.ConductorStatefulSetName)
 			th.ExpectCondition(
-				novaConductorName,
+				novaNames.ConductorName,
 				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.ReadyCondition,
 				corev1.ConditionTrue,
@@ -673,7 +604,7 @@ var _ = Describe("NovaConductor controller", func() {
 
 		It("applies new NetworkAttachments configuration", func() {
 			Eventually(func(g Gomega) {
-				novaConductor := GetNovaConductor(novaConductorName)
+				novaConductor := GetNovaConductor(novaNames.ConductorName)
 				novaConductor.Spec.NetworkAttachments = append(novaConductor.Spec.NetworkAttachments, "internalapi")
 
 				err := k8sClient.Update(ctx, novaConductor)
@@ -681,7 +612,7 @@ var _ = Describe("NovaConductor controller", func() {
 			}, timeout, interval).Should(Succeed())
 
 			th.ExpectConditionWithDetails(
-				novaConductorName,
+				novaNames.ConductorName,
 				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.NetworkAttachmentsReadyCondition,
 				corev1.ConditionFalse,
@@ -690,7 +621,7 @@ var _ = Describe("NovaConductor controller", func() {
 			)
 
 			th.ExpectConditionWithDetails(
-				novaConductorName,
+				novaNames.ConductorName,
 				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.ReadyCondition,
 				corev1.ConditionFalse,
@@ -698,11 +629,11 @@ var _ = Describe("NovaConductor controller", func() {
 				"NetworkAttachment resources missing: internalapi",
 			)
 
-			internalAPINADName := types.NamespacedName{Namespace: namespace, Name: "internalapi"}
+			internalAPINADName := types.NamespacedName{Namespace: novaNames.ConductorName.Namespace, Name: "internalapi"}
 			DeferCleanup(th.DeleteInstance, th.CreateNetworkAttachmentDefinition(internalAPINADName))
 
 			th.ExpectConditionWithDetails(
-				novaConductorName,
+				novaNames.ConductorName,
 				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.NetworkAttachmentsReadyCondition,
 				corev1.ConditionFalse,
@@ -712,7 +643,7 @@ var _ = Describe("NovaConductor controller", func() {
 			)
 
 			th.ExpectConditionWithDetails(
-				novaConductorName,
+				novaNames.ConductorName,
 				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.ReadyCondition,
 				corev1.ConditionFalse,
@@ -722,26 +653,26 @@ var _ = Describe("NovaConductor controller", func() {
 			)
 
 			SimulateStatefulSetReplicaReadyWithPods(
-				statefulSetName,
-				map[string][]string{namespace + "/internalapi": {"10.0.0.1"}},
+				novaNames.ConductorStatefulSetName,
+				map[string][]string{novaNames.ConductorName.Namespace + "/internalapi": {"10.0.0.1"}},
 			)
 
 			th.ExpectCondition(
-				novaConductorName,
+				novaNames.ConductorName,
 				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.NetworkAttachmentsReadyCondition,
 				corev1.ConditionTrue,
 			)
 
 			Eventually(func(g Gomega) {
-				novaConductor := GetNovaConductor(novaConductorName)
+				novaConductor := GetNovaConductor(novaNames.ConductorName)
 				g.Expect(novaConductor.Status.NetworkAttachments).To(
-					Equal(map[string][]string{namespace + "/internalapi": {"10.0.0.1"}}))
+					Equal(map[string][]string{novaNames.ConductorName.Namespace + "/internalapi": {"10.0.0.1"}}))
 
 			}, timeout, interval).Should(Succeed())
 
 			th.ExpectCondition(
-				novaConductorName,
+				novaNames.ConductorName,
 				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.ReadyCondition,
 				corev1.ConditionTrue,
