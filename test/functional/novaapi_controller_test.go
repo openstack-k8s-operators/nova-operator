@@ -181,7 +181,7 @@ var _ = Describe("NovaAPI controller", func() {
 					HaveKeyWithValue("01-nova.conf",
 						ContainSubstring("transport_url=rabbit://fake")))
 				Expect(configDataMap.Data).Should(
-					HaveKeyWithValue("03-nova-override.conf", "foo=bar"))
+					HaveKeyWithValue("02-nova-override.conf", "foo=bar"))
 			})
 
 			It("stored the input hash in the Status", func() {
