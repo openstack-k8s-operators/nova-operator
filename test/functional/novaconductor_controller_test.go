@@ -555,8 +555,9 @@ var _ = Describe("NovaConductor controller", func() {
 			expectedAnnotation, err := json.Marshal(
 				[]networkv1.NetworkSelectionElement{
 					{
-						Name:      "internalapi",
-						Namespace: namespace,
+						Name:             "internalapi",
+						Namespace:        namespace,
+						InterfaceRequest: "internalapi",
 					}})
 			Expect(err).ShouldNot(HaveOccurred())
 			Expect(ss.Spec.Template.ObjectMeta.Annotations).To(
@@ -592,8 +593,9 @@ var _ = Describe("NovaConductor controller", func() {
 			expectedAnnotation, err := json.Marshal(
 				[]networkv1.NetworkSelectionElement{
 					{
-						Name:      "internalapi",
-						Namespace: namespace,
+						Name:             "internalapi",
+						Namespace:        namespace,
+						InterfaceRequest: "internalapi",
 					}})
 			Expect(err).ShouldNot(HaveOccurred())
 			Expect(ss.Spec.Template.ObjectMeta.Annotations).To(
