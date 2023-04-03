@@ -325,3 +325,10 @@ run-with-webhook: export PLACEMENT_API_IMAGE_URL_DEFAULT=quay.io/tripleozedcento
 run-with-webhook: manifests generate fmt vet ## Run a controller from your host.
 	/bin/bash hack/configure_local_webhook.sh
 	go run ./main.go
+
+.PHONY: tidy
+tidy: fmt
+	go mod tidy; \
+	pushd "$(LOCALBIN)/../api"; \
+	go mod tidy; \
+	popd
