@@ -445,7 +445,7 @@ var _ = Describe("Nova controller", func() {
 
 		})
 
-		It("does not set the cell db sync ready condtion to true", func() {
+		It("does not set the cell db sync ready condition to true", func() {
 			th.ExpectCondition(
 				cell0ConductorName,
 				ConditionGetterFunc(NovaConductorConditionGetter),
@@ -454,7 +454,7 @@ var _ = Describe("Nova controller", func() {
 			)
 		})
 
-		It("does not set the cell0 ready condtion to ture", func() {
+		It("does not set the cell0 ready condition to true", func() {
 			th.ExpectCondition(
 				cell0Name,
 				ConditionGetterFunc(NovaCellConditionGetter),
@@ -463,7 +463,7 @@ var _ = Describe("Nova controller", func() {
 			)
 		})
 
-		It("does not set the all cell ready condtion", func() {
+		It("does not set the all cell ready condition", func() {
 			th.ExpectCondition(
 				novaName,
 				ConditionGetterFunc(NovaConditionGetter),

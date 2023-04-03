@@ -97,7 +97,7 @@ func (r *NovaExternalComputeReconciler) Reconcile(ctx context.Context, req ctrl.
 	}
 
 	// Always update the instance status when exiting this function so we can
-	// persist any changes happend during the current reconciliation.
+	// persist any changes happened during the current reconciliation.
 	defer func() {
 		// update the overall status condition if service is ready
 		if allSubConditionIsTrue(instance.Status) {
@@ -129,7 +129,7 @@ func (r *NovaExternalComputeReconciler) Reconcile(ctx context.Context, req ctrl.
 	updated := controllerutil.AddFinalizer(instance, h.GetFinalizer())
 	if updated {
 		l.Info("Added finalizer to ourselves")
-		// we intentionally return imediately to force the deferred function
+		// we intentionally return immediately to force the deferred function
 		// to persist the Instance with the finalizer. We need to have our own
 		// finalizer persisted before we deploy any compute to avoid orphaning
 		// the compute rows in our database during CR deletion.
@@ -207,7 +207,7 @@ func (r *NovaExternalComputeReconciler) Reconcile(ctx context.Context, req ctrl.
 	// we support stopping before deploying the compute node
 	// so only create the AAE CRs if we have deployment enabled.
 	if instance.Spec.Deploy {
-		// create all AEE resouce in parallel
+		// create all AEE resource in parallel
 		libvirtAEE, err := r.ensureAEEDeployLibvirt(ctx, h, instance)
 		if err != nil {
 			return ctrl.Result{}, err
@@ -217,7 +217,7 @@ func (r *NovaExternalComputeReconciler) Reconcile(ctx context.Context, req ctrl.
 			return ctrl.Result{}, err
 		}
 
-		// then check if they have compelted and requeue if not.
+		// then check if they have completed and requeue if not.
 		if libvirtAEE.Status.JobStatus != "Succeeded" {
 			return ctrl.Result{RequeueAfter: r.RequeueTimeout}, fmt.Errorf(
 				"libvirt deployment %s for %s", libvirtAEE.Status.JobStatus, instance.Name,
@@ -229,7 +229,7 @@ func (r *NovaExternalComputeReconciler) Reconcile(ctx context.Context, req ctrl.
 			)
 		}
 
-		// we only get here if we completed succesffuly so we can just delete them
+		// we only get here if we completed successfully so we can just delete them
 		err = r.cleanupAEE(ctx, h, libvirtAEE)
 		if err != nil {
 			return ctrl.Result{}, err
@@ -239,7 +239,7 @@ func (r *NovaExternalComputeReconciler) Reconcile(ctx context.Context, req ctrl.
 			return ctrl.Result{}, err
 		}
 		// only mark true if we have completed all steps
-		// this should be at the end of the function to ensure we dont set the status
+		// this should be at the end of the function to ensure we don't set the status
 		// if we can fail later in the function.
 		instance.Status.Conditions.MarkTrue(
 			condition.DeploymentReadyCondition, condition.DeploymentReadyMessage,
@@ -308,10 +308,10 @@ func (r *NovaExternalComputeReconciler) reconcileDelete(
 	l.Info("Reconciling delete")
 
 	// TODO(gibi): A compute is being removed from the system so we might want
-	// to clean up the compure Service and the ComputeNode from the cell
+	// to clean up the compute Service and the ComputeNode from the cell
 	// database
 
-	// Successfully cleaned up everyting. So as the final step let's remove the
+	// Successfully cleaned up everything. So as the final step let's remove the
 	// finalizer from ourselves to allow the deletion of the CR itself
 	updated := controllerutil.RemoveFinalizer(instance, h.GetFinalizer())
 	if updated {
@@ -460,7 +460,7 @@ func (r *NovaExternalComputeReconciler) generateConfigs(
 		"log_file":               "/var/log/containers/nova/nova-compute.log",
 	}
 	extraData := map[string]string{}
-	// always generate this file even if empty to simplfy copying it
+	// always generate this file even if empty to simplify copying it
 	// to the external compute.
 	extraData["02-nova-override.conf"] = ""
 	if instance.Spec.CustomServiceConfig != "" {
@@ -517,7 +517,7 @@ func (r *NovaExternalComputeReconciler) ensurePlaybooks(
 	util.LogForObject(
 		h, "using playbooks for instance ", instance, "from ", playbookPath,
 	)
-	playbookDirEnteries, err := os.ReadDir(playbookPath)
+	playbookDirEntries, err := os.ReadDir(playbookPath)
 	if err != nil {
 		return err
 	}
@@ -533,7 +533,7 @@ func (r *NovaExternalComputeReconciler) ensurePlaybooks(
 	}
 	_, err = controllerutil.CreateOrPatch(ctx, h.GetClient(), configMap, func() error {
 
-		// FIXME: This is wrong we shoudl not be makeing the nova instnace CR own this.
+		// FIXME: This is wrong we should not be making the nova instance CR own this.
 		// it should be owned by the operator... for now im just going to make sure
 		// it exits and leak it it on operator removal.
 		// novaInstance := &novav1.Nova{}
@@ -556,7 +556,7 @@ func (r *NovaExternalComputeReconciler) ensurePlaybooks(
 		// if err != nil {
 		// 	return err
 		// }
-		for _, entry := range playbookDirEnteries {
+		for _, entry := range playbookDirEntries {
 			filename := entry.Name()
 			filePath := path.Join(playbookPath, filename)
 			data, err := os.ReadFile(filePath)
@@ -667,7 +667,7 @@ func initAEE(
 	playbook string,
 ) {
 	ansibleEE.Spec.Image = instance.Spec.AnsibleEEContainerImage
-	// TODO we dont currently have this on the NovaExternalComputeCR
+	// TODO we don't currently have this on the NovaExternalComputeCR
 	// ansibleEE.Spec.NetworkAttachments = instance.Spec.NetworkAttachments
 	ansibleEE.Spec.Playbook = playbook
 	ansibleEE.Spec.Env = []corev1.EnvVar{
@@ -676,7 +676,7 @@ func initAEE(
 		{Name: "ANSIBLE_ENABLE_TASK_DEBUGGER", Value: "True"},
 		{Name: "ANSIBLE_VERBOSITY", Value: "1"},
 	}
-	// allocate tempory storage for the extra volume mounts to avoid
+	// allocate temporary storage for the extra volume mounts to avoid
 	// pointer indirection via ansibleEE.Spec.ExtraMounts
 	ansibleEEMounts := storage.VolMounts{}
 
@@ -767,7 +767,7 @@ func initAEE(
 	}
 	ansibleEEMounts.Mounts = append(ansibleEEMounts.Mounts, serviceConfigMount)
 
-	// initalise ansibleEE.Spec.ExtraMounts from local ansibleEEMounts
+	// initialize ansibleEE.Spec.ExtraMounts from local ansibleEEMounts
 	ansibleEE.Spec.ExtraMounts = []storage.VolMounts{ansibleEEMounts}
 
 }

@@ -117,12 +117,12 @@ var _ = Describe("NovaExternalCompute", func() {
 				Namespace: namespace,
 				Name:      fmt.Sprintf("%s-%s-deploy-libvirt", compute.Spec.NovaInstance, compute.Name),
 			}
-			SimulateAEESucceded(libvirtAEEName)
+			SimulateAEESucceeded(libvirtAEEName)
 			novaAEEName := types.NamespacedName{
 				Namespace: namespace,
 				Name:      fmt.Sprintf("%s-%s-deploy-nova", compute.Spec.NovaInstance, compute.Name),
 			}
-			SimulateAEESucceded(novaAEEName)
+			SimulateAEESucceeded(novaAEEName)
 
 		})
 
@@ -327,12 +327,12 @@ var _ = Describe("NovaExternalCompute", func() {
 				Namespace: namespace,
 				Name:      fmt.Sprintf("%s-%s-deploy-libvirt", compute.Spec.NovaInstance, compute.Name),
 			}
-			SimulateAEESucceded(libvirtAEEName)
+			SimulateAEESucceeded(libvirtAEEName)
 			novaAEEName := types.NamespacedName{
 				Namespace: namespace,
 				Name:      fmt.Sprintf("%s-%s-deploy-nova", compute.Spec.NovaInstance, compute.Name),
 			}
-			SimulateAEESucceded(novaAEEName)
+			SimulateAEESucceeded(novaAEEName)
 
 			th.ExpectCondition(
 				computeName,

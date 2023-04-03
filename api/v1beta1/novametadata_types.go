@@ -127,7 +127,7 @@ type NovaMetadataSpec struct {
 	CellDatabaseHostname string `json:"cellDatabaseHostname"`
 
 	// +kubebuilder:validation:Optional
-	// APIMessageBusSecretName - the name of the Secret conntaining the
+	// APIMessageBusSecretName - the name of the Secret containing the
 	// transport URL information to use when accessing the API message
 	// bus.
 	// TODO(ksambor): add a validation webhook to enforce that it is required
@@ -135,7 +135,7 @@ type NovaMetadataSpec struct {
 	APIMessageBusSecretName string `json:"apiMessageBusSecretName"`
 
 	// +kubebuilder:validation:Optional
-	// CellMessageBusSecretName - the name of the Secret conntaining the
+	// CellMessageBusSecretName - the name of the Secret containing the
 	// transport URL information to use when accessing the Cell message
 	// bus.
 	CellMessageBusSecretName string `json:"cellMessageBusSecretName"`

@@ -43,7 +43,7 @@ var _ = Describe("NovaMetadata controller", func() {
 			k8sClient.Delete, ctx, CreateNovaMessageBusSecret(namespace, MessageBusSecretName))
 
 	})
-	When("with standard spec without networkinterface", func() {
+	When("with standard spec without network interface", func() {
 		BeforeEach(func() {
 			spec := GetDefaultNovaMetadataSpec()
 			spec["customServiceConfig"] = "foo=bar"
@@ -64,7 +64,7 @@ var _ = Describe("NovaMetadata controller", func() {
 			It("has empty Status fields", func() {
 				instance := GetNovaMetadata(novaMetadataName)
 				// NOTE(gibi): Hash has `omitempty` tags so while
-				// they are initialized to an empty map that value is omited from
+				// they are initialized to an empty map that value is omitted from
 				// the output when sent to the client. So we see nils here.
 				Expect(instance.Status.Hash).To(BeEmpty())
 				Expect(instance.Status.ReadyCount).To(Equal(int32(0)))
@@ -79,7 +79,7 @@ var _ = Describe("NovaMetadata controller", func() {
 			})
 		})
 
-		When("an unrealated Secret is created the CR state does not change", func() {
+		When("an unrelated Secret is created the CR state does not change", func() {
 			BeforeEach(func() {
 				secret := &corev1.Secret{
 					ObjectMeta: metav1.ObjectMeta{
@@ -134,7 +134,7 @@ var _ = Describe("NovaMetadata controller", func() {
 				)
 			})
 
-			It("reports that the inputes are not ready", func() {
+			It("reports that the inputs are not ready", func() {
 				th.ExpectCondition(
 					novaMetadataName,
 					ConditionGetterFunc(NovaMetadataConditionGetter),
@@ -395,7 +395,7 @@ var _ = Describe("NovaMetadata controller", func() {
 				HaveKeyWithValue("k8s.v1.cni.cncf.io/networks", string(expectedAnnotation)),
 			)
 
-			// We simulat that there is no IP associated with the internalapi
+			// We simulate that there is no IP associated with the internalapi
 			// network attachment
 			SimulateStatefulSetReplicaReadyWithPods(
 				statefulSetName,
@@ -412,7 +412,7 @@ var _ = Describe("NovaMetadata controller", func() {
 					"not all pods have interfaces with ips as configured in NetworkAttachments: [internalapi]",
 			)
 		})
-		It("reports NetworkAttachmentsReady if the Pods got the proper annotiations", func() {
+		It("reports NetworkAttachmentsReady if the Pods got the proper annotations", func() {
 			internalMetadataName := types.NamespacedName{Namespace: namespace, Name: "internalapi"}
 			nad := CreateNetworkAttachmentDefinition(internalMetadataName)
 			DeferCleanup(DeleteInstance, nad)
@@ -476,7 +476,7 @@ var _ = Describe("NovaMetadata controller", func() {
 			}
 			th.SimulateStatefulSetReplicaReady(statefulSetName)
 
-			// As the internal enpoint is configured in ExternalEndpoints it does not
+			// As the internal endpoint is configured in ExternalEndpoints it does not
 			// get a Route but a Service with MetalLB annotations instead
 			service := GetService(types.NamespacedName{Namespace: namespace, Name: "nova-metadata-internal"})
 			Expect(service.Annotations).To(
@@ -526,7 +526,7 @@ var _ = Describe("NovaMetadata controller", func() {
 			)
 		})
 
-		It("applys new NetworkAttachments configuration", func() {
+		It("applies new NetworkAttachments configuration", func() {
 			Eventually(func(g Gomega) {
 				novaMetadata := GetNovaMetadata(novaMetadataName)
 				novaMetadata.Spec.NetworkAttachments = append(novaMetadata.Spec.NetworkAttachments, "internalapi")

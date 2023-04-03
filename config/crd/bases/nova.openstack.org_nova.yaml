@@ -312,7 +312,7 @@ spec:
                       type: boolean
                     metadataServiceTemplate:
                       description: MetadataServiceTemplate - defines the metadata
-                        serive dedicated for the cell.
+                        service dedicated for the cell.
                       properties:
                         containerImage:
                           default: quay.io/tripleozedcentos9/openstack-nova-api:current-tripleo
@@ -449,7 +449,7 @@ spec:
                       type: object
                     noVNCProxyServiceTemplate:
                       description: NoVNCProxyServiceTemplate - defines the novvncproxy
-                        serive dedicated for the cell.
+                        service dedicated for the cell.
                       properties:
                         containerImage:
                           default: quay.io/tripleozedcentos9/openstack-nova-novncproxy:current-tripleo

@@ -111,7 +111,7 @@ func (r *NovaAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (re
 	}
 
 	// Always update the instance status when exiting this function so we can
-	// persist any changes happend during the current reconciliation.
+	// persist any changes happened during the current reconciliation.
 	defer func() {
 		// update the Ready condition based on the sub conditions
 		if allSubConditionIsTrue(instance.Status) {
@@ -589,7 +589,7 @@ func (r *NovaAPIReconciler) reconcileDelete(
 		return err
 	}
 
-	// Successfully cleaned up everyting. So as the final step let's remove the
+	// Successfully cleaned up everything. So as the final step let's remove the
 	// finalizer from ourselves to allow the deletion of NovaAPI CR itself
 	updated := controllerutil.RemoveFinalizer(instance, h.GetFinalizer())
 	if updated {

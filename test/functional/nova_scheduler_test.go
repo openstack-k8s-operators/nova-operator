@@ -59,7 +59,7 @@ var _ = Describe("NovaScheduler controller", func() {
 		It("has empty Status fields", func() {
 			instance := GetNovaScheduler(novaSchedulerName)
 			// NOTE(gibi): Hash and Endpoints have `omitempty` tags so while
-			// they are initialized to {} that value is omited from the output
+			// they are initialized to {} that value is omitted from the output
 			// when sent to the client. So we see nils here.
 			Expect(instance.Status.Hash).To(BeEmpty())
 			Expect(instance.Status.ReadyCount).To(Equal(int32(0)))
@@ -76,7 +76,7 @@ var _ = Describe("NovaScheduler controller", func() {
 
 	})
 
-	When("an unrealated Secret is created the CR state does not change", func() {
+	When("an unrelated Secret is created the CR state does not change", func() {
 		BeforeEach(func() {
 			secret := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
@@ -132,7 +132,7 @@ var _ = Describe("NovaScheduler controller", func() {
 			)
 		})
 
-		It("reports that the inputes are not ready", func() {
+		It("reports that the inputs are not ready", func() {
 			th.ExpectCondition(
 				novaSchedulerName,
 				ConditionGetterFunc(NovaSchedulerConditionGetter),
@@ -377,7 +377,7 @@ var _ = Describe("NovaScheduler controller", func() {
 				HaveKeyWithValue("k8s.v1.cni.cncf.io/networks", string(expectedAnnotation)),
 			)
 
-			// We simulat that there is no IP associated with the internalapi
+			// We simulate that there is no IP associated with the internalapi
 			// network attachment
 			SimulateStatefulSetReplicaReadyWithPods(
 				statefulSetName,
@@ -394,7 +394,7 @@ var _ = Describe("NovaScheduler controller", func() {
 					"not all pods have interfaces with ips as configured in NetworkAttachments: [internalapi]",
 			)
 		})
-		It("reports NetworkAttachmentsReady if the Pods got the proper annotiations", func() {
+		It("reports NetworkAttachmentsReady if the Pods got the proper annotations", func() {
 			internalAPINADName := types.NamespacedName{Namespace: namespace, Name: "internalapi"}
 			nad := CreateNetworkAttachmentDefinition(internalAPINADName)
 			DeferCleanup(DeleteInstance, nad)
@@ -460,7 +460,7 @@ var _ = Describe("NovaScheduler controller", func() {
 			)
 		})
 
-		It("applys new NetworkAttachments configuration", func() {
+		It("applies new NetworkAttachments configuration", func() {
 			Eventually(func(g Gomega) {
 				novaScheduler := GetNovaScheduler(novaSchedulerName)
 				novaScheduler.Spec.NetworkAttachments = append(novaScheduler.Spec.NetworkAttachments, "internalapi")

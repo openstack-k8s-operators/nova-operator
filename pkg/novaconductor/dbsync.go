@@ -51,7 +51,7 @@ func CellDBSyncJob(
 		CellDatabasePasswordSelector:        "NovaCell0DatabasePassword",
 		KeystoneServiceUserPasswordSelector: instance.Spec.PasswordSelectors.Service,
 		// NOTE(gibi): these might be empty if the conductor does not support
-		// upcalls but that is OK
+		// up-calls but that is OK
 		APIDatabaseHostname:         instance.Spec.APIDatabaseHostname,
 		APIDatabaseUser:             instance.Spec.APIDatabaseUser,
 		APIDatabaseName:             nova.NovaAPIDatabaseName,

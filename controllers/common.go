@@ -42,13 +42,13 @@ import (
 
 const (
 	// NovaAPILabelPrefix - a unique, service binary specific prefix for the
-	// labeles the NovaAPI controller uses on children objects
+	// labels the NovaAPI controller uses on children objects
 	NovaAPILabelPrefix = "nova-api"
 	// NovaConductorLabelPrefix - a unique, service binary specific prefix for
-	// the labeles the NovaConductor controller uses on children objects
+	// the labels the NovaConductor controller uses on children objects
 	NovaConductorLabelPrefix = "nova-conductor"
 	// NovaSchedulerLabelPrefix - a unique, service binary specific prefix for
-	// the labeles the NovaScheduler controller uses on children objects
+	// the labels the NovaScheduler controller uses on children objects
 	NovaSchedulerLabelPrefix = "nova-scheduler"
 	// NovaExternalComputeLabelPrefix - a unique, prefix used for the AEE CR
 	// and other children objects created to mange external computes
@@ -57,7 +57,7 @@ const (
 	// the nova operator
 	NovaLabelPrefix = "nova"
 	// NovaMetadataLabelPrefix - a unique, service binary specific prefix for
-	// the labeles the NovaMetadata controller uses on children objects
+	// the labels the NovaMetadata controller uses on children objects
 	NovaMetadataLabelPrefix = "nova-metadata"
 	// DbSyncHash - the field name in Status.Hashes storing the has of the DB
 	// sync job
@@ -264,7 +264,7 @@ func ensureConfigMap(
 	return hash, ctrl.Result{}, nil
 }
 
-// hashOfInputHashes - calculates the overal hash of all our inputs
+// hashOfInputHashes - calculates the overall hash of all our inputs
 func hashOfInputHashes(
 	ctx context.Context,
 	hashes map[string]env.Setter,
@@ -286,14 +286,14 @@ type ReconcilerBase struct {
 	RequeueTimeout time.Duration
 }
 
-// Managable all types that conform to this interface can be setup with a controller-runtime manager.
-type Managable interface {
+// Manageable all types that conform to this interface can be setup with a controller-runtime manager.
+type Manageable interface {
 	SetupWithManager(mgr ctrl.Manager) error
 }
 
 // Reconciler represents a generic interface for all Reconciler objects in nova
 type Reconciler interface {
-	Managable
+	Manageable
 	SetRequeueTimeout(timeout time.Duration)
 }
 
@@ -317,7 +317,7 @@ func (r *ReconcilerBase) SetRequeueTimeout(timeout time.Duration) {
 }
 
 // Reconcilers holds all the Reconciler objects of the nova-operator to
-// allow generic managemenet of them.
+// allow generic management of them.
 type Reconcilers struct {
 	reconcilers map[string]Reconciler
 }
@@ -365,8 +365,8 @@ func (r *Reconcilers) Setup(mgr ctrl.Manager, setupLog logr.Logger) error {
 	return nil
 }
 
-// OverriedRequeueTimeout overrides the default RequeueTimeout of our reconcilers
-func (r *Reconcilers) OverriedRequeueTimeout(timeout time.Duration) {
+// OverrideRequeueTimeout overrides the default RequeueTimeout of our reconcilers
+func (r *Reconcilers) OverrideRequeueTimeout(timeout time.Duration) {
 	for _, reconciler := range r.reconcilers {
 		reconciler.SetRequeueTimeout(timeout)
 	}

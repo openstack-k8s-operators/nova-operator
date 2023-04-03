@@ -53,13 +53,13 @@ const (
 	NovaAPIReadyInitMessage = "NovaAPI not started"
 
 	// NovaAPIReadyErrorMessage
-	NovaAPIReadyErrorMessage = "NovaAPI error occured %s"
+	NovaAPIReadyErrorMessage = "NovaAPI error occurred %s"
 
 	// NovaConductorReadyInitMessage
 	NovaConductorReadyInitMessage = "NovaConductor not started"
 
 	// NovaConductorReadyErrorMessage
-	NovaConductorReadyErrorMessage = "NovaConductor error occured %s"
+	NovaConductorReadyErrorMessage = "NovaConductor error occurred %s"
 
 	// NovaAllCellsDBReadyInitMessage
 	NovaAllCellsDBReadyInitMessage = "DB creation not started"
@@ -71,7 +71,7 @@ const (
 	NovaAllCellsDBReadyErrorMessage = "DB creation failed for %s"
 
 	// NovaAllCellsReadyMessage
-	NovaAllCellsDBReadyMessage = "All DBs created succcessfully"
+	NovaAllCellsDBReadyMessage = "All DBs created successfully"
 
 	// NovaAllCellsReadyInitMessage
 	NovaAllCellsReadyInitMessage = "NovaCells are not started"
@@ -98,7 +98,7 @@ const (
 	NovaAPIMQReadyMessage = "API message bus creation successfully"
 
 	// NovaAPIMQReadyCreatingMessage
-	NovaAPIMQReadyCreatingMessage = "API message bus creation onging"
+	NovaAPIMQReadyCreatingMessage = "API message bus creation ongoing"
 
 	// NovaAllCellsMQReadyInitMessage
 	NovaAllCellsMQReadyInitMessage = "Message bus creation not started"
@@ -116,13 +116,13 @@ const (
 	NovaSchedulerReadyInitMessage = "NovaScheduler not started"
 
 	// NovaSchedulerReadyErrorMessage
-	NovaSchedulerReadyErrorMessage = "NovaScheduler error occured %s"
+	NovaSchedulerReadyErrorMessage = "NovaScheduler error occurred %s"
 
 	// InputReadyWaitingMessage
 	InputReadyWaitingMessage = "Input data resources missing: %s"
 
 	// NovaCellReadyInitMessage
-	NovaCellReadyInitMessage = "The status of NovaCell %s is unkown"
+	NovaCellReadyInitMessage = "The status of NovaCell %s is unknown"
 
 	// NovaCellReadyNotExistsMessage
 	NovaCellReadyNotExistsMessage = "Waiting for NovaCell %s to exists"
@@ -131,7 +131,7 @@ const (
 	NovaCellReadyNotReadyMessage = "Waiting for NovaCell %s to become Ready"
 
 	//NovaCellReadyErrorMessage
-	NovaCellReadyErrorMessage = "Error occured while querying NovaCell %s: %s"
+	NovaCellReadyErrorMessage = "Error occurred while querying NovaCell %s: %s"
 
 	//NovaCellReadyMessage
 	NovaCellReadyMessage = "NovaCell %s is Ready"
@@ -140,5 +140,5 @@ const (
 	NovaMetadataReadyInitMessage = "NovaMetadata not started"
 
 	//NovaMetadataReadyInitMessage
-	NovaMetadataReadyErrorMessage = "NovaMetadata error occured %s"
+	NovaMetadataReadyErrorMessage = "NovaMetadata error occurred %s"
 )

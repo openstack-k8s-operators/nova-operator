@@ -94,7 +94,7 @@ func initContainer(init ContainerInput) []corev1.Container {
 		},
 	}
 
-	// These are optional depending on if the conductor supports upcall
+	// These are optional depending on if the conductor supports up-call
 	// or not
 	if init.APIDatabaseHostname != "" {
 		envVars["APIDatabaseHost"] = env.SetValue(init.APIDatabaseHostname)
