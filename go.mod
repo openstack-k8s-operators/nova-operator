@@ -20,10 +20,10 @@ require (
 	github.com/openstack-k8s-operators/openstack-ansibleee-operator/api v0.0.0-20230310124740-a27b51d6c6ca
 	go.uber.org/zap v1.24.0
 	gopkg.in/yaml.v3 v3.0.1
-	k8s.io/api v0.26.2
-	k8s.io/apimachinery v0.26.2
-	k8s.io/client-go v0.26.2
-	sigs.k8s.io/controller-runtime v0.14.5
+	k8s.io/api v0.26.3
+	k8s.io/apimachinery v0.26.3
+	k8s.io/client-go v0.26.3
+	sigs.k8s.io/controller-runtime v0.14.6
 )
 
 require (
