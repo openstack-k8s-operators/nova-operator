@@ -208,7 +208,7 @@ var _ = Describe("NovaExternalCompute", func() {
 				condition.InputReadyCondition,
 				corev1.ConditionFalse,
 				condition.ErrorReason,
-				"Input data error occured field 'inventory' not found in configmap/"+compute.Spec.InventoryConfigMapName,
+				"Input data error occurred field 'inventory' not found in configmap/"+compute.Spec.InventoryConfigMapName,
 			)
 			compute = GetNovaExternalCompute(computeName)
 			Expect(compute.Status.Hash["input"]).To(BeEmpty())
@@ -243,7 +243,7 @@ var _ = Describe("NovaExternalCompute", func() {
 				condition.InputReadyCondition,
 				corev1.ConditionFalse,
 				condition.ErrorReason,
-				"Input data error occured field 'ssh-privatekey' not found in secret/"+compute.Spec.SSHKeySecretName,
+				"Input data error occurred field 'ssh-privatekey' not found in secret/"+compute.Spec.SSHKeySecretName,
 			)
 			compute = GetNovaExternalCompute(computeName)
 			Expect(compute.Status.Hash["input"]).To(BeEmpty())

@@ -349,7 +349,7 @@ var _ = Describe("NovaScheduler controller", func() {
 				condition.NetworkAttachmentsReadyCondition,
 				corev1.ConditionFalse,
 				condition.ErrorReason,
-				"NetworkAttachments error occured "+
+				"NetworkAttachments error occurred "+
 					"not all pods have interfaces with ips as configured in NetworkAttachments: [internalapi]",
 			)
 		})
@@ -388,7 +388,7 @@ var _ = Describe("NovaScheduler controller", func() {
 				condition.NetworkAttachmentsReadyCondition,
 				corev1.ConditionFalse,
 				condition.ErrorReason,
-				"NetworkAttachments error occured "+
+				"NetworkAttachments error occurred "+
 					"not all pods have interfaces with ips as configured in NetworkAttachments: [internalapi]",
 			)
 		})
@@ -494,7 +494,7 @@ var _ = Describe("NovaScheduler controller", func() {
 				condition.NetworkAttachmentsReadyCondition,
 				corev1.ConditionFalse,
 				condition.ErrorReason,
-				"NetworkAttachments error occured "+
+				"NetworkAttachments error occurred "+
 					"not all pods have interfaces with ips as configured in NetworkAttachments: [internalapi]",
 			)
 
@@ -504,7 +504,7 @@ var _ = Describe("NovaScheduler controller", func() {
 				condition.ReadyCondition,
 				corev1.ConditionFalse,
 				condition.ErrorReason,
-				"NetworkAttachments error occured "+
+				"NetworkAttachments error occurred "+
 					"not all pods have interfaces with ips as configured in NetworkAttachments: [internalapi]",
 			)
 
