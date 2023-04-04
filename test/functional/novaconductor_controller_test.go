@@ -313,7 +313,7 @@ var _ = Describe("NovaConductor controller", func() {
 					condition.DBSyncReadyCondition,
 					corev1.ConditionFalse,
 					condition.ErrorReason,
-					"DBsync job error occured Internal error occurred: Job Failed. Check job logs",
+					"DBsync job error occurred Internal error occurred: Job Failed. Check job logs",
 				)
 				// This would fail the test case if the job does not exists
 				th.GetJob(jobName)
@@ -332,7 +332,7 @@ var _ = Describe("NovaConductor controller", func() {
 						condition.DBSyncReadyCondition,
 						corev1.ConditionFalse,
 						condition.ErrorReason,
-						"DBsync job error occured Internal error occurred: Job Failed. Check job logs",
+						"DBsync job error occurred Internal error occurred: Job Failed. Check job logs",
 					)
 
 					DeleteInstance(GetNovaConductor(novaConductorName))
@@ -452,7 +452,7 @@ var _ = Describe("NovaConductor controller", func() {
 				condition.DBSyncReadyCondition,
 				corev1.ConditionFalse,
 				condition.ErrorReason,
-				"DBsync job error occured Internal error occurred: Job Failed. Check job logs",
+				"DBsync job error occurred Internal error occurred: Job Failed. Check job logs",
 			)
 			Expect(th.GetJob(jobName).Spec.TTLSecondsAfterFinished).To(BeNil())
 		})
@@ -555,8 +555,9 @@ var _ = Describe("NovaConductor controller", func() {
 			expectedAnnotation, err := json.Marshal(
 				[]networkv1.NetworkSelectionElement{
 					{
-						Name:      "internalapi",
-						Namespace: namespace,
+						Name:             "internalapi",
+						Namespace:        namespace,
+						InterfaceRequest: "internalapi",
 					}})
 			Expect(err).ShouldNot(HaveOccurred())
 			Expect(ss.Spec.Template.ObjectMeta.Annotations).To(
@@ -573,7 +574,7 @@ var _ = Describe("NovaConductor controller", func() {
 				condition.NetworkAttachmentsReadyCondition,
 				corev1.ConditionFalse,
 				condition.ErrorReason,
-				"NetworkAttachments error occured "+
+				"NetworkAttachments error occurred "+
 					"not all pods have interfaces with ips as configured in NetworkAttachments: [internalapi]",
 			)
 		})
@@ -592,8 +593,9 @@ var _ = Describe("NovaConductor controller", func() {
 			expectedAnnotation, err := json.Marshal(
 				[]networkv1.NetworkSelectionElement{
 					{
-						Name:      "internalapi",
-						Namespace: namespace,
+						Name:             "internalapi",
+						Namespace:        namespace,
+						InterfaceRequest: "internalapi",
 					}})
 			Expect(err).ShouldNot(HaveOccurred())
 			Expect(ss.Spec.Template.ObjectMeta.Annotations).To(
@@ -613,7 +615,7 @@ var _ = Describe("NovaConductor controller", func() {
 				condition.NetworkAttachmentsReadyCondition,
 				corev1.ConditionFalse,
 				condition.ErrorReason,
-				"NetworkAttachments error occured "+
+				"NetworkAttachments error occurred "+
 					"not all pods have interfaces with ips as configured in NetworkAttachments: [internalapi]",
 			)
 		})
@@ -728,7 +730,7 @@ var _ = Describe("NovaConductor controller", func() {
 				condition.NetworkAttachmentsReadyCondition,
 				corev1.ConditionFalse,
 				condition.ErrorReason,
-				"NetworkAttachments error occured "+
+				"NetworkAttachments error occurred "+
 					"not all pods have interfaces with ips as configured in NetworkAttachments: [internalapi]",
 			)
 
@@ -738,7 +740,7 @@ var _ = Describe("NovaConductor controller", func() {
 				condition.ReadyCondition,
 				corev1.ConditionFalse,
 				condition.ErrorReason,
-				"NetworkAttachments error occured "+
+				"NetworkAttachments error occurred "+
 					"not all pods have interfaces with ips as configured in NetworkAttachments: [internalapi]",
 			)
 
