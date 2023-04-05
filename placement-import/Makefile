@@ -328,7 +328,7 @@ run-with-webhook: manifests generate fmt vet ## Run a controller from your host.
 
 APIPATH ?= $(shell pwd)/api
 .PHONY: tidy
-tidy: fmt
+tidy: ## Run go mod tidy on every mod file in the repo
 	go mod tidy; \
 	pushd $(APIPATH); \
 	go mod tidy; \
