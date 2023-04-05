@@ -102,7 +102,7 @@ func (r *NovaSchedulerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 
 	// Always update the instance status when exiting this function so we can
-	// persist any changes happend during the current reconciliation.
+	// persist any changes happened during the current reconciliation.
 	defer func() {
 		// update the Ready condition based on the sub conditions
 		if allSubConditionIsTrue(instance.Status) {

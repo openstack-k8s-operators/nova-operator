@@ -90,8 +90,8 @@ func CreateNovaExternalComputeFromSample(sampleFileName string, namespace string
 // This is a set of test for our samples. It only validates that the sample
 // file has all the required field with proper types. But it does not
 // validate that using a sample file will result in a working deployment.
-// TODO(gibi): By building up all the prerequisits (e.g. MariaDBDatabase) in
-// the test and by simulating Job and Deploymnet success we could assert
+// TODO(gibi): By building up all the prerequisites (e.g. MariaDBDatabase) in
+// the test and by simulating Job and Deployment success we could assert
 // that each sample creates a CR in Ready state.
 var _ = Describe("Samples", func() {
 

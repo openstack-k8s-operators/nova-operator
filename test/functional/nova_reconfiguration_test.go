@@ -226,8 +226,8 @@ var _ = Describe("Nova reconfiguration", func() {
 			}, timeout, interval).Should(Succeed())
 		})
 	})
-	When("networkAttachemnt is added to a conductor while the definition is missing", func() {
-		It("applys new NetworkAttachments configuration to that Conductor", func() {
+	When("networkAttachment is added to a conductor while the definition is missing", func() {
+		It("applies new NetworkAttachments configuration to that Conductor", func() {
 			cell1Names := NewCell(novaName, "cell1")
 
 			Eventually(func(g Gomega) {

@@ -59,7 +59,7 @@ spec:
                   API DB
                 type: string
               apiMessageBusSecretName:
-                description: 'APIMessageBusSecretName - the name of the Secret conntaining
+                description: 'APIMessageBusSecretName - the name of the Secret containing
                   the transport URL information to use when accessing the API message
                   bus. TODO(ksambor): add a validation webhook to enforce that it
                   is required for the CellName == ""'
@@ -76,7 +76,7 @@ spec:
                   cell DB
                 type: string
               cellMessageBusSecretName:
-                description: CellMessageBusSecretName - the name of the Secret conntaining
+                description: CellMessageBusSecretName - the name of the Secret containing
                   the transport URL information to use when accessing the Cell message
                   bus.
                 type: string

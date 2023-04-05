@@ -50,7 +50,7 @@ spec:
             properties:
               apiDatabaseHostname:
                 description: 'APIDatabaseHostname - hostname to use when accessing
-                  the API DB. If not provided then upcalls will be disabled. This
+                  the API DB. If not provided then up-calls will be disabled. This
                   filed is Required for cell0. TODO(gibi): Add a webhook to validate
                   cell0 constraint'
                 type: string
@@ -69,7 +69,7 @@ spec:
                   cell DB
                 type: string
               cellMessageBusSecretName:
-                description: CellMessageBusSecretName - the name of the Secret conntaining
+                description: CellMessageBusSecretName - the name of the Secret containing
                   the transport URL information to use when accessing the Cell message
                   bus.
                 type: string

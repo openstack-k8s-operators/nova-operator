@@ -45,7 +45,7 @@ const (
 	// have maximum 100 retries before the timeout hits
 	interval = timeout / 100
 	// consistencyTimeout is the amount of time we use to repeatedly check
-	// that a condition is still valid. This is intendet to be used in
+	// that a condition is still valid. This is intended to be used in
 	// asserts using `Consistently`.
 	consistencyTimeout = timeout
 )
@@ -587,7 +587,7 @@ func GetAEE(name types.NamespacedName) *aee.OpenStackAnsibleEE {
 	return instance
 }
 
-func SimulateAEESucceded(name types.NamespacedName) {
+func SimulateAEESucceeded(name types.NamespacedName) {
 	Eventually(func(g Gomega) {
 		ansibleEE := GetAEE(name)
 		ansibleEE.Status.JobStatus = "Succeeded"

@@ -72,7 +72,7 @@ type NovaSchedulerSpec struct {
 
 	// +kubebuilder:validation:Required
 	// Secret is the name of the Secret instance containing password
-	// information for the nova-scheduler sevice.
+	// information for the nova-scheduler service.
 	Secret string `json:"secret"`
 
 	// +kubebuilder:validation:Optional
@@ -102,7 +102,7 @@ type NovaSchedulerSpec struct {
 	APIDatabaseHostname string `json:"apiDatabaseHostname"`
 
 	// +kubebuilder:validation:Required
-	// APIMessageBusSecretName - the name of the Secret conntaining the
+	// APIMessageBusSecretName - the name of the Secret containing the
 	// transport URL information to use when accessing the API message
 	// bus.
 	APIMessageBusSecretName string `json:"apiMessageBusSecretName"`

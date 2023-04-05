@@ -98,7 +98,7 @@ type NovaExternalComputeStatus struct {
 
 	// NOTE(gibi): If nova-operator ever needs RPM packages to be installed to
 	// the host then we need to communicate in the Status to the
-	// dataplane-operator probably as a list of pacakge names and a list of
+	// dataplane-operator probably as a list of package names and a list of
 	// package repositories.
 }
 

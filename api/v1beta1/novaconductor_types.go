@@ -103,7 +103,7 @@ type NovaConductorSpec struct {
 
 	// +kubebuilder:validation:Optional
 	// APIDatabaseHostname - hostname to use when accessing the API DB. If not
-	// provided then upcalls will be disabled. This filed is Required for
+	// provided then up-calls will be disabled. This filed is Required for
 	// cell0.
 	// TODO(gibi): Add a webhook to validate cell0 constraint
 	APIDatabaseHostname string `json:"apiDatabaseHostname"`
@@ -119,7 +119,7 @@ type NovaConductorSpec struct {
 	CellDatabaseHostname string `json:"cellDatabaseHostname"`
 
 	// +kubebuilder:validation:Required
-	// CellMessageBusSecretName - the name of the Secret conntaining the
+	// CellMessageBusSecretName - the name of the Secret containing the
 	// transport URL information to use when accessing the Cell message
 	// bus.
 	CellMessageBusSecretName string `json:"cellMessageBusSecretName"`

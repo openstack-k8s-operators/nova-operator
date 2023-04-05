@@ -48,7 +48,7 @@ func StatefulSet(
 		CellDatabasePasswordSelector:        "NovaCell0DatabasePassword",
 		KeystoneServiceUserPasswordSelector: instance.Spec.PasswordSelectors.Service,
 		// NOTE(gibi): these might be empty if the conductor does not support
-		// upcalls but that is OK
+		// up-calls but that is OK
 		APIDatabaseHostname:         instance.Spec.APIDatabaseHostname,
 		APIDatabaseUser:             instance.Spec.APIDatabaseUser,
 		APIDatabaseName:             nova.NovaAPIDatabaseName,
@@ -87,7 +87,7 @@ func StatefulSet(
 		}
 	} else {
 		args = append(args, nova.KollaServiceCommand)
-		// TODO(gibi): replace this with a proper healthcheck once
+		// TODO(gibi): replace this with a proper health check once
 		// https://review.opendev.org/q/topic:per-process-healthchecks merges.
 		// NOTE(gibi): -r DRST means we consider nova-conductor processes
 		// healthy if they are not in zombie state.

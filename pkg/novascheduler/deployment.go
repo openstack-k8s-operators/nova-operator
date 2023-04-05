@@ -43,7 +43,7 @@ func StatefulSet(
 		FailureThreshold: 6,
 		PeriodSeconds:    10,
 	}
-	// After the first successful startupProbe, livenesProbe takes over
+	// After the first successful startupProbe, livenessProbe takes over
 	livenessProbe := &corev1.Probe{
 		// TODO might need tuning
 		TimeoutSeconds: 10,

@@ -178,7 +178,7 @@ var _ = BeforeSuite(func() {
 	// NOTE(gibi): During envtest we simulate success of tasks (e.g Job,
 	// Deployment, DB) so we can speed up the test execution by reducing the
 	// time we wait before we reconcile when a task is running.
-	reconcilers.OverriedRequeueTimeout(time.Duration(10) * time.Millisecond)
+	reconcilers.OverrideRequeueTimeout(time.Duration(10) * time.Millisecond)
 	err = reconcilers.Setup(k8sManager, ctrl.Log.WithName("testSetup"))
 	Expect(err).ToNot(HaveOccurred())
 

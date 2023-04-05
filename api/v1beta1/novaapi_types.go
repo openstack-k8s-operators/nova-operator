@@ -80,7 +80,7 @@ type NovaAPISpec struct {
 
 	// +kubebuilder:validation:Required
 	// Secret is the name of the Secret instance containing password
-	// information for the nova-api sevice.
+	// information for the nova-api service.
 	Secret string `json:"secret"`
 
 	// +kubebuilder:validation:Optional

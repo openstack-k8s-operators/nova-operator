@@ -192,7 +192,7 @@ var _ = Describe("NovaCell controller", func() {
 			)
 		})
 
-		It("applys new NetworkAttachments configuration to its Conductor", func() {
+		It("applies new NetworkAttachments configuration to its Conductor", func() {
 			Eventually(func(g Gomega) {
 				novaCell := GetNovaCell(novaCellName)
 				novaCell.Spec.ConductorServiceTemplate.NetworkAttachments = append(

@@ -56,11 +56,11 @@ type NovaCellTemplate struct {
 	ConductorServiceTemplate NovaConductorTemplate `json:"conductorServiceTemplate"`
 
 	// +kubebuilder:validation:Optional
-	// MetadataServiceTemplate - defines the metadata serive dedicated for the cell.
+	// MetadataServiceTemplate - defines the metadata service dedicated for the cell.
 	MetadataServiceTemplate NovaMetadataTemplate `json:"metadataServiceTemplate"`
 
 	// +kubebuilder:validation:Optional
-	// NoVNCProxyServiceTemplate - defines the novvncproxy serive dedicated for
+	// NoVNCProxyServiceTemplate - defines the novvncproxy service dedicated for
 	// the cell.
 	NoVNCProxyServiceTemplate NovaNoVNCProxyTemplate `json:"noVNCProxyServiceTemplate"`
 }
@@ -106,7 +106,7 @@ type NovaCellSpec struct {
 
 	// +kubebuilder:validation:Optional
 	// APIDatabaseHostname - hostname to use when accessing the API DB. If not
-	// provided then upcalls will be disabled. This filed is Required for
+	// provided then up-calls will be disabled. This filed is Required for
 	// cell0.
 	// TODO(gibi): Add a webhook to validate cell0 constraint
 	APIDatabaseHostname string `json:"apiDatabaseHostname"`
@@ -121,7 +121,7 @@ type NovaCellSpec struct {
 	CellDatabaseHostname string `json:"cellDatabaseHostname"`
 
 	// +kubebuilder:validation:Required
-	// CellMessageBusSecretName - the name of the Secret conntaining the
+	// CellMessageBusSecretName - the name of the Secret containing the
 	// transport URL information to use when accessing the Cell message
 	// bus. For cell0 this should be the Secret for the API message bus.
 	CellMessageBusSecretName string `json:"cellMessageBusSecretName"`
@@ -137,7 +137,7 @@ type NovaCellSpec struct {
 	ConductorServiceTemplate NovaConductorTemplate `json:"conductorServiceTemplate"`
 
 	// +kubebuilder:validation:Optional
-	// MetadataServiceTemplate - defines the metadata serive dedicated for the cell.
+	// MetadataServiceTemplate - defines the metadata service dedicated for the cell.
 	MetadataServiceTemplate NovaMetadataTemplate `json:"metadataServiceTemplate"`
 
 	// +kubebuilder:validation:Required

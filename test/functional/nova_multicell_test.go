@@ -77,7 +77,7 @@ func NewCell(novaName types.NamespacedName, cell string) Cell {
 	return c
 }
 
-var _ = Describe("Nova multicell", func() {
+var _ = Describe("Nova multi cell", func() {
 	var novaName types.NamespacedName
 	var mariaDBDatabaseNameForAPI types.NamespacedName
 	var cell0 Cell
@@ -475,7 +475,7 @@ var _ = Describe("Nova multicell", func() {
 				corev1.ConditionTrue,
 			)
 		})
-		It("creates cell2 NovaCell even if everthing else fails", func() {
+		It("creates cell2 NovaCell even if everything else fails", func() {
 			// Don't simulate any success for any other DBs MQs or Cells
 			// just for cell2
 			th.SimulateMariaDBDatabaseCompleted(cell2.MariaDBDatabaseName)

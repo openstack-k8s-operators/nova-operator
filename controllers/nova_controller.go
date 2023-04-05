@@ -105,7 +105,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	}
 
 	// Always update the instance status when exiting this function so we can
-	// persist any changes happend during the current reconciliation.
+	// persist any changes happened during the current reconciliation.
 	defer func() {
 		// update the Ready condition based on the sub conditions
 		if allSubConditionIsTrue(instance.Status) {
@@ -137,7 +137,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	updated := controllerutil.AddFinalizer(instance, h.GetFinalizer())
 	if updated {
 		util.LogForObject(h, "Added finalizer to ourselves", instance)
-		// we intentionally return imediately to force the deferred function
+		// we intentionally return immediately to force the deferred function
 		// to persist the Instance with the finalizer. We need to have our own
 		// finalizer persisted before we try to create the KeystoneService with
 		// our finalizer to avoid orphaning the KeystoneService.
@@ -169,10 +169,10 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 
 	// We create the API DB separately from the Cell DBs as we want to report
 	// its status separately and we need to pass the API DB around for Cells
-	// having upcall support
+	// having up-call support
 	// NOTE(gibi): We don't return on error or if the DB is not ready yet. We
 	// move forward and kick off the rest of the work we can do (e.g. creating
-	// Cell DBs and Cells without upcall support). Eventually we rely on the
+	// Cell DBs and Cells without up-call support). Eventually we rely on the
 	// watch to get reconciled if the status of the API DB resource changes.
 	apiDB, apiDBStatus, apiDBError := r.ensureAPIDB(ctx, h, instance)
 	switch apiDBStatus {
@@ -208,7 +208,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	}
 
 	// Create the Cell DBs. Note that we are not returning on error or if the
-	// DB creation is still in progress. We move forward with whathever we can
+	// DB creation is still in progress. We move forward with whatever we can
 	// and relay on the watch to get reconciled if some of the resources change
 	// status
 	cellDBs := map[string]*nova.Database{}
@@ -354,7 +354,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		}
 
 		// The cell0 is always handled first in the loop as we iterate on
-		// orderdCellNames. So for any other cells we can get cell0 from cells
+		// orderedCellNames. So for any other cells we can get cell0 from cells
 		// as it is already there.
 		if cellName != Cell0Name && cellTemplate.HasAPIAccess && !cells[Cell0Name].IsReady() {
 			allCellsReady = false
@@ -667,7 +667,7 @@ func (r *NovaReconciler) ensureCell(
 	}
 
 	op, err := controllerutil.CreateOrPatch(ctx, r.Client, cell, func() error {
-		// TODO(gibi): Pass down a narroved secret that only hold
+		// TODO(gibi): Pass down a narrowed secret that only hold
 		// specific information but also holds user names
 		cell.Spec = cellSpec
 
@@ -700,7 +700,7 @@ func (r *NovaReconciler) ensureAPI(
 	apiMQSecretName string,
 	keystoneAuthURL string,
 ) (ctrl.Result, error) {
-	// TODO(gibi): Pass down a narroved secret that only hold
+	// TODO(gibi): Pass down a narrowed secret that only hold
 	// specific information but also holds user names
 	apiSpec := novav1.NovaAPISpec{
 		Secret:                  instance.Spec.Secret,
@@ -778,7 +778,7 @@ func (r *NovaReconciler) ensureScheduler(
 	apiMQSecretName string,
 	keystoneAuthURL string,
 ) (ctrl.Result, error) {
-	// TODO(gibi): Pass down a narroved secret that only hold
+	// TODO(gibi): Pass down a narrowed secret that only hold
 	// specific information but also holds user names
 	spec := novav1.NovaSchedulerSpec{
 		Secret:                  instance.Spec.Secret,
@@ -954,7 +954,7 @@ func (r *NovaReconciler) getKeystoneAuthURL(
 	if err != nil {
 		return "", err
 	}
-	// NOTE(gibi): we use the internal enpoint as that is expected to be
+	// NOTE(gibi): we use the internal endpoint as that is expected to be
 	// available on the external compute nodes as well and we want to keep
 	// thing consistent
 	authURL, err := keystoneAPI.GetEndpoint(endpoint.EndpointInternal)
@@ -981,7 +981,7 @@ func (r *NovaReconciler) reconcileDelete(
 		return err
 	}
 
-	// Successfully cleaned up everyting. So as the final step let's remove the
+	// Successfully cleaned up everything. So as the final step let's remove the
 	// finalizer from ourselves to allow the deletion of Nova CR itself
 	updated := controllerutil.RemoveFinalizer(instance, h.GetFinalizer())
 	if updated {
@@ -1053,7 +1053,7 @@ func (r *NovaReconciler) ensureMetadata(
 	keystoneAuthURL string,
 ) (ctrl.Result, error) {
 
-	// TODO(gibi): Pass down a narroved secret that only hold
+	// TODO(gibi): Pass down a narrowed secret that only hold
 	// specific information but also holds user names
 	apiSpec := novav1.NovaMetadataSpec{
 		Secret:                  instance.Spec.Secret,
