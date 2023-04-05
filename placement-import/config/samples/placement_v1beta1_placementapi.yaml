@@ -1,5 +1,6 @@
 apiVersion: placement.openstack.org/v1beta1
 kind: PlacementAPI
+namespace: openstack
 metadata:
   name: placement
 spec:
