@@ -10,14 +10,14 @@ require (
 	github.com/onsi/gomega v1.27.6
 	github.com/openshift/api v3.9.0+incompatible
 	github.com/openstack-k8s-operators/infra-operator/apis v0.0.0-20230324141445-d1ac945900ed
-	github.com/openstack-k8s-operators/keystone-operator/api v0.0.0-20230331173137-279efbd712ca
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20230403103332-2c2153569243
-	github.com/openstack-k8s-operators/lib-common/modules/database v0.0.0-20230403103332-2c2153569243
-	github.com/openstack-k8s-operators/lib-common/modules/storage v0.0.0-20230403103332-2c2153569243
-	github.com/openstack-k8s-operators/lib-common/modules/test v0.0.0-20230403103332-2c2153569243
+	github.com/openstack-k8s-operators/keystone-operator/api v0.0.0-20230403180130-0c0446d0c308
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20230404094840-40d9ff1586e1
+	github.com/openstack-k8s-operators/lib-common/modules/database v0.0.0-20230404094840-40d9ff1586e1
+	github.com/openstack-k8s-operators/lib-common/modules/storage v0.0.0-20230404094840-40d9ff1586e1
+	github.com/openstack-k8s-operators/lib-common/modules/test v0.0.0-20230404094840-40d9ff1586e1
 	github.com/openstack-k8s-operators/mariadb-operator/api v0.0.0-20230331101132-3a320b926e09
 	github.com/openstack-k8s-operators/nova-operator/api v0.0.0-20221209164002-f9e6b9363961
-	github.com/openstack-k8s-operators/openstack-ansibleee-operator/api v0.0.0-20230403102934-2ffc92691300
+	github.com/openstack-k8s-operators/openstack-ansibleee-operator/api v0.0.0-20230404001911-6094e49b69ef
 	go.uber.org/zap v1.24.0
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.26.3
