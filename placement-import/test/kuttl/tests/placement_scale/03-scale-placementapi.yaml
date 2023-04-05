@@ -1,0 +1,5 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+  - script: |
+      oc patch placementapi -n openstack placement --type='json' -p='[{"op": "replace", "path": "/spec/replicas", "value":3}]'

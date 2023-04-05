@@ -1,0 +1,39 @@
+#
+# Check for:
+#
+# - 1 PlacementAPI CR with 0 replicas
+# - Placement Deployment with 0 Pods
+#
+
+apiVersion: placement.openstack.org/v1beta1
+kind: PlacementAPI
+metadata:
+  finalizers:
+  - PlacementAPI
+  name: placement
+  namespace: openstack
+spec:
+  containerImage: quay.io/tripleozedcentos9/openstack-placement-api:current-tripleo
+  customServiceConfig: |
+    [DEFAULT]
+    debug = true
+  databaseInstance: openstack
+  databaseUser: placement
+  debug:
+    dbSync: false
+    service: false
+  passwordSelectors:
+    service: PlacementPassword
+    database: PlacementDatabasePassword
+  preserveJobs: false
+  replicas: 0
+  secret: osp-secret
+status:
+  databaseHostname: openstack
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: placement
+spec:
+  replicas: 0
