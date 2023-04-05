@@ -338,12 +338,12 @@ var _ = Describe("Nova reconfiguration", func() {
 					Namespace: namespace,
 					Name:      novaName.Name + "-api",
 				}
-				apiDeployment := GetStatefulSet(novaAPIdeploymentName)
+				apiDeployment := th.GetStatefulSet(novaAPIdeploymentName)
 				g.Expect(apiDeployment.Spec.Template.Spec.NodeSelector).To(Equal(newSelector))
 
 				for _, cell := range []string{"cell0", "cell1", "cell2"} {
 					cellDeploymentName := NewCell(novaName, cell).ConductorStatefulSetName
-					cellDeployment := GetStatefulSet(cellDeploymentName)
+					cellDeployment := th.GetStatefulSet(cellDeploymentName)
 					g.Expect(cellDeployment.Spec.Template.Spec.NodeSelector).To(Equal(newSelector))
 				}
 			}, timeout, interval).Should(Succeed())
@@ -362,12 +362,12 @@ var _ = Describe("Nova reconfiguration", func() {
 					Namespace: namespace,
 					Name:      novaName.Name + "-api",
 				}
-				apiDeployment := GetStatefulSet(novaAPIdeploymentName)
+				apiDeployment := th.GetStatefulSet(novaAPIdeploymentName)
 				g.Expect(apiDeployment.Spec.Template.Spec.NodeSelector).To(BeNil())
 
 				for _, cell := range []string{"cell0", "cell1", "cell2"} {
 					cellDeploymentName := NewCell(novaName, cell).ConductorStatefulSetName
-					cellDeployment := GetStatefulSet(cellDeploymentName)
+					cellDeployment := th.GetStatefulSet(cellDeploymentName)
 					g.Expect(cellDeployment.Spec.Template.Spec.NodeSelector).To(BeNil())
 				}
 			}, timeout, interval).Should(Succeed())
@@ -389,7 +389,7 @@ var _ = Describe("Nova reconfiguration", func() {
 				err := k8sClient.Update(ctx, nova)
 				g.Expect(err == nil || k8s_errors.IsConflict(err)).To(BeTrue())
 
-				apiDeployment := GetStatefulSet(novaAPIdeploymentName)
+				apiDeployment := th.GetStatefulSet(novaAPIdeploymentName)
 				g.Expect(apiDeployment.Spec.Template.Spec.NodeSelector).To(Equal(apiSelector))
 
 			}, timeout, interval).Should(Succeed())
@@ -404,13 +404,13 @@ var _ = Describe("Nova reconfiguration", func() {
 				g.Expect(err == nil || k8s_errors.IsConflict(err)).To(BeTrue())
 
 				// NovaAPI's deployment keeps it own selector
-				apiDeployment := GetStatefulSet(novaAPIdeploymentName)
+				apiDeployment := th.GetStatefulSet(novaAPIdeploymentName)
 				g.Expect(apiDeployment.Spec.Template.Spec.NodeSelector).To(Equal(apiSelector))
 
 				// But cell conductors get the global one
 				for _, cell := range []string{"cell0", "cell1", "cell2"} {
 					cellDeploymentName := NewCell(novaName, cell).ConductorStatefulSetName
-					cellDeployment := GetStatefulSet(cellDeploymentName)
+					cellDeployment := th.GetStatefulSet(cellDeploymentName)
 					g.Expect(cellDeployment.Spec.Template.Spec.NodeSelector).To(Equal(globalSelector))
 				}
 			}, timeout, interval).Should(Succeed())

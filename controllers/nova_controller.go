@@ -811,6 +811,9 @@ func (r *NovaReconciler) ensureScheduler(
 
 	op, err := controllerutil.CreateOrPatch(ctx, r.Client, scheduler, func() error {
 		scheduler.Spec = spec
+		if len(scheduler.Spec.NodeSelector) == 0 {
+			scheduler.Spec.NodeSelector = instance.Spec.NodeSelector
+		}
 		err := controllerutil.SetControllerReference(instance, scheduler, r.Scheme)
 		if err != nil {
 			return err
@@ -1092,6 +1095,9 @@ func (r *NovaReconciler) ensureMetadata(
 	op, err := controllerutil.CreateOrPatch(ctx, r.Client, metadata, func() error {
 		metadata.Spec = apiSpec
 
+		if len(metadata.Spec.NodeSelector) == 0 {
+			metadata.Spec.NodeSelector = instance.Spec.NodeSelector
+		}
 		err := controllerutil.SetControllerReference(instance, metadata, r.Scheme)
 		if err != nil {
 			return err
