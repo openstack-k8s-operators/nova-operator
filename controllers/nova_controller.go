@@ -648,6 +648,7 @@ func (r *NovaReconciler) ensureCell(
 		ConductorServiceTemplate:  cellTemplate.ConductorServiceTemplate,
 		MetadataServiceTemplate:   cellTemplate.MetadataServiceTemplate,
 		NoVNCProxyServiceTemplate: cellTemplate.NoVNCProxyServiceTemplate,
+		NodeSelector:              cellTemplate.NodeSelector,
 		Debug:                     instance.Spec.Debug,
 		// TODO(gibi): this should be part of the secret
 		ServiceUser:       instance.Spec.ServiceUser,

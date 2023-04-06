@@ -51,6 +51,10 @@ type NovaCellTemplate struct {
 	HasAPIAccess bool `json:"hasAPIAccess"`
 
 	// +kubebuilder:validation:Optional
+	// NodeSelector to target subset of worker nodes running cell.
+	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+
+	// +kubebuilder:validation:Optional
 	// +kubebuilder:default={containerImage: "quay.io/tripleozedcentos9/openstack-nova-conductor:current-tripleo"}
 	// ConductorServiceTemplate - defines the cell conductor deployment for the cell.
 	ConductorServiceTemplate NovaConductorTemplate `json:"conductorServiceTemplate"`
@@ -89,8 +93,7 @@ type NovaCellSpec struct {
 	PasswordSelectors PasswordSelector `json:"passwordSelectors"`
 
 	// +kubebuilder:validation:Optional
-	// NodeSelector to target subset of worker nodes running this service. Setting here overrides
-	// any global NodeSelector settings within the Nova CR.
+	// NodeSelector to target subset of worker nodes running this services.
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 
 	// +kubebuilder:validation:Optional
