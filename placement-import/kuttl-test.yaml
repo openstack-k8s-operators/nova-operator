@@ -1,7 +1,10 @@
 #
-# EXECUTION (from install_yamls repo root):
+# EXECUTION (from placement-operator repo root):
 #
-#   make kuttl_keystone
+#  kubectl-kuttl test --config ${PLACEMENT_KUTTL_CONF} ${PLACEMENT_KUTTL_DIR} 
+#
+#  PLACEMENT_KUTTL_CONF: path to placement-operator repo
+#  PLACEMENT_KUTTL_DIR: path to current file 'kuttl-test.yaml' (top directory of placement-operator repo)
 #
 # ASSUMPTIONS:
 #
