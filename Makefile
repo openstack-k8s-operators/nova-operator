@@ -120,13 +120,10 @@ vet: gowork ## Run go vet against code.
 	go vet ./api/...
 
 
-APIPATH ?= $(shell pwd)/api
 .PHONY: tidy
 tidy: ## Run go mod tidy on every mod file in the repo
-	go mod tidy; \
-	pushd $(APIPATH); \
-	go mod tidy; \
-	popd
+	go mod tidy
+	cd ./api && go mod tidy
 
 .PHONY: golangci-lint
 golangci-lint:
