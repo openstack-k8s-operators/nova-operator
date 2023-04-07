@@ -154,6 +154,11 @@ spec:
                     description: CellDatabase - the name of the field to get the Cell
                       DB password from the Secret
                     type: string
+                  metadataSecret:
+                    default: NovaMetadataSecret
+                    description: MetadataSecret - the name of the field to get the
+                      metadata secret from the Secret
+                    type: string
                   service:
                     default: NovaPassword
                     description: Service - Selector to get the keystone service user

@@ -164,6 +164,7 @@ func (r *NovaAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (re
 			instance.Spec.PasswordSelectors.APIDatabase,
 			instance.Spec.PasswordSelectors.Service,
 			instance.Spec.PasswordSelectors.CellDatabase,
+			instance.Spec.PasswordSelectors.MetadataSecret,
 		},
 		h.GetClient(),
 		&instance.Status.Conditions,
@@ -362,7 +363,7 @@ func (r *NovaAPIReconciler) generateConfigs(
 		"default_project_domain": "Default",   // fixme
 		"default_user_domain":    "Default",   // fixme
 		"transport_url":          string(apiMessageBusSecret.Data["transport_url"]),
-		"metadata_secret":        "42", // fixme
+		"metadata_secret":        string(secret.Data[instance.Spec.PasswordSelectors.MetadataSecret]),
 		"log_file":               "/var/log/nova/nova-api.log",
 	}
 	extraData := map[string]string{}

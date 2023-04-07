@@ -66,7 +66,8 @@ func GetDefaultNovaAPISpec() map[string]interface{} {
 		"apiMessageBusSecretName": MessageBusSecretName,
 		"cell0DatabaseHostname":   "nova-cell0-db-hostname",
 		"keystoneAuthURL":         "keystone-auth-url",
-		"containerImage":          ContainerImage,
+
+		"containerImage": ContainerImage,
 	}
 }
 
@@ -132,6 +133,7 @@ func CreateNovaAPISecret(namespace string, name string) *corev1.Secret {
 			"NovaPassword":              []byte("12345678"),
 			"NovaAPIDatabasePassword":   []byte("12345678"),
 			"NovaCell0DatabasePassword": []byte("12345678"),
+			"NovaMetadataSecret":        []byte("12345678"),
 		},
 	)
 }
@@ -347,6 +349,7 @@ func CreateNovaSecret(namespace string, name string) *corev1.Secret {
 			"NovaPassword":              []byte("12345678"),
 			"NovaAPIDatabasePassword":   []byte("12345678"),
 			"NovaCell0DatabasePassword": []byte("12345678"),
+			"NovaMetadataSecret":        []byte("12345678"),
 		},
 	)
 }
@@ -636,6 +639,7 @@ func CreateNovaMetadataSecret(namespace string, name string) *corev1.Secret {
 			"NovaPassword":              []byte("12345678"),
 			"NovaAPIDatabasePassword":   []byte("12345678"),
 			"NovaCell0DatabasePassword": []byte("12345678"),
+			"NovaMetadataSecret":        []byte("12345678"),
 		},
 	}
 	Expect(k8sClient.Create(ctx, secret)).Should(Succeed())

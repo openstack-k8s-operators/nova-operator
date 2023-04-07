@@ -140,6 +140,7 @@ func (r *NovaMetadataReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			instance.Spec.PasswordSelectors.APIDatabase,
 			instance.Spec.PasswordSelectors.Service,
 			instance.Spec.PasswordSelectors.CellDatabase,
+			instance.Spec.PasswordSelectors.MetadataSecret,
 		},
 		h.GetClient(),
 		&instance.Status.Conditions,
@@ -318,7 +319,7 @@ func (r *NovaMetadataReconciler) generateConfigs(
 		"openstack_region_name":  "regionOne", // fixme
 		"default_project_domain": "Default",   // fixme
 		"default_user_domain":    "Default",   // fixme
-		"metadata_secret":        "42",        // fixme
+		"metadata_secret":        string(secret.Data[instance.Spec.PasswordSelectors.MetadataSecret]),
 		"log_file":               "/var/log/nova/nova-metadata.log",
 		"transport_url":          string(apiMessageBusSecret.Data["transport_url"]),
 	}
