@@ -326,10 +326,7 @@ run-with-webhook: manifests generate fmt vet ## Run a controller from your host.
 	/bin/bash hack/configure_local_webhook.sh
 	go run ./main.go
 
-APIPATH ?= $(shell pwd)/api
 .PHONY: tidy
 tidy: ## Run go mod tidy on every mod file in the repo
-	go mod tidy; \
-	pushd $(APIPATH); \
-	go mod tidy; \
-	popd
+	go mod tidy
+	cd ./api && go mod tidy
