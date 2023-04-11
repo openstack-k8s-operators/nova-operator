@@ -1,0 +1,38 @@
+#
+# EXECUTION (from placement-operator repo root directory):
+#
+#  kubectl-kuttl test --config ${PLACEMENT_KUTTL_CONF} ${PLACEMENT_KUTTL_TEST_DIR} 
+#
+#  PLACEMENT_KUTTL_CONF: path to 'kuttl-test.yaml' there is a default kuttl-test.yaml in the top directory
+#  of placement
+#  PLACEMENT_KUTTL_TEST_DIR: the test directory containing kuttl tests, relative to the placement repo 
+#  that can be found in '/<path>/<to>/<repo>/placement-operator/test/kuttl/tests'
+#
+# ASSUMPTIONS:
+#
+# 1. Latest version of kuttl is installed at /usr/local/bin/kubectl-kuttl
+#    - wget https://github.com/kudobuilder/kuttl/releases/download/v0.11.1/kubectl-kuttl_0.11.1_linux_x86_64
+#    - mv kubectl-kuttl_0.11.1_linux_x86_64 /usr/local/bin/kubectl-kuttl
+#    - chmod 755 /usr/local/bin/kubectl-kuttl
+# 2. An OCP 4.10+ CRC cluster with Mariadb and Keystone operators are deployed (details below using devsetup
+# and install_yamls)
+#    2a. CPUS=12 MEMORY=12016 make crc
+#    2b. oc login -u kubeadmin -p 12345678 https://api.crc.testing:6443
+#    2c. eval $(crc oc-env)
+#    2d. make crc_storage
+#    2e. make input
+#    2f. make keystone
+#    2g. make mariadb
+#    2h. make keystone_deploy
+#    2i. make mariadb_deploy
+# 3. The above environment variables PLACEMENT_KUTTL_CONF and PLACEMENT_KUTTL_TEST_DIR are set
+
+apiVersion: kuttl.dev/v1beta1
+kind: TestSuite
+reportFormat: JSON
+reportName: kuttl-test-placement
+namespace: openstack
+timeout: 180
+parallel: 1
+suppress:
+  - events
