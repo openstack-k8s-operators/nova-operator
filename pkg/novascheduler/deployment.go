@@ -126,9 +126,9 @@ func StatefulSet(
 				},
 				Spec: corev1.PodSpec{
 					ServiceAccountName: instance.Spec.ServiceAccount,
-					Volumes: nova.GetOpenstackVolumes(
-						nova.GetServiceConfigConfigMapName(instance.Name),
-					),
+					Volumes: []corev1.Volume{
+						nova.GetConfigVolume(nova.GetServiceConfigConfigMapName(instance.Name)),
+					},
 					Containers: []corev1.Container{
 						{
 							Name: instance.Name + "-scheduler",
@@ -141,7 +141,7 @@ func StatefulSet(
 								RunAsUser: &runAsUser,
 							},
 							Env:            env,
-							VolumeMounts:   nova.GetOpenstackVolumeMounts(),
+							VolumeMounts:   []corev1.VolumeMount{nova.GetConfigVolumeMount()},
 							Resources:      instance.Spec.Resources,
 							StartupProbe:   startupProbe,
 							ReadinessProbe: readinessProbe,

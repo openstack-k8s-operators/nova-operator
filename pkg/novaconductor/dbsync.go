@@ -69,10 +69,10 @@ func CellDBSyncJob(
 				Spec: corev1.PodSpec{
 					RestartPolicy:      corev1.RestartPolicyOnFailure,
 					ServiceAccountName: instance.Spec.ServiceAccount,
-					Volumes: nova.GetOpenstackVolumesWithScripts(
-						nova.GetScriptConfigMapName(instance.Name),
-						nova.GetServiceConfigConfigMapName(instance.Name),
-					),
+					Volumes: []corev1.Volume{
+						nova.GetConfigVolume(nova.GetServiceConfigConfigMapName(instance.Name)),
+						nova.GetScriptVolume(nova.GetScriptConfigMapName(instance.Name)),
+					},
 					Containers: []corev1.Container{
 						{
 							Name: instance.Name + "-db-sync",
@@ -84,8 +84,11 @@ func CellDBSyncJob(
 							SecurityContext: &corev1.SecurityContext{
 								RunAsUser: &runAsUser,
 							},
-							Env:          env,
-							VolumeMounts: nova.GetOpenstackVolumeMountsWithScripts(),
+							Env: env,
+							VolumeMounts: []corev1.VolumeMount{
+								nova.GetConfigVolumeMount(),
+								nova.GetScriptVolumeMount(),
+							},
 						},
 					},
 				},

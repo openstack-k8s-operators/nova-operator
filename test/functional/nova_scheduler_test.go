@@ -245,11 +245,11 @@ var _ = Describe("NovaScheduler controller", func() {
 
 			ss := th.GetStatefulSet(statefulSetName)
 			Expect(int(*ss.Spec.Replicas)).To(Equal(1))
-			Expect(ss.Spec.Template.Spec.Volumes).To(HaveLen(2))
+			Expect(ss.Spec.Template.Spec.Volumes).To(HaveLen(1))
 			Expect(ss.Spec.Template.Spec.Containers).To(HaveLen(1))
 
 			container := ss.Spec.Template.Spec.Containers[0]
-			Expect(container.VolumeMounts).To(HaveLen(2))
+			Expect(container.VolumeMounts).To(HaveLen(1))
 			Expect(container.Image).To(Equal(ContainerImage))
 		})
 

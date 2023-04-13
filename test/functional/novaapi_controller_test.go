@@ -276,6 +276,10 @@ var _ = Describe("NovaAPI controller", func() {
 			Expect(ss.Spec.Selector.MatchLabels).To(Equal(map[string]string{"service": "nova-api"}))
 
 			container := ss.Spec.Template.Spec.Containers[0]
+			Expect(container.VolumeMounts).To(HaveLen(1))
+			Expect(container.Image).To(Equal(ContainerImage))
+
+			container = ss.Spec.Template.Spec.Containers[1]
 			Expect(container.VolumeMounts).To(HaveLen(2))
 			Expect(container.Image).To(Equal(ContainerImage))
 

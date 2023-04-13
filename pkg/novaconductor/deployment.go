@@ -117,10 +117,9 @@ func StatefulSet(
 				},
 				Spec: corev1.PodSpec{
 					ServiceAccountName: instance.Spec.ServiceAccount,
-					Volumes: nova.GetOpenstackVolumesWithScripts(
-						nova.GetScriptConfigMapName(instance.Name),
-						nova.GetServiceConfigConfigMapName(instance.Name),
-					),
+					Volumes: []corev1.Volume{
+						nova.GetConfigVolume(nova.GetServiceConfigConfigMapName(instance.Name)),
+					},
 					Containers: []corev1.Container{
 						{
 							Name: instance.Name + "-conductor",
@@ -133,7 +132,7 @@ func StatefulSet(
 								RunAsUser: &runAsUser,
 							},
 							Env:            env,
-							VolumeMounts:   nova.GetOpenstackVolumeMountsWithScripts(),
+							VolumeMounts:   []corev1.VolumeMount{nova.GetConfigVolumeMount()},
 							Resources:      instance.Spec.Resources,
 							ReadinessProbe: readinessProbe,
 							LivenessProbe:  livenessProbe,

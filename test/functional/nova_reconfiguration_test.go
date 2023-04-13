@@ -159,15 +159,18 @@ func CreateNovaWith3CellsAndEnsureReady(namespace string) types.NamespacedName {
 
 	th.SimulateJobSuccess(cell0.CellDBSyncJobName)
 	th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
+	th.SimulateJobSuccess(cell0.CellMappingJobName)
 
 	th.SimulateStatefulSetReplicaReady(novaAPIdeploymentName)
 	th.SimulateKeystoneEndpointReady(novaAPIKeystoneEndpointName)
 
 	th.SimulateJobSuccess(cell1.CellDBSyncJobName)
 	th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
+	th.SimulateJobSuccess(cell1.CellMappingJobName)
 
 	th.SimulateJobSuccess(cell2.CellDBSyncJobName)
 	th.SimulateStatefulSetReplicaReady(cell2.ConductorStatefulSetName)
+	th.SimulateJobSuccess(cell2.CellMappingJobName)
 	th.SimulateStatefulSetReplicaReady(novaSchedulerStatefulSetName)
 	th.SimulateStatefulSetReplicaReady(novaMetadataStatefulSetName)
 	th.ExpectCondition(
@@ -282,7 +285,7 @@ var _ = Describe("Nova reconfiguration", func() {
 				ConditionGetterFunc(NovaConditionGetter),
 				novav1.NovaAllCellsReadyCondition,
 				corev1.ConditionFalse,
-				condition.ErrorReason,
+				condition.RequestedReason,
 				"NovaCell cell1 is not Ready",
 			)
 			th.ExpectConditionWithDetails(
@@ -290,7 +293,7 @@ var _ = Describe("Nova reconfiguration", func() {
 				ConditionGetterFunc(NovaConditionGetter),
 				condition.ReadyCondition,
 				corev1.ConditionFalse,
-				condition.ErrorReason,
+				condition.RequestedReason,
 				"NovaCell cell1 is not Ready",
 			)
 
@@ -302,7 +305,7 @@ var _ = Describe("Nova reconfiguration", func() {
 				ConditionGetterFunc(NovaConditionGetter),
 				condition.ReadyCondition,
 				corev1.ConditionFalse,
-				condition.ErrorReason,
+				condition.RequestedReason,
 				"NovaCell cell1 is not Ready",
 			)
 
