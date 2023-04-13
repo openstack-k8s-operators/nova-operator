@@ -102,7 +102,7 @@ type PasswordSelector struct {
 	// the Secret
 	CellDatabase string `json:"cellDatabase"`
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default="NovaMetadataSecret"
+	// +kubebuilder:default="MetadataSecret"
 	// MetadataSecret - the name of the field to get the metadata secret from the
 	// Secret
 	MetadataSecret string `json:"metadataSecret"`

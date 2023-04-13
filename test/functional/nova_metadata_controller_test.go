@@ -181,6 +181,9 @@ var _ = Describe("NovaMetadata controller", func() {
 					HaveKeyWithValue("01-nova.conf",
 						ContainSubstring("transport_url=rabbit://fake")))
 				Expect(configDataMap.Data).Should(
+					HaveKeyWithValue("01-nova.conf",
+						ContainSubstring("metadata_proxy_shared_secret = 12345678")))
+				Expect(configDataMap.Data).Should(
 					HaveKeyWithValue("02-nova-override.conf", "foo=bar"))
 			})
 

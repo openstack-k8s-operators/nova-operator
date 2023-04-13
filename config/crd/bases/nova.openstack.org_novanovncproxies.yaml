@@ -139,7 +139,7 @@ spec:
                       DB password from the Secret
                     type: string
                   metadataSecret:
-                    default: NovaMetadataSecret
+                    default: MetadataSecret
                     description: MetadataSecret - the name of the field to get the
                       metadata secret from the Secret
                     type: string
