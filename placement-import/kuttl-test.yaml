@@ -1,11 +1,11 @@
 #
 # EXECUTION (from placement-operator repo root directory):
 #
-#  kubectl-kuttl test --config ${PLACEMENT_KUTTL_CONF} ${PLACEMENT_KUTTL_TEST_DIR} 
+#  kubectl-kuttl test --config ${PLACEMENT_KUTTL_CONF} ${PLACEMENT_KUTTL_TEST_DIR}
 #
 #  PLACEMENT_KUTTL_CONF: path to 'kuttl-test.yaml' there is a default kuttl-test.yaml in the top directory
 #  of placement
-#  PLACEMENT_KUTTL_TEST_DIR: the test directory containing kuttl tests, relative to the placement repo 
+#  PLACEMENT_KUTTL_TEST_DIR: the test directory containing kuttl tests, relative to the placement repo
 #  that can be found in '/<path>/<to>/<repo>/placement-operator/test/kuttl/tests'
 #
 # ASSUMPTIONS:
