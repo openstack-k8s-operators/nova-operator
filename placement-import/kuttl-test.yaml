@@ -25,6 +25,8 @@
 #    2g. make mariadb
 #    2h. make keystone_deploy
 #    2i. make mariadb_deploy
+#    2j. start placement-operator either through install_yamls via 'make placement' or in another
+#    terminal execute 'OPERATOR_TEMPLATES=./templates make run' within root of placement repo
 # 3. The above environment variables PLACEMENT_KUTTL_CONF and PLACEMENT_KUTTL_TEST_DIR are set
 
 apiVersion: kuttl.dev/v1beta1

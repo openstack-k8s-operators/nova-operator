@@ -89,3 +89,27 @@ spec:
   to:
     kind: Service
     name: placement-public
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    placement.openstack.org/name: placement
+  name: placement-scripts
+  ownerReferences:
+  - blockOwnerDeletion: true
+    controller: true
+    kind: PlacementAPI
+    name: placement
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    placement.openstack.org/name: placement
+  name: placement-config-data
+  ownerReferences:
+  - blockOwnerDeletion: true
+    controller: true
+    kind: PlacementAPI
+    name: placement

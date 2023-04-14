@@ -3,7 +3,8 @@
 #
 # - 1 PlacementAPI CR with 0 replicas
 # - Placement Deployment with 0 Pods
-#
+# NOTE: This test is asserting for spec.replicas to be 0
+# NOT status.availableReplicas
 
 apiVersion: placement.openstack.org/v1beta1
 kind: PlacementAPI
@@ -13,27 +14,12 @@ metadata:
   name: placement
   namespace: openstack
 spec:
-  containerImage: quay.io/tripleozedcentos9/openstack-placement-api:current-tripleo
-  customServiceConfig: |
-    [DEFAULT]
-    debug = true
-  databaseInstance: openstack
-  databaseUser: placement
-  debug:
-    dbSync: false
-    service: false
-  passwordSelectors:
-    service: PlacementPassword
-    database: PlacementDatabasePassword
-  preserveJobs: false
   replicas: 0
-  secret: osp-secret
-status:
-  databaseHostname: openstack
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: placement
+  namespace: openstack
 spec:
   replicas: 0

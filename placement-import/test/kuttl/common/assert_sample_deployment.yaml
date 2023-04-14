@@ -226,6 +226,30 @@ status:
     - status: "True"
       type: Admitted
 ---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    placement.openstack.org/name: placement
+  name: placement-scripts
+  ownerReferences:
+  - blockOwnerDeletion: true
+    controller: true
+    kind: PlacementAPI
+    name: placement
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    placement.openstack.org/name: placement
+  name: placement-config-data
+  ownerReferences:
+  - blockOwnerDeletion: true
+    controller: true
+    kind: PlacementAPI
+    name: placement
+---
 # the actual addresses of the apiEndpoints are platform specific, so we can't rely on
 # kuttl asserts to check them. This short script gathers the addresses and checks that
 # the three endpoints are defined and their addresses follow the default pattern
