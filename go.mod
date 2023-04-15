@@ -9,15 +9,15 @@ require (
 	github.com/onsi/ginkgo/v2 v2.9.2
 	github.com/onsi/gomega v1.27.6
 	github.com/openshift/api v3.9.0+incompatible
-	github.com/openstack-k8s-operators/infra-operator/apis v0.0.0-20230410121803-e3b2e0bd210b
-	github.com/openstack-k8s-operators/keystone-operator/api v0.0.0-20230411124844-3b1e1788194c
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20230404094840-40d9ff1586e1
-	github.com/openstack-k8s-operators/lib-common/modules/database v0.0.0-20230404094840-40d9ff1586e1
-	github.com/openstack-k8s-operators/lib-common/modules/storage v0.0.0-20230404094840-40d9ff1586e1
-	github.com/openstack-k8s-operators/lib-common/modules/test v0.0.0-20230404094840-40d9ff1586e1
-	github.com/openstack-k8s-operators/mariadb-operator/api v0.0.0-20230407130717-3b0b46bac46c
+	github.com/openstack-k8s-operators/infra-operator/apis v0.0.0-20230414071935-e154be15d00e
+	github.com/openstack-k8s-operators/keystone-operator/api v0.0.0-20230412125711-203185e59d89
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20230413063528-4486d492bfc6
+	github.com/openstack-k8s-operators/lib-common/modules/database v0.0.0-20230413063528-4486d492bfc6
+	github.com/openstack-k8s-operators/lib-common/modules/storage v0.0.0-20230413063528-4486d492bfc6
+	github.com/openstack-k8s-operators/lib-common/modules/test v0.0.0-20230413063528-4486d492bfc6
+	github.com/openstack-k8s-operators/mariadb-operator/api v0.0.0-20230414091940-2bbe638470cb
 	github.com/openstack-k8s-operators/nova-operator/api v0.0.0-20221209164002-f9e6b9363961
-	github.com/openstack-k8s-operators/openstack-ansibleee-operator/api v0.0.0-20230411152716-4e71d9b1b55c
+	github.com/openstack-k8s-operators/openstack-ansibleee-operator/api v0.0.0-20230413080303-6c030167e53b
 	go.uber.org/zap v1.24.0
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.26.3
