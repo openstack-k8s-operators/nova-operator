@@ -165,7 +165,9 @@ func (r *NovaCellReconciler) ensureConductor(
 
 	op, err := controllerutil.CreateOrPatch(ctx, r.Client, conductor, func() error {
 		conductor.Spec = conductorSpec
-
+		if len(conductor.Spec.NodeSelector) == 0 {
+			conductor.Spec.NodeSelector = instance.Spec.NodeSelector
+		}
 		err := controllerutil.SetControllerReference(instance, conductor, r.Scheme)
 		if err != nil {
 			return err

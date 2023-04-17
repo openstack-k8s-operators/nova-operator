@@ -648,6 +648,7 @@ func (r *NovaReconciler) ensureCell(
 		ConductorServiceTemplate:  cellTemplate.ConductorServiceTemplate,
 		MetadataServiceTemplate:   cellTemplate.MetadataServiceTemplate,
 		NoVNCProxyServiceTemplate: cellTemplate.NoVNCProxyServiceTemplate,
+		NodeSelector:              cellTemplate.NodeSelector,
 		Debug:                     instance.Spec.Debug,
 		// TODO(gibi): this should be part of the secret
 		ServiceUser:       instance.Spec.ServiceUser,
@@ -670,6 +671,9 @@ func (r *NovaReconciler) ensureCell(
 		// TODO(gibi): Pass down a narrowed secret that only hold
 		// specific information but also holds user names
 		cell.Spec = cellSpec
+		if len(cell.Spec.NodeSelector) == 0 {
+			cell.Spec.NodeSelector = instance.Spec.NodeSelector
+		}
 
 		err := controllerutil.SetControllerReference(instance, cell, r.Scheme)
 		if err != nil {
@@ -733,7 +737,9 @@ func (r *NovaReconciler) ensureAPI(
 
 	op, err := controllerutil.CreateOrPatch(ctx, r.Client, api, func() error {
 		api.Spec = apiSpec
-
+		if len(api.Spec.NodeSelector) == 0 {
+			api.Spec.NodeSelector = instance.Spec.NodeSelector
+		}
 		err := controllerutil.SetControllerReference(instance, api, r.Scheme)
 		if err != nil {
 			return err
@@ -806,6 +812,9 @@ func (r *NovaReconciler) ensureScheduler(
 
 	op, err := controllerutil.CreateOrPatch(ctx, r.Client, scheduler, func() error {
 		scheduler.Spec = spec
+		if len(scheduler.Spec.NodeSelector) == 0 {
+			scheduler.Spec.NodeSelector = instance.Spec.NodeSelector
+		}
 		err := controllerutil.SetControllerReference(instance, scheduler, r.Scheme)
 		if err != nil {
 			return err
@@ -1087,6 +1096,9 @@ func (r *NovaReconciler) ensureMetadata(
 	op, err := controllerutil.CreateOrPatch(ctx, r.Client, metadata, func() error {
 		metadata.Spec = apiSpec
 
+		if len(metadata.Spec.NodeSelector) == 0 {
+			metadata.Spec.NodeSelector = instance.Spec.NodeSelector
+		}
 		err := controllerutil.SetControllerReference(instance, metadata, r.Scheme)
 		if err != nil {
 			return err
