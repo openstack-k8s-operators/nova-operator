@@ -63,14 +63,14 @@ func NewCell(novaName types.NamespacedName, cell string) Cell {
 		},
 		TransportURLName: types.NamespacedName{
 			Namespace: novaName.Namespace,
-			Name:      cell + "-transport",
+			Name:      novaName.Name + "-" + cell + "-transport",
 		},
 	}
 
 	if cell == "cell0" {
 		c.TransportURLName = types.NamespacedName{
 			Namespace: novaName.Namespace,
-			Name:      "nova-api-transport",
+			Name:      novaName.Name + "-api-transport",
 		}
 	}
 

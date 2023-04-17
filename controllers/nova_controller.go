@@ -251,7 +251,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	// message bus is always the same as the top level API message bus so
 	// we create API MQ separately first
 	apiMQSecretName, apiMQStatus, apiMQError := r.ensureMQ(
-		ctx, h, instance, "nova-api-transport", instance.Spec.APIMessageBusInstance)
+		ctx, h, instance, instance.Name+"-api-transport", instance.Spec.APIMessageBusInstance)
 	switch apiMQStatus {
 	case nova.MQFailed:
 		instance.Status.Conditions.Set(condition.FalseCondition(
@@ -272,7 +272,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		instance.Status.Conditions.MarkTrue(
 			novav1.NovaAPIMQReadyCondition, novav1.NovaAPIMQReadyMessage)
 	default:
-		return ctrl.Result{}, fmt.Errorf("Invalid MessageBusStatus from ensureMQ for the API MQ: %d", apiMQStatus)
+		return ctrl.Result{}, fmt.Errorf("Invalid MessageBusStatus from  for the API MQ: %d", apiMQStatus)
 	}
 
 	cellMQs := map[string]*nova.MessageBus{}
@@ -291,7 +291,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 			err = apiMQError
 		} else {
 			cellMQ, status, err = r.ensureMQ(
-				ctx, h, instance, cellName+"-transport", cellTemplate.CellMessageBusInstance)
+				ctx, h, instance, instance.Name+"-"+cellName+"-transport", cellTemplate.CellMessageBusInstance)
 		}
 		switch status {
 		case nova.MQFailed:
