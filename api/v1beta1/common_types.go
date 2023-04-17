@@ -101,6 +101,11 @@ type PasswordSelector struct {
 	// CellDatabase - the name of the field to get the Cell DB password from
 	// the Secret
 	CellDatabase string `json:"cellDatabase"`
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default="MetadataSecret"
+	// MetadataSecret - the name of the field to get the metadata secret from the
+	// Secret
+	MetadataSecret string `json:"metadataSecret"`
 }
 
 // MetalLBConfig to configure the MetalLB loadbalancer service

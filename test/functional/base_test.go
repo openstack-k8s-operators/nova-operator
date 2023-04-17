@@ -40,8 +40,7 @@ const (
 	SecretName           = "test-secret"
 	MessageBusSecretName = "rabbitmq-secret"
 	ContainerImage       = "test://nova"
-
-	timeout = 10 * time.Second
+	timeout              = 10 * time.Second
 	// have maximum 100 retries before the timeout hits
 	interval = timeout / 100
 	// consistencyTimeout is the amount of time we use to repeatedly check
@@ -347,6 +346,7 @@ func CreateNovaSecret(namespace string, name string) *corev1.Secret {
 			"NovaPassword":              []byte("12345678"),
 			"NovaAPIDatabasePassword":   []byte("12345678"),
 			"NovaCell0DatabasePassword": []byte("12345678"),
+			"MetadataSecret":            []byte("12345678"),
 		},
 	)
 }
@@ -636,6 +636,7 @@ func CreateNovaMetadataSecret(namespace string, name string) *corev1.Secret {
 			"NovaPassword":              []byte("12345678"),
 			"NovaAPIDatabasePassword":   []byte("12345678"),
 			"NovaCell0DatabasePassword": []byte("12345678"),
+			"MetadataSecret":            []byte("12345678"),
 		},
 	}
 	Expect(k8sClient.Create(ctx, secret)).Should(Succeed())

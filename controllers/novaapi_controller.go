@@ -362,7 +362,6 @@ func (r *NovaAPIReconciler) generateConfigs(
 		"default_project_domain": "Default",   // fixme
 		"default_user_domain":    "Default",   // fixme
 		"transport_url":          string(apiMessageBusSecret.Data["transport_url"]),
-		"metadata_secret":        "42", // fixme
 		"log_file":               "/var/log/nova/nova-api.log",
 	}
 	extraData := map[string]string{}
