@@ -98,7 +98,7 @@ var _ = Describe("Nova controller", func() {
 		}
 		apiTransportURLName = types.NamespacedName{
 			Namespace: namespace,
-			Name:      "nova-api-transport",
+			Name:      novaName.Name + "-api-transport",
 		}
 		novaSchedulerName = types.NamespacedName{
 			Namespace: namespace,
