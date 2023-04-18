@@ -1,0 +1,264 @@
+apiVersion: placement.openstack.org/v1beta1
+kind: PlacementAPI
+metadata:
+  finalizers:
+  - PlacementAPI
+  name: placement
+  namespace: openstack
+spec:
+  containerImage: quay.io/tripleozedcentos9/openstack-placement-api:current-tripleo
+  customServiceConfig: |
+    [DEFAULT]
+    debug = true
+  databaseInstance: openstack
+  databaseUser: placement
+  debug:
+    dbSync: false
+    service: false
+  passwordSelectors:
+    database: PlacementDatabasePassword
+    service: PlacementPassword
+  preserveJobs: false
+  replicas: 1
+  secret: osp-secret
+  serviceUser: placement
+status:
+  databaseHostname: openstack
+  readyCount: 1
+  conditions:
+  - message: Setup complete
+    reason: Ready
+    status: "True"
+    type: Ready
+  - message: DB create completed
+    reason: Ready
+    status: "True"
+    type: DBReady
+  - message: DBsync completed
+    reason: Ready
+    status: "True"
+    type: DBSyncReady
+  - message: Deployment completed
+    reason: Ready
+    status: "True"
+    type: DeploymentReady
+  - message: Exposing service completed
+    reason: Ready
+    status: "True"
+    type: ExposeServiceReady
+  - message: Input data complete
+    reason: Ready
+    status: "True"
+    type: InputReady
+  - message: Setup complete
+    reason: Ready
+    status: "True"
+    type: KeystoneEndpointReady
+  - message: Setup complete
+    reason: Ready
+    status: "True"
+    type: KeystoneServiceReady
+  - message: NetworkAttachments completed
+    reason: Ready
+    status: "True"
+    type: NetworkAttachmentsReady
+  - message: Service config create completed
+    reason: Ready
+    status: "True"
+    type: ServiceConfigReady
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: placement-operator-controller-manager
+  namespace: openstack
+status:
+  availableReplicas: 1
+  replicas: 1
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: placement
+  namespace: openstack
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        service: placement
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: service
+                  operator: In
+                  values:
+                  - placement
+              topologyKey: kubernetes.io/hostname
+            weight: 1
+      containers:
+      - args:
+        - -c
+        - /usr/local/bin/kolla_set_configs && /usr/local/bin/kolla_start
+        command:
+        - /bin/bash
+        image: quay.io/tripleozedcentos9/openstack-placement-api:current-tripleo
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /
+            port: 8778
+            scheme: HTTP
+          initialDelaySeconds: 3
+          periodSeconds: 3
+          successThreshold: 1
+          timeoutSeconds: 5
+        name: placement-api
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /
+            port: 8778
+            scheme: HTTP
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          successThreshold: 1
+          timeoutSeconds: 5
+        resources: {}
+      initContainers:
+      - args:
+        - -c
+        - /usr/local/bin/container-scripts/init.sh
+        command:
+        - /bin/bash
+        env:
+        - name: DatabasePassword
+          valueFrom:
+            secretKeyRef:
+              key: PlacementDatabasePassword
+              name: osp-secret
+        - name: PlacementPassword
+          valueFrom:
+            secretKeyRef:
+              key: PlacementPassword
+              name: osp-secret
+        - name: DatabaseHost
+          value: openstack
+        - name: DatabaseName
+          value: placement
+        - name: DatabaseUser
+          value: placement
+        image: quay.io/tripleozedcentos9/openstack-placement-api:current-tripleo
+        imagePullPolicy: IfNotPresent
+        name: init
+        resources: {}
+      restartPolicy: Always
+      securityContext: {}
+      serviceAccount: placement-operator-placement
+      serviceAccountName: placement-operator-placement
+status:
+  availableReplicas: 1
+  replicas: 1
+---
+# the openshift annotations can't be checked through the deployment above
+apiVersion: v1
+kind: Pod
+metadata:
+  annotations:
+    openshift.io/scc: anyuid
+  labels:
+    service: placement
+status:
+  phase: Running
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    internal: "true"
+    service: placement
+  name: placement-internal
+  namespace: openstack
+spec:
+  ports:
+    - name: placement-internal
+  selector:
+    service: placement
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    public: "true"
+    service: placement
+  name: placement-public
+  namespace: openstack
+spec:
+  ports:
+    - name: placement-public
+  selector:
+    service: placement
+  type: ClusterIP
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: placement-public
+  labels:
+    public: "true"
+    service: placement
+  namespace: openstack
+spec:
+  port:
+    targetPort: placement-public
+  to:
+    kind: Service
+    name: placement-public
+status:
+  ingress:
+  - conditions:
+    - status: "True"
+      type: Admitted
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    placement.openstack.org/name: placement
+  name: placement-scripts
+  ownerReferences:
+  - blockOwnerDeletion: true
+    controller: true
+    kind: PlacementAPI
+    name: placement
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    placement.openstack.org/name: placement
+  name: placement-config-data
+  ownerReferences:
+  - blockOwnerDeletion: true
+    controller: true
+    kind: PlacementAPI
+    name: placement
+---
+# the actual addresses of the apiEndpoints are platform specific, so we can't rely on
+# kuttl asserts to check them. This short script gathers the addresses and checks that
+# the three endpoints are defined and their addresses follow the default pattern
+apiVersion: kuttl.dev/v1beta1
+kind: TestAssert
+namespaced: true
+commands:
+  - script: |
+      . $PLACEMENT_KUTTL_TEST_DIR/../lib/helper_functions.sh
+      apiEndpoints=$(oc get -n openstack PlacementAPI placement -o go-template-file=$PLACEMENT_KUTTL_TEST_DIR/../go_templates/apiEndpoints.gotemplate)
+      assert_regex $apiEndpoints 'http:\/\/placement-internal\.openstack\.svc.*'
+      assert_regex $apiEndpoints 'http:\/\/placement-public-openstack\.apps.*'
