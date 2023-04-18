@@ -68,6 +68,7 @@ func GetDefaultNovaAPISpec() map[string]interface{} {
 		"keystoneAuthURL":         "keystone-auth-url",
 		"containerImage":          ContainerImage,
 		"serviceAccount":          "nova",
+		"registeredCells":         map[string]string{},
 	}
 }
 
@@ -390,6 +391,7 @@ func GetDefaultNovaSchedulerSpec() map[string]interface{} {
 		"keystoneAuthURL":         "keystone-auth-url",
 		"containerImage":          ContainerImage,
 		"serviceAccount":          "nova",
+		"registeredCells":         map[string]string{},
 	}
 }
 
@@ -683,4 +685,13 @@ func GetRoleBinding(name types.NamespacedName) *rbacv1.RoleBinding {
 		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
 	}, timeout, interval).Should(Succeed())
 	return instance
+}
+
+func GetEnvValue(envs []corev1.EnvVar, name string, defaultValue string) string {
+	for _, e := range envs {
+		if e.Name == name {
+			return e.Value
+		}
+	}
+	return defaultValue
 }

@@ -13,3 +13,4 @@ spec:
     [DEFAULT]
     debug=true
   serviceAccount: nova
+  registeredCells: {}

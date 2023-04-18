@@ -607,6 +607,27 @@ var _ = Describe("NovaMetadata controller", func() {
 				corev1.ConditionTrue,
 			)
 		})
+		It("applies new RegisteredCells input to its StatefulSet to trigger Pod restart", func() {
+			originalConfigHash := GetEnvValue(
+				th.GetStatefulSet(statefulSetName).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
+
+			// Simulate that a new cell is added and Nova controller registered it and
+			// therefore a new cell is added to RegisteredCells
+			Eventually(func(g Gomega) {
+				novaAPI := GetNovaMetadata(novaMetadataName)
+				novaAPI.Spec.RegisteredCells = map[string]string{"cell0": "cell0-config-hash"}
+				err := k8sClient.Update(ctx, novaAPI)
+				g.Expect(err == nil || k8s_errors.IsConflict(err)).To(BeTrue())
+			}, timeout, interval).Should(Succeed())
+
+			// Assert that the CONFIG_HASH of the StateFulSet is changed due to this reconfiguration
+			Eventually(func(g Gomega) {
+				currentConfigHash := GetEnvValue(
+					th.GetStatefulSet(statefulSetName).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
+				g.Expect(originalConfigHash).NotTo(Equal(currentConfigHash))
+
+			}, timeout, interval).Should(Succeed())
+		})
 	})
 
 	When("starts zero replicas", func() {

@@ -435,6 +435,14 @@ var _ = Describe("Nova multi cell", func() {
 					HaveKeyWithValue(cell1.CellName.Name, Not(BeEmpty())))
 			}, timeout, interval).Should(Succeed())
 
+			// RegisteredCells are distributed
+			nova := GetNova(novaName)
+			api := GetNovaAPI(novaAPIName)
+			Expect(api.Spec.RegisteredCells).To(Equal(nova.Status.RegisteredCells))
+			scheduler := GetNovaScheduler(novaSchedulerName)
+			Expect(scheduler.Spec.RegisteredCells).To(Equal(nova.Status.RegisteredCells))
+			metadata := GetNovaMetadata(novaMetadataName)
+			Expect(metadata.Spec.RegisteredCells).To(Equal(nova.Status.RegisteredCells))
 		})
 		It("creates cell2 NovaCell", func() {
 			th.SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
@@ -538,6 +546,15 @@ var _ = Describe("Nova multi cell", func() {
 				g.Expect(nova.Status.RegisteredCells).To(
 					HaveKeyWithValue(cell2.CellName.Name, Not(BeEmpty())))
 			}, timeout, interval).Should(Succeed())
+
+			// RegisteredCells are distributed
+			nova := GetNova(novaName)
+			api := GetNovaAPI(novaAPIName)
+			Expect(api.Spec.RegisteredCells).To(Equal(nova.Status.RegisteredCells))
+			scheduler := GetNovaScheduler(novaSchedulerName)
+			Expect(scheduler.Spec.RegisteredCells).To(Equal(nova.Status.RegisteredCells))
+			metadata := GetNovaMetadata(novaMetadataName)
+			Expect(metadata.Spec.RegisteredCells).To(Equal(nova.Status.RegisteredCells))
 		})
 		It("creates cell2 NovaCell even if everything else fails", func() {
 			// Don't simulate any success for any other DBs MQs or Cells

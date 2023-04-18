@@ -808,6 +808,7 @@ func (r *NovaReconciler) ensureAPI(
 		ServiceUser:       instance.Spec.ServiceUser,
 		PasswordSelectors: instance.Spec.PasswordSelectors,
 		ServiceAccount:    instance.RbacResourceName(),
+		RegisteredCells:   instance.Status.RegisteredCells,
 	}
 	api := &novav1.NovaAPI{
 		ObjectMeta: metav1.ObjectMeta{
@@ -884,6 +885,7 @@ func (r *NovaReconciler) ensureScheduler(
 		ServiceUser:       instance.Spec.ServiceUser,
 		PasswordSelectors: instance.Spec.PasswordSelectors,
 		ServiceAccount:    instance.RbacResourceName(),
+		RegisteredCells:   instance.Status.RegisteredCells,
 	}
 	scheduler := &novav1.NovaScheduler{
 		ObjectMeta: metav1.ObjectMeta{
@@ -1168,6 +1170,7 @@ func (r *NovaReconciler) ensureMetadata(
 		PasswordSelectors: instance.Spec.PasswordSelectors,
 		KeystoneAuthURL:   keystoneAuthURL,
 		ServiceAccount:    instance.RbacResourceName(),
+		RegisteredCells:   instance.Status.RegisteredCells,
 	}
 	metadata := &novav1.NovaMetadata{
 		ObjectMeta: metav1.ObjectMeta{

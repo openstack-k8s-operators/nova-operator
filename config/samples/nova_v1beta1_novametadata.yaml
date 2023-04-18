@@ -12,3 +12,4 @@ spec:
   secret: osp-secret
   apiDatabaseUser: nova_api
   serviceAccount: nova
+  registeredCells: {}

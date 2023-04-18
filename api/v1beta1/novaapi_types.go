@@ -140,6 +140,14 @@ type NovaAPISpec struct {
 	// +kubebuilder:validation:Required
 	// ServiceAccount - service account name used internally to provide Nova services the default SA name
 	ServiceAccount string `json:"serviceAccount"`
+
+	// RegisteredCells is a map keyed by cell names that are registered in the
+	// nova_api database with a value that is the hash of the given cell
+	// configuration.
+	// This is used to detect when a new cell is added or an existing cell is
+	// reconfigured to trigger refresh of the in memory cell caches of the
+	// service.
+	RegisteredCells map[string]string `json:"registeredCells"`
 }
 
 // NovaAPIStatus defines the observed state of NovaAPI
