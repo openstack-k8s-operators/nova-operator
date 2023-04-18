@@ -129,7 +129,7 @@ func StatefulSet(
 				MatchLabels: labels,
 			},
 			PodManagementPolicy: appsv1.ParallelPodManagement,
-			Replicas:            &instance.Spec.Replicas,
+			Replicas:            instance.Spec.Replicas,
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: annotations,

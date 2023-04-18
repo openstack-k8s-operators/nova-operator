@@ -399,7 +399,7 @@ func (r *NovaMetadataReconciler) ensureDeployment(
 		return ctrl.Result{}, err
 	}
 
-	if instance.Status.ReadyCount > 0 || instance.Spec.Replicas == 0 {
+	if instance.Status.ReadyCount > 0 || *instance.Spec.Replicas == 0 {
 		util.LogForObject(h, "Deployment is ready", instance)
 		instance.Status.Conditions.MarkTrue(condition.DeploymentReadyCondition, condition.DeploymentReadyMessage)
 	} else {
