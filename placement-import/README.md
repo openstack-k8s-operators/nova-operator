@@ -2,7 +2,7 @@
 
 A Kubernetes Operator built using the [Operator Framework](https://github.com/operator-framework) for Go.
 The Operator provides a way to easily install and manage an OpenStack Placement installation on Kubernetes.
-This Operator was developed using [RDO](https://www.rdoproject.org/) containers for openStack.
+This Operator was developed using [TCIB](https://github.com/openstack-k8s-operators/tcib/blob/main/container-images/containers.yaml) containers for OpenStack.
 
 # Deployment
 
@@ -19,7 +19,7 @@ kind: PlacementAPI
 metadata:
   name: placement
 spec:
-  containerImage: quay.io/tripleowallabycentos9/openstack-placement-api:current-tripleo
+  containerImage: quay.io/podified-antelope-centos9/openstack-placement-api:current-podified
   databaseInstance: openstack
   secret: placement-secret
 ```
