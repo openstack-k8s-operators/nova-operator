@@ -230,6 +230,15 @@ var _ = Describe("Nova controller", func() {
 			Expect(binding.Subjects[0].Name).To(Equal(sa.Name))
 		})
 
+		It("initializes Status fields", func() {
+			instance := GetNova(novaName)
+			Expect(instance.Status.Hash).To(BeEmpty())
+			Expect(instance.Status.APIServiceReadyCount).To(Equal(int32(0)))
+			Expect(instance.Status.SchedulerServiceReadyCount).To(Equal(int32(0)))
+			Expect(instance.Status.MetadataServiceReadyCount).To(Equal(int32(0)))
+			Expect(instance.Status.RegisteredCells).To(BeEmpty())
+		})
+
 		It("registers nova service to keystone", func() {
 			// assert that the KeystoneService for nova is created
 			th.GetKeystoneService(novaKeystoneServiceName)

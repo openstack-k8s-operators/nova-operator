@@ -487,6 +487,10 @@ func (r *NovaReconciler) initStatus(
 		return err
 	}
 
+	if instance.Status.RegisteredCells == nil {
+		instance.Status.RegisteredCells = map[string]string{}
+	}
+
 	return nil
 }
 
