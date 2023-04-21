@@ -28,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
+
 var _ = Describe("Nova multicell", func() {
 	When("Nova CR instance is created with 3 cells", func() {
 		BeforeEach(func() {
