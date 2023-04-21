@@ -175,6 +175,9 @@ var _ = Describe("NovaMetadata controller", func() {
 					HaveKeyWithValue("01-nova.conf",
 						ContainSubstring("metadata_proxy_shared_secret = 12345678")))
 				Expect(configDataMap.Data).Should(
+					HaveKeyWithValue("01-nova.conf",
+						ContainSubstring("local_metadata_per_cell = false")))
+				Expect(configDataMap.Data).Should(
 					HaveKeyWithValue("02-nova-override.conf", "foo=bar"))
 			})
 
@@ -305,6 +308,47 @@ var _ = Describe("NovaMetadata controller", func() {
 	BeforeEach(func() {
 		DeferCleanup(
 			k8sClient.Delete, ctx, CreateNovaMessageBusSecret(novaNames.MetadataName.Namespace, MessageBusSecretName))
+	})
+
+	When("with configure cellname", func() {
+		BeforeEach(func() {
+			spec := GetDefaultNovaMetadataSpec()
+			spec["cellName"] = "SomeName"
+			metadata := CreateNovaMetadata(namespace, spec)
+			novaMetadataName = types.NamespacedName{Name: metadata.GetName(), Namespace: metadata.GetNamespace()}
+			DeferCleanup(DeleteInstance, metadata)
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateNovaMetadataSecret(namespace, SecretName),
+			)
+		})
+		It("generated config with correct local_metadata_per_cell", func() {
+			th.ExpectCondition(
+				novaMetadataName,
+				ConditionGetterFunc(NovaMetadataConditionGetter),
+				condition.ServiceConfigReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			configDataMap := th.GetConfigMap(
+				types.NamespacedName{
+					Namespace: namespace,
+					Name:      fmt.Sprintf("%s-config-data", novaMetadataName.Name),
+				},
+			)
+			Expect(configDataMap).ShouldNot(BeNil())
+			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
+			Expect(configDataMap.Data).Should(
+				HaveKeyWithValue("01-nova.conf",
+					ContainSubstring("transport_url=rabbit://fake")))
+			Expect(configDataMap.Data).Should(
+				HaveKeyWithValue("01-nova.conf",
+					ContainSubstring("metadata_proxy_shared_secret = 12345678")))
+			Expect(configDataMap.Data).Should(
+				HaveKeyWithValue("01-nova.conf",
+					ContainSubstring("local_metadata_per_cell = true")))
+		})
 	})
 
 	When("NovaMetadata is created with networkAttachments", func() {

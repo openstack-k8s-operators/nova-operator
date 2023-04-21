@@ -115,6 +115,13 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 		return result, err
 	}
 
+	if instance.Spec.MetadataServiceTemplate.Replicas != 0 {
+		result, err = r.ensureMetadata(ctx, h, instance)
+		if err != nil {
+			return result, err
+		}
+	}
+
 	util.LogForObject(h, "Successfully reconciled", instance)
 	return ctrl.Result{}, nil
 }
@@ -201,10 +208,62 @@ func (r *NovaCellReconciler) ensureConductor(
 	return ctrl.Result{}, nil
 }
 
+func (r *NovaCellReconciler) ensureMetadata(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *novav1.NovaCell,
+) (ctrl.Result, error) {
+	metadataSpec := novav1.NewNovaMetadataSpec(instance.Spec)
+	metadata := &novav1.NovaMetadata{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      instance.Name + "-metadata",
+			Namespace: instance.Namespace,
+		},
+	}
+
+	op, err := controllerutil.CreateOrPatch(ctx, r.Client, metadata, func() error {
+		metadata.Spec = metadataSpec
+		if len(metadata.Spec.NodeSelector) == 0 {
+			metadata.Spec.NodeSelector = instance.Spec.NodeSelector
+		}
+		err := controllerutil.SetControllerReference(instance, metadata, r.Scheme)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		condition.FalseCondition(
+			novav1.NovaMetadataReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityError,
+			novav1.NovaMetadataReadyErrorMessage,
+			err.Error(),
+		)
+		return ctrl.Result{}, err
+	}
+
+	if op != controllerutil.OperationResultNone {
+		util.LogForObject(h, fmt.Sprintf("NovaMetadata %s.", string(op)), instance, "NovaMetadata.Name", metadata.Name)
+	}
+
+	c := metadata.Status.Conditions.Mirror(novav1.NovaMetadataReadyCondition)
+	// NOTE(gibi): it can be nil if the NovaMetadata CR is created but no
+	// reconciliation is run on it to initialize the ReadyCondition yet.
+	if c != nil {
+		instance.Status.Conditions.Set(c)
+	}
+
+	return ctrl.Result{}, nil
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *NovaCellReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&novav1.NovaCell{}).
 		Owns(&novav1.NovaConductor{}).
+		Owns(&novav1.NovaMetadata{}).
 		Complete(r)
 }

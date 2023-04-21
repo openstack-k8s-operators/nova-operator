@@ -192,6 +192,8 @@ spec:
                   can use to talk to keystone
                 type: string
               metadataServiceTemplate:
+                default:
+                  replicas: 0
                 description: MetadataServiceTemplate - defines the metadata service
                   dedicated for the cell.
                 properties:

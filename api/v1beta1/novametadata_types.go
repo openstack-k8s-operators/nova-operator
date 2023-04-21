@@ -223,3 +223,32 @@ func init() {
 func (s NovaMetadataStatus) GetConditions() condition.Conditions {
 	return s.Conditions
 }
+
+// NewNovaMetadataSpec constructs a NovaMetadataSpec
+func NewNovaMetadataSpec(
+	novaCell NovaCellSpec,
+) NovaMetadataSpec {
+	metadataSpec := NovaMetadataSpec{
+		CellName:                 novaCell.CellName,
+		Secret:                   novaCell.Secret,
+		CellDatabaseHostname:     novaCell.CellDatabaseHostname,
+		CellDatabaseUser:         novaCell.CellDatabaseUser,
+		APIDatabaseHostname:      novaCell.APIDatabaseHostname,
+		APIDatabaseUser:          novaCell.APIDatabaseUser,
+		CellMessageBusSecretName: novaCell.CellMessageBusSecretName,
+		Debug:                    novaCell.Debug,
+		NovaServiceBase:          NovaServiceBase{
+			ContainerImage:         novaCell.MetadataServiceTemplate.ContainerImage,
+			Replicas:               novaCell.MetadataServiceTemplate.Replicas,
+			NodeSelector:           novaCell.MetadataServiceTemplate.NodeSelector,
+			CustomServiceConfig:    novaCell.MetadataServiceTemplate.CustomServiceConfig,
+			DefaultConfigOverwrite: novaCell.MetadataServiceTemplate.DefaultConfigOverwrite,
+			Resources:              novaCell.MetadataServiceTemplate.Resources,
+			NetworkAttachments:     novaCell.MetadataServiceTemplate.NetworkAttachments,
+		},
+		KeystoneAuthURL:          novaCell.KeystoneAuthURL,
+		ServiceUser:              novaCell.ServiceUser,
+		PasswordSelectors:        novaCell.PasswordSelectors,
+	}
+	return metadataSpec
+}
