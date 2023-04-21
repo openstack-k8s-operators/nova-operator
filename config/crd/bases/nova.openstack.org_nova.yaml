@@ -312,6 +312,8 @@ spec:
                         to have access to the API DB and message bus.
                       type: boolean
                     metadataServiceTemplate:
+                      default:
+                        replicas: 0
                       description: MetadataServiceTemplate - defines the metadata
                         service dedicated for the cell.
                       properties:
