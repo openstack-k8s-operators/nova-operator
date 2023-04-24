@@ -482,12 +482,17 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		return result, err
 	}
 
-	result, err = r.ensureMetadata(
-		ctx, h, instance, cell0Template,
-		cellDBs[Cell0Name].Database, apiDB, apiMQSecretName, keystoneAuthURL,
-	)
-	if err != nil {
-		return result, err
+	if instance.Spec.MetadataServiceTemplate.Replicas != 0 {
+		result, err = r.ensureMetadata(
+			ctx, h, instance, cell0Template,
+			cellDBs[Cell0Name].Database, apiDB, apiMQSecretName, keystoneAuthURL,
+		)
+		if err != nil {
+			return result, err
+		}
+	} else {
+		instance.Status.Conditions.Remove(novav1.NovaMetadataReadyCondition)
+		return ctrl.Result{}, nil
 	}
 
 	util.LogForObject(h, "Successfully reconciled", instance)
