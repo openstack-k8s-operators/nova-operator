@@ -50,7 +50,7 @@ data:
                   edpm_ovn_dbs:
                   - 172.30.251.145
             vars:
-              edpm_ovn_controller_image: quay.io/tripleomastercentos9/openstack-ovn-controller:current-tripleo
+              edpm_ovn_controller_image: quay.io/podified-antelope-centos9/openstack-ovn-controller:current-podified
               gather_facts: false
               enable_debug: false
               # SELinux module

@@ -29,7 +29,7 @@ import (
 // create a NovaScheduler via higher level CRDs.
 type NovaSchedulerTemplate struct {
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default="quay.io/tripleozedcentos9/openstack-nova-scheduler:current-tripleo"
+	// +kubebuilder:default="quay.io/podified-antelope-centos9/openstack-nova-scheduler:current-podified"
 	// The service specific Container Image URL
 	ContainerImage string `json:"containerImage"`
 

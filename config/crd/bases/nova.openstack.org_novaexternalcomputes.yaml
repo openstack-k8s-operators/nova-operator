@@ -80,7 +80,7 @@ spec:
                   type: string
                 type: array
               novaComputeContainerImage:
-                default: quay.io/tripleozedcentos9/openstack-nova-compute:current-tripleo
+                default: quay.io/podified-antelope-centos9/openstack-nova-compute:current-podified
                 description: NovaComputeContainerImage is the Container Image URL
                   for the nova-compute container
                 type: string
@@ -90,7 +90,7 @@ spec:
                   the deployment this compute belongs to
                 type: string
               novaLibvirtContainerImage:
-                default: quay.io/tripleozedcentos9/openstack-nova-libvirt:current-tripleo
+                default: quay.io/podified-antelope-centos9/openstack-nova-libvirt:current-podified
                 description: NovaLibvirtContainerImage is the Container Image URL
                   for the nova-libvirt container
                 type: string

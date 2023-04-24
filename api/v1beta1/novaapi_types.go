@@ -33,7 +33,7 @@ import (
 // are duplicated.
 type NovaAPITemplate struct {
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default="quay.io/tripleozedcentos9/openstack-nova-api:current-tripleo"
+	// +kubebuilder:default="quay.io/podified-antelope-centos9/openstack-nova-api:current-podified"
 	// ContainerImage - The service specific Container Image URL
 	ContainerImage string `json:"containerImage"`
 

@@ -55,7 +55,7 @@ type NovaCellTemplate struct {
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default={containerImage: "quay.io/tripleozedcentos9/openstack-nova-conductor:current-tripleo"}
+	// +kubebuilder:default={containerImage: "quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified"}
 	// ConductorServiceTemplate - defines the cell conductor deployment for the cell.
 	ConductorServiceTemplate NovaConductorTemplate `json:"conductorServiceTemplate"`
 
