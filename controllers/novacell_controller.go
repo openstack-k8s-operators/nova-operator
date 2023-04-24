@@ -120,6 +120,9 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 		if err != nil {
 			return result, err
 		}
+	} else {
+		instance.Status.Conditions.Remove(novav1.NovaMetadataReadyCondition)
+		return ctrl.Result{}, nil
 	}
 
 	util.LogForObject(h, "Successfully reconciled", instance)
@@ -150,6 +153,11 @@ func (r *NovaCellReconciler) initConditions(
 				novav1.NovaConductorReadyCondition,
 				condition.InitReason,
 				novav1.NovaConductorReadyInitMessage,
+			),
+			condition.UnknownCondition(
+				novav1.NovaMetadataReadyCondition,
+				condition.InitReason,
+				novav1.NovaMetadataReadyInitMessage,
 			),
 		)
 		instance.Status.Conditions.Init(&cl)

@@ -445,10 +445,15 @@ func (r *NovaMetadataReconciler) ensureServiceExposed(
 		ports[metallbcfg.Endpoint] = portCfg
 	}
 
+	serviceName := novametadata.ServiceName
+	if instance.Spec.CellName != "" {
+		serviceName = novametadata.ServiceName + "-" + instance.Spec.CellName
+	}
+
 	apiEndpoints, ctrlResult, err := endpoint.ExposeEndpoints(
 		ctx,
 		h,
-		novametadata.ServiceName,
+		serviceName,
 		getMetadataServiceLabels(),
 		ports,
 		r.RequeueTimeout,
