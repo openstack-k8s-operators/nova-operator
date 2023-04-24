@@ -234,7 +234,7 @@ func NewNovaMetadataSpec(
 		CellDatabaseUser:         novaCell.CellDatabaseUser,
 		APIDatabaseHostname:      novaCell.APIDatabaseHostname,
 		APIDatabaseUser:          novaCell.APIDatabaseUser,
-		CellMessageBusSecretName: novaCell.CellMessageBusSecretName,
+		APIMessageBusSecretName:  novaCell.CellMessageBusSecretName,
 		Debug:                    novaCell.Debug,
 		NovaServiceBase:          NovaServiceBase{
 			ContainerImage:         novaCell.MetadataServiceTemplate.ContainerImage,
