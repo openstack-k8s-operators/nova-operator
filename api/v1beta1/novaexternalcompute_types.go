@@ -67,12 +67,12 @@ type NovaExternalComputeSpec struct {
 	Deploy bool `json:"deploy"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default="quay.io/tripleozedcentos9/openstack-nova-compute:current-tripleo"
+	// +kubebuilder:default="quay.io/podified-antelope-centos9/openstack-nova-compute:current-podified"
 	// NovaComputeContainerImage is the Container Image URL for the nova-compute container
 	NovaComputeContainerImage string `json:"novaComputeContainerImage"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default="quay.io/tripleozedcentos9/openstack-nova-libvirt:current-tripleo"
+	// +kubebuilder:default="quay.io/podified-antelope-centos9/openstack-nova-libvirt:current-podified"
 	// NovaLibvirtContainerImage is the Container Image URL for the nova-libvirt container
 	NovaLibvirtContainerImage string `json:"novaLibvirtContainerImage"`
 
@@ -149,8 +149,8 @@ func NewNovaExternalComputeSpec(inventoryConfigMapName string, sshKeySecretName 
 		InventoryConfigMapName:    inventoryConfigMapName,
 		SSHKeySecretName:          sshKeySecretName,
 		Deploy:                    true,
-		NovaComputeContainerImage: "quay.io/tripleozedcentos9/openstack-nova-compute:current-tripleo",
-		NovaLibvirtContainerImage: "quay.io/tripleozedcentos9/openstack-nova-libvirt:current-tripleo",
+		NovaComputeContainerImage: "quay.io/podified-antelope-centos9/openstack-nova-compute:current-podified",
+		NovaLibvirtContainerImage: "quay.io/podified-antelope-centos9/openstack-nova-libvirt:current-podified",
 		AnsibleEEContainerImage:   "quay.io/openstack-k8s-operators/openstack-ansibleee-runner:latest",
 		NetworkAttachments:        nil,
 	}

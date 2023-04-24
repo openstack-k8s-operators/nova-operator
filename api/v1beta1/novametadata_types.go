@@ -29,7 +29,7 @@ import (
 // create a NovaMetadata via higher level CRDs.
 type NovaMetadataTemplate struct {
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default="quay.io/tripleozedcentos9/openstack-nova-api:current-tripleo"
+	// +kubebuilder:default="quay.io/podified-antelope-centos9/openstack-nova-api:current-podified"
 	// The service specific Container Image URL
 	ContainerImage string `json:"containerImage"`
 

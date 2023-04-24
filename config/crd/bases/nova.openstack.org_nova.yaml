@@ -57,7 +57,7 @@ spec:
                 description: APIServiceTemplate - define the nova-api service
                 properties:
                   containerImage:
-                    default: quay.io/tripleozedcentos9/openstack-nova-api:current-tripleo
+                    default: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
                     description: ContainerImage - The service specific Container Image
                       URL
                     type: string
@@ -213,12 +213,12 @@ spec:
                       type: string
                     conductorServiceTemplate:
                       default:
-                        containerImage: quay.io/tripleozedcentos9/openstack-nova-conductor:current-tripleo
+                        containerImage: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
                       description: ConductorServiceTemplate - defines the cell conductor
                         deployment for the cell.
                       properties:
                         containerImage:
-                          default: quay.io/tripleozedcentos9/openstack-nova-conductor:current-tripleo
+                          default: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
                           description: The service specific Container Image URL
                           type: string
                         customServiceConfig:
@@ -317,7 +317,7 @@ spec:
                         service dedicated for the cell.
                       properties:
                         containerImage:
-                          default: quay.io/tripleozedcentos9/openstack-nova-api:current-tripleo
+                          default: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
                           description: The service specific Container Image URL
                           type: string
                         customServiceConfig:
@@ -455,7 +455,7 @@ spec:
                         service dedicated for the cell.
                       properties:
                         containerImage:
-                          default: quay.io/tripleozedcentos9/openstack-nova-novncproxy:current-tripleo
+                          default: quay.io/podified-antelope-centos9/openstack-nova-novncproxy:current-podified
                           description: The service specific Container Image URL
                           type: string
                         customServiceConfig:
@@ -608,7 +608,7 @@ spec:
                   that is global for the deployment serving all the cells.
                 properties:
                   containerImage:
-                    default: quay.io/tripleozedcentos9/openstack-nova-api:current-tripleo
+                    default: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
                     description: The service specific Container Image URL
                     type: string
                   customServiceConfig:
@@ -779,7 +779,7 @@ spec:
                 description: SchedulerServiceTemplate- define the nova-scheduler service
                 properties:
                   containerImage:
-                    default: quay.io/tripleozedcentos9/openstack-nova-scheduler:current-tripleo
+                    default: quay.io/podified-antelope-centos9/openstack-nova-scheduler:current-podified
                     description: The service specific Container Image URL
                     type: string
                   customServiceConfig:
