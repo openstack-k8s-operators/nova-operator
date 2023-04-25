@@ -234,3 +234,18 @@ func (instance PlacementAPI) IsReady() bool {
 	// there is at least a single pod service the placement service
 	return instance.Status.ServiceID != "" && instance.Status.ReadyCount >= 1
 }
+
+// RbacConditionsSet - set the conditions for the rbac object
+func (instance PlacementAPI) RbacConditionsSet(c *condition.Condition) {
+	instance.Status.Conditions.Set(c)
+}
+
+// RbacNamespace - return the namespace
+func (instance PlacementAPI) RbacNamespace() string {
+	return instance.Namespace
+}
+
+// RbacResourceName - return the name to be used for rbac objects (serviceaccount, role, rolebinding)
+func (instance PlacementAPI) RbacResourceName() string {
+	return "placement-" + instance.Name
+}

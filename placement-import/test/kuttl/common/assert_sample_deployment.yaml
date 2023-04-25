@@ -62,6 +62,18 @@ status:
     reason: Ready
     status: "True"
     type: NetworkAttachmentsReady
+  - message: RoleBinding created
+    reason: Ready
+    status: True
+    type: RoleBindingReady
+  - message: Role created
+    reason: Ready
+    status: "True"
+    type: RoleReady
+  - message: ServiceAccount created
+    reason: Ready
+    status: "True"
+    type: ServiceAccountReady
   - message: Service config create completed
     reason: Ready
     status: "True"
@@ -159,8 +171,8 @@ spec:
         resources: {}
       restartPolicy: Always
       securityContext: {}
-      serviceAccount: placement-operator-placement
-      serviceAccountName: placement-operator-placement
+      serviceAccount: placement-placement
+      serviceAccountName: placement-placement
 status:
   availableReplicas: 1
   replicas: 1

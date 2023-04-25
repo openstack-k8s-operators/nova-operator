@@ -18,8 +18,6 @@ package placement
 const (
 	// ServiceName -
 	ServiceName = "placement"
-	// ServiceAccount -
-	ServiceAccount = "placement-operator-placement"
 	// DatabaseName -
 	DatabaseName = "placement"
 

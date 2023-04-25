@@ -103,7 +103,7 @@ func Deployment(
 					Labels:      labels,
 				},
 				Spec: corev1.PodSpec{
-					ServiceAccountName: ServiceAccount,
+					ServiceAccountName: instance.RbacResourceName(),
 					Containers: []corev1.Container{
 						{
 							Name: ServiceName + "-api",
