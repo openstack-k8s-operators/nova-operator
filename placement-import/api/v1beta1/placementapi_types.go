@@ -65,7 +65,7 @@ type PlacementAPISpec struct {
 	Replicas int32 `json:"replicas"`
 
 	// +kubebuilder:validation:Required
-	// Secret containing OpenStack password information for placement PlacementDatabasePassword, AdminPassword
+	// Secret containing OpenStack password information for placement PlacementDatabasePassword, PlacementPassword
 	Secret string `json:"secret"`
 
 	// +kubebuilder:validation:Optional
