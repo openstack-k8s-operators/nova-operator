@@ -226,7 +226,7 @@ spec:
                 type: object
               secret:
                 description: Secret containing OpenStack password information for
-                  placement PlacementDatabasePassword, AdminPassword
+                  placement PlacementDatabasePassword, PlacementPassword
                 type: string
               serviceUser:
                 default: placement
