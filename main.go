@@ -19,6 +19,7 @@ package main
 import (
 	"flag"
 	"os"
+	"strings"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -130,7 +131,27 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Acquire environmental defaults and initialize operator defaults with them
+	novav1beta1.SetupDefaults()
+
+	// Setup webhooks if requested
+	if strings.ToLower(os.Getenv("ENABLE_WEBHOOKS")) != "false" {
+		if err = (&novav1beta1.Nova{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "Nova")
+			os.Exit(1)
+		}
+		if err = (&novav1beta1.NovaCell{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "NovaCell")
+			os.Exit(1)
+		}
+		if err = (&novav1beta1.NovaExternalCompute{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "NovaExternalCompute")
+			os.Exit(1)
+		}
+	}
+
 	//+kubebuilder:scaffold:builder
+
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up health check")
 		os.Exit(1)

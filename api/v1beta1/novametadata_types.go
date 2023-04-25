@@ -30,7 +30,7 @@ import (
 type NovaMetadataTemplate struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default="quay.io/podified-antelope-centos9/openstack-nova-api:current-podified"
-	// The service specific Container Image URL
+	// The service specific Container Image URL (will be set to environmental default if empty)
 	ContainerImage string `json:"containerImage"`
 
 	// +kubebuilder:validation:Optional

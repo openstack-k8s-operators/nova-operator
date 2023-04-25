@@ -8,8 +8,6 @@ spec:
   cellDatabaseHostname: openstack
   cellMessageBusSecretName: rabbitmq-transport-url-cell1-transport
   cellName: cell1
-  conductorServiceTemplate: {}
   keystoneAuthURL: http://keystone-public-openstack.apps-crc.testing
-  noVNCProxyServiceTemplate: {}
   secret: osp-secret
   serviceAccount: nova

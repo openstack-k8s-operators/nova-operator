@@ -59,7 +59,7 @@ spec:
                   containerImage:
                     default: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
                     description: ContainerImage - The service specific Container Image
-                      URL
+                      URL (will be set to environmental default if empty)
                     type: string
                   customServiceConfig:
                     description: CustomServiceConfig - customize the service config
@@ -219,7 +219,8 @@ spec:
                       properties:
                         containerImage:
                           default: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
-                          description: The service specific Container Image URL
+                          description: The service specific Container Image URL (will
+                            be set to environmental default if empty)
                           type: string
                         customServiceConfig:
                           description: CustomServiceConfig - customize the service
@@ -318,7 +319,8 @@ spec:
                       properties:
                         containerImage:
                           default: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
-                          description: The service specific Container Image URL
+                          description: The service specific Container Image URL (will
+                            be set to environmental default if empty)
                           type: string
                         customServiceConfig:
                           description: CustomServiceConfig - customize the service
@@ -456,7 +458,8 @@ spec:
                       properties:
                         containerImage:
                           default: quay.io/podified-antelope-centos9/openstack-nova-novncproxy:current-podified
-                          description: The service specific Container Image URL
+                          description: The service specific Container Image URL (will
+                            be set to environmental default if empty)
                           type: string
                         customServiceConfig:
                           description: CustomServiceConfig - customize the service
@@ -609,7 +612,8 @@ spec:
                 properties:
                   containerImage:
                     default: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
-                    description: The service specific Container Image URL
+                    description: The service specific Container Image URL (will be
+                      set to environmental default if empty)
                     type: string
                   customServiceConfig:
                     description: CustomServiceConfig - customize the service config
@@ -780,7 +784,8 @@ spec:
                 properties:
                   containerImage:
                     default: quay.io/podified-antelope-centos9/openstack-nova-scheduler:current-podified
-                    description: The service specific Container Image URL
+                    description: The service specific Container Image URL (will be
+                      set to environmental default if empty)
                     type: string
                   customServiceConfig:
                     description: CustomServiceConfig - customize the service config

@@ -48,7 +48,7 @@ type NovaExternalComputeSpec struct {
 	// +kubebuilder:validation:Optional
 	// ConfigOverwrite - interface to overwrite default config files like e.g. logging.conf
 	// But can also be used to add additional files. Those get added to the service config dir in /etc/<service> .
-	DefaultConfigOverwrite map[string]string `json:"defaultConfigOverwrite"`
+	DefaultConfigOverwrite map[string]string `json:"defaultConfigOverwrite,omitempty"`
 
 	// +kubebuilder:validation:Required
 	// InventoryConfigMapName is the name of the k8s config map that contains the ansible inventory information
@@ -68,17 +68,17 @@ type NovaExternalComputeSpec struct {
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default="quay.io/podified-antelope-centos9/openstack-nova-compute:current-podified"
-	// NovaComputeContainerImage is the Container Image URL for the nova-compute container
+	// NovaComputeContainerImage is the Container Image URL for the nova-compute container (will be set to environmental default if empty)
 	NovaComputeContainerImage string `json:"novaComputeContainerImage"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default="quay.io/podified-antelope-centos9/openstack-nova-libvirt:current-podified"
-	// NovaLibvirtContainerImage is the Container Image URL for the nova-libvirt container
+	// NovaLibvirtContainerImage is the Container Image URL for the nova-libvirt container (will be set to environmental default if empty)
 	NovaLibvirtContainerImage string `json:"novaLibvirtContainerImage"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default="quay.io/openstack-k8s-operators/openstack-ansibleee-runner:latest"
-	// AnsibleEEContainerImage is the Container Image URL for the ansible execution environment
+	// AnsibleEEContainerImage is the Container Image URL for the ansible execution environment (will be set to environmental default if empty)
 	AnsibleEEContainerImage string `json:"ansibleEEContainerImage"`
 
 	// +kubebuilder:validation:Optional
@@ -143,17 +143,19 @@ func (c NovaExternalCompute) IsReady() bool {
 func NewNovaExternalComputeSpec(inventoryConfigMapName string, sshKeySecretName string) NovaExternalComputeSpec {
 	trueVar := true
 
-	return NovaExternalComputeSpec{
-		NovaInstance:              "nova",
-		CellName:                  "cell1",
-		CustomServiceConfig:       "",
-		DefaultConfigOverwrite:    nil,
-		InventoryConfigMapName:    inventoryConfigMapName,
-		SSHKeySecretName:          sshKeySecretName,
-		Deploy:                    &trueVar,
-		NovaComputeContainerImage: "quay.io/podified-antelope-centos9/openstack-nova-compute:current-podified",
-		NovaLibvirtContainerImage: "quay.io/podified-antelope-centos9/openstack-nova-libvirt:current-podified",
-		AnsibleEEContainerImage:   "quay.io/openstack-k8s-operators/openstack-ansibleee-runner:latest",
-		NetworkAttachments:        nil,
+	spec := NovaExternalComputeSpec{
+		NovaInstance:           "nova",
+		CellName:               "cell1",
+		CustomServiceConfig:    "",
+		DefaultConfigOverwrite: nil,
+		InventoryConfigMapName: inventoryConfigMapName,
+		SSHKeySecretName:       sshKeySecretName,
+		Deploy:                 &trueVar,
+		NetworkAttachments:     nil,
 	}
+
+	// Trigger field defaulting (if default values available via env vars)
+	spec.Default()
+
+	return spec
 }

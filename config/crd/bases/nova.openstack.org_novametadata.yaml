@@ -86,7 +86,8 @@ spec:
                   in the deployment
                 type: string
               containerImage:
-                description: The service specific Container Image URL
+                description: The service specific Container Image URL (will be set
+                  to environmental default if empty)
                 type: string
               customServiceConfig:
                 description: CustomServiceConfig - customize the service config using
@@ -285,7 +286,6 @@ spec:
                   to register in keystone
                 type: string
             required:
-            - containerImage
             - keystoneAuthURL
             - secret
             - serviceAccount

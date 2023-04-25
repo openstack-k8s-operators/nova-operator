@@ -799,6 +799,9 @@ var _ = Describe("Nova controller", func() {
 				"schedulerServiceTemplate": map[string]interface{}{
 					"networkAttachments": []string{"internalapi"},
 				},
+				"metadataServiceTemplate": map[string]interface{}{
+					"networkAttachments": []string{"internalapi"},
+				},
 			}
 			DeferCleanup(DeleteInstance, CreateNova(novaName, rawSpec))
 
@@ -849,5 +852,29 @@ var _ = Describe("Nova controller", func() {
 			Expect(scheduler.Spec.NetworkAttachments).To(Equal(nova.Spec.APIServiceTemplate.NetworkAttachments))
 		})
 
+	})
+
+	When("Nova CR is created without container images defined", func() {
+		BeforeEach(func() {
+			spec := GetDefaultNovaSpec()
+			cell0 := GetDefaultNovaCellTemplate()
+			spec["cellTemplates"] = map[string]interface{}{"cell0": cell0}
+			// This nova is created without any container image is specified in
+			// the request
+			DeferCleanup(DeleteInstance, CreateNova(novaName, spec))
+		})
+		It("has the expected container image defaults", func() {
+			novaDefault := GetNova(novaName)
+
+			Expect(novaDefault.Spec.APIServiceTemplate.ContainerImage).To(Equal(novav1.GetEnvDefault("NOVA_API_IMAGE_URL_DEFAULT", novav1.NovaAPIContainerImage)))
+			Expect(novaDefault.Spec.MetadataServiceTemplate.ContainerImage).To(Equal(novav1.GetEnvDefault("NOVA_METADATA_IMAGE_URL_DEFAULT", novav1.NovaMetadataContainerImage)))
+			Expect(novaDefault.Spec.SchedulerServiceTemplate.ContainerImage).To(Equal(novav1.GetEnvDefault("NOVA_SCHEDULER_IMAGE_URL_DEFAULT", novav1.NovaSchedulerContainerImage)))
+
+			for _, cell := range novaDefault.Spec.CellTemplates {
+				Expect(cell.ConductorServiceTemplate.ContainerImage).To(Equal(novav1.GetEnvDefault("NOVA_CONDUCTOR_IMAGE_URL_DEFAULT", novav1.NovaConductorContainerImage)))
+				Expect(cell.MetadataServiceTemplate.ContainerImage).To(Equal(novav1.GetEnvDefault("NOVA_METADATA_IMAGE_URL_DEFAULT", novav1.NovaMetadataContainerImage)))
+				Expect(cell.NoVNCProxyServiceTemplate.ContainerImage).To(Equal(novav1.GetEnvDefault("NOVA_NOVNC_IMAGE_URL_DEFAULT", novav1.NovaNoVNCContainerImage)))
+			}
+		})
 	})
 })

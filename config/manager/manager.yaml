@@ -17,7 +17,7 @@ metadata:
 spec:
   selector:
     matchLabels:
-      control-plane: controller-manager
+      app.kubernetes.io/name: nova-operator
   replicas: 1
   template:
     metadata:
