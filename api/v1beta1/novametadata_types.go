@@ -154,6 +154,11 @@ type NovaMetadataSpec struct {
 	// +kubebuilder:validation:Optional
 	// ExternalEndpoints, expose a VIP via MetalLB on the pre-created address pool
 	ExternalEndpoints []MetalLBConfig `json:"externalEndpoints,omitempty"`
+
+	// +kubebuilder:validation:Required
+	// ServiceAccount - service account name used internally to provide Nova services the default SA name
+	// +kubebuilder:default=nova
+	ServiceAccount string `json:"serviceAccount"`
 }
 
 // NovaMetadataStatus defines the observed state of NovaMetadata

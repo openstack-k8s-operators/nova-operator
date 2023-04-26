@@ -134,6 +134,11 @@ type NovaConductorSpec struct {
 	// +kubebuilder:validation:Required
 	// NovaServiceBase specifies the generic fields of the service
 	NovaServiceBase `json:",inline"`
+
+	// +kubebuilder:validation:Required
+	// ServiceAccount - service account name used internally to provide Nova services the default SA name
+	// +kubebuilder:default=nova
+	ServiceAccount string `json:"serviceAccount"`
 }
 
 // NovaConductorStatus defines the observed state of NovaConductor
@@ -204,6 +209,7 @@ func NewNovaConductorSpec(
 		KeystoneAuthURL:          novaCell.KeystoneAuthURL,
 		ServiceUser:              novaCell.ServiceUser,
 		PasswordSelectors:        novaCell.PasswordSelectors,
+		ServiceAccount:           novaCell.ServiceAccount,
 	}
 	return conductorSpec
 }

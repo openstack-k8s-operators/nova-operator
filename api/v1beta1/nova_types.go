@@ -164,3 +164,18 @@ func (c Nova) IsReady() bool {
 	readyCond := c.Status.Conditions.Get(condition.ReadyCondition)
 	return readyCond != nil && readyCond.Status == corev1.ConditionTrue
 }
+
+// RbacConditionsSet - set the conditions for the rbac object
+func (instance Nova) RbacConditionsSet(c *condition.Condition) {
+	instance.Status.Conditions.Set(c)
+}
+
+// RbacNamespace - return the namespace
+func (instance Nova) RbacNamespace() string {
+	return instance.Namespace
+}
+
+// RbacResourceName - return the name to be used for rbac objects (serviceaccount, role, rolebinding)
+func (instance Nova) RbacResourceName() string {
+	return "nova-" + instance.Name
+}

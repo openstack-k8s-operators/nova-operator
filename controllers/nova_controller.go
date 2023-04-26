@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"strings"
 
+	rbacv1 "k8s.io/api/rbac/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -32,6 +33,7 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/endpoint"
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
+	common_rbac "github.com/openstack-k8s-operators/lib-common/modules/common/rbac"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	database "github.com/openstack-k8s-operators/lib-common/modules/database"
 
@@ -57,6 +59,14 @@ type NovaReconciler struct {
 // +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneservices,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneendpoints,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=rabbitmq.openstack.org,resources=transporturls,verbs=get;list;watch;create;update;patch;delete
+
+// service account, role, rolebinding
+// +kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;create;update
+// +kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=roles,verbs=get;list;watch;create;update
+// +kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=rolebindings,verbs=get;list;watch;create;update
+// service account permissions that are needed to grant permission to the above
+// +kubebuilder:rbac:groups="security.openshift.io",resourceNames=anyuid,resources=securitycontextconstraints,verbs=use
+// +kubebuilder:rbac:groups="",resources=pods,verbs=create;delete;get;list;patch;update;watch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -142,6 +152,27 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		// finalizer persisted before we try to create the KeystoneService with
 		// our finalizer to avoid orphaning the KeystoneService.
 		return ctrl.Result{}, nil
+	}
+
+	// Service account, role, binding
+	rbacRules := []rbacv1.PolicyRule{
+		{
+			APIGroups:     []string{"security.openshift.io"},
+			ResourceNames: []string{"anyuid"},
+			Resources:     []string{"securitycontextconstraints"},
+			Verbs:         []string{"use"},
+		},
+		{
+			APIGroups: []string{""},
+			Resources: []string{"pods"},
+			Verbs:     []string{"create", "get", "list", "watch", "update", "patch", "delete"},
+		},
+	}
+	rbacResult, err := common_rbac.ReconcileRbac(ctx, h, instance, rbacRules)
+	if err != nil {
+		return rbacResult, err
+	} else if (rbacResult != ctrl.Result{}) {
+		return rbacResult, nil
 	}
 
 	// TODO(gibi): This should be checked in a webhook and reject the CR
@@ -514,6 +545,22 @@ func (r *NovaReconciler) initConditions(
 				condition.InitReason,
 				novav1.NovaMetadataReadyInitMessage,
 			),
+			// service account, role, rolebinding conditions
+			condition.UnknownCondition(
+				condition.ServiceAccountReadyCondition,
+				condition.InitReason,
+				condition.ServiceAccountReadyInitMessage,
+			),
+			condition.UnknownCondition(
+				condition.RoleReadyCondition,
+				condition.InitReason,
+				condition.RoleReadyInitMessage,
+			),
+			condition.UnknownCondition(
+				condition.RoleBindingReadyCondition,
+				condition.InitReason,
+				condition.RoleBindingReadyInitMessage,
+			),
 		)
 		instance.Status.Conditions.Init(&cl)
 	}
@@ -654,6 +701,7 @@ func (r *NovaReconciler) ensureCell(
 		ServiceUser:       instance.Spec.ServiceUser,
 		KeystoneAuthURL:   keystoneAuthURL,
 		PasswordSelectors: instance.Spec.PasswordSelectors,
+		ServiceAccount:    instance.RbacResourceName(),
 	}
 	if cellTemplate.HasAPIAccess {
 		cellSpec.APIDatabaseHostname = apiDB.GetDatabaseHostname()
@@ -727,6 +775,7 @@ func (r *NovaReconciler) ensureAPI(
 		KeystoneAuthURL:   keystoneAuthURL,
 		ServiceUser:       instance.Spec.ServiceUser,
 		PasswordSelectors: instance.Spec.PasswordSelectors,
+		ServiceAccount:    instance.RbacResourceName(),
 	}
 	api := &novav1.NovaAPI{
 		ObjectMeta: metav1.ObjectMeta{
@@ -802,6 +851,7 @@ func (r *NovaReconciler) ensureScheduler(
 		KeystoneAuthURL:   keystoneAuthURL,
 		ServiceUser:       instance.Spec.ServiceUser,
 		PasswordSelectors: instance.Spec.PasswordSelectors,
+		ServiceAccount:    instance.RbacResourceName(),
 	}
 	scheduler := &novav1.NovaScheduler{
 		ObjectMeta: metav1.ObjectMeta{
@@ -1085,6 +1135,7 @@ func (r *NovaReconciler) ensureMetadata(
 		ServiceUser:       instance.Spec.ServiceUser,
 		PasswordSelectors: instance.Spec.PasswordSelectors,
 		KeystoneAuthURL:   keystoneAuthURL,
+		ServiceAccount:    instance.RbacResourceName(),
 	}
 	metadata := &novav1.NovaMetadata{
 		ObjectMeta: metav1.ObjectMeta{

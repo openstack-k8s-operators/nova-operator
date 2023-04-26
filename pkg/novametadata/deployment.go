@@ -120,7 +120,7 @@ func StatefulSet(
 					Labels:      labels,
 				},
 				Spec: corev1.PodSpec{
-					ServiceAccountName: nova.ServiceAccount,
+					ServiceAccountName: instance.Spec.ServiceAccount,
 					Volumes: nova.GetOpenstackVolumes(
 						nova.GetServiceConfigConfigMapName(instance.Name),
 					),
