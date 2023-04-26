@@ -23,8 +23,6 @@ const (
 	// DatabaseName -
 	DatabaseName = "placement"
 
-	// PlacementAdminPort -
-	PlacementAdminPort int32 = 8778
 	// PlacementPublicPort -
 	PlacementPublicPort int32 = 8778
 	// PlacementInternalPort -
