@@ -31,8 +31,6 @@ import (
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 )
 
-const CellMessageBusSecretName = "rabbitmq-transport-url-nova-api-transport"
-
 var _ = Describe("NovaConductor controller", func() {
 	var novaConductorName types.NamespacedName
 
@@ -233,10 +231,9 @@ var _ = Describe("NovaConductor controller", func() {
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreateNovaConductorSecret(namespace, SecretName))
 			DeferCleanup(
-				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(namespace, CellMessageBusSecretName))
+				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(namespace, MessageBusSecretName))
 
 			spec := GetDefaultNovaConductorSpec()
-			spec["cellMessageBusSecretName"] = CellMessageBusSecretName
 			instance := CreateNovaConductor(namespace, spec)
 			novaConductorName = types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
 			DeferCleanup(DeleteInstance, instance)
@@ -285,7 +282,7 @@ var _ = Describe("NovaConductor controller", func() {
 					ValueFrom: &corev1.EnvVarSource{
 						SecretKeyRef: &corev1.SecretKeySelector{
 							LocalObjectReference: corev1.LocalObjectReference{
-								Name: CellMessageBusSecretName,
+								Name: MessageBusSecretName,
 							},
 							Key: "transport_url",
 						},
@@ -409,7 +406,7 @@ var _ = Describe("NovaConductor controller", func() {
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreateNovaConductorSecret(namespace, SecretName))
 			DeferCleanup(
-				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(namespace, CellMessageBusSecretName))
+				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(namespace, MessageBusSecretName))
 
 			spec := GetDefaultNovaConductorSpec()
 			spec["debug"] = map[string]interface{}{
@@ -465,7 +462,7 @@ var _ = Describe("NovaConductor controller", func() {
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreateNovaConductorSecret(namespace, SecretName))
 			DeferCleanup(
-				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(namespace, CellMessageBusSecretName))
+				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(namespace, MessageBusSecretName))
 
 			spec := GetDefaultNovaConductorSpec()
 			spec["debug"] = map[string]interface{}{
