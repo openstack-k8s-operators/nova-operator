@@ -135,12 +135,6 @@ type NovaMetadataSpec struct {
 	APIMessageBusSecretName string `json:"apiMessageBusSecretName"`
 
 	// +kubebuilder:validation:Optional
-	// CellMessageBusSecretName - the name of the Secret containing the
-	// transport URL information to use when accessing the Cell message
-	// bus.
-	CellMessageBusSecretName string `json:"cellMessageBusSecretName"`
-
-	// +kubebuilder:validation:Optional
 	// Debug - enable debug for different deploy stages. If an init container
 	// is used, it runs and the actual action pod gets started with sleep
 	// infinity
