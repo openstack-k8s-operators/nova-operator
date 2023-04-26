@@ -75,11 +75,6 @@ spec:
                 description: CellDatabaseUser - username to use when accessing the
                   cell DB
                 type: string
-              cellMessageBusSecretName:
-                description: CellMessageBusSecretName - the name of the Secret containing
-                  the transport URL information to use when accessing the Cell message
-                  bus.
-                type: string
               cellName:
                 description: CellName is the name of the Nova Cell this metadata service
                   belongs to. If not provided then the metadata serving every cells
