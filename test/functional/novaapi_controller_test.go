@@ -179,7 +179,7 @@ var _ = Describe("NovaAPI controller", func() {
 				Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
 				Expect(configDataMap.Data).Should(
 					HaveKeyWithValue("01-nova.conf",
-						ContainSubstring("transport_url=rabbit://fake")))
+						ContainSubstring("transport_url=rabbit://rabbitmq-secret/fake")))
 				Expect(configDataMap.Data).Should(
 					HaveKeyWithValue("02-nova-override.conf", "foo=bar"))
 			})

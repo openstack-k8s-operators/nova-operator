@@ -16,16 +16,20 @@ limitations under the License.
 package functional_test
 
 import (
+	"fmt"
+
 	"github.com/google/uuid"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/openstack-k8s-operators/lib-common/modules/test/helpers"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -458,6 +462,86 @@ var _ = Describe("Nova reconfiguration", func() {
 					conductorDeployment := th.GetStatefulSet(conductorDeploymentName)
 					g.Expect(conductorDeployment.Spec.Template.Spec.NodeSelector).To(Equal(conductorSelector))
 				}
+			}, timeout, interval).Should(Succeed())
+		})
+	})
+	When("CellMessageBusInstance is reconfigured for a cell", func() {
+		It("re-runs the cell mapping job and updates the cell hash", func() {
+			cell1Names := NewCell(novaName, "cell1")
+			mappingJob := th.GetJob(cell1Names.CellMappingJobName)
+			oldJobInputHash := GetEnvValue(
+				mappingJob.Spec.Template.Spec.Containers[0].Env, "INPUT_HASH", "")
+
+			oldCell1Hash := GetNova(novaName).Status.RegisteredCells[cell1Names.CellName.Name]
+
+			Eventually(func(g Gomega) {
+				// The lib-common will not re-run the job if the old k8s job
+				// still exists, this is a bug that needs to be fixed in
+				// lib-common. Until that we delete the k8s job to simulate
+				// the the job's TTL is expired.
+				// We need background propagation policy otherwise the Job remains
+				// in orphan state
+				background := metav1.DeletePropagationBackground
+				g.Expect(
+					k8sClient.Delete(ctx, mappingJob, &client.DeleteOptions{PropagationPolicy: &background}),
+				).To(Succeed())
+
+				nova := GetNova(novaName)
+
+				cell1 := nova.Spec.CellTemplates["cell1"]
+				cell1.CellMessageBusInstance = "alternate-mq-for-cell1"
+				nova.Spec.CellTemplates["cell1"] = cell1
+
+				err := k8sClient.Update(ctx, nova)
+				g.Expect(err == nil || k8s_errors.IsConflict(err)).To(BeTrue())
+			}, timeout, interval).Should(Succeed())
+
+			// The new TransportURL will point to a new secret so we need to
+			// simulate that is created by the infra-operator.
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateNovaMessageBusSecret(namespace, "alternate-mq-for-cell1-secret"),
+			)
+
+			// Expect that nova controller updates the TransportURL to point to
+			// the new rabbit cluster
+			Eventually(func(g Gomega) {
+				transport := th.GetTransportURL(cell1Names.TransportURLName)
+				g.Expect(transport.Spec.RabbitmqClusterName).To(Equal("alternate-mq-for-cell1"))
+			}, timeout, interval).Should(Succeed())
+
+			th.SimulateTransportURLReady(cell1Names.TransportURLName)
+
+			// Expect that the NovaConductor config is updated with the new transport URL
+			Eventually(func(g Gomega) {
+				configDataMap := th.GetConfigMap(
+					types.NamespacedName{
+						Namespace: namespace,
+						Name:      fmt.Sprintf("%s-config-data", cell1Names.CellConductorName.Name),
+					},
+				)
+				g.Expect(configDataMap).ShouldNot(BeNil())
+				g.Expect(configDataMap.Data).Should(
+					HaveKeyWithValue("01-nova.conf",
+						ContainSubstring("transport_url=rabbit://alternate-mq-for-cell1-secret/fake")))
+			}, timeout, interval).Should(Succeed())
+
+			// Expect that nova controller updates the mapping Job to re-run that
+			// to update the CellMapping table in the nova_api DB.
+			Eventually(func(g Gomega) {
+				mappingJob := th.GetJob(cell1Names.CellMappingJobName)
+				newJobInputHash := GetEnvValue(
+					mappingJob.Spec.Template.Spec.Containers[0].Env, "INPUT_HASH", "")
+				g.Expect(newJobInputHash).NotTo(Equal(oldJobInputHash))
+			}, timeout, interval).Should(Succeed())
+
+			th.SimulateJobSuccess(cell1Names.CellMappingJobName)
+
+			// Expect that the new config results in a new cell1 hash
+			Eventually(func(g Gomega) {
+				newCell1Hash := GetNova(novaName).Status.RegisteredCells[cell1Names.CellName.Name]
+				g.Expect(newCell1Hash).NotTo(Equal(oldCell1Hash))
 			}, timeout, interval).Should(Succeed())
 		})
 	})

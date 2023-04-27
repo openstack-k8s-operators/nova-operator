@@ -17,6 +17,7 @@ package functional_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -289,12 +290,14 @@ func CreateNovaConductorSecret(namespace string, name string) *corev1.Secret {
 }
 
 func CreateNovaMessageBusSecret(namespace string, name string) *corev1.Secret {
-	return CreateSecret(
+	s := CreateSecret(
 		types.NamespacedName{Namespace: namespace, Name: name},
 		map[string][]byte{
-			"transport_url": []byte("rabbit://fake"),
+			"transport_url": []byte(fmt.Sprintf("rabbit://%s/fake", name)),
 		},
 	)
+	logger.Info("Secret created", "name", name)
+	return s
 }
 
 func GetDefaultNovaCellSpec() map[string]interface{} {
