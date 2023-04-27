@@ -289,6 +289,15 @@ var _ = Describe("NovaScheduler controller", func() {
 			)
 		})
 	})
+})
+
+var _ = Describe("NovaScheduler controller", func() {
+	var novaSchedulerName types.NamespacedName
+	BeforeEach(func() {
+		DeferCleanup(
+			k8sClient.Delete, ctx, CreateNovaMessageBusSecret(namespace, MessageBusSecretName))
+	})
+
 	When("NovaScheduler is created with networkAttachments", func() {
 		BeforeEach(func() {
 			DeferCleanup(
