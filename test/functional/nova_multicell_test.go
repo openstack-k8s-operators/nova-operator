@@ -221,16 +221,22 @@ var _ = Describe("Nova multi cell", func() {
 				condition.DBSyncReadyCondition,
 				corev1.ConditionFalse,
 			)
-			// assert that cell0 using the same DB as the API
+			// assert that cell0 conductor is using the same DB as the API
 			dbSync := th.GetJob(cell0.CellDBSyncJobName)
-			dbSyncJobEnv := dbSync.Spec.Template.Spec.InitContainers[0].Env
-			Expect(dbSyncJobEnv).To(
-				ContainElements(
-					[]corev1.EnvVar{
-						{Name: "CellDatabaseHost", Value: "hostname-for-db-for-api"},
-						{Name: "APIDatabaseHost", Value: "hostname-for-db-for-api"},
-					},
-				),
+			Expect(dbSync.Spec.Template.Spec.InitContainers).To(HaveLen(0))
+
+			configDataMap := th.GetConfigMap(
+				types.NamespacedName{
+					Namespace: namespace,
+					Name:      fmt.Sprintf("%s-config-data", cell0.CellConductorName.Name),
+				},
+			)
+			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
+			Expect(configDataMap.Data["01-nova.conf"]).To(
+				ContainSubstring("[database]\nconnection = mysql+pymysql://nova_cell0:12345678@hostname-for-db-for-api/nova_cell0"),
+			)
+			Expect(configDataMap.Data["01-nova.conf"]).To(
+				ContainSubstring("[api_database]\nconnection = mysql+pymysql://nova_api:12345678@hostname-for-db-for-api/nova_api"),
 			)
 
 			th.SimulateJobSuccess(cell0.CellDBSyncJobName)
@@ -370,14 +376,19 @@ var _ = Describe("Nova multi cell", func() {
 			)
 			// assert that cell1 using its own DB but has access to the API DB
 			dbSync := th.GetJob(cell1.CellDBSyncJobName)
-			dbSyncJobEnv := dbSync.Spec.Template.Spec.InitContainers[0].Env
-			Expect(dbSyncJobEnv).To(
-				ContainElements(
-					[]corev1.EnvVar{
-						{Name: "CellDatabaseHost", Value: "hostname-for-db-for-cell1"},
-						{Name: "APIDatabaseHost", Value: "hostname-for-db-for-api"},
-					},
-				),
+			Expect(dbSync.Spec.Template.Spec.InitContainers).To(HaveLen(0))
+			configDataMap := th.GetConfigMap(
+				types.NamespacedName{
+					Namespace: namespace,
+					Name:      fmt.Sprintf("%s-config-data", cell1.CellConductorName.Name),
+				},
+			)
+			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
+			Expect(configDataMap.Data["01-nova.conf"]).To(
+				ContainSubstring("[database]\nconnection = mysql+pymysql://nova_cell1:12345678@hostname-for-db-for-cell1/nova_cell1"),
+			)
+			Expect(configDataMap.Data["01-nova.conf"]).To(
+				ContainSubstring("[api_database]\nconnection = mysql+pymysql://nova_api:12345678@hostname-for-db-for-api/nova_api"),
 			)
 			th.SimulateJobSuccess(cell1.CellDBSyncJobName)
 			th.ExpectCondition(
@@ -431,20 +442,19 @@ var _ = Describe("Nova multi cell", func() {
 			)
 			// assert that cell2 using its own DB but has *no* access to the API DB
 			dbSync := th.GetJob(cell2.CellDBSyncJobName)
-			dbSyncJobEnv := dbSync.Spec.Template.Spec.InitContainers[0].Env
-			Expect(dbSyncJobEnv).To(
-				ContainElements(
-					[]corev1.EnvVar{
-						{Name: "CellDatabaseHost", Value: "hostname-for-db-for-cell2"},
-					},
-				),
+			Expect(dbSync.Spec.Template.Spec.InitContainers).To(HaveLen(0))
+			configDataMap := th.GetConfigMap(
+				types.NamespacedName{
+					Namespace: namespace,
+					Name:      fmt.Sprintf("%s-config-data", cell2.CellConductorName.Name),
+				},
 			)
-			Expect(dbSyncJobEnv).NotTo(
-				ContainElements(
-					[]corev1.EnvVar{
-						{Name: "APIDatabaseHost", Value: "hostname-for-db-for-api"},
-					},
-				),
+			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
+			Expect(configDataMap.Data["01-nova.conf"]).To(
+				ContainSubstring("[database]\nconnection = mysql+pymysql://nova_cell2:12345678@hostname-for-db-for-cell2/nova_cell2"),
+			)
+			Expect(configDataMap.Data["01-nova.conf"]).ToNot(
+				ContainSubstring("[api_database]"),
 			)
 			th.SimulateJobSuccess(cell2.CellDBSyncJobName)
 			th.ExpectCondition(

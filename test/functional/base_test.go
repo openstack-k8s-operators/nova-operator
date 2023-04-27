@@ -245,13 +245,13 @@ func GetDefaultNovaConductorSpec() map[string]interface{} {
 }
 
 func CreateNovaConductor(namespace string, spec map[string]interface{}) client.Object {
-	novaAPIName := uuid.New().String()
+	novaConductorName := uuid.New().String()
 
 	raw := map[string]interface{}{
 		"apiVersion": "nova.openstack.org/v1beta1",
 		"kind":       "NovaConductor",
 		"metadata": map[string]interface{}{
-			"name":      novaAPIName,
+			"name":      novaConductorName,
 			"namespace": namespace,
 		},
 		"spec": spec,
@@ -279,6 +279,7 @@ func CreateNovaConductorSecret(namespace string, name string) *corev1.Secret {
 		types.NamespacedName{Namespace: namespace, Name: name},
 		map[string][]byte{
 			"NovaCell0DatabasePassword": []byte("12345678"),
+			"NovaPassword":              []byte("12345678"),
 		},
 	)
 }

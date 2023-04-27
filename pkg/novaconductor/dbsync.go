@@ -30,7 +30,7 @@ import (
 
 const (
 	// cellDBSyncCommand - the command to be used to run db sync for the cell DB
-	cellDBSyncCommand = "/usr/local/bin/kolla_set_configs && /bin/sh -c /usr/local/bin/container-scripts/dbsync.sh"
+	cellDBSyncCommand = "/usr/local/bin/kolla_set_configs && /bin/sh -c /var/lib/openstack/bin/dbsync.sh"
 )
 
 // CellDBSyncJob - define a batchv1.Job to be run to apply the cel DB schema
@@ -39,26 +39,6 @@ func CellDBSyncJob(
 	labels map[string]string,
 	annotations map[string]string,
 ) *batchv1.Job {
-
-	initContainerDetails := ContainerInput{
-		ContainerImage:       instance.Spec.ContainerImage,
-		CellDatabaseHostname: instance.Spec.CellDatabaseHostname,
-		CellDatabaseUser:     instance.Spec.CellDatabaseUser,
-		CellDatabaseName:     "nova_" + instance.Spec.CellName,
-		Secret:               instance.Spec.Secret,
-		// NOTE(gibi): this is a hack until we implement proper secret handling
-		// per cell
-		CellDatabasePasswordSelector:        "NovaCell0DatabasePassword",
-		KeystoneServiceUserPasswordSelector: instance.Spec.PasswordSelectors.Service,
-		// NOTE(gibi): these might be empty if the conductor does not support
-		// up-calls but that is OK
-		APIDatabaseHostname:         instance.Spec.APIDatabaseHostname,
-		APIDatabaseUser:             instance.Spec.APIDatabaseUser,
-		APIDatabaseName:             nova.NovaAPIDatabaseName,
-		APIDatabasePasswordSelector: instance.Spec.PasswordSelectors.APIDatabase,
-		VolumeMounts:                nova.GetAllVolumeMounts(),
-		CellMessageBusSecretName:    instance.Spec.CellMessageBusSecretName,
-	}
 	runAsUser := int64(0)
 
 	args := []string{"-c"}
@@ -89,7 +69,7 @@ func CellDBSyncJob(
 				Spec: corev1.PodSpec{
 					RestartPolicy:      corev1.RestartPolicyOnFailure,
 					ServiceAccountName: nova.ServiceAccount,
-					Volumes: nova.GetVolumes(
+					Volumes: nova.GetOpenstackVolumesWithScripts(
 						nova.GetScriptConfigMapName(instance.Name),
 						nova.GetServiceConfigConfigMapName(instance.Name),
 					),
@@ -105,14 +85,12 @@ func CellDBSyncJob(
 								RunAsUser: &runAsUser,
 							},
 							Env:          env,
-							VolumeMounts: nova.GetServiceVolumeMounts(),
+							VolumeMounts: nova.GetOpenstackVolumeMountsWithScripts(),
 						},
 					},
-					InitContainers: initContainer(initContainerDetails),
 				},
 			},
 		},
 	}
-
 	return job
 }
