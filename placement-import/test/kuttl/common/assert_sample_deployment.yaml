@@ -6,7 +6,7 @@ metadata:
   name: placement
   namespace: openstack
 spec:
-  containerImage: quay.io/tripleozedcentos9/openstack-placement-api:current-tripleo
+  containerImage: quay.io/podified-antelope-centos9/openstack-placement-api:current-podified
   customServiceConfig: |
     [DEFAULT]
     debug = true
@@ -118,7 +118,7 @@ spec:
         - /usr/local/bin/kolla_set_configs && /usr/local/bin/kolla_start
         command:
         - /bin/bash
-        image: quay.io/tripleozedcentos9/openstack-placement-api:current-tripleo
+        image: quay.io/podified-antelope-centos9/openstack-placement-api:current-podified
         imagePullPolicy: IfNotPresent
         livenessProbe:
           failureThreshold: 3
@@ -165,7 +165,7 @@ spec:
           value: placement
         - name: DatabaseUser
           value: placement
-        image: quay.io/tripleozedcentos9/openstack-placement-api:current-tripleo
+        image: quay.io/podified-antelope-centos9/openstack-placement-api:current-podified
         imagePullPolicy: IfNotPresent
         name: init
         resources: {}
