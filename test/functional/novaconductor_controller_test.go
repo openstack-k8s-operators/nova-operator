@@ -44,7 +44,6 @@ var _ = Describe("NovaConductor controller", func() {
 	When("a NovaConductor CR is created pointing to a non existent Secret", func() {
 		BeforeEach(func() {
 			spec := GetDefaultNovaConductorSpec()
-			spec["cellMessageBusSecretName"] = MessageBusSecretName
 			instance := CreateNovaConductor(namespace, spec)
 			novaConductorName = types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
 			DeferCleanup(DeleteInstance, instance)
