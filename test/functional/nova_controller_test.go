@@ -46,6 +46,9 @@ var _ = Describe("Nova controller", func() {
 	var novaSchedulerStatefulSetName types.NamespacedName
 	var novaMetadataName types.NamespacedName
 	var novaMetadataStatefulSetName types.NamespacedName
+	var novaServiceAccountName types.NamespacedName
+	var novaRoleName types.NamespacedName
+	var novaRoleBindingName types.NamespacedName
 
 	BeforeEach(func() {
 		// Uncomment this if you need the full output in the logs from gomega
@@ -116,6 +119,18 @@ var _ = Describe("Nova controller", func() {
 			Namespace: namespace,
 			Name:      novaMetadataName.Name,
 		}
+		novaServiceAccountName = types.NamespacedName{
+			Namespace: namespace,
+			Name:      "nova-" + novaName.Name,
+		}
+		novaRoleName = types.NamespacedName{
+			Namespace: namespace,
+			Name:      novaServiceAccountName.Name + "-role",
+		}
+		novaRoleBindingName = types.NamespacedName{
+			Namespace: namespace,
+			Name:      novaServiceAccountName.Name + "-rolebinding",
+		}
 	})
 
 	When("Nova CR instance is created without cell0", func() {
@@ -181,6 +196,38 @@ var _ = Describe("Nova controller", func() {
 			}, timeout, interval).Should(Succeed())
 
 			DeferCleanup(DeleteInstance, CreateNovaWithCell0(novaName))
+		})
+
+		It("creates service account, role and rolebindig", func() {
+			th.ExpectCondition(
+				novaName,
+				ConditionGetterFunc(NovaConditionGetter),
+				condition.ServiceAccountReadyCondition,
+				corev1.ConditionTrue,
+			)
+			sa := GetServiceAccount(novaServiceAccountName)
+
+			th.ExpectCondition(
+				novaName,
+				ConditionGetterFunc(NovaConditionGetter),
+				condition.RoleReadyCondition,
+				corev1.ConditionTrue,
+			)
+			role := GetRole(novaRoleName)
+			Expect(role.Rules).To(HaveLen(2))
+			Expect(role.Rules[0].Resources).To(Equal([]string{"securitycontextconstraints"}))
+			Expect(role.Rules[1].Resources).To(Equal([]string{"pods"}))
+
+			th.ExpectCondition(
+				novaName,
+				ConditionGetterFunc(NovaConditionGetter),
+				condition.RoleBindingReadyCondition,
+				corev1.ConditionTrue,
+			)
+			binding := GetRoleBinding(novaRoleBindingName)
+			Expect(binding.RoleRef.Name).To(Equal(role.Name))
+			Expect(binding.Subjects).To(HaveLen(1))
+			Expect(binding.Subjects[0].Name).To(Equal(sa.Name))
 		})
 
 		It("registers nova service to keystone", func() {
@@ -266,10 +313,12 @@ var _ = Describe("Nova controller", func() {
 			cell := GetNovaCell(cell0Name)
 			Expect(cell.Spec.CellMessageBusSecretName).To(Equal("rabbitmq-secret"))
 			Expect(cell.Spec.ServiceUser).To(Equal("nova"))
+			Expect(cell.Spec.ServiceAccount).To(Equal(novaServiceAccountName.Name))
 
 			conductor := GetNovaConductor(cell0ConductorName)
 			Expect(conductor.Spec.CellMessageBusSecretName).To(Equal("rabbitmq-secret"))
 			Expect(conductor.Spec.ServiceUser).To(Equal("nova"))
+			Expect(conductor.Spec.ServiceAccount).To(Equal(novaServiceAccountName.Name))
 
 			th.ExpectCondition(
 				cell0ConductorName,
@@ -313,6 +362,7 @@ var _ = Describe("Nova controller", func() {
 			api := GetNovaAPI(novaAPIName)
 			Expect(api.Spec.APIMessageBusSecretName).To(Equal("rabbitmq-secret"))
 			Expect(api.Spec.ServiceUser).To(Equal("nova"))
+			Expect(api.Spec.ServiceAccount).To(Equal(novaServiceAccountName.Name))
 
 			th.SimulateStatefulSetReplicaReady(novaAPIdeploymentName)
 			th.SimulateKeystoneEndpointReady(novaAPIKeystoneEndpointName)
@@ -349,6 +399,8 @@ var _ = Describe("Nova controller", func() {
 
 			scheduler := GetNovaScheduler(novaSchedulerName)
 			Expect(scheduler.Spec.APIMessageBusSecretName).To(Equal("rabbitmq-secret"))
+			Expect(scheduler.Spec.ServiceAccount).To(Equal(novaServiceAccountName.Name))
+
 			th.SimulateStatefulSetReplicaReady(novaSchedulerStatefulSetName)
 
 			th.ExpectCondition(
@@ -383,6 +435,8 @@ var _ = Describe("Nova controller", func() {
 
 			metadata := GetNovaMetadata(novaMetadataName)
 			Expect(metadata.Spec.APIMessageBusSecretName).To(Equal("rabbitmq-secret"))
+			Expect(metadata.Spec.ServiceAccount).To(Equal(novaServiceAccountName.Name))
+
 			th.SimulateStatefulSetReplicaReady(novaMetadataStatefulSetName)
 
 			th.ExpectCondition(

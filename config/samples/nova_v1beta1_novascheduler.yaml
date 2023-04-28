@@ -12,3 +12,4 @@ spec:
   customServiceConfig: |
     [DEFAULT]
     debug=true
+  serviceAccount: nova

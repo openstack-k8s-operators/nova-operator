@@ -276,7 +276,6 @@ spec:
                   password information for the nova-conductor service.
                 type: string
               serviceAccount:
-                default: nova
                 description: ServiceAccount - service account name used internally
                   to provide Nova services the default SA name
                 type: string

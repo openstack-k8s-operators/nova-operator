@@ -10,3 +10,4 @@ spec:
   keystoneAuthURL: http://keystone-public-openstack.apps-crc.testing
   noVNCProxyServiceTemplate: {}
   secret: osp-secret
+  serviceAccount: nova
