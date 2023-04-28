@@ -66,6 +66,7 @@ func GetDefaultNovaAPISpec() map[string]interface{} {
 		"cell0DatabaseHostname":   "nova-cell0-db-hostname",
 		"keystoneAuthURL":         "keystone-auth-url",
 		"containerImage":          ContainerImage,
+		"serviceAccount":          "nova",
 	}
 }
 
@@ -241,6 +242,7 @@ func GetDefaultNovaConductorSpec() map[string]interface{} {
 		"cellMessageBusSecretName": MessageBusSecretName,
 		"containerImage":           ContainerImage,
 		"keystoneAuthURL":          "keystone-auth-url",
+		"serviceAccount":           "nova",
 	}
 }
 
@@ -302,6 +304,7 @@ func GetDefaultNovaCellSpec() map[string]interface{} {
 		"keystoneAuthURL":           "keystone-auth-url",
 		"conductorServiceTemplate":  map[string]interface{}{},
 		"noVNCProxyServiceTemplate": map[string]interface{}{},
+		"serviceAccount":            "nova",
 	}
 }
 
@@ -385,6 +388,7 @@ func GetDefaultNovaSchedulerSpec() map[string]interface{} {
 		"cell0DatabaseHostname":   "nova-cell0-db-hostname",
 		"keystoneAuthURL":         "keystone-auth-url",
 		"containerImage":          ContainerImage,
+		"serviceAccount":          "nova",
 	}
 }
 
@@ -652,5 +656,6 @@ func GetDefaultNovaMetadataSpec() map[string]interface{} {
 		"cellDatabaseHostname":    "nova-cell-db-hostname",
 		"containerImage":          ContainerImage,
 		"keystoneAuthURL":         "keystone-auth-url",
+		"serviceAccount":          "nova",
 	}
 }

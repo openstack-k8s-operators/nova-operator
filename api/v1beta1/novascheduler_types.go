@@ -129,7 +129,6 @@ type NovaSchedulerSpec struct {
 
 	// +kubebuilder:validation:Required
 	// ServiceAccount - service account name used internally to provide Nova services the default SA name
-	// +kubebuilder:default=nova
 	ServiceAccount string `json:"serviceAccount"`
 }
 
