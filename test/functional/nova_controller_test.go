@@ -46,6 +46,7 @@ var _ = Describe("Nova controller", func() {
 	var novaSchedulerStatefulSetName types.NamespacedName
 	var novaMetadataName types.NamespacedName
 	var novaMetadataStatefulSetName types.NamespacedName
+	var novaServiceAccountName string
 
 	BeforeEach(func() {
 		// Uncomment this if you need the full output in the logs from gomega
@@ -116,6 +117,7 @@ var _ = Describe("Nova controller", func() {
 			Namespace: namespace,
 			Name:      novaMetadataName.Name,
 		}
+		novaServiceAccountName = "nova-" + novaName.Name
 	})
 
 	When("Nova CR instance is created without cell0", func() {
@@ -266,10 +268,12 @@ var _ = Describe("Nova controller", func() {
 			cell := GetNovaCell(cell0Name)
 			Expect(cell.Spec.CellMessageBusSecretName).To(Equal("rabbitmq-secret"))
 			Expect(cell.Spec.ServiceUser).To(Equal("nova"))
+			Expect(cell.Spec.ServiceAccount).To(Equal(novaServiceAccountName))
 
 			conductor := GetNovaConductor(cell0ConductorName)
 			Expect(conductor.Spec.CellMessageBusSecretName).To(Equal("rabbitmq-secret"))
 			Expect(conductor.Spec.ServiceUser).To(Equal("nova"))
+			Expect(conductor.Spec.ServiceAccount).To(Equal(novaServiceAccountName))
 
 			th.ExpectCondition(
 				cell0ConductorName,
@@ -313,6 +317,7 @@ var _ = Describe("Nova controller", func() {
 			api := GetNovaAPI(novaAPIName)
 			Expect(api.Spec.APIMessageBusSecretName).To(Equal("rabbitmq-secret"))
 			Expect(api.Spec.ServiceUser).To(Equal("nova"))
+			Expect(api.Spec.ServiceAccount).To(Equal(novaServiceAccountName))
 
 			th.SimulateStatefulSetReplicaReady(novaAPIdeploymentName)
 			th.SimulateKeystoneEndpointReady(novaAPIKeystoneEndpointName)
@@ -349,6 +354,8 @@ var _ = Describe("Nova controller", func() {
 
 			scheduler := GetNovaScheduler(novaSchedulerName)
 			Expect(scheduler.Spec.APIMessageBusSecretName).To(Equal("rabbitmq-secret"))
+			Expect(scheduler.Spec.ServiceAccount).To(Equal(novaServiceAccountName))
+
 			th.SimulateStatefulSetReplicaReady(novaSchedulerStatefulSetName)
 
 			th.ExpectCondition(
@@ -383,6 +390,8 @@ var _ = Describe("Nova controller", func() {
 
 			metadata := GetNovaMetadata(novaMetadataName)
 			Expect(metadata.Spec.APIMessageBusSecretName).To(Equal("rabbitmq-secret"))
+			Expect(metadata.Spec.ServiceAccount).To(Equal(novaServiceAccountName))
+
 			th.SimulateStatefulSetReplicaReady(novaMetadataStatefulSetName)
 
 			th.ExpectCondition(
