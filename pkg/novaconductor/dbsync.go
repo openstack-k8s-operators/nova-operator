@@ -68,7 +68,7 @@ func CellDBSyncJob(
 			Template: corev1.PodTemplateSpec{
 				Spec: corev1.PodSpec{
 					RestartPolicy:      corev1.RestartPolicyOnFailure,
-					ServiceAccountName: nova.ServiceAccount,
+					ServiceAccountName: instance.Spec.ServiceAccount,
 					Volumes: nova.GetOpenstackVolumesWithScripts(
 						nova.GetScriptConfigMapName(instance.Name),
 						nova.GetServiceConfigConfigMapName(instance.Name),

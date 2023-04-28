@@ -23,10 +23,6 @@ import (
 )
 
 const (
-	// ServiceAccount - the name of the account defined in
-	// config/rbac/service_account.yaml providing access rights to all the nova
-	// controllers
-	ServiceAccount = "nova-operator-nova"
 	// KollaServiceCommand - the command to start the service binary in the kolla container
 	KollaServiceCommand = "/usr/local/bin/kolla_set_configs && /usr/local/bin/kolla_start"
 	// NovaAPIDatabaseName - the name of the DB to store tha API schema

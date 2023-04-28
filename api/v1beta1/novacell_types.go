@@ -152,6 +152,11 @@ type NovaCellSpec struct {
 	// NoVNCProxyServiceTemplate - defines the novvncproxy service dedicated for
 	// the cell.
 	NoVNCProxyServiceTemplate NovaNoVNCProxyTemplate `json:"noVNCProxyServiceTemplate"`
+
+	// +kubebuilder:validation:Required
+	// ServiceAccount - service account name used internally to provide Nova services the default SA name
+	// +kubebuilder:default=nova
+	ServiceAccount string `json:"serviceAccount"`
 }
 
 // NovaCellStatus defines the observed state of NovaCell

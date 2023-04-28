@@ -126,6 +126,11 @@ type NovaSchedulerSpec struct {
 	// +kubebuilder:validation:Required
 	// NovaServiceBase specifies the generic fields of the service
 	NovaServiceBase `json:",inline"`
+
+	// +kubebuilder:validation:Required
+	// ServiceAccount - service account name used internally to provide Nova services the default SA name
+	// +kubebuilder:default=nova
+	ServiceAccount string `json:"serviceAccount"`
 }
 
 // NovaSchedulerStatus defines the observed state of NovaScheduler
