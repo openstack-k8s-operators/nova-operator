@@ -34,6 +34,7 @@ import (
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	aee "github.com/openstack-k8s-operators/openstack-ansibleee-operator/api/v1alpha1"
+	rbacv1 "k8s.io/api/rbac/v1"
 )
 
 const (
@@ -658,4 +659,28 @@ func GetDefaultNovaMetadataSpec() map[string]interface{} {
 		"keystoneAuthURL":         "keystone-auth-url",
 		"serviceAccount":          "nova",
 	}
+}
+
+func GetServiceAccount(name types.NamespacedName) *corev1.ServiceAccount {
+	instance := &corev1.ServiceAccount{}
+	Eventually(func(g Gomega) {
+		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
+	}, timeout, interval).Should(Succeed())
+	return instance
+}
+
+func GetRole(name types.NamespacedName) *rbacv1.Role {
+	instance := &rbacv1.Role{}
+	Eventually(func(g Gomega) {
+		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
+	}, timeout, interval).Should(Succeed())
+	return instance
+}
+
+func GetRoleBinding(name types.NamespacedName) *rbacv1.RoleBinding {
+	instance := &rbacv1.RoleBinding{}
+	Eventually(func(g Gomega) {
+		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
+	}, timeout, interval).Should(Succeed())
+	return instance
 }
