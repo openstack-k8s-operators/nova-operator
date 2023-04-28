@@ -21,71 +21,36 @@ spec:
   # osp-secret, but the openstack operator could create a nova specific
   # secret and pass it here in the future.
   secret: osp-secret
-  passwordSelectors:
-    service: NovaPassword
-    apiDatabase: NovaAPIDatabasePassword
-    cellDatabse: NovaCell0DatabasePassword
-  serviceUser: nova
-  debug:
-    stopDBSync: False
-    stopService: False
-    preserveJob: False
   apiServiceTemplate:
     customServiceConfig: |
       # service config customization
+      [DEFAULT]
       debug=True
     defaultConfigOverwrite:
       logging.conf: |
         # my custom logging configuration
     containerImage: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
-    replicate: 3
     nodeSelector: {}
-    resources:
-      limits:
-        cpu: "0.5"
-        memory: 512Mi
-      requests:
-        cpu: "0.1"
-        memory: 200Mi
   schedulerServiceTemplate:
     customServiceConfig: |
       # service config customization
+      [DEFAULT]
       debug=True
     defaultConfigOverwrite:
       policy.yaml: |
         # my custom policy
     containerImage: quay.io/podified-antelope-centos9/openstack-nova-scheduler:current-podified
-    replicate: 3
     nodeSelector: {}
-    resources:
-      limits:
-        cpu: 500m
-        memory: 128Mi
-      requests:
-        cpu: 10m
-        memory: 64Mi
   metadataServiceTemplate:
     customServiceConfig: |
       # service config customization
       [DEFAULT]
       debug=True
-      [api]
-      # make sure this is in sync with the fact that this nova-metadata
-      # service is expected to run on the top level
-      local_metadata_per_cell = False
     defaultConfigOverwrite:
       logging.conf: |
         # my custom logging configuration
     containerImage: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
-    replicate: 3
     nodeSelector: {}
-    resources:
-      limits:
-        cpu: 500m
-        memory: 128Mi
-      requests:
-        cpu: 10m
-        memory: 64Mi
   cellTemplates:
     cell0:
       cellDatabaseInstance: mariadb-cell0
@@ -104,15 +69,7 @@ spec:
           logging.conf: |
           # my custom logging configuration
         containerImage: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
-        replicate: 3
         nodeSelector: {}
-        resources:
-          limits:
-            cpu: 500m
-            memory: 128Mi
-          requests:
-            cpu: 10m
-            memory: 64Mi
       # we never need a metadata service in cell0 as there are no computes there
       metadataServiceTemplate: null
       # we never need novncproxy service in cell0
@@ -133,15 +90,7 @@ spec:
           logging.conf: |
           # my custom logging configuration
         containerImage: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
-        replicate: 3
         nodeSelector: {}
-        resources:
-          limits:
-            cpu: 500m
-            memory: 128Mi
-          requests:
-            cpu: 10m
-            memory: 64Mi
       # we could decide not to add metadata service to this cell as there
       # is metadata at the top
       metadataServiceTemplate: null
@@ -154,15 +103,7 @@ spec:
           logging.conf: |
           # my custom logging configuration
         containerImage: quay.io/podified-antelope-centos9/openstack-nova-novncproxy:current-podified
-        replicate: 3
         nodeSelector: {}
-        resources:
-          limits:
-            cpu: 500m
-            memory: 128Mi
-          requests:
-            cpu: 10m
-            memory: 64Mi
     cell2:
       cellDatabaseInstance: mariadb-cell2
       cellDatabaseUser: nova_cell2
@@ -178,15 +119,7 @@ spec:
           logging.conf: |
           # my custom logging configuration
         containerImage: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
-        replicate: 3
         nodeSelector: {}
-        resources:
-          limits:
-            cpu: 500m
-            memory: 128Mi
-          requests:
-            cpu: 10m
-            memory: 64Mi
       metadataServiceTemplate:
         customServiceConfig: |
           # service config customization
@@ -199,17 +132,8 @@ spec:
         defaultConfigOverwrite:
           logging.conf: |
             # my custom logging configuration
-        # TODO: what is the name of the container for metadata?
         containerImage: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
-        replicate: 3
         nodeSelector: {}
-        resources:
-          limits:
-            cpu: 500m
-            memory: 128Mi
-          requests:
-            cpu: 10m
-            memory: 64Mi
       noVNCProxyServiceTemplate:
         customServiceConfig: |
           # service config customization
@@ -219,12 +143,4 @@ spec:
           logging.conf: |
           # my custom logging configuration
         containerImage: quay.io/podified-antelope-centos9/openstack-nova-novncproxy:current-podified
-        replicate: 3
         nodeSelector: {}
-        resources:
-          limits:
-            cpu: 500m
-            memory: 128Mi
-          requests:
-            cpu: 10m
-            memory: 64Mi
