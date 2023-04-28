@@ -206,7 +206,7 @@ func (r *NovaExternalComputeReconciler) Reconcile(ctx context.Context, req ctrl.
 
 	// we support stopping before deploying the compute node
 	// so only create the AAE CRs if we have deployment enabled.
-	if instance.Spec.Deploy {
+	if *instance.Spec.Deploy {
 		// create all AEE resource in parallel
 		libvirtAEE, err := r.ensureAEEDeployLibvirt(ctx, h, instance)
 		if err != nil {

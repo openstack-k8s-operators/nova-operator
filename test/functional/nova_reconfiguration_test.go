@@ -212,8 +212,9 @@ var _ = Describe("Nova reconfiguration", func() {
 
 				// TODO(gibi): Is there a simpler way to achieve this update
 				// in golang?
+				zero := int32(0)
 				cell0 := nova.Spec.CellTemplates["cell0"]
-				(&cell0).ConductorServiceTemplate.Replicas = int32(0)
+				(&cell0).ConductorServiceTemplate.Replicas = &zero
 				nova.Spec.CellTemplates["cell0"] = cell0
 
 				err := k8sClient.Update(ctx, nova)
@@ -221,7 +222,6 @@ var _ = Describe("Nova reconfiguration", func() {
 
 				deployment = &appsv1.StatefulSet{}
 				g.Expect(k8sClient.Get(ctx, cell0DeploymentName, deployment)).Should(Succeed())
-				zero := int32(0)
 				g.Expect(deployment.Spec.Replicas).To(Equal(&zero))
 			}, timeout, interval).Should(Succeed())
 		})

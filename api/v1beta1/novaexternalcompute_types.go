@@ -64,7 +64,7 @@ type NovaExternalComputeSpec struct {
 	// Deploy true means the nova-operator is allowed to do changes on the external compute node
 	// if necessary. If set to false then the operator will only generate the pre-requisite data (e.g. config maps)
 	// but does not do any modification on the compute node itself.
-	Deploy bool `json:"deploy"`
+	Deploy *bool `json:"deploy"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default="quay.io/podified-antelope-centos9/openstack-nova-compute:current-podified"
@@ -141,6 +141,8 @@ func (c NovaExternalCompute) IsReady() bool {
 // NewNovaExternalComputeSpec returns a NovaExternalComputeSpec where the fields are defaulted according
 // to the CRD definition
 func NewNovaExternalComputeSpec(inventoryConfigMapName string, sshKeySecretName string) NovaExternalComputeSpec {
+	trueVar := true
+
 	return NovaExternalComputeSpec{
 		NovaInstance:              "nova",
 		CellName:                  "cell1",
@@ -148,7 +150,7 @@ func NewNovaExternalComputeSpec(inventoryConfigMapName string, sshKeySecretName 
 		DefaultConfigOverwrite:    nil,
 		InventoryConfigMapName:    inventoryConfigMapName,
 		SSHKeySecretName:          sshKeySecretName,
-		Deploy:                    true,
+		Deploy:                    &trueVar,
 		NovaComputeContainerImage: "quay.io/podified-antelope-centos9/openstack-nova-compute:current-podified",
 		NovaLibvirtContainerImage: "quay.io/podified-antelope-centos9/openstack-nova-libvirt:current-podified",
 		AnsibleEEContainerImage:   "quay.io/openstack-k8s-operators/openstack-ansibleee-runner:latest",

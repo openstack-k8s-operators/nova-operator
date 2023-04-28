@@ -269,7 +269,8 @@ var _ = Describe("Nova multi cell", func() {
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 
 			api := GetNovaAPI(novaAPIName)
-			Expect(api.Spec.Replicas).Should(BeEquivalentTo(1))
+			one := int32(1)
+			Expect(api.Spec.Replicas).Should(BeEquivalentTo(&one))
 			Expect(api.Spec.Cell0DatabaseHostname).To(Equal("hostname-for-db-for-api"))
 			Expect(api.Spec.Cell0DatabaseHostname).To(Equal(api.Spec.APIDatabaseHostname))
 			Expect(api.Spec.APIMessageBusSecretName).To(Equal("mq-for-api-secret"))
