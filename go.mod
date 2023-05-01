@@ -11,10 +11,10 @@ require (
 	github.com/openshift/api v3.9.0+incompatible
 	github.com/openstack-k8s-operators/infra-operator/apis v0.0.0-20230420195930-f71e24e80596
 	github.com/openstack-k8s-operators/keystone-operator/api v0.0.0-20230412125711-203185e59d89
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20230425053514-21f91c966010
-	github.com/openstack-k8s-operators/lib-common/modules/database v0.0.0-20230420182422-a15a0625dc00
-	github.com/openstack-k8s-operators/lib-common/modules/storage v0.0.0-20230420182422-a15a0625dc00
-	github.com/openstack-k8s-operators/lib-common/modules/test v0.0.0-20230420182422-a15a0625dc00
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20230427065458-ec1b923df88c
+	github.com/openstack-k8s-operators/lib-common/modules/database v0.0.0-20230427065458-ec1b923df88c
+	github.com/openstack-k8s-operators/lib-common/modules/storage v0.0.0-20230427065458-ec1b923df88c
+	github.com/openstack-k8s-operators/lib-common/modules/test v0.0.0-20230427065458-ec1b923df88c
 	github.com/openstack-k8s-operators/mariadb-operator/api v0.0.0-20230421100625-87c509d03c93
 	github.com/openstack-k8s-operators/nova-operator/api v0.0.0-20221209164002-f9e6b9363961
 	github.com/openstack-k8s-operators/openstack-ansibleee-operator/api v0.0.0-20230419203517-e2dc6bc77bae
