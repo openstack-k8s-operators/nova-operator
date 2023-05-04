@@ -42,7 +42,7 @@ var _ = Describe("NovaScheduler controller", func() {
 		spec["customServiceConfig"] = "foo=bar"
 		instance := CreateNovaScheduler(namespace, spec)
 		novaSchedulerName = types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
-		DeferCleanup(DeleteInstance, instance)
+		DeferCleanup(th.DeleteInstance, instance)
 
 	})
 
@@ -204,7 +204,7 @@ var _ = Describe("NovaScheduler controller", func() {
 				corev1.ConditionTrue,
 			)
 
-			DeleteInstance(GetNovaScheduler(novaSchedulerName))
+			th.DeleteInstance(GetNovaScheduler(novaSchedulerName))
 
 			Eventually(func() []corev1.ConfigMap {
 				return th.ListConfigMaps(novaSchedulerName.Name).Items
@@ -307,7 +307,7 @@ var _ = Describe("NovaScheduler controller", func() {
 			spec["networkAttachments"] = []string{"internalapi"}
 			instance := CreateNovaScheduler(namespace, spec)
 			novaSchedulerName = types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
-			DeferCleanup(DeleteInstance, instance)
+			DeferCleanup(th.DeleteInstance, instance)
 		})
 
 		It("reports that the definition is missing", func() {
@@ -328,8 +328,8 @@ var _ = Describe("NovaScheduler controller", func() {
 		})
 		It("reports that network attachment is missing", func() {
 			internalAPINADName := types.NamespacedName{Namespace: namespace, Name: "internalapi"}
-			nad := CreateNetworkAttachmentDefinition(internalAPINADName)
-			DeferCleanup(DeleteInstance, nad)
+			nad := th.CreateNetworkAttachmentDefinition(internalAPINADName)
+			DeferCleanup(th.DeleteInstance, nad)
 
 			statefulSetName := types.NamespacedName{
 				Namespace: namespace,
@@ -365,8 +365,8 @@ var _ = Describe("NovaScheduler controller", func() {
 		})
 		It("reports that an IP is missing", func() {
 			internalAPINADName := types.NamespacedName{Namespace: namespace, Name: "internalapi"}
-			nad := CreateNetworkAttachmentDefinition(internalAPINADName)
-			DeferCleanup(DeleteInstance, nad)
+			nad := th.CreateNetworkAttachmentDefinition(internalAPINADName)
+			DeferCleanup(th.DeleteInstance, nad)
 
 			statefulSetName := types.NamespacedName{
 				Namespace: namespace,
@@ -405,8 +405,8 @@ var _ = Describe("NovaScheduler controller", func() {
 		})
 		It("reports NetworkAttachmentsReady if the Pods got the proper annotations", func() {
 			internalAPINADName := types.NamespacedName{Namespace: namespace, Name: "internalapi"}
-			nad := CreateNetworkAttachmentDefinition(internalAPINADName)
-			DeferCleanup(DeleteInstance, nad)
+			nad := th.CreateNetworkAttachmentDefinition(internalAPINADName)
+			DeferCleanup(th.DeleteInstance, nad)
 
 			statefulSetName := types.NamespacedName{
 				Namespace: namespace,
@@ -447,7 +447,7 @@ var _ = Describe("NovaScheduler controller", func() {
 
 			instance := CreateNovaScheduler(namespace, GetDefaultNovaSchedulerSpec())
 			novaSchedulerName = types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
-			DeferCleanup(DeleteInstance, instance)
+			DeferCleanup(th.DeleteInstance, instance)
 
 			th.ExpectCondition(
 				novaSchedulerName,
@@ -497,7 +497,7 @@ var _ = Describe("NovaScheduler controller", func() {
 			)
 
 			internalAPINADName := types.NamespacedName{Namespace: namespace, Name: "internalapi"}
-			DeferCleanup(DeleteInstance, CreateNetworkAttachmentDefinition(internalAPINADName))
+			DeferCleanup(th.DeleteInstance, th.CreateNetworkAttachmentDefinition(internalAPINADName))
 
 			th.ExpectConditionWithDetails(
 				novaSchedulerName,

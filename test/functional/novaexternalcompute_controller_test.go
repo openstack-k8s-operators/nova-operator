@@ -39,7 +39,7 @@ func CreateNovaCellAndEnsureReady(namespace string, novaCellName types.Namespace
 	spec := GetDefaultNovaCellSpec()
 	spec["cellName"] = "cell1"
 	instance := CreateNovaCell(novaCellName, spec)
-	DeferCleanup(DeleteInstance, instance)
+	DeferCleanup(th.DeleteInstance, instance)
 	cellName := types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
 
 	novaConductorName := types.NamespacedName{
@@ -98,21 +98,21 @@ var _ = Describe("NovaExternalCompute", func() {
 			CreateNovaCellAndEnsureReady(namespace, novaCellName)
 			// Create the compute
 			instance := CreateNovaExternalCompute(computeName, GetDefaultNovaExternalComputeSpec(novaName.Name, computeName.Name))
-			DeferCleanup(DeleteInstance, instance)
+			DeferCleanup(th.DeleteInstance, instance)
 			compute := GetNovaExternalCompute(computeName)
 			inventoryName := types.NamespacedName{
 				Namespace: namespace,
 				Name:      compute.Spec.InventoryConfigMapName,
 			}
 			CreateNovaExternalComputeInventoryConfigMap(inventoryName)
-			DeferCleanup(DeleteConfigMap, inventoryName)
+			DeferCleanup(th.DeleteConfigMap, inventoryName)
 
 			sshSecretName := types.NamespacedName{
 				Namespace: namespace,
 				Name:      compute.Spec.SSHKeySecretName,
 			}
 			CreateNovaExternalComputeSSHSecret(sshSecretName)
-			DeferCleanup(DeleteSecret, sshSecretName)
+			DeferCleanup(th.DeleteSecret, sshSecretName)
 			libvirtAEEName := types.NamespacedName{
 				Namespace: namespace,
 				Name:      fmt.Sprintf("%s-%s-deploy-libvirt", compute.Spec.NovaInstance, compute.Name),
@@ -175,13 +175,13 @@ var _ = Describe("NovaExternalCompute", func() {
 			// removed and that can only happen if the finalizer is removed from
 			// it first
 			compute := GetNovaExternalCompute(computeName)
-			DeleteInstance(compute)
+			th.DeleteInstance(compute)
 		})
 	})
 	When("created but Secrets are missing or fields missing", func() {
 		BeforeEach(func() {
 			compute := CreateNovaExternalCompute(computeName, GetDefaultNovaExternalComputeSpec(novaName.Name, computeName.Name))
-			DeferCleanup(DeleteInstance, compute)
+			DeferCleanup(th.DeleteInstance, compute)
 		})
 
 		It("reports missing Inventory configmap", func() {
@@ -218,7 +218,7 @@ var _ = Describe("NovaExternalCompute", func() {
 			compute := GetNovaExternalCompute(computeName)
 			inventoryName := types.NamespacedName{Namespace: namespace, Name: compute.Spec.InventoryConfigMapName}
 			CreateNovaExternalComputeInventoryConfigMap(inventoryName)
-			DeferCleanup(DeleteConfigMap, inventoryName)
+			DeferCleanup(th.DeleteConfigMap, inventoryName)
 			th.ExpectConditionWithDetails(
 				computeName,
 				ConditionGetterFunc(NovaExternalComputeConditionGetter),
@@ -235,7 +235,7 @@ var _ = Describe("NovaExternalCompute", func() {
 			compute := GetNovaExternalCompute(computeName)
 			CreateNovaExternalComputeInventoryConfigMap(
 				types.NamespacedName{Namespace: namespace, Name: compute.Spec.InventoryConfigMapName})
-			CreateEmptySecret(
+			th.CreateEmptySecret(
 				types.NamespacedName{Namespace: namespace, Name: compute.Spec.SSHKeySecretName})
 			th.ExpectConditionWithDetails(
 				computeName,
@@ -254,21 +254,21 @@ var _ = Describe("NovaExternalCompute", func() {
 		BeforeEach(func() {
 			// Create the compute
 			instance := CreateNovaExternalCompute(computeName, GetDefaultNovaExternalComputeSpec(novaName.Name, computeName.Name))
-			DeferCleanup(DeleteInstance, instance)
+			DeferCleanup(th.DeleteInstance, instance)
 			compute := GetNovaExternalCompute(computeName)
 			inventoryName := types.NamespacedName{
 				Namespace: namespace,
 				Name:      compute.Spec.InventoryConfigMapName,
 			}
 			CreateNovaExternalComputeInventoryConfigMap(inventoryName)
-			DeferCleanup(DeleteSecret, inventoryName)
+			DeferCleanup(th.DeleteSecret, inventoryName)
 
 			sshSecretName := types.NamespacedName{
 				Namespace: namespace,
 				Name:      compute.Spec.SSHKeySecretName,
 			}
 			CreateNovaExternalComputeSSHSecret(sshSecretName)
-			DeferCleanup(DeleteSecret, sshSecretName)
+			DeferCleanup(th.DeleteSecret, sshSecretName)
 		})
 
 		It("reports if NovaCell is missing", func() {
@@ -289,7 +289,7 @@ var _ = Describe("NovaExternalCompute", func() {
 			spec["cellName"] = "cell1"
 			instance := CreateNovaCell(novaCellName, spec)
 
-			DeferCleanup(DeleteInstance, instance)
+			DeferCleanup(th.DeleteInstance, instance)
 
 			th.ExpectConditionWithDetails(
 				computeName,
@@ -307,21 +307,21 @@ var _ = Describe("NovaExternalCompute", func() {
 			CreateNovaCellAndEnsureReady(namespace, novaCellName)
 			// Create the compute
 			instance := CreateNovaExternalCompute(computeName, GetDefaultNovaExternalComputeSpec(novaName.Name, computeName.Name))
-			DeferCleanup(DeleteInstance, instance)
+			DeferCleanup(th.DeleteInstance, instance)
 			compute := GetNovaExternalCompute(computeName)
 			inventoryName := types.NamespacedName{
 				Namespace: namespace,
 				Name:      compute.Spec.InventoryConfigMapName,
 			}
 			CreateNovaExternalComputeInventoryConfigMap(inventoryName)
-			DeferCleanup(DeleteConfigMap, inventoryName)
+			DeferCleanup(th.DeleteConfigMap, inventoryName)
 
 			sshSecretName := types.NamespacedName{
 				Namespace: namespace,
 				Name:      compute.Spec.SSHKeySecretName,
 			}
 			CreateNovaExternalComputeSSHSecret(sshSecretName)
-			DeferCleanup(DeleteSecret, sshSecretName)
+			DeferCleanup(th.DeleteSecret, sshSecretName)
 
 			libvirtAEEName := types.NamespacedName{
 				Namespace: namespace,
@@ -377,7 +377,7 @@ var _ = Describe("NovaExternalCompute", func() {
 					"sshKeySecretName":       "foo-ssh-key-secret",
 				})
 			computeFromUnstructured := GetNovaExternalCompute(computeNameUnstructured)
-			DeferCleanup(DeleteInstance, computeFromUnstructured)
+			DeferCleanup(th.DeleteInstance, computeFromUnstructured)
 
 			spec := novav1.NewNovaExternalComputeSpec("foo-inventory-configmap", "foo-ssh-key-secret")
 			err := k8sClient.Create(ctx, &novav1.NovaExternalCompute{
@@ -389,7 +389,7 @@ var _ = Describe("NovaExternalCompute", func() {
 			})
 			Expect(err).ShouldNot(HaveOccurred())
 			computeFromGolang := GetNovaExternalCompute(computeNameGolang)
-			DeferCleanup(DeleteInstance, computeFromGolang)
+			DeferCleanup(th.DeleteInstance, computeFromGolang)
 
 			Expect(computeFromUnstructured.Spec).To(Equal(computeFromGolang.Spec))
 		})

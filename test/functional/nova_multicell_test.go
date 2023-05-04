@@ -198,7 +198,7 @@ var _ = Describe("Nova multi cell", func() {
 			spec["apiDatabaseInstance"] = "db-for-api"
 			spec["apiMessageBusInstance"] = "mq-for-api"
 
-			DeferCleanup(DeleteInstance, CreateNova(novaName, spec))
+			DeferCleanup(th.DeleteInstance, CreateNova(novaName, spec))
 			keystoneAPIName := th.CreateKeystoneAPI(namespace)
 			DeferCleanup(th.DeleteKeystoneAPI, keystoneAPIName)
 			keystoneAPI := th.GetKeystoneAPI(keystoneAPIName)
@@ -677,7 +677,7 @@ var _ = Describe("Nova multi cell", func() {
 			spec["apiDatabaseInstance"] = "openstack"
 			spec["apiMessageBusInstance"] = "mq-for-api"
 
-			DeferCleanup(DeleteInstance, CreateNova(novaName, spec))
+			DeferCleanup(th.DeleteInstance, CreateNova(novaName, spec))
 			keystoneAPIName := th.CreateKeystoneAPI(namespace)
 			DeferCleanup(th.DeleteKeystoneAPI, keystoneAPIName)
 			keystoneAPI := th.GetKeystoneAPI(keystoneAPIName)
