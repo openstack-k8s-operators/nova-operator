@@ -9,16 +9,16 @@ require (
 	github.com/onsi/ginkgo/v2 v2.9.2
 	github.com/onsi/gomega v1.27.6
 	github.com/openshift/api v3.9.0+incompatible
-	github.com/openstack-k8s-operators/infra-operator/apis v0.0.0-20230420195930-f71e24e80596
-	github.com/openstack-k8s-operators/keystone-operator/api v0.0.0-20230412125711-203185e59d89
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20230505072021-2a086c90371a
-	github.com/openstack-k8s-operators/lib-common/modules/database v0.0.0-20230505072021-2a086c90371a
-	github.com/openstack-k8s-operators/lib-common/modules/storage v0.0.0-20230505072021-2a086c90371a
-	github.com/openstack-k8s-operators/lib-common/modules/test v0.0.0-20230505072021-2a086c90371a
-	github.com/openstack-k8s-operators/lib-common/modules/test-operators v0.0.0-20230505072021-2a086c90371a
-	github.com/openstack-k8s-operators/mariadb-operator/api v0.0.0-20230428102546-5d2d648e367e
+	github.com/openstack-k8s-operators/infra-operator/apis v0.0.0-20230505142843-1e2b5bdae8b3
+	github.com/openstack-k8s-operators/keystone-operator/api v0.0.0-20230503142030-4d9a9bccf284
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20230505090059-1db7d191885e
+	github.com/openstack-k8s-operators/lib-common/modules/database v0.0.0-20230505090059-1db7d191885e
+	github.com/openstack-k8s-operators/lib-common/modules/storage v0.0.0-20230505090059-1db7d191885e
+	github.com/openstack-k8s-operators/lib-common/modules/test v0.0.0-20230505090059-1db7d191885e
+	github.com/openstack-k8s-operators/lib-common/modules/test-operators v0.0.0-20230505090059-1db7d191885e
+	github.com/openstack-k8s-operators/mariadb-operator/api v0.0.0-20230505124740-6d38a5ee77b8
 	github.com/openstack-k8s-operators/nova-operator/api v0.0.0-20221209164002-f9e6b9363961
-	github.com/openstack-k8s-operators/openstack-ansibleee-operator/api v0.0.0-20230419203517-e2dc6bc77bae
+	github.com/openstack-k8s-operators/openstack-ansibleee-operator/api v0.0.0-20230505124228-6b6fc1ebdf53
 	go.uber.org/zap v1.24.0
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.26.3
