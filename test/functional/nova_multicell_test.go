@@ -650,4 +650,57 @@ var _ = Describe("Nova multicell", func() {
 			)
 		})
 	})
+	When("cell1 DB and MQ create finishes before cell0 DB create", func() {
+		BeforeEach(func() {
+			DeferCleanup(k8sClient.Delete, ctx, CreateNovaSecret(namespace, SecretName))
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateNovaMessageBusSecret(namespace, "mq-for-cell1-secret"),
+			)
+			serviceSpec := corev1.ServiceSpec{Ports: []corev1.ServicePort{{Port: 3306}}}
+			DeferCleanup(th.DeleteDBService, th.CreateDBService(namespace, "db-for-api", serviceSpec))
+			DeferCleanup(th.DeleteDBService, th.CreateDBService(namespace, "db-for-cell1", serviceSpec))
+
+			spec := GetDefaultNovaSpec()
+			cell0 := GetDefaultNovaCellTemplate()
+			cell0["cellName"] = "cell0"
+			cell0["cellDatabaseInstance"] = "db-for-api"
+			cell0["cellDatabaseUser"] = "nova_cell0"
+
+			cell1 := GetDefaultNovaCellTemplate()
+			cell1["cellName"] = "cell1"
+			cell1["cellDatabaseInstance"] = "db-for-cell1"
+			cell1["cellDatabaseUser"] = "nova_cell1"
+			cell1["cellMessageBusInstance"] = "mq-for-cell1"
+
+			spec["cellTemplates"] = map[string]interface{}{
+				"cell0": cell0,
+				"cell1": cell1,
+			}
+			spec["apiDatabaseInstance"] = "db-for-api"
+			spec["apiMessageBusInstance"] = "mq-for-api"
+
+			DeferCleanup(DeleteInstance, CreateNova(novaName, spec))
+			keystoneAPIName := th.CreateKeystoneAPI(namespace)
+			DeferCleanup(th.DeleteKeystoneAPI, keystoneAPIName)
+			keystoneAPI := th.GetKeystoneAPI(keystoneAPIName)
+			keystoneAPI.Status.APIEndpoints["internal"] = "http://keystone-internal-openstack.testing"
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Status().Update(ctx, keystoneAPI.DeepCopy())).Should(Succeed())
+			}, timeout, interval).Should(Succeed())
+			th.SimulateKeystoneServiceReady(novaKeystoneServiceName)
+		})
+
+		// We cannot merge this test as is because if the tests run
+		// in parallel then this test hangs forever (not even the global
+		// ginkgo --timeout stops it). If you run it with --procs 1 locally
+		// then it shows the panic and terminates
+		// It("panics", func(ctx SpecContext) {
+		// 	th.SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
+		// 	th.SimulateTransportURLReady(cell1.TransportURLName)
+
+		// 	// BUG: the nova-controller-manager panics but it should not
+		// })
+	})
 })
