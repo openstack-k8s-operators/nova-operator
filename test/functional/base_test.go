@@ -148,7 +148,6 @@ func GetDefaultNovaSpec() map[string]interface{} {
 
 func GetDefaultNovaCellTemplate() map[string]interface{} {
 	return map[string]interface{}{
-		"cellName":         "cell0",
 		"cellDatabaseUser": "nova_cell0",
 		"hasAPIAccess":     true,
 	}
