@@ -392,9 +392,10 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		}
 
 		// The cell0 is always handled first in the loop as we iterate on
-		// orderedCellNames. So for any other cells we can get cell0 from cells
-		// as it is already there.
-		if cellName != Cell0Name && cellTemplate.HasAPIAccess && !cells[Cell0Name].IsReady() {
+		// orderedCellNames. So for any other cells we can assume that if cell0
+		// is not in the list then cell0 is not ready
+		cell0Ready := (cells[Cell0Name] != nil && cells[Cell0Name].IsReady())
+		if cellName != Cell0Name && cellTemplate.HasAPIAccess && !cell0Ready {
 			allCellsReady = false
 			skippedCells = append(skippedCells, cellName)
 			util.LogForObject(

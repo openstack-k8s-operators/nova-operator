@@ -533,6 +533,7 @@ func GetCellNames(novaName types.NamespacedName, cell string) CellNames {
 }
 
 type NovaNames struct {
+	Namespace                       string
 	NovaName                        types.NamespacedName
 	InternalNovaServiceName         types.NamespacedName
 	PublicNovaServiceName           types.NamespacedName
@@ -599,7 +600,8 @@ func GetNovaNames(novaName types.NamespacedName, cellNames []string) NovaNames {
 	}
 
 	return NovaNames{
-		NovaName: novaName,
+		Namespace: novaName.Namespace,
+		NovaName:  novaName,
 		InternalNovaServiceName: types.NamespacedName{ // TODO replace for nova-internal
 			Namespace: novaName.Namespace,
 			Name:      novaName.Name + "-internal",
