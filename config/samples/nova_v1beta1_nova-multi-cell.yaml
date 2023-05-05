@@ -53,7 +53,7 @@ spec:
     nodeSelector: {}
   cellTemplates:
     cell0:
-      cellDatabaseInstance: mariadb-cell0
+      cellDatabaseInstance: openstack
       cellDatabaseUser: nova_cell0
       cellMessageBusInstance: rabbitmq
       # cell0 alway needs access to the API DB and MQ as it hosts the super
