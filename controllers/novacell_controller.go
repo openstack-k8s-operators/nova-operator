@@ -115,14 +115,13 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 		return result, err
 	}
 
-	if instance.Spec.MetadataServiceTemplate.Replicas != 0 {
+	if *instance.Spec.MetadataServiceTemplate.Replicas != 0 && instance.Spec.CellName != Cell0Name {
 		result, err = r.ensureMetadata(ctx, h, instance)
 		if err != nil {
 			return result, err
 		}
 	} else {
 		instance.Status.Conditions.Remove(novav1.NovaMetadataReadyCondition)
-		return ctrl.Result{}, nil
 	}
 
 	util.LogForObject(h, "Successfully reconciled", instance)
