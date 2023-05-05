@@ -17,6 +17,7 @@ package functional_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -68,6 +69,7 @@ func GetDefaultNovaAPISpec() map[string]interface{} {
 		"keystoneAuthURL":         "keystone-auth-url",
 		"containerImage":          ContainerImage,
 		"serviceAccount":          "nova",
+		"registeredCells":         map[string]string{},
 	}
 }
 
@@ -288,12 +290,14 @@ func CreateNovaConductorSecret(namespace string, name string) *corev1.Secret {
 }
 
 func CreateNovaMessageBusSecret(namespace string, name string) *corev1.Secret {
-	return CreateSecret(
+	s := CreateSecret(
 		types.NamespacedName{Namespace: namespace, Name: name},
 		map[string][]byte{
-			"transport_url": []byte("rabbit://fake"),
+			"transport_url": []byte(fmt.Sprintf("rabbit://%s/fake", name)),
 		},
 	)
+	logger.Info("Secret created", "name", name)
+	return s
 }
 
 func GetDefaultNovaCellSpec() map[string]interface{} {
@@ -390,6 +394,7 @@ func GetDefaultNovaSchedulerSpec() map[string]interface{} {
 		"keystoneAuthURL":         "keystone-auth-url",
 		"containerImage":          ContainerImage,
 		"serviceAccount":          "nova",
+		"registeredCells":         map[string]string{},
 	}
 }
 
@@ -683,4 +688,13 @@ func GetRoleBinding(name types.NamespacedName) *rbacv1.RoleBinding {
 		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
 	}, timeout, interval).Should(Succeed())
 	return instance
+}
+
+func GetEnvValue(envs []corev1.EnvVar, name string, defaultValue string) string {
+	for _, e := range envs {
+		if e.Name == name {
+			return e.Value
+		}
+	}
+	return defaultValue
 }

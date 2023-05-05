@@ -68,6 +68,29 @@ const (
 	MQCompleted MessageBusStatus = iota
 )
 
+type CellDeploymentStatus int
+
+// CellDeploymentStatus -
+const (
+	// CellDeploying indicates that NovaCell is created and waiting to reach
+	// Ready status
+	CellDeploying CellDeploymentStatus = iota
+	// CellMapping indicates that NovaCell reached the Ready status and it is
+	// being mapped to the Nova API database
+	CellMapping CellDeploymentStatus = iota
+	// CellMappingFailed indicates that NovaCell reached the Ready status but
+	// mapping it to the Nova API database failed
+	CellMappingFailed CellDeploymentStatus = iota
+	// CellMappingReady indicates that NovaCell reached the Ready status and
+	// it is mapped to the Nova API database
+	CellMappingReady CellDeploymentStatus = iota
+	// CellReady indicates that the NovaCell is Ready and it is mapped to
+	// Nova API database so it is accessible.
+	CellReady CellDeploymentStatus = iota
+	// CellFailed indicates that the NovaCell deployment failed.
+	CellFailed CellDeploymentStatus = iota
+)
+
 // Database -
 type Database struct {
 	Database *database.Database

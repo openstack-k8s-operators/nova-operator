@@ -177,7 +177,7 @@ var _ = Describe("NovaScheduler controller", func() {
 			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
 			Expect(configDataMap.Data).Should(
 				HaveKeyWithValue("01-nova.conf",
-					ContainSubstring("transport_url=rabbit://fake")))
+					ContainSubstring("transport_url=rabbit://rabbitmq-secret/fake")))
 			Expect(configDataMap.Data).Should(
 				HaveKeyWithValue("02-nova-override.conf", "foo=bar"))
 		})
@@ -245,11 +245,11 @@ var _ = Describe("NovaScheduler controller", func() {
 
 			ss := th.GetStatefulSet(statefulSetName)
 			Expect(int(*ss.Spec.Replicas)).To(Equal(1))
-			Expect(ss.Spec.Template.Spec.Volumes).To(HaveLen(2))
+			Expect(ss.Spec.Template.Spec.Volumes).To(HaveLen(1))
 			Expect(ss.Spec.Template.Spec.Containers).To(HaveLen(1))
 
 			container := ss.Spec.Template.Spec.Containers[0]
-			Expect(container.VolumeMounts).To(HaveLen(2))
+			Expect(container.VolumeMounts).To(HaveLen(1))
 			Expect(container.Image).To(Equal(ContainerImage))
 		})
 
@@ -544,6 +544,27 @@ var _ = Describe("NovaScheduler controller", func() {
 				condition.ReadyCondition,
 				corev1.ConditionTrue,
 			)
+		})
+		It("applies new RegisteredCells input to its StatefulSet to trigger Pod restart", func() {
+			originalConfigHash := GetEnvValue(
+				th.GetStatefulSet(statefulSetName).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
+
+			// Simulate that a new cell is added and Nova controller registered it and
+			// therefore a new cell is added to RegisteredCells
+			Eventually(func(g Gomega) {
+				novaAPI := GetNovaScheduler(novaSchedulerName)
+				novaAPI.Spec.RegisteredCells = map[string]string{"cell0": "cell0-config-hash"}
+				err := k8sClient.Update(ctx, novaAPI)
+				g.Expect(err == nil || k8s_errors.IsConflict(err)).To(BeTrue())
+			}, timeout, interval).Should(Succeed())
+
+			// Assert that the CONFIG_HASH of the StateFulSet is changed due to this reconfiguration
+			Eventually(func(g Gomega) {
+				currentConfigHash := GetEnvValue(
+					th.GetStatefulSet(statefulSetName).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
+				g.Expect(originalConfigHash).NotTo(Equal(currentConfigHash))
+
+			}, timeout, interval).Should(Succeed())
 		})
 	})
 })

@@ -21,91 +21,73 @@ import (
 )
 
 const (
-	scriptVolume       = "scripts"
-	configVolume       = "config-data"
-	mergedConfigVolume = "config-data-merged"
-	logVolume          = "logs"
+	scriptVolume = "scripts"
+	configVolume = "config-data"
+	logVolume    = "logs"
 )
 
-/// GetOpenstackVolumeMountsGeneric - VolumeMounts use to inject config and/or scripts
+var (
+	configMode int32 = 0640
+	scriptMode int32 = 0740
+)
 
-func getOpenstackVolumeMountsGeneric(with_scripts bool) []corev1.VolumeMount {
-	mounts := []corev1.VolumeMount{
-		{
-			Name:      configVolume,
-			MountPath: "/var/lib/openstack/config",
-			ReadOnly:  true,
-		},
-		{
-			Name:      logVolume,
-			MountPath: "/var/log/nova",
-			ReadOnly:  false,
-		},
+func GetConfigVolumeMount() corev1.VolumeMount {
+	return corev1.VolumeMount{
+		Name:      configVolume,
+		MountPath: "/var/lib/openstack/config",
+		ReadOnly:  false,
 	}
-	if with_scripts {
-		mounts = append(mounts, corev1.VolumeMount{Name: scriptVolume, MountPath: "/var/lib/openstack/bin", ReadOnly: true})
-	}
-	return mounts
 }
 
-// GetOpenstackVolumeMounts - VolumeMounts use to inject config and scripts
-func GetOpenstackVolumeMounts() []corev1.VolumeMount {
-	return getOpenstackVolumeMountsGeneric(false)
-}
-
-// GetOpenstackVolumeMountsWithScripts - VolumeMounts use to inject config and scripts
-func GetOpenstackVolumeMountsWithScripts() []corev1.VolumeMount {
-	return getOpenstackVolumeMountsGeneric(true)
-}
-
-func getVolumesGeneric(scriptConfigMapName string, serviceConfigConfigMapName string) []corev1.Volume {
-	var configMode int32 = 0640
-	var scriptMode int32 = 0740
-	vols := []corev1.Volume{
-		{
-			Name: configVolume,
-			VolumeSource: corev1.VolumeSource{
-				ConfigMap: &corev1.ConfigMapVolumeSource{
-					DefaultMode: &configMode,
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: serviceConfigConfigMapName,
-					},
+func GetConfigVolume(configMapName string) corev1.Volume {
+	return corev1.Volume{
+		Name: configVolume,
+		VolumeSource: corev1.VolumeSource{
+			ConfigMap: &corev1.ConfigMapVolumeSource{
+				DefaultMode: &configMode,
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: configMapName,
 				},
 			},
 		},
-		{
-			Name: logVolume,
-			VolumeSource: corev1.VolumeSource{
-				EmptyDir: &corev1.EmptyDirVolumeSource{Medium: ""},
+	}
+}
+
+func GetLogVolumeMount() corev1.VolumeMount {
+	return corev1.VolumeMount{
+		Name:      logVolume,
+		MountPath: "/var/log/nova",
+		ReadOnly:  false,
+	}
+}
+
+func GetLogVolume() corev1.Volume {
+	return corev1.Volume{
+		Name: logVolume,
+		VolumeSource: corev1.VolumeSource{
+			EmptyDir: &corev1.EmptyDirVolumeSource{Medium: ""},
+		},
+	}
+}
+
+func GetScriptVolumeMount() corev1.VolumeMount {
+	return corev1.VolumeMount{
+		Name:      scriptVolume,
+		MountPath: "/var/lib/openstack/bin",
+		ReadOnly:  false,
+	}
+}
+
+func GetScriptVolume(configMapName string) corev1.Volume {
+	return corev1.Volume{
+		Name: scriptVolume,
+		VolumeSource: corev1.VolumeSource{
+			ConfigMap: &corev1.ConfigMapVolumeSource{
+				DefaultMode: &scriptMode,
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: configMapName,
+				},
 			},
 		},
 	}
-	if len(scriptConfigMapName) > 0 {
-		vols = append(vols,
-			corev1.Volume{
-				Name: scriptVolume,
-				VolumeSource: corev1.VolumeSource{
-					ConfigMap: &corev1.ConfigMapVolumeSource{
-						DefaultMode: &scriptMode,
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: scriptConfigMapName,
-						},
-					},
-				},
-			},
-		)
-	}
-	return vols
-}
-
-// GetOpenstackVolumesWithScripts - returns the volumes used for the service deployment and for
-// any jobs needs access for the full service configuration and scripts
-func GetOpenstackVolumesWithScripts(scriptConfigMapName string, serviceConfigConfigMapName string) []corev1.Volume {
-	return getVolumesGeneric(scriptConfigMapName, serviceConfigConfigMapName)
-}
-
-// GetOpenstackVolumes - returns the volumes used for the service deployment and for
-// any jobs needs access for the full service configuration
-func GetOpenstackVolumes(serviceConfigConfigMapName string) []corev1.Volume {
-	return getVolumesGeneric("", serviceConfigConfigMapName)
 }

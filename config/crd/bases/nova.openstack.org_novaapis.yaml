@@ -200,6 +200,15 @@ spec:
                       password from the Secret
                     type: string
                 type: object
+              registeredCells:
+                additionalProperties:
+                  type: string
+                description: RegisteredCells is a map keyed by cell names that are
+                  registered in the nova_api database with a value that is the hash
+                  of the given cell configuration. This is used to detect when a new
+                  cell is added or an existing cell is reconfigured to trigger refresh
+                  of the in memory cell caches of the service.
+                type: object
               replicas:
                 default: 1
                 description: Replicas of the service to run
@@ -273,6 +282,7 @@ spec:
             - apiMessageBusSecretName
             - cell0DatabaseHostname
             - keystoneAuthURL
+            - registeredCells
             - secret
             - serviceAccount
             type: object

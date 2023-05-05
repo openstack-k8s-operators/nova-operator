@@ -183,8 +183,16 @@ func (r *NovaAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (re
 		return ctrl.Result{}, err
 	}
 
-	// create hash over all the different input resources to identify if any of
+	// Create hash over all the different input resources to identify if any of
 	// those changed and a restart/recreate is required.
+	// We have a special input, the registered cells, as the openstack service
+	// needs to be restarted if this changes to refresh the in memory cell caches
+	cellHash, err := hashOfStringMap(instance.Spec.RegisteredCells)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	hashes["cells"] = env.SetValue(cellHash)
+
 	inputHash, err := hashOfInputHashes(ctx, hashes)
 	if err != nil {
 		return ctrl.Result{}, err

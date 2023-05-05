@@ -36,6 +36,7 @@ type Cell struct {
 	CellDBSyncJobName        types.NamespacedName
 	ConductorStatefulSetName types.NamespacedName
 	TransportURLName         types.NamespacedName
+	CellMappingJobName       types.NamespacedName
 }
 
 func NewCell(novaName types.NamespacedName, cell string) Cell {
@@ -64,6 +65,10 @@ func NewCell(novaName types.NamespacedName, cell string) Cell {
 		TransportURLName: types.NamespacedName{
 			Namespace: novaName.Namespace,
 			Name:      novaName.Name + "-" + cell + "-transport",
+		},
+		CellMappingJobName: types.NamespacedName{
+			Namespace: novaName.Namespace,
+			Name:      cellName.Name + "-cell-mapping",
 		},
 	}
 
@@ -247,6 +252,8 @@ var _ = Describe("Nova multi cell", func() {
 				corev1.ConditionTrue,
 			)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
+			th.SimulateJobSuccess(cell0.CellMappingJobName)
+
 			th.ExpectCondition(
 				cell0.CellName,
 				ConditionGetterFunc(NovaCellConditionGetter),
@@ -259,6 +266,11 @@ var _ = Describe("Nova multi cell", func() {
 				novav1.NovaAllCellsReadyCondition,
 				corev1.ConditionFalse,
 			)
+			Eventually(func(g Gomega) {
+				nova := GetNova(novaName)
+				g.Expect(nova.Status.RegisteredCells).To(
+					HaveKeyWithValue(cell0.CellName.Name, Not(BeEmpty())))
+			}, timeout, interval).Should(Succeed())
 		})
 
 		It("creates NovaAPI", func() {
@@ -267,6 +279,7 @@ var _ = Describe("Nova multi cell", func() {
 			th.SimulateTransportURLReady(cell0.TransportURLName)
 			th.SimulateJobSuccess(cell0.CellDBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
+			th.SimulateJobSuccess(cell0.CellMappingJobName)
 
 			api := GetNovaAPI(novaAPIName)
 			one := int32(1)
@@ -313,6 +326,7 @@ var _ = Describe("Nova multi cell", func() {
 			th.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
 			th.SimulateJobSuccess(cell0.CellDBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
+			th.SimulateJobSuccess(cell0.CellMappingJobName)
 			th.SimulateStatefulSetReplicaReady(novaAPIdeploymentName)
 			th.SimulateKeystoneEndpointReady(novaAPIKeystoneEndpointName)
 
@@ -358,6 +372,7 @@ var _ = Describe("Nova multi cell", func() {
 			th.SimulateTransportURLReady(cell0.TransportURLName)
 			th.SimulateJobSuccess(cell0.CellDBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
+			th.SimulateJobSuccess(cell0.CellMappingJobName)
 			th.SimulateStatefulSetReplicaReady(novaAPIdeploymentName)
 			th.SimulateKeystoneEndpointReady(novaAPIKeystoneEndpointName)
 			th.SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
@@ -399,6 +414,7 @@ var _ = Describe("Nova multi cell", func() {
 				corev1.ConditionTrue,
 			)
 			th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
+			th.SimulateJobSuccess(cell1.CellMappingJobName)
 			th.ExpectCondition(
 				cell1.CellName,
 				ConditionGetterFunc(NovaCellConditionGetter),
@@ -411,6 +427,22 @@ var _ = Describe("Nova multi cell", func() {
 				novav1.NovaAllCellsReadyCondition,
 				corev1.ConditionFalse,
 			)
+			Eventually(func(g Gomega) {
+				nova := GetNova(novaName)
+				g.Expect(nova.Status.RegisteredCells).To(
+					HaveKeyWithValue(cell0.CellName.Name, Not(BeEmpty())))
+				g.Expect(nova.Status.RegisteredCells).To(
+					HaveKeyWithValue(cell1.CellName.Name, Not(BeEmpty())))
+			}, timeout, interval).Should(Succeed())
+
+			// RegisteredCells are distributed
+			nova := GetNova(novaName)
+			api := GetNovaAPI(novaAPIName)
+			Expect(api.Spec.RegisteredCells).To(Equal(nova.Status.RegisteredCells))
+			scheduler := GetNovaScheduler(novaSchedulerName)
+			Expect(scheduler.Spec.RegisteredCells).To(Equal(nova.Status.RegisteredCells))
+			metadata := GetNovaMetadata(novaMetadataName)
+			Expect(metadata.Spec.RegisteredCells).To(Equal(nova.Status.RegisteredCells))
 		})
 		It("creates cell2 NovaCell", func() {
 			th.SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
@@ -418,6 +450,7 @@ var _ = Describe("Nova multi cell", func() {
 			th.SimulateTransportURLReady(cell0.TransportURLName)
 			th.SimulateJobSuccess(cell0.CellDBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
+			th.SimulateJobSuccess(cell0.CellMappingJobName)
 			th.SimulateStatefulSetReplicaReady(novaAPIdeploymentName)
 			th.SimulateKeystoneEndpointReady(novaAPIKeystoneEndpointName)
 			th.SimulateStatefulSetReplicaReady(novaSchedulerStatefulSetName)
@@ -426,6 +459,7 @@ var _ = Describe("Nova multi cell", func() {
 			th.SimulateTransportURLReady(cell1.TransportURLName)
 			th.SimulateJobSuccess(cell1.CellDBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
+			th.SimulateJobSuccess(cell1.CellMappingJobName)
 
 			th.SimulateMariaDBDatabaseCompleted(cell2.MariaDBDatabaseName)
 			th.SimulateTransportURLReady(cell2.TransportURLName)
@@ -465,6 +499,24 @@ var _ = Describe("Nova multi cell", func() {
 				corev1.ConditionTrue,
 			)
 			th.SimulateStatefulSetReplicaReady(cell2.ConductorStatefulSetName)
+			th.SimulateJobSuccess(cell2.CellMappingJobName)
+
+			// Even though cell2 has no API access the cell2 mapping Job has
+			// API access so that it can register cell2 to the API DB.
+			mappingJobConfig := th.GetConfigMap(
+				types.NamespacedName{
+					Namespace: namespace,
+					Name:      fmt.Sprintf("%s-config-data", cell2.CellName.Name+"-manage"),
+				},
+			)
+			Expect(mappingJobConfig.Data).Should(HaveKey("01-nova.conf"))
+			Expect(mappingJobConfig.Data["01-nova.conf"]).To(
+				ContainSubstring("[database]\nconnection = mysql+pymysql://nova_cell2:12345678@hostname-for-db-for-cell2/nova_cell2"),
+			)
+			Expect(mappingJobConfig.Data["01-nova.conf"]).To(
+				ContainSubstring("[api_database]\nconnection = mysql+pymysql://nova_api:12345678@hostname-for-db-for-api/nova_api"),
+			)
+
 			th.ExpectCondition(
 				cell2.CellName,
 				ConditionGetterFunc(NovaCellConditionGetter),
@@ -485,6 +537,24 @@ var _ = Describe("Nova multi cell", func() {
 				condition.ReadyCondition,
 				corev1.ConditionTrue,
 			)
+			Eventually(func(g Gomega) {
+				nova := GetNova(novaName)
+				g.Expect(nova.Status.RegisteredCells).To(
+					HaveKeyWithValue(cell0.CellName.Name, Not(BeEmpty())))
+				g.Expect(nova.Status.RegisteredCells).To(
+					HaveKeyWithValue(cell1.CellName.Name, Not(BeEmpty())))
+				g.Expect(nova.Status.RegisteredCells).To(
+					HaveKeyWithValue(cell2.CellName.Name, Not(BeEmpty())))
+			}, timeout, interval).Should(Succeed())
+
+			// RegisteredCells are distributed
+			nova := GetNova(novaName)
+			api := GetNovaAPI(novaAPIName)
+			Expect(api.Spec.RegisteredCells).To(Equal(nova.Status.RegisteredCells))
+			scheduler := GetNovaScheduler(novaSchedulerName)
+			Expect(scheduler.Spec.RegisteredCells).To(Equal(nova.Status.RegisteredCells))
+			metadata := GetNovaMetadata(novaMetadataName)
+			Expect(metadata.Spec.RegisteredCells).To(Equal(nova.Status.RegisteredCells))
 		})
 		It("creates cell2 NovaCell even if everything else fails", func() {
 			// Don't simulate any success for any other DBs MQs or Cells
@@ -645,9 +715,12 @@ var _ = Describe("Nova multi cell", func() {
 			Expect(ss.Status.Replicas).To(Equal(int32(0)))
 			Expect(ss.Status.AvailableReplicas).To(Equal(int32(0)))
 
+			th.SimulateJobSuccess(cell0.CellMappingJobName)
+
 			// As cell0 is ready cell1 is deployed
 			th.SimulateJobSuccess(cell1.CellDBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
+			th.SimulateJobSuccess(cell1.CellMappingJobName)
 
 			th.ExpectCondition(
 				cell1.CellName,

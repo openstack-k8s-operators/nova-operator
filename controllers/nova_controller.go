@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"strings"
 
+	batchv1 "k8s.io/api/batch/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -29,11 +30,16 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	common "github.com/openstack-k8s-operators/lib-common/modules/common"
+	"github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/configmap"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/endpoint"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
+	job "github.com/openstack-k8s-operators/lib-common/modules/common/job"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/labels"
 	common_rbac "github.com/openstack-k8s-operators/lib-common/modules/common/rbac"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/secret"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	database "github.com/openstack-k8s-operators/lib-common/modules/database"
 
@@ -358,7 +364,8 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	// DB or MQ is not yet created and those which needs API DB access but
 	// cell0 is not ready yet
 	failedCells := []string{}
-	notReadyCells := []string{}
+	deployingCells := []string{}
+	mappingCells := []string{}
 	skippedCells := []string{}
 	readyCells := []string{}
 	cells := map[string]*novav1.NovaCell{}
@@ -391,30 +398,36 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 			allCellsReady = false
 			skippedCells = append(skippedCells, cellName)
 			util.LogForObject(
-				h, "Skippig NovaCell as cell0 is not ready yet and this cell needs API DB access",
+				h, "Skip NovaCell as cell0 is not ready yet and this cell needs API DB access",
 				instance, "CellName", cellName)
 			continue
 		}
 
-		cell, _, err := r.ensureCell(
+		cell, status, err := r.ensureCell(
 			ctx, h, instance, cellName, cellTemplate,
 			cellDB.Database, apiDB, cellMQ.SecretName, keystoneAuthURL,
 		)
 		cells[cellName] = cell
-		if err != nil {
+		switch status {
+		case nova.CellDeploying:
+			deployingCells = append(deployingCells, cellName)
+		case nova.CellMapping:
+			mappingCells = append(mappingCells, cellName)
+		case nova.CellFailed, nova.CellMappingFailed:
 			failedCells = append(failedCells, fmt.Sprintf("%s(%v)", cellName, err.Error()))
-		} else if !cell.IsReady() {
-			notReadyCells = append(notReadyCells, cellName)
-		} else {
+		case nova.CellReady:
 			readyCells = append(readyCells, cellName)
 		}
-
-		allCellsReady = allCellsReady && cell.IsReady()
+		allCellsReady = allCellsReady && status == nova.CellReady
 	}
 	util.LogForObject(
-		h, "Cell statuses", instance, "failed", failedCells,
-		"not ready", notReadyCells, "waiting", skippedCells,
-		"ready", readyCells, "all cells ready", allCellsReady)
+		h, "Cell statuses", instance,
+		"waiting", skippedCells,
+		"deploying", deployingCells,
+		"mapping", mappingCells,
+		"ready", readyCells,
+		"failed", failedCells,
+		"all cells ready", allCellsReady)
 	if len(failedCells) > 0 {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			novav1.NovaAllCellsReadyCondition,
@@ -423,19 +436,19 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 			novav1.NovaAllCellsReadyErrorMessage,
 			strings.Join(failedCells, ","),
 		))
-	} else if len(notReadyCells) > 0 {
+	} else if len(deployingCells)+len(mappingCells) > 0 {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			novav1.NovaAllCellsReadyCondition,
-			condition.ErrorReason,
-			condition.SeverityError,
+			condition.RequestedReason,
+			condition.SeverityWarning,
 			novav1.NovaAllCellsReadyNotReadyMessage,
-			strings.Join(notReadyCells, ","),
+			strings.Join(append(deployingCells, mappingCells...), ","),
 		))
 	} else if len(skippedCells) > 0 {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			novav1.NovaAllCellsReadyCondition,
-			condition.ErrorReason,
-			condition.SeverityError,
+			condition.InitReason,
+			condition.SeverityWarning,
 			novav1.NovaAllCellsReadyWaitingMessage,
 			strings.Join(skippedCells, ","),
 		))
@@ -485,6 +498,10 @@ func (r *NovaReconciler) initStatus(
 ) error {
 	if err := r.initConditions(ctx, h, instance); err != nil {
 		return err
+	}
+
+	if instance.Status.RegisteredCells == nil {
+		instance.Status.RegisteredCells = map[string]string{}
 	}
 
 	return nil
@@ -683,7 +700,7 @@ func (r *NovaReconciler) ensureCell(
 	apiDB *database.Database,
 	cellMQSecretName string,
 	keystoneAuthURL string,
-) (*novav1.NovaCell, ctrl.Result, error) {
+) (*novav1.NovaCell, nova.CellDeploymentStatus, error) {
 	// TODO(gibi): Pass down a narrowed secret that only holds
 	// specific information but also holds user names
 	cellSpec := novav1.NovaCellSpec{
@@ -732,14 +749,29 @@ func (r *NovaReconciler) ensureCell(
 	})
 
 	if err != nil {
-		return cell, ctrl.Result{}, err
+		return cell, nova.CellFailed, err
 	}
 
 	if op != controllerutil.OperationResultNone {
 		util.LogForObject(h, fmt.Sprintf("NovaCell %s.", string(op)), instance, "NovaCell.Name", cell.Name)
 	}
 
-	return cell, ctrl.Result{}, nil
+	if !cell.IsReady() {
+		// We wait for the cell to become Ready before we map it in the
+		// nova_api DB.
+		return cell, nova.CellDeploying, err
+	}
+
+	// When the cell is ready we need to create a row in the
+	// nova_api.CellMapping table to make this cell accessible from the top
+	// level services.
+	status, err := r.ensureCellMapped(ctx, h, instance, cell, apiDB.GetDatabaseHostname())
+	if status == nova.CellMappingReady {
+		// As mapping is the last step if that is ready then the cell is ready
+		status = nova.CellReady
+	}
+
+	return cell, status, err
 }
 
 func (r *NovaReconciler) ensureAPI(
@@ -776,6 +808,7 @@ func (r *NovaReconciler) ensureAPI(
 		ServiceUser:       instance.Spec.ServiceUser,
 		PasswordSelectors: instance.Spec.PasswordSelectors,
 		ServiceAccount:    instance.RbacResourceName(),
+		RegisteredCells:   instance.Status.RegisteredCells,
 	}
 	api := &novav1.NovaAPI{
 		ObjectMeta: metav1.ObjectMeta{
@@ -852,6 +885,7 @@ func (r *NovaReconciler) ensureScheduler(
 		ServiceUser:       instance.Spec.ServiceUser,
 		PasswordSelectors: instance.Spec.PasswordSelectors,
 		ServiceAccount:    instance.RbacResourceName(),
+		RegisteredCells:   instance.Status.RegisteredCells,
 	}
 	scheduler := &novav1.NovaScheduler{
 		ObjectMeta: metav1.ObjectMeta{
@@ -1136,6 +1170,7 @@ func (r *NovaReconciler) ensureMetadata(
 		PasswordSelectors: instance.Spec.PasswordSelectors,
 		KeystoneAuthURL:   keystoneAuthURL,
 		ServiceAccount:    instance.RbacResourceName(),
+		RegisteredCells:   instance.Status.RegisteredCells,
 	}
 	metadata := &novav1.NovaMetadata{
 		ObjectMeta: metav1.ObjectMeta{
@@ -1184,6 +1219,145 @@ func (r *NovaReconciler) ensureMetadata(
 	return ctrl.Result{}, nil
 }
 
+// ensureCellMapped makes sure that the cell has a row in the
+// nova_api.CellMapping table by calling nova-manage cell_v2 CLI commands in a
+// Job. When a cell is mapped then the name of the cell and the hash of the
+// cell config (DB and MQ URL) is stored in the Nova.Status
+// so that each cell is only mapped once or when its config is changed.
+func (r *NovaReconciler) ensureCellMapped(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *novav1.Nova,
+	cell *novav1.NovaCell,
+	apiDBHostname string,
+) (nova.CellDeploymentStatus, error) {
+	ospSecret, _, err := secret.GetSecret(ctx, h, cell.Spec.Secret, instance.Namespace)
+	if err != nil {
+		return nova.CellMappingFailed, err
+	}
+
+	mqSecret, _, err := secret.GetSecret(ctx, h, cell.Spec.CellMessageBusSecretName, instance.Namespace)
+	if err != nil {
+		return nova.CellMappingFailed, err
+	}
+
+	configMapName := fmt.Sprintf("%s-config-data", cell.Name+"-manage")
+	scriptConfigMapName := fmt.Sprintf("%s-scripts", cell.Name+"-manage")
+
+	cmLabels := labels.GetLabels(
+		instance, labels.GetGroupLabel(NovaLabelPrefix), map[string]string{},
+	)
+
+	extraTemplates := map[string]string{
+		"01-nova.conf":    "/nova.conf",
+		"nova-blank.conf": "/nova-blank.conf",
+	}
+
+	// We configure the Job like it runs in the env of the conductor of the given cell
+	// but we ensure that the config always has [api_database] section configure
+	// even if the cell has no API access at all.
+	templateParameters := map[string]interface{}{
+		"service_name":           "nova-conductor",
+		"keystone_internal_url":  cell.Spec.KeystoneAuthURL,
+		"nova_keystone_user":     cell.Spec.ServiceUser,
+		"nova_keystone_password": string(ospSecret.Data[instance.Spec.PasswordSelectors.Service]),
+		// cell.Spec.APIDatabaseUser is empty for cells without APIDB access
+		"api_db_name":     instance.Spec.APIDatabaseUser, // fixme
+		"api_db_user":     instance.Spec.APIDatabaseUser,
+		"api_db_password": string(ospSecret.Data[instance.Spec.PasswordSelectors.APIDatabase]),
+		// cell.Spec.APIDatabaseHostname is empty for cells without APIDB access
+		"api_db_address":         apiDBHostname,
+		"api_db_port":            3306,
+		"cell_db_name":           cell.Spec.CellDatabaseUser, // fixme
+		"cell_db_user":           cell.Spec.CellDatabaseUser,
+		"cell_db_password":       string(ospSecret.Data[instance.Spec.PasswordSelectors.CellDatabase]),
+		"cell_db_address":        cell.Spec.CellDatabaseHostname,
+		"cell_db_port":           3306,
+		"openstack_cacert":       "",          // fixme
+		"openstack_region_name":  "regionOne", // fixme
+		"default_project_domain": "Default",   // fixme
+		"default_user_domain":    "Default",   // fixme
+		"transport_url":          string(mqSecret.Data["transport_url"]),
+	}
+
+	cms := []util.Template{
+		// ScriptsConfigMap
+		{
+			Name:         scriptConfigMapName,
+			Namespace:    instance.Namespace,
+			Type:         util.TemplateTypeScripts,
+			InstanceType: "nova-manage",
+			Labels:       cmLabels,
+		},
+		// ConfigMap
+		{
+			Name:               configMapName,
+			Namespace:          instance.Namespace,
+			Type:               util.TemplateTypeConfig,
+			InstanceType:       "nova-manage",
+			ConfigOptions:      templateParameters,
+			Labels:             cmLabels,
+			CustomData:         map[string]string{},
+			Annotations:        map[string]string{},
+			AdditionalTemplate: extraTemplates,
+		},
+	}
+
+	configHash := make(map[string]env.Setter)
+	// TODO(sean): make this create a secret instead.
+	err = configmap.EnsureConfigMaps(ctx, h, instance, cms, &configHash)
+
+	if err != nil {
+		return nova.CellMappingFailed, err
+	}
+
+	// This defines those input parameters that can trigger the re-run of the
+	// job and therefore an update on the cell mapping row of this cell in the
+	// DB. Today it is the full nova config of the container. We could trim
+	// that a bit in the future if we want as we probably don't need to re-run
+	// the Job if only keystone_internal_url changes in the config.
+	inputHash, err := hashOfInputHashes(ctx, configHash)
+	if err != nil {
+		return nova.CellMappingFailed, err
+	}
+
+	labels := map[string]string{
+		common.AppSelector: NovaLabelPrefix,
+	}
+	jobDef := nova.CellMappingJob(instance, cell, configMapName, scriptConfigMapName, inputHash, labels)
+
+	job := job.NewJob(
+		jobDef, cell.Name+"-cell-mapping",
+		instance.Spec.Debug.PreserveJobs, r.RequeueTimeout,
+		instance.Status.RegisteredCells[cell.Name])
+
+	result, err := job.DoJob(ctx, h)
+	if err != nil {
+		return nova.CellMappingFailed, err
+	}
+
+	if (result != ctrl.Result{}) {
+		// Job is still running. We can simply return as we will be reconciled
+		// when the Job status changes
+		return nova.CellMapping, nil
+	}
+
+	if !job.HasChanged() {
+		// there was no need to run a new job as nothing changed
+		return nova.CellMappingReady, nil
+	}
+
+	// A new cell mapping job is finished. Let's store the result so we
+	// won't run the job with the same inputs again.
+	// Also the controller distributes the instance.Status.RegisteredCells
+	// information to the top level services so that each service can restart
+	// their Pods if a new cell is registered or an existing cell is updated.
+	instance.Status.RegisteredCells[cell.Name] = job.GetHash()
+	r.Log.Info(fmt.Sprintf("Job %s hash added - %s", jobDef.Name, instance.Status.RegisteredCells[cell.Name]))
+
+	return nova.CellMappingReady, nil
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *NovaReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
@@ -1195,5 +1369,6 @@ func (r *NovaReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&novav1.NovaCell{}).
 		Owns(&novav1.NovaMetadata{}).
 		Owns(&rabbitmqv1.TransportURL{}).
+		Owns(&batchv1.Job{}).
 		Complete(r)
 }

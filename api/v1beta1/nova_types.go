@@ -127,6 +127,11 @@ type NovaStatus struct {
 	// MetadataReadyCount defines the number of replicas ready from
 	// nova-metadata service
 	MetadataServiceReadyCount int32 `json:"metadataServiceReadyCount,omitempty"`
+
+	// RegisteredCells is a map keyed by cell names that are registered in the
+	// nova_api database with a value that is the hash of the given cell
+	// configuration.
+	RegisteredCells map[string]string `json:"registeredCells,omitempty"`
 }
 
 //+kubebuilder:object:root=true

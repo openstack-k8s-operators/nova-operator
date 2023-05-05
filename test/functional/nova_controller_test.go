@@ -36,6 +36,7 @@ var _ = Describe("Nova controller", func() {
 	var cell0Name types.NamespacedName
 	var cell0ConductorName types.NamespacedName
 	var cell0DBSyncJobName types.NamespacedName
+	var cell0MappingJobName types.NamespacedName
 	var novaAPIName types.NamespacedName
 	var novaAPIdeploymentName types.NamespacedName
 	var novaAPIKeystoneEndpointName types.NamespacedName
@@ -130,6 +131,10 @@ var _ = Describe("Nova controller", func() {
 		novaRoleBindingName = types.NamespacedName{
 			Namespace: namespace,
 			Name:      novaServiceAccountName.Name + "-rolebinding",
+		}
+		cell0MappingJobName = types.NamespacedName{
+			Namespace: namespace,
+			Name:      cell0Name.Name + "-cell-mapping",
 		}
 	})
 
@@ -228,6 +233,15 @@ var _ = Describe("Nova controller", func() {
 			Expect(binding.RoleRef.Name).To(Equal(role.Name))
 			Expect(binding.Subjects).To(HaveLen(1))
 			Expect(binding.Subjects[0].Name).To(Equal(sa.Name))
+		})
+
+		It("initializes Status fields", func() {
+			instance := GetNova(novaName)
+			Expect(instance.Status.Hash).To(BeEmpty())
+			Expect(instance.Status.APIServiceReadyCount).To(Equal(int32(0)))
+			Expect(instance.Status.SchedulerServiceReadyCount).To(Equal(int32(0)))
+			Expect(instance.Status.MetadataServiceReadyCount).To(Equal(int32(0)))
+			Expect(instance.Status.RegisteredCells).To(BeEmpty())
 		})
 
 		It("registers nova service to keystone", func() {
@@ -341,6 +355,37 @@ var _ = Describe("Nova controller", func() {
 				novav1.NovaConductorReadyCondition,
 				corev1.ConditionTrue,
 			)
+
+			th.SimulateJobSuccess(cell0MappingJobName)
+
+			mappingJobConfig := th.GetConfigMap(
+				types.NamespacedName{
+					Namespace: namespace,
+					Name:      fmt.Sprintf("%s-config-data", cell0Name.Name+"-manage"),
+				},
+			)
+			Expect(mappingJobConfig.Data).Should(HaveKey("01-nova.conf"))
+			Expect(mappingJobConfig.Data["01-nova.conf"]).To(
+				ContainSubstring("[database]\nconnection = mysql+pymysql://nova_cell0:12345678@hostname-for-openstack/nova_cell0"),
+			)
+			Expect(mappingJobConfig.Data["01-nova.conf"]).To(
+				ContainSubstring("[api_database]\nconnection = mysql+pymysql://nova_api:12345678@hostname-for-openstack/nova_api"),
+			)
+			mappingJobScript := th.GetConfigMap(
+				types.NamespacedName{
+					Namespace: namespace,
+					Name:      fmt.Sprintf("%s-scripts", cell0Name.Name+"-manage"),
+				},
+			)
+			Expect(mappingJobScript.Data).Should(HaveKeyWithValue(
+				"ensure_cell_mapping.sh", ContainSubstring("nova-manage cell_v2 update_cell")))
+
+			Eventually(func(g Gomega) {
+				nova := GetNova(novaName)
+				g.Expect(nova.Status.RegisteredCells).To(
+					HaveKeyWithValue(cell0Name.Name, Not(BeEmpty())))
+			}, timeout, interval).Should(Succeed())
+
 			th.ExpectCondition(
 				novaName,
 				ConditionGetterFunc(NovaConditionGetter),
@@ -356,6 +401,7 @@ var _ = Describe("Nova controller", func() {
 			th.SimulateTransportURLReady(apiTransportURLName)
 			th.SimulateJobSuccess(cell0DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(novaCell0ConductorStatefulSetName)
+			th.SimulateJobSuccess(cell0MappingJobName)
 			th.SimulateStatefulSetReplicaReady(novaSchedulerStatefulSetName)
 			th.SimulateStatefulSetReplicaReady(novaMetadataStatefulSetName)
 
@@ -393,6 +439,7 @@ var _ = Describe("Nova controller", func() {
 			th.SimulateTransportURLReady(apiTransportURLName)
 			th.SimulateJobSuccess(cell0DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(novaCell0ConductorStatefulSetName)
+			th.SimulateJobSuccess(cell0MappingJobName)
 			th.SimulateStatefulSetReplicaReady(novaAPIdeploymentName)
 			th.SimulateKeystoneEndpointReady(novaAPIKeystoneEndpointName)
 			th.SimulateStatefulSetReplicaReady(novaMetadataStatefulSetName)
@@ -429,6 +476,7 @@ var _ = Describe("Nova controller", func() {
 			th.SimulateTransportURLReady(apiTransportURLName)
 			th.SimulateJobSuccess(cell0DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(novaCell0ConductorStatefulSetName)
+			th.SimulateJobSuccess(cell0MappingJobName)
 			th.SimulateStatefulSetReplicaReady(novaAPIdeploymentName)
 			th.SimulateKeystoneEndpointReady(novaAPIKeystoneEndpointName)
 			th.SimulateStatefulSetReplicaReady(novaSchedulerStatefulSetName)
@@ -535,6 +583,62 @@ var _ = Describe("Nova controller", func() {
 		})
 	})
 
+	When("Nova CR instance is created but cell0 cell registration fails", func() {
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateNovaSecret(namespace, SecretName))
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateNovaMessageBusSecret(namespace, MessageBusSecretName),
+			)
+			DeferCleanup(
+				th.DeleteDBService,
+				th.CreateDBService(
+					namespace,
+					"openstack",
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+			keystoneAPIName := th.CreateKeystoneAPI(namespace)
+			DeferCleanup(th.DeleteKeystoneAPI, keystoneAPIName)
+			keystoneAPI := th.GetKeystoneAPI(keystoneAPIName)
+			keystoneAPI.Status.APIEndpoints["internal"] = "http://keystone-internal-openstack.testing"
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Status().Update(ctx, keystoneAPI.DeepCopy())).Should(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			DeferCleanup(DeleteInstance, CreateNovaWithCell0(novaName))
+
+			th.SimulateKeystoneServiceReady(novaKeystoneServiceName)
+			th.SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
+			th.SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForCell0)
+			th.SimulateTransportURLReady(apiTransportURLName)
+			th.SimulateJobSuccess(cell0DBSyncJobName)
+			th.SimulateStatefulSetReplicaReady(novaCell0ConductorStatefulSetName)
+
+			th.SimulateJobFailure(cell0MappingJobName)
+		})
+
+		It("does not set the all cell ready condition", func() {
+			th.ExpectCondition(
+				novaName,
+				ConditionGetterFunc(NovaConditionGetter),
+				novav1.NovaAllCellsReadyCondition,
+				corev1.ConditionFalse,
+			)
+		})
+
+		It("still creates the top level services", func() {
+			GetNovaAPI(novaAPIName)
+			GetNovaScheduler(novaSchedulerName)
+			GetNovaMetadata(novaMetadataName)
+		})
+
+	})
+
 	When("Nova CR instance with different DB Services for nova_api and cell0 DBs", func() {
 		BeforeEach(func() {
 			DeferCleanup(
@@ -606,6 +710,7 @@ var _ = Describe("Nova controller", func() {
 
 			th.SimulateJobSuccess(cell0DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(novaCell0ConductorStatefulSetName)
+			th.SimulateJobSuccess(cell0MappingJobName)
 			th.SimulateStatefulSetReplicaReady(novaSchedulerStatefulSetName)
 			th.SimulateStatefulSetReplicaReady(novaMetadataStatefulSetName)
 
@@ -817,6 +922,8 @@ var _ = Describe("Nova controller", func() {
 				novaCell0ConductorStatefulSetName,
 				map[string][]string{namespace + "/internalapi": {"10.0.0.1"}},
 			)
+			th.SimulateJobSuccess(cell0MappingJobName)
+
 			SimulateStatefulSetReplicaReadyWithPods(
 				novaSchedulerStatefulSetName,
 				map[string][]string{namespace + "/internalapi": {"10.0.0.1"}},

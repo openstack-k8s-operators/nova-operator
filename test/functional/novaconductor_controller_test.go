@@ -193,8 +193,6 @@ var _ = Describe("NovaConductor controller", func() {
 					"dbsync.sh", ContainSubstring("nova-manage db sync")))
 				Expect(scriptMap.Data).Should(HaveKeyWithValue(
 					"dbsync.sh", ContainSubstring("nova-manage api_db sync")))
-				Expect(scriptMap.Data).Should(HaveKeyWithValue(
-					"dbsync.sh", ContainSubstring("nova-manage cell_v2 map_cell0")))
 			})
 
 			It("stored the input hash in the Status", func() {
@@ -270,12 +268,11 @@ var _ = Describe("NovaConductor controller", func() {
 				condition.DBSyncReadyRunningMessage,
 			)
 			job := th.GetJob(jobName)
-			// TODO(gibi): We could verify a lot of fields but should we?
-			Expect(job.Spec.Template.Spec.Volumes).To(HaveLen(3))
+			Expect(job.Spec.Template.Spec.Volumes).To(HaveLen(2))
 			Expect(job.Spec.Template.Spec.InitContainers).To(HaveLen(0))
 			Expect(job.Spec.Template.Spec.Containers).To(HaveLen(1))
 			container := job.Spec.Template.Spec.Containers[0]
-			Expect(container.VolumeMounts).To(HaveLen(3))
+			Expect(container.VolumeMounts).To(HaveLen(2))
 			Expect(container.Args[1]).To(ContainSubstring("dbsync.sh"))
 			Expect(container.Image).To(Equal(ContainerImage))
 		})

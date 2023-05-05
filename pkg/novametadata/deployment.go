@@ -121,9 +121,10 @@ func StatefulSet(
 				},
 				Spec: corev1.PodSpec{
 					ServiceAccountName: instance.Spec.ServiceAccount,
-					Volumes: nova.GetOpenstackVolumes(
-						nova.GetServiceConfigConfigMapName(instance.Name),
-					),
+					Volumes: []corev1.Volume{
+						nova.GetConfigVolume(nova.GetServiceConfigConfigMapName(instance.Name)),
+						nova.GetLogVolume(),
+					},
 					Containers: []corev1.Container{
 						// the first container in a pod is the default selected
 						// by oc log so define the log stream container first.
@@ -138,7 +139,7 @@ func StatefulSet(
 								RunAsUser: &runAsUser,
 							},
 							Env:            env,
-							VolumeMounts:   nova.GetOpenstackVolumeMounts(),
+							VolumeMounts:   []corev1.VolumeMount{nova.GetLogVolumeMount()},
 							Resources:      instance.Spec.Resources,
 							StartupProbe:   startupProbe,
 							ReadinessProbe: readinessProbe,
@@ -154,8 +155,11 @@ func StatefulSet(
 							SecurityContext: &corev1.SecurityContext{
 								RunAsUser: &runAsUser,
 							},
-							Env:            env,
-							VolumeMounts:   nova.GetOpenstackVolumeMounts(),
+							Env: env,
+							VolumeMounts: []corev1.VolumeMount{
+								nova.GetConfigVolumeMount(),
+								nova.GetLogVolumeMount(),
+							},
 							Resources:      instance.Spec.Resources,
 							StartupProbe:   startupProbe,
 							ReadinessProbe: readinessProbe,

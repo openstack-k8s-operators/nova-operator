@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -453,4 +454,20 @@ func (r *ReconcilerBase) GenerateConfigsWithScripts(
 
 func getNovaCellCRName(novaCRName string, cellName string) string {
 	return novaCRName + "-" + cellName
+}
+
+func hashOfStringMap(input map[string]string) (string, error) {
+	// we need to make sure that we have a stable map iteration order and
+	// hash both the keys and the values
+	keys := make([]string, 0, len(input))
+	for k := range input {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	var keyValues = []string{}
+	for _, key := range keys {
+		value := input[key]
+		keyValues = append(keyValues, key+value)
+	}
+	return util.ObjectHash(keyValues)
 }
