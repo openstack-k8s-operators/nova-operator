@@ -22,14 +22,12 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/openstack-k8s-operators/lib-common/modules/test/helpers"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -475,17 +473,6 @@ var _ = Describe("Nova reconfiguration", func() {
 			oldCell1Hash := GetNova(novaName).Status.RegisteredCells[cell1Names.CellName.Name]
 
 			Eventually(func(g Gomega) {
-				// The lib-common will not re-run the job if the old k8s job
-				// still exists, this is a bug that needs to be fixed in
-				// lib-common. Until that we delete the k8s job to simulate
-				// the the job's TTL is expired.
-				// We need background propagation policy otherwise the Job remains
-				// in orphan state
-				background := metav1.DeletePropagationBackground
-				g.Expect(
-					k8sClient.Delete(ctx, mappingJob, &client.DeleteOptions{PropagationPolicy: &background}),
-				).To(Succeed())
-
 				nova := GetNova(novaName)
 
 				cell1 := nova.Spec.CellTemplates["cell1"]
