@@ -1,0 +1,29 @@
+# This patch inject custom ENV settings to the manager container
+# Used to set our default image locations
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: controller-manager
+  namespace: system
+spec:
+  template:
+    spec:
+      containers:
+      - name: manager
+        env:
+        - name: NOVA_API_IMAGE_URL_DEFAULT
+          value: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
+        - name: NOVA_CONDUCTOR_IMAGE_URL_DEFAULT
+          value: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
+        - name: NOVA_METADATA_IMAGE_URL_DEFAULT
+          value: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
+        - name: NOVA_NOVNC_IMAGE_URL_DEFAULT
+          value: quay.io/podified-antelope-centos9/openstack-nova-novncproxy:current-podified
+        - name: NOVA_SCHEDULER_IMAGE_URL_DEFAULT
+          value: quay.io/podified-antelope-centos9/openstack-nova-scheduler:current-podified
+        - name: NOVA_COMPUTE_IMAGE_URL_DEFAULT
+          value: quay.io/podified-antelope-centos9/openstack-nova-compute:current-podified
+        - name: NOVA_LIBVIRT_IMAGE_URL_DEFAULT
+          value: quay.io/podified-antelope-centos9/openstack-nova-libvirt:current-podified
+        - name: NOVA_ANSIBLE_EE_IMAGE_URL_DEFAULT
+          value: quay.io/openstack-k8s-operators/openstack-ansibleee-runner:latest

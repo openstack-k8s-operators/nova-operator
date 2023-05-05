@@ -1,0 +1,134 @@
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  creationTimestamp: null
+  name: mutating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /mutate-nova-openstack-org-v1beta1-nova
+  failurePolicy: Fail
+  name: mnova.kb.io
+  rules:
+  - apiGroups:
+    - nova.openstack.org
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - nova
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /mutate-nova-openstack-org-v1beta1-novacell
+  failurePolicy: Fail
+  name: mnovacell.kb.io
+  rules:
+  - apiGroups:
+    - nova.openstack.org
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - novacells
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /mutate-nova-openstack-org-v1beta1-novaexternalcompute
+  failurePolicy: Fail
+  name: mnovaexternalcompute.kb.io
+  rules:
+  - apiGroups:
+    - nova.openstack.org
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - novaexternalcomputes
+  sideEffects: None
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  creationTimestamp: null
+  name: validating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-nova-openstack-org-v1beta1-nova
+  failurePolicy: Fail
+  name: vnova.kb.io
+  rules:
+  - apiGroups:
+    - nova.openstack.org
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - nova
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-nova-openstack-org-v1beta1-novacell
+  failurePolicy: Fail
+  name: vnovacell.kb.io
+  rules:
+  - apiGroups:
+    - nova.openstack.org
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - novacells
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-nova-openstack-org-v1beta1-novaexternalcompute
+  failurePolicy: Fail
+  name: vnovaexternalcompute.kb.io
+  rules:
+  - apiGroups:
+    - nova.openstack.org
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - novaexternalcomputes
+  sideEffects: None

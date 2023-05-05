@@ -62,7 +62,8 @@ spec:
                   belongs to.
                 type: string
               containerImage:
-                description: The service specific Container Image URL
+                description: The service specific Container Image URL (will be set
+                  to environmental default if empty)
                 type: string
               customServiceConfig:
                 description: CustomServiceConfig - customize the service config using
@@ -216,7 +217,6 @@ spec:
             required:
             - cellDatabaseHostname
             - cellName
-            - containerImage
             - keystoneAuthURL
             - secret
             type: object

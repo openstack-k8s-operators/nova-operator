@@ -137,7 +137,10 @@ PROC_CMD = --procs ${PROCS}
 
 .PHONY: test
 test: manifests generate fmt vet envtest ginkgo ## Run tests.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) -v debug --bin-dir $(LOCALBIN) use $(ENVTEST_K8S_VERSION) -p path)" OPERATOR_TEMPLATES="$(PWD)/templates" OPERATOR_PLAYBOOKS="$(PWD)/playbooks" $(GINKGO) --trace --cover --coverpkg=../../pkg/nova,../../pkg/novaapi,../../pkg/novaconductor,../../controllers,../../api/v1beta1,../../pkg/novascheduler,../../pkg/novametadata --coverprofile cover.out --covermode=atomic --randomize-all ${PROC_CMD} $(GINKGO_ARGS) ./test/...
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) -v debug --bin-dir $(LOCALBIN) use $(ENVTEST_K8S_VERSION) -p path)" \
+	OPERATOR_TEMPLATES="$(PWD)/templates" \
+	OPERATOR_PLAYBOOKS="$(PWD)/playbooks" \
+	$(GINKGO) --trace --cover --coverpkg=../../pkg/nova,../../pkg/novaapi,../../pkg/novaconductor,../../controllers,../../api/v1beta1,../../pkg/novascheduler,../../pkg/novametadata --coverprofile cover.out --covermode=atomic --randomize-all ${PROC_CMD} $(GINKGO_ARGS) ./test/...
 
 ##@ Build
 
@@ -146,7 +149,9 @@ build: generate fmt vet ## Build manager binary.
 	go build -o bin/manager main.go
 
 .PHONY: run
+run: export ENABLE_WEBHOOKS?=false
 run: manifests generate fmt vet ## Run a controller from your host.
+	/bin/bash hack/clean_local_webhook.sh
 	go run ./main.go
 
 .PHONY: docker-build
@@ -330,3 +335,20 @@ gowork: ## Generate go.work file
 	go work use .
 	go work use ./api
 	go work sync
+
+# Used for webhook testing
+# Please ensure the nova-controller-manager deployment and
+# webhook definitions are removed from the csv before running
+# this. Also, cleanup the webhook configuration for local testing
+# before deplying with olm again.
+# $oc delete -n openstack validatingwebhookconfiguration/vnova.kb.io
+# $oc delete -n openstack mutatingwebhookconfiguration/mnova.kb.io
+# $oc delete -n openstack validatingwebhookconfiguration/vnovacell.kb.io
+# $oc delete -n openstack mutatingwebhookconfiguration/mnovacell.kb.io
+# $oc delete -n openstack validatingwebhookconfiguration/vnovaexternalcompute.kb.io
+# $oc delete -n openstack mutatingwebhookconfiguration/mnovaexternalcompute.kb.io
+SKIP_CERT ?=false
+.PHONY: run-with-webhook
+run-with-webhook: manifests generate fmt vet ## Run a controller from your host.
+	/bin/bash hack/configure_local_webhook.sh
+	go run ./main.go

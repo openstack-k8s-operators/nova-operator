@@ -17,15 +17,29 @@ limitations under the License.
 package v1beta1
 
 import (
+	"os"
+
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/openstack-k8s-operators/lib-common/modules/common/endpoint"
 )
 
+// Container image fall-back defaults
+const (
+	NovaAPIContainerImage       = "quay.io/podified-antelope-centos9/openstack-nova-api:current-podified"
+	NovaConductorContainerImage = "quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified"
+	NovaMetadataContainerImage  = "quay.io/podified-antelope-centos9/openstack-nova-api:current-podified"
+	NovaNoVNCContainerImage     = "quay.io/podified-antelope-centos9/openstack-nova-novncproxy:current-podified"
+	NovaSchedulerContainerImage = "quay.io/podified-antelope-centos9/openstack-nova-scheduler:current-podified"
+	NovaComputeContainerImage   = "quay.io/podified-antelope-centos9/openstack-nova-compute:current-podified"
+	NovaLibvirtContainerImage   = "quay.io/podified-antelope-centos9/openstack-nova-libvirt:current-podified"
+	AnsibleEEContainerImage     = "quay.io/openstack-k8s-operators/openstack-ansibleee-runner:latest"
+)
+
 // NovaServiceBase contains the fields that are needed for each nova service CRD
 type NovaServiceBase struct {
-	// +kubebuilder:validation:Required
-	// The service specific Container Image URL
+	// +kubebuilder:validation:Optional
+	// The service specific Container Image URL (will be set to environmental default if empty)
 	ContainerImage string `json:"containerImage"`
 
 	// +kubebuilder:validation:Optional
@@ -135,4 +149,45 @@ type MetalLBConfig struct {
 	// +kubebuilder:validation:Optional
 	// LoadBalancerIPs, request given IPs from the pool if available. Using a list to allow dual stack (IPv4/IPv6) support
 	LoadBalancerIPs []string `json:"loadBalancerIPs"`
+}
+
+// TODO: This will be moved to lib-common so that all operators can use the pattern
+// GetEnvDefault - Get the value associated with key from environment variables, but use baseDefault as a value in the case of an empty string
+func GetEnvDefault(key string, baseDefault string) string {
+	if value, ok := os.LookupEnv(key); ok {
+		return value
+	}
+	return baseDefault
+}
+
+// SetupDefaults - initializes any CRD field defaults based on environment variables (the defaulting mechanism itself is implemented via webhooks)
+func SetupDefaults() {
+	// Acquire environmental defaults and initialize Nova defaults with them
+	novaDefaults := NovaDefaults{
+		APIContainerImageURL:       GetEnvDefault("NOVA_API_IMAGE_URL_DEFAULT", NovaAPIContainerImage),
+		ConductorContainerImageURL: GetEnvDefault("NOVA_CONDUCTOR_IMAGE_URL_DEFAULT", NovaConductorContainerImage),
+		MetadataContainerImageURL:  GetEnvDefault("NOVA_METADATA_IMAGE_URL_DEFAULT", NovaMetadataContainerImage),
+		NoVNCContainerImageURL:     GetEnvDefault("NOVA_NOVNC_IMAGE_URL_DEFAULT", NovaNoVNCContainerImage),
+		SchedulerContainerImageURL: GetEnvDefault("NOVA_SCHEDULER_IMAGE_URL_DEFAULT", NovaSchedulerContainerImage),
+	}
+
+	SetupNovaDefaults(novaDefaults)
+
+	// Acquire environmental defaults and initialize NovaCell defaults with them
+	novaCellDefaults := NovaCellDefaults{
+		ConductorContainerImageURL: GetEnvDefault("NOVA_CONDUCTOR_IMAGE_URL_DEFAULT", NovaConductorContainerImage),
+		MetadataContainerImageURL:  GetEnvDefault("NOVA_METADATA_IMAGE_URL_DEFAULT", NovaMetadataContainerImage),
+		NoVNCContainerImageURL:     GetEnvDefault("NOVA_NOVNC_IMAGE_URL_DEFAULT", NovaNoVNCContainerImage),
+	}
+
+	SetupNovaCellDefaults(novaCellDefaults)
+
+	// Acquire environmental defaults and initialize NovaExternalCompute defaults with them
+	novaExternalComputeDefaults := NovaExternalComputeDefaults{
+		ComputeContainerImageURL:   GetEnvDefault("NOVA_COMPUTE_IMAGE_URL_DEFAULT", NovaComputeContainerImage),
+		LibvirtContainerImageURL:   GetEnvDefault("NOVA_LIBVIRT_IMAGE_URL_DEFAULT", NovaLibvirtContainerImage),
+		AnsibleEEContainerImageURL: GetEnvDefault("NOVA_ANSIBLE_EE_IMAGE_URL_DEFAULT", AnsibleEEContainerImage),
+	}
+
+	SetupNovaExternalComputeDefaults(novaExternalComputeDefaults)
 }
