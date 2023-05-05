@@ -489,6 +489,7 @@ type CellNames struct {
 	ConductorStatefulSetName types.NamespacedName
 	TransportURLName         types.NamespacedName
 	CellMappingJobName       types.NamespacedName
+	MetadataStatefulSetName  types.NamespacedName
 }
 
 func GetCellNames(novaName types.NamespacedName, cell string) CellNames {
@@ -519,6 +520,10 @@ func GetCellNames(novaName types.NamespacedName, cell string) CellNames {
 		CellMappingJobName: types.NamespacedName{
 			Namespace: novaName.Namespace,
 			Name:      cellName.Name + "-cell-mapping",
+		},
+		MetadataStatefulSetName: types.NamespacedName{
+			Namespace: novaName.Namespace,
+			Name:      cellName.Name + "-metadata",
 		},
 	}
 

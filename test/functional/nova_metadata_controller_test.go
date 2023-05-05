@@ -313,19 +313,18 @@ var _ = Describe("NovaMetadata controller", func() {
 	When("with configure cellname", func() {
 		BeforeEach(func() {
 			spec := GetDefaultNovaMetadataSpec()
-			spec["cellName"] = "SomeName"
-			metadata := CreateNovaMetadata(namespace, spec)
-			novaMetadataName = types.NamespacedName{Name: metadata.GetName(), Namespace: metadata.GetNamespace()}
-			DeferCleanup(DeleteInstance, metadata)
+			spec["cellName"] = "some-cell-name"
+			metadata := CreateNovaMetadata(novaNames.MetadataName, spec)
+			DeferCleanup(th.DeleteInstance, metadata)
 			DeferCleanup(
 				k8sClient.Delete,
 				ctx,
-				CreateNovaMetadataSecret(namespace, SecretName),
+				CreateNovaMetadataSecret(novaNames.MetadataName.Namespace, SecretName),
 			)
 		})
 		It("generated config with correct local_metadata_per_cell", func() {
 			th.ExpectCondition(
-				novaMetadataName,
+				novaNames.MetadataName,
 				ConditionGetterFunc(NovaMetadataConditionGetter),
 				condition.ServiceConfigReadyCondition,
 				corev1.ConditionTrue,
@@ -333,21 +332,29 @@ var _ = Describe("NovaMetadata controller", func() {
 
 			configDataMap := th.GetConfigMap(
 				types.NamespacedName{
-					Namespace: namespace,
-					Name:      fmt.Sprintf("%s-config-data", novaMetadataName.Name),
+					Namespace: novaNames.MetadataName.Namespace,
+					Name:      fmt.Sprintf("%s-config-data", novaNames.MetadataName.Name),
 				},
 			)
 			Expect(configDataMap).ShouldNot(BeNil())
 			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
 			Expect(configDataMap.Data).Should(
 				HaveKeyWithValue("01-nova.conf",
-					ContainSubstring("transport_url=rabbit://fake")))
+					ContainSubstring("transport_url=rabbit://rabbitmq-secret/fake")))
 			Expect(configDataMap.Data).Should(
 				HaveKeyWithValue("01-nova.conf",
 					ContainSubstring("metadata_proxy_shared_secret = 12345678")))
 			Expect(configDataMap.Data).Should(
 				HaveKeyWithValue("01-nova.conf",
 					ContainSubstring("local_metadata_per_cell = true")))
+			th.ExpectCondition(
+				novaNames.MetadataName,
+				ConditionGetterFunc(NovaMetadataConditionGetter),
+				condition.ExposeServiceReadyCondition,
+				corev1.ConditionTrue,
+			)
+			service := th.GetService(types.NamespacedName{Namespace: novaNames.MetadataName.Namespace, Name: "nova-metadata-some-cell-name-internal"})
+			Expect(service.Labels["service"]).To(Equal("nova-metadata"))
 		})
 	})
 
