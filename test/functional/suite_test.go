@@ -55,7 +55,7 @@ import (
 	"github.com/openstack-k8s-operators/nova-operator/controllers"
 	aee "github.com/openstack-k8s-operators/openstack-ansibleee-operator/api/v1alpha1"
 
-	. "github.com/openstack-k8s-operators/lib-common/modules/test/helpers"
+	. "github.com/openstack-k8s-operators/lib-common/modules/test-operators/helpers"
 	//+kubebuilder:scaffold:imports
 )
 
