@@ -173,18 +173,15 @@ var _ = Describe("Nova multi cell", func() {
 
 			spec := GetDefaultNovaSpec()
 			cell0 := GetDefaultNovaCellTemplate()
-			cell0["cellName"] = "cell0"
 			cell0["cellDatabaseInstance"] = "db-for-api"
 			cell0["cellDatabaseUser"] = "nova_cell0"
 
 			cell1 := GetDefaultNovaCellTemplate()
-			cell1["cellName"] = "cell1"
 			cell1["cellDatabaseInstance"] = "db-for-cell1"
 			cell1["cellDatabaseUser"] = "nova_cell1"
 			cell1["cellMessageBusInstance"] = "mq-for-cell1"
 
 			cell2 := GetDefaultNovaCellTemplate()
-			cell2["cellName"] = "cell2"
 			cell2["cellDatabaseInstance"] = "db-for-cell2"
 			cell2["cellDatabaseUser"] = "nova_cell2"
 			cell2["cellMessageBusInstance"] = "mq-for-cell2"
@@ -651,7 +648,6 @@ var _ = Describe("Nova multi cell", func() {
 
 			spec := GetDefaultNovaSpec()
 			cell0 := GetDefaultNovaCellTemplate()
-			cell0["cellName"] = "cell0"
 			cell0["cellDatabaseInstance"] = "openstack"
 			cell0["cellDatabaseUser"] = "nova_cell0"
 			cell0["hasAPIAccess"] = true
@@ -664,7 +660,6 @@ var _ = Describe("Nova multi cell", func() {
 			// cell1 is configured to have API access and use the same
 			// message bus as the top level services. Hence cell1 conductor
 			// will act both as a super conductor and as cell1 conductor
-			cell1["cellName"] = "cell1"
 			cell1["cellDatabaseInstance"] = "openstack"
 			cell1["cellDatabaseUser"] = "nova_cell1"
 			cell1["cellMessageBusInstance"] = "mq-for-api"

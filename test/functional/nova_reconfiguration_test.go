@@ -114,18 +114,15 @@ func CreateNovaWith3CellsAndEnsureReady(namespace string) types.NamespacedName {
 
 	spec := GetDefaultNovaSpec()
 	cell0Template := GetDefaultNovaCellTemplate()
-	cell0Template["cellName"] = "cell0"
 	cell0Template["cellDatabaseInstance"] = "db-for-api"
 	cell0Template["cellDatabaseUser"] = "nova_cell0"
 
 	cell1Template := GetDefaultNovaCellTemplate()
-	cell1Template["cellName"] = "cell1"
 	cell1Template["cellDatabaseInstance"] = "db-for-cell1"
 	cell1Template["cellDatabaseUser"] = "nova_cell1"
 	cell1Template["cellMessageBusInstance"] = "mq-for-cell1"
 
 	cell2Template := GetDefaultNovaCellTemplate()
-	cell2Template["cellName"] = "cell2"
 	cell2Template["cellDatabaseInstance"] = "db-for-cell2"
 	cell2Template["cellDatabaseUser"] = "nova_cell2"
 	cell2Template["cellMessageBusInstance"] = "mq-for-cell2"
