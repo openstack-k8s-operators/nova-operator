@@ -25,17 +25,13 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	networkv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
-	routev1 "github.com/openshift/api/route/v1"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	aee "github.com/openstack-k8s-operators/openstack-ansibleee-operator/api/v1alpha1"
-	rbacv1 "k8s.io/api/rbac/v1"
 )
 
 const (
@@ -50,15 +46,6 @@ const (
 	// asserts using `Consistently`.
 	consistencyTimeout = timeout
 )
-
-func CreateUnstructured(rawObj map[string]interface{}) *unstructured.Unstructured {
-	logger.Info("Creating", "raw", rawObj)
-	unstructuredObj := &unstructured.Unstructured{Object: rawObj}
-	_, err := controllerutil.CreateOrPatch(
-		ctx, k8sClient, unstructuredObj, func() error { return nil })
-	Expect(err).ShouldNot(HaveOccurred())
-	return unstructuredObj
-}
 
 func GetDefaultNovaAPISpec() map[string]interface{} {
 	return map[string]interface{}{
@@ -85,7 +72,7 @@ func CreateNovaAPI(namespace string, spec map[string]interface{}) client.Object 
 		},
 		"spec": spec,
 	}
-	return CreateUnstructured(raw)
+	return th.CreateUnstructured(raw)
 
 }
 
@@ -115,21 +102,9 @@ func NovaSchedulerConditionGetter(name types.NamespacedName) condition.Condition
 	return instance.Status.Conditions
 }
 
-func CreateSecret(name types.NamespacedName, data map[string][]byte) *corev1.Secret {
-	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name.Name,
-			Namespace: name.Namespace,
-		},
-		Data: data,
-	}
-	Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
-	return secret
-}
-
-// CreateSecret creates a secret that has all the information NovaAPI needs
+// th.CreateSecret creates a secret that has all the information NovaAPI needs
 func CreateNovaAPISecret(namespace string, name string) *corev1.Secret {
-	return CreateSecret(
+	return th.CreateSecret(
 		types.NamespacedName{Namespace: namespace, Name: name},
 		map[string][]byte{
 			"NovaPassword":              []byte("12345678"),
@@ -164,7 +139,7 @@ func CreateNova(name types.NamespacedName, spec map[string]interface{}) client.O
 		},
 		"spec": spec,
 	}
-	return CreateUnstructured(raw)
+	return th.CreateUnstructured(raw)
 }
 
 func CreateNovaWithoutCell0(name types.NamespacedName) client.Object {
@@ -181,7 +156,7 @@ func CreateNovaWithoutCell0(name types.NamespacedName) client.Object {
 		},
 	}
 
-	return CreateUnstructured(rawNova)
+	return th.CreateUnstructured(rawNova)
 }
 
 func CreateNovaWithCell0(name types.NamespacedName) client.Object {
@@ -203,26 +178,7 @@ func CreateNovaWithCell0(name types.NamespacedName) client.Object {
 		},
 	}
 
-	return CreateUnstructured(rawNova)
-}
-
-func DeleteInstance(instance client.Object) {
-	// We have to wait for the controller to fully delete the instance
-	logger.Info("Deleting", "Name", instance.GetName(), "Namespace", instance.GetNamespace(), "Kind", instance.GetObjectKind().GroupVersionKind().Kind)
-	Eventually(func(g Gomega) {
-		name := types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
-		err := k8sClient.Get(ctx, name, instance)
-		// if it is already gone that is OK
-		if k8s_errors.IsNotFound(err) {
-			return
-		}
-		g.Expect(err).ShouldNot(HaveOccurred())
-
-		g.Expect(k8sClient.Delete(ctx, instance)).Should(Succeed())
-
-		err = k8sClient.Get(ctx, name, instance)
-		g.Expect(k8s_errors.IsNotFound(err)).To(BeTrue())
-	}, timeout, interval).Should(Succeed())
+	return th.CreateUnstructured(rawNova)
 }
 
 func GetNova(name types.NamespacedName) *novav1.Nova {
@@ -261,7 +217,7 @@ func CreateNovaConductor(namespace string, spec map[string]interface{}) client.O
 		},
 		"spec": spec,
 	}
-	return CreateUnstructured(raw)
+	return th.CreateUnstructured(raw)
 }
 
 func GetNovaConductor(name types.NamespacedName) *novav1.NovaConductor {
@@ -280,7 +236,7 @@ func NovaConductorConditionGetter(name types.NamespacedName) condition.Condition
 // CreateNovaConductorSecret creates a secret that has all the information
 // NovaConductor needs
 func CreateNovaConductorSecret(namespace string, name string) *corev1.Secret {
-	return CreateSecret(
+	return th.CreateSecret(
 		types.NamespacedName{Namespace: namespace, Name: name},
 		map[string][]byte{
 			"NovaCell0DatabasePassword": []byte("12345678"),
@@ -290,7 +246,7 @@ func CreateNovaConductorSecret(namespace string, name string) *corev1.Secret {
 }
 
 func CreateNovaMessageBusSecret(namespace string, name string) *corev1.Secret {
-	s := CreateSecret(
+	s := th.CreateSecret(
 		types.NamespacedName{Namespace: namespace, Name: name},
 		map[string][]byte{
 			"transport_url": []byte(fmt.Sprintf("rabbit://%s/fake", name)),
@@ -324,7 +280,7 @@ func CreateNovaCell(name types.NamespacedName, spec map[string]interface{}) clie
 		},
 		"spec": spec,
 	}
-	return CreateUnstructured(raw)
+	return th.CreateUnstructured(raw)
 }
 
 func GetNovaCell(name types.NamespacedName) *novav1.NovaCell {
@@ -349,7 +305,7 @@ func NovaCellConditionGetter(name types.NamespacedName) condition.Conditions {
 }
 
 func CreateNovaSecret(namespace string, name string) *corev1.Secret {
-	return CreateSecret(
+	return th.CreateSecret(
 		types.NamespacedName{Namespace: namespace, Name: name},
 		map[string][]byte{
 			"NovaPassword":              []byte("12345678"),
@@ -358,31 +314,6 @@ func CreateNovaSecret(namespace string, name string) *corev1.Secret {
 			"MetadataSecret":            []byte("12345678"),
 		},
 	)
-}
-
-func GetService(name types.NamespacedName) *corev1.Service {
-	instance := &corev1.Service{}
-	Eventually(func(g Gomega) {
-		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
-	}, timeout, interval).Should(Succeed())
-	return instance
-}
-
-func AssertRouteExists(name types.NamespacedName) *routev1.Route {
-	instance := &routev1.Route{}
-	Eventually(func(g Gomega) {
-		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
-	}, timeout, interval).Should(Succeed())
-	return instance
-}
-
-func AssertRouteNotExists(name types.NamespacedName) *routev1.Route {
-	instance := &routev1.Route{}
-	Consistently(func(g Gomega) {
-		err := k8sClient.Get(ctx, name, instance)
-		g.Expect(k8s_errors.IsNotFound(err)).To(BeTrue())
-	}, consistencyTimeout, interval).Should(Succeed())
-	return instance
 }
 
 func GetDefaultNovaSchedulerSpec() map[string]interface{} {
@@ -410,7 +341,7 @@ func CreateNovaScheduler(namespace string, spec map[string]interface{}) client.O
 		},
 		"spec": spec,
 	}
-	return CreateUnstructured(raw)
+	return th.CreateUnstructured(raw)
 }
 
 func GetNovaScheduler(name types.NamespacedName) *novav1.NovaScheduler {
@@ -427,20 +358,6 @@ func NovaSchedulerNotExists(name types.NamespacedName) {
 		err := k8sClient.Get(ctx, name, instance)
 		g.Expect(k8s_errors.IsNotFound(err)).To(BeTrue())
 	}, consistencyTimeout, interval).Should(Succeed())
-}
-
-func CreateNetworkAttachmentDefinition(name types.NamespacedName) client.Object {
-	instance := &networkv1.NetworkAttachmentDefinition{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name.Name,
-			Namespace: name.Namespace,
-		},
-		Spec: networkv1.NetworkAttachmentDefinitionSpec{
-			Config: "",
-		},
-	}
-	Expect(k8sClient.Create(ctx, instance)).Should(Succeed())
-	return instance
 }
 
 func GetDefaultNovaExternalComputeSpec(novaName string, computeName string) map[string]interface{} {
@@ -461,7 +378,7 @@ func CreateNovaExternalCompute(name types.NamespacedName, spec map[string]interf
 		},
 		"spec": spec,
 	}
-	return CreateUnstructured(raw)
+	return th.CreateUnstructured(raw)
 }
 
 func SimulateStatefulSetReplicaReadyWithPods(name types.NamespacedName, networkIPs map[string][]string) {
@@ -516,10 +433,6 @@ func NovaExternalComputeConditionGetter(name types.NamespacedName) condition.Con
 	return instance.Status.Conditions
 }
 
-func CreateEmptySecret(name types.NamespacedName) *corev1.Secret {
-	return CreateSecret(name, map[string][]byte{})
-}
-
 func CreateEmptyConfigMap(name types.NamespacedName) *corev1.ConfigMap {
 	configMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -547,46 +460,12 @@ func CreateNovaExternalComputeInventoryConfigMap(name types.NamespacedName) *cor
 }
 
 func CreateNovaExternalComputeSSHSecret(name types.NamespacedName) *corev1.Secret {
-	return CreateSecret(
+	return th.CreateSecret(
 		name,
 		map[string][]byte{
 			"ssh-privatekey": []byte("a private key"),
 		},
 	)
-}
-
-func DeleteSecret(name types.NamespacedName) {
-	Eventually(func(g Gomega) {
-		secret := &corev1.Secret{}
-		err := k8sClient.Get(ctx, name, secret)
-		// if it is already gone that is OK
-		if k8s_errors.IsNotFound(err) {
-			return
-		}
-		g.Expect(err).ShouldNot(HaveOccurred())
-
-		g.Expect(k8sClient.Delete(ctx, secret)).Should(Succeed())
-
-		err = k8sClient.Get(ctx, name, secret)
-		g.Expect(k8s_errors.IsNotFound(err)).To(BeTrue())
-	}, timeout, interval).Should(Succeed())
-}
-
-func DeleteConfigMap(name types.NamespacedName) {
-	Eventually(func(g Gomega) {
-		configMap := &corev1.ConfigMap{}
-		err := k8sClient.Get(ctx, name, configMap)
-		// if it is already gone that is OK
-		if k8s_errors.IsNotFound(err) {
-			return
-		}
-		g.Expect(err).ShouldNot(HaveOccurred())
-
-		g.Expect(k8sClient.Delete(ctx, configMap)).Should(Succeed())
-
-		err = k8sClient.Get(ctx, name, configMap)
-		g.Expect(k8s_errors.IsNotFound(err)).To(BeTrue())
-	}, timeout, interval).Should(Succeed())
 }
 
 func GetAEE(name types.NamespacedName) *aee.OpenStackAnsibleEE {
@@ -621,7 +500,7 @@ func CreateNovaMetadata(namespace string, spec map[string]interface{}) client.Ob
 		},
 		"spec": spec,
 	}
-	return CreateUnstructured(raw)
+	return th.CreateUnstructured(raw)
 }
 
 func GetNovaMetadata(name types.NamespacedName) *novav1.NovaMetadata {
@@ -664,30 +543,6 @@ func GetDefaultNovaMetadataSpec() map[string]interface{} {
 		"keystoneAuthURL":         "keystone-auth-url",
 		"serviceAccount":          "nova",
 	}
-}
-
-func GetServiceAccount(name types.NamespacedName) *corev1.ServiceAccount {
-	instance := &corev1.ServiceAccount{}
-	Eventually(func(g Gomega) {
-		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
-	}, timeout, interval).Should(Succeed())
-	return instance
-}
-
-func GetRole(name types.NamespacedName) *rbacv1.Role {
-	instance := &rbacv1.Role{}
-	Eventually(func(g Gomega) {
-		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
-	}, timeout, interval).Should(Succeed())
-	return instance
-}
-
-func GetRoleBinding(name types.NamespacedName) *rbacv1.RoleBinding {
-	instance := &rbacv1.RoleBinding{}
-	Eventually(func(g Gomega) {
-		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
-	}, timeout, interval).Should(Succeed())
-	return instance
 }
 
 func GetEnvValue(envs []corev1.EnvVar, name string, defaultValue string) string {

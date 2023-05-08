@@ -45,7 +45,7 @@ func CreateNovaFromSample(sampleFileName string, namespace string) types.Namespa
 	}
 
 	raw := ReadSample(sampleFileName)
-	DeferCleanup(DeleteInstance, CreateNova(novaName, raw["spec"].(map[string]interface{})))
+	DeferCleanup(th.DeleteInstance, CreateNova(novaName, raw["spec"].(map[string]interface{})))
 	return novaName
 }
 
@@ -53,7 +53,7 @@ func CreateNovaAPIFromSample(sampleFileName string, namespace string) types.Name
 	raw := ReadSample(sampleFileName)
 	instance := CreateNovaAPI(namespace, raw["spec"].(map[string]interface{}))
 	name := types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
-	DeferCleanup(DeleteInstance, instance)
+	DeferCleanup(th.DeleteInstance, instance)
 	return name
 }
 
@@ -63,7 +63,7 @@ func CreateNovaCellFromSample(sampleFileName string, namespace string) types.Nam
 		types.NamespacedName{Namespace: namespace, Name: uuid.NewString()},
 		raw["spec"].(map[string]interface{}),
 	)
-	DeferCleanup(DeleteInstance, instance)
+	DeferCleanup(th.DeleteInstance, instance)
 	return types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
 }
 
@@ -71,7 +71,7 @@ func CreateNovaConductorFromSample(sampleFileName string, namespace string) type
 	raw := ReadSample(sampleFileName)
 	instance := CreateNovaConductor(namespace, raw["spec"].(map[string]interface{}))
 	name := types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
-	DeferCleanup(DeleteInstance, instance)
+	DeferCleanup(th.DeleteInstance, instance)
 	return name
 }
 
@@ -83,7 +83,7 @@ func CreateNovaExternalComputeFromSample(sampleFileName string, namespace string
 	}
 
 	compute := CreateNovaExternalCompute(computeName, raw["spec"].(map[string]interface{}))
-	DeferCleanup(DeleteInstance, compute)
+	DeferCleanup(th.DeleteInstance, compute)
 	return computeName
 }
 

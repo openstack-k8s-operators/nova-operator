@@ -46,7 +46,7 @@ var _ = Describe("NovaCell controller", func() {
 
 	When("A NovaCell CR instance is created without any input", func() {
 		BeforeEach(func() {
-			DeferCleanup(DeleteInstance, CreateNovaCell(novaCellName, GetDefaultNovaCellSpec()))
+			DeferCleanup(th.DeleteInstance, CreateNovaCell(novaCellName, GetDefaultNovaCellSpec()))
 		})
 
 		It("is not Ready", func() {
@@ -82,7 +82,7 @@ var _ = Describe("NovaCell controller", func() {
 				CreateNovaMessageBusSecret(namespace, MessageBusSecretName),
 			)
 
-			DeferCleanup(DeleteInstance, CreateNovaCell(novaCellName, GetDefaultNovaCellSpec()))
+			DeferCleanup(th.DeleteInstance, CreateNovaCell(novaCellName, GetDefaultNovaCellSpec()))
 			novaConductorName = types.NamespacedName{
 				Namespace: namespace,
 				Name:      novaCellName.Name + "-conductor",
@@ -168,7 +168,7 @@ var _ = Describe("NovaCell controller", func() {
 				CreateNovaMessageBusSecret(namespace, MessageBusSecretName),
 			)
 
-			DeferCleanup(DeleteInstance, CreateNovaCell(novaCellName, GetDefaultNovaCellSpec()))
+			DeferCleanup(th.DeleteInstance, CreateNovaCell(novaCellName, GetDefaultNovaCellSpec()))
 			novaConductorName = types.NamespacedName{
 				Namespace: namespace,
 				Name:      novaCellName.Name + "-conductor",
@@ -221,7 +221,7 @@ var _ = Describe("NovaCell controller", func() {
 			)
 
 			internalAPINADName := types.NamespacedName{Namespace: namespace, Name: "internalapi"}
-			DeferCleanup(DeleteInstance, CreateNetworkAttachmentDefinition(internalAPINADName))
+			DeferCleanup(th.DeleteInstance, th.CreateNetworkAttachmentDefinition(internalAPINADName))
 
 			th.ExpectConditionWithDetails(
 				novaConductorName,

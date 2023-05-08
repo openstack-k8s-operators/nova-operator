@@ -139,7 +139,7 @@ func CreateNovaWith3CellsAndEnsureReady(namespace string) types.NamespacedName {
 	spec["apiDatabaseInstance"] = "db-for-api"
 	spec["apiMessageBusInstance"] = "mq-for-api"
 
-	DeferCleanup(DeleteInstance, CreateNova(novaName, spec))
+	DeferCleanup(th.DeleteInstance, CreateNova(novaName, spec))
 	keystoneAPIName := th.CreateKeystoneAPI(namespace)
 	DeferCleanup(th.DeleteKeystoneAPI, keystoneAPIName)
 	keystoneAPI := th.GetKeystoneAPI(keystoneAPIName)
@@ -300,7 +300,7 @@ var _ = Describe("Nova reconfiguration", func() {
 			)
 
 			internalAPINADName := types.NamespacedName{Namespace: namespace, Name: "internalapi"}
-			DeferCleanup(DeleteInstance, CreateNetworkAttachmentDefinition(internalAPINADName))
+			DeferCleanup(th.DeleteInstance, th.CreateNetworkAttachmentDefinition(internalAPINADName))
 
 			th.ExpectConditionWithDetails(
 				novaName,

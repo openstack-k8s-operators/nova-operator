@@ -43,7 +43,7 @@ var _ = Describe("NovaAPI controller", func() {
 			spec["customServiceConfig"] = "foo=bar"
 			instance := CreateNovaAPI(namespace, spec)
 			novaAPIName = types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
-			DeferCleanup(DeleteInstance, instance)
+			DeferCleanup(th.DeleteInstance, instance)
 		})
 
 		It("is not Ready", func() {
@@ -201,7 +201,7 @@ var _ = Describe("NovaAPI controller", func() {
 						corev1.ConditionTrue,
 					)
 
-					DeleteInstance(GetNovaAPI(novaAPIName))
+					th.DeleteInstance(GetNovaAPI(novaAPIName))
 
 					Eventually(func() []corev1.ConfigMap {
 						return th.ListConfigMaps(novaAPIName.Name).Items
@@ -220,7 +220,7 @@ var _ = Describe("NovaAPI controller", func() {
 
 			instance := CreateNovaAPI(namespace, GetDefaultNovaAPISpec())
 			novaAPIName = types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
-			DeferCleanup(DeleteInstance, instance)
+			DeferCleanup(th.DeleteInstance, instance)
 		})
 
 		It(" reports input ready", func() {
@@ -244,7 +244,7 @@ var _ = Describe("NovaAPI controller", func() {
 
 			instance := CreateNovaAPI(namespace, GetDefaultNovaAPISpec())
 			novaAPIName = types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
-			DeferCleanup(DeleteInstance, instance)
+			DeferCleanup(th.DeleteInstance, instance)
 
 			th.ExpectCondition(
 				novaAPIName,
@@ -322,11 +322,11 @@ var _ = Describe("NovaAPI controller", func() {
 				condition.ExposeServiceReadyCondition,
 				corev1.ConditionTrue,
 			)
-			public := GetService(types.NamespacedName{Namespace: namespace, Name: "nova-public"})
+			public := th.GetService(types.NamespacedName{Namespace: namespace, Name: "nova-public"})
 			Expect(public.Labels["service"]).To(Equal("nova-api"))
-			internal := GetService(types.NamespacedName{Namespace: namespace, Name: "nova-internal"})
+			internal := th.GetService(types.NamespacedName{Namespace: namespace, Name: "nova-internal"})
 			Expect(internal.Labels["service"]).To(Equal("nova-api"))
-			AssertRouteExists(types.NamespacedName{Namespace: namespace, Name: "nova-public"})
+			th.AssertRouteExists(types.NamespacedName{Namespace: namespace, Name: "nova-public"})
 		})
 
 		It("creates KeystoneEndpoint", func() {
@@ -369,7 +369,7 @@ var _ = Describe("NovaAPI controller", func() {
 
 			instance := CreateNovaAPI(namespace, GetDefaultNovaAPISpec())
 			novaAPIName = types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
-			DeferCleanup(DeleteInstance, instance)
+			DeferCleanup(th.DeleteInstance, instance)
 			statefulSetName = types.NamespacedName{Namespace: namespace, Name: novaAPIName.Name}
 			keystoneEndpointName = types.NamespacedName{Namespace: namespace, Name: "nova"}
 		})
@@ -387,7 +387,7 @@ var _ = Describe("NovaAPI controller", func() {
 			endpoint := th.GetKeystoneEndpoint(keystoneEndpointName)
 			Expect(endpoint.Finalizers).To(ContainElement("NovaAPI"))
 
-			DeleteInstance(GetNovaAPI(novaAPIName))
+			th.DeleteInstance(GetNovaAPI(novaAPIName))
 			endpoint = th.GetKeystoneEndpoint(keystoneEndpointName)
 			Expect(endpoint.Finalizers).NotTo(ContainElement("NovaAPI"))
 		})
@@ -403,7 +403,7 @@ var _ = Describe("NovaAPI controller", func() {
 			spec["networkAttachments"] = []string{"internalapi"}
 			instance := CreateNovaAPI(namespace, spec)
 			novaAPIName = types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
-			DeferCleanup(DeleteInstance, instance)
+			DeferCleanup(th.DeleteInstance, instance)
 		})
 
 		It("reports that the definition is missing", func() {
@@ -424,8 +424,8 @@ var _ = Describe("NovaAPI controller", func() {
 		})
 		It("reports that network attachment is missing", func() {
 			internalAPINADName := types.NamespacedName{Namespace: namespace, Name: "internalapi"}
-			nad := CreateNetworkAttachmentDefinition(internalAPINADName)
-			DeferCleanup(DeleteInstance, nad)
+			nad := th.CreateNetworkAttachmentDefinition(internalAPINADName)
+			DeferCleanup(th.DeleteInstance, nad)
 
 			statefulSetName := types.NamespacedName{
 				Namespace: namespace,
@@ -461,8 +461,8 @@ var _ = Describe("NovaAPI controller", func() {
 		})
 		It("reports that an IP is missing", func() {
 			internalAPINADName := types.NamespacedName{Namespace: namespace, Name: "internalapi"}
-			nad := CreateNetworkAttachmentDefinition(internalAPINADName)
-			DeferCleanup(DeleteInstance, nad)
+			nad := th.CreateNetworkAttachmentDefinition(internalAPINADName)
+			DeferCleanup(th.DeleteInstance, nad)
 
 			statefulSetName := types.NamespacedName{
 				Namespace: namespace,
@@ -501,8 +501,8 @@ var _ = Describe("NovaAPI controller", func() {
 		})
 		It("reports NetworkAttachmentsReady if the Pods got the proper annotations", func() {
 			internalAPINADName := types.NamespacedName{Namespace: namespace, Name: "internalapi"}
-			nad := CreateNetworkAttachmentDefinition(internalAPINADName)
-			DeferCleanup(DeleteInstance, nad)
+			nad := th.CreateNetworkAttachmentDefinition(internalAPINADName)
+			DeferCleanup(th.DeleteInstance, nad)
 
 			statefulSetName := types.NamespacedName{
 				Namespace: namespace,
@@ -562,7 +562,7 @@ var _ = Describe("NovaAPI controller", func() {
 
 			instance := CreateNovaAPI(namespace, spec)
 			novaAPIName = types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
-			DeferCleanup(DeleteInstance, instance)
+			DeferCleanup(th.DeleteInstance, instance)
 		})
 
 		It("creates MetalLB service", func() {
@@ -577,22 +577,22 @@ var _ = Describe("NovaAPI controller", func() {
 
 			// As the internal endpoint is configured in ExternalEndpoints it does not
 			// get a Route but a Service with MetalLB annotations instead
-			service := GetService(types.NamespacedName{Namespace: namespace, Name: "nova-internal"})
+			service := th.GetService(types.NamespacedName{Namespace: namespace, Name: "nova-internal"})
 			Expect(service.Annotations).To(
 				HaveKeyWithValue("metallb.universe.tf/address-pool", "osp-internalapi"))
 			Expect(service.Annotations).To(
 				HaveKeyWithValue("metallb.universe.tf/allow-shared-ip", "osp-internalapi"))
 			Expect(service.Annotations).To(
 				HaveKeyWithValue("metallb.universe.tf/loadBalancerIPs", "internal-lb-ip-1,internal-lb-ip-2"))
-			AssertRouteNotExists(types.NamespacedName{Namespace: namespace, Name: "nova-internal"})
+			th.AssertRouteNotExists(types.NamespacedName{Namespace: namespace, Name: "nova-internal"})
 
 			// As the public endpoint is not mentioned in the ExternalEndpoints a generic Service and
 			// a Route is created
-			service = GetService(types.NamespacedName{Namespace: namespace, Name: "nova-public"})
+			service = th.GetService(types.NamespacedName{Namespace: namespace, Name: "nova-public"})
 			Expect(service.Annotations).NotTo(HaveKey("metallb.universe.tf/address-pool"))
 			Expect(service.Annotations).NotTo(HaveKey("metallb.universe.tf/allow-shared-ip"))
 			Expect(service.Annotations).NotTo(HaveKey("metallb.universe.tf/loadBalancerIPs"))
-			AssertRouteExists(types.NamespacedName{Namespace: namespace, Name: "nova-public"})
+			th.AssertRouteExists(types.NamespacedName{Namespace: namespace, Name: "nova-public"})
 
 			th.ExpectCondition(
 				novaAPIName,
@@ -614,7 +614,7 @@ var _ = Describe("NovaAPI controller", func() {
 
 			api := CreateNovaAPI(namespace, GetDefaultNovaAPISpec())
 			novaAPIName = types.NamespacedName{Name: api.GetName(), Namespace: api.GetNamespace()}
-			DeferCleanup(DeleteInstance, api)
+			DeferCleanup(th.DeleteInstance, api)
 
 			th.ExpectCondition(
 				novaAPIName,
@@ -664,7 +664,7 @@ var _ = Describe("NovaAPI controller", func() {
 			)
 
 			internalAPINADName := types.NamespacedName{Namespace: namespace, Name: "internalapi"}
-			DeferCleanup(DeleteInstance, CreateNetworkAttachmentDefinition(internalAPINADName))
+			DeferCleanup(th.DeleteInstance, th.CreateNetworkAttachmentDefinition(internalAPINADName))
 
 			th.ExpectConditionWithDetails(
 				novaAPIName,
