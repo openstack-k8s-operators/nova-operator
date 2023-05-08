@@ -614,9 +614,9 @@ var _ = Describe("NovaMetadata controller", func() {
 			// Simulate that a new cell is added and Nova controller registered it and
 			// therefore a new cell is added to RegisteredCells
 			Eventually(func(g Gomega) {
-				novaAPI := GetNovaMetadata(novaMetadataName)
-				novaAPI.Spec.RegisteredCells = map[string]string{"cell0": "cell0-config-hash"}
-				err := k8sClient.Update(ctx, novaAPI)
+				novaMetadata := GetNovaMetadata(novaMetadataName)
+				novaMetadata.Spec.RegisteredCells = map[string]string{"cell0": "cell0-config-hash"}
+				err := k8sClient.Update(ctx, novaMetadata)
 				g.Expect(err == nil || k8s_errors.IsConflict(err)).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 
