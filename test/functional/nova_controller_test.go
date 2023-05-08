@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 )
 
@@ -872,14 +873,14 @@ var _ = Describe("Nova controller", func() {
 		It("has the expected container image defaults", func() {
 			novaDefault := GetNova(novaNames.NovaName)
 
-			Expect(novaDefault.Spec.APIServiceTemplate.ContainerImage).To(Equal(novav1.GetEnvDefault("NOVA_API_IMAGE_URL_DEFAULT", novav1.NovaAPIContainerImage)))
-			Expect(novaDefault.Spec.MetadataServiceTemplate.ContainerImage).To(Equal(novav1.GetEnvDefault("NOVA_METADATA_IMAGE_URL_DEFAULT", novav1.NovaMetadataContainerImage)))
-			Expect(novaDefault.Spec.SchedulerServiceTemplate.ContainerImage).To(Equal(novav1.GetEnvDefault("NOVA_SCHEDULER_IMAGE_URL_DEFAULT", novav1.NovaSchedulerContainerImage)))
+			Expect(novaDefault.Spec.APIServiceTemplate.ContainerImage).To(Equal(util.GetEnvVar("NOVA_API_IMAGE_URL_DEFAULT", novav1.NovaAPIContainerImage)))
+			Expect(novaDefault.Spec.MetadataServiceTemplate.ContainerImage).To(Equal(util.GetEnvVar("NOVA_METADATA_IMAGE_URL_DEFAULT", novav1.NovaMetadataContainerImage)))
+			Expect(novaDefault.Spec.SchedulerServiceTemplate.ContainerImage).To(Equal(util.GetEnvVar("NOVA_SCHEDULER_IMAGE_URL_DEFAULT", novav1.NovaSchedulerContainerImage)))
 
 			for _, cell := range novaDefault.Spec.CellTemplates {
-				Expect(cell.ConductorServiceTemplate.ContainerImage).To(Equal(novav1.GetEnvDefault("NOVA_CONDUCTOR_IMAGE_URL_DEFAULT", novav1.NovaConductorContainerImage)))
-				Expect(cell.MetadataServiceTemplate.ContainerImage).To(Equal(novav1.GetEnvDefault("NOVA_METADATA_IMAGE_URL_DEFAULT", novav1.NovaMetadataContainerImage)))
-				Expect(cell.NoVNCProxyServiceTemplate.ContainerImage).To(Equal(novav1.GetEnvDefault("NOVA_NOVNC_IMAGE_URL_DEFAULT", novav1.NovaNoVNCContainerImage)))
+				Expect(cell.ConductorServiceTemplate.ContainerImage).To(Equal(util.GetEnvVar("NOVA_CONDUCTOR_IMAGE_URL_DEFAULT", novav1.NovaConductorContainerImage)))
+				Expect(cell.MetadataServiceTemplate.ContainerImage).To(Equal(util.GetEnvVar("NOVA_METADATA_IMAGE_URL_DEFAULT", novav1.NovaMetadataContainerImage)))
+				Expect(cell.NoVNCProxyServiceTemplate.ContainerImage).To(Equal(util.GetEnvVar("NOVA_NOVNC_IMAGE_URL_DEFAULT", novav1.NovaNoVNCContainerImage)))
 			}
 		})
 	})

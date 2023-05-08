@@ -31,6 +31,26 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
+      path: /mutate-nova-openstack-org-v1beta1-novaapi
+  failurePolicy: Fail
+  name: mnovaapi.kb.io
+  rules:
+  - apiGroups:
+    - nova.openstack.org
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - novaapis
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
       path: /mutate-nova-openstack-org-v1beta1-novacell
   failurePolicy: Fail
   name: mnovacell.kb.io
@@ -51,6 +71,26 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
+      path: /mutate-nova-openstack-org-v1beta1-novaconductor
+  failurePolicy: Fail
+  name: mnovaconductor.kb.io
+  rules:
+  - apiGroups:
+    - nova.openstack.org
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - novaconductors
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
       path: /mutate-nova-openstack-org-v1beta1-novaexternalcompute
   failurePolicy: Fail
   name: mnovaexternalcompute.kb.io
@@ -64,6 +104,66 @@ webhooks:
     - UPDATE
     resources:
     - novaexternalcomputes
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /mutate-nova-openstack-org-v1beta1-novametadata
+  failurePolicy: Fail
+  name: mnovametadata.kb.io
+  rules:
+  - apiGroups:
+    - nova.openstack.org
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - novametadata
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /mutate-nova-openstack-org-v1beta1-novanovncproxy
+  failurePolicy: Fail
+  name: mnovanovncproxy.kb.io
+  rules:
+  - apiGroups:
+    - nova.openstack.org
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - novanovncproxies
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /mutate-nova-openstack-org-v1beta1-novascheduler
+  failurePolicy: Fail
+  name: mnovascheduler.kb.io
+  rules:
+  - apiGroups:
+    - nova.openstack.org
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - novaschedulers
   sideEffects: None
 ---
 apiVersion: admissionregistration.k8s.io/v1
@@ -98,6 +198,26 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
+      path: /validate-nova-openstack-org-v1beta1-novaapi
+  failurePolicy: Fail
+  name: vnovaapi.kb.io
+  rules:
+  - apiGroups:
+    - nova.openstack.org
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - novaapis
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
       path: /validate-nova-openstack-org-v1beta1-novacell
   failurePolicy: Fail
   name: vnovacell.kb.io
@@ -118,6 +238,26 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
+      path: /validate-nova-openstack-org-v1beta1-novaconductor
+  failurePolicy: Fail
+  name: vnovaconductor.kb.io
+  rules:
+  - apiGroups:
+    - nova.openstack.org
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - novaconductors
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
       path: /validate-nova-openstack-org-v1beta1-novaexternalcompute
   failurePolicy: Fail
   name: vnovaexternalcompute.kb.io
@@ -131,4 +271,64 @@ webhooks:
     - UPDATE
     resources:
     - novaexternalcomputes
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-nova-openstack-org-v1beta1-novametadata
+  failurePolicy: Fail
+  name: vnovametadata.kb.io
+  rules:
+  - apiGroups:
+    - nova.openstack.org
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - novametadata
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-nova-openstack-org-v1beta1-novanovncproxy
+  failurePolicy: Fail
+  name: vnovanovncproxy.kb.io
+  rules:
+  - apiGroups:
+    - nova.openstack.org
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - novanovncproxies
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-nova-openstack-org-v1beta1-novascheduler
+  failurePolicy: Fail
+  name: vnovascheduler.kb.io
+  rules:
+  - apiGroups:
+    - nova.openstack.org
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - novaschedulers
   sideEffects: None

@@ -21,6 +21,8 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
+	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -532,6 +534,19 @@ var _ = Describe("NovaScheduler controller", func() {
 				g.Expect(originalConfigHash).NotTo(Equal(currentConfigHash))
 
 			}, timeout, interval).Should(Succeed())
+		})
+	})
+
+	When("NovaScheduler CR is created without container image defined", func() {
+		BeforeEach(func() {
+			spec := GetDefaultNovaSchedulerSpec()
+			spec["containerImage"] = ""
+			scheduler := CreateNovaScheduler(novaNames.SchedulerName, spec)
+			DeferCleanup(th.DeleteInstance, scheduler)
+		})
+		It("has the expected container image default", func() {
+			novaSchedulerDefault := GetNovaScheduler(novaNames.SchedulerName)
+			Expect(novaSchedulerDefault.Spec.ContainerImage).To(Equal(util.GetEnvVar("NOVA_SCHEDULER_IMAGE_URL_DEFAULT", novav1.NovaSchedulerContainerImage)))
 		})
 	})
 })

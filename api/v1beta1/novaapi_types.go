@@ -33,7 +33,6 @@ import (
 // are duplicated.
 type NovaAPITemplate struct {
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default="quay.io/podified-antelope-centos9/openstack-nova-api:current-podified"
 	// ContainerImage - The service specific Container Image URL (will be set to environmental default if empty)
 	ContainerImage string `json:"containerImage"`
 
@@ -135,7 +134,7 @@ type NovaAPISpec struct {
 
 	// +kubebuilder:validation:Optional
 	// ExternalEndpoints, expose a VIP via MetalLB on the pre-created address pool
-	ExternalEndpoints []MetalLBConfig `json:"externalEndpoints"`
+	ExternalEndpoints []MetalLBConfig `json:"externalEndpoints,omitempty"`
 
 	// +kubebuilder:validation:Required
 	// ServiceAccount - service account name used internally to provide Nova services the default SA name
