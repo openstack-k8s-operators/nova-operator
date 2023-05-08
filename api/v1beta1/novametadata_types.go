@@ -29,7 +29,6 @@ import (
 // create a NovaMetadata via higher level CRDs.
 type NovaMetadataTemplate struct {
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default="quay.io/podified-antelope-centos9/openstack-nova-api:current-podified"
 	// The service specific Container Image URL (will be set to environmental default if empty)
 	ContainerImage string `json:"containerImage"`
 
@@ -167,7 +166,7 @@ type NovaMetadataSpec struct {
 	// reconfigured to trigger refresh of the in memory cell caches of the
 	// service.
 	// This is empty for the case when nova-metadata runs within the cell.
-	RegisteredCells map[string]string `json:"registeredCells"`
+	RegisteredCells map[string]string `json:"registeredCells,omitempty"`
 }
 
 // NovaMetadataStatus defines the observed state of NovaMetadata

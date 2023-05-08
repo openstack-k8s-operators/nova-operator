@@ -30,6 +30,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
+	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 )
 
 var _ = Describe("NovaMetadata controller", func() {
@@ -617,6 +619,19 @@ var _ = Describe("NovaMetadata controller", func() {
 				corev1.ConditionTrue,
 			)
 
+		})
+	})
+
+	When("NovaMetadata CR is created without container image defined", func() {
+		BeforeEach(func() {
+			spec := GetDefaultNovaMetadataSpec()
+			spec["containerImage"] = ""
+			metadata := CreateNovaMetadata(novaNames.MetadataName, spec)
+			DeferCleanup(th.DeleteInstance, metadata)
+		})
+		It("has the expected container image default", func() {
+			novaMetadataDefault := GetNovaMetadata(novaNames.MetadataName)
+			Expect(novaMetadataDefault.Spec.ContainerImage).To(Equal(util.GetEnvVar("NOVA_METADATA_IMAGE_URL_DEFAULT", novav1.NovaMetadataContainerImage)))
 		})
 	})
 })

@@ -140,12 +140,32 @@ func main() {
 			setupLog.Error(err, "unable to create webhook", "webhook", "Nova")
 			os.Exit(1)
 		}
+		if err = (&novav1beta1.NovaAPI{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "NovaAPI")
+			os.Exit(1)
+		}
 		if err = (&novav1beta1.NovaCell{}).SetupWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "NovaCell")
 			os.Exit(1)
 		}
+		if err = (&novav1beta1.NovaConductor{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "NovaConductor")
+			os.Exit(1)
+		}
 		if err = (&novav1beta1.NovaExternalCompute{}).SetupWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "NovaExternalCompute")
+			os.Exit(1)
+		}
+		if err = (&novav1beta1.NovaMetadata{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "NovaMetadata")
+			os.Exit(1)
+		}
+		if err = (&novav1beta1.NovaNoVNCProxy{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "NovaNoVNCProxy")
+			os.Exit(1)
+		}
+		if err = (&novav1beta1.NovaScheduler{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "NovaScheduler")
 			os.Exit(1)
 		}
 	}

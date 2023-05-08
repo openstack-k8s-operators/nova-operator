@@ -560,6 +560,7 @@ type NovaNames struct {
 	ConductorScriptDataName         types.NamespacedName
 	MetadataName                    types.NamespacedName
 	MetadataStatefulSetName         types.NamespacedName
+	NoVNCProxyName                  types.NamespacedName
 	ServiceAccountName              types.NamespacedName
 	RoleName                        types.NamespacedName
 	RoleBindingName                 types.NamespacedName
@@ -593,6 +594,10 @@ func GetNovaNames(novaName types.NamespacedName, cellNames []string) NovaNames {
 	novaMetadata := types.NamespacedName{
 		Namespace: novaName.Namespace,
 		Name:      fmt.Sprintf("%s-metadata", novaName.Name),
+	}
+	novaNoVNCProxy := types.NamespacedName{
+		Namespace: novaName.Namespace,
+		Name:      fmt.Sprintf("%s-novncproxy", novaName.Name),
 	}
 	cells := map[string]CellNames{}
 	for _, cellName := range cellNames {
@@ -672,6 +677,7 @@ func GetNovaNames(novaName types.NamespacedName, cellNames []string) NovaNames {
 		},
 		MetadataName:            novaMetadata,
 		MetadataStatefulSetName: novaMetadata,
+		NoVNCProxyName:          novaNoVNCProxy,
 		ServiceAccountName: types.NamespacedName{
 			Namespace: novaName.Namespace,
 			Name:      "nova-" + novaName.Name,
@@ -753,6 +759,38 @@ func GetDefaultNovaMetadataSpec() map[string]interface{} {
 		"containerImage":          ContainerImage,
 		"keystoneAuthURL":         "keystone-auth-url",
 		"serviceAccount":          "nova",
+	}
+}
+
+func CreateNovaNoVNCProxy(name types.NamespacedName, spec map[string]interface{}) client.Object {
+	raw := map[string]interface{}{
+		"apiVersion": "nova.openstack.org/v1beta1",
+		"kind":       "NovaNoVNCProxy",
+		"metadata": map[string]interface{}{
+			"name":      name.Name,
+			"namespace": name.Namespace,
+		},
+		"spec": spec,
+	}
+	return th.CreateUnstructured(raw)
+}
+
+func GetNovaNoVNCProxy(name types.NamespacedName) *novav1.NovaNoVNCProxy {
+	instance := &novav1.NovaNoVNCProxy{}
+	Eventually(func(g Gomega) {
+		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
+	}, timeout, interval).Should(Succeed())
+	return instance
+}
+
+func GetDefaultNovaNoVNCProxySpec() map[string]interface{} {
+	return map[string]interface{}{
+		"secret":               SecretName,
+		"cellDatabaseHostname": "nova-cell-db-hostname",
+		"containerImage":       ContainerImage,
+		"keystoneAuthURL":      "keystone-auth-url",
+		"serviceAccount":       "nova",
+		"cellName":             "cell0",
 	}
 }
 

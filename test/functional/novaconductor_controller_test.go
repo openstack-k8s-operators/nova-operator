@@ -21,6 +21,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/openstack-k8s-operators/lib-common/modules/test/helpers"
+	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -29,6 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
 )
 
 var _ = Describe("NovaConductor controller", func() {
@@ -677,6 +679,19 @@ var _ = Describe("NovaConductor controller", func() {
 				condition.ReadyCondition,
 				corev1.ConditionTrue,
 			)
+		})
+	})
+
+	When("NovaConductor CR is created without container image defined", func() {
+		BeforeEach(func() {
+			spec := GetDefaultNovaConductorSpec()
+			spec["containerImage"] = ""
+			conductor := CreateNovaConductor(novaNames.ConductorName, spec)
+			DeferCleanup(th.DeleteInstance, conductor)
+		})
+		It("has the expected container image default", func() {
+			novaConductorDefault := GetNovaConductor(novaNames.ConductorName)
+			Expect(novaConductorDefault.Spec.ContainerImage).To(Equal(util.GetEnvVar("NOVA_CONDUCTOR_IMAGE_URL_DEFAULT", novav1.NovaConductorContainerImage)))
 		})
 	})
 })

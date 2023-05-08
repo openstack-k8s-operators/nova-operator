@@ -211,9 +211,19 @@ var _ = BeforeSuite(func() {
 
 	err = (&novav1.Nova{}).SetupWebhookWithManager(k8sManager)
 	Expect(err).NotTo(HaveOccurred())
+	err = (&novav1.NovaAPI{}).SetupWebhookWithManager(k8sManager)
+	Expect(err).NotTo(HaveOccurred())
 	err = (&novav1.NovaCell{}).SetupWebhookWithManager(k8sManager)
 	Expect(err).NotTo(HaveOccurred())
+	err = (&novav1.NovaConductor{}).SetupWebhookWithManager(k8sManager)
+	Expect(err).NotTo(HaveOccurred())
 	err = (&novav1.NovaExternalCompute{}).SetupWebhookWithManager(k8sManager)
+	Expect(err).NotTo(HaveOccurred())
+	err = (&novav1.NovaMetadata{}).SetupWebhookWithManager(k8sManager)
+	Expect(err).NotTo(HaveOccurred())
+	err = (&novav1.NovaNoVNCProxy{}).SetupWebhookWithManager(k8sManager)
+	Expect(err).NotTo(HaveOccurred())
+	err = (&novav1.NovaScheduler{}).SetupWebhookWithManager(k8sManager)
 	Expect(err).NotTo(HaveOccurred())
 
 	go func() {
