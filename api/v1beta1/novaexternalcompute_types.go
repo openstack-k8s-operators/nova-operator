@@ -67,17 +67,14 @@ type NovaExternalComputeSpec struct {
 	Deploy *bool `json:"deploy"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default="quay.io/podified-antelope-centos9/openstack-nova-compute:current-podified"
 	// NovaComputeContainerImage is the Container Image URL for the nova-compute container (will be set to environmental default if empty)
 	NovaComputeContainerImage string `json:"novaComputeContainerImage"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default="quay.io/podified-antelope-centos9/openstack-nova-libvirt:current-podified"
 	// NovaLibvirtContainerImage is the Container Image URL for the nova-libvirt container (will be set to environmental default if empty)
 	NovaLibvirtContainerImage string `json:"novaLibvirtContainerImage"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default="quay.io/openstack-k8s-operators/openstack-ansibleee-runner:latest"
 	// AnsibleEEContainerImage is the Container Image URL for the ansible execution environment (will be set to environmental default if empty)
 	AnsibleEEContainerImage string `json:"ansibleEEContainerImage"`
 

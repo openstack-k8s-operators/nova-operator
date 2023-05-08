@@ -24,12 +24,14 @@ import (
 	. "github.com/openstack-k8s-operators/lib-common/modules/test/helpers"
 
 	networkv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
+	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
 )
 
 var _ = Describe("NovaAPI controller", func() {
@@ -683,6 +685,21 @@ var _ = Describe("NovaAPI controller", func() {
 				g.Expect(originalConfigHash).NotTo(Equal(currentConfigHash))
 
 			}, timeout, interval).Should(Succeed())
+		})
+	})
+})
+
+var _ = Describe("NovaAPI controller", func() {
+	When("NovaAPI CR is created without container image defined", func() {
+		BeforeEach(func() {
+			spec := GetDefaultNovaAPISpec()
+			spec["containerImage"] = ""
+			api := CreateNovaAPI(novaNames.APIName, spec)
+			DeferCleanup(th.DeleteInstance, api)
+		})
+		It("has the expected container image default", func() {
+			novaApiDefault := GetNovaAPI(novaNames.APIName)
+			Expect(novaApiDefault.Spec.ContainerImage).To(Equal(util.GetEnvVar("NOVA_API_IMAGE_URL_DEFAULT", novav1.NovaAPIContainerImage)))
 		})
 	})
 })

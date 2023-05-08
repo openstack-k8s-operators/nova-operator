@@ -29,7 +29,6 @@ import (
 // create a NovaNoVNCProxy via higher level CRDs.
 type NovaNoVNCProxyTemplate struct {
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default="quay.io/podified-antelope-centos9/openstack-nova-novncproxy:current-podified"
 	// The service specific Container Image URL (will be set to environmental default if empty)
 	ContainerImage string `json:"containerImage"`
 

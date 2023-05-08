@@ -71,7 +71,6 @@ spec:
                   deployment for the cell
                 properties:
                   containerImage:
-                    default: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
                     description: The service specific Container Image URL (will be
                       set to environmental default if empty)
                     type: string
@@ -196,7 +195,6 @@ spec:
                   dedicated for the cell.
                 properties:
                   containerImage:
-                    default: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
                     description: The service specific Container Image URL (will be
                       set to environmental default if empty)
                     type: string
@@ -333,7 +331,6 @@ spec:
                   dedicated for the cell.
                 properties:
                   containerImage:
-                    default: quay.io/podified-antelope-centos9/openstack-nova-novncproxy:current-podified
                     description: The service specific Container Image URL (will be
                       set to environmental default if empty)
                     type: string
