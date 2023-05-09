@@ -60,15 +60,13 @@ func GetDefaultNovaAPISpec() map[string]interface{} {
 	}
 }
 
-func CreateNovaAPI(namespace string, spec map[string]interface{}) client.Object {
-	novaAPIName := uuid.New().String()
-
+func CreateNovaAPI(name types.NamespacedName, spec map[string]interface{}) client.Object {
 	raw := map[string]interface{}{
 		"apiVersion": "nova.openstack.org/v1beta1",
 		"kind":       "NovaAPI",
 		"metadata": map[string]interface{}{
-			"name":      novaAPIName,
-			"namespace": namespace,
+			"name":      name.Name,
+			"namespace": name.Namespace,
 		},
 		"spec": spec,
 	}
@@ -204,15 +202,13 @@ func GetDefaultNovaConductorSpec() map[string]interface{} {
 	}
 }
 
-func CreateNovaConductor(namespace string, spec map[string]interface{}) client.Object {
-	novaConductorName := uuid.New().String()
-
+func CreateNovaConductor(name types.NamespacedName, spec map[string]interface{}) client.Object {
 	raw := map[string]interface{}{
 		"apiVersion": "nova.openstack.org/v1beta1",
 		"kind":       "NovaConductor",
 		"metadata": map[string]interface{}{
-			"name":      novaConductorName,
-			"namespace": namespace,
+			"name":      name.Name,
+			"namespace": name.Namespace,
 		},
 		"spec": spec,
 	}
@@ -328,15 +324,13 @@ func GetDefaultNovaSchedulerSpec() map[string]interface{} {
 	}
 }
 
-func CreateNovaScheduler(namespace string, spec map[string]interface{}) client.Object {
-	name := uuid.New().String()
-
+func CreateNovaScheduler(name types.NamespacedName, spec map[string]interface{}) client.Object {
 	raw := map[string]interface{}{
 		"apiVersion": "nova.openstack.org/v1beta1",
 		"kind":       "NovaScheduler",
 		"metadata": map[string]interface{}{
-			"name":      name,
-			"namespace": namespace,
+			"name":      name.Name,
+			"namespace": name.Namespace,
 		},
 		"spec": spec,
 	}
@@ -487,15 +481,231 @@ func SimulateAEESucceeded(name types.NamespacedName) {
 	logger.Info("Simulated AEE success", "on", name)
 }
 
-func CreateNovaMetadata(namespace string, spec map[string]interface{}) client.Object {
-	novaMetadataName := uuid.New().String()
+type CellNames struct {
+	CellName                 types.NamespacedName
+	MariaDBDatabaseName      types.NamespacedName
+	CellConductorName        types.NamespacedName
+	CellDBSyncJobName        types.NamespacedName
+	ConductorStatefulSetName types.NamespacedName
+	TransportURLName         types.NamespacedName
+	CellMappingJobName       types.NamespacedName
+}
 
+func GetCellNames(novaName types.NamespacedName, cell string) CellNames {
+	cellName := types.NamespacedName{
+		Namespace: novaName.Namespace,
+		Name:      novaName.Name + "-" + cell,
+	}
+	cellConductor := types.NamespacedName{
+		Namespace: novaName.Namespace,
+		Name:      cellName.Name + "-conductor",
+	}
+	c := CellNames{
+		CellName: cellName,
+		MariaDBDatabaseName: types.NamespacedName{
+			Namespace: novaName.Namespace,
+			Name:      "nova-" + cell,
+		},
+		CellConductorName: cellConductor,
+		CellDBSyncJobName: types.NamespacedName{
+			Namespace: novaName.Namespace,
+			Name:      cellConductor.Name + "-db-sync",
+		},
+		ConductorStatefulSetName: cellConductor,
+		TransportURLName: types.NamespacedName{
+			Namespace: novaName.Namespace,
+			Name:      cellName.Name + "-transport",
+		},
+		CellMappingJobName: types.NamespacedName{
+			Namespace: novaName.Namespace,
+			Name:      cellName.Name + "-cell-mapping",
+		},
+	}
+
+	if cell == "cell0" {
+		c.TransportURLName = types.NamespacedName{
+			Namespace: novaName.Namespace,
+			Name:      novaName.Name + "-api-transport",
+		}
+	}
+
+	return c
+}
+
+type NovaNames struct {
+	NovaName                        types.NamespacedName
+	InternalNovaServiceName         types.NamespacedName
+	PublicNovaServiceName           types.NamespacedName
+	AdminNovaServiceName            types.NamespacedName
+	InternalNovaRouteName           types.NamespacedName
+	PublicNovaRouteName             types.NamespacedName
+	AdminNovaRouteName              types.NamespacedName
+	ComputeName                     types.NamespacedName
+	KeystoneServiceName             types.NamespacedName
+	APIName                         types.NamespacedName
+	APIMariaDBDatabaseName          types.NamespacedName
+	APIDeploymentName               types.NamespacedName
+	APIKeystoneEndpointName         types.NamespacedName
+	APIStatefulSetName              types.NamespacedName
+	APIConfigDataName               types.NamespacedName
+	InternalAPINetworkNADName       types.NamespacedName // refers internalapi network, not Nova API
+	SchedulerName                   types.NamespacedName
+	SchedulerStatefulSetName        types.NamespacedName
+	SchedulerConfigDataName         types.NamespacedName
+	ConductorName                   types.NamespacedName
+	ConductorDBSyncJobName          types.NamespacedName
+	ConductorStatefulSetName        types.NamespacedName
+	ConductorConfigDataName         types.NamespacedName
+	ConductorScriptDataName         types.NamespacedName
+	MetadataName                    types.NamespacedName
+	MetadataStatefulSetName         types.NamespacedName
+	ServiceAccountName              types.NamespacedName
+	RoleName                        types.NamespacedName
+	RoleBindingName                 types.NamespacedName
+	MetadataConfigDataName          types.NamespacedName
+	InternalNovaMetadataServiceName types.NamespacedName
+	InternalNovaMetadataRouteName   types.NamespacedName
+	Cells                           map[string]CellNames
+}
+
+func GetNovaNames(novaName types.NamespacedName, cellNames []string) NovaNames {
+	// NOTE(bogdando): use random UUIDs instead of static "nova" part of names.
+	// These **must** replicate existing Nova*/Dataplane controllers suffixing/prefixing logic.
+	// While dynamic UUIDs also provide enhanced testing coverage for "synthetic" cases,
+	// which could not be caught for normal names with static "nova" prefixes.
+	computeExt := types.NamespacedName{
+		Namespace: novaName.Namespace,
+		Name:      uuid.New().String(),
+	}
+	novaAPI := types.NamespacedName{
+		Namespace: novaName.Namespace,
+		Name:      fmt.Sprintf("%s-api", novaName.Name),
+	}
+	novaScheduler := types.NamespacedName{
+		Namespace: novaName.Namespace,
+		Name:      fmt.Sprintf("%s-scheduler", novaName.Name),
+	}
+	novaConductor := types.NamespacedName{
+		Namespace: novaName.Namespace,
+		Name:      fmt.Sprintf("%s-conductor", novaName.Name),
+	}
+	novaMetadata := types.NamespacedName{
+		Namespace: novaName.Namespace,
+		Name:      fmt.Sprintf("%s-metadata", novaName.Name),
+	}
+	cells := map[string]CellNames{}
+	for _, cellName := range cellNames {
+		cells[cellName] = GetCellNames(novaName, cellName)
+	}
+
+	return NovaNames{
+		NovaName: novaName,
+		InternalNovaServiceName: types.NamespacedName{ // TODO replace for nova-internal
+			Namespace: novaName.Namespace,
+			Name:      novaName.Name + "-internal",
+		},
+		PublicNovaServiceName: types.NamespacedName{ // TODO replace for nova-public
+			Namespace: novaName.Namespace,
+			Name:      novaName.Name + "-public",
+		},
+		AdminNovaServiceName: types.NamespacedName{ // TODO replace for nova-admin
+			Namespace: novaName.Namespace,
+			Name:      novaName.Name + "-admin",
+		},
+		InternalNovaRouteName: types.NamespacedName{ // TODO replace for nova-internal
+			Namespace: novaName.Namespace,
+			Name:      novaName.Name + "-internal",
+		},
+		PublicNovaRouteName: types.NamespacedName{ // TODO replace for nova-public
+			Namespace: novaName.Namespace,
+			Name:      novaName.Name + "-public",
+		},
+		AdminNovaRouteName: types.NamespacedName{ // TODO replace for nova-admin
+			Namespace: novaName.Namespace,
+			Name:      novaName.Name + "-admin",
+		},
+		ComputeName: computeExt,
+		KeystoneServiceName: types.NamespacedName{
+			Namespace: novaName.Namespace,
+			Name:      "nova", // static value hardcoded in controller code
+		},
+		APIName: novaAPI,
+		APIMariaDBDatabaseName: types.NamespacedName{
+			Namespace: novaAPI.Namespace,
+			Name:      "nova-api", // a static DB name for nova
+		},
+		APIDeploymentName: novaAPI,
+		APIKeystoneEndpointName: types.NamespacedName{
+			Namespace: novaName.Namespace,
+			Name:      "nova", // a static keystone endpoint name for nova
+		},
+		APIStatefulSetName: novaAPI,
+		APIConfigDataName: types.NamespacedName{ // TODO replace configDataMap for API
+			Namespace: novaAPI.Namespace,
+			Name:      novaAPI.Name + "-config-data",
+		},
+		InternalAPINetworkNADName: types.NamespacedName{ // TODO replace for internalAPINADName
+			Namespace: novaAPI.Namespace,
+			Name:      "internalapi",
+		},
+		SchedulerName:            novaScheduler,
+		SchedulerStatefulSetName: novaScheduler,
+		SchedulerConfigDataName: types.NamespacedName{ // TODO replace configDataMap for Sched
+			Namespace: novaScheduler.Namespace,
+			Name:      novaScheduler.Name + "-config-data",
+		},
+		ConductorName: novaConductor,
+		ConductorDBSyncJobName: types.NamespacedName{
+			Namespace: novaConductor.Namespace,
+			Name:      novaConductor.Name + "-db-sync",
+		},
+		ConductorStatefulSetName: novaConductor,
+		ConductorConfigDataName: types.NamespacedName{ // TODO replace configDataMap for Cond
+			Namespace: novaConductor.Namespace,
+			Name:      novaConductor.Name + "-config-data",
+		},
+		ConductorScriptDataName: types.NamespacedName{ // TODO replace scriptMap for Cond
+			Namespace: novaConductor.Namespace,
+			Name:      novaConductor.Name + "-script",
+		},
+		MetadataName:            novaMetadata,
+		MetadataStatefulSetName: novaMetadata,
+		ServiceAccountName: types.NamespacedName{
+			Namespace: novaName.Namespace,
+			Name:      "nova-" + novaName.Name,
+		},
+		RoleName: types.NamespacedName{
+			Namespace: novaName.Namespace,
+			Name:      "nova-" + novaName.Name + "-role",
+		},
+		RoleBindingName: types.NamespacedName{
+			Namespace: novaName.Namespace,
+			Name:      "nova-" + novaName.Name + "-rolebinding",
+		},
+		MetadataConfigDataName: types.NamespacedName{ // TODO replace configDataMap for Sched
+			Namespace: novaMetadata.Namespace,
+			Name:      novaMetadata.Name + "-config-data",
+		},
+		InternalNovaMetadataServiceName: types.NamespacedName{ // TODO replace for nova-metadata-internal
+			Namespace: novaMetadata.Namespace,
+			Name:      novaMetadata.Name + "-internal",
+		},
+		InternalNovaMetadataRouteName: types.NamespacedName{ // TODO replace for nova-metadata-internal
+			Namespace: novaMetadata.Namespace,
+			Name:      novaMetadata.Name + "-internal",
+		},
+
+		Cells: cells,
+	}
+}
+
+func CreateNovaMetadata(name types.NamespacedName, spec map[string]interface{}) client.Object {
 	raw := map[string]interface{}{
 		"apiVersion": "nova.openstack.org/v1beta1",
 		"kind":       "NovaMetadata",
 		"metadata": map[string]interface{}{
-			"name":      novaMetadataName,
-			"namespace": namespace,
+			"name":      name.Name,
+			"namespace": name.Namespace,
 		},
 		"spec": spec,
 	}

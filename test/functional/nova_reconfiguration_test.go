@@ -18,7 +18,6 @@ package functional_test
 import (
 	"fmt"
 
-	"github.com/google/uuid"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/openstack-k8s-operators/lib-common/modules/test/helpers"
@@ -31,101 +30,50 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-func CreateNovaWith3CellsAndEnsureReady(namespace string) types.NamespacedName {
-	var novaName types.NamespacedName
-	var mariaDBDatabaseNameForAPI types.NamespacedName
-	var cell0 Cell
-	var cell1 Cell
-	var cell2 Cell
-	var novaAPIName types.NamespacedName
-	var novaAPIdeploymentName types.NamespacedName
-	var novaAPIKeystoneEndpointName types.NamespacedName
-	var novaKeystoneServiceName types.NamespacedName
-	var novaSchedulerName types.NamespacedName
-	var novaSchedulerStatefulSetName types.NamespacedName
-	var novaMetadataName types.NamespacedName
-	var novaMetadataStatefulSetName types.NamespacedName
+func CreateNovaWith3CellsAndEnsureReady(novaNames NovaNames) {
+	cell0 := novaNames.Cells["cell0"]
+	cell1 := novaNames.Cells["cell1"]
+	cell2 := novaNames.Cells["cell2"]
 
-	novaName = types.NamespacedName{
-		Namespace: namespace,
-		Name:      uuid.New().String(),
-	}
-	mariaDBDatabaseNameForAPI = types.NamespacedName{
-		Namespace: namespace,
-		Name:      "nova-api",
-	}
-	novaAPIName = types.NamespacedName{
-		Namespace: namespace,
-		Name:      novaName.Name + "-api",
-	}
-	novaAPIdeploymentName = types.NamespacedName{
-		Namespace: namespace,
-		Name:      novaAPIName.Name,
-	}
-	novaAPIKeystoneEndpointName = types.NamespacedName{
-		Namespace: namespace,
-		Name:      "nova",
-	}
-	novaKeystoneServiceName = types.NamespacedName{
-		Namespace: namespace,
-		Name:      "nova",
-	}
-	novaSchedulerName = types.NamespacedName{
-		Namespace: namespace,
-		Name:      novaName.Name + "-scheduler",
-	}
-	novaSchedulerStatefulSetName = types.NamespacedName{
-		Namespace: namespace,
-		Name:      novaSchedulerName.Name,
-	}
-	novaMetadataName = types.NamespacedName{
-		Namespace: namespace,
-		Name:      novaName.Name + "-metadata",
-	}
-	novaMetadataStatefulSetName = types.NamespacedName{
-		Namespace: namespace,
-		Name:      novaMetadataName.Name,
-	}
-	cell0 = NewCell(novaName, "cell0")
-	cell1 = NewCell(novaName, "cell1")
-	cell2 = NewCell(novaName, "cell2")
-
-	DeferCleanup(k8sClient.Delete, ctx, CreateNovaSecret(namespace, SecretName))
+	DeferCleanup(k8sClient.Delete, ctx, CreateNovaSecret(novaNames.NovaName.Namespace, SecretName))
 	DeferCleanup(
 		k8sClient.Delete,
 		ctx,
-		CreateNovaMessageBusSecret(namespace, "mq-for-api-secret"),
+		CreateNovaMessageBusSecret(cell0.CellName.Namespace, fmt.Sprintf("%s-secret", cell0.TransportURLName.Name)),
 	)
 	DeferCleanup(
 		k8sClient.Delete,
 		ctx,
-		CreateNovaMessageBusSecret(namespace, "mq-for-cell1-secret"),
+		CreateNovaMessageBusSecret(cell1.CellName.Namespace, fmt.Sprintf("%s-secret", cell1.TransportURLName.Name)),
 	)
 	DeferCleanup(
 		k8sClient.Delete,
 		ctx,
-		CreateNovaMessageBusSecret(namespace, "mq-for-cell2-secret"),
+		CreateNovaMessageBusSecret(cell2.CellName.Namespace, fmt.Sprintf("%s-secret", cell2.TransportURLName.Name)),
 	)
 
 	serviceSpec := corev1.ServiceSpec{Ports: []corev1.ServicePort{{Port: 3306}}}
-	DeferCleanup(th.DeleteDBService, th.CreateDBService(namespace, "db-for-api", serviceSpec))
-	DeferCleanup(th.DeleteDBService, th.CreateDBService(namespace, "db-for-cell1", serviceSpec))
-	DeferCleanup(th.DeleteDBService, th.CreateDBService(namespace, "db-for-cell2", serviceSpec))
+	DeferCleanup(
+		th.DeleteDBService,
+		th.CreateDBService(novaNames.APIMariaDBDatabaseName.Namespace, novaNames.APIMariaDBDatabaseName.Name, serviceSpec))
+	DeferCleanup(th.DeleteDBService, th.CreateDBService(cell0.MariaDBDatabaseName.Namespace, cell0.MariaDBDatabaseName.Name, serviceSpec))
+	DeferCleanup(th.DeleteDBService, th.CreateDBService(cell1.MariaDBDatabaseName.Namespace, cell1.MariaDBDatabaseName.Name, serviceSpec))
+	DeferCleanup(th.DeleteDBService, th.CreateDBService(cell2.MariaDBDatabaseName.Namespace, cell2.MariaDBDatabaseName.Name, serviceSpec))
 
 	spec := GetDefaultNovaSpec()
 	cell0Template := GetDefaultNovaCellTemplate()
-	cell0Template["cellDatabaseInstance"] = "db-for-api"
+	cell0Template["cellDatabaseInstance"] = cell0.MariaDBDatabaseName.Name
 	cell0Template["cellDatabaseUser"] = "nova_cell0"
 
 	cell1Template := GetDefaultNovaCellTemplate()
-	cell1Template["cellDatabaseInstance"] = "db-for-cell1"
+	cell1Template["cellDatabaseInstance"] = cell1.MariaDBDatabaseName.Name
 	cell1Template["cellDatabaseUser"] = "nova_cell1"
-	cell1Template["cellMessageBusInstance"] = "mq-for-cell1"
+	cell1Template["cellMessageBusInstance"] = cell1.TransportURLName.Name
 
 	cell2Template := GetDefaultNovaCellTemplate()
-	cell2Template["cellDatabaseInstance"] = "db-for-cell2"
+	cell2Template["cellDatabaseInstance"] = cell2.MariaDBDatabaseName.Name
 	cell2Template["cellDatabaseUser"] = "nova_cell2"
-	cell2Template["cellMessageBusInstance"] = "mq-for-cell2"
+	cell2Template["cellMessageBusInstance"] = cell2.TransportURLName.Name
 	cell2Template["hasAPIAccess"] = false
 
 	spec["cellTemplates"] = map[string]interface{}{
@@ -133,11 +81,11 @@ func CreateNovaWith3CellsAndEnsureReady(namespace string) types.NamespacedName {
 		"cell1": cell1Template,
 		"cell2": cell2Template,
 	}
-	spec["apiDatabaseInstance"] = "db-for-api"
-	spec["apiMessageBusInstance"] = "mq-for-api"
+	spec["apiDatabaseInstance"] = novaNames.APIMariaDBDatabaseName.Name
+	spec["apiMessageBusInstance"] = cell0.TransportURLName.Name
 
-	DeferCleanup(th.DeleteInstance, CreateNova(novaName, spec))
-	keystoneAPIName := th.CreateKeystoneAPI(namespace)
+	DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
+	keystoneAPIName := th.CreateKeystoneAPI(novaNames.NovaName.Namespace)
 	DeferCleanup(th.DeleteKeystoneAPI, keystoneAPIName)
 	keystoneAPI := th.GetKeystoneAPI(keystoneAPIName)
 	keystoneAPI.Status.APIEndpoints["internal"] = "http://keystone-internal-openstack.testing"
@@ -145,9 +93,10 @@ func CreateNovaWith3CellsAndEnsureReady(namespace string) types.NamespacedName {
 		g.Expect(k8sClient.Status().Update(ctx, keystoneAPI.DeepCopy())).Should(Succeed())
 	}, timeout, interval).Should(Succeed())
 
-	th.SimulateKeystoneServiceReady(novaKeystoneServiceName)
+	th.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
+	// END of common logic with Nova multicell test
 
-	th.SimulateMariaDBDatabaseCompleted(mariaDBDatabaseNameForAPI)
+	th.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
 	th.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
 	th.SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
 	th.SimulateMariaDBDatabaseCompleted(cell2.MariaDBDatabaseName)
@@ -160,8 +109,8 @@ func CreateNovaWith3CellsAndEnsureReady(namespace string) types.NamespacedName {
 	th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 	th.SimulateJobSuccess(cell0.CellMappingJobName)
 
-	th.SimulateStatefulSetReplicaReady(novaAPIdeploymentName)
-	th.SimulateKeystoneEndpointReady(novaAPIKeystoneEndpointName)
+	th.SimulateStatefulSetReplicaReady(novaNames.APIDeploymentName)
+	th.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
 
 	th.SimulateJobSuccess(cell1.CellDBSyncJobName)
 	th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
@@ -170,37 +119,33 @@ func CreateNovaWith3CellsAndEnsureReady(namespace string) types.NamespacedName {
 	th.SimulateJobSuccess(cell2.CellDBSyncJobName)
 	th.SimulateStatefulSetReplicaReady(cell2.ConductorStatefulSetName)
 	th.SimulateJobSuccess(cell2.CellMappingJobName)
-	th.SimulateStatefulSetReplicaReady(novaSchedulerStatefulSetName)
-	th.SimulateStatefulSetReplicaReady(novaMetadataStatefulSetName)
+	th.SimulateStatefulSetReplicaReady(novaNames.SchedulerStatefulSetName)
+	th.SimulateStatefulSetReplicaReady(novaNames.MetadataStatefulSetName)
 	th.ExpectCondition(
-		novaName,
+		novaNames.NovaName,
 		ConditionGetterFunc(NovaConditionGetter),
 		novav1.NovaAllCellsReadyCondition,
 		corev1.ConditionTrue,
 	)
 	th.ExpectCondition(
-		novaName,
+		novaNames.NovaName,
 		ConditionGetterFunc(NovaConditionGetter),
 		condition.ReadyCondition,
 		corev1.ConditionTrue,
 	)
-	return novaName
 }
 
 var _ = Describe("Nova reconfiguration", func() {
-	var novaName types.NamespacedName
-
 	BeforeEach(func() {
 		// Uncomment this if you need the full output in the logs from gomega
 		// matchers
 		// format.MaxLength = 0
 
-		novaName = CreateNovaWith3CellsAndEnsureReady(namespace)
-
+		CreateNovaWith3CellsAndEnsureReady(novaNames)
 	})
 	When("cell0 conductor replicas is set to 0", func() {
 		It("sets the deployment replicas to 0", func() {
-			cell0DeploymentName := NewCell(novaName, "cell0").ConductorStatefulSetName
+			cell0DeploymentName := cell0.ConductorStatefulSetName
 
 			deployment := th.GetStatefulSet(cell0DeploymentName)
 			one := int32(1)
@@ -210,7 +155,7 @@ var _ = Describe("Nova reconfiguration", func() {
 			// return a Conflict and then we have to retry by re-reading Nova,
 			// and updating the Replicas again.
 			Eventually(func(g Gomega) {
-				nova := GetNova(novaName)
+				nova := GetNova(novaNames.NovaName)
 
 				// TODO(gibi): Is there a simpler way to achieve this update
 				// in golang?
@@ -228,12 +173,10 @@ var _ = Describe("Nova reconfiguration", func() {
 			}, timeout, interval).Should(Succeed())
 		})
 	})
-	When("networkAttachment is added to a conductor while the definition is missing", func() {
+	When("networkAttachemnt is added to a conductor while the definition is missing", func() {
 		It("applies new NetworkAttachments configuration to that Conductor", func() {
-			cell1Names := NewCell(novaName, "cell1")
-
 			Eventually(func(g Gomega) {
-				nova := GetNova(novaName)
+				nova := GetNova(novaNames.NovaName)
 
 				cell1 := nova.Spec.CellTemplates["cell1"]
 				attachments := cell1.ConductorServiceTemplate.NetworkAttachments
@@ -246,7 +189,7 @@ var _ = Describe("Nova reconfiguration", func() {
 			}, timeout, interval).Should(Succeed())
 
 			th.ExpectConditionWithDetails(
-				cell1Names.CellConductorName,
+				cell1.CellConductorName,
 				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.NetworkAttachmentsReadyCondition,
 				corev1.ConditionFalse,
@@ -254,7 +197,7 @@ var _ = Describe("Nova reconfiguration", func() {
 				"NetworkAttachment resources missing: internalapi",
 			)
 			th.ExpectConditionWithDetails(
-				cell1Names.CellConductorName,
+				cell1.CellConductorName,
 				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.ReadyCondition,
 				corev1.ConditionFalse,
@@ -263,7 +206,7 @@ var _ = Describe("Nova reconfiguration", func() {
 			)
 
 			th.ExpectConditionWithDetails(
-				cell1Names.CellName,
+				cell1.CellName,
 				ConditionGetterFunc(NovaCellConditionGetter),
 				novav1.NovaConductorReadyCondition,
 				corev1.ConditionFalse,
@@ -271,7 +214,7 @@ var _ = Describe("Nova reconfiguration", func() {
 				"NetworkAttachment resources missing: internalapi",
 			)
 			th.ExpectConditionWithDetails(
-				cell1Names.CellName,
+				cell1.CellName,
 				ConditionGetterFunc(NovaCellConditionGetter),
 				condition.ReadyCondition,
 				corev1.ConditionFalse,
@@ -280,7 +223,7 @@ var _ = Describe("Nova reconfiguration", func() {
 			)
 
 			th.ExpectConditionWithDetails(
-				novaName,
+				novaNames.NovaName,
 				ConditionGetterFunc(NovaConditionGetter),
 				novav1.NovaAllCellsReadyCondition,
 				corev1.ConditionFalse,
@@ -288,7 +231,7 @@ var _ = Describe("Nova reconfiguration", func() {
 				"NovaCell cell1 is not Ready",
 			)
 			th.ExpectConditionWithDetails(
-				novaName,
+				novaNames.NovaName,
 				ConditionGetterFunc(NovaConditionGetter),
 				condition.ReadyCondition,
 				corev1.ConditionFalse,
@@ -296,11 +239,11 @@ var _ = Describe("Nova reconfiguration", func() {
 				"NovaCell cell1 is not Ready",
 			)
 
-			internalAPINADName := types.NamespacedName{Namespace: namespace, Name: "internalapi"}
+			internalAPINADName := types.NamespacedName{Namespace: novaNames.NovaName.Namespace, Name: "internalapi"}
 			DeferCleanup(th.DeleteInstance, th.CreateNetworkAttachmentDefinition(internalAPINADName))
 
 			th.ExpectConditionWithDetails(
-				novaName,
+				novaNames.NovaName,
 				ConditionGetterFunc(NovaConditionGetter),
 				condition.ReadyCondition,
 				corev1.ConditionFalse,
@@ -309,12 +252,12 @@ var _ = Describe("Nova reconfiguration", func() {
 			)
 
 			SimulateStatefulSetReplicaReadyWithPods(
-				cell1Names.ConductorStatefulSetName,
-				map[string][]string{namespace + "/internalapi": {"10.0.0.1"}},
+				cell1.ConductorStatefulSetName,
+				map[string][]string{novaNames.NovaName.Namespace + "/internalapi": {"10.0.0.1"}},
 			)
 
 			th.ExpectCondition(
-				novaName,
+				novaNames.NovaName,
 				ConditionGetterFunc(NovaConditionGetter),
 				condition.ReadyCondition,
 				corev1.ConditionTrue,
@@ -328,7 +271,7 @@ var _ = Describe("Nova reconfiguration", func() {
 			// return a Conflict and then we have to retry by re-reading Nova,
 			// and updating it again.
 			Eventually(func(g Gomega) {
-				nova := GetNova(novaName)
+				nova := GetNova(novaNames.NovaName)
 
 				newSelector := map[string]string{"foo": "bar"}
 				nova.Spec.NodeSelector = newSelector
@@ -344,7 +287,7 @@ var _ = Describe("Nova reconfiguration", func() {
 
 			// Now reset it back to empty and see that it is propagates too
 			Eventually(func(g Gomega) {
-				nova := GetNova(novaName)
+				nova := GetNova(novaNames.NovaName)
 
 				newSelector := map[string]string{}
 				nova.Spec.NodeSelector = newSelector
@@ -359,31 +302,22 @@ var _ = Describe("Nova reconfiguration", func() {
 		},
 			Entry("the nova api pods",
 				func() types.NamespacedName {
-					return types.NamespacedName{
-						Namespace: namespace,
-						Name:      novaName.Name + "-api",
-					}
+					return novaNames.APIName
 				}),
 			Entry("the nova scheduler pods", func() types.NamespacedName {
-				return types.NamespacedName{
-					Namespace: namespace,
-					Name:      novaName.Name + "-scheduler",
-				}
+				return novaNames.SchedulerName
 			}),
 			Entry("the nova metadata pods", func() types.NamespacedName {
-				return types.NamespacedName{
-					Namespace: namespace,
-					Name:      novaName.Name + "-metadata",
-				}
+				return novaNames.MetadataName
 			}),
 			Entry("the nova cell0 conductor", func() types.NamespacedName {
-				return NewCell(novaName, "cell0").ConductorStatefulSetName
+				return cell0.ConductorStatefulSetName
 			}),
 			Entry("the nova cell1 conductor", func() types.NamespacedName {
-				return NewCell(novaName, "cell1").ConductorStatefulSetName
+				return cell1.ConductorStatefulSetName
 			}),
 			Entry("the nova cell2 conductor", func() types.NamespacedName {
-				return NewCell(novaName, "cell2").ConductorStatefulSetName
+				return cell2.ConductorStatefulSetName
 			}),
 		)
 
@@ -391,22 +325,10 @@ var _ = Describe("Nova reconfiguration", func() {
 			serviceSelector := map[string]string{"foo": "api"}
 			conductorSelector := map[string]string{"foo": "conductor"}
 			globalSelector := map[string]string{"foo": "global"}
-			novaAPIdeploymentName := types.NamespacedName{
-				Namespace: namespace,
-				Name:      novaName.Name + "-api",
-			}
-			novaSchedulerDeploymentName := types.NamespacedName{
-				Namespace: namespace,
-				Name:      novaName.Name + "-scheduler",
-			}
-			novaMetadataDeploymentName := types.NamespacedName{
-				Namespace: namespace,
-				Name:      novaName.Name + "-metadata",
-			}
 
 			// Set the service specific NodeSelector first
 			Eventually(func(g Gomega) {
-				nova := GetNova(novaName)
+				nova := GetNova(novaNames.NovaName)
 
 				nova.Spec.APIServiceTemplate.NodeSelector = serviceSelector
 				nova.Spec.MetadataServiceTemplate.NodeSelector = serviceSelector
@@ -419,58 +341,58 @@ var _ = Describe("Nova reconfiguration", func() {
 				err := k8sClient.Update(ctx, nova)
 				g.Expect(err == nil || k8s_errors.IsConflict(err)).To(BeTrue())
 
-				apiDeployment := th.GetStatefulSet(novaAPIdeploymentName)
+				apiDeployment := th.GetStatefulSet(novaNames.APIDeploymentName)
 				g.Expect(apiDeployment.Spec.Template.Spec.NodeSelector).To(Equal(serviceSelector))
-				schedulerDeployment := th.GetStatefulSet(novaSchedulerDeploymentName)
+				schedulerDeployment := th.GetStatefulSet(novaNames.SchedulerStatefulSetName)
 				g.Expect(schedulerDeployment.Spec.Template.Spec.NodeSelector).To(Equal(serviceSelector))
-				metadataDeployment := th.GetStatefulSet(novaMetadataDeploymentName)
+				metadataDeployment := th.GetStatefulSet(novaNames.MetadataStatefulSetName)
 				g.Expect(metadataDeployment.Spec.Template.Spec.NodeSelector).To(Equal(serviceSelector))
 
-				for _, cell := range []string{"cell0", "cell1", "cell2"} {
-					conductorDeploymentName := NewCell(novaName, cell).ConductorStatefulSetName
-					conductorDeployment := th.GetStatefulSet(conductorDeploymentName)
-					g.Expect(conductorDeployment.Spec.Template.Spec.NodeSelector).To(Equal(conductorSelector))
-				}
-
+				conductorDeployment := th.GetStatefulSet(cell0.ConductorStatefulSetName)
+				g.Expect(conductorDeployment.Spec.Template.Spec.NodeSelector).To(Equal(conductorSelector))
+				conductorDeployment = th.GetStatefulSet(cell1.ConductorStatefulSetName)
+				g.Expect(conductorDeployment.Spec.Template.Spec.NodeSelector).To(Equal(conductorSelector))
+				conductorDeployment = th.GetStatefulSet(cell2.ConductorStatefulSetName)
+				g.Expect(conductorDeployment.Spec.Template.Spec.NodeSelector).To(Equal(conductorSelector))
 			}, timeout, interval).Should(Succeed())
 
 			// Set the global NodeSelector and assert that it is propagated
 			// except to the NovaService's
 			Eventually(func(g Gomega) {
-				nova := GetNova(novaName)
+				nova := GetNova(novaNames.NovaName)
 				nova.Spec.NodeSelector = globalSelector
 
 				err := k8sClient.Update(ctx, nova)
 				g.Expect(err == nil || k8s_errors.IsConflict(err)).To(BeTrue())
 
 				// NovaService's deployment keeps it own selector
-				apiDeployment := th.GetStatefulSet(novaAPIdeploymentName)
+				apiDeployment := th.GetStatefulSet(novaNames.APIDeploymentName)
 				g.Expect(apiDeployment.Spec.Template.Spec.NodeSelector).To(Equal(serviceSelector))
-				schedulerDeployment := th.GetStatefulSet(novaSchedulerDeploymentName)
+				schedulerDeployment := th.GetStatefulSet(novaNames.SchedulerStatefulSetName)
 				g.Expect(schedulerDeployment.Spec.Template.Spec.NodeSelector).To(Equal(serviceSelector))
-				metadataDeployment := th.GetStatefulSet(novaMetadataDeploymentName)
+				metadataDeployment := th.GetStatefulSet(novaNames.MetadataStatefulSetName)
 				g.Expect(metadataDeployment.Spec.Template.Spec.NodeSelector).To(Equal(serviceSelector))
 
 				// and cell conductors keep their own selector
-				for _, cell := range []string{"cell0", "cell1", "cell2"} {
-					conductorDeploymentName := NewCell(novaName, cell).ConductorStatefulSetName
-					conductorDeployment := th.GetStatefulSet(conductorDeploymentName)
-					g.Expect(conductorDeployment.Spec.Template.Spec.NodeSelector).To(Equal(conductorSelector))
-				}
+				conductorDeployment := th.GetStatefulSet(cell0.ConductorStatefulSetName)
+				g.Expect(conductorDeployment.Spec.Template.Spec.NodeSelector).To(Equal(conductorSelector))
+				conductorDeployment = th.GetStatefulSet(cell1.ConductorStatefulSetName)
+				g.Expect(conductorDeployment.Spec.Template.Spec.NodeSelector).To(Equal(conductorSelector))
+				conductorDeployment = th.GetStatefulSet(cell2.ConductorStatefulSetName)
+				g.Expect(conductorDeployment.Spec.Template.Spec.NodeSelector).To(Equal(conductorSelector))
 			}, timeout, interval).Should(Succeed())
 		})
 	})
 	When("CellMessageBusInstance is reconfigured for a cell", func() {
 		It("re-runs the cell mapping job and updates the cell hash", func() {
-			cell1Names := NewCell(novaName, "cell1")
-			mappingJob := th.GetJob(cell1Names.CellMappingJobName)
+			mappingJob := th.GetJob(cell1.CellMappingJobName)
 			oldJobInputHash := GetEnvValue(
 				mappingJob.Spec.Template.Spec.Containers[0].Env, "INPUT_HASH", "")
 
-			oldCell1Hash := GetNova(novaName).Status.RegisteredCells[cell1Names.CellName.Name]
+			oldCell1Hash := GetNova(novaNames.NovaName).Status.RegisteredCells[cell1.CellName.Name]
 
 			Eventually(func(g Gomega) {
-				nova := GetNova(novaName)
+				nova := GetNova(novaNames.NovaName)
 
 				cell1 := nova.Spec.CellTemplates["cell1"]
 				cell1.CellMessageBusInstance = "alternate-mq-for-cell1"
@@ -485,24 +407,24 @@ var _ = Describe("Nova reconfiguration", func() {
 			DeferCleanup(
 				k8sClient.Delete,
 				ctx,
-				CreateNovaMessageBusSecret(namespace, "alternate-mq-for-cell1-secret"),
+				CreateNovaMessageBusSecret(cell1.CellName.Namespace, "alternate-mq-for-cell1-secret"),
 			)
 
 			// Expect that nova controller updates the TransportURL to point to
 			// the new rabbit cluster
 			Eventually(func(g Gomega) {
-				transport := th.GetTransportURL(cell1Names.TransportURLName)
+				transport := th.GetTransportURL(cell1.TransportURLName)
 				g.Expect(transport.Spec.RabbitmqClusterName).To(Equal("alternate-mq-for-cell1"))
 			}, timeout, interval).Should(Succeed())
 
-			th.SimulateTransportURLReady(cell1Names.TransportURLName)
+			th.SimulateTransportURLReady(cell1.TransportURLName)
 
 			// Expect that the NovaConductor config is updated with the new transport URL
 			Eventually(func(g Gomega) {
 				configDataMap := th.GetConfigMap(
 					types.NamespacedName{
-						Namespace: namespace,
-						Name:      fmt.Sprintf("%s-config-data", cell1Names.CellConductorName.Name),
+						Namespace: cell1.CellName.Namespace,
+						Name:      fmt.Sprintf("%s-config-data", cell1.CellConductorName.Name),
 					},
 				)
 				g.Expect(configDataMap).ShouldNot(BeNil())
@@ -514,17 +436,17 @@ var _ = Describe("Nova reconfiguration", func() {
 			// Expect that nova controller updates the mapping Job to re-run that
 			// to update the CellMapping table in the nova_api DB.
 			Eventually(func(g Gomega) {
-				mappingJob := th.GetJob(cell1Names.CellMappingJobName)
+				mappingJob := th.GetJob(cell1.CellMappingJobName)
 				newJobInputHash := GetEnvValue(
 					mappingJob.Spec.Template.Spec.Containers[0].Env, "INPUT_HASH", "")
 				g.Expect(newJobInputHash).NotTo(Equal(oldJobInputHash))
 			}, timeout, interval).Should(Succeed())
 
-			th.SimulateJobSuccess(cell1Names.CellMappingJobName)
+			th.SimulateJobSuccess(cell1.CellMappingJobName)
 
 			// Expect that the new config results in a new cell1 hash
 			Eventually(func(g Gomega) {
-				newCell1Hash := GetNova(novaName).Status.RegisteredCells[cell1Names.CellName.Name]
+				newCell1Hash := GetNova(novaNames.NovaName).Status.RegisteredCells[cell1.CellName.Name]
 				g.Expect(newCell1Hash).NotTo(Equal(oldCell1Hash))
 			}, timeout, interval).Should(Succeed())
 		})
