@@ -1,7 +1,7 @@
 apiVersion: mariadb.openstack.org/v1beta1
 kind: MariaDB
 metadata:
-  name: mariadb-cell1
+  name: openstack-cell1
 spec:
   secret: mariadb-secret
   storageClass: local-storage

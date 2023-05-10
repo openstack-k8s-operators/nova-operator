@@ -10,13 +10,7 @@ spec:
   apiMessageBusInstance: rabbitmq
   apiServiceTemplate:
     containerImage: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
-    customServiceConfig: |
-      # service config customization
-      [DEFAULT]
-      debug=True
-    defaultConfigOverwrite:
-      logging.conf: |
-        # my custom logging configuration
+    customServiceConfig: ""
     replicas: 1
   cellTemplates:
     cell0:
@@ -25,44 +19,38 @@ spec:
       cellMessageBusInstance: rabbitmq
       conductorServiceTemplate:
         containerImage: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
-        customServiceConfig: |
-          # service config customization
-          [DEFAULT]
-          debug=True
-        defaultConfigOverwrite:
-          logging.conf: ""
+        customServiceConfig: ""
         replicas: 1
       hasAPIAccess: true
+      metadataServiceTemplate:
+        containerImage: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
+        customServiceConfig: ""
+        replicas: 0
+      noVNCProxyServiceTemplate:
+        containerImage: quay.io/podified-antelope-centos9/openstack-nova-novncproxy:current-podified
+        customServiceConfig: ""
+        replicas: 1
     cell1:
-      cellDatabaseInstance: mariadb-cell1
+      cellDatabaseInstance: openstack-cell1
       cellDatabaseUser: nova_cell1
       cellMessageBusInstance: rabbitmq-cell1
       conductorServiceTemplate:
         containerImage: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
-        customServiceConfig: |
-          # service config customization
-          [DEFAULT]
-          debug=True
-        defaultConfigOverwrite:
-          logging.conf: ""
+        customServiceConfig: ""
         replicas: 1
       hasAPIAccess: true
+      metadataServiceTemplate:
+        containerImage: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
+        customServiceConfig: ""
+        replicas: 0
       noVNCProxyServiceTemplate:
         containerImage: quay.io/podified-antelope-centos9/openstack-nova-novncproxy:current-podified
-        customServiceConfig: |
-          # service config customization
-          [DEFAULT]
-          debug=True
-        defaultConfigOverwrite:
-          logging.conf: ""
+        customServiceConfig: ""
         replicas: 1
   keystoneInstance: keystone
   metadataServiceTemplate:
     containerImage: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
-    customServiceConfig: |
-      # service config customization
-      [DEFAULT]
-      debug=True
+    customServiceConfig: ""
     replicas: 1
   passwordSelectors:
     apiDatabase: NovaAPIDatabasePassword
@@ -71,11 +59,9 @@ spec:
     service: NovaPassword
   schedulerServiceTemplate:
     containerImage: quay.io/podified-antelope-centos9/openstack-nova-scheduler:current-podified
-    customServiceConfig: |
-      # service config customization
-      [DEFAULT]
-      debug=True
+    customServiceConfig: ""
     replicas: 1
+    resources: {}
   secret: osp-secret
   serviceUser: nova
 status:
@@ -398,4 +384,138 @@ metadata:
     kind: NovaScheduler
     name: nova-scheduler
 ---
-
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: nova-api
+  namespace: openstack
+  ownerReferences:
+  - apiVersion: nova.openstack.org/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: NovaAPI
+    name: nova-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      service: nova-api
+  serviceName: ""
+  template:
+    metadata:
+      labels:
+        service: nova-api
+status:
+  availableReplicas: 1
+  currentReplicas: 1
+  readyReplicas: 1
+  replicas: 1
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: nova-metadata
+  namespace: openstack
+  ownerReferences:
+  - apiVersion: nova.openstack.org/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: NovaMetadata
+    name: nova-metadata
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      service: nova-metadata
+  template:
+    metadata:
+      labels:
+        service: nova-metadata
+status:
+  availableReplicas: 1
+  currentReplicas: 1
+  readyReplicas: 1
+  replicas: 1
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: nova-scheduler
+  namespace: openstack
+  ownerReferences:
+  - apiVersion: nova.openstack.org/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: NovaScheduler
+    name: nova-scheduler
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      service: nova-scheduler
+  template:
+    metadata:
+      labels:
+        service: nova-scheduler
+status:
+  availableReplicas: 1
+  currentReplicas: 1
+  readyReplicas: 1
+  replicas: 1
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: nova-cell0-conductor
+  namespace: openstack
+  ownerReferences:
+  - apiVersion: nova.openstack.org/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: NovaConductor
+    name: nova-cell0-conductor
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      cell: cell0
+      service: nova-conductor
+  template:
+    metadata:
+      labels:
+        cell: cell0
+        service: nova-conductor
+status:
+  availableReplicas: 1
+  currentReplicas: 1
+  readyReplicas: 1
+  replicas: 1
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: nova-cell1-conductor
+  namespace: openstack
+  ownerReferences:
+  - apiVersion: nova.openstack.org/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: NovaConductor
+    name: nova-cell1-conductor
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      cell: cell1
+      service: nova-conductor
+  template:
+    metadata:
+      labels:
+        cell: cell1
+        service: nova-conductor
+status:
+  availableReplicas: 1
+  currentReplicas: 1
+  readyReplicas: 1
+  replicas: 1
+---
