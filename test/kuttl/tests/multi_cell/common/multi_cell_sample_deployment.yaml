@@ -1,0 +1,521 @@
+apiVersion: nova.openstack.org/v1beta1
+kind: Nova
+metadata:
+  finalizers:
+  - Nova
+  name: nova
+spec:
+  apiDatabaseInstance: openstack
+  apiDatabaseUser: nova_api
+  apiMessageBusInstance: rabbitmq
+  apiServiceTemplate:
+    containerImage: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
+    customServiceConfig: ""
+    replicas: 1
+  cellTemplates:
+    cell0:
+      cellDatabaseInstance: openstack
+      cellDatabaseUser: nova_cell0
+      cellMessageBusInstance: rabbitmq
+      conductorServiceTemplate:
+        containerImage: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
+        customServiceConfig: ""
+        replicas: 1
+      hasAPIAccess: true
+      metadataServiceTemplate:
+        containerImage: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
+        customServiceConfig: ""
+        replicas: 0
+      noVNCProxyServiceTemplate:
+        containerImage: quay.io/podified-antelope-centos9/openstack-nova-novncproxy:current-podified
+        customServiceConfig: ""
+        replicas: 1
+    cell1:
+      cellDatabaseInstance: openstack-cell1
+      cellDatabaseUser: nova_cell1
+      cellMessageBusInstance: rabbitmq-cell1
+      conductorServiceTemplate:
+        containerImage: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
+        customServiceConfig: ""
+        replicas: 1
+      hasAPIAccess: true
+      metadataServiceTemplate:
+        containerImage: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
+        customServiceConfig: ""
+        replicas: 0
+      noVNCProxyServiceTemplate:
+        containerImage: quay.io/podified-antelope-centos9/openstack-nova-novncproxy:current-podified
+        customServiceConfig: ""
+        replicas: 1
+  keystoneInstance: keystone
+  metadataServiceTemplate:
+    containerImage: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
+    customServiceConfig: ""
+    replicas: 1
+  passwordSelectors:
+    apiDatabase: NovaAPIDatabasePassword
+    cellDatabase: NovaCell0DatabasePassword
+    metadataSecret: MetadataSecret
+    service: NovaPassword
+  schedulerServiceTemplate:
+    containerImage: quay.io/podified-antelope-centos9/openstack-nova-scheduler:current-podified
+    customServiceConfig: ""
+    replicas: 1
+    resources: {}
+  secret: osp-secret
+  serviceUser: nova
+status:
+  apiServiceReadyCount: 1
+  conditions:
+  - message: Setup complete
+    reason: Ready
+    status: "True"
+    type: Ready
+  - message: Setup complete
+    reason: Ready
+    status: "True"
+    type: KeystoneServiceReady
+  - message: DB create completed
+    reason: Ready
+    status: "True"
+    type: NovaAPIDBReady
+  - message: API message bus creation successfully
+    reason: Ready
+    status: "True"
+    type: NovaAPIMQReady
+  - message: Setup complete
+    reason: Ready
+    status: "True"
+    type: NovaAPIReady
+  - message: All DBs created successfully
+    reason: Ready
+    status: "True"
+    type: NovaAllCellDBReady
+  - message: All NovaCells are ready
+    reason: Ready
+    status: "True"
+    type: NovaAllCellReady
+  - message: All message busses created successfully
+    reason: Ready
+    status: "True"
+    type: NovaAllCellsMQReady
+  - message: Setup complete
+    reason: Ready
+    status: "True"
+    type: NovaMetadataReady
+  - message: Setup complete
+    reason: Ready
+    status: "True"
+    type: NovaSchedulerReady
+  - message: RoleBinding created
+    reason: Ready
+    status: "True"
+    type: RoleBindingReady
+  - message: Role created
+    reason: Ready
+    status: "True"
+    type: RoleReady
+  - message: ServiceAccount created
+    reason: Ready
+    status: "True"
+    type: ServiceAccountReady
+  schedulerServiceReadyCount: 1
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nova-operator-controller-manager
+  namespace: openstack
+status:
+  availableReplicas: 1
+  replicas: 1
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  annotations:
+    openshift.io/scc: anyuid
+  labels:
+    service: nova-api
+  name: nova-api-0
+status:
+  containerStatuses:
+  - image: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
+    name: nova-api-api
+    ready: true
+    started: true
+  - image: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
+    name: nova-api-log
+    ready: true
+    started: true
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    service: nova-scheduler
+  name: nova-scheduler-0
+  ownerReferences:
+  - apiVersion: apps/v1
+    blockOwnerDeletion: true
+    controller: true
+    kind: StatefulSet
+    name: nova-scheduler
+status:
+  containerStatuses:
+  - image: quay.io/podified-antelope-centos9/openstack-nova-scheduler:current-podified
+    name: nova-scheduler-scheduler
+    ready: true
+    started: true
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  annotations:
+    openshift.io/scc: anyuid
+  labels:
+    service: nova-metadata
+    statefulset.kubernetes.io/pod-name: nova-metadata-0
+  name: nova-metadata-0
+  ownerReferences:
+  - apiVersion: apps/v1
+    blockOwnerDeletion: true
+    controller: true
+    kind: StatefulSet
+    name: nova-metadata
+status:
+  containerStatuses:
+  - image: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
+    name: nova-metadata-log
+    ready: true
+    started: true
+  - image: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
+    name: nova-metadata-metadata
+    ready: true
+    started: true
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  annotations:
+    openshift.io/scc: anyuid
+  labels:
+    cell: cell0
+    service: nova-conductor
+    statefulset.kubernetes.io/pod-name: nova-cell0-conductor-0
+  name: nova-cell0-conductor-0
+  ownerReferences:
+  - apiVersion: apps/v1
+    blockOwnerDeletion: true
+    controller: true
+    kind: StatefulSet
+    name: nova-cell0-conductor
+status:
+  containerStatuses:
+  - image: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
+    name: nova-cell0-conductor-conductor
+    ready: true
+    started: true
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  annotations:
+    openshift.io/scc: anyuid
+  labels:
+    cell: cell1
+    service: nova-conductor
+    statefulset.kubernetes.io/pod-name: nova-cell1-conductor-0
+  name: nova-cell1-conductor-0
+  ownerReferences:
+  - blockOwnerDeletion: true
+    controller: true
+    kind: StatefulSet
+    name: nova-cell1-conductor
+status:
+  containerStatuses:
+  - image: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
+    name: nova-cell1-conductor-conductor
+    ready: true
+    started: true
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    internal: "true"
+    service: nova-api
+  name: nova-internal
+  ownerReferences:
+  - blockOwnerDeletion: true
+    controller: true
+    kind: NovaAPI
+    name: nova-api
+spec:
+  ports:
+  - name: nova-internal
+  selector:
+    service: nova-api
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    public: "true"
+    service: nova-api
+  name: nova-public
+  ownerReferences:
+  - blockOwnerDeletion: true
+    controller: true
+    kind: NovaAPI
+    name: nova-api
+spec:
+  ports:
+  - name: nova-public
+  selector:
+    service: nova-api
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  labels:
+    public: "true"
+    service: nova-api
+  name: nova-public
+  ownerReferences:
+  - blockOwnerDeletion: true
+    controller: true
+    kind: NovaAPI
+    name: nova-api
+spec:
+  port:
+    targetPort: nova-public
+  to:
+    kind: Service
+    name: nova-public
+status:
+  ingress:
+  - conditions:
+    - status: "True"
+      type: Admitted
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    nova-api.openstack.org/name: nova-api
+  name: nova-api-config-data
+  ownerReferences:
+  - blockOwnerDeletion: true
+    controller: true
+    kind: NovaAPI
+    name: nova-api
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    nova-conductor.openstack.org/name: nova-cell0-conductor
+  name: nova-cell0-conductor-config-data
+  namespace: openstack
+  ownerReferences:
+  - blockOwnerDeletion: true
+    controller: true
+    kind: NovaConductor
+    name: nova-cell0-conductor
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    nova-conductor.openstack.org/name: nova-cell0-conductor
+  name: nova-cell0-conductor-scripts
+  ownerReferences:
+  - blockOwnerDeletion: true
+    controller: true
+    kind: NovaConductor
+    name: nova-cell0-conductor
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    nova-conductor.openstack.org/name: nova-cell1-conductor
+  name: nova-cell1-conductor-config-data
+  ownerReferences:
+  - blockOwnerDeletion: true
+    controller: true
+    kind: NovaConductor
+    name: nova-cell1-conductor
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    nova-conductor.openstack.org/name: nova-cell1-conductor
+  name: nova-cell1-conductor-scripts
+  ownerReferences:
+  - blockOwnerDeletion: true
+    controller: true
+    kind: NovaConductor
+    name: nova-cell1-conductor
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    nova-metadata.openstack.org/name: nova-metadata
+  name: nova-metadata-config-data
+  ownerReferences:
+  - blockOwnerDeletion: true
+    controller: true
+    kind: NovaMetadata
+    name: nova-metadata
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    nova-scheduler.openstack.org/name: nova-scheduler
+  name: nova-scheduler-config-data
+  ownerReferences:
+  - blockOwnerDeletion: true
+    controller: true
+    kind: NovaScheduler
+    name: nova-scheduler
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: nova-api
+  namespace: openstack
+  ownerReferences:
+  - apiVersion: nova.openstack.org/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: NovaAPI
+    name: nova-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      service: nova-api
+  serviceName: ""
+  template:
+    metadata:
+      labels:
+        service: nova-api
+status:
+  availableReplicas: 1
+  currentReplicas: 1
+  readyReplicas: 1
+  replicas: 1
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: nova-metadata
+  namespace: openstack
+  ownerReferences:
+  - apiVersion: nova.openstack.org/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: NovaMetadata
+    name: nova-metadata
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      service: nova-metadata
+  template:
+    metadata:
+      labels:
+        service: nova-metadata
+status:
+  availableReplicas: 1
+  currentReplicas: 1
+  readyReplicas: 1
+  replicas: 1
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: nova-scheduler
+  namespace: openstack
+  ownerReferences:
+  - apiVersion: nova.openstack.org/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: NovaScheduler
+    name: nova-scheduler
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      service: nova-scheduler
+  template:
+    metadata:
+      labels:
+        service: nova-scheduler
+status:
+  availableReplicas: 1
+  currentReplicas: 1
+  readyReplicas: 1
+  replicas: 1
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: nova-cell0-conductor
+  namespace: openstack
+  ownerReferences:
+  - apiVersion: nova.openstack.org/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: NovaConductor
+    name: nova-cell0-conductor
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      cell: cell0
+      service: nova-conductor
+  template:
+    metadata:
+      labels:
+        cell: cell0
+        service: nova-conductor
+status:
+  availableReplicas: 1
+  currentReplicas: 1
+  readyReplicas: 1
+  replicas: 1
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: nova-cell1-conductor
+  namespace: openstack
+  ownerReferences:
+  - apiVersion: nova.openstack.org/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: NovaConductor
+    name: nova-cell1-conductor
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      cell: cell1
+      service: nova-conductor
+  template:
+    metadata:
+      labels:
+        cell: cell1
+        service: nova-conductor
+status:
+  availableReplicas: 1
+  currentReplicas: 1
+  readyReplicas: 1
+  replicas: 1
+---
