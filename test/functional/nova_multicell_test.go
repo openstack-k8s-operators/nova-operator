@@ -650,4 +650,67 @@ var _ = Describe("Nova multicell", func() {
 			)
 		})
 	})
+	When("cell1 DB and MQ create finishes before cell0 DB create", func() {
+		BeforeEach(func() {
+			DeferCleanup(k8sClient.Delete, ctx, CreateNovaSecret(novaNames.Namespace, SecretName))
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateNovaMessageBusSecret(cell0.CellName.Namespace, fmt.Sprintf("%s-secret", cell0.TransportURLName.Name)),
+			)
+			serviceSpec := corev1.ServiceSpec{Ports: []corev1.ServicePort{{Port: 3306}}}
+			DeferCleanup(
+				th.DeleteDBService,
+				th.CreateDBService(
+					novaNames.APIMariaDBDatabaseName.Namespace,
+					novaNames.APIMariaDBDatabaseName.Name,
+					serviceSpec))
+			DeferCleanup(
+				th.DeleteDBService,
+				th.CreateDBService(
+					cell1.MariaDBDatabaseName.Namespace,
+					cell1.MariaDBDatabaseName.Name,
+					serviceSpec))
+
+			spec := GetDefaultNovaSpec()
+			cell0Template := GetDefaultNovaCellTemplate()
+			cell0Template["cellDatabaseInstance"] = cell0.MariaDBDatabaseName.Name
+			cell0Template["cellDatabaseUser"] = "nova_cell0"
+
+			cell1Template := GetDefaultNovaCellTemplate()
+			cell1Template["cellDatabaseInstance"] = cell1.MariaDBDatabaseName.Name
+			cell1Template["cellDatabaseUser"] = "nova_cell1"
+			cell1Template["cellMessageBusInstance"] = cell1.TransportURLName.Name
+
+			spec["cellTemplates"] = map[string]interface{}{
+				"cell0": cell0Template,
+				"cell1": cell1Template,
+			}
+			spec["apiDatabaseInstance"] = novaNames.APIMariaDBDatabaseName.Name
+			spec["apiMessageBusInstance"] = cell0.TransportURLName.Name
+
+			DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
+			keystoneAPIName := th.CreateKeystoneAPI(novaNames.Namespace)
+			DeferCleanup(th.DeleteKeystoneAPI, keystoneAPIName)
+			keystoneAPI := th.GetKeystoneAPI(keystoneAPIName)
+			keystoneAPI.Status.APIEndpoints["internal"] = "http://keystone-internal-openstack.testing"
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Status().Update(ctx, keystoneAPI.DeepCopy())).Should(Succeed())
+			}, timeout, interval).Should(Succeed())
+			th.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
+		})
+
+		It("waits for cell0 DB to be created", func(ctx SpecContext) {
+			th.SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
+			th.SimulateTransportURLReady(cell1.TransportURLName)
+			// NOTE(gibi): before the fix https://github.com/openstack-k8s-operators/nova-operator/pull/356
+			// nova-controller panic at this point and test would hang
+			th.ExpectCondition(
+				novaNames.NovaName,
+				ConditionGetterFunc(NovaConditionGetter),
+				novav1.NovaAllCellsReadyCondition,
+				corev1.ConditionFalse,
+			)
+		})
+	})
 })
