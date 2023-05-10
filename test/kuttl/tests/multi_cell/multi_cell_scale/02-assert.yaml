@@ -1,0 +1,23 @@
+apiVersion: nova.openstack.org/v1beta1
+kind: Nova
+metadata:
+  finalizers:
+  - Nova
+  name: nova
+spec:
+  apiServiceTemplate:
+    replicas: 3
+  cellTemplates:
+    cell0:
+      conductorServiceTemplate:
+        replicas: 3
+    cell1:
+      conductorServiceTemplate:
+        replicas: 3
+  metadataServiceTemplate:
+    replicas: 3
+  schedulerServiceTemplate:
+    replicas: 3
+status:
+  apiServiceReadyCount: 3
+  schedulerServiceReadyCount: 3

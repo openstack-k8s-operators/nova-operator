@@ -1,0 +1,12 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+- rabbitmq_cell1.yaml
+namespace: openstack
+patches:
+- patch: |-
+    - op: replace
+      path: /metadata/name
+      value: rabbitmq-cell1
+  target:
+    kind: RabbitmqCluster

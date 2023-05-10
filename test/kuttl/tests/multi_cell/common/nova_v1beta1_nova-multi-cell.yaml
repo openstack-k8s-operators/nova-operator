@@ -1,0 +1,106 @@
+apiVersion: nova.openstack.org/v1beta1
+kind: Nova
+metadata:
+  name: nova
+spec:
+  # This is the name of the single MariaDB CR we deploy today
+  # The Service is labelled with app=mariadb,cr=mariadb-<MariaDB.Name>
+  apiDatabaseInstance: openstack
+  apiDatabaseUser: nova_api
+  # This is the name of the single RabbitMqCluster CR we deploy today
+  # The Service is labelled with
+  # app.kubernetes.io/component=rabbitmq, app.kubernetes.io/name=<RabbitMqCluster.Name>
+  apiMessageBusInstance: rabbitmq
+  # This is the name of the KeystoneAPI CR we deploy today
+  # The Service is labelled with service=keystone,internal=true
+  keystoneInstance: keystone
+  # This is the name of a Secret having fields according to the
+  # passwordSelectors directly below and the passwordSelectors in each
+  # NovaCellSpec instances
+  # Today all the passwords are stored in the same Secret object named
+  # osp-secret, but the openstack operator could create a nova specific
+  # secret and pass it here in the future.
+  secret: osp-secret
+  apiServiceTemplate:
+    customServiceConfig: |
+      # service config customization
+      [DEFAULT]
+      debug=True
+    defaultConfigOverwrite:
+      logging.conf: |
+        # my custom logging configuration
+    containerImage: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
+    nodeSelector: {}
+  schedulerServiceTemplate:
+    customServiceConfig: |
+      # service config customization
+      [DEFAULT]
+      debug=True
+    defaultConfigOverwrite:
+      policy.yaml: |
+        # my custom policy
+    containerImage: quay.io/podified-antelope-centos9/openstack-nova-scheduler:current-podified
+    nodeSelector: {}
+  metadataServiceTemplate:
+    customServiceConfig: |
+      # service config customization
+      [DEFAULT]
+      debug=True
+    defaultConfigOverwrite:
+      logging.conf: |
+        # my custom logging configuration
+    containerImage: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
+    nodeSelector: {}
+  cellTemplates:
+    cell0:
+      cellDatabaseInstance: openstack
+      cellDatabaseUser: nova_cell0
+      cellMessageBusInstance: rabbitmq
+      # cell0 alway needs access to the API DB and MQ as it hosts the super
+      # conductor. It will inherit the API DB and MQ access from the Nova CR
+      # that creates it.
+      hasAPIAccess: true
+      conductorServiceTemplate:
+        customServiceConfig: |
+          # service config customization
+          [DEFAULT]
+          debug=True
+        defaultConfigOverwrite:
+          logging.conf: |
+          # my custom logging configuration
+        containerImage: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
+        nodeSelector: {}
+      # we never need a metadata service in cell0 as there are no computes there
+      metadataServiceTemplate: null
+      # we never need novncproxy service in cell0
+      noVNCProxyServiceTemplate: null
+    cell1:
+      cellDatabaseInstance: mariadb-cell1
+      cellDatabaseUser: nova_cell1
+      cellMessageBusInstance: rabbitmq-cell1
+      # cell1 will have upcalls support. It will inherit the API DB and MQ
+      # access from the Nova CR that creates it.
+      hasAPIAccess: true
+      conductorServiceTemplate:
+        customServiceConfig: |
+          # service config customization
+          [DEFAULT]
+          debug=True
+        defaultConfigOverwrite:
+          logging.conf: |
+          # my custom logging configuration
+        containerImage: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
+        nodeSelector: {}
+      # we could decide not to add metadata service to this cell as there
+      # is metadata at the top
+      metadataServiceTemplate: null
+      noVNCProxyServiceTemplate:
+        customServiceConfig: |
+          # service config customization
+          [DEFAULT]
+          debug=True
+        defaultConfigOverwrite:
+          logging.conf: |
+          # my custom logging configuration
+        containerImage: quay.io/podified-antelope-centos9/openstack-nova-novncproxy:current-podified
+        nodeSelector: {}

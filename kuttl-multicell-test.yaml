@@ -1,0 +1,45 @@
+#
+# EXECUTION (from nova-operator repo root directory):
+#
+#  kubectl-kuttl test --config $NOVA_KUTTL_TEST_DIR/kuttl-multicell-test.yaml 
+#
+#
+# ASSUMPTIONS:
+#
+# 1. Latest version of kuttl is installed at /usr/local/bin/kubectl-kuttl
+#    - wget https://github.com/kudobuilder/kuttl/releases/download/v0.11.1/kubectl-kuttl_0.11.1_linux_x86_64
+#    - mv kubectl-kuttl_0.11.1_linux_x86_64 /usr/local/bin/kubectl-kuttl
+#    - chmod 755 /usr/local/bin/kubectl-kuttl
+# 2. An OCP 4.10+ CRC cluster with dependent operators (details below using devsetup and install_yamls)
+#    2a. CPUS=12 MEMORY=12016 make crc
+#    2b. oc login -u kubeadmin -p 12345678 https://api.crc.testing:6443
+#    2c. eval $(crc oc-env)
+#    2d. make crc_storage
+#    2e. make input
+#    2f. make mariadb
+#    2g. make keystone
+#    2h. make placement
+#    2i. make rabbitmq
+#    2j. make infra
+#    2k. make ansibleee
+#    2l. make nova
+#    2m. make mariadb_deploy
+#    2n. make keystone_deploy
+#    2o. make placement_deploy
+#    2p. make rabbitmq_deploy
+# 3. The environment variable NOVA_KUTTL_TEST_DIR should be set /path/to/nova-operator/test/kuttl/tests
+
+apiVersion: kuttl.dev/v1beta1
+kind: TestSuite
+reportFormat: JSON
+reportName: kuttl-test-nova-multicell
+namespace: openstack
+timeout: 180
+parallel: 1
+testDirs:
+  - test/kuttl/tests/multi_cell/
+suppress:
+  - events
+commands:  
+  - script: oc kustomize ${NOVA_KUTTL_TEST_DIR}/multi_cell/common/mariadb_cell1/ | oc apply -f -
+  - script: oc kustomize ${NOVA_KUTTL_TEST_DIR}/multi_cell/common/rabbitmq_cell1/ | oc apply -f -
