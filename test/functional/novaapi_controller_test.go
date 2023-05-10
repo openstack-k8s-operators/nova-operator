@@ -177,6 +177,10 @@ var _ = Describe("NovaAPI controller", func() {
 				Expect(configDataMap.Data).Should(
 					HaveKeyWithValue("01-nova.conf",
 						ContainSubstring("transport_url=rabbit://rabbitmq-secret/fake")))
+				// as of I3629b84d3255a8fe9d8a7cea8c6131d7c40899e8 nova now requires
+				// service_user configuration to work to adress Bug: #2004555
+				Expect(configDataMap.Data).Should(
+					HaveKeyWithValue("01-nova.conf", ContainSubstring("[service_user]")))
 				Expect(configDataMap.Data).Should(
 					HaveKeyWithValue("02-nova-override.conf", "foo=bar"))
 			})
