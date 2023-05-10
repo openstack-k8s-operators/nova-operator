@@ -1,0 +1,5 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+  - script: "oc kustomize ${NOVA_KUTTL_TEST_DIR}/multi_cell/common/mariadb_cell1/ | oc delete --ignore-not-found=true -f -"
+  - script: "oc delete --ignore-not-found=true -n openstack -f ${NOVA_KUTTL_TEST_DIR}/multi_cell/common/rabbitmq_cell1/rabbitmq_cell1.yaml"
