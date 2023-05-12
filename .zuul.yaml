@@ -1,6 +1,55 @@
 ---
+- job:
+    name: nova-operator-content-provider
+    parent: content-provider-base
+    provides:
+      - "nova-operator-content"
+
+- job:
+    name: nova-operator-base
+    description: |
+      This is the base job for all nova-operator tests that will deploy
+      openstack. the base job does not deploy openstack but it does use
+      the nova-operator-content-provider job to provide a registry with
+      built operators and installs them on a crc envionment. child jobs
+      should take this deploy crc and use the installed operators to
+      deploy openstack and then test it. This job will fetch the job
+      output directory so child jobs can just add addtional logs to that
+      in there post-playbooks.
+    parent: cifmw-base-crc-openstack
+    abstract: true
+    dependencies: ["nova-operator-content-provider"]
+    requires:
+      - "nova-operator-content"
+    roles:
+      - zuul: github.com/openstack-k8s-operators/ci-framework
+    pre-run:
+      - ci/nova-operator-base/playbooks/pre.yaml
+    post-run:
+      - ci/nova-operator-base/playbooks/collect-logs.yaml
+    vars:
+      crc_parameters: "--memory 18000 --disk-size 120 --cpus 6"
+      network_isolation: true
+      crc_attach_default_interface: true
+
+- job:
+    name: nova-operator-compute-kit
+    parent:  nova-operator-base
+    dependencies: ["nova-operator-content-provider"]
+    roles:
+      - zuul: github.com/openstack-k8s-operators/ci-framework
+    description: |
+      This job deploy a basic "Compute Starter Kit" topology
+      https://www.openstack.org/software/sample-configs#compute-starter-kit
+      that is the minium set of openstack services required to boot a vm.
+    requires:
+      - "nova-operator-content"
+    run:
+      - ci/nova-operator-compute-kit/playbooks/run.yaml
+
 - project:
     name: openstack-k8s-operators/nova-operator
     github-check:
       jobs:
-        - noop
+        - nova-operator-content-provider
+        - nova-operator-compute-kit
