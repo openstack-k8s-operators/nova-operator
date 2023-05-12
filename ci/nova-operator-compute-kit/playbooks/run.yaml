@@ -1,0 +1,20 @@
+---
+# Note make download_tools and make openstack commands run
+# in https://github.com/rdo-infra/review.rdoproject.org-config/blob/master/playbooks/crc/openstack.yaml
+# We can override the openstack operator image by defining openstack_img in the zuul job
+
+- hosts: controller
+  name: Deploy Openstack Operators
+  tasks:
+    - name: Use OpenStack Namespace
+      ansible.builtin.command: oc project openstack
+      changed_when: false
+
+    - name: Make sure all Openstack operators are deployed
+      ansible.builtin.shell: |
+        set -o pipefail && oc get csv -l operators.coreos.com/openstack-operator.openstack --no-headers=true | grep -i "succeeded"
+      register: operator_status
+      until: operator_status.rc == 0
+      changed_when: false
+      retries: 30
+      delay: 30
