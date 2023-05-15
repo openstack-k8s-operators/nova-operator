@@ -161,7 +161,7 @@ func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	// create hash over all the different input resources to identify if any of
 	// those changed and a restart/recreate is required.
-	inputHash, err := hashOfInputHashes(ctx, hashes)
+	inputHash, err := util.HashOfInputHashes(hashes)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
