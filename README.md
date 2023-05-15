@@ -1,7 +1,5 @@
 # nova-operator
 
-[![pre-commit.ci status](https://results.pre-commit.ci/badge/github/openstack-k8s-operators/nova-operator/main.svg)](https://results.pre-commit.ci/latest/github/openstack-k8s-operators/nova-operator/main)
-
 A golang operator for openstack nova lifecycle management
 
 ## Description
