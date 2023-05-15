@@ -83,13 +83,7 @@ var _ = Describe("Nova controller", func() {
 					},
 				),
 			)
-			keystoneAPIName := th.CreateKeystoneAPI(novaNames.NovaName.Namespace)
-			DeferCleanup(th.DeleteKeystoneAPI, keystoneAPIName)
-			keystoneAPI := th.GetKeystoneAPI(keystoneAPIName)
-			keystoneAPI.Status.APIEndpoints["internal"] = "http://keystone-internal-openstack.testing"
-			Eventually(func(g Gomega) {
-				g.Expect(k8sClient.Status().Update(ctx, keystoneAPI.DeepCopy())).Should(Succeed())
-			}, timeout, interval).Should(Succeed())
+			DeferCleanup(th.DeleteKeystoneAPI, th.CreateKeystoneAPI(novaNames.NovaName.Namespace))
 
 			DeferCleanup(th.DeleteInstance, CreateNovaWithCell0(novaNames.NovaName))
 		})
@@ -420,13 +414,7 @@ var _ = Describe("Nova controller", func() {
 					},
 				),
 			)
-			keystoneAPIName := th.CreateKeystoneAPI(novaNames.NovaName.Namespace)
-			DeferCleanup(th.DeleteKeystoneAPI, keystoneAPIName)
-			keystoneAPI := th.GetKeystoneAPI(keystoneAPIName)
-			keystoneAPI.Status.APIEndpoints["internal"] = "http://keystone-internal-openstack.testing"
-			Eventually(func(g Gomega) {
-				g.Expect(k8sClient.Status().Update(ctx, keystoneAPI.DeepCopy())).Should(Succeed())
-			}, timeout, interval).Should(Succeed())
+			DeferCleanup(th.DeleteKeystoneAPI, th.CreateKeystoneAPI(novaNames.NovaName.Namespace))
 
 			DeferCleanup(th.DeleteInstance, CreateNovaWithCell0(novaNames.NovaName))
 
@@ -495,13 +483,7 @@ var _ = Describe("Nova controller", func() {
 					},
 				),
 			)
-			keystoneAPIName := th.CreateKeystoneAPI(novaNames.NovaName.Namespace)
-			DeferCleanup(th.DeleteKeystoneAPI, keystoneAPIName)
-			keystoneAPI := th.GetKeystoneAPI(keystoneAPIName)
-			keystoneAPI.Status.APIEndpoints["internal"] = "http://keystone-internal-openstack.testing"
-			Eventually(func(g Gomega) {
-				g.Expect(k8sClient.Status().Update(ctx, keystoneAPI.DeepCopy())).Should(Succeed())
-			}, timeout, interval).Should(Succeed())
+			DeferCleanup(th.DeleteKeystoneAPI, th.CreateKeystoneAPI(novaNames.NovaName.Namespace))
 
 			DeferCleanup(th.DeleteInstance, CreateNovaWithCell0(novaNames.NovaName))
 
@@ -562,13 +544,7 @@ var _ = Describe("Nova controller", func() {
 					},
 				),
 			)
-			keystoneAPIName := th.CreateKeystoneAPI(novaNames.NovaName.Namespace)
-			DeferCleanup(th.DeleteKeystoneAPI, keystoneAPIName)
-			keystoneAPI := th.GetKeystoneAPI(keystoneAPIName)
-			keystoneAPI.Status.APIEndpoints["internal"] = "http://keystone-internal-openstack.testing"
-			Eventually(func(g Gomega) {
-				g.Expect(k8sClient.Status().Update(ctx, keystoneAPI.DeepCopy())).Should(Succeed())
-			}, timeout, interval).Should(Succeed())
+			DeferCleanup(th.DeleteKeystoneAPI, th.CreateKeystoneAPI(novaNames.NovaName.Namespace))
 
 			spec := GetDefaultNovaSpec()
 			cell0template := GetDefaultNovaCellTemplate()
@@ -702,13 +678,7 @@ var _ = Describe("Nova controller", func() {
 					},
 				),
 			)
-			keystoneAPIName := th.CreateKeystoneAPI(novaNames.NovaName.Namespace)
-			DeferCleanup(th.DeleteKeystoneAPI, keystoneAPIName)
-			keystoneAPI := th.GetKeystoneAPI(keystoneAPIName)
-			keystoneAPI.Status.APIEndpoints["internal"] = "http://keystone-internal-openstack.testing"
-			Eventually(func(g Gomega) {
-				g.Expect(k8sClient.Status().Update(ctx, keystoneAPI.DeepCopy())).Should(Succeed())
-			}, timeout, interval).Should(Succeed())
+			DeferCleanup(th.DeleteKeystoneAPI, th.CreateKeystoneAPI(novaNames.NovaName.Namespace))
 
 			DeferCleanup(th.DeleteInstance, CreateNovaWithCell0(novaNames.NovaName))
 		})
@@ -766,13 +736,7 @@ var _ = Describe("Nova controller", func() {
 					},
 				),
 			)
-			keystoneAPIName := th.CreateKeystoneAPI(novaNames.NovaName.Namespace)
-			DeferCleanup(th.DeleteKeystoneAPI, keystoneAPIName)
-			keystoneAPI := th.GetKeystoneAPI(keystoneAPIName)
-			keystoneAPI.Status.APIEndpoints["internal"] = "http://keystone-internal-openstack.testing"
-			Eventually(func(g Gomega) {
-				g.Expect(k8sClient.Status().Update(ctx, keystoneAPI.DeepCopy())).Should(Succeed())
-			}, timeout, interval).Should(Succeed())
+			DeferCleanup(th.DeleteKeystoneAPI, th.CreateKeystoneAPI(novaNames.NovaName.Namespace))
 
 			internalAPINADName := types.NamespacedName{Namespace: novaNames.NovaName.Namespace, Name: "internalapi"}
 			nad := th.CreateNetworkAttachmentDefinition(internalAPINADName)
