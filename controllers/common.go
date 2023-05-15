@@ -266,19 +266,6 @@ func ensureConfigMap(
 	return hash, ctrl.Result{}, nil
 }
 
-// hashOfInputHashes - calculates the overall hash of all our inputs
-func hashOfInputHashes(
-	ctx context.Context,
-	hashes map[string]env.Setter,
-) (string, error) {
-	mergedMapVars := env.MergeEnvs([]corev1.EnvVar{}, hashes)
-	hash, err := util.ObjectHash(mergedMapVars)
-	if err != nil {
-		return hash, err
-	}
-	return hash, nil
-}
-
 // ReconcilerBase provides a common set of clients scheme and loggers for all reconcilers.
 type ReconcilerBase struct {
 	Client         client.Client

@@ -1317,7 +1317,7 @@ func (r *NovaReconciler) ensureCellMapped(
 	// DB. Today it is the full nova config of the container. We could trim
 	// that a bit in the future if we want as we probably don't need to re-run
 	// the Job if only keystone_internal_url changes in the config.
-	inputHash, err := hashOfInputHashes(ctx, configHash)
+	inputHash, err := util.HashOfInputHashes(configHash)
 	if err != nil {
 		return nova.CellMappingFailed, err
 	}
