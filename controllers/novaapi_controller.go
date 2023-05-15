@@ -193,7 +193,7 @@ func (r *NovaAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (re
 	}
 	hashes["cells"] = env.SetValue(cellHash)
 
-	inputHash, err := hashOfInputHashes(ctx, hashes)
+	inputHash, err := util.HashOfInputHashes(hashes)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
