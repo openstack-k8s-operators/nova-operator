@@ -80,13 +80,7 @@ var _ = Describe("Nova multicell", func() {
 			spec["apiMessageBusInstance"] = cell0.TransportURLName.Name
 
 			DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
-			keystoneAPIName := th.CreateKeystoneAPI(novaNames.NovaName.Namespace)
-			DeferCleanup(th.DeleteKeystoneAPI, keystoneAPIName)
-			keystoneAPI := th.GetKeystoneAPI(keystoneAPIName)
-			keystoneAPI.Status.APIEndpoints["internal"] = "http://keystone-internal-openstack.testing"
-			Eventually(func(g Gomega) {
-				g.Expect(k8sClient.Status().Update(ctx, keystoneAPI.DeepCopy())).Should(Succeed())
-			}, timeout, interval).Should(Succeed())
+			DeferCleanup(th.DeleteKeystoneAPI, th.CreateKeystoneAPI(novaNames.NovaName.Namespace))
 
 			th.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
 		})
@@ -570,13 +564,7 @@ var _ = Describe("Nova multicell", func() {
 			spec["apiMessageBusInstance"] = cell0.TransportURLName.Name
 
 			DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
-			keystoneAPIName := th.CreateKeystoneAPI(novaNames.NovaName.Namespace)
-			DeferCleanup(th.DeleteKeystoneAPI, keystoneAPIName)
-			keystoneAPI := th.GetKeystoneAPI(keystoneAPIName)
-			keystoneAPI.Status.APIEndpoints["internal"] = "http://keystone-internal-openstack.testing"
-			Eventually(func(g Gomega) {
-				g.Expect(k8sClient.Status().Update(ctx, keystoneAPI.DeepCopy())).Should(Succeed())
-			}, timeout, interval).Should(Succeed())
+			DeferCleanup(th.DeleteKeystoneAPI, th.CreateKeystoneAPI(novaNames.NovaName.Namespace))
 			th.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
 		})
 		It("cell0 becomes ready with 0 conductor replicas and the rest of nova is deployed", func() {
@@ -690,13 +678,7 @@ var _ = Describe("Nova multicell", func() {
 			spec["apiMessageBusInstance"] = cell0.TransportURLName.Name
 
 			DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
-			keystoneAPIName := th.CreateKeystoneAPI(novaNames.Namespace)
-			DeferCleanup(th.DeleteKeystoneAPI, keystoneAPIName)
-			keystoneAPI := th.GetKeystoneAPI(keystoneAPIName)
-			keystoneAPI.Status.APIEndpoints["internal"] = "http://keystone-internal-openstack.testing"
-			Eventually(func(g Gomega) {
-				g.Expect(k8sClient.Status().Update(ctx, keystoneAPI.DeepCopy())).Should(Succeed())
-			}, timeout, interval).Should(Succeed())
+			DeferCleanup(th.DeleteKeystoneAPI, th.CreateKeystoneAPI(novaNames.Namespace))
 			th.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
 		})
 
