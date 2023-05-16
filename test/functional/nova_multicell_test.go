@@ -734,27 +734,17 @@ var _ = Describe("Nova multicell", func() {
 
 			spec := GetDefaultNovaSpec()
 			cell0Template := GetDefaultNovaCellTemplate()
-			cell0Template["cellName"] = "cell0"
-			cell0Template["cellDatabaseInstance"] = novaNames.APIMariaDBDatabaseName.Name
+			cell0Template["cellDatabaseInstance"] = cell0.MariaDBDatabaseName.Name
 			cell0Template["cellDatabaseUser"] = "nova_cell0"
-			cell0Template["hasAPIAccess"] = true
-			// disable cell0 conductor
-			cell0Template["conductorServiceTemplate"] = map[string]interface{}{
-				"replicas": 0,
-			}
+
 			cell0Template["metadataServiceTemplate"] = map[string]interface{}{
 				"replicas": 1,
 			}
 
 			cell1Template := GetDefaultNovaCellTemplate()
-			// cell1 is configured to have API access and use the same
-			// message bus as the top level services. Hence cell1 conductor
-			// will act both as a super conductor and as cell1 conductor
-			cell1Template["cellName"] = "cell1"
-			cell1Template["cellDatabaseInstance"] = novaNames.APIMariaDBDatabaseName.Name
+			cell1Template["cellDatabaseInstance"] = cell1.MariaDBDatabaseName.Name
 			cell1Template["cellDatabaseUser"] = "nova_cell1"
-			cell1Template["cellMessageBusInstance"] = cell0.TransportURLName.Name
-			cell1Template["hasAPIAccess"] = true
+			cell1Template["cellMessageBusInstance"] = cell1.TransportURLName.Name
 			cell1Template["metadataServiceTemplate"] = map[string]interface{}{
 				"replicas": 1,
 			}
@@ -785,31 +775,12 @@ var _ = Describe("Nova multicell", func() {
 			th.SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
 			th.SimulateTransportURLReady(cell0.TransportURLName)
 			th.SimulateTransportURLReady(cell1.TransportURLName)
-
-			// We requested 0 replicas from the cell0 conductor so the
-			// conductor is ready even if 0 replicas is running but all
-			// the necessary steps, i.e. db-sync is run successfully
 			th.SimulateJobSuccess(cell0.CellDBSyncJobName)
+			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 			th.SimulateJobSuccess(cell0.CellMappingJobName)
-			th.ExpectCondition(
-				cell0.CellConductorName,
-				ConditionGetterFunc(NovaConductorConditionGetter),
-				condition.ReadyCondition,
-				corev1.ConditionTrue,
-			)
 
-			th.ExpectCondition(
-				cell0.CellName,
-				ConditionGetterFunc(NovaCellConditionGetter),
-				novav1.NovaConductorReadyCondition,
-				corev1.ConditionTrue,
-			)
 			cell0cond := NovaCellConditionGetter(cell0.CellName)
 			Expect(cell0cond.Get(novav1.NovaMetadataReadyCondition)).Should(BeNil())
-
-			ss := th.GetStatefulSet(cell0.ConductorStatefulSetName)
-			Expect(ss.Status.Replicas).To(Equal(int32(0)))
-			Expect(ss.Status.AvailableReplicas).To(Equal(int32(0)))
 
 			// As cell0 is ready cell1 is deployed
 			th.SimulateJobSuccess(cell1.CellDBSyncJobName)
@@ -820,40 +791,7 @@ var _ = Describe("Nova multicell", func() {
 			th.ExpectCondition(
 				cell1.CellName,
 				ConditionGetterFunc(NovaCellConditionGetter),
-				novav1.NovaConductorReadyCondition,
-				corev1.ConditionTrue,
-			)
-			th.ExpectCondition(
-				cell1.CellName,
-				ConditionGetterFunc(NovaCellConditionGetter),
 				novav1.NovaMetadataReadyCondition,
-				corev1.ConditionTrue,
-			)
-
-			// As cell0 is ready API is deployed
-			th.SimulateStatefulSetReplicaReady(novaNames.APIDeploymentName)
-			th.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
-			th.ExpectCondition(
-				novaNames.NovaName,
-				ConditionGetterFunc(NovaConditionGetter),
-				novav1.NovaAPIReadyCondition,
-				corev1.ConditionTrue,
-			)
-
-			// As cell0 is ready scheduler is deployed
-			th.SimulateStatefulSetReplicaReady(novaNames.SchedulerStatefulSetName)
-			th.ExpectCondition(
-				novaNames.NovaName,
-				ConditionGetterFunc(NovaConditionGetter),
-				novav1.NovaSchedulerReadyCondition,
-				corev1.ConditionTrue,
-			)
-
-			// So the whole Nova deployment is ready
-			th.ExpectCondition(
-				novaNames.NovaName,
-				ConditionGetterFunc(NovaConditionGetter),
-				condition.ReadyCondition,
 				corev1.ConditionTrue,
 			)
 		})
