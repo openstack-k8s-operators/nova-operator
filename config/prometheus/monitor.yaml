@@ -17,4 +17,4 @@ spec:
         insecureSkipVerify: true
   selector:
     matchLabels:
-      app.kubernetes.io/name: nova-operator
+      openstack.org/operator-name: nova
