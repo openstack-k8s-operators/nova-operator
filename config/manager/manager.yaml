@@ -12,12 +12,11 @@ metadata:
   namespace: system
   labels:
     control-plane: controller-manager
-    app.kubernetes.io/name: nova-operator
-    app.kubernetes.io/component: nova
+    openstack.org/operator-name: nova
 spec:
   selector:
     matchLabels:
-      app.kubernetes.io/name: nova-operator
+      openstack.org/operator-name: nova
   replicas: 1
   template:
     metadata:
@@ -25,8 +24,7 @@ spec:
         kubectl.kubernetes.io/default-container: manager
       labels:
         control-plane: controller-manager
-        app.kubernetes.io/name: nova-operator
-        app.kubernetes.io/component: nova
+        openstack.org/operator-name: nova
     spec:
       securityContext:
         runAsNonRoot: true
