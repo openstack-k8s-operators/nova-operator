@@ -12,4 +12,4 @@ spec:
     protocol: TCP
     targetPort: https
   selector:
-    app.kubernetes.io/name: placement-operator
+    openstack.org/operator-name: placement
