@@ -18,6 +18,7 @@ package v1beta1
 
 import (
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
+	"github.com/openstack-k8s-operators/lib-common/modules/storage"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -58,6 +59,11 @@ type NovaExternalComputeSpec struct {
 	// +kubebuilder:validation:Required
 	// SSHKeySecretName is the name of the k8s Secret that contains the ssh keys to access the node
 	SSHKeySecretName string `json:"sshKeySecretName"`
+
+	// ExtraMounts containing files which can be mounted into an Ansible Execution Pod
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default={}
+	ExtraMounts []storage.VolMounts `json:"extraMounts"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=true

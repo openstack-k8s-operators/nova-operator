@@ -23,6 +23,7 @@ package v1beta1
 
 import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
+	"github.com/openstack-k8s-operators/lib-common/modules/storage"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -720,6 +721,13 @@ func (in *NovaExternalComputeSpec) DeepCopyInto(out *NovaExternalComputeSpec) {
 		*out = make(map[string]string, len(*in))
 		for key, val := range *in {
 			(*out)[key] = val
+		}
+	}
+	if in.ExtraMounts != nil {
+		in, out := &in.ExtraMounts, &out.ExtraMounts
+		*out = make([]storage.VolMounts, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
 	if in.Deploy != nil {

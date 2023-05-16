@@ -680,54 +680,6 @@ func initAEE(
 	// pointer indirection via ansibleEE.Spec.ExtraMounts
 	ansibleEEMounts := storage.VolMounts{}
 
-	// mount ssh keys
-	sshKeyVolume := corev1.Volume{
-		Name: "ssh-key",
-		VolumeSource: corev1.VolumeSource{
-			Secret: &corev1.SecretVolumeSource{
-				SecretName: instance.Spec.SSHKeySecretName,
-				Items: []corev1.KeyToPath{
-					{
-						Key:  "ssh-privatekey",
-						Path: "ssh_key",
-					},
-				},
-			},
-		},
-	}
-	ansibleEEMounts.Volumes = append(ansibleEEMounts.Volumes, sshKeyVolume)
-	sshKeyMount := corev1.VolumeMount{
-		Name:      "ssh-key",
-		MountPath: "/runner/env/ssh_key",
-		SubPath:   "ssh_key",
-	}
-	ansibleEEMounts.Mounts = append(ansibleEEMounts.Mounts, sshKeyMount)
-
-	// mount inventory
-	inventoryVolume := corev1.Volume{
-		Name: "inventory",
-		VolumeSource: corev1.VolumeSource{
-			ConfigMap: &corev1.ConfigMapVolumeSource{
-				LocalObjectReference: corev1.LocalObjectReference{
-					Name: instance.Spec.InventoryConfigMapName,
-				},
-				Items: []corev1.KeyToPath{
-					{
-						Key:  "inventory",
-						Path: "inventory",
-					},
-				},
-			},
-		},
-	}
-	ansibleEEMounts.Volumes = append(ansibleEEMounts.Volumes, inventoryVolume)
-	inventoryMount := corev1.VolumeMount{
-		Name:      "inventory",
-		MountPath: "/runner/inventory/hosts",
-		SubPath:   "inventory",
-	}
-	ansibleEEMounts.Mounts = append(ansibleEEMounts.Mounts, inventoryMount)
-
 	// mount nova playbooks
 	playbookCMName := fmt.Sprintf("%s-external-compute-playbooks", instance.Spec.NovaInstance)
 	playbookVolume := corev1.Volume{
@@ -768,7 +720,8 @@ func initAEE(
 	ansibleEEMounts.Mounts = append(ansibleEEMounts.Mounts, serviceConfigMount)
 
 	// initialize ansibleEE.Spec.ExtraMounts from local ansibleEEMounts
-	ansibleEE.Spec.ExtraMounts = []storage.VolMounts{ansibleEEMounts}
+	extraMounts := append(instance.Spec.ExtraMounts, ansibleEEMounts)
+	ansibleEE.Spec.ExtraMounts = extraMounts
 
 }
 
