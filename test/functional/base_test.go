@@ -426,30 +426,10 @@ func NovaExternalComputeConditionGetter(name types.NamespacedName) condition.Con
 	return instance.Status.Conditions
 }
 
-func CreateEmptyConfigMap(name types.NamespacedName) *corev1.ConfigMap {
-	configMap := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name.Name,
-			Namespace: name.Namespace,
-		},
-		Data: map[string]string{},
-	}
-	Expect(k8sClient.Create(ctx, configMap)).Should(Succeed())
-	return configMap
-}
+func CreateNovaExternalComputeInventoryConfigMap(name types.NamespacedName) client.Object {
 
-func CreateNovaExternalComputeInventoryConfigMap(name types.NamespacedName) *corev1.ConfigMap {
-	configMap := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name.Name,
-			Namespace: name.Namespace,
-		},
-		Data: map[string]string{
-			"inventory": "an ansible inventory",
-		},
-	}
-	Expect(k8sClient.Create(ctx, configMap)).Should(Succeed())
-	return configMap
+	return th.CreateConfigMap(
+		name, map[string]interface{}{"inventory": "an ansible inventory"})
 }
 
 func CreateNovaExternalComputeSSHSecret(name types.NamespacedName) *corev1.Secret {

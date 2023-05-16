@@ -168,8 +168,11 @@ var _ = Describe("NovaExternalCompute", func() {
 
 		It("reports missing field from Inventory configmap", func() {
 			compute := GetNovaExternalCompute(novaNames.ComputeName)
-			CreateEmptyConfigMap(
-				types.NamespacedName{Namespace: novaNames.ComputeName.Namespace, Name: compute.Spec.InventoryConfigMapName})
+			cm := th.CreateConfigMap(
+				types.NamespacedName{Namespace: novaNames.ComputeName.Namespace, Name: compute.Spec.InventoryConfigMapName},
+				map[string]interface{}{},
+			)
+			DeferCleanup(th.DeleteInstance, cm)
 			th.ExpectConditionWithDetails(
 				novaNames.ComputeName,
 				ConditionGetterFunc(NovaExternalComputeConditionGetter),
