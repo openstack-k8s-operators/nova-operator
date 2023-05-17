@@ -12,12 +12,11 @@ metadata:
   namespace: system
   labels:
     control-plane: controller-manager
-    app.kubernetes.io/name: placement-operator
-    app.kubernetes.io/component: placement
+    openstack.org/operator-name: placement
 spec:
   selector:
     matchLabels:
-      app.kubernetes.io/name: placement-operator
+      openstack.org/operator-name: placement
   replicas: 1
   template:
     metadata:
@@ -25,8 +24,7 @@ spec:
         kubectl.kubernetes.io/default-container: manager
       labels:
         control-plane: controller-manager
-        app.kubernetes.io/name: placement-operator
-        app.kubernetes.io/component: placement
+        openstack.org/operator-name: placement
     spec:
       securityContext:
         runAsNonRoot: true
