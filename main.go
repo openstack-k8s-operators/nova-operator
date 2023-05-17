@@ -152,10 +152,6 @@ func main() {
 			setupLog.Error(err, "unable to create webhook", "webhook", "NovaConductor")
 			os.Exit(1)
 		}
-		if err = (&novav1beta1.NovaExternalCompute{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "NovaExternalCompute")
-			os.Exit(1)
-		}
 		if err = (&novav1beta1.NovaMetadata{}).SetupWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "NovaMetadata")
 			os.Exit(1)
@@ -168,6 +164,14 @@ func main() {
 			setupLog.Error(err, "unable to create webhook", "webhook", "NovaScheduler")
 			os.Exit(1)
 		}
+	}
+
+	// NOTE: HACK: NovaExternalCompute webhooks are always enabled due to a current
+	//             challenge to our pattern posed by NovaExternalCompute usage within
+	//             the Dataplane operator context
+	if err = (&novav1beta1.NovaExternalCompute{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "NovaExternalCompute")
+		os.Exit(1)
 	}
 
 	//+kubebuilder:scaffold:builder
