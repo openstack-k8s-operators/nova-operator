@@ -88,6 +88,62 @@ webhooks:
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
+  name: vnovaapi.kb.io
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    caBundle: ${CA_BUNDLE}
+    url: https://${CRC_IP}:9443/validate-nova-openstack-org-v1beta1-novaapi
+  failurePolicy: Fail
+  matchPolicy: Equivalent
+  name: vnovaapi.kb.io
+  objectSelector: {}
+  rules:
+  - apiGroups:
+    - nova.openstack.org
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - novaapis
+    scope: '*'
+  sideEffects: None
+  timeoutSeconds: 10
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: mnovaapi.kb.io
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    caBundle: ${CA_BUNDLE}
+    url: https://${CRC_IP}:9443/mutate-nova-openstack-org-v1beta1-novaapi
+  failurePolicy: Fail
+  matchPolicy: Equivalent
+  name: mnovaapi.kb.io
+  objectSelector: {}
+  rules:
+  - apiGroups:
+    - nova.openstack.org
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - novaapis
+    scope: '*'
+  sideEffects: None
+  timeoutSeconds: 10
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
   name: vnovacell.kb.io
 webhooks:
 - admissionReviewVersions:
@@ -144,6 +200,62 @@ webhooks:
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
+  name: vnovaconductor.kb.io
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    caBundle: ${CA_BUNDLE}
+    url: https://${CRC_IP}:9443/validate-nova-openstack-org-v1beta1-novaconductor
+  failurePolicy: Fail
+  matchPolicy: Equivalent
+  name: vnovaconductor.kb.io
+  objectSelector: {}
+  rules:
+  - apiGroups:
+    - nova.openstack.org
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - novaconductors
+    scope: '*'
+  sideEffects: None
+  timeoutSeconds: 10
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: mnovaconductor.kb.io
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    caBundle: ${CA_BUNDLE}
+    url: https://${CRC_IP}:9443/mutate-nova-openstack-org-v1beta1-novaconductor
+  failurePolicy: Fail
+  matchPolicy: Equivalent
+  name: mnovaconductor.kb.io
+  objectSelector: {}
+  rules:
+  - apiGroups:
+    - nova.openstack.org
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - novaconductors
+    scope: '*'
+  sideEffects: None
+  timeoutSeconds: 10
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
   name: vnovaexternalcompute.kb.io
 webhooks:
 - admissionReviewVersions:
@@ -193,6 +305,174 @@ webhooks:
     - UPDATE
     resources:
     - novaexternalcomputes
+    scope: '*'
+  sideEffects: None
+  timeoutSeconds: 10
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: vnovametadata.kb.io
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    caBundle: ${CA_BUNDLE}
+    url: https://${CRC_IP}:9443/validate-nova-openstack-org-v1beta1-novametadata
+  failurePolicy: Fail
+  matchPolicy: Equivalent
+  name: vnovametadata.kb.io
+  objectSelector: {}
+  rules:
+  - apiGroups:
+    - nova.openstack.org
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - novametadata
+    scope: '*'
+  sideEffects: None
+  timeoutSeconds: 10
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: mnovametadata.kb.io
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    caBundle: ${CA_BUNDLE}
+    url: https://${CRC_IP}:9443/mutate-nova-openstack-org-v1beta1-novametadata
+  failurePolicy: Fail
+  matchPolicy: Equivalent
+  name: mnovametadata.kb.io
+  objectSelector: {}
+  rules:
+  - apiGroups:
+    - nova.openstack.org
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - novametadata
+    scope: '*'
+  sideEffects: None
+  timeoutSeconds: 10
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: vnovanovncproxy.kb.io
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    caBundle: ${CA_BUNDLE}
+    url: https://${CRC_IP}:9443/validate-nova-openstack-org-v1beta1-novanovncproxy
+  failurePolicy: Fail
+  matchPolicy: Equivalent
+  name: vnovanovncproxy.kb.io
+  objectSelector: {}
+  rules:
+  - apiGroups:
+    - nova.openstack.org
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - novanovncproxies
+    scope: '*'
+  sideEffects: None
+  timeoutSeconds: 10
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: mnovanovncproxy.kb.io
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    caBundle: ${CA_BUNDLE}
+    url: https://${CRC_IP}:9443/mutate-nova-openstack-org-v1beta1-novanovncproxy
+  failurePolicy: Fail
+  matchPolicy: Equivalent
+  name: mnovanovncproxy.kb.io
+  objectSelector: {}
+  rules:
+  - apiGroups:
+    - nova.openstack.org
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - novanovncproxies
+    scope: '*'
+  sideEffects: None
+  timeoutSeconds: 10
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: vnovascheduler.kb.io
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    caBundle: ${CA_BUNDLE}
+    url: https://${CRC_IP}:9443/validate-nova-openstack-org-v1beta1-novascheduler
+  failurePolicy: Fail
+  matchPolicy: Equivalent
+  name: vnovascheduler.kb.io
+  objectSelector: {}
+  rules:
+  - apiGroups:
+    - nova.openstack.org
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - novaschedulers
+    scope: '*'
+  sideEffects: None
+  timeoutSeconds: 10
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: mnovascheduler.kb.io
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    caBundle: ${CA_BUNDLE}
+    url: https://${CRC_IP}:9443/mutate-nova-openstack-org-v1beta1-novascheduler
+  failurePolicy: Fail
+  matchPolicy: Equivalent
+  name: mnovascheduler.kb.io
+  objectSelector: {}
+  rules:
+  - apiGroups:
+    - nova.openstack.org
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - novaschedulers
     scope: '*'
   sideEffects: None
   timeoutSeconds: 10
