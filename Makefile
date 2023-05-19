@@ -343,10 +343,20 @@ gowork: ## Generate go.work file
 # before deplying with olm again.
 # $oc delete -n openstack validatingwebhookconfiguration/vnova.kb.io
 # $oc delete -n openstack mutatingwebhookconfiguration/mnova.kb.io
+# $oc delete -n openstack validatingwebhookconfiguration/vnovaapi.kb.io
+# $oc delete -n openstack mutatingwebhookconfiguration/mnovaapi.kb.io
 # $oc delete -n openstack validatingwebhookconfiguration/vnovacell.kb.io
 # $oc delete -n openstack mutatingwebhookconfiguration/mnovacell.kb.io
+# $oc delete -n openstack validatingwebhookconfiguration/vnovaconductor.kb.io
+# $oc delete -n openstack mutatingwebhookconfiguration/mnovaconductor.kb.io
 # $oc delete -n openstack validatingwebhookconfiguration/vnovaexternalcompute.kb.io
 # $oc delete -n openstack mutatingwebhookconfiguration/mnovaexternalcompute.kb.io
+# $oc delete -n openstack validatingwebhookconfiguration/vnovametadata.kb.io
+# $oc delete -n openstack mutatingwebhookconfiguration/mnovametadata.kb.io
+# $oc delete -n openstack validatingwebhookconfiguration/vnovanovncproxy.kb.io
+# $oc delete -n openstack mutatingwebhookconfiguration/mnovanovncproxy.kb.io
+# $oc delete -n openstack validatingwebhookconfiguration/vnovascheduler.kb.io
+# $oc delete -n openstack mutatingwebhookconfiguration/mnovascheduler.kb.io
 SKIP_CERT ?=false
 .PHONY: run-with-webhook
 run-with-webhook: manifests generate fmt vet ## Run a controller from your host.
