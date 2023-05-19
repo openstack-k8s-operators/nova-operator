@@ -62,6 +62,11 @@ type NovaNoVNCProxyTemplate struct {
 	// +kubebuilder:validation:Optional
 	// NetworkAttachments is a list of NetworkAttachment resource names to expose the services to the given network
 	NetworkAttachments []string `json:"networkAttachments,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// ExternalEndpoints, expose a VIP via MetalLB on the pre-created address pool
+	//
+	ExternalEndpoints []MetalLBConfig `json:"externalEndpoints,omitempty"`
 }
 
 // NovaNoVNCProxySpec defines the desired state of NovaNoVNCProxy
@@ -113,6 +118,18 @@ type NovaNoVNCProxySpec struct {
 	// +kubebuilder:validation:Required
 	// NovaServiceBase specifies the generic fields of the service
 	NovaServiceBase `json:",inline"`
+
+	// +kubebuilder:validation:Optional
+	// ExternalEndpoints, expose a VIP via MetalLB on the pre-created address pool
+	ExternalEndpoints []MetalLBConfig `json:"externalEndpoints,omitempty"`
+
+	// RegisteredCells is a map keyed by cell names that are registered in the
+	// nova_api database with a value that is the hash of the given cell
+	// configuration.
+	// This is used to detect when a new cell is added or an existing cell is
+	// reconfigured to trigger refresh of the in memory cell caches of the
+	// service.
+	RegisteredCells map[string]string `json:"registeredCells"`
 }
 
 // NovaNoVNCProxyStatus defines the observed state of NovaNoVNCProxy
@@ -159,4 +176,9 @@ type NovaNoVNCProxyList struct {
 
 func init() {
 	SchemeBuilder.Register(&NovaNoVNCProxy{}, &NovaNoVNCProxyList{})
+}
+
+// GetConditions returns the list of conditions from the status
+func (s NovaNoVNCProxyStatus) GetConditions() condition.Conditions {
+	return s.Conditions
 }
