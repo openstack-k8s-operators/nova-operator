@@ -778,12 +778,3 @@ func GetDefaultNovaNoVNCProxySpec() map[string]interface{} {
 		"cellName":             "cell0",
 	}
 }
-
-func GetEnvValue(envs []corev1.EnvVar, name string, defaultValue string) string {
-	for _, e := range envs {
-		if e.Name == name {
-			return e.Value
-		}
-	}
-	return defaultValue
-}
