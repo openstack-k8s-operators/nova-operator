@@ -3,3 +3,7 @@ kind: OpenStackControlPlane
 metadata:
   name: openstack
 spec:
+  glance:
+    template:
+      databaseInstance: openstack
+      storageRequest: 10G

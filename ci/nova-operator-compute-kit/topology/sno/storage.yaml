@@ -1,0 +1,9 @@
+apiVersion: core.openstack.org/v1beta1
+kind: OpenStackControlPlane
+metadata:
+  name: openstack
+spec:
+   storageClass: "lvms-vg1"
+   glance:
+    template:
+      storageClass: "lvms-vg1"
