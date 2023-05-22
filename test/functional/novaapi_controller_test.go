@@ -666,7 +666,7 @@ var _ = Describe("NovaAPI controller", func() {
 		})
 
 		It("applies new RegisteredCells input to its StatefulSet to trigger Pod restart", func() {
-			originalConfigHash := GetEnvValue(
+			originalConfigHash := GetEnvVarValue(
 				th.GetStatefulSet(novaNames.APIStatefulSetName).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
 
 			// Simulate that a new cell is added and Nova controller registered it and
@@ -680,7 +680,7 @@ var _ = Describe("NovaAPI controller", func() {
 
 			// Assert that the CONFIG_HASH of the StateFulSet is changed due to this reconfiguration
 			Eventually(func(g Gomega) {
-				currentConfigHash := GetEnvValue(
+				currentConfigHash := GetEnvVarValue(
 					th.GetStatefulSet(novaNames.APIStatefulSetName).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
 				g.Expect(originalConfigHash).NotTo(Equal(currentConfigHash))
 
