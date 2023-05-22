@@ -47,13 +47,13 @@ func StatefulSet(
 	// After the first successful startupProbe, livenessProbe takes over
 	livenessProbe := &corev1.Probe{
 		// TODO might need tuning
-		TimeoutSeconds: 10,
-		PeriodSeconds:  10,
+		TimeoutSeconds: 30,
+		PeriodSeconds:  30,
 	}
 	readinessProbe := &corev1.Probe{
 		// TODO might need tuning
-		TimeoutSeconds: 5,
-		PeriodSeconds:  5,
+		TimeoutSeconds: 30,
+		PeriodSeconds:  30,
 	}
 
 	args := []string{"-c"}
