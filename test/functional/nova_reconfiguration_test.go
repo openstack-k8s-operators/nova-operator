@@ -379,7 +379,7 @@ var _ = Describe("Nova reconfiguration", func() {
 	When("CellMessageBusInstance is reconfigured for a cell", func() {
 		It("re-runs the cell mapping job and updates the cell hash", func() {
 			mappingJob := th.GetJob(cell1.CellMappingJobName)
-			oldJobInputHash := GetEnvValue(
+			oldJobInputHash := GetEnvVarValue(
 				mappingJob.Spec.Template.Spec.Containers[0].Env, "INPUT_HASH", "")
 
 			oldCell1Hash := GetNova(novaNames.NovaName).Status.RegisteredCells[cell1.CellName.Name]
@@ -430,7 +430,7 @@ var _ = Describe("Nova reconfiguration", func() {
 			// to update the CellMapping table in the nova_api DB.
 			Eventually(func(g Gomega) {
 				mappingJob := th.GetJob(cell1.CellMappingJobName)
-				newJobInputHash := GetEnvValue(
+				newJobInputHash := GetEnvVarValue(
 					mappingJob.Spec.Template.Spec.Containers[0].Env, "INPUT_HASH", "")
 				g.Expect(newJobInputHash).NotTo(Equal(oldJobInputHash))
 			}, timeout, interval).Should(Succeed())
