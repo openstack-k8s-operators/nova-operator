@@ -1,0 +1,14 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: openstack
+
+bases:
+ - ../network-isolation
+
+# patches:
+#   - path: keystone.yaml
+#   - path: glance.yaml
+#   - path: placement.yaml
+#   - path: neutron.yaml
+#   - path: nova.yaml
+#   - path: infra.yaml
