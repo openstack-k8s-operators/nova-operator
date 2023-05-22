@@ -3,6 +3,7 @@ kind: OpenStackControlPlane
 metadata:
   name: openstack
 spec:
+   storageClass: "crc-csi-hostpath-provisioner"
    glance:
     template:
-      storage-class:
+      storageClass: "crc-csi-hostpath-provisioner"

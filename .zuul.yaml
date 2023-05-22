@@ -11,10 +11,10 @@
       This is the base job for all nova-operator tests that will deploy
       openstack. the base job does not deploy openstack but it does use
       the nova-operator-content-provider job to provide a registry with
-      built operators and installs them on a crc envionment. child jobs
-      should take this deploy crc and use the installed operators to
+      built operators and installs them on a crc environment. Child jobs
+      should take this deployed crc and use the installed operators to
       deploy openstack and then test it. This job will fetch the job
-      output directory so child jobs can just add addtional logs to that
+      output directory so child jobs can just add additional logs to that
       in there post-playbooks.
     parent: cifmw-base-crc-openstack
     abstract: true
@@ -31,6 +31,7 @@
       crc_parameters: "--memory 18000 --disk-size 120 --cpus 6"
       network_isolation: true
       crc_attach_default_interface: true
+      cifmw_edpm_prepare_skip_crc_storage_creation: true
 
 - job:
     name: nova-operator-compute-kit
@@ -45,11 +46,11 @@
     requires:
       - "nova-operator-content"
     run:
-      - ci/nova-operator-compute-kit/playbooks/run.yaml
+      - ci/nova-operator-compute-kit/playbooks/deploy-openstack.yaml
+      - ci/nova-operator-compute-kit/playbooks/tempest.yaml
 
 - project:
     name: openstack-k8s-operators/nova-operator
     github-check:
       jobs:
         - nova-operator-content-provider
-        - nova-operator-compute-kit

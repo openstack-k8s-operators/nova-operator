@@ -3,7 +3,12 @@ kind: OpenStackControlPlane
 metadata:
   name: openstack
 spec:
-   storageClass: "lvms-vg1"
-   glance:
+  storageClass: "lvms-vg1"
+  glance:
     template:
-      storageClass: "lvms-vg1"
+      glanceAPIInternal:
+        replicas: 1
+      glanceAPIExternal:
+        replicas: 1
+      storageClass: "nfs"
+      storageRequest: 15G

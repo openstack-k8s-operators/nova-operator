@@ -19,10 +19,6 @@
         oc patch operatorhubs/cluster --type merge --patch '{"spec":{"sources":[{"disabled": true,"name": "redhat-marketplace"}]}}'
       changed_when: true
 
-    - name: Create Openstack Namesapce
-      ansible.builtin.shell: |
-        oc apply -f "{{ nova_operator_basedir }}/ci/nova-operator-base/namespace.yaml"
-
     - name: Use OpenStack Namespace
       ansible.builtin.command: oc project openstack
       changed_when: false
@@ -35,3 +31,10 @@
       changed_when: false
       retries: 30
       delay: 30
+
+    # Fixme: {{ zuul_ssh_key_dest }} is not defined in the zuul job so we need to
+    # figure out how to get the ssh key from the zuul job or generate a new one.
+    # - name: register zuul build ssh key  as a secret
+    #   ansible.builtin.command: |
+    #     oc create secret generic zuul-ssh-key  --type 'kubernetes.io/ssh-auth' \
+    #     --from-file=ssh-privatekey=~/.ssh/{{ zuul_ssh_key_dest }} --from-file=ssh-publickey=~/.ssh/{{ zuul_ssh_key_dest }}.pub
