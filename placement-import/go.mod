@@ -9,12 +9,12 @@ require (
 	github.com/onsi/ginkgo/v2 v2.9.2
 	github.com/onsi/gomega v1.27.6
 	github.com/openshift/api v3.9.0+incompatible
-	github.com/openstack-k8s-operators/keystone-operator/api v0.0.0-20230502150735-74863dad031b
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20230505090059-1db7d191885e
-	github.com/openstack-k8s-operators/lib-common/modules/database v0.0.0-20230427065458-ec1b923df88c
-	github.com/openstack-k8s-operators/lib-common/modules/test v0.0.0-20230427065458-ec1b923df88c
-	github.com/openstack-k8s-operators/mariadb-operator/api v0.0.0-20230428102546-5d2d648e367e
-	github.com/openstack-k8s-operators/placement-operator/api v0.0.0-20230427140915-b88d2637912a
+	github.com/openstack-k8s-operators/keystone-operator/api v0.0.0-20230523051500-d40e4195d0d4
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20230523062001-d41eddbb4da6
+	github.com/openstack-k8s-operators/lib-common/modules/database v0.0.0-20230523062001-d41eddbb4da6
+	github.com/openstack-k8s-operators/lib-common/modules/test v0.0.0-20230523062001-d41eddbb4da6
+	github.com/openstack-k8s-operators/mariadb-operator/api v0.0.0-20230517052836-8478be8b3aaa
+	github.com/openstack-k8s-operators/placement-operator/api v0.0.0-20230517142510-5ebb403dc2f7
 	go.uber.org/zap v1.24.0
 	k8s.io/api v0.26.3
 	k8s.io/apimachinery v0.26.3
@@ -54,8 +54,7 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
-	github.com/openstack-k8s-operators/infra-operator/apis v0.0.0-20230427061808-1c6403dc94b9 // indirect; indirect // indirect // indirect // indirect // indirect // indirect // indirect // indirect
-	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.0.0-20230427065458-ec1b923df88c // indirect; indirect // indirect // indirect // indirect // indirect // indirect // indirect // indirect // indirect // indirect // indirect // indirect
+	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.0.0-20230523062001-d41eddbb4da6 // indirect; indirect // indirect // indirect // indirect // indirect // indirect // indirect // indirect // indirect // indirect // indirect // indirect // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_golang v1.14.0 // indirect
 	github.com/prometheus/client_model v0.3.0 // indirect
