@@ -19,6 +19,13 @@
             "owner": "nova",
             "perm": "0600",
             "optional": true
+        },
+        {
+            "source": "/var/lib/openstack/config/ceph",
+            "dest": "/etc/ceph",
+            "owner": "nova",
+            "perm": "0700",
+            "optional": true
         }
     ],
     "permissions": [
@@ -26,6 +33,11 @@
             "path": "/var/log/containers/nova",
             "owner": "nova:nova",
             "recurse": true
+        },
+        {
+            "path": "/etc/ceph/*",
+            "owner": "nova:nova",
+            "perm:": "0600"
         },
         {
             "path": "/var/lib/nova",

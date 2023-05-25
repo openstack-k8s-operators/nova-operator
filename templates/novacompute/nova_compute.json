@@ -19,6 +19,6 @@
         "/var/log/containers/nova:/var/log/containers/nova",
         "/var/lib/libvirt:/var/lib/libvirt",
         "/var/lib/nova/:/var/lib/nova/",
-        "/etc/ceph:/etc/ceph:ro"
+        "/etc/ceph:/var/lib/openstack/config/ceph:ro"
     ]
 }
