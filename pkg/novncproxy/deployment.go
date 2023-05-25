@@ -47,13 +47,13 @@ func StatefulSet(
 	// After the first successful startupProbe, livenessProbe takes over
 	livenessProbe := &corev1.Probe{
 		// TODO might need tuning
-		TimeoutSeconds: 10,
-		PeriodSeconds:  10,
+		TimeoutSeconds: 30,
+		PeriodSeconds:  30,
 	}
 	readinessProbe := &corev1.Probe{
 		// TODO might need tuning
-		TimeoutSeconds: 5,
-		PeriodSeconds:  5,
+		TimeoutSeconds: 30,
+		PeriodSeconds:  30,
 	}
 
 	args := []string{"-c"}
@@ -78,13 +78,13 @@ func StatefulSet(
 	} else {
 		args = append(args, nova.KollaServiceCommand)
 		livenessProbe.HTTPGet = &corev1.HTTPGetAction{
-			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(noVNCProxyPort)},
+			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(NoVNCProxyPort)},
 		}
 		readinessProbe.HTTPGet = &corev1.HTTPGetAction{
-			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(noVNCProxyPort)},
+			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(NoVNCProxyPort)},
 		}
 		startupProbe.HTTPGet = &corev1.HTTPGetAction{
-			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(noVNCProxyPort)},
+			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(NoVNCProxyPort)},
 		}
 	}
 
@@ -132,7 +132,7 @@ func StatefulSet(
 							Command: []string{
 								"/bin/bash",
 							},
-							Args:  []string{"-c", "tail -n+1 -F /var/log/nova/nova-metadata.log"},
+							Args:  []string{"-c", "tail -n+1 -F /var/log/nova/nova-novncproxy.log"},
 							Image: instance.Spec.ContainerImage,
 							SecurityContext: &corev1.SecurityContext{
 								RunAsUser: &runAsUser,
@@ -145,7 +145,7 @@ func StatefulSet(
 							LivenessProbe:  livenessProbe,
 						},
 						{
-							Name: instance.Name + "-metadata",
+							Name: instance.Name + "-novncproxy",
 							Command: []string{
 								"/bin/bash",
 							},

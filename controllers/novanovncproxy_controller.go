@@ -20,22 +20,25 @@ import (
 	"context"
 	"fmt"
 
+	routev1 "github.com/openshift/api/route/v1"
+	v1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
-	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
-	"github.com/openstack-k8s-operators/lib-common/modules/common/statefulset"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/endpoint"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
-	nad "github.com/openstack-k8s-operators/lib-common/modules/common/networkattachment"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/labels"
+	nad "github.com/openstack-k8s-operators/lib-common/modules/common/networkattachment"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/statefulset"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	novav1beta1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
-	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	"github.com/openstack-k8s-operators/nova-operator/pkg/novncproxy"
+	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 // NovaNoVNCProxyReconciler reconciles a NovaNoVNCProxy object
@@ -46,6 +49,13 @@ type NovaNoVNCProxyReconciler struct {
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=novanovncproxies,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=novanovncproxies/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=novanovncproxies/finalizers,verbs=update
+// +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;
+// +kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;watch;create;update;patch;delete;
+// +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;
+// +kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete;
+// +kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;list;watch;create;update;patch;delete;
+// +kubebuilder:rbac:groups=route.openshift.io,resources=routes,verbs=get;list;watch;create;update;patch;delete;
+// +kubebuilder:rbac:groups=k8s.cni.cncf.io,resources=network-attachment-definitions,verbs=get;list;watch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -146,16 +156,6 @@ func (r *NovaNoVNCProxyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-
-	// Create hash over all the different input resources to identify if any of
-	// those changed and a restart/recreate is required.
-	// We have a special input, the registered cells, as the openstack service
-	// needs to be restarted if this changes to refresh the in memory cell caches
-	cellHash, err := hashOfStringMap(instance.Spec.RegisteredCells)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-	hashes["cells"] = env.SetValue(cellHash)
 
 	inputHash, err := util.HashOfInputHashes(hashes)
 	if err != nil {
@@ -281,23 +281,27 @@ func (r *NovaNoVNCProxyReconciler) generateConfigs(
 	}
 
 	templateParameters := map[string]interface{}{
-		"service_name":            novncproxy.ServiceName,
-		"keystone_internal_url":   instance.Spec.KeystoneAuthURL,
-		"nova_keystone_user":      instance.Spec.ServiceUser,
-		"nova_keystone_password":  string(secret.Data[instance.Spec.PasswordSelectors.Service]),
-		"api_db_password":         string(secret.Data[instance.Spec.PasswordSelectors.APIDatabase]),
-		"api_db_port":             3306,
-		"cell_db_name":            instance.Spec.CellDatabaseUser, // fixme
-		"cell_db_user":            instance.Spec.CellDatabaseUser,
-		"cell_db_password":        string(secret.Data[instance.Spec.PasswordSelectors.CellDatabase]),
-		"cell_db_address":         instance.Spec.CellDatabaseHostname,
-		"cell_db_port":            3306,
-		"openstack_cacert":        "",          // fixme
-		"openstack_region_name":   "regionOne", // fixme
-		"default_project_domain":  "Default",   // fixme
-		"default_user_domain":     "Default",   // fixme
-		"metadata_secret":         string(secret.Data[instance.Spec.PasswordSelectors.MetadataSecret]),
-		"log_file":                "/var/log/nova/nova-metadata.log",
+		"service_name":                novncproxy.ServiceName,
+		"keystone_internal_url":       instance.Spec.KeystoneAuthURL,
+		"nova_keystone_user":          instance.Spec.ServiceUser,
+		"nova_keystone_password":      string(secret.Data[instance.Spec.PasswordSelectors.Service]),
+		"api_db_password":             string(secret.Data[instance.Spec.PasswordSelectors.APIDatabase]),
+		"api_db_port":                 3306,
+		"cell_db_name":                instance.Spec.CellDatabaseUser, // fixme
+		"cell_db_user":                instance.Spec.CellDatabaseUser,
+		"cell_db_password":            string(secret.Data[instance.Spec.PasswordSelectors.CellDatabase]),
+		"cell_db_address":             instance.Spec.CellDatabaseHostname,
+		"cell_db_port":                3306,
+		"novncproxy_service_host":     "",
+		"nova_novncproxy_listen_port": "",
+		"api_interface_address":       "",
+		"public_protocol":             "",
+		"transport_url":               "",
+		"openstack_cacert":            "",          // fixme
+		"openstack_region_name":       "regionOne", // fixme
+		"default_project_domain":      "Default",   // fixme
+		"default_user_domain":         "Default",   // fixme
+		"log_file":                    "/var/log/nova/nova-novncproxy.log",
 	}
 	extraData := map[string]string{}
 	if instance.Spec.CustomServiceConfig != "" {
@@ -308,7 +312,7 @@ func (r *NovaNoVNCProxyReconciler) generateConfigs(
 	}
 
 	cmLabels := labels.GetLabels(
-		instance, labels.GetGroupLabel(NovaMetadataLabelPrefix), map[string]string{},
+		instance, labels.GetGroupLabel(NovaNoVNCProxyLabelPrefix), map[string]string{},
 	)
 
 	err = r.GenerateConfigs(
@@ -324,7 +328,7 @@ func (r *NovaNoVNCProxyReconciler) ensureDeployment(
 	inputHash string,
 	annotations map[string]string,
 ) (ctrl.Result, error) {
-	serviceLabels := getMetadataServiceLabels()
+	serviceLabels := getNoVNCProxyServiceLabels()
 	ss := statefulset.NewStatefulSet(novncproxy.StatefulSet(instance, inputHash, serviceLabels, annotations), r.RequeueTimeout)
 	ctrlResult, err := ss.CreateOrPatch(ctx, h)
 	if err != nil && !k8s_errors.IsNotFound(err) {
@@ -396,7 +400,58 @@ func (r *NovaNoVNCProxyReconciler) ensureServiceExposed(
 	h *helper.Helper,
 	instance *novav1beta1.NovaNoVNCProxy,
 ) (ctrl.Result, error) {
-	// TODO: add check if service is exposed
+	var ports = map[endpoint.Endpoint]endpoint.Data{
+		endpoint.EndpointInternal: {Port: novncproxy.NoVNCProxyPort},
+	}
+
+	for _, metallbcfg := range instance.Spec.ExternalEndpoints {
+		portCfg := ports[metallbcfg.Endpoint]
+		portCfg.MetalLB = &endpoint.MetalLBData{
+			IPAddressPool:   metallbcfg.IPAddressPool,
+			SharedIP:        metallbcfg.SharedIP,
+			SharedIPKey:     metallbcfg.SharedIPKey,
+			LoadBalancerIPs: metallbcfg.LoadBalancerIPs,
+		}
+
+		ports[metallbcfg.Endpoint] = portCfg
+	}
+
+	serviceName := novncproxy.ServiceName
+	if instance.Spec.CellName != "" {
+		serviceName = novncproxy.ServiceName + "-" + instance.Spec.CellName
+	}
+
+	apiEndpoints, ctrlResult, err := endpoint.ExposeEndpoints(
+		ctx,
+		h,
+		serviceName,
+		getNoVNCProxyServiceLabels(),
+		ports,
+		r.RequeueTimeout,
+	)
+	if err != nil {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.ExposeServiceReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.ExposeServiceReadyErrorMessage,
+			err.Error()))
+		return ctrlResult, err
+	} else if (ctrlResult != ctrl.Result{}) {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.ExposeServiceReadyCondition,
+			condition.RequestedReason,
+			condition.SeverityInfo,
+			condition.ExposeServiceReadyRunningMessage))
+		return ctrlResult, err
+	}
+	instance.Status.Conditions.MarkTrue(condition.ExposeServiceReadyCondition, condition.ExposeServiceReadyMessage)
+
+	for k, v := range apiEndpoints {
+		apiEndpoints[k] = v
+	}
+
+	instance.Status.APIEndpoints = apiEndpoints
 	return ctrl.Result{}, nil
 }
 
@@ -421,5 +476,9 @@ func getNoVNCProxyServiceLabels() map[string]string {
 func (r *NovaNoVNCProxyReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&novav1beta1.NovaNoVNCProxy{}).
+		Owns(&v1.StatefulSet{}).
+		Owns(&corev1.ConfigMap{}).
+		Owns(&corev1.Service{}).
+		Owns(&routev1.Route{}).
 		Complete(r)
 }

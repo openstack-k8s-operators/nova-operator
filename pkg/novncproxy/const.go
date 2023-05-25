@@ -19,9 +19,9 @@ package novncproxy
 const (
 	// MergedServiceConfigPath - The location of the merged configuration file
 	// for the service
-	MergedServiceConfigPath = "/var/lib/openstack/config/nova-metadata-config.json"
-	//APIServicePort - The port the nova-api service is exposed on
-	noVNCProxyPort = 6082
+	MergedServiceConfigPath = "/var/lib/openstack/config/nova-novncproxy-config.json"
+	//NoVNCProxyPort - The port the nova-noVNCProxyPort service is exposed on
+	NoVNCProxyPort = 6082
 	// ServiceName - The name of the service exposed to k8s
 	ServiceName = "nova-novncproxy"
 )
