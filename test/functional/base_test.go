@@ -432,6 +432,7 @@ type CellNames struct {
 	CellMappingJobName          types.NamespacedName
 	MetadataStatefulSetName     types.NamespacedName
 	CellConductorConfigDataName types.NamespacedName
+	NoVNCProxyNameStatefulSetName types.NamespacedName
 }
 
 func GetCellNames(novaName types.NamespacedName, cell string) CellNames {
@@ -470,6 +471,10 @@ func GetCellNames(novaName types.NamespacedName, cell string) CellNames {
 		CellConductorConfigDataName: types.NamespacedName{
 			Namespace: novaName.Namespace,
 			Name:      cellConductor.Name + "-config-data",
+		},
+		NoVNCProxyNameStatefulSetName: types.NamespacedName{
+			Namespace: novaName.Namespace,
+			Name:      cellName.Name + "-novncproxy",
 		},
 	}
 
@@ -512,6 +517,7 @@ type NovaNames struct {
 	MetadataName                    types.NamespacedName
 	MetadataStatefulSetName         types.NamespacedName
 	NoVNCProxyName                  types.NamespacedName
+	NoVNCProxyNameStatefulSetName   types.NamespacedName
 	ServiceAccountName              types.NamespacedName
 	RoleName                        types.NamespacedName
 	RoleBindingName                 types.NamespacedName
@@ -626,9 +632,10 @@ func GetNovaNames(novaName types.NamespacedName, cellNames []string) NovaNames {
 			Namespace: novaConductor.Namespace,
 			Name:      novaConductor.Name + "-script",
 		},
-		MetadataName:            novaMetadata,
-		MetadataStatefulSetName: novaMetadata,
-		NoVNCProxyName:          novaNoVNCProxy,
+		MetadataName:                  novaMetadata,
+		MetadataStatefulSetName:       novaMetadata,
+		NoVNCProxyName:                novaNoVNCProxy,
+		NoVNCProxyNameStatefulSetName: novaNoVNCProxy,
 		ServiceAccountName: types.NamespacedName{
 			Namespace: novaName.Namespace,
 			Name:      "nova-" + novaName.Name,
@@ -726,6 +733,11 @@ func CreateNovaNoVNCProxy(name types.NamespacedName, spec map[string]interface{}
 	return th.CreateUnstructured(raw)
 }
 
+func NoVNCProxyConditionGetter(name types.NamespacedName) condition.Conditions {
+	instance := GetNovaNoVNCProxy(name)
+	return instance.Status.Conditions
+}
+
 func GetNovaNoVNCProxy(name types.NamespacedName) *novav1.NovaNoVNCProxy {
 	instance := &novav1.NovaNoVNCProxy{}
 	Eventually(func(g Gomega) {
@@ -741,7 +753,7 @@ func GetDefaultNovaNoVNCProxySpec() map[string]interface{} {
 		"containerImage":       ContainerImage,
 		"keystoneAuthURL":      "keystone-auth-url",
 		"serviceAccount":       "nova",
-		"cellName":             "cell0",
+		"cellName":             "cell1",
 	}
 }
 
@@ -752,4 +764,20 @@ func UpdateSecret(secretName types.NamespacedName, key string, newValue []byte) 
 		g.Expect(k8sClient.Update(ctx, &secret)).Should(Succeed())
 	}, timeout, interval).Should(Succeed())
 	logger.Info("Secret updated", "secret", secretName, "key", key)
+}
+
+func CreateNovaNoVNCProxySecret(namespace string, name string) *corev1.Secret {
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Data: map[string][]byte{
+			"NovaPassword":              []byte("12345678"),
+			"NovaAPIDatabasePassword":   []byte("12345678"),
+			"NovaCell0DatabasePassword": []byte("12345678"),
+		},
+	}
+	Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
+	return secret
 }
