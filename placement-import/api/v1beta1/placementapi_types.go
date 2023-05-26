@@ -231,14 +231,9 @@ func (instance PlacementAPI) GetEndpoint(endpointType endpoint.Endpoint) (string
 	return "", fmt.Errorf("%s endpoint not found", string(endpointType))
 }
 
-// IsReady - returns true if service is ready to server requests
+// IsReady - returns true if PlacementAPI is reconciled successfully
 func (instance PlacementAPI) IsReady() bool {
-
-	// Ready when:
-	// the service is registered in keystone
-	// AND
-	// there is at least a single pod service the placement service
-	return instance.Status.ServiceID != "" && instance.Status.ReadyCount >= 1
+	return instance.Status.Conditions.IsTrue(condition.ReadyCondition)
 }
 
 // RbacConditionsSet - set the conditions for the rbac object
