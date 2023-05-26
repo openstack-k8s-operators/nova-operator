@@ -16,7 +16,6 @@ limitations under the License.
 package functional_test
 
 import (
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -28,7 +27,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	networkv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	aee "github.com/openstack-k8s-operators/openstack-ansibleee-operator/api/v1alpha1"
@@ -372,44 +370,6 @@ func CreateNovaExternalCompute(name types.NamespacedName, spec map[string]interf
 		"spec": spec,
 	}
 	return th.CreateUnstructured(raw)
-}
-
-func SimulateStatefulSetReplicaReadyWithPods(name types.NamespacedName, networkIPs map[string][]string) {
-	ss := th.GetStatefulSet(name)
-	for i := 0; i < int(*ss.Spec.Replicas); i++ {
-		pod := &corev1.Pod{
-			ObjectMeta: ss.Spec.Template.ObjectMeta,
-			Spec:       ss.Spec.Template.Spec,
-		}
-		pod.ObjectMeta.Namespace = name.Namespace
-		pod.ObjectMeta.GenerateName = name.Name
-
-		var netStatus []networkv1.NetworkStatus
-		for network, IPs := range networkIPs {
-			netStatus = append(
-				netStatus,
-				networkv1.NetworkStatus{
-					Name: network,
-					IPs:  IPs,
-				},
-			)
-		}
-		netStatusAnnotation, err := json.Marshal(netStatus)
-		Expect(err).NotTo(HaveOccurred())
-		pod.Annotations[networkv1.NetworkStatusAnnot] = string(netStatusAnnotation)
-
-		Expect(k8sClient.Create(ctx, pod)).Should(Succeed())
-	}
-
-	Eventually(func(g Gomega) {
-		ss := th.GetStatefulSet(name)
-		ss.Status.Replicas = 1
-		ss.Status.ReadyReplicas = 1
-		g.Expect(k8sClient.Status().Update(ctx, ss)).To(Succeed())
-
-	}, timeout, interval).Should(Succeed())
-
-	logger.Info("Simulated statefulset success", "on", name)
 }
 
 func GetNovaExternalCompute(name types.NamespacedName) *novav1.NovaExternalCompute {

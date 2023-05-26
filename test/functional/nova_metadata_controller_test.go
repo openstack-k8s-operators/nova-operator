@@ -407,7 +407,7 @@ var _ = Describe("NovaMetadata controller", func() {
 
 			// We don't add network attachment status annotations to the Pods
 			// to simulate that the network attachments are missing.
-			SimulateStatefulSetReplicaReadyWithPods(novaNames.MetadataStatefulSetName, map[string][]string{})
+			th.SimulateStatefulSetReplicaReadyWithPods(novaNames.MetadataStatefulSetName, map[string][]string{})
 
 			th.ExpectConditionWithDetails(
 				novaNames.MetadataName,
@@ -440,7 +440,7 @@ var _ = Describe("NovaMetadata controller", func() {
 
 			// We simulate that there is no IP associated with the internalapi
 			// network attachment
-			SimulateStatefulSetReplicaReadyWithPods(
+			th.SimulateStatefulSetReplicaReadyWithPods(
 				novaNames.MetadataStatefulSetName,
 				map[string][]string{novaNames.MetadataName.Namespace + "/internalapi": {}},
 			)
@@ -460,7 +460,7 @@ var _ = Describe("NovaMetadata controller", func() {
 			nad := th.CreateNetworkAttachmentDefinition(internalMetadataName)
 			DeferCleanup(th.DeleteInstance, nad)
 
-			SimulateStatefulSetReplicaReadyWithPods(
+			th.SimulateStatefulSetReplicaReadyWithPods(
 				novaNames.MetadataStatefulSetName,
 				map[string][]string{novaNames.MetadataName.Namespace + "/internalapi": {"10.0.0.1"}},
 			)
@@ -601,7 +601,7 @@ var _ = Describe("NovaMetadata controller", func() {
 					"not all pods have interfaces with ips as configured in NetworkAttachments: [internalapi]",
 			)
 
-			SimulateStatefulSetReplicaReadyWithPods(
+			th.SimulateStatefulSetReplicaReadyWithPods(
 				novaNames.MetadataStatefulSetName,
 				map[string][]string{novaNames.MetadataName.Namespace + "/internalapi": {"10.0.0.1"}},
 			)

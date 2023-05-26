@@ -337,7 +337,7 @@ var _ = Describe("NovaScheduler controller", func() {
 
 			// We don't add network attachment status annotations to the Pods
 			// to simulate that the network attachments are missing.
-			SimulateStatefulSetReplicaReadyWithPods(novaNames.SchedulerStatefulSetName, map[string][]string{})
+			th.SimulateStatefulSetReplicaReadyWithPods(novaNames.SchedulerStatefulSetName, map[string][]string{})
 
 			th.ExpectConditionWithDetails(
 				novaNames.SchedulerName,
@@ -370,7 +370,7 @@ var _ = Describe("NovaScheduler controller", func() {
 
 			// We simulate that there is no IP associated with the internalapi
 			// network attachment
-			SimulateStatefulSetReplicaReadyWithPods(
+			th.SimulateStatefulSetReplicaReadyWithPods(
 				novaNames.SchedulerStatefulSetName,
 				map[string][]string{novaNames.SchedulerName.Namespace + "/internalapi": {}},
 			)
@@ -390,7 +390,7 @@ var _ = Describe("NovaScheduler controller", func() {
 			nad := th.CreateNetworkAttachmentDefinition(internalAPINADName)
 			DeferCleanup(th.DeleteInstance, nad)
 
-			SimulateStatefulSetReplicaReadyWithPods(
+			th.SimulateStatefulSetReplicaReadyWithPods(
 				novaNames.SchedulerStatefulSetName,
 				map[string][]string{novaNames.SchedulerName.Namespace + "/internalapi": {"10.0.0.1"}},
 			)
@@ -488,7 +488,7 @@ var _ = Describe("NovaScheduler controller", func() {
 					"not all pods have interfaces with ips as configured in NetworkAttachments: [internalapi]",
 			)
 
-			SimulateStatefulSetReplicaReadyWithPods(
+			th.SimulateStatefulSetReplicaReadyWithPods(
 				novaNames.SchedulerStatefulSetName,
 				map[string][]string{novaNames.SchedulerName.Namespace + "/internalapi": {"10.0.0.1"}},
 			)
