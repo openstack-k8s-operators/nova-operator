@@ -98,4 +98,3 @@ func (r *NovaNoVNCProxy) ValidateDelete() error {
 	// TODO(user): fill in your validation logic upon object deletion.
 	return nil
 }
-

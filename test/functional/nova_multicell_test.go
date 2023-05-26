@@ -773,6 +773,7 @@ var _ = Describe("Nova multicell", func() {
 			th.SimulateJobSuccess(cell1.CellDBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
 			th.SimulateStatefulSetReplicaReady(cell1.MetadataStatefulSetName)
+			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyNameStatefulSetName)
 			th.SimulateJobSuccess(cell1.CellMappingJobName)
 
 			th.ExpectCondition(

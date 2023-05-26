@@ -16,6 +16,7 @@ package functional_test
 import (
 	"encoding/json"
 	"fmt"
+	networkv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
@@ -23,6 +24,7 @@ import (
 	. "github.com/openstack-k8s-operators/lib-common/modules/test/helpers"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
+	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
