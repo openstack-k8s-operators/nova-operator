@@ -782,21 +782,21 @@ var _ = Describe("Nova controller", func() {
 		})
 
 		It("creates all the sub CRs and passes down the network parameters", func() {
-			SimulateStatefulSetReplicaReadyWithPods(
+			th.SimulateStatefulSetReplicaReadyWithPods(
 				cell0.ConductorStatefulSetName,
 				map[string][]string{novaNames.NovaName.Namespace + "/internalapi": {"10.0.0.1"}},
 			)
 			th.SimulateJobSuccess(cell0.CellMappingJobName)
 
-			SimulateStatefulSetReplicaReadyWithPods(
+			th.SimulateStatefulSetReplicaReadyWithPods(
 				novaNames.SchedulerStatefulSetName,
 				map[string][]string{novaNames.NovaName.Namespace + "/internalapi": {"10.0.0.1"}},
 			)
-			SimulateStatefulSetReplicaReadyWithPods(
+			th.SimulateStatefulSetReplicaReadyWithPods(
 				novaNames.APIDeploymentName,
 				map[string][]string{novaNames.NovaName.Namespace + "/internalapi": {"10.0.0.1"}},
 			)
-			SimulateStatefulSetReplicaReadyWithPods(
+			th.SimulateStatefulSetReplicaReadyWithPods(
 				novaNames.MetadataStatefulSetName,
 				map[string][]string{novaNames.NovaName.Namespace + "/internalapi": {"10.0.0.1"}},
 			)

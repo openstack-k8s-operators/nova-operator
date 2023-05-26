@@ -195,7 +195,7 @@ var _ = Describe("NovaCell controller", func() {
 					"not all pods have interfaces with ips as configured in NetworkAttachments: [internalapi]",
 			)
 
-			SimulateStatefulSetReplicaReadyWithPods(
+			th.SimulateStatefulSetReplicaReadyWithPods(
 				cell0.ConductorStatefulSetName,
 				map[string][]string{cell0.CellName.Namespace + "/internalapi": {"10.0.0.1"}},
 			)
