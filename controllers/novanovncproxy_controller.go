@@ -66,7 +66,7 @@ type NovaNoVNCProxyReconciler struct {
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.2/pkg/reconcile
-func (r *NovaNoVNCProxyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *NovaNoVNCProxyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, _err error) {
 	l := log.FromContext(ctx)
 
 	// Fetch the NovaNoVNCProxy instance that needs to be reconciled
@@ -122,7 +122,7 @@ func (r *NovaNoVNCProxyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		}
 		err := h.PatchInstance(ctx, instance)
 		if err != nil {
-			err = err
+			_err = err
 			return
 		}
 	}()
@@ -292,10 +292,10 @@ func (r *NovaNoVNCProxyReconciler) generateConfigs(
 		"cell_db_password":            string(secret.Data[instance.Spec.PasswordSelectors.CellDatabase]),
 		"cell_db_address":             instance.Spec.CellDatabaseHostname,
 		"cell_db_port":                3306,
-		"novncproxy_service_host":     "",
-		"nova_novncproxy_listen_port": "",
-		"api_interface_address":       "",
-		"public_protocol":             "",
+		"novncproxy_service_host":     "", // fixme
+		"nova_novncproxy_listen_port": novncproxy.NoVNCProxyPort,
+		"api_interface_address":       "", // fixme
+		"public_protocol":             "", // fixme
 		"transport_url":               "",
 		"openstack_cacert":            "",          // fixme
 		"openstack_region_name":       "regionOne", // fixme

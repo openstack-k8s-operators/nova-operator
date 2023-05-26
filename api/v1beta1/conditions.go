@@ -45,6 +45,8 @@ const (
 	NovaCellReadyCondition condition.Type = "NovaCellReady"
 	// NovaMetadataReadyCondition indicates when the given NovaMetadata instance is Ready
 	NovaMetadataReadyCondition condition.Type = "NovaMetadataReady"
+	// NovaNoVNCProxyReadyCondition indicates when the given NoVNCProxy instance is Ready
+	NovaNoVNCProxyReadyCondition condition.Type = "NovaNoVNCProxyReady"
 )
 
 // Common Messages used by API objects.
@@ -136,9 +138,15 @@ const (
 	//NovaCellReadyMessage
 	NovaCellReadyMessage = "NovaCell %s is Ready"
 
-	//NovaAPIReadyErrorMessage
+	//NovaMetadataReadyInitMessage
 	NovaMetadataReadyInitMessage = "NovaMetadata not started"
 
-	//NovaMetadataReadyInitMessage
+	//NovaMetadataReadyErrorMessage
 	NovaMetadataReadyErrorMessage = "NovaMetadata error occurred %s"
+
+	//NovaNoVNCProxyReadyInitMessage
+	NovaNoVNCProxyReadyInitMessage = "NovaNoVNCProxy not started"
+
+	//NovaNoVNCProxyReadyErrorMessage
+	NovaNoVNCProxyReadyErrorMessage = "NovaNoVNCProxy error occurred %s"
 )

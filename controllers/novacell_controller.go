@@ -124,6 +124,15 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 		instance.Status.Conditions.Remove(novav1.NovaMetadataReadyCondition)
 	}
 
+	if *instance.Spec.NoVNCProxyServiceTemplate.Replicas != 0 && instance.Spec.CellName != Cell0Name {
+		result, err = r.ensureNoVNCProxy(ctx, h, instance)
+		if err != nil {
+			return result, err
+		}
+	} else {
+		instance.Status.Conditions.Remove(novav1.NovaNoVNCProxyReadyCondition)
+	}
+
 	util.LogForObject(h, "Successfully reconciled", instance)
 	return ctrl.Result{}, nil
 }
@@ -157,6 +166,11 @@ func (r *NovaCellReconciler) initConditions(
 				novav1.NovaMetadataReadyCondition,
 				condition.InitReason,
 				novav1.NovaMetadataReadyInitMessage,
+			),
+			condition.UnknownCondition(
+				novav1.NovaNoVNCProxyReadyCondition,
+				condition.InitReason,
+				novav1.NovaNoVNCProxyReadyInitMessage,
 			),
 		)
 		instance.Status.Conditions.Init(&cl)
@@ -208,6 +222,56 @@ func (r *NovaCellReconciler) ensureConductor(
 	c := conductor.Status.Conditions.Mirror(novav1.NovaConductorReadyCondition)
 	// NOTE(gibi): it can be nil if the NovaConductor CR is created but no
 	// reconciliation is run on it to initialize the ReadyCondition yet.
+	if c != nil {
+		instance.Status.Conditions.Set(c)
+	}
+
+	return ctrl.Result{}, nil
+}
+
+func (r *NovaCellReconciler) ensureNoVNCProxy(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *novav1.NovaCell,
+) (ctrl.Result, error) {
+	novncproxySpec := novav1.NewNovaNoVNCProxySpec(instance.Spec)
+	novncproxy := &novav1.NovaNoVNCProxy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      instance.Name + "-novncproxy",
+			Namespace: instance.Namespace,
+		},
+	}
+
+	op, err := controllerutil.CreateOrPatch(ctx, r.Client, novncproxy, func() error {
+		novncproxy.Spec = novncproxySpec
+		if len(novncproxy.Spec.NodeSelector) == 0 {
+			novncproxy.Spec.NodeSelector = instance.Spec.NodeSelector
+		}
+		err := controllerutil.SetControllerReference(instance, novncproxy, r.Scheme)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		condition.FalseCondition(
+			novav1.NovaNoVNCProxyReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityError,
+			novav1.NovaNoVNCProxyReadyErrorMessage,
+			err.Error(),
+		)
+		return ctrl.Result{}, err
+	}
+
+	if op != controllerutil.OperationResultNone {
+		util.LogForObject(h, fmt.Sprintf("NovaNoVNCProxy %s.", string(op)), instance, "NovaNoVNCProxy.Name", novncproxy.Name)
+	}
+
+	c := novncproxy.Status.Conditions.Mirror(novav1.NovaNoVNCProxyReadyCondition)
+
 	if c != nil {
 		instance.Status.Conditions.Set(c)
 	}

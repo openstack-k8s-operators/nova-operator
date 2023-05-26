@@ -177,3 +177,30 @@ func init() {
 func (s NovaNoVNCProxyStatus) GetConditions() condition.Conditions {
 	return s.Conditions
 }
+
+
+// NewNovaNoVNCProxySpec constructs a NewNovaNoVNCProxySpec
+func NewNovaNoVNCProxySpec(
+	novaCell NovaCellSpec,
+) NovaNoVNCProxySpec {
+	noVNCProxSpec := NovaNoVNCProxySpec{
+		CellName:                 novaCell.CellName,
+		Secret:                   novaCell.Secret,
+		CellDatabaseHostname:     novaCell.CellDatabaseHostname,
+		CellDatabaseUser:         novaCell.CellDatabaseUser,
+		Debug:                    novaCell.Debug,
+		NovaServiceBase:          NovaServiceBase{
+			ContainerImage:         novaCell.MetadataServiceTemplate.ContainerImage,
+			Replicas:               novaCell.MetadataServiceTemplate.Replicas,
+			NodeSelector:           novaCell.MetadataServiceTemplate.NodeSelector,
+			CustomServiceConfig:    novaCell.MetadataServiceTemplate.CustomServiceConfig,
+			DefaultConfigOverwrite: novaCell.MetadataServiceTemplate.DefaultConfigOverwrite,
+			Resources:              novaCell.MetadataServiceTemplate.Resources,
+			NetworkAttachments:     novaCell.MetadataServiceTemplate.NetworkAttachments,
+		},
+		KeystoneAuthURL:          novaCell.KeystoneAuthURL,
+		ServiceUser:              novaCell.ServiceUser,
+		PasswordSelectors:        novaCell.PasswordSelectors,
+	}
+	return noVNCProxSpec
+}

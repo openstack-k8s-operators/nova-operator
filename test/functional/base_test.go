@@ -431,7 +431,6 @@ type CellNames struct {
 	CellMappingJobName            types.NamespacedName
 	MetadataStatefulSetName       types.NamespacedName
 	NoVNCProxyNameStatefulSetName types.NamespacedName
-
 }
 
 func GetCellNames(novaName types.NamespacedName, cell string) CellNames {

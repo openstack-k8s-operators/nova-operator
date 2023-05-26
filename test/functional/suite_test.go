@@ -264,7 +264,7 @@ var _ = BeforeEach(func() {
 
 	novaName := types.NamespacedName{
 		Namespace: namespace,
-		Name:      uuid.New().String(),
+		Name:      uuid.New().String()[:30],
 	}
 
 	novaNames = GetNovaNames(novaName, []string{"cell0", "cell1", "cell2"})
