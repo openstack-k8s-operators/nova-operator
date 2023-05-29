@@ -602,6 +602,10 @@ func (r *NovaExternalComputeReconciler) ensureAEEDeployLibvirt(
 		_, err = controllerutil.CreateOrPatch(ctx, h.GetClient(), ansibleEE, func() error {
 			initAEE(instance, ansibleEE, "deploy-libvirt.yaml")
 
+			err = controllerutil.SetControllerReference(instance, ansibleEE, h.GetScheme())
+			if err != nil {
+				return err
+			}
 			return nil
 		})
 
@@ -646,6 +650,10 @@ func (r *NovaExternalComputeReconciler) ensureAEEDeployNova(
 		_, err = controllerutil.CreateOrPatch(ctx, h.GetClient(), ansibleEE, func() error {
 			initAEE(instance, ansibleEE, "deploy-nova.yaml")
 
+			err = controllerutil.SetControllerReference(instance, ansibleEE, h.GetScheme())
+			if err != nil {
+				return err
+			}
 			return nil
 		})
 		if err != nil {
