@@ -422,14 +422,15 @@ func SimulateAEESucceeded(name types.NamespacedName) {
 }
 
 type CellNames struct {
-	CellName                 types.NamespacedName
-	MariaDBDatabaseName      types.NamespacedName
-	CellConductorName        types.NamespacedName
-	CellDBSyncJobName        types.NamespacedName
-	ConductorStatefulSetName types.NamespacedName
-	TransportURLName         types.NamespacedName
-	CellMappingJobName       types.NamespacedName
-	MetadataStatefulSetName  types.NamespacedName
+	CellName                    types.NamespacedName
+	MariaDBDatabaseName         types.NamespacedName
+	CellConductorName           types.NamespacedName
+	CellDBSyncJobName           types.NamespacedName
+	ConductorStatefulSetName    types.NamespacedName
+	TransportURLName            types.NamespacedName
+	CellMappingJobName          types.NamespacedName
+	MetadataStatefulSetName     types.NamespacedName
+	CellConductorConfigDataName types.NamespacedName
 }
 
 func GetCellNames(novaName types.NamespacedName, cell string) CellNames {
@@ -464,6 +465,10 @@ func GetCellNames(novaName types.NamespacedName, cell string) CellNames {
 		MetadataStatefulSetName: types.NamespacedName{
 			Namespace: novaName.Namespace,
 			Name:      cellName.Name + "-metadata",
+		},
+		CellConductorConfigDataName: types.NamespacedName{
+			Namespace: novaName.Namespace,
+			Name:      cellConductor.Name + "-config-data",
 		},
 	}
 
@@ -737,4 +742,13 @@ func GetDefaultNovaNoVNCProxySpec() map[string]interface{} {
 		"serviceAccount":       "nova",
 		"cellName":             "cell0",
 	}
+}
+
+func UpdateSecret(secretName types.NamespacedName, key string, newValue []byte) {
+	Eventually(func(g Gomega) {
+		secret := th.GetSecret(secretName)
+		secret.Data[key] = newValue
+		g.Expect(k8sClient.Update(ctx, &secret)).Should(Succeed())
+	}, timeout, interval).Should(Succeed())
+	logger.Info("Secret updated", "secret", secretName, "key", key)
 }

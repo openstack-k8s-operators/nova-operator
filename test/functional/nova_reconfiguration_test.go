@@ -444,4 +444,64 @@ var _ = Describe("Nova reconfiguration", func() {
 			}, timeout, interval).Should(Succeed())
 		})
 	})
+
+	When("the service password in the osp secret is changed", func() {
+		It("reconfigures every nova service", func() {
+			secretName := types.NamespacedName{Namespace: novaNames.NovaName.Namespace, Name: SecretName}
+			UpdateSecret(secretName, "NovaPassword", []byte("new-service-password"))
+
+			// Expect that every service config is updated with the new service password
+			for _, cmName := range []types.NamespacedName{
+				cell0.CellConductorConfigDataName,
+				cell1.CellConductorConfigDataName,
+				cell2.CellConductorConfigDataName,
+				novaNames.APIConfigDataName,
+				novaNames.SchedulerConfigDataName,
+				novaNames.MetadataConfigDataName,
+			} {
+				Eventually(func(g Gomega) {
+					configDataMap := th.GetConfigMap(cmName)
+
+					g.Expect(configDataMap).ShouldNot(BeNil())
+					g.Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
+					conf := configDataMap.Data["01-nova.conf"]
+					g.Expect(conf).Should(ContainSubstring(("password = new-service-password")))
+					g.Expect(conf).ShouldNot(ContainSubstring(("password = 12345678")))
+
+				}, timeout, interval).Should(Succeed())
+			}
+		})
+		It("updates the hash in the statefulsets to trigger the restart with the new config", func() {
+			var ssNames = []types.NamespacedName{
+				cell0.ConductorStatefulSetName,
+				cell1.ConductorStatefulSetName,
+				cell2.ConductorStatefulSetName,
+				novaNames.APIStatefulSetName,
+				novaNames.SchedulerStatefulSetName,
+				novaNames.MetadataStatefulSetName,
+			}
+			var originalHashes []string = []string{}
+
+			// Grab the current statefulset config hashes
+			for _, ss := range ssNames {
+				originalHash := GetEnvVarValue(
+					th.GetStatefulSet(ss).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
+				Expect(originalHash).NotTo(BeEmpty())
+				originalHashes = append(originalHashes, originalHash)
+			}
+
+			secretName := types.NamespacedName{Namespace: novaNames.NovaName.Namespace, Name: SecretName}
+			UpdateSecret(secretName, "NovaPassword", []byte("new-service-password"))
+
+			// Assert that the config hash is updated in each stateful set
+			for i, ss := range ssNames {
+				Eventually(func(g Gomega) {
+					newHash := GetEnvVarValue(
+						th.GetStatefulSet(ss).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
+					g.Expect(newHash).NotTo(BeEmpty())
+					g.Expect(newHash).NotTo(Equal(originalHashes[i]))
+				})
+			}
+		})
+	})
 })
