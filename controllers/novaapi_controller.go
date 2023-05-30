@@ -24,8 +24,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	routev1 "github.com/openshift/api/route/v1"
 
@@ -606,6 +610,39 @@ func getAPIServiceLabels() map[string]string {
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *NovaAPIReconciler) SetupWithManager(mgr ctrl.Manager) error {
+
+	secretToReconcileReqs := func(o client.Object) []reconcile.Request {
+		var namespace string = o.GetNamespace()
+		var secretName string = o.GetName()
+		result := []reconcile.Request{}
+
+		crs := &novav1.NovaAPIList{}
+		listOpts := []client.ListOption{
+			client.InNamespace(namespace),
+		}
+		if err := r.Client.List(context.TODO(), crs, listOpts...); err != nil {
+			r.Log.Error(err, "Unable to retrieve the list of NovaAPIs")
+			return nil
+		}
+		for _, cr := range crs.Items {
+			if secretName == cr.Spec.Secret {
+				name := client.ObjectKey{
+					Namespace: namespace,
+					Name:      cr.Name,
+				}
+				r.Log.Info(
+					"Requesting reconcile due to secret change",
+					"Secret", secretName, "NovaAPI", cr.Name,
+				)
+				result = append(result, reconcile.Request{NamespacedName: name})
+			}
+		}
+		if len(result) > 0 {
+			return result
+		}
+		return nil
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&novav1.NovaAPI{}).
 		Owns(&v1.StatefulSet{}).
@@ -613,5 +650,10 @@ func (r *NovaAPIReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.ConfigMap{}).
 		Owns(&routev1.Route{}).
 		Owns(&keystonev1.KeystoneEndpoint{}).
+		// NOTE(gibi): If watching for every secret is too much then
+		// we should consider switching to immutable Secret instead of watching
+		// mutable Secrets
+		Watches(&source.Kind{Type: &corev1.Secret{}},
+			handler.EnqueueRequestsFromMapFunc(secretToReconcileReqs)).
 		Complete(r)
 }
