@@ -24,9 +24,12 @@ package v1beta1
 
 import (
 	"k8s.io/apimachinery/pkg/runtime"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"k8s.io/apimachinery/pkg/util/validation/field"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 // NovaCellDefaults -
@@ -80,6 +83,15 @@ func (spec *NovaCellSpec) Default() {
 	}
 }
 
+
+// ValidateMetadata validate metadata template
+func (r *NovaCell) ValidateMetadata() *field.Error{
+	if r.Spec.CellName == "cell0" && *r.Spec.MetadataServiceTemplate.Replicas != 0{
+		return field.Forbidden(field.NewPath("spec").Child("MetadataServiceTemplate").Child("Replicas"), "should be 0 for cell0")
+	}
+	return nil
+}
+
 // NOTE: change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
 //+kubebuilder:webhook:path=/validate-nova-openstack-org-v1beta1-novacell,mutating=false,failurePolicy=fail,sideEffects=None,groups=nova.openstack.org,resources=novacells,verbs=create;update,versions=v1beta1,name=vnovacell.kb.io,admissionReviewVersions=v1
 
@@ -88,8 +100,18 @@ var _ webhook.Validator = &NovaCell{}
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (r *NovaCell) ValidateCreate() error {
 	novacelllog.Info("validate create", "name", r.Name)
+	var allErrs field.ErrorList
 
-	// TODO(user): fill in your validation logic upon object creation.
+	if err := r.ValidateMetadata(); err != nil {
+		allErrs = append(allErrs, err)
+	}
+
+	if len(allErrs) != 0 {
+		novacelllog.Info("validation failed", "name", r.Name)
+		return apierrors.NewInvalid(
+			schema.GroupKind{Group: "nova.openstack.org", Kind: "Nova"},
+			r.Name, allErrs)
+	}
 	return nil
 }
 
@@ -97,7 +119,18 @@ func (r *NovaCell) ValidateCreate() error {
 func (r *NovaCell) ValidateUpdate(old runtime.Object) error {
 	novacelllog.Info("validate update", "name", r.Name)
 
-	// TODO(user): fill in your validation logic upon object update.
+	var allErrs field.ErrorList
+
+	if err := r.ValidateMetadata(); err != nil {
+		allErrs = append(allErrs, err)
+	}
+
+	if len(allErrs) != 0 {
+		novacelllog.Info("validation failed", "name", r.Name)
+		return apierrors.NewInvalid(
+			schema.GroupKind{Group: "nova.openstack.org", Kind: "Nova"},
+			r.Name, allErrs)
+	}
 	return nil
 }
 
