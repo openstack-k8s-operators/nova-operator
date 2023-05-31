@@ -25,11 +25,13 @@ import (
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
+	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/nova-operator/pkg/nova"
@@ -457,4 +459,69 @@ func hashOfStringMap(input map[string]string) (string, error) {
 		keyValues = append(keyValues, key+value)
 	}
 	return util.ObjectHash(keyValues)
+}
+
+type GetSecret interface {
+	GetSecret() string
+	client.Object
+}
+
+// GetSecretMapperFor returns a function that creates reconcile.Request for each
+// NovaXXX CR where the value of Spec.Secret matches to the name of the given
+// Secret. The specific CRD to match against is defined by the type of the crs
+// parameter.
+// This function gets called for each changes of each secrets in the deployment.
+// If this becomes a performance bottle neck then we have two options
+// a) we switch to immutable Secrets and required the end user to always create
+//    a new secret with a new name when the content of the Secret needs to be
+//    changed.
+// b) we move the watch to a central place (nova controller, or even openstack
+//    controller) and expose a "generation" field that the central component
+//    can bump to trigger a reconcile if the secret content changed.
+
+func (r *ReconcilerBase) GetSecretMapperFor(crs client.ObjectList) func(client.Object) []reconcile.Request {
+
+	mapper := func(secret client.Object) []reconcile.Request {
+		var namespace string = secret.GetNamespace()
+		var secretName string = secret.GetName()
+		result := []reconcile.Request{}
+
+		listOpts := []client.ListOption{
+			client.InNamespace(namespace),
+		}
+		if err := r.Client.List(context.TODO(), crs, listOpts...); err != nil {
+			r.Log.Error(err, "Unable to retrieve the list of CRs")
+			panic(err)
+		}
+
+		err := apimeta.EachListItem(crs, func(o runtime.Object) error {
+			// NOTE(gibi): intentionally let the failed cast panic to catch
+			// this implementation error as soon as possible.
+			cr := o.(GetSecret)
+			if cr.GetSecret() == secretName {
+				name := client.ObjectKey{
+					Namespace: namespace,
+					Name:      cr.GetName(),
+				}
+				r.Log.Info(
+					"Requesting reconcile due to secret change",
+					"Secret", secretName, "CR", name.Name,
+				)
+				result = append(result, reconcile.Request{NamespacedName: name})
+			}
+			return nil
+		})
+
+		if err != nil {
+			r.Log.Error(err, "Unable to iterate the list of CRs")
+			panic(err)
+		}
+
+		if len(result) > 0 {
+			return result
+		}
+		return nil
+	}
+
+	return mapper
 }

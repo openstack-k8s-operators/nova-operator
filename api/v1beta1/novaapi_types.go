@@ -205,3 +205,8 @@ func init() {
 func (s NovaAPIStatus) GetConditions() condition.Conditions {
 	return s.Conditions
 }
+
+// GetSecret returns the value of the NovaAPI.Spec.Secret
+func (n NovaAPI) GetSecret() string {
+	return n.Spec.Secret
+}

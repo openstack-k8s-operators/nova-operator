@@ -222,15 +222,15 @@ func NewNovaMetadataSpec(
 	novaCell NovaCellSpec,
 ) NovaMetadataSpec {
 	metadataSpec := NovaMetadataSpec{
-		CellName:                 novaCell.CellName,
-		Secret:                   novaCell.Secret,
-		CellDatabaseHostname:     novaCell.CellDatabaseHostname,
-		CellDatabaseUser:         novaCell.CellDatabaseUser,
-		APIDatabaseHostname:      novaCell.APIDatabaseHostname,
-		APIDatabaseUser:          novaCell.APIDatabaseUser,
-		APIMessageBusSecretName:  novaCell.CellMessageBusSecretName,
-		Debug:                    novaCell.Debug,
-		NovaServiceBase:          NovaServiceBase{
+		CellName:                novaCell.CellName,
+		Secret:                  novaCell.Secret,
+		CellDatabaseHostname:    novaCell.CellDatabaseHostname,
+		CellDatabaseUser:        novaCell.CellDatabaseUser,
+		APIDatabaseHostname:     novaCell.APIDatabaseHostname,
+		APIDatabaseUser:         novaCell.APIDatabaseUser,
+		APIMessageBusSecretName: novaCell.CellMessageBusSecretName,
+		Debug:                   novaCell.Debug,
+		NovaServiceBase: NovaServiceBase{
 			ContainerImage:         novaCell.MetadataServiceTemplate.ContainerImage,
 			Replicas:               novaCell.MetadataServiceTemplate.Replicas,
 			NodeSelector:           novaCell.MetadataServiceTemplate.NodeSelector,
@@ -239,9 +239,14 @@ func NewNovaMetadataSpec(
 			Resources:              novaCell.MetadataServiceTemplate.Resources,
 			NetworkAttachments:     novaCell.MetadataServiceTemplate.NetworkAttachments,
 		},
-		KeystoneAuthURL:          novaCell.KeystoneAuthURL,
-		ServiceUser:              novaCell.ServiceUser,
-		PasswordSelectors:        novaCell.PasswordSelectors,
+		KeystoneAuthURL:   novaCell.KeystoneAuthURL,
+		ServiceUser:       novaCell.ServiceUser,
+		PasswordSelectors: novaCell.PasswordSelectors,
 	}
 	return metadataSpec
+}
+
+// GetSecret returns the value of the NovaMetadata.Spec.Secret
+func (n NovaMetadata) GetSecret() string {
+	return n.Spec.Secret
 }
