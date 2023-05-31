@@ -363,7 +363,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 
 			// We don't add network attachment status annotations to the Pods
 			// to simulate that the network attachments are missing.
-			SimulateStatefulSetReplicaReadyWithPods(novaNames.NoVNCProxyNameStatefulSetName, map[string][]string{})
+			th.SimulateStatefulSetReplicaReadyWithPods(novaNames.NoVNCProxyNameStatefulSetName, map[string][]string{})
 
 			th.ExpectConditionWithDetails(
 				novaNames.NoVNCProxyName,
@@ -396,7 +396,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 
 			// We simulate that there is no IP associated with the internalapi
 			// network attachment
-			SimulateStatefulSetReplicaReadyWithPods(
+			th.SimulateStatefulSetReplicaReadyWithPods(
 				novaNames.NoVNCProxyNameStatefulSetName,
 				map[string][]string{novaNames.NoVNCProxyName.Namespace + "/internalapi": {}},
 			)
@@ -416,7 +416,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 			nad := th.CreateNetworkAttachmentDefinition(internalNoVNCName)
 			DeferCleanup(th.DeleteInstance, nad)
 
-			SimulateStatefulSetReplicaReadyWithPods(
+			th.SimulateStatefulSetReplicaReadyWithPods(
 				novaNames.NoVNCProxyNameStatefulSetName,
 				map[string][]string{novaNames.NoVNCProxyName.Namespace + "/internalapi": {"10.0.0.1"}},
 			)
@@ -558,7 +558,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 					"not all pods have interfaces with ips as configured in NetworkAttachments: [internalapi]",
 			)
 
-			SimulateStatefulSetReplicaReadyWithPods(
+			th.SimulateStatefulSetReplicaReadyWithPods(
 				novaNames.NoVNCProxyNameStatefulSetName,
 				map[string][]string{novaNames.NoVNCProxyName.Namespace + "/internalapi": {"10.0.0.1"}},
 			)

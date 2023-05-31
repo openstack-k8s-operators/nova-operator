@@ -81,7 +81,6 @@ var _ = Describe("Nova multicell", func() {
 
 			DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
 			DeferCleanup(th.DeleteKeystoneAPI, th.CreateKeystoneAPI(novaNames.NovaName.Namespace))
-
 			th.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
 		})
 
@@ -296,6 +295,7 @@ var _ = Describe("Nova multicell", func() {
 				condition.DBSyncReadyCondition,
 				corev1.ConditionTrue,
 			)
+			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyNameStatefulSetName)
 			th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
 			th.SimulateJobSuccess(cell1.CellMappingJobName)
 			th.ExpectCondition(
@@ -341,6 +341,7 @@ var _ = Describe("Nova multicell", func() {
 			th.SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
 			th.SimulateTransportURLReady(cell1.TransportURLName)
 			th.SimulateJobSuccess(cell1.CellDBSyncJobName)
+			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyNameStatefulSetName)
 			th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
 			th.SimulateJobSuccess(cell1.CellMappingJobName)
 
@@ -382,6 +383,7 @@ var _ = Describe("Nova multicell", func() {
 				condition.DBSyncReadyCondition,
 				corev1.ConditionTrue,
 			)
+			th.SimulateStatefulSetReplicaReady(cell2.NoVNCProxyNameStatefulSetName)
 			th.SimulateStatefulSetReplicaReady(cell2.ConductorStatefulSetName)
 			th.SimulateJobSuccess(cell2.CellMappingJobName)
 
@@ -460,6 +462,7 @@ var _ = Describe("Nova multicell", func() {
 				condition.DBSyncReadyCondition,
 				corev1.ConditionTrue,
 			)
+			th.SimulateStatefulSetReplicaReady(cell2.NoVNCProxyNameStatefulSetName)
 			th.SimulateStatefulSetReplicaReady(cell2.ConductorStatefulSetName)
 			th.ExpectCondition(
 				cell2.CellName,
@@ -604,6 +607,7 @@ var _ = Describe("Nova multicell", func() {
 
 			// As cell0 is ready cell1 is deployed
 			th.SimulateJobSuccess(cell1.CellDBSyncJobName)
+			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyNameStatefulSetName)
 			th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
 			th.SimulateJobSuccess(cell1.CellMappingJobName)
 

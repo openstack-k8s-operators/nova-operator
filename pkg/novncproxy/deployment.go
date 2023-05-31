@@ -29,7 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-// StatefulSet - returns the StatefulSet definition for the nova-metadata service
+// StatefulSet - returns the StatefulSet definition for the nova-novanovncproxy service
 func StatefulSet(
 	instance *novav1.NovaNoVNCProxy,
 	configHash string,
@@ -120,6 +120,7 @@ func StatefulSet(
 					Labels:      labels,
 				},
 				Spec: corev1.PodSpec{
+					ServiceAccountName: instance.Spec.ServiceAccount,
 					Volumes: []corev1.Volume{
 						nova.GetConfigVolume(nova.GetServiceConfigConfigMapName(instance.Name)),
 						nova.GetLogVolume(),

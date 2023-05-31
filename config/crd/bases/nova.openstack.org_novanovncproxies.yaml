@@ -48,6 +48,11 @@ spec:
           spec:
             description: NovaNoVNCProxySpec defines the desired state of NovaNoVNCProxy
             properties:
+              apiMessageBusSecretName:
+                description: APIMessageBusSecretName - the name of the Secret containing
+                  the transport URL information to use when accessing the API message
+                  bus.
+                type: string
               cellDatabaseHostname:
                 description: CellDatabaseHostname - hostname to use when accessing
                   the cell DB
@@ -251,16 +256,22 @@ spec:
                 description: Secret is the name of the Secret instance containing
                   password information for the nova-conductor service.
                 type: string
+              serviceAccount:
+                description: ServiceAccount - service account name used internally
+                  to provide Nova services the default SA name
+                type: string
               serviceUser:
                 default: nova
                 description: ServiceUser - optional username used for this service
                   to register in keystone
                 type: string
             required:
+            - apiMessageBusSecretName
             - cellDatabaseHostname
             - cellName
             - keystoneAuthURL
             - secret
+            - serviceAccount
             type: object
           status:
             description: NovaNoVNCProxyStatus defines the observed state of NovaNoVNCProxy
