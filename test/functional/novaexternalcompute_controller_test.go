@@ -31,15 +31,17 @@ import (
 
 func CreateNovaCellAndEnsureReady(cell CellNames) {
 	DeferCleanup(
-		k8sClient.Delete, ctx, CreateNovaConductorSecret(cell.CellName.Namespace, SecretName))
+		k8sClient.Delete, ctx, CreateNovaNoVNCProxySecret(cell.CellName.Namespace, SecretName))
 	DeferCleanup(
 		k8sClient.Delete, ctx, CreateNovaMessageBusSecret(cell.CellName.Namespace, MessageBusSecretName))
 
 	spec := GetDefaultNovaCellSpec()
+
 	spec["cellName"] = cell.CellName.Name
 	DeferCleanup(th.DeleteInstance, CreateNovaCell(cell.CellName, spec))
 
 	th.SimulateJobSuccess(cell.CellDBSyncJobName)
+	th.SimulateStatefulSetReplicaReady(cell.NoVNCProxyNameStatefulSetName)
 	th.SimulateStatefulSetReplicaReady(cell.ConductorStatefulSetName)
 
 	th.ExpectCondition(

@@ -262,6 +262,11 @@ var _ = BeforeEach(func() {
 	// we run the test in an existing cluster.
 	DeferCleanup(th.DeleteNamespace, namespace)
 
+	// We need to limit the lenght of the name of the Nova CR as the operator generates names
+	// for the sub CRs from this name as a prefix.
+	// E.g. <nova-CR-name>-<cell name>-metadata-internal
+	// K8s limits the name of a CR to 63 chars so we can easily hit that limit with uuids as names
+	// here.
 	novaName := types.NamespacedName{
 		Namespace: namespace,
 		Name:      uuid.New().String()[:25],

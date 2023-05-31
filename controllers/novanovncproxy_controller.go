@@ -280,13 +280,24 @@ func (r *NovaNoVNCProxyReconciler) generateConfigs(
 		return err
 	}
 
+	apiMessageBusSecret := &corev1.Secret{}
+	secretName = types.NamespacedName{
+		Namespace: instance.Namespace,
+		Name:      instance.Spec.APIMessageBusSecretName,
+	}
+	err = h.GetClient().Get(ctx, secretName, apiMessageBusSecret)
+	if err != nil {
+		util.LogForObject(
+			h, "Failed reading Secret", instance,
+			"APIMessageBusSecretName", instance.Spec.APIMessageBusSecretName)
+		return err
+	}
+
 	templateParameters := map[string]interface{}{
 		"service_name":                novncproxy.ServiceName,
 		"keystone_internal_url":       instance.Spec.KeystoneAuthURL,
 		"nova_keystone_user":          instance.Spec.ServiceUser,
 		"nova_keystone_password":      string(secret.Data[instance.Spec.PasswordSelectors.Service]),
-		"api_db_password":             string(secret.Data[instance.Spec.PasswordSelectors.APIDatabase]),
-		"api_db_port":                 3306,
 		"cell_db_name":                instance.Spec.CellDatabaseUser, // fixme
 		"cell_db_user":                instance.Spec.CellDatabaseUser,
 		"cell_db_password":            string(secret.Data[instance.Spec.PasswordSelectors.CellDatabase]),
@@ -296,7 +307,7 @@ func (r *NovaNoVNCProxyReconciler) generateConfigs(
 		"nova_novncproxy_listen_port": novncproxy.NoVNCProxyPort,
 		"api_interface_address":       "", // fixme
 		"public_protocol":             "", // fixme
-		"transport_url":               "",
+		"transport_url":               string(apiMessageBusSecret.Data["transport_url"]),
 		"openstack_cacert":            "",          // fixme
 		"openstack_region_name":       "regionOne", // fixme
 		"default_project_domain":      "Default",   // fixme

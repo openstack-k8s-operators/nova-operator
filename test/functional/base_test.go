@@ -748,12 +748,14 @@ func GetNovaNoVNCProxy(name types.NamespacedName) *novav1.NovaNoVNCProxy {
 
 func GetDefaultNovaNoVNCProxySpec() map[string]interface{} {
 	return map[string]interface{}{
-		"secret":               SecretName,
-		"cellDatabaseHostname": "nova-cell-db-hostname",
-		"containerImage":       ContainerImage,
-		"keystoneAuthURL":      "keystone-auth-url",
-		"serviceAccount":       "nova",
-		"cellName":             "cell1",
+		"secret":                  SecretName,
+		"cellDatabaseHostname":    "nova-cell-db-hostname",
+		"containerImage":          ContainerImage,
+		"keystoneAuthURL":         "keystone-auth-url",
+		"apiMessageBusSecretName": MessageBusSecretName,
+		"serviceAccount":          "nova",
+		"cellName":                "cell1",
+		"registeredCells":         map[string]string{},
 	}
 }
 
