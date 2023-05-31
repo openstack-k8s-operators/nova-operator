@@ -211,3 +211,8 @@ func NewNovaConductorSpec(
 	}
 	return conductorSpec
 }
+
+// GetSecret returns the value of the NovaConductor.Spec.Secret
+func (n NovaConductor) GetSecret() string {
+	return n.Spec.Secret
+}

@@ -188,3 +188,8 @@ func init() {
 func (s NovaSchedulerStatus) GetConditions() condition.Conditions {
 	return s.Conditions
 }
+
+// GetSecret returns the value of the NovaScheduler.Spec.Secret
+func (n NovaScheduler) GetSecret() string {
+	return n.Spec.Secret
+}
