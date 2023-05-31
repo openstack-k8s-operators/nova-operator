@@ -18,7 +18,6 @@ package v1beta1
 
 import (
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -165,9 +164,8 @@ func (s NovaStatus) GetConditions() condition.Conditions {
 }
 
 // IsReady returns true if Nova reconciled successfully
-func (c Nova) IsReady() bool {
-	readyCond := c.Status.Conditions.Get(condition.ReadyCondition)
-	return readyCond != nil && readyCond.Status == corev1.ConditionTrue
+func (instance Nova) IsReady() bool {
+	return instance.Status.Conditions.IsTrue(condition.ReadyCondition)
 }
 
 // RbacConditionsSet - set the conditions for the rbac object
