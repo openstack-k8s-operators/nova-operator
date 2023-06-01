@@ -21,7 +21,8 @@ const (
 	// for the service
 	MergedServiceConfigPath = "/var/lib/openstack/config/nova-novncproxy-config.json"
 	//NoVNCProxyPort - The port the nova-noVNCProxyPort service is exposed on
-	NoVNCProxyPort = 6082
+	NoVNCProxyPort = 6080
 	// ServiceName - The name of the service exposed to k8s
 	ServiceName = "nova-novncproxy"
+	Host        = "0.0.0.0"
 )

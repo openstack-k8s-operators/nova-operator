@@ -47,13 +47,13 @@ func StatefulSet(
 	// After the first successful startupProbe, livenessProbe takes over
 	livenessProbe := &corev1.Probe{
 		// TODO might need tuning
-		TimeoutSeconds: 30,
-		PeriodSeconds:  30,
+		TimeoutSeconds: 10,
+		PeriodSeconds:  10,
 	}
 	readinessProbe := &corev1.Probe{
 		// TODO might need tuning
-		TimeoutSeconds: 30,
-		PeriodSeconds:  30,
+		TimeoutSeconds: 5,
+		PeriodSeconds:  5,
 	}
 
 	args := []string{"-c"}
@@ -79,12 +79,15 @@ func StatefulSet(
 		args = append(args, nova.KollaServiceCommand)
 		livenessProbe.HTTPGet = &corev1.HTTPGetAction{
 			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(NoVNCProxyPort)},
+			Path: "/vnc_auto.html",
 		}
 		readinessProbe.HTTPGet = &corev1.HTTPGetAction{
 			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(NoVNCProxyPort)},
+			Path: "/vnc_auto.html",
 		}
 		startupProbe.HTTPGet = &corev1.HTTPGetAction{
 			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(NoVNCProxyPort)},
+			Path: "/vnc_auto.html",
 		}
 	}
 
@@ -138,8 +141,11 @@ func StatefulSet(
 							SecurityContext: &corev1.SecurityContext{
 								RunAsUser: &runAsUser,
 							},
-							Env:            env,
-							VolumeMounts:   []corev1.VolumeMount{nova.GetLogVolumeMount()},
+							Env: env,
+							VolumeMounts: []corev1.VolumeMount{
+								nova.GetConfigVolumeMount(),
+								nova.GetLogVolumeMount(),
+							},
 							Resources:      instance.Spec.Resources,
 							StartupProbe:   startupProbe,
 							ReadinessProbe: readinessProbe,
