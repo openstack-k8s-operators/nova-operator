@@ -54,19 +54,9 @@ spec:
                   filed is Required for cell0. TODO(gibi): Add a webhook to validate
                   cell0 constraint'
                 type: string
-              apiDatabaseUser:
-                default: nova
-                description: APIDatabaseUser - username to use when accessing the
-                  API DB
-                type: string
               cellDatabaseHostname:
                 description: 'NOTE(gibi): This should be Required, see notes in KeystoneAuthURL
                   CellDatabaseHostname - hostname to use when accessing the cell DB'
-                type: string
-              cellDatabaseUser:
-                default: nova
-                description: CellDatabaseUser - username to use when accessing the
-                  cell DB
                 type: string
               cellMessageBusSecretName:
                 description: CellMessageBusSecretName - the name of the Secret containing

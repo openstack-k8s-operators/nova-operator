@@ -648,7 +648,7 @@ func (r *NovaReconciler) ensureAPIDB(
 ) (*database.Database, nova.DatabaseStatus, error) {
 	apiDB := database.NewDatabaseWithNamespace(
 		nova.NovaAPIDatabaseName,
-		instance.Spec.APIDatabaseUser,
+		"unused",
 		instance.Spec.Secret,
 		map[string]string{
 			"dbName": instance.Spec.APIDatabaseInstance,
@@ -676,7 +676,7 @@ func (r *NovaReconciler) ensureCellDB(
 ) (*database.Database, nova.DatabaseStatus, error) {
 	cellDB := database.NewDatabaseWithNamespace(
 		"nova_"+cellName,
-		cellTemplate.CellDatabaseUser,
+		"unused",
 		instance.Spec.Secret,
 		map[string]string{
 			"dbName": cellTemplate.CellDatabaseInstance,
@@ -712,7 +712,6 @@ func (r *NovaReconciler) ensureCell(
 		CellName:                  cellName,
 		Secret:                    instance.Spec.Secret,
 		CellDatabaseHostname:      cellDB.GetDatabaseHostname(),
-		CellDatabaseUser:          cellTemplate.CellDatabaseUser,
 		CellMessageBusSecretName:  cellMQSecretName,
 		ConductorServiceTemplate:  cellTemplate.ConductorServiceTemplate,
 		MetadataServiceTemplate:   cellTemplate.MetadataServiceTemplate,
@@ -727,7 +726,6 @@ func (r *NovaReconciler) ensureCell(
 	}
 	if cellTemplate.HasAPIAccess {
 		cellSpec.APIDatabaseHostname = apiDB.GetDatabaseHostname()
-		cellSpec.APIDatabaseUser = instance.Spec.APIDatabaseUser
 	}
 
 	cell := &novav1.NovaCell{
@@ -794,9 +792,7 @@ func (r *NovaReconciler) ensureAPI(
 	apiSpec := novav1.NovaAPISpec{
 		Secret:                  instance.Spec.Secret,
 		APIDatabaseHostname:     apiDB.GetDatabaseHostname(),
-		APIDatabaseUser:         instance.Spec.APIDatabaseUser,
 		Cell0DatabaseHostname:   cell0DB.GetDatabaseHostname(),
-		Cell0DatabaseUser:       cell0Template.CellDatabaseUser,
 		APIMessageBusSecretName: apiMQSecretName,
 		Debug:                   instance.Spec.Debug,
 		NovaServiceBase: novav1.NovaServiceBase{
@@ -876,10 +872,8 @@ func (r *NovaReconciler) ensureScheduler(
 	spec := novav1.NovaSchedulerSpec{
 		Secret:                  instance.Spec.Secret,
 		APIDatabaseHostname:     apiDB.GetDatabaseHostname(),
-		APIDatabaseUser:         instance.Spec.APIDatabaseUser,
 		APIMessageBusSecretName: apiMQSecretName,
 		Cell0DatabaseHostname:   cell0DB.GetDatabaseHostname(),
-		Cell0DatabaseUser:       cell0Template.CellDatabaseUser,
 		Debug:                   instance.Spec.Debug,
 		// This is a coincidence that the NovaServiceBase
 		// has exactly the same fields as the SchedulerServiceTemplate so we
@@ -1156,9 +1150,7 @@ func (r *NovaReconciler) ensureMetadata(
 	apiSpec := novav1.NovaMetadataSpec{
 		Secret:                  instance.Spec.Secret,
 		APIDatabaseHostname:     apiDB.GetDatabaseHostname(),
-		APIDatabaseUser:         instance.Spec.APIDatabaseUser,
 		CellDatabaseHostname:    cell0DB.GetDatabaseHostname(),
-		CellDatabaseUser:        cell0Template.CellDatabaseUser,
 		APIMessageBusSecretName: apiMQSecretName,
 		Debug:                   instance.Spec.Debug,
 		NovaServiceBase: novav1.NovaServiceBase{
@@ -1266,15 +1258,16 @@ func (r *NovaReconciler) ensureCellMapped(
 		"keystone_internal_url":  cell.Spec.KeystoneAuthURL,
 		"nova_keystone_user":     cell.Spec.ServiceUser,
 		"nova_keystone_password": string(ospSecret.Data[instance.Spec.PasswordSelectors.Service]),
-		// cell.Spec.APIDatabaseUser is empty for cells without APIDB access
-		"api_db_name":     instance.Spec.APIDatabaseUser, // fixme
-		"api_db_user":     instance.Spec.APIDatabaseUser,
+		"api_db_name":            nova.NovaAPIDatabaseName,
+		// mariadb-operator use the DB schema name as the user name
+		"api_db_user":     nova.NovaAPIDatabaseName,
 		"api_db_password": string(ospSecret.Data[instance.Spec.PasswordSelectors.APIDatabase]),
 		// cell.Spec.APIDatabaseHostname is empty for cells without APIDB access
-		"api_db_address":         apiDBHostname,
-		"api_db_port":            3306,
-		"cell_db_name":           cell.Spec.CellDatabaseUser, // fixme
-		"cell_db_user":           cell.Spec.CellDatabaseUser,
+		"api_db_address": apiDBHostname,
+		"api_db_port":    3306,
+		// mariadb-operator use the DB schema name as the user name
+		"cell_db_name":           "nova_" + cell.Spec.CellName,
+		"cell_db_user":           "nova_" + cell.Spec.CellName,
 		"cell_db_password":       string(ospSecret.Data[instance.Spec.PasswordSelectors.CellDatabase]),
 		"cell_db_address":        cell.Spec.CellDatabaseHostname,
 		"cell_db_port":           3306,

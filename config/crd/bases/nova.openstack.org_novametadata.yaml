@@ -53,11 +53,6 @@ spec:
                   the API DB. This filed is Required if the CellName is not provided
                   TODO(gibi): Add a webhook to validate the CellName constraint'
                 type: string
-              apiDatabaseUser:
-                default: nova_api
-                description: APIDatabaseUser - username to use when accessing the
-                  API DB
-                type: string
               apiMessageBusSecretName:
                 description: 'APIMessageBusSecretName - the name of the Secret containing
                   the transport URL information to use when accessing the API message
@@ -69,11 +64,6 @@ spec:
                   the cell DB This is unused if CellName is not provided. But if it
                   is provided then CellDatabaseHostName is also Required. TODO(gibi):
                   add webhook to validate this CellName constraint'
-                type: string
-              cellDatabaseUser:
-                default: nova
-                description: CellDatabaseUser - username to use when accessing the
-                  cell DB
                 type: string
               cellName:
                 description: CellName is the name of the Nova Cell this metadata service

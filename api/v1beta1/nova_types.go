@@ -49,7 +49,7 @@ type NovaSpec struct {
 	APIMessageBusInstance string `json:"apiMessageBusInstance"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default={cell0: {cellDatabaseUser: nova_cell0, hasAPIAccess: true}, cell1: {cellDatabaseUser: nova_cell1, cellDatabaseInstance: openstack-cell1, cellMessageBusInstance: rabbitmq-cell1, hasAPIAccess: true}}
+	// +kubebuilder:default={cell0: {hasAPIAccess: true}, cell1: {cellDatabaseInstance: openstack-cell1, cellMessageBusInstance: rabbitmq-cell1, hasAPIAccess: true}}
 	// Cells is a mapping of cell names to NovaCellTemplate objects defining
 	// the cells in the deployment. The "cell0" cell is a mandatory cell in
 	// every deployment. Moreover any real deployment needs at least one
@@ -60,11 +60,6 @@ type NovaSpec struct {
 	// +kubebuilder:default="nova"
 	// ServiceUser - optional username used for this service to register in keystone
 	ServiceUser string `json:"serviceUser"`
-
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default="nova_api"
-	// APIDatabaseUser - username to use when accessing the API DB
-	APIDatabaseUser string `json:"apiDatabaseUser"`
 
 	// +kubebuilder:validation:Required
 	// Secret is the name of the Secret instance containing password

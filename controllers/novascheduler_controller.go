@@ -37,6 +37,7 @@ import (
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
+	"github.com/openstack-k8s-operators/nova-operator/pkg/nova"
 	"github.com/openstack-k8s-operators/nova-operator/pkg/novascheduler"
 )
 
@@ -305,13 +306,15 @@ func (r *NovaSchedulerReconciler) generateConfigs(
 		"keystone_internal_url":  instance.Spec.KeystoneAuthURL,
 		"nova_keystone_user":     instance.Spec.ServiceUser,
 		"nova_keystone_password": string(secret.Data[instance.Spec.PasswordSelectors.Service]),
-		"api_db_name":            instance.Spec.APIDatabaseUser, // fixme
-		"api_db_user":            instance.Spec.APIDatabaseUser,
-		"api_db_password":        string(secret.Data[instance.Spec.PasswordSelectors.APIDatabase]),
-		"api_db_address":         instance.Spec.APIDatabaseHostname,
-		"api_db_port":            3306,
-		"cell_db_name":           instance.Spec.Cell0DatabaseUser, // fixme
-		"cell_db_user":           instance.Spec.Cell0DatabaseUser,
+		"api_db_name":            nova.NovaAPIDatabaseName,
+		// mariadb-operator use the DB schema name as the user name
+		"api_db_user":     nova.NovaAPIDatabaseName,
+		"api_db_password": string(secret.Data[instance.Spec.PasswordSelectors.APIDatabase]),
+		"api_db_address":  instance.Spec.APIDatabaseHostname,
+		"api_db_port":     3306,
+		// mariadb-operator use the DB schema name as the user name
+		"cell_db_name":           "nova_cell0",
+		"cell_db_user":           "nova_cell0",
 		"cell_db_password":       string(secret.Data[instance.Spec.PasswordSelectors.CellDatabase]),
 		"cell_db_address":        instance.Spec.Cell0DatabaseHostname,
 		"cell_db_port":           3306,

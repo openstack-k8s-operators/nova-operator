@@ -38,6 +38,7 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/statefulset"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
+	"github.com/openstack-k8s-operators/nova-operator/pkg/nova"
 	"github.com/openstack-k8s-operators/nova-operator/pkg/novaconductor"
 )
 
@@ -315,8 +316,9 @@ func (r *NovaConductorReconciler) generateConfigs(
 		"keystone_internal_url":  instance.Spec.KeystoneAuthURL,
 		"nova_keystone_user":     instance.Spec.ServiceUser,
 		"nova_keystone_password": string(secret.Data[instance.Spec.PasswordSelectors.Service]),
-		"cell_db_name":           instance.Spec.CellDatabaseUser, // fixme
-		"cell_db_user":           instance.Spec.CellDatabaseUser,
+		// mariadb-operator use the DB schema name as the user name
+		"cell_db_name":           "nova_" + instance.Spec.CellName,
+		"cell_db_user":           "nova_" + instance.Spec.CellName,
 		"cell_db_password":       string(secret.Data[instance.Spec.PasswordSelectors.CellDatabase]),
 		"cell_db_address":        instance.Spec.CellDatabaseHostname,
 		"cell_db_port":           3306,
@@ -326,12 +328,14 @@ func (r *NovaConductorReconciler) generateConfigs(
 		"default_user_domain":    "Default",   // fixme
 		"transport_url":          string(messageBusSecret.Data["transport_url"]),
 	}
-	if len(instance.Spec.APIDatabaseHostname) > 0 && len(instance.Spec.APIDatabaseUser) > 0 {
-		templateParameters["api_db_name"] = instance.Spec.APIDatabaseUser // fixme
-		templateParameters["api_db_user"] = instance.Spec.APIDatabaseUser
+	if len(instance.Spec.APIDatabaseHostname) > 0 {
+		templateParameters["api_db_name"] = nova.NovaAPIDatabaseName
+		// mariadb-operator use the DB schema name as the user name
+		templateParameters["api_db_user"] = nova.NovaAPIDatabaseName
 		templateParameters["api_db_password"] = string(secret.Data[instance.Spec.PasswordSelectors.APIDatabase])
 		templateParameters["api_db_address"] = instance.Spec.APIDatabaseHostname
 		templateParameters["api_db_port"] = 3306
+
 	}
 
 	extraData := map[string]string{}

@@ -33,10 +33,6 @@ type NovaCellTemplate struct {
 	// Service instance used as the DB of this cell.
 	CellDatabaseInstance string `json:"cellDatabaseInstance"`
 
-	// +kubebuilder:validation:Required
-	// CellDatabaseUser - username to use when accessing the give cell DB
-	CellDatabaseUser string `json:"cellDatabaseUser"`
-
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=rabbitmq
 	// CellMessageBusInstance is the name of the RabbitMqCluster CR to select
@@ -108,21 +104,11 @@ type NovaCellSpec struct {
 	KeystoneAuthURL string `json:"keystoneAuthURL"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=nova
-	// APIDatabaseUser - username to use when accessing the API DB
-	APIDatabaseUser string `json:"apiDatabaseUser"`
-
-	// +kubebuilder:validation:Optional
 	// APIDatabaseHostname - hostname to use when accessing the API DB. If not
 	// provided then up-calls will be disabled. This filed is Required for
 	// cell0.
 	// TODO(gibi): Add a webhook to validate cell0 constraint
 	APIDatabaseHostname string `json:"apiDatabaseHostname"`
-
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=nova
-	// CellDatabaseUser - username to use when accessing the cell DB
-	CellDatabaseUser string `json:"cellDatabaseUser"`
 
 	// +kubebuilder:validation:Required
 	// CellDatabaseHostname - hostname to use when accessing the cell DB

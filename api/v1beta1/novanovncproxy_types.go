@@ -95,11 +95,6 @@ type NovaNoVNCProxySpec struct {
 	// talk to keystone
 	KeystoneAuthURL string `json:"keystoneAuthURL"`
 
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=nova
-	// CellDatabaseUser - username to use when accessing the cell DB
-	CellDatabaseUser string `json:"cellDatabaseUser"`
-
 	// +kubebuilder:validation:Required
 	// CellDatabaseHostname - hostname to use when accessing the cell DB
 	CellDatabaseHostname string `json:"cellDatabaseHostname"`

@@ -97,21 +97,11 @@ type NovaConductorSpec struct {
 	KeystoneAuthURL string `json:"keystoneAuthURL"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=nova
-	// APIDatabaseUser - username to use when accessing the API DB
-	APIDatabaseUser string `json:"apiDatabaseUser"`
-
-	// +kubebuilder:validation:Optional
 	// APIDatabaseHostname - hostname to use when accessing the API DB. If not
 	// provided then up-calls will be disabled. This filed is Required for
 	// cell0.
 	// TODO(gibi): Add a webhook to validate cell0 constraint
 	APIDatabaseHostname string `json:"apiDatabaseHostname"`
-
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=nova
-	// CellDatabaseUser - username to use when accessing the cell DB
-	CellDatabaseUser string `json:"cellDatabaseUser"`
 
 	// +kubebuilder:validation:Optional
 	// NOTE(gibi): This should be Required, see notes in KeystoneAuthURL
@@ -198,9 +188,7 @@ func NewNovaConductorSpec(
 		CellName:                 novaCell.CellName,
 		Secret:                   novaCell.Secret,
 		CellDatabaseHostname:     novaCell.CellDatabaseHostname,
-		CellDatabaseUser:         novaCell.CellDatabaseUser,
 		APIDatabaseHostname:      novaCell.APIDatabaseHostname,
-		APIDatabaseUser:          novaCell.APIDatabaseUser,
 		CellMessageBusSecretName: novaCell.CellMessageBusSecretName,
 		Debug:                    novaCell.Debug,
 		NovaServiceBase:          NovaServiceBase(novaCell.ConductorServiceTemplate),

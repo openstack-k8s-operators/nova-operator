@@ -104,20 +104,10 @@ type NovaMetadataSpec struct {
 	KeystoneAuthURL string `json:"keystoneAuthURL"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default="nova_api"
-	// APIDatabaseUser - username to use when accessing the API DB
-	APIDatabaseUser string `json:"apiDatabaseUser"`
-
-	// +kubebuilder:validation:Optional
 	// APIDatabaseHostname - hostname to use when accessing the API DB.
 	// This filed is Required if the CellName is not provided
 	// TODO(gibi): Add a webhook to validate the CellName constraint
 	APIDatabaseHostname string `json:"apiDatabaseHostname"`
-
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=nova
-	// CellDatabaseUser - username to use when accessing the cell DB
-	CellDatabaseUser string `json:"cellDatabaseUser"`
 
 	// +kubebuilder:validation:Optional
 	// CellDatabaseHostname - hostname to use when accessing the cell DB
@@ -222,15 +212,13 @@ func NewNovaMetadataSpec(
 	novaCell NovaCellSpec,
 ) NovaMetadataSpec {
 	metadataSpec := NovaMetadataSpec{
-		CellName:                 novaCell.CellName,
-		Secret:                   novaCell.Secret,
-		CellDatabaseHostname:     novaCell.CellDatabaseHostname,
-		CellDatabaseUser:         novaCell.CellDatabaseUser,
-		APIDatabaseHostname:      novaCell.APIDatabaseHostname,
-		APIDatabaseUser:          novaCell.APIDatabaseUser,
-		APIMessageBusSecretName:  novaCell.CellMessageBusSecretName,
-		Debug:                    novaCell.Debug,
-		NovaServiceBase:          NovaServiceBase{
+		CellName:                novaCell.CellName,
+		Secret:                  novaCell.Secret,
+		CellDatabaseHostname:    novaCell.CellDatabaseHostname,
+		APIDatabaseHostname:     novaCell.APIDatabaseHostname,
+		APIMessageBusSecretName: novaCell.CellMessageBusSecretName,
+		Debug:                   novaCell.Debug,
+		NovaServiceBase: NovaServiceBase{
 			ContainerImage:         novaCell.MetadataServiceTemplate.ContainerImage,
 			Replicas:               novaCell.MetadataServiceTemplate.Replicas,
 			NodeSelector:           novaCell.MetadataServiceTemplate.NodeSelector,
@@ -239,9 +227,9 @@ func NewNovaMetadataSpec(
 			Resources:              novaCell.MetadataServiceTemplate.Resources,
 			NetworkAttachments:     novaCell.MetadataServiceTemplate.NetworkAttachments,
 		},
-		KeystoneAuthURL:          novaCell.KeystoneAuthURL,
-		ServiceUser:              novaCell.ServiceUser,
-		PasswordSelectors:        novaCell.PasswordSelectors,
+		KeystoneAuthURL:   novaCell.KeystoneAuthURL,
+		ServiceUser:       novaCell.ServiceUser,
+		PasswordSelectors: novaCell.PasswordSelectors,
 	}
 	return metadataSpec
 }

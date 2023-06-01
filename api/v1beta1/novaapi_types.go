@@ -98,11 +98,6 @@ type NovaAPISpec struct {
 	// +kubebuilder:validation:Required
 	KeystoneAuthURL string `json:"keystoneAuthURL"`
 
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default="nova_api"
-	// APIDatabaseUser - username to use when accessing the API DB
-	APIDatabaseUser string `json:"apiDatabaseUser"`
-
 	// +kubebuilder:validation:Required
 	// APIDatabaseHostname - hostname to use when accessing the API DB
 	APIDatabaseHostname string `json:"apiDatabaseHostname"`
@@ -112,11 +107,6 @@ type NovaAPISpec struct {
 	// transport URL information to use when accessing the API message
 	// bus.
 	APIMessageBusSecretName string `json:"apiMessageBusSecretName"`
-
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default="nova_cell0"
-	// APIDatabaseUser - username to use when accessing the cell0 DB
-	Cell0DatabaseUser string `json:"cell0DatabaseUser"`
 
 	// +kubebuilder:validation:Required
 	// APIDatabaseHostname - hostname to use when accessing the cell0 DB
