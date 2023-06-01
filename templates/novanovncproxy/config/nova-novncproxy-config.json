@@ -1,5 +1,5 @@
 {
-    "command": "/usr/sbin/nova-novncproxy",
+    "command": "/usr/bin/nova-novncproxy --web /usr/share/novnc/",
     "config_files": [
         {
             "source": "/var/lib/openstack/config/nova-blank.conf",
@@ -23,7 +23,7 @@
     ],
     "permissions": [
         {
-            "path": "/var/log/kolla/nova",
+            "path": "/var/log/nova",
             "owner": "nova:nova",
             "recurse": true
         }

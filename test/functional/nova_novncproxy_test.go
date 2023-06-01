@@ -163,13 +163,13 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 				Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
 				Expect(configDataMap.Data).Should(
 					HaveKeyWithValue("01-nova.conf",
-						ContainSubstring("novncproxy_host = ")))
+						ContainSubstring("novncproxy_host = 0.0.0.0")))
 				Expect(configDataMap.Data).Should(
 					HaveKeyWithValue("01-nova.conf",
-						ContainSubstring("novncproxy_port = ")))
+						ContainSubstring("novncproxy_port = 6080")))
 				Expect(configDataMap.Data).Should(
 					HaveKeyWithValue("01-nova.conf",
-						ContainSubstring("server_listen = ")))
+						ContainSubstring("novncproxy_base_url = http://0.0.0.0:6080/vnc_auto.html")))
 				Expect(configDataMap.Data).Should(
 					HaveKeyWithValue("02-nova-override.conf", "foo=bar"))
 			})
@@ -228,18 +228,18 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 				Expect(int(*ss.Spec.Replicas)).To(Equal(1))
 				Expect(ss.Spec.Template.Spec.Volumes).To(HaveLen(2))
 				Expect(ss.Spec.Template.Spec.Containers).To(HaveLen(2))
-				Expect(ss.Spec.Selector.MatchLabels).To(Equal(map[string]string{"service": "nova-novncproxy"}))
+				Expect(ss.Spec.Selector.MatchLabels).To(Equal(map[string]string{"service": "nova-novncproxy", "cell": "cell1"}))
 
 				container := ss.Spec.Template.Spec.Containers[0]
-				Expect(container.VolumeMounts).To(HaveLen(1))
+				Expect(container.VolumeMounts).To(HaveLen(2))
 				Expect(container.Image).To(Equal(ContainerImage))
 
 				container = ss.Spec.Template.Spec.Containers[1]
 				Expect(container.VolumeMounts).To(HaveLen(2))
 				Expect(container.Image).To(Equal(ContainerImage))
 
-				Expect(container.LivenessProbe.HTTPGet.Port.IntVal).To(Equal(int32(6082)))
-				Expect(container.ReadinessProbe.HTTPGet.Port.IntVal).To(Equal(int32(6082)))
+				Expect(container.LivenessProbe.HTTPGet.Port.IntVal).To(Equal(int32(6080)))
+				Expect(container.ReadinessProbe.HTTPGet.Port.IntVal).To(Equal(int32(6080)))
 
 			})
 
