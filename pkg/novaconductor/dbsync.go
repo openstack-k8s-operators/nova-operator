@@ -70,8 +70,8 @@ func CellDBSyncJob(
 					RestartPolicy:      corev1.RestartPolicyOnFailure,
 					ServiceAccountName: instance.Spec.ServiceAccount,
 					Volumes: []corev1.Volume{
-						nova.GetConfigVolume(nova.GetServiceConfigConfigMapName(instance.Name)),
-						nova.GetScriptVolume(nova.GetScriptConfigMapName(instance.Name)),
+						nova.GetConfigVolume(nova.GetServiceConfigSecretName(instance.Name)),
+						nova.GetScriptVolume(nova.GetScriptSecretName(instance.Name)),
 					},
 					Containers: []corev1.Container{
 						{

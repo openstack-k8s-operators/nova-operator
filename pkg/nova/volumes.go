@@ -39,15 +39,13 @@ func GetConfigVolumeMount() corev1.VolumeMount {
 	}
 }
 
-func GetConfigVolume(configMapName string) corev1.Volume {
+func GetConfigVolume(secretName string) corev1.Volume {
 	return corev1.Volume{
 		Name: configVolume,
 		VolumeSource: corev1.VolumeSource{
-			ConfigMap: &corev1.ConfigMapVolumeSource{
+			Secret: &corev1.SecretVolumeSource{
 				DefaultMode: &configMode,
-				LocalObjectReference: corev1.LocalObjectReference{
-					Name: configMapName,
-				},
+				SecretName:  secretName,
 			},
 		},
 	}
@@ -78,15 +76,13 @@ func GetScriptVolumeMount() corev1.VolumeMount {
 	}
 }
 
-func GetScriptVolume(configMapName string) corev1.Volume {
+func GetScriptVolume(secretName string) corev1.Volume {
 	return corev1.Volume{
 		Name: scriptVolume,
 		VolumeSource: corev1.VolumeSource{
-			ConfigMap: &corev1.ConfigMapVolumeSource{
+			Secret: &corev1.SecretVolumeSource{
 				DefaultMode: &scriptMode,
-				LocalObjectReference: corev1.LocalObjectReference{
-					Name: configMapName,
-				},
+				SecretName:  secretName,
 			},
 		},
 	}

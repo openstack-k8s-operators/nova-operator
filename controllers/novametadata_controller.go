@@ -158,7 +158,7 @@ func (r *NovaMetadataReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	// all our input checks out so report InputReady
 	instance.Status.Conditions.MarkTrue(condition.InputReadyCondition, condition.InputReadyMessage)
 
-	err = r.ensureConfigMaps(ctx, h, instance, &hashes, secret)
+	err = r.ensureConfigs(ctx, h, instance, &hashes, secret)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -265,7 +265,7 @@ func (r *NovaMetadataReconciler) initConditions(
 	return nil
 }
 
-func (r *NovaMetadataReconciler) ensureConfigMaps(
+func (r *NovaMetadataReconciler) ensureConfigs(
 	ctx context.Context,
 	h *helper.Helper,
 	instance *novav1beta1.NovaMetadata,

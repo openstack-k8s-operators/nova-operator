@@ -32,7 +32,6 @@ import (
 
 	"github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
-	"github.com/openstack-k8s-operators/lib-common/modules/common/configmap"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/endpoint"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
@@ -1309,8 +1308,7 @@ func (r *NovaReconciler) ensureCellMapped(
 	}
 
 	configHash := make(map[string]env.Setter)
-	// TODO(sean): make this create a secret instead.
-	err = configmap.EnsureConfigMaps(ctx, h, instance, cms, &configHash)
+	err = secret.EnsureSecrets(ctx, h, instance, cms, &configHash)
 
 	if err != nil {
 		return nova.CellMappingFailed, err

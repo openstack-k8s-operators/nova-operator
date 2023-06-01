@@ -747,14 +747,12 @@ func initAEE(
 	ansibleEEMounts.Mounts = append(ansibleEEMounts.Mounts, playbookMount)
 
 	// mount nova and libvirt configs
-	serviceConfigCMName := fmt.Sprintf("%s-config-data", instance.Name)
+	serviceConfigSecretName := fmt.Sprintf("%s-config-data", instance.Name)
 	serviceConfigVolume := corev1.Volume{
 		Name: "compute-configs",
 		VolumeSource: corev1.VolumeSource{
-			ConfigMap: &corev1.ConfigMapVolumeSource{
-				LocalObjectReference: corev1.LocalObjectReference{
-					Name: serviceConfigCMName,
-				},
+			Secret: &corev1.SecretVolumeSource{
+				SecretName: serviceConfigSecretName,
 			},
 		},
 	}

@@ -244,29 +244,30 @@ var _ = Describe("Nova controller", func() {
 			th.SimulateJobSuccess(cell0.CellMappingJobName)
 
 			// TODO(bogdando): move to CellNames.MappingJob*
-			mappingJobConfig := th.GetConfigMap(
+			mappingJobConfig := th.GetSecret(
 				types.NamespacedName{
 					Namespace: cell0.CellName.Namespace,
 					Name:      fmt.Sprintf("%s-config-data", cell0.CellName.Name+"-manage"),
 				},
 			)
 			Expect(mappingJobConfig.Data).Should(HaveKey("01-nova.conf"))
-			Expect(mappingJobConfig.Data["01-nova.conf"]).To(
+			configData := string(mappingJobConfig.Data["01-nova.conf"])
+			Expect(configData).To(
 				ContainSubstring("[database]\nconnection = mysql+pymysql://nova_cell0:12345678@hostname-for-openstack/nova_cell0"),
 			)
-			Expect(mappingJobConfig.Data["01-nova.conf"]).To(
+			Expect(configData).To(
 				ContainSubstring("[api_database]\nconnection = mysql+pymysql://nova_api:12345678@hostname-for-openstack/nova_api"),
 			)
-			mappingJobScript := th.GetConfigMap(
+			mappingJobScript := th.GetSecret(
 				types.NamespacedName{
 					Namespace: cell0.CellName.Namespace,
 					Name:      fmt.Sprintf("%s-scripts", cell0.CellName.Name+"-manage"),
 				},
 			)
-			Expect(mappingJobScript.Data).Should(HaveKeyWithValue(
-				"ensure_cell_mapping.sh", ContainSubstring("nova-manage cell_v2 update_cell")))
-			Expect(mappingJobScript.Data).Should(HaveKeyWithValue(
-				"ensure_cell_mapping.sh", ContainSubstring("nova-manage cell_v2 map_cell0")))
+			Expect(mappingJobScript.Data).Should(HaveKey("ensure_cell_mapping.sh"))
+			scriptData := string(mappingJobScript.Data["ensure_cell_mapping.sh"])
+			Expect(scriptData).To(ContainSubstring("nova-manage cell_v2 update_cell"))
+			Expect(scriptData).To(ContainSubstring("nova-manage cell_v2 map_cell0"))
 
 			Eventually(func(g Gomega) {
 				nova := GetNova(novaNames.NovaName)
@@ -565,17 +566,18 @@ var _ = Describe("Nova controller", func() {
 
 			cell0DBSync := th.GetJob(cell0.CellDBSyncJobName)
 			Expect(len(cell0DBSync.Spec.Template.Spec.InitContainers)).To(Equal(0))
-			configDataMap := th.GetConfigMap(
+			configDataMap := th.GetSecret(
 				types.NamespacedName{
 					Namespace: cell0.CellConductorName.Namespace,
 					Name:      fmt.Sprintf("%s-config-data", cell0.CellConductorName.Name),
 				},
 			)
 			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
-			Expect(configDataMap.Data["01-nova.conf"]).To(
+			configData := string(configDataMap.Data["01-nova.conf"])
+			Expect(configData).To(
 				ContainSubstring(fmt.Sprintf("[database]\nconnection = mysql+pymysql://nova_cell0:12345678@hostname-for-%s/nova_cell0", cell0.MariaDBDatabaseName.Name)),
 			)
-			Expect(configDataMap.Data["01-nova.conf"]).To(
+			Expect(configData).To(
 				ContainSubstring(fmt.Sprintf("[api_database]\nconnection = mysql+pymysql://nova_api:12345678@hostname-for-%s/nova_api", novaNames.APIMariaDBDatabaseName.Name)),
 			)
 
@@ -585,35 +587,37 @@ var _ = Describe("Nova controller", func() {
 			th.SimulateStatefulSetReplicaReady(novaNames.SchedulerStatefulSetName)
 			th.SimulateStatefulSetReplicaReady(novaNames.MetadataStatefulSetName)
 
-			configDataMap = th.GetConfigMap(
+			configDataMap = th.GetSecret(
 				types.NamespacedName{
 					Namespace: novaNames.NovaName.Namespace,
 					Name:      fmt.Sprintf("%s-config-data", novaNames.APIName.Name),
 				},
 			)
 			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
-			Expect(configDataMap.Data["01-nova.conf"]).To(
+			configData = string(configDataMap.Data["01-nova.conf"])
+			Expect(configData).To(
 				ContainSubstring(fmt.Sprintf("[database]\nconnection = mysql+pymysql://nova_cell0:12345678@hostname-for-%s/nova_cell0",
 					cell0.MariaDBDatabaseName.Name)),
 			)
-			Expect(configDataMap.Data["01-nova.conf"]).To(
+			Expect(configData).To(
 				ContainSubstring(
 					fmt.Sprintf("[api_database]\nconnection = mysql+pymysql://nova_api:12345678@hostname-for-%s/nova_api",
 						novaNames.APIMariaDBDatabaseName.Name)),
 			)
 
-			configDataMap = th.GetConfigMap(
+			configDataMap = th.GetSecret(
 				types.NamespacedName{
 					Namespace: novaNames.NovaName.Namespace,
 					Name:      fmt.Sprintf("%s-config-data", novaNames.SchedulerName.Name),
 				},
 			)
 			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
-			Expect(configDataMap.Data["01-nova.conf"]).To(
+			configData = string(configDataMap.Data["01-nova.conf"])
+			Expect(configData).To(
 				ContainSubstring(fmt.Sprintf("[database]\nconnection = mysql+pymysql://nova_cell0:12345678@hostname-for-%s/nova_cell0",
 					cell0.MariaDBDatabaseName.Name)),
 			)
-			Expect(configDataMap.Data["01-nova.conf"]).To(
+			Expect(configData).To(
 				ContainSubstring(
 					fmt.Sprintf("[api_database]\nconnection = mysql+pymysql://nova_api:12345678@hostname-for-%s/nova_api",
 						novaNames.APIMariaDBDatabaseName.Name)),

@@ -106,17 +106,18 @@ var _ = Describe("Nova multicell", func() {
 			dbSync := th.GetJob(cell0.CellDBSyncJobName)
 			Expect(dbSync.Spec.Template.Spec.InitContainers).To(HaveLen(0))
 
-			configDataMap := th.GetConfigMap(
+			configDataMap := th.GetSecret(
 				types.NamespacedName{
 					Namespace: cell0.CellConductorName.Namespace,
 					Name:      fmt.Sprintf("%s-config-data", cell0.CellConductorName.Name),
 				},
 			)
 			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
-			Expect(configDataMap.Data["01-nova.conf"]).To(
+			configData := string(configDataMap.Data["01-nova.conf"])
+			Expect(configData).To(
 				ContainSubstring(fmt.Sprintf("[database]\nconnection = mysql+pymysql://nova_cell0:12345678@hostname-for-%s/nova_cell0", cell0.MariaDBDatabaseName.Name)),
 			)
-			Expect(configDataMap.Data["01-nova.conf"]).To(
+			Expect(configData).To(
 				ContainSubstring(fmt.Sprintf("[api_database]\nconnection = mysql+pymysql://nova_api:12345678@hostname-for-%s/nova_api", novaNames.APIMariaDBDatabaseName.Name)),
 			)
 
@@ -164,19 +165,20 @@ var _ = Describe("Nova multicell", func() {
 			Expect(api.Spec.APIDatabaseHostname).To(Equal(fmt.Sprintf("hostname-for-%s", novaNames.APIMariaDBDatabaseName.Name)))
 			Expect(api.Spec.APIMessageBusSecretName).To(Equal(fmt.Sprintf("%s-secret", cell0.TransportURLName.Name)))
 
-			configDataMap := th.GetConfigMap(
+			configDataMap := th.GetSecret(
 				types.NamespacedName{
 					Namespace: novaNames.APIName.Namespace,
 					Name:      fmt.Sprintf("%s-config-data", novaNames.APIName.Name),
 				},
 			)
 			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
-			Expect(configDataMap.Data["01-nova.conf"]).To(
+			configData := string(configDataMap.Data["01-nova.conf"])
+			Expect(configData).To(
 				ContainSubstring(
 					fmt.Sprintf("[database]\nconnection = mysql+pymysql://nova_cell0:12345678@hostname-for-%s/nova_cell0",
 						cell0.MariaDBDatabaseName.Name)),
 			)
-			Expect(configDataMap.Data["01-nova.conf"]).To(
+			Expect(configData).To(
 				ContainSubstring(
 					fmt.Sprintf("[api_database]\nconnection = mysql+pymysql://nova_api:12345678@hostname-for-%s/nova_api",
 						novaNames.APIMariaDBDatabaseName.Name)),
@@ -273,17 +275,18 @@ var _ = Describe("Nova multicell", func() {
 			// assert that cell1 using its own DB but has access to the API DB
 			dbSync := th.GetJob(cell1.CellDBSyncJobName)
 			Expect(dbSync.Spec.Template.Spec.InitContainers).To(HaveLen(0))
-			configDataMap := th.GetConfigMap(
+			configDataMap := th.GetSecret(
 				types.NamespacedName{
 					Namespace: cell1.CellConductorName.Namespace,
 					Name:      fmt.Sprintf("%s-config-data", cell1.CellConductorName.Name),
 				},
 			)
 			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
-			Expect(configDataMap.Data["01-nova.conf"]).To(
+			configData := string(configDataMap.Data["01-nova.conf"])
+			Expect(configData).To(
 				ContainSubstring(fmt.Sprintf("[database]\nconnection = mysql+pymysql://nova_cell1:12345678@hostname-for-%s/nova_cell1", cell1.MariaDBDatabaseName.Name)),
 			)
-			Expect(configDataMap.Data["01-nova.conf"]).To(
+			Expect(configData).To(
 				ContainSubstring(fmt.Sprintf("[api_database]\nconnection = mysql+pymysql://nova_api:12345678@hostname-for-%s/nova_api", novaNames.APIMariaDBDatabaseName.Name)),
 			)
 			th.SimulateJobSuccess(cell1.CellDBSyncJobName)
@@ -358,17 +361,18 @@ var _ = Describe("Nova multicell", func() {
 			// assert that cell2 using its own DB but has *no* access to the API DB
 			dbSync := th.GetJob(cell2.CellDBSyncJobName)
 			Expect(dbSync.Spec.Template.Spec.InitContainers).To(HaveLen(0))
-			configDataMap := th.GetConfigMap(
+			configDataMap := th.GetSecret(
 				types.NamespacedName{
 					Namespace: cell2.CellConductorName.Namespace,
 					Name:      fmt.Sprintf("%s-config-data", cell2.CellConductorName.Name),
 				},
 			)
 			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
-			Expect(configDataMap.Data["01-nova.conf"]).To(
+			configData := string(configDataMap.Data["01-nova.conf"])
+			Expect(configData).To(
 				ContainSubstring(fmt.Sprintf("[database]\nconnection = mysql+pymysql://nova_cell2:12345678@hostname-for-%s/nova_cell2", cell2.MariaDBDatabaseName.Name)),
 			)
-			Expect(configDataMap.Data["01-nova.conf"]).ToNot(
+			Expect(configData).ToNot(
 				ContainSubstring("[api_database]"),
 			)
 			th.SimulateJobSuccess(cell2.CellDBSyncJobName)
@@ -383,18 +387,19 @@ var _ = Describe("Nova multicell", func() {
 
 			// Even though cell2 has no API access the cell2 mapping Job has
 			// API access so that it can register cell2 to the API DB.
-			mappingJobConfig := th.GetConfigMap(
+			mappingJobConfig := th.GetSecret(
 				types.NamespacedName{
 					Namespace: cell2.CellConductorName.Namespace,
 					Name:      fmt.Sprintf("%s-config-data", cell2.CellName.Name+"-manage"),
 				},
 			)
 			Expect(mappingJobConfig.Data).Should(HaveKey("01-nova.conf"))
-			Expect(mappingJobConfig.Data["01-nova.conf"]).To(
+			configData = string(mappingJobConfig.Data["01-nova.conf"])
+			Expect(configData).To(
 				ContainSubstring(
 					fmt.Sprintf("[database]\nconnection = mysql+pymysql://nova_cell2:12345678@hostname-for-%s/nova_cell2", cell2.MariaDBDatabaseName.Name)),
 			)
-			Expect(mappingJobConfig.Data["01-nova.conf"]).To(
+			Expect(configData).To(
 				ContainSubstring(
 					fmt.Sprintf("[api_database]\nconnection = mysql+pymysql://nova_api:12345678@hostname-for-%s/nova_api", novaNames.APIMariaDBDatabaseName.Name)),
 			)

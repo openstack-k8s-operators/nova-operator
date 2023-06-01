@@ -163,15 +163,24 @@ var _ = Describe("NovaConductor controller", func() {
 					corev1.ConditionTrue,
 				)
 
-				configDataMap := th.GetConfigMap(
+				configDataMap := th.GetSecret(
 					types.NamespacedName{
 						Namespace: novaNames.ConductorName.Namespace,
 						Name:      fmt.Sprintf("%s-config-data", novaNames.ConductorName.Name),
 					},
 				)
-				Expect(configDataMap.Data).Should(HaveKeyWithValue("nova-blank.conf", ""))
+				Expect(configDataMap.Data).Should(HaveKey("nova-blank.conf"))
+				blankData := string(configDataMap.Data["nova-blank.conf"])
+				Expect(blankData).To(Equal(""))
 
-				scriptMap := th.GetConfigMap(
+				Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
+				configData := string(configDataMap.Data["01-nova.conf"])
+				Expect(configData).Should(ContainSubstring("transport_url=rabbit://rabbitmq-secret/fake"))
+				Expect(configDataMap.Data).Should(HaveKey("02-nova-override.conf"))
+				extraData := string(configDataMap.Data["02-nova-override.conf"])
+				Expect(extraData).To(Equal("foo=bar"))
+
+				scriptMap := th.GetSecret(
 					types.NamespacedName{
 						Namespace: novaNames.ConductorName.Namespace,
 						Name:      fmt.Sprintf("%s-scripts", novaNames.ConductorName.Name),
@@ -179,10 +188,10 @@ var _ = Describe("NovaConductor controller", func() {
 				)
 				// Everything under templates/novaconductor are added automatically by
 				// lib-common
-				Expect(scriptMap.Data).Should(HaveKeyWithValue(
-					"dbsync.sh", ContainSubstring("nova-manage db sync")))
-				Expect(scriptMap.Data).Should(HaveKeyWithValue(
-					"dbsync.sh", ContainSubstring("nova-manage api_db sync")))
+				Expect(scriptMap.Data).Should(HaveKey("dbsync.sh"))
+				scriptData := string(scriptMap.Data["dbsync.sh"])
+				Expect(scriptData).Should(ContainSubstring("nova-manage db sync"))
+				Expect(scriptData).Should(ContainSubstring("nova-manage api_db sync"))
 			})
 
 			It("stored the input hash in the Status", func() {

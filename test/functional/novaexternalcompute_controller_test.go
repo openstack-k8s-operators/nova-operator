@@ -51,10 +51,10 @@ func CreateNovaCellAndEnsureReady(cell CellNames) {
 }
 
 var _ = Describe("NovaExternalCompute", func() {
-	var libvirtAEEName types.NamespacedName
-	var novaAEEName types.NamespacedName
 
 	When("created", func() {
+		var libvirtAEEName types.NamespacedName
+		var novaAEEName types.NamespacedName
 
 		BeforeEach(func() {
 			// Create the NovaCell the compute will belong to
@@ -120,6 +120,26 @@ var _ = Describe("NovaExternalCompute", func() {
 			)
 			compute := GetNovaExternalCompute(novaNames.ComputeName)
 			Expect(compute.Status.Hash["input"]).NotTo(BeEmpty())
+		})
+
+		It("creates AnsibleEE for libvirt", func() {
+			// TODO(gibi): assert more fields on AnsibleEE
+			libvirtAEE := GetAEE(libvirtAEEName)
+			Expect(libvirtAEE.Spec.ExtraMounts).To(HaveLen(1))
+			extraMounts := libvirtAEE.Spec.ExtraMounts[0]
+			configVol := &corev1.Volume{}
+			Expect(extraMounts.Volumes).To(ContainElement(HaveField("Name", "compute-configs"), configVol))
+			Expect(configVol.VolumeSource.Secret.SecretName).To(Equal(novaNames.ComputeName.Name + "-config-data"))
+		})
+
+		It("creates AnsibleEE for nova", func() {
+			// TODO(gibi): assert more fields on AnsibleEE
+			novaAEE := GetAEE(novaAEEName)
+			Expect(novaAEE.Spec.ExtraMounts).To(HaveLen(1))
+			extraMounts := novaAEE.Spec.ExtraMounts[0]
+			configVol := &corev1.Volume{}
+			Expect(extraMounts.Volumes).To(ContainElement(HaveField("Name", "compute-configs"), configVol))
+			Expect(configVol.VolumeSource.Secret.SecretName).To(Equal(novaNames.ComputeName.Name + "-config-data"))
 		})
 
 		It("is Ready", func() {

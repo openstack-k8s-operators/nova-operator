@@ -168,7 +168,7 @@ var _ = Describe("NovaAPI controller", func() {
 					corev1.ConditionTrue,
 				)
 
-				configDataMap := th.GetConfigMap(
+				configDataMap := th.GetSecret(
 					types.NamespacedName{
 						Namespace: novaNames.APIName.Namespace,
 						Name:      fmt.Sprintf("%s-config-data", novaNames.APIName.Name),
@@ -176,15 +176,14 @@ var _ = Describe("NovaAPI controller", func() {
 				)
 				Expect(configDataMap).ShouldNot(BeNil())
 				Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
-				Expect(configDataMap.Data).Should(
-					HaveKeyWithValue("01-nova.conf",
-						ContainSubstring("transport_url=rabbit://rabbitmq-secret/fake")))
+				configData := string(configDataMap.Data["01-nova.conf"])
+				Expect(configData).Should(ContainSubstring("transport_url=rabbit://rabbitmq-secret/fake"))
 				// as of I3629b84d3255a8fe9d8a7cea8c6131d7c40899e8 nova now requires
-				// service_user configuration to work to adress Bug: #2004555
-				Expect(configDataMap.Data).Should(
-					HaveKeyWithValue("01-nova.conf", ContainSubstring("[service_user]")))
-				Expect(configDataMap.Data).Should(
-					HaveKeyWithValue("02-nova-override.conf", "foo=bar"))
+				// service_user configuration to work to address Bug: #2004555
+				Expect(configData).Should(ContainSubstring("[service_user]"))
+				Expect(configDataMap.Data).Should(HaveKey("02-nova-override.conf"))
+				extraData := string(configDataMap.Data["02-nova-override.conf"])
+				Expect(extraData).To(Equal("foo=bar"))
 			})
 
 			It("stored the input hash in the Status", func() {

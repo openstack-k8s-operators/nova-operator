@@ -37,10 +37,10 @@ import (
 	"github.com/openstack-k8s-operators/nova-operator/pkg/nova"
 
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
-	"github.com/openstack-k8s-operators/lib-common/modules/common/configmap"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 	nad "github.com/openstack-k8s-operators/lib-common/modules/common/networkattachment"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/secret"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 )
 
@@ -385,7 +385,7 @@ func (r *ReconcilerBase) generateConfigsGeneric(
 	cms := []util.Template{
 		// ConfigMap
 		{
-			Name:               nova.GetServiceConfigConfigMapName(instance.GetName()),
+			Name:               nova.GetServiceConfigSecretName(instance.GetName()),
 			Namespace:          instance.GetNamespace(),
 			Type:               util.TemplateTypeConfig,
 			InstanceType:       instance.GetObjectKind().GroupVersionKind().Kind,
@@ -398,7 +398,7 @@ func (r *ReconcilerBase) generateConfigsGeneric(
 	}
 	if withScripts {
 		cms = append(cms, util.Template{
-			Name:               nova.GetScriptConfigMapName(instance.GetName()),
+			Name:               nova.GetScriptSecretName(instance.GetName()),
 			Namespace:          instance.GetNamespace(),
 			Type:               util.TemplateTypeScripts,
 			InstanceType:       instance.GetObjectKind().GroupVersionKind().Kind,
@@ -407,10 +407,7 @@ func (r *ReconcilerBase) generateConfigsGeneric(
 			Labels:             cmLabels,
 		})
 	}
-	// TODO(sean): make this create a secret instead.
-	// consider taking this as a function pointer or interface
-	// to enable unit testing at some point.
-	return configmap.EnsureConfigMaps(ctx, h, instance, cms, envVars)
+	return secret.EnsureSecrets(ctx, h, instance, cms, envVars)
 }
 
 // GenerateConfigs helper function to generate config maps
