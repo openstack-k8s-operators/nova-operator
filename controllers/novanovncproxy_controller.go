@@ -303,10 +303,10 @@ func (r *NovaNoVNCProxyReconciler) generateConfigs(
 		"cell_db_password":            string(secret.Data[instance.Spec.PasswordSelectors.CellDatabase]),
 		"cell_db_address":             instance.Spec.CellDatabaseHostname,
 		"cell_db_port":                3306,
-		"novncproxy_service_host":     "", // fixme
+		"novncproxy_service_host":     novncproxy.Host,
 		"nova_novncproxy_listen_port": novncproxy.NoVNCProxyPort,
-		"api_interface_address":       "", // fixme
-		"public_protocol":             "", // fixme
+		"api_interface_address":       "",     // fixme
+		"public_protocol":             "http", // fixme
 		"transport_url":               string(apiMessageBusSecret.Data["transport_url"]),
 		"openstack_cacert":            "",          // fixme
 		"openstack_region_name":       "regionOne", // fixme
@@ -339,7 +339,10 @@ func (r *NovaNoVNCProxyReconciler) ensureDeployment(
 	inputHash string,
 	annotations map[string]string,
 ) (ctrl.Result, error) {
-	serviceLabels := getNoVNCProxyServiceLabels()
+	serviceLabels := map[string]string{
+		common.AppSelector: NovaNoVNCProxyLabelPrefix,
+		CellSelector:       instance.Spec.CellName,
+	}
 	ss := statefulset.NewStatefulSet(novncproxy.StatefulSet(instance, inputHash, serviceLabels, annotations), r.RequeueTimeout)
 	ctrlResult, err := ss.CreateOrPatch(ctx, h)
 	if err != nil && !k8s_errors.IsNotFound(err) {
