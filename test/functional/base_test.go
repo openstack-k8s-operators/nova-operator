@@ -197,6 +197,7 @@ func GetDefaultNovaConductorSpec() map[string]interface{} {
 		"containerImage":           ContainerImage,
 		"keystoneAuthURL":          "keystone-auth-url",
 		"serviceAccount":           "nova",
+		"customServiceConfig":      "foo=bar",
 	}
 }
 

@@ -180,7 +180,7 @@ func (r *NovaAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (re
 	// all our input checks out so report InputReady
 	instance.Status.Conditions.MarkTrue(condition.InputReadyCondition, condition.InputReadyMessage)
 
-	err = r.ensureConfigMaps(ctx, h, instance, &hashes, secret)
+	err = r.ensureConfigs(ctx, h, instance, &hashes, secret)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -306,7 +306,7 @@ func (r *NovaAPIReconciler) initConditions(
 	return nil
 }
 
-func (r *NovaAPIReconciler) ensureConfigMaps(
+func (r *NovaAPIReconciler) ensureConfigs(
 	ctx context.Context,
 	h *helper.Helper,
 	instance *novav1.NovaAPI,

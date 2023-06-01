@@ -32,15 +32,15 @@ const (
 	NovaCell0DatabaseName = "nova_cell0"
 )
 
-// GetScriptConfigMapName returns the name of the ConfigMap used for the
-// config merger and the service init scripts
-func GetScriptConfigMapName(crName string) string {
+// GetScriptSecretName returns the name of the Secret used for the
+// db sync scripts
+func GetScriptSecretName(crName string) string {
 	return fmt.Sprintf("%s-scripts", crName)
 }
 
-// GetServiceConfigConfigMapName returns the name of the ConfigMap used to
+// GetServiceConfigSecretName returns the name of the Secret used to
 // store the service configuration files
-func GetServiceConfigConfigMapName(crName string) string {
+func GetServiceConfigSecretName(crName string) string {
 	return fmt.Sprintf("%s-config-data", crName)
 }
 

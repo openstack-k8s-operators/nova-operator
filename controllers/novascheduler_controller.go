@@ -154,7 +154,7 @@ func (r *NovaSchedulerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	// all our input checks out so report InputReady
 	instance.Status.Conditions.MarkTrue(condition.InputReadyCondition, condition.InputReadyMessage)
 
-	err = r.ensureConfigMaps(ctx, h, instance, &hashes, secret)
+	err = r.ensureConfigs(ctx, h, instance, &hashes, secret)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -258,7 +258,7 @@ func (r *NovaSchedulerReconciler) initConditions(
 	return nil
 }
 
-func (r *NovaSchedulerReconciler) ensureConfigMaps(
+func (r *NovaSchedulerReconciler) ensureConfigs(
 	ctx context.Context,
 	h *helper.Helper,
 	instance *novav1.NovaScheduler,

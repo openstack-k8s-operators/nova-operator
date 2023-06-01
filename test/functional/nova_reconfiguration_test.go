@@ -414,16 +414,16 @@ var _ = Describe("Nova reconfiguration", func() {
 
 			// Expect that the NovaConductor config is updated with the new transport URL
 			Eventually(func(g Gomega) {
-				configDataMap := th.GetConfigMap(
+				configDataMap := th.GetSecret(
 					types.NamespacedName{
 						Namespace: cell1.CellName.Namespace,
 						Name:      fmt.Sprintf("%s-config-data", cell1.CellConductorName.Name),
 					},
 				)
 				g.Expect(configDataMap).ShouldNot(BeNil())
-				g.Expect(configDataMap.Data).Should(
-					HaveKeyWithValue("01-nova.conf",
-						ContainSubstring("transport_url=rabbit://alternate-mq-for-cell1-secret/fake")))
+				g.Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
+				configData := string(configDataMap.Data["01-nova.conf"])
+				g.Expect(configData).Should(ContainSubstring("transport_url=rabbit://alternate-mq-for-cell1-secret/fake"))
 			}, timeout, interval).Should(Succeed())
 
 			// Expect that nova controller updates the mapping Job to re-run that
@@ -460,11 +460,10 @@ var _ = Describe("Nova reconfiguration", func() {
 				novaNames.MetadataConfigDataName,
 			} {
 				Eventually(func(g Gomega) {
-					configDataMap := th.GetConfigMap(cmName)
+					configDataMap := th.GetSecret(cmName)
 
-					g.Expect(configDataMap).ShouldNot(BeNil())
 					g.Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
-					conf := configDataMap.Data["01-nova.conf"]
+					conf := string(configDataMap.Data["01-nova.conf"])
 					g.Expect(conf).Should(ContainSubstring(("password = new-service-password")))
 					g.Expect(conf).ShouldNot(ContainSubstring(("password = 12345678")))
 

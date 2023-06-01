@@ -165,7 +165,7 @@ var _ = Describe("NovaScheduler controller", func() {
 				corev1.ConditionTrue,
 			)
 
-			configDataMap := th.GetConfigMap(
+			configDataMap := th.GetSecret(
 				types.NamespacedName{
 					Namespace: novaNames.SchedulerName.Namespace,
 					Name:      fmt.Sprintf("%s-config-data", novaNames.SchedulerName.Name),
@@ -173,11 +173,11 @@ var _ = Describe("NovaScheduler controller", func() {
 			)
 			Expect(configDataMap).ShouldNot(BeNil())
 			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
-			Expect(configDataMap.Data).Should(
-				HaveKeyWithValue("01-nova.conf",
-					ContainSubstring("transport_url=rabbit://rabbitmq-secret/fake")))
-			Expect(configDataMap.Data).Should(
-				HaveKeyWithValue("02-nova-override.conf", "foo=bar"))
+			configData := string(configDataMap.Data["01-nova.conf"])
+			Expect(configData).To(ContainSubstring("transport_url=rabbit://rabbitmq-secret/fake"))
+			Expect(configDataMap.Data).Should(HaveKey("02-nova-override.conf"))
+			extraConfigData := string(configDataMap.Data["02-nova-override.conf"])
+			Expect(extraConfigData).To(Equal("foo=bar"))
 		})
 
 		It("stored the input hash in the Status", func() {

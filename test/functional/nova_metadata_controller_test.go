@@ -162,7 +162,7 @@ var _ = Describe("NovaMetadata controller", func() {
 					corev1.ConditionTrue,
 				)
 
-				configDataMap := th.GetConfigMap(
+				configDataMap := th.GetSecret(
 					types.NamespacedName{
 						Namespace: novaNames.MetadataName.Namespace,
 						Name:      fmt.Sprintf("%s-config-data", novaNames.MetadataName.Name),
@@ -170,17 +170,13 @@ var _ = Describe("NovaMetadata controller", func() {
 				)
 				Expect(configDataMap).ShouldNot(BeNil())
 				Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
-				Expect(configDataMap.Data).Should(
-					HaveKeyWithValue("01-nova.conf",
-						ContainSubstring("transport_url=rabbit://rabbitmq-secret/fake")))
-				Expect(configDataMap.Data).Should(
-					HaveKeyWithValue("01-nova.conf",
-						ContainSubstring("metadata_proxy_shared_secret = 12345678")))
-				Expect(configDataMap.Data).Should(
-					HaveKeyWithValue("01-nova.conf",
-						ContainSubstring("local_metadata_per_cell = false")))
-				Expect(configDataMap.Data).Should(
-					HaveKeyWithValue("02-nova-override.conf", "foo=bar"))
+				configData := string(configDataMap.Data["01-nova.conf"])
+				Expect(configData).Should(ContainSubstring("transport_url=rabbit://rabbitmq-secret/fake"))
+				Expect(configData).Should(ContainSubstring("metadata_proxy_shared_secret = 12345678"))
+				Expect(configData).Should(ContainSubstring("local_metadata_per_cell = false"))
+				Expect(configDataMap.Data).Should(HaveKey("02-nova-override.conf"))
+				extraData := string(configDataMap.Data["02-nova-override.conf"])
+				Expect(extraData).To(Equal("foo=bar"))
 			})
 
 			It("stored the input hash in the Status", func() {
@@ -332,7 +328,7 @@ var _ = Describe("NovaMetadata controller", func() {
 				corev1.ConditionTrue,
 			)
 
-			configDataMap := th.GetConfigMap(
+			configDataMap := th.GetSecret(
 				types.NamespacedName{
 					Namespace: novaNames.MetadataName.Namespace,
 					Name:      fmt.Sprintf("%s-config-data", novaNames.MetadataName.Name),
@@ -340,15 +336,13 @@ var _ = Describe("NovaMetadata controller", func() {
 			)
 			Expect(configDataMap).ShouldNot(BeNil())
 			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
-			Expect(configDataMap.Data).Should(
-				HaveKeyWithValue("01-nova.conf",
-					ContainSubstring("transport_url=rabbit://rabbitmq-secret/fake")))
-			Expect(configDataMap.Data).Should(
-				HaveKeyWithValue("01-nova.conf",
-					ContainSubstring("metadata_proxy_shared_secret = 12345678")))
-			Expect(configDataMap.Data).Should(
-				HaveKeyWithValue("01-nova.conf",
-					ContainSubstring("local_metadata_per_cell = true")))
+			configData := string(configDataMap.Data["01-nova.conf"])
+			Expect(configData).Should(
+				ContainSubstring("transport_url=rabbit://rabbitmq-secret/fake"))
+			Expect(configData).Should(
+				ContainSubstring("metadata_proxy_shared_secret = 12345678"))
+			Expect(configData).Should(
+				ContainSubstring("local_metadata_per_cell = true"))
 			th.ExpectCondition(
 				novaNames.MetadataName,
 				ConditionGetterFunc(NovaMetadataConditionGetter),
