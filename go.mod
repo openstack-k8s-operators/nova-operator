@@ -10,15 +10,15 @@ require (
 	github.com/onsi/gomega v1.27.7
 	github.com/openshift/api v3.9.0+incompatible
 	github.com/openstack-k8s-operators/infra-operator/apis v0.0.0-20230525130454-a7f0f8afe772
-	github.com/openstack-k8s-operators/keystone-operator/api v0.0.0-20230524090129-769ebc6d0776
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20230526163116-6df6d982a172
-	github.com/openstack-k8s-operators/lib-common/modules/database v0.0.0-20230526163116-6df6d982a172
-	github.com/openstack-k8s-operators/lib-common/modules/storage v0.0.0-20230526163116-6df6d982a172
-	github.com/openstack-k8s-operators/lib-common/modules/test v0.0.0-20230526163116-6df6d982a172
-	github.com/openstack-k8s-operators/lib-common/modules/test-operators v0.0.0-20230526163116-6df6d982a172
-	github.com/openstack-k8s-operators/mariadb-operator/api v0.0.0-20230523102317-8b60f83b1d1f
+	github.com/openstack-k8s-operators/keystone-operator/api v0.0.0-20230602104114-29d472a62f87
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20230601090817-30a4a761a756
+	github.com/openstack-k8s-operators/lib-common/modules/database v0.0.0-20230601090817-30a4a761a756
+	github.com/openstack-k8s-operators/lib-common/modules/storage v0.0.0-20230601090817-30a4a761a756
+	github.com/openstack-k8s-operators/lib-common/modules/test v0.0.0-20230601090817-30a4a761a756
+	github.com/openstack-k8s-operators/lib-common/modules/test-operators v0.0.0-20230601090817-30a4a761a756
+	github.com/openstack-k8s-operators/mariadb-operator/api v0.0.0-20230602100742-579cb85d242d
 	github.com/openstack-k8s-operators/nova-operator/api v0.0.0-20221209164002-f9e6b9363961
-	github.com/openstack-k8s-operators/openstack-ansibleee-operator/api v0.0.0-20230529114935-1251a166d893
+	github.com/openstack-k8s-operators/openstack-ansibleee-operator/api v0.0.0-20230601190020-ae003f820acd
 	go.uber.org/zap v1.24.0
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.26.3
@@ -46,7 +46,7 @@ require (
 	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/pprof v0.0.0-20210720184732-4bb14d4b1be1 // indirect
-	github.com/gophercloud/gophercloud v1.2.0 // indirect
+	github.com/gophercloud/gophercloud v1.4.0 // indirect
 	github.com/imdario/mergo v0.3.15 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
