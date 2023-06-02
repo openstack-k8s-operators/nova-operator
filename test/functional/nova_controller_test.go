@@ -265,6 +265,8 @@ var _ = Describe("Nova controller", func() {
 			)
 			Expect(mappingJobScript.Data).Should(HaveKeyWithValue(
 				"ensure_cell_mapping.sh", ContainSubstring("nova-manage cell_v2 update_cell")))
+			Expect(mappingJobScript.Data).Should(HaveKeyWithValue(
+				"ensure_cell_mapping.sh", ContainSubstring("nova-manage cell_v2 map_cell0")))
 
 			Eventually(func(g Gomega) {
 				nova := GetNova(novaNames.NovaName)
