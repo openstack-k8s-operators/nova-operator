@@ -183,9 +183,6 @@ var _ = Describe("NovaConductor controller", func() {
 					"dbsync.sh", ContainSubstring("nova-manage db sync")))
 				Expect(scriptMap.Data).Should(HaveKeyWithValue(
 					"dbsync.sh", ContainSubstring("nova-manage api_db sync")))
-				// FIXME(bogdando): have I lost this change upon rebasing?
-				//Expect(scriptMap.Data).Should(HaveKeyWithValue(
-				//	"dbsync.sh", ContainSubstring("nova-manage cell_v2 map_cell0")))
 			})
 
 			It("stored the input hash in the Status", func() {
