@@ -1,1 +1,1 @@
-{{.status.apiEndpoint.internal}}{{":"}}{{.status.apiEndpoint.public}}{{"\n"}}
+{{.spec.endpoints.internal}}{{":"}}{{.spec.endpoints.public}}{{"\n"}}

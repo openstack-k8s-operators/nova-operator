@@ -17,8 +17,6 @@ limitations under the License.
 package v1beta1
 
 import (
-	"fmt"
-
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	endpoint "github.com/openstack-k8s-operators/lib-common/modules/common/endpoint"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
@@ -181,17 +179,11 @@ type PlacementAPIStatus struct {
 	// Map of hashes to track e.g. job status
 	Hash map[string]string `json:"hash,omitempty"`
 
-	// API endpoint
-	APIEndpoints map[string]string `json:"apiEndpoint,omitempty"`
-
 	// Conditions
 	Conditions condition.Conditions `json:"conditions,omitempty" optional:"true"`
 
 	// Placement Database Hostname
 	DatabaseHostname string `json:"databaseHostname,omitempty"`
-
-	// ServiceID - the ID of the registered service in keystone
-	ServiceID string `json:"serviceID,omitempty"`
 
 	// NetworkAttachments status of the deployment pods
 	NetworkAttachments map[string][]string `json:"networkAttachments,omitempty"`
@@ -223,22 +215,9 @@ func init() {
 	SchemeBuilder.Register(&PlacementAPI{}, &PlacementAPIList{})
 }
 
-// GetEndpoint - returns OpenStack endpoint url for type
-func (instance PlacementAPI) GetEndpoint(endpointType endpoint.Endpoint) (string, error) {
-	if url, found := instance.Status.APIEndpoints[string(endpointType)]; found {
-		return url, nil
-	}
-	return "", fmt.Errorf("%s endpoint not found", string(endpointType))
-}
-
-// IsReady - returns true if service is ready to server requests
+// IsReady - returns true if PlacementAPI is reconciled successfully
 func (instance PlacementAPI) IsReady() bool {
-
-	// Ready when:
-	// the service is registered in keystone
-	// AND
-	// there is at least a single pod service the placement service
-	return instance.Status.ServiceID != "" && instance.Status.ReadyCount >= 1
+	return instance.Status.Conditions.IsTrue(condition.ReadyCondition)
 }
 
 // RbacConditionsSet - set the conditions for the rbac object

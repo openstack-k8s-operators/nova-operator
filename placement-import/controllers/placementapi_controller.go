@@ -142,11 +142,18 @@ func (r *PlacementAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	// Always patch the instance status when exiting this function so we can persist any changes.
 	defer func() {
-		// update the overall status condition if service is ready
-		if instance.IsReady() {
-			instance.Status.Conditions.MarkTrue(condition.ReadyCondition, condition.ReadyMessage)
+		// update the Ready condition based on the sub conditions
+		if instance.Status.Conditions.AllSubConditionIsTrue() {
+			instance.Status.Conditions.MarkTrue(
+				condition.ReadyCondition, condition.ReadyMessage)
+		} else {
+			// something is not ready so reset the Ready condition
+			instance.Status.Conditions.MarkUnknown(
+				condition.ReadyCondition, condition.InitReason, condition.ReadyInitMessage)
+			// and recalculate it based on the state of the rest of the conditions
+			instance.Status.Conditions.Set(
+				instance.Status.Conditions.Mirror(condition.ReadyCondition))
 		}
-
 		err := helper.PatchInstance(ctx, instance)
 		if err != nil {
 			_err = err
@@ -189,9 +196,6 @@ func (r *PlacementAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 	if instance.Status.Hash == nil {
 		instance.Status.Hash = map[string]string{}
-	}
-	if instance.Status.APIEndpoints == nil {
-		instance.Status.APIEndpoints = map[string]string{}
 	}
 	if instance.Status.NetworkAttachments == nil {
 		instance.Status.NetworkAttachments = map[string][]string{}
@@ -406,16 +410,6 @@ func (r *PlacementAPIReconciler) reconcileInit(
 		return ctrlResult, nil
 	}
 	instance.Status.Conditions.MarkTrue(condition.ExposeServiceReadyCondition, condition.ExposeServiceReadyMessage)
-
-	//
-	// Update instance status with service endpoint url from route host information
-	//
-	// TODO: need to support https default here
-	if instance.Status.APIEndpoints == nil {
-		instance.Status.APIEndpoints = map[string]string{}
-	}
-	instance.Status.APIEndpoints = apiEndpoints
-
 	// expose service - end
 
 	//
@@ -446,14 +440,12 @@ func (r *PlacementAPIReconciler) reconcileInit(
 		return ctrlResult, nil
 	}
 
-	instance.Status.ServiceID = ksSvc.GetServiceID()
-
 	//
 	// register endpoints
 	//
 	ksEndptSpec := keystonev1.KeystoneEndpointSpec{
 		ServiceName: placement.ServiceName,
-		Endpoints:   instance.Status.APIEndpoints,
+		Endpoints:   apiEndpoints,
 	}
 	ksEndpt := keystonev1.NewKeystoneEndpoint(
 		placement.ServiceName,

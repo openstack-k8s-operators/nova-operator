@@ -204,13 +204,6 @@ func (in *PlacementAPIStatus) DeepCopyInto(out *PlacementAPIStatus) {
 			(*out)[key] = val
 		}
 	}
-	if in.APIEndpoints != nil {
-		in, out := &in.APIEndpoints, &out.APIEndpoints
-		*out = make(map[string]string, len(*in))
-		for key, val := range *in {
-			(*out)[key] = val
-		}
-	}
 	if in.Conditions != nil {
 		in, out := &in.Conditions, &out.Conditions
 		*out = make(condition.Conditions, len(*in))
