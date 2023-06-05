@@ -55,6 +55,7 @@ type NovaNoVNCProxyReconciler struct {
 // +kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=route.openshift.io,resources=routes,verbs=get;list;watch;create;update;patch;delete;
+// +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneendpoints,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=k8s.cni.cncf.io,resources=network-attachment-definitions,verbs=get;list;watch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
@@ -151,6 +152,13 @@ func (r *NovaNoVNCProxyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	// all our input checks out so report InputReady
 	instance.Status.Conditions.MarkTrue(condition.InputReadyCondition, condition.InputReadyMessage)
+
+	result, err = r.ensureServiceExposed(ctx, h, instance)
+	if (err != nil || result != ctrl.Result{}) {
+		// We can ignore RequeueAfter as we are watching the Service and Route resource
+		// but we have to return while waiting for the service to be exposed
+		return ctrl.Result{}, err
+	}
 
 	err = r.ensureConfigMaps(ctx, h, instance, &hashes)
 	if err != nil {
@@ -304,6 +312,7 @@ func (r *NovaNoVNCProxyReconciler) generateConfigs(
 		"cell_db_address":             instance.Spec.CellDatabaseHostname,
 		"cell_db_port":                3306,
 		"novncproxy_service_host":     novncproxy.Host,
+		"novncproxy_base_url":         instance.Status.APIEndpoints["public"],
 		"nova_novncproxy_listen_port": novncproxy.NoVNCProxyPort,
 		"api_interface_address":       "",     // fixme
 		"public_protocol":             "http", // fixme
@@ -415,6 +424,7 @@ func (r *NovaNoVNCProxyReconciler) ensureServiceExposed(
 	instance *novav1beta1.NovaNoVNCProxy,
 ) (ctrl.Result, error) {
 	var ports = map[endpoint.Endpoint]endpoint.Data{
+		endpoint.EndpointPublic:   {Port: novncproxy.NoVNCProxyPort},
 		endpoint.EndpointInternal: {Port: novncproxy.NoVNCProxyPort},
 	}
 

@@ -169,7 +169,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 						ContainSubstring("novncproxy_port = 6080")))
 				Expect(configDataMap.Data).Should(
 					HaveKeyWithValue("01-nova.conf",
-						ContainSubstring("novncproxy_base_url = http://0.0.0.0:6080/vnc_auto.html")))
+						ContainSubstring("novncproxy_base_url = http:/vnc_lite.htm")))
 				Expect(configDataMap.Data).Should(
 					HaveKeyWithValue("02-nova-override.conf", "foo=bar"))
 			})
