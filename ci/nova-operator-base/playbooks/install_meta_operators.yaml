@@ -1,0 +1,37 @@
+---
+- name: Generate install_yamls_make role
+  gather_facts: false
+  hosts: all
+  environment:
+    ANSIBLE_LIBRARY: "${ANSIBLE_LIBRARY}:${HOME}/src/github.com/openstack-k8s-operators/ci-framework/ci_framework/plugins/modules"
+    ANSIBLE_ROLES_PATH: "${ANSIBLE_ROLES_PATH}:${HOME}/zuul-jobs/roles:~/.ansible/roles:/usr/share/ansible/roles:/etc/ansible/roles"
+  tasks:
+    - name: Generate install_yamls_make role
+      ansible.builtin.include_role:
+        name: install_yamls
+      vars:
+        cifmw_basedir: "{{ ansible_env.HOME }}/src/github.com/openstack-k8s-operators/ci-framework"
+        cifmw_install_yamls_out_dir: "{{ ansible_env.HOME }}/.ansible/roles"
+        cifmw_installyamls_repos: "{{ ansible_env.HOME }}/src/github.com/openstack-k8s-operators/install_yamls"
+
+- name: Install meta operator
+  hosts: all
+  gather_facts: false
+  environment:
+    ANSIBLE_ACTION_PLUGINS: "${ANSIBLE_ACTION_PLUGINS}:${HOME}/src/github.com/openstack-k8s-operators/ci-framework/ci_framework/plugins/action:/usr/share/ansible/plugins/action"
+    ANSIBLE_ROLES_PATH: "${ANSIBLE_ROLES_PATH}:${HOME}/zuul-jobs/roles:~/.ansible/roles:/usr/share/ansible/roles:/etc/ansible/roles"
+  tasks:
+    - name: Run make download_tools
+      ansible.builtin.include_role:
+        name: 'install_yamls_makes'
+        tasks_from: 'make_download_tools'
+
+    - name: Run make crc_attach_default_interface
+      ansible.builtin.include_role:
+        name: 'install_yamls_makes'
+        tasks_from: 'make_crc_attach_default_interface'
+
+    - name: Run make openstack
+      ansible.builtin.include_role:
+        name: 'install_yamls_makes'
+        tasks_from: 'make_openstack'

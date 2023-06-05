@@ -34,9 +34,10 @@
     roles:
       - zuul: github.com/openstack-k8s-operators/ci-framework
     pre-run:
+      - ci/nova-operator-base/playbooks/install_meta_operators.yaml
       - ci/nova-operator-base/playbooks/pre.yaml
-    post-run:
-      - ci/nova-operator-base/playbooks/collect-logs.yaml
+    required-projects:
+      - github.com/openstack-k8s-operators/ci-framework
     vars:
       crc_parameters: "--memory 18000 --disk-size 120 --cpus 6"
       network_isolation: true
@@ -64,3 +65,4 @@
     github-check:
       jobs:
         - nova-operator-content-provider
+        - nova-operator-compute-kit

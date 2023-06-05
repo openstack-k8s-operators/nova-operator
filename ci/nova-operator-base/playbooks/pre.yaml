@@ -1,8 +1,4 @@
 ---
-# Note make download_tools and make openstack commands run
-# in https://github.com/rdo-infra/review.rdoproject.org-config/blob/master/playbooks/crc/openstack.yaml
-# We can override the openstack operator image by defining openstack_img in the zuul job
-
 - hosts: controller
   name: Deploy Openstack Operators
   vars:
