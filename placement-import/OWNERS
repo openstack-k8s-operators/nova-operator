@@ -1,15 +1,10 @@
+# See the OWNERS docs at https://go.k8s.io/owners
 approvers:
-  - gibizer
-  - SeanMooney
-  - bogdando
-  - kk7ds
-  - stuggi
-  - mrKisaoLamb
+  - ci-approvers
+  - openstack-approvers
+  - compute-approvers
 
 reviewers:
-  - gibizer
-  - SeanMooney
-  - bogdando
-  - kk7ds
-  - stuggi
-  - mrKisaoLamb
+  - ci-approvers
+  - openstack-approvers
+  - compute-approvers
