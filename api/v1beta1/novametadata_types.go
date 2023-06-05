@@ -242,7 +242,6 @@ func NewNovaMetadataSpec(
 		KeystoneAuthURL:          novaCell.KeystoneAuthURL,
 		ServiceUser:              novaCell.ServiceUser,
 		PasswordSelectors:        novaCell.PasswordSelectors,
-		ServiceAccount:           novaCell.ServiceAccount,
 	}
 	return metadataSpec
 }

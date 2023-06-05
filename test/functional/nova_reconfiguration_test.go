@@ -105,13 +105,13 @@ func CreateNovaWith3CellsAndEnsureReady(novaNames NovaNames) {
 	th.SimulateStatefulSetReplicaReady(novaNames.APIDeploymentName)
 	th.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
 
-	th.SimulateJobSuccess(cell1.CellDBSyncJobName)
 	th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyNameStatefulSetName)
+	th.SimulateJobSuccess(cell1.CellDBSyncJobName)
 	th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
 	th.SimulateJobSuccess(cell1.CellMappingJobName)
 
-	th.SimulateJobSuccess(cell2.CellDBSyncJobName)
 	th.SimulateStatefulSetReplicaReady(cell2.NoVNCProxyNameStatefulSetName)
+	th.SimulateJobSuccess(cell2.CellDBSyncJobName)
 	th.SimulateStatefulSetReplicaReady(cell2.ConductorStatefulSetName)
 	th.SimulateJobSuccess(cell2.CellMappingJobName)
 	th.SimulateStatefulSetReplicaReady(novaNames.SchedulerStatefulSetName)
