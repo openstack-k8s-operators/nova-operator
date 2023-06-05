@@ -288,6 +288,7 @@ var _ = Describe("Nova multicell", func() {
 			Expect(configData).To(
 				ContainSubstring(fmt.Sprintf("[api_database]\nconnection = mysql+pymysql://nova_api:12345678@hostname-for-%s/nova_api", novaNames.APIMariaDBDatabaseName.Name)),
 			)
+			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyNameStatefulSetName)
 			th.SimulateJobSuccess(cell1.CellDBSyncJobName)
 			th.ExpectCondition(
 				cell1.CellConductorName,
@@ -295,7 +296,6 @@ var _ = Describe("Nova multicell", func() {
 				condition.DBSyncReadyCondition,
 				corev1.ConditionTrue,
 			)
-			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyNameStatefulSetName)
 			th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
 			th.SimulateJobSuccess(cell1.CellMappingJobName)
 			th.ExpectCondition(
@@ -340,8 +340,8 @@ var _ = Describe("Nova multicell", func() {
 			th.SimulateStatefulSetReplicaReady(novaNames.MetadataStatefulSetName)
 			th.SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
 			th.SimulateTransportURLReady(cell1.TransportURLName)
-			th.SimulateJobSuccess(cell1.CellDBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyNameStatefulSetName)
+			th.SimulateJobSuccess(cell1.CellDBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
 			th.SimulateJobSuccess(cell1.CellMappingJobName)
 
@@ -376,6 +376,7 @@ var _ = Describe("Nova multicell", func() {
 			Expect(configData).ToNot(
 				ContainSubstring("[api_database]"),
 			)
+			th.SimulateStatefulSetReplicaReady(cell2.NoVNCProxyNameStatefulSetName)
 			th.SimulateJobSuccess(cell2.CellDBSyncJobName)
 			th.ExpectCondition(
 				cell2.CellConductorName,
@@ -383,7 +384,6 @@ var _ = Describe("Nova multicell", func() {
 				condition.DBSyncReadyCondition,
 				corev1.ConditionTrue,
 			)
-			th.SimulateStatefulSetReplicaReady(cell2.NoVNCProxyNameStatefulSetName)
 			th.SimulateStatefulSetReplicaReady(cell2.ConductorStatefulSetName)
 			th.SimulateJobSuccess(cell2.CellMappingJobName)
 
@@ -455,6 +455,7 @@ var _ = Describe("Nova multicell", func() {
 			GetNovaCell(cell2.CellName)
 			GetNovaConductor(cell2.CellConductorName)
 
+			th.SimulateStatefulSetReplicaReady(cell2.NoVNCProxyNameStatefulSetName)
 			th.SimulateJobSuccess(cell2.CellDBSyncJobName)
 			th.ExpectCondition(
 				cell2.CellConductorName,
@@ -462,7 +463,6 @@ var _ = Describe("Nova multicell", func() {
 				condition.DBSyncReadyCondition,
 				corev1.ConditionTrue,
 			)
-			th.SimulateStatefulSetReplicaReady(cell2.NoVNCProxyNameStatefulSetName)
 			th.SimulateStatefulSetReplicaReady(cell2.ConductorStatefulSetName)
 			th.ExpectCondition(
 				cell2.CellName,
@@ -606,8 +606,8 @@ var _ = Describe("Nova multicell", func() {
 			th.SimulateJobSuccess(cell0.CellMappingJobName)
 
 			// As cell0 is ready cell1 is deployed
-			th.SimulateJobSuccess(cell1.CellDBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyNameStatefulSetName)
+			th.SimulateJobSuccess(cell1.CellDBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
 			th.SimulateJobSuccess(cell1.CellMappingJobName)
 
@@ -774,10 +774,10 @@ var _ = Describe("Nova multicell", func() {
 			Expect(cell0cond.Get(novav1.NovaMetadataReadyCondition)).Should(BeNil())
 
 			// As cell0 is ready cell1 is deployed
+			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyNameStatefulSetName)
 			th.SimulateJobSuccess(cell1.CellDBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
 			th.SimulateStatefulSetReplicaReady(cell1.MetadataStatefulSetName)
-			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyNameStatefulSetName)
 			th.SimulateJobSuccess(cell1.CellMappingJobName)
 
 			th.ExpectCondition(

@@ -40,8 +40,8 @@ func CreateNovaCellAndEnsureReady(cell CellNames) {
 	spec["cellName"] = cell.CellName.Name
 	DeferCleanup(th.DeleteInstance, CreateNovaCell(cell.CellName, spec))
 
-	th.SimulateJobSuccess(cell.CellDBSyncJobName)
 	th.SimulateStatefulSetReplicaReady(cell.NoVNCProxyNameStatefulSetName)
+	th.SimulateJobSuccess(cell.CellDBSyncJobName)
 	th.SimulateStatefulSetReplicaReady(cell.ConductorStatefulSetName)
 
 	th.ExpectCondition(

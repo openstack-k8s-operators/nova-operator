@@ -79,15 +79,15 @@ func StatefulSet(
 		args = append(args, nova.KollaServiceCommand)
 		livenessProbe.HTTPGet = &corev1.HTTPGetAction{
 			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(NoVNCProxyPort)},
-			Path: "/vnc_auto.html",
+			Path: "/vnc_lite.html",
 		}
 		readinessProbe.HTTPGet = &corev1.HTTPGetAction{
 			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(NoVNCProxyPort)},
-			Path: "/vnc_auto.html",
+			Path: "/vnc_lite.html",
 		}
 		startupProbe.HTTPGet = &corev1.HTTPGetAction{
 			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(NoVNCProxyPort)},
-			Path: "/vnc_auto.html",
+			Path: "/vnc_lite.html",
 		}
 	}
 

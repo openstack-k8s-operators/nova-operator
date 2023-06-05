@@ -213,6 +213,7 @@ func NewNovaNoVNCProxySpec(
 		ServiceUser:              novaCell.ServiceUser,
 		PasswordSelectors:        novaCell.PasswordSelectors,
 		ServiceAccount:           novaCell.ServiceAccount,
+		ExternalEndpoints:        novaCell.NoVNCProxyServiceTemplate.ExternalEndpoints,
 	}
 	return noVNCProxSpec
 }
