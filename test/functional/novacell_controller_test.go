@@ -16,13 +16,16 @@ limitations under the License.
 package functional_test
 
 import (
+	"github.com/google/uuid"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/openstack-k8s-operators/lib-common/modules/test/helpers"
 
 	corev1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
@@ -214,5 +217,31 @@ var _ = Describe("NovaCell controller", func() {
 				corev1.ConditionTrue,
 			)
 		})
+	})
+})
+
+var _ = Describe("NovaCell controller webhook", func() {
+	It("name is too long", func() {
+		DeferCleanup(
+			k8sClient.Delete, ctx, CreateNovaConductorSecret(cell1.CellName.Namespace, SecretName))
+		DeferCleanup(
+			k8sClient.Delete, ctx, CreateNovaMessageBusSecret(cell1.CellName.Namespace, MessageBusSecretName))
+
+		spec := GetDefaultNovaCellSpec()
+		spec["cellName"] = uuid.New().String()
+		rawObj := map[string]interface{}{
+			"apiVersion": "nova.openstack.org/v1beta1",
+			"kind":       "NovaCell",
+			"metadata": map[string]interface{}{
+				"name":      cell1.CellName.Name,
+				"namespace": cell1.CellName.Namespace,
+			},
+			"spec": spec,
+		}
+		th.Logger.Info("Creating", "raw", rawObj)
+		unstructuredObj := &unstructured.Unstructured{Object: rawObj}
+		_, err := controllerutil.CreateOrPatch(
+			th.Ctx, th.K8sClient, unstructuredObj, func() error { return nil })
+		Expect(err).Should(HaveOccurred())
 	})
 })
