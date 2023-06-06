@@ -97,12 +97,25 @@ func (r *NovaCell) ValidateMetadata() *field.Error{
 
 var _ webhook.Validator = &NovaCell{}
 
+// ValidateName validate cell name lenght
+func (r *NovaCell) ValidateName() *field.Error{
+	if len(r.Spec.CellName) > 35{
+		return field.Forbidden(field.NewPath("spec").Child("CellName"), "should be shorter than 35 characters")
+	}
+	return nil
+}
+
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (r *NovaCell) ValidateCreate() error {
 	novacelllog.Info("validate create", "name", r.Name)
 	var allErrs field.ErrorList
 
+
 	if err := r.ValidateMetadata(); err != nil {
+		allErrs = append(allErrs, err)
+	}
+
+	if err := r.ValidateName(); err != nil {
 		allErrs = append(allErrs, err)
 	}
 
@@ -121,7 +134,12 @@ func (r *NovaCell) ValidateUpdate(old runtime.Object) error {
 
 	var allErrs field.ErrorList
 
+
 	if err := r.ValidateMetadata(); err != nil {
+		allErrs = append(allErrs, err)
+	}
+
+	if err := r.ValidateName(); err != nil {
 		allErrs = append(allErrs, err)
 	}
 
