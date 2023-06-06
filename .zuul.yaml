@@ -2,8 +2,18 @@
 - job:
     name: nova-operator-content-provider
     parent: content-provider-base
+    description: |
+      This job builds the nova-operator and provides it to child jobs
+      It also rebuilds the openstack-operator using the updated nova operator.
     provides:
       - "nova-operator-content"
+    vars:
+      cifmw_operator_build_org: openstack-k8s-operators
+      cifmw_operator_build_operators:
+        - name: "openstack-operator"
+          src: "~/src/github.com/{{ cifmw_operator_build_org }}/openstack-operator"
+          image_base: nova
+
 
 - job:
     name: nova-operator-base
