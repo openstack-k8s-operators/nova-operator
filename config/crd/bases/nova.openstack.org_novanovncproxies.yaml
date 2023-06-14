@@ -48,11 +48,6 @@ spec:
           spec:
             description: NovaNoVNCProxySpec defines the desired state of NovaNoVNCProxy
             properties:
-              apiMessageBusSecretName:
-                description: APIMessageBusSecretName - the name of the Secret containing
-                  the transport URL information to use when accessing the API message
-                  bus.
-                type: string
               cellDatabaseHostname:
                 description: CellDatabaseHostname - hostname to use when accessing
                   the cell DB
@@ -61,6 +56,11 @@ spec:
                 default: nova
                 description: CellDatabaseUser - username to use when accessing the
                   cell DB
+                type: string
+              cellMessageBusSecretName:
+                description: CellMessageBusSecretName - the name of the Secret containing
+                  the transport URL information to use when accessing the API message
+                  bus.
                 type: string
               cellName:
                 description: CellName is the name of the Nova Cell this novncproxy
@@ -266,8 +266,8 @@ spec:
                   to register in keystone
                 type: string
             required:
-            - apiMessageBusSecretName
             - cellDatabaseHostname
+            - cellMessageBusSecretName
             - cellName
             - keystoneAuthURL
             - secret

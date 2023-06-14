@@ -128,10 +128,10 @@ type NovaNoVNCProxySpec struct {
 	ServiceAccount string `json:"serviceAccount"`
 
 	// +kubebuilder:validation:Required
-	// APIMessageBusSecretName - the name of the Secret containing the
+	// CellMessageBusSecretName - the name of the Secret containing the
 	// transport URL information to use when accessing the API message
 	// bus.
-	APIMessageBusSecretName string `json:"apiMessageBusSecretName"`
+	CellMessageBusSecretName string `json:"cellMessageBusSecretName"`
 }
 
 // NovaNoVNCProxyStatus defines the observed state of NovaNoVNCProxy
@@ -194,26 +194,26 @@ func NewNovaNoVNCProxySpec(
 	novaCell NovaCellSpec,
 ) NovaNoVNCProxySpec {
 	noVNCProxSpec := NovaNoVNCProxySpec{
-		CellName:                 novaCell.CellName,
-		Secret:                   novaCell.Secret,
-		CellDatabaseHostname:     novaCell.CellDatabaseHostname,
-		CellDatabaseUser:         novaCell.CellDatabaseUser,
-		Debug:                    novaCell.Debug,
-		APIMessageBusSecretName:  novaCell.CellMessageBusSecretName,
-		NovaServiceBase:          NovaServiceBase{
-			ContainerImage:         novaCell.NoVNCProxyServiceTemplate.ContainerImage,
-			Replicas:               novaCell.NoVNCProxyServiceTemplate.Replicas,
-			NodeSelector:           novaCell.NoVNCProxyServiceTemplate.NodeSelector,
-			CustomServiceConfig:    novaCell.NoVNCProxyServiceTemplate.CustomServiceConfig,
-			DefaultConfigOverwrite: novaCell.NoVNCProxyServiceTemplate.DefaultConfigOverwrite,
-			Resources:              novaCell.NoVNCProxyServiceTemplate.Resources,
-			NetworkAttachments:     novaCell.NoVNCProxyServiceTemplate.NetworkAttachments,
+		CellName:                   novaCell.CellName,
+		Secret:                     novaCell.Secret,
+		CellDatabaseHostname:       novaCell.CellDatabaseHostname,
+		CellDatabaseUser:           novaCell.CellDatabaseUser,
+		Debug:                      novaCell.Debug,
+		CellMessageBusSecretName:   novaCell.CellMessageBusSecretName,
+		NovaServiceBase:            NovaServiceBase{
+			ContainerImage:           novaCell.NoVNCProxyServiceTemplate.ContainerImage,
+			Replicas:                 novaCell.NoVNCProxyServiceTemplate.Replicas,
+			NodeSelector:             novaCell.NoVNCProxyServiceTemplate.NodeSelector,
+			CustomServiceConfig:      novaCell.NoVNCProxyServiceTemplate.CustomServiceConfig,
+			DefaultConfigOverwrite:   novaCell.NoVNCProxyServiceTemplate.DefaultConfigOverwrite,
+			Resources:                novaCell.NoVNCProxyServiceTemplate.Resources,
+			NetworkAttachments:       novaCell.NoVNCProxyServiceTemplate.NetworkAttachments,
 		},
-		KeystoneAuthURL:          novaCell.KeystoneAuthURL,
-		ServiceUser:              novaCell.ServiceUser,
-		PasswordSelectors:        novaCell.PasswordSelectors,
-		ServiceAccount:           novaCell.ServiceAccount,
-		ExternalEndpoints:        novaCell.NoVNCProxyServiceTemplate.ExternalEndpoints,
+		KeystoneAuthURL:            novaCell.KeystoneAuthURL,
+		ServiceUser:                novaCell.ServiceUser,
+		PasswordSelectors:          novaCell.PasswordSelectors,
+		ServiceAccount:             novaCell.ServiceAccount,
+		ExternalEndpoints:          novaCell.NoVNCProxyServiceTemplate.ExternalEndpoints,
 	}
 	return noVNCProxSpec
 }
