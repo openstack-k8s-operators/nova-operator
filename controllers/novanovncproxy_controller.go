@@ -288,16 +288,16 @@ func (r *NovaNoVNCProxyReconciler) generateConfigs(
 		return err
 	}
 
-	apiMessageBusSecret := &corev1.Secret{}
+	cellMessageBusSecretName := &corev1.Secret{}
 	secretName = types.NamespacedName{
 		Namespace: instance.Namespace,
-		Name:      instance.Spec.APIMessageBusSecretName,
+		Name:      instance.Spec.CellMessageBusSecretName,
 	}
-	err = h.GetClient().Get(ctx, secretName, apiMessageBusSecret)
+	err = h.GetClient().Get(ctx, secretName, cellMessageBusSecretName)
 	if err != nil {
 		util.LogForObject(
 			h, "Failed reading Secret", instance,
-			"APIMessageBusSecretName", instance.Spec.APIMessageBusSecretName)
+			"CellMessageBusSecretName", instance.Spec.CellMessageBusSecretName)
 		return err
 	}
 
@@ -316,7 +316,7 @@ func (r *NovaNoVNCProxyReconciler) generateConfigs(
 		"nova_novncproxy_listen_port": novncproxy.NoVNCProxyPort,
 		"api_interface_address":       "",     // fixme
 		"public_protocol":             "http", // fixme
-		"transport_url":               string(apiMessageBusSecret.Data["transport_url"]),
+		"transport_url":               string(cellMessageBusSecretName.Data["transport_url"]),
 		"openstack_cacert":            "",          // fixme
 		"openstack_region_name":       "regionOne", // fixme
 		"default_project_domain":      "Default",   // fixme

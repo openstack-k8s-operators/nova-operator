@@ -57,11 +57,13 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 				Expect(instance.Status.ReadyCount).To(Equal(int32(0)))
 			})
 			It("is missing the secret", func() {
-				th.ExpectCondition(
+				th.ExpectConditionWithDetails(
 					novaNames.NoVNCProxyName,
 					ConditionGetterFunc(NoVNCProxyConditionGetter),
 					condition.InputReadyCondition,
 					corev1.ConditionFalse,
+					condition.RequestedReason,
+					"Input data resources missing: secret/test-secret",
 				)
 			})
 		})
@@ -120,11 +122,13 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 			})
 
 			It("reports that the inputs are not ready", func() {
-				th.ExpectCondition(
+				th.ExpectConditionWithDetails(
 					novaNames.NoVNCProxyName,
 					ConditionGetterFunc(NoVNCProxyConditionGetter),
 					condition.InputReadyCondition,
 					corev1.ConditionFalse,
+					condition.ErrorReason,
+					"Input data error occurred field 'NovaPassword' not found in secret/test-secret",
 				)
 			})
 		})
