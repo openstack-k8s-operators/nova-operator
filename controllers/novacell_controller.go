@@ -336,5 +336,6 @@ func (r *NovaCellReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&novav1.NovaCell{}).
 		Owns(&novav1.NovaConductor{}).
 		Owns(&novav1.NovaMetadata{}).
+		Owns(&novav1.NovaNoVNCProxy{}).
 		Complete(r)
 }
