@@ -150,9 +150,6 @@ type NovaNoVNCProxyStatus struct {
 
 	// NetworkAttachments status of the deployment pods
 	NetworkAttachments map[string][]string `json:"networkAttachments,omitempty"`
-
-	// API endpoint
-	APIEndpoints map[string]string `json:"apiEndpoint,omitempty"`
 }
 
 //+kubebuilder:object:root=true

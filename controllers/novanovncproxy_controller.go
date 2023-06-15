@@ -153,14 +153,14 @@ func (r *NovaNoVNCProxyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	// all our input checks out so report InputReady
 	instance.Status.Conditions.MarkTrue(condition.InputReadyCondition, condition.InputReadyMessage)
 
-	result, err = r.ensureServiceExposed(ctx, h, instance)
+	apiEndpoints, result, err := r.ensureServiceExposed(ctx, h, instance)
 	if (err != nil || result != ctrl.Result{}) {
 		// We can ignore RequeueAfter as we are watching the Service and Route resource
 		// but we have to return while waiting for the service to be exposed
 		return ctrl.Result{}, err
 	}
 
-	err = r.ensureConfigMaps(ctx, h, instance, &hashes)
+	err = r.ensureConfigMaps(ctx, h, instance, &hashes, apiEndpoints)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -182,13 +182,6 @@ func (r *NovaNoVNCProxyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	result, err = r.ensureDeployment(ctx, h, instance, inputHash, serviceAnnotations)
 	if (err != nil || result != ctrl.Result{}) {
 		return result, err
-	}
-
-	result, err = r.ensureServiceExposed(ctx, h, instance)
-	if (err != nil || result != ctrl.Result{}) {
-		// We can ignore RequeueAfter as we are watching the Service and Route resource
-		// but we have to return while waiting for the service to be exposed
-		return ctrl.Result{}, err
 	}
 
 	util.LogForObject(h, "Successfully reconciled", instance)
@@ -218,8 +211,9 @@ func (r *NovaNoVNCProxyReconciler) ensureConfigMaps(
 	h *helper.Helper,
 	instance *novav1beta1.NovaNoVNCProxy,
 	hashes *map[string]env.Setter,
+	apiEndpoints map[string]string,
 ) error {
-	err := r.generateConfigs(ctx, h, instance, hashes)
+	err := r.generateConfigs(ctx, h, instance, hashes, apiEndpoints)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.ServiceConfigReadyCondition,
@@ -276,6 +270,7 @@ func (r *NovaNoVNCProxyReconciler) initConditions(
 
 func (r *NovaNoVNCProxyReconciler) generateConfigs(
 	ctx context.Context, h *helper.Helper, instance *novav1beta1.NovaNoVNCProxy, hashes *map[string]env.Setter,
+	apiEndpoints map[string]string,
 ) error {
 	secret := &corev1.Secret{}
 	namespace := instance.GetNamespace()
@@ -312,7 +307,7 @@ func (r *NovaNoVNCProxyReconciler) generateConfigs(
 		"cell_db_address":             instance.Spec.CellDatabaseHostname,
 		"cell_db_port":                3306,
 		"novncproxy_service_host":     novncproxy.Host,
-		"novncproxy_base_url":         instance.Status.APIEndpoints["public"],
+		"novncproxy_base_url":         apiEndpoints["public"],
 		"nova_novncproxy_listen_port": novncproxy.NoVNCProxyPort,
 		"api_interface_address":       "",     // fixme
 		"public_protocol":             "http", // fixme
@@ -422,7 +417,7 @@ func (r *NovaNoVNCProxyReconciler) ensureServiceExposed(
 	ctx context.Context,
 	h *helper.Helper,
 	instance *novav1beta1.NovaNoVNCProxy,
-) (ctrl.Result, error) {
+) (map[string]string, ctrl.Result, error) {
 	var ports = map[endpoint.Endpoint]endpoint.Data{
 		endpoint.EndpointPublic:   {Port: novncproxy.NoVNCProxyPort},
 		endpoint.EndpointInternal: {Port: novncproxy.NoVNCProxyPort},
@@ -460,14 +455,14 @@ func (r *NovaNoVNCProxyReconciler) ensureServiceExposed(
 			condition.SeverityWarning,
 			condition.ExposeServiceReadyErrorMessage,
 			err.Error()))
-		return ctrlResult, err
+		return apiEndpoints, ctrlResult, err
 	} else if (ctrlResult != ctrl.Result{}) {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.ExposeServiceReadyCondition,
 			condition.RequestedReason,
 			condition.SeverityInfo,
 			condition.ExposeServiceReadyRunningMessage))
-		return ctrlResult, err
+		return apiEndpoints, ctrlResult, err
 	}
 	instance.Status.Conditions.MarkTrue(condition.ExposeServiceReadyCondition, condition.ExposeServiceReadyMessage)
 
@@ -475,8 +470,7 @@ func (r *NovaNoVNCProxyReconciler) ensureServiceExposed(
 		apiEndpoints[k] = v
 	}
 
-	instance.Status.APIEndpoints = apiEndpoints
-	return ctrl.Result{}, nil
+	return apiEndpoints, ctrl.Result{}, nil
 }
 
 func (r *NovaNoVNCProxyReconciler) reconcileDelete(
