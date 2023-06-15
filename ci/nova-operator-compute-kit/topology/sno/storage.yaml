@@ -1,0 +1,14 @@
+apiVersion: core.openstack.org/v1beta1
+kind: OpenStackControlPlane
+metadata:
+  name: openstack
+spec:
+  storageClass: "lvms-vg1"
+  glance:
+    template:
+      glanceAPIInternal:
+        replicas: 1
+      glanceAPIExternal:
+        replicas: 1
+      storageClass: "nfs"
+      storageRequest: 15G

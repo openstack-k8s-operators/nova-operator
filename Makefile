@@ -92,7 +92,7 @@ help: ## Display this help.
 # To properly provided solutions that supports more than one platform you should use this option.
 PLATFORMS ?= linux/arm64,linux/amd64,linux/s390x,linux/ppc64le
 .PHONY: docker-buildx
-docker-buildx: test ## Build and push docker image for the manager for cross-platform support
+docker-buildx: ## Build and push docker image for the manager for cross-platform support
 	# copy existing Dockerfile and insert --platform=${BUILDPLATFORM} into Dockerfile.cross, and preserve the original Dockerfile
 	sed -e '1 s/\(^FROM\)/FROM --platform=\$$\{BUILDPLATFORM\}/; t' -e ' 1,// s//FROM --platform=\$$\{BUILDPLATFORM\}/' Dockerfile > Dockerfile.cross
 	- docker buildx create --name project-v3-builder
@@ -155,7 +155,7 @@ run: manifests generate fmt vet ## Run a controller from your host.
 	go run ./main.go
 
 .PHONY: docker-build
-docker-build: test ## Build docker image with the manager.
+docker-build: ## Build docker image with the manager.
 	podman build -t ${IMG} .
 
 .PHONY: docker-push
@@ -336,6 +336,16 @@ gowork: ## Generate go.work file
 	go work use ./api
 	go work sync
 
+remove-nova-from-csv:
+	@echo "Removing nova-controller-manager from CSV"
+	$(eval OPERATOR_NAME="nova-operator")
+	@echo "OPERATOR_NAME: $(OPERATOR_NAME)"
+	$(eval OPERATOR_INDEX=$(shell oc get csv openstack-operator.v0.0.1 -o json | jq -r '.spec.install.spec.deployments | map(.name ==  $(OPERATOR_NAME) + "-controller-manager") | index(true)'))
+	@echo "OPERATOR_INDEX: '$(OPERATOR_INDEX)'"
+	if [ "$(OPERATOR_INDEX)" != "null" ]; then \
+	    oc patch csv openstack-operator.v0.0.1 --type json -p='[{"op": "remove", "path": "/spec/install/spec/deployments/${OPERATOR_INDEX}"}]'; \
+	fi
+
 # Used for webhook testing
 # Please ensure the nova-controller-manager deployment and
 # webhook definitions are removed from the csv before running
@@ -359,6 +369,7 @@ gowork: ## Generate go.work file
 # $oc delete -n openstack mutatingwebhookconfiguration/mnovascheduler.kb.io
 SKIP_CERT ?=false
 .PHONY: run-with-webhook
-run-with-webhook: manifests generate fmt vet ## Run a controller from your host.
+run-with-webhook: manifests generate fmt vet## Run a controller from your host.
+	/bin/bash hack/clean_local_webhook.sh
 	/bin/bash hack/configure_local_webhook.sh
 	go run ./main.go

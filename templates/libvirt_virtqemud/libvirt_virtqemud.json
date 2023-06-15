@@ -18,6 +18,6 @@
         "/var/lib/nova:/var/lib/nova",
         "/run/libvirt:/run/libvirt",
         "/dev:/dev",
-        "/etc/ceph:/etc/ceph:ro"
+        "/etc/ceph:/var/lib/openstack/config/ceph:ro"
     ]
   }

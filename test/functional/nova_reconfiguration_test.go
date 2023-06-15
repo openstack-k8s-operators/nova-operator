@@ -244,7 +244,7 @@ var _ = Describe("Nova reconfiguration", func() {
 				"NovaCell cell1 is not Ready",
 			)
 
-			SimulateStatefulSetReplicaReadyWithPods(
+			th.SimulateStatefulSetReplicaReadyWithPods(
 				cell1.ConductorStatefulSetName,
 				map[string][]string{novaNames.NovaName.Namespace + "/internalapi": {"10.0.0.1"}},
 			)

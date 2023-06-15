@@ -1,0 +1,9 @@
+apiVersion: core.openstack.org/v1beta1
+kind: OpenStackControlPlane
+metadata:
+  name: openstack
+spec:
+  glance:
+    template:
+      databaseInstance: openstack
+      storageRequest: 10G

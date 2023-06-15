@@ -183,9 +183,6 @@ var _ = Describe("NovaConductor controller", func() {
 					"dbsync.sh", ContainSubstring("nova-manage db sync")))
 				Expect(scriptMap.Data).Should(HaveKeyWithValue(
 					"dbsync.sh", ContainSubstring("nova-manage api_db sync")))
-				// FIXME(bogdando): have I lost this change upon rebasing?
-				//Expect(scriptMap.Data).Should(HaveKeyWithValue(
-				//	"dbsync.sh", ContainSubstring("nova-manage cell_v2 map_cell0")))
 			})
 
 			It("stored the input hash in the Status", func() {
@@ -500,7 +497,7 @@ var _ = Describe("NovaConductor controller", func() {
 
 			// We don't add network attachment status annotations to the Pods
 			// to simulate that the network attachments are missing.
-			SimulateStatefulSetReplicaReadyWithPods(novaNames.ConductorStatefulSetName, map[string][]string{})
+			th.SimulateStatefulSetReplicaReadyWithPods(novaNames.ConductorStatefulSetName, map[string][]string{})
 
 			th.ExpectConditionWithDetails(
 				novaNames.ConductorName,
@@ -534,7 +531,7 @@ var _ = Describe("NovaConductor controller", func() {
 
 			// We simulate that there is no IP associated with the internalapi
 			// network attachment
-			SimulateStatefulSetReplicaReadyWithPods(
+			th.SimulateStatefulSetReplicaReadyWithPods(
 				novaNames.ConductorStatefulSetName,
 				map[string][]string{novaNames.ConductorName.Namespace + "/internalapi": {}},
 			)
@@ -555,7 +552,7 @@ var _ = Describe("NovaConductor controller", func() {
 			DeferCleanup(th.DeleteInstance, nad)
 			th.SimulateJobSuccess(novaNames.ConductorDBSyncJobName)
 
-			SimulateStatefulSetReplicaReadyWithPods(
+			th.SimulateStatefulSetReplicaReadyWithPods(
 				novaNames.ConductorStatefulSetName,
 				map[string][]string{novaNames.ConductorName.Namespace + "/internalapi": {"10.0.0.1"}},
 			)
@@ -654,7 +651,7 @@ var _ = Describe("NovaConductor controller", func() {
 					"not all pods have interfaces with ips as configured in NetworkAttachments: [internalapi]",
 			)
 
-			SimulateStatefulSetReplicaReadyWithPods(
+			th.SimulateStatefulSetReplicaReadyWithPods(
 				novaNames.ConductorStatefulSetName,
 				map[string][]string{novaNames.ConductorName.Namespace + "/internalapi": {"10.0.0.1"}},
 			)

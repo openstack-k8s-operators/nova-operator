@@ -1,0 +1,18 @@
+apiVersion: core.openstack.org/v1beta1
+kind: OpenStackControlPlane
+metadata:
+  name: openstack
+spec:
+  glance:
+    template:
+      glanceAPIInternal:
+        externalEndpoints:
+        - endpoint: internal
+          ipAddressPool: internalapi
+          loadBalancerIPs:
+          - 172.17.0.80
+        networkAttachments:
+        - storage
+      glanceAPIExternal:
+        networkAttachments:
+        - storage

@@ -1,0 +1,47 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: openstack
+
+secretGenerator:
+- literals:
+  - AdminPassword=password
+  - DbRootPassword=password
+  - DatabasePassword=password
+  - KeystoneDatabasePassword=password
+  - PlacementPassword=password
+  - PlacementDatabasePassword=password
+  - GlancePassword=password
+  - GlanceDatabasePassword=password
+  - NeutronPassword=password
+  - NeutronDatabasePassword=password
+  - NovaPassword=password
+  - NovaAPIDatabasePassword=password
+  - NovaAPIMessageBusPassword=password
+  - NovaCell0DatabasePassword=password
+  - NovaCell0MessageBusPassword=password
+  - NovaCell1DatabasePassword=password
+  - NovaCell1MessageBusPassword=password
+  - MetadataSecret=42
+  name: osp-secret
+generatorOptions:
+  disableNameSuffixHash: true
+  labels:
+    type: osp-secret
+
+resources:
+- OpenStackControlPlane.yaml
+
+patches:
+- patch: |-
+    apiVersion: core.openstack.org/v1beta1
+    kind: OpenStackControlPlane
+    metadata:
+      name: openstack
+    spec:
+      secret: osp-secret
+- path: infra.yaml
+- path: keystone.yaml
+- path: glance.yaml
+- path: placement.yaml
+- path: neutron.yaml
+- path: nova.yaml

@@ -265,6 +265,8 @@ var _ = Describe("Nova controller", func() {
 			)
 			Expect(mappingJobScript.Data).Should(HaveKeyWithValue(
 				"ensure_cell_mapping.sh", ContainSubstring("nova-manage cell_v2 update_cell")))
+			Expect(mappingJobScript.Data).Should(HaveKeyWithValue(
+				"ensure_cell_mapping.sh", ContainSubstring("nova-manage cell_v2 map_cell0")))
 
 			Eventually(func(g Gomega) {
 				nova := GetNova(novaNames.NovaName)
@@ -782,21 +784,21 @@ var _ = Describe("Nova controller", func() {
 		})
 
 		It("creates all the sub CRs and passes down the network parameters", func() {
-			SimulateStatefulSetReplicaReadyWithPods(
+			th.SimulateStatefulSetReplicaReadyWithPods(
 				cell0.ConductorStatefulSetName,
 				map[string][]string{novaNames.NovaName.Namespace + "/internalapi": {"10.0.0.1"}},
 			)
 			th.SimulateJobSuccess(cell0.CellMappingJobName)
 
-			SimulateStatefulSetReplicaReadyWithPods(
+			th.SimulateStatefulSetReplicaReadyWithPods(
 				novaNames.SchedulerStatefulSetName,
 				map[string][]string{novaNames.NovaName.Namespace + "/internalapi": {"10.0.0.1"}},
 			)
-			SimulateStatefulSetReplicaReadyWithPods(
+			th.SimulateStatefulSetReplicaReadyWithPods(
 				novaNames.APIDeploymentName,
 				map[string][]string{novaNames.NovaName.Namespace + "/internalapi": {"10.0.0.1"}},
 			)
-			SimulateStatefulSetReplicaReadyWithPods(
+			th.SimulateStatefulSetReplicaReadyWithPods(
 				novaNames.MetadataStatefulSetName,
 				map[string][]string{novaNames.NovaName.Namespace + "/internalapi": {"10.0.0.1"}},
 			)

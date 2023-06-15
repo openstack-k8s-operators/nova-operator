@@ -1,0 +1,31 @@
+apiVersion: core.openstack.org/v1beta1
+kind: OpenStackControlPlane
+metadata:
+  name: openstack
+spec:
+  ovn:
+    template:
+      ovnDBCluster:
+        ovndbcluster-nb:
+          networkAttachment: internalapi
+        ovndbcluster-sb:
+          networkAttachment: internalapi
+      ovnNorthd:
+        networkAttachment: internalapi
+  ovs:
+    template:
+      networkAttachment: tenant
+  rabbitmq:
+    templates:
+      rabbitmq:
+        externalEndpoint:
+          loadBalancerIPs:
+          - 172.17.0.85
+          ipAddressPool: internalapi
+          sharedIP: false
+      rabbitmq-cell1:
+        externalEndpoint:
+          loadBalancerIPs:
+          - 172.17.0.86
+          ipAddressPool: internalapi
+          sharedIP: false
