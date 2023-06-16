@@ -30,8 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	aee "github.com/openstack-k8s-operators/openstack-ansibleee-operator/api/v1alpha1"
-
+	routev1 "github.com/openshift/api/route/v1"
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
@@ -39,6 +38,8 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/labels"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	"github.com/openstack-k8s-operators/lib-common/modules/storage"
+	aee "github.com/openstack-k8s-operators/openstack-ansibleee-operator/api/v1alpha1"
+
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 )
 
@@ -452,6 +453,25 @@ func (r *NovaExternalComputeReconciler) generateConfigs(
 		return err
 	}
 
+	// we should restructure this to be in the same order as the reset of the resources
+	// <nova_instance>-<cell_name>-<service_name>-<service_type>
+	vncRouteName := fmt.Sprintf("%s-novncproxy-%s-public", instance.Spec.NovaInstance, instance.Spec.CellName)
+
+	vncRoute := &routev1.Route{}
+	err = h.GetClient().Get(ctx, types.NamespacedName{
+		Namespace: instance.Namespace,
+		Name:      vncRouteName,
+	}, vncRoute)
+	if err != nil {
+		return err
+	}
+	vncHost := vncRoute.Spec.Host
+	if vncHost == "" && len(vncRoute.Status.Ingress) > 0 {
+		vncHost = vncRoute.Status.Ingress[0].Host
+	} else if vncHost == "" {
+		return fmt.Errorf("vncHost is empty")
+	}
+
 	templateParameters := map[string]interface{}{
 		"service_name":           "nova-compute",
 		"keystone_internal_url":  cell.Spec.KeystoneAuthURL,
@@ -465,6 +485,7 @@ func (r *NovaExternalComputeReconciler) generateConfigs(
 		"nova_compute_image":     instance.Spec.NovaComputeContainerImage,
 		"nova_libvirt_image":     instance.Spec.NovaLibvirtContainerImage,
 		"log_file":               "/var/log/containers/nova/nova-compute.log",
+		"novncproxy_base_url":    "http://" + vncHost, // fixme use https
 	}
 	extraData := map[string]string{}
 	// always generate this file even if empty to simplify copying it
