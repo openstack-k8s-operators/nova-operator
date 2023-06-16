@@ -24,5 +24,5 @@ const (
 	NoVNCProxyPort = 6080
 	// ServiceName - The name of the service exposed to k8s
 	ServiceName = "nova-novncproxy"
-	Host        = "0.0.0.0"
+	Host        = "::0"
 )

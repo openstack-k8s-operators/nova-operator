@@ -297,26 +297,23 @@ func (r *NovaNoVNCProxyReconciler) generateConfigs(
 	}
 
 	templateParameters := map[string]interface{}{
-		"service_name":                novncproxy.ServiceName,
-		"keystone_internal_url":       instance.Spec.KeystoneAuthURL,
-		"nova_keystone_user":          instance.Spec.ServiceUser,
-		"nova_keystone_password":      string(secret.Data[instance.Spec.PasswordSelectors.Service]),
-		"cell_db_name":                instance.Spec.CellDatabaseUser, // fixme
-		"cell_db_user":                instance.Spec.CellDatabaseUser,
-		"cell_db_password":            string(secret.Data[instance.Spec.PasswordSelectors.CellDatabase]),
-		"cell_db_address":             instance.Spec.CellDatabaseHostname,
-		"cell_db_port":                3306,
-		"novncproxy_service_host":     novncproxy.Host,
-		"novncproxy_base_url":         apiEndpoints["public"],
-		"nova_novncproxy_listen_port": novncproxy.NoVNCProxyPort,
-		"api_interface_address":       "",     // fixme
-		"public_protocol":             "http", // fixme
-		"transport_url":               string(cellMessageBusSecretName.Data["transport_url"]),
-		"openstack_cacert":            "",          // fixme
-		"openstack_region_name":       "regionOne", // fixme
-		"default_project_domain":      "Default",   // fixme
-		"default_user_domain":         "Default",   // fixme
-		"log_file":                    "/var/log/nova/nova-novncproxy.log",
+		"service_name":           novncproxy.ServiceName,
+		"keystone_internal_url":  instance.Spec.KeystoneAuthURL,
+		"nova_keystone_user":     instance.Spec.ServiceUser,
+		"nova_keystone_password": string(secret.Data[instance.Spec.PasswordSelectors.Service]),
+		"cell_db_name":           instance.Spec.CellDatabaseUser, // fixme
+		"cell_db_user":           instance.Spec.CellDatabaseUser,
+		"cell_db_password":       string(secret.Data[instance.Spec.PasswordSelectors.CellDatabase]),
+		"cell_db_address":        instance.Spec.CellDatabaseHostname,
+		"cell_db_port":           3306,
+		"api_interface_address":  "",     // fixme
+		"public_protocol":        "http", // fixme
+		"transport_url":          string(cellMessageBusSecretName.Data["transport_url"]),
+		"openstack_cacert":       "",          // fixme
+		"openstack_region_name":  "regionOne", // fixme
+		"default_project_domain": "Default",   // fixme
+		"default_user_domain":    "Default",   // fixme
+		"log_file":               "/var/log/nova/nova-novncproxy.log",
 	}
 	extraData := map[string]string{}
 	if instance.Spec.CustomServiceConfig != "" {
