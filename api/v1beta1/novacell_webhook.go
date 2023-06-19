@@ -23,13 +23,13 @@ limitations under the License.
 package v1beta1
 
 import (
-	"k8s.io/apimachinery/pkg/runtime"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
-	"k8s.io/apimachinery/pkg/util/validation/field"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 // NovaCellDefaults -
@@ -83,47 +83,39 @@ func (spec *NovaCellSpec) Default() {
 	}
 }
 
-
-// ValidateMetadata validate metadata template
-func (r *NovaCell) ValidateMetadata() *field.Error{
-	if r.Spec.CellName == "cell0" && *r.Spec.MetadataServiceTemplate.Replicas != 0{
-		return field.Forbidden(field.NewPath("spec").Child("MetadataServiceTemplate").Child("Replicas"), "should be 0 for cell0")
-	}
-	return nil
-}
-
 // NOTE: change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
 //+kubebuilder:webhook:path=/validate-nova-openstack-org-v1beta1-novacell,mutating=false,failurePolicy=fail,sideEffects=None,groups=nova.openstack.org,resources=novacells,verbs=create;update,versions=v1beta1,name=vnovacell.kb.io,admissionReviewVersions=v1
 
 var _ webhook.Validator = &NovaCell{}
 
-// ValidateName validate cell name lenght
-func (r *NovaCell) ValidateName() *field.Error{
-	if len(r.Spec.CellName) > 35{
-		return field.Forbidden(field.NewPath("spec").Child("CellName"), "should be shorter than 35 characters")
+func (r *NovaCellSpec) validate(basePath *field.Path) field.ErrorList {
+	var errors field.ErrorList
+
+	if r.CellName == Cell0Name {
+		errors = append(
+			errors, r.MetadataServiceTemplate.ValidateCell0(
+				basePath.Child("metadataServiceTemplate"))...,
+		)
 	}
-	return nil
+
+	errors = append(
+		errors, ValidateCellName(
+			basePath.Child("cellName"), r.CellName)...,
+	)
+	return errors
 }
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (r *NovaCell) ValidateCreate() error {
 	novacelllog.Info("validate create", "name", r.Name)
-	var allErrs field.ErrorList
 
+	errors := r.Spec.validate(field.NewPath("spec"))
 
-	if err := r.ValidateMetadata(); err != nil {
-		allErrs = append(allErrs, err)
-	}
-
-	if err := r.ValidateName(); err != nil {
-		allErrs = append(allErrs, err)
-	}
-
-	if len(allErrs) != 0 {
+	if len(errors) != 0 {
 		novacelllog.Info("validation failed", "name", r.Name)
 		return apierrors.NewInvalid(
-			schema.GroupKind{Group: "nova.openstack.org", Kind: "Nova"},
-			r.Name, allErrs)
+			schema.GroupKind{Group: "nova.openstack.org", Kind: "NovaCell"},
+			r.Name, errors)
 	}
 	return nil
 }
@@ -132,22 +124,13 @@ func (r *NovaCell) ValidateCreate() error {
 func (r *NovaCell) ValidateUpdate(old runtime.Object) error {
 	novacelllog.Info("validate update", "name", r.Name)
 
-	var allErrs field.ErrorList
+	errors := r.Spec.validate(field.NewPath("spec"))
 
-
-	if err := r.ValidateMetadata(); err != nil {
-		allErrs = append(allErrs, err)
-	}
-
-	if err := r.ValidateName(); err != nil {
-		allErrs = append(allErrs, err)
-	}
-
-	if len(allErrs) != 0 {
+	if len(errors) != 0 {
 		novacelllog.Info("validation failed", "name", r.Name)
 		return apierrors.NewInvalid(
-			schema.GroupKind{Group: "nova.openstack.org", Kind: "Nova"},
-			r.Name, allErrs)
+			schema.GroupKind{Group: "nova.openstack.org", Kind: "NovaCell"},
+			r.Name, errors)
 	}
 	return nil
 }
@@ -158,4 +141,18 @@ func (r *NovaCell) ValidateDelete() error {
 
 	// TODO(user): fill in your validation logic upon object deletion.
 	return nil
+}
+
+// ValidateCellName validates the cell name. It is expected to be called
+// from various webhooks.
+func ValidateCellName(path *field.Path, cellName string) field.ErrorList {
+	var errors field.ErrorList
+	if len(cellName) > 35 {
+		errors = append(
+			errors,
+			field.Invalid(
+				path, cellName, "should be shorter than 36 characters"),
+		)
+	}
+	return errors
 }

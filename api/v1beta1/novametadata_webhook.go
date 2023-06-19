@@ -24,6 +24,7 @@ package v1beta1
 
 import (
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
@@ -97,4 +98,18 @@ func (r *NovaMetadata) ValidateDelete() error {
 
 	// TODO(user): fill in your validation logic upon object deletion.
 	return nil
+}
+
+// ValidateCell0 validates cell0 Metadata template. This is expected to be called
+// by higher level validation webhooks
+func (r *NovaMetadataTemplate) ValidateCell0(basePath *field.Path) field.ErrorList {
+	var errors field.ErrorList
+	if *r.Replicas != 0 {
+		errors = append(
+			errors,
+			field.Invalid(
+				basePath.Child("replicas"), *r.Replicas, "should be 0 for cell0"),
+		)
+	}
+	return errors
 }

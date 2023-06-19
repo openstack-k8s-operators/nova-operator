@@ -783,48 +783,4 @@ var _ = Describe("Nova multicell", func() {
 			)
 		})
 	})
-	When("Nova CR instance is created with metadata in cell0", func() {
-		BeforeEach(func() {
-			DeferCleanup(k8sClient.Delete, ctx, CreateNovaSecret(novaNames.NovaName.Namespace, SecretName))
-			DeferCleanup(
-				k8sClient.Delete,
-				ctx,
-				CreateNovaMessageBusSecret(cell0.CellName.Namespace, fmt.Sprintf("%s-secret", cell0.TransportURLName.Name)),
-			)
-
-			serviceSpec := corev1.ServiceSpec{Ports: []corev1.ServicePort{{Port: 3306}}}
-			DeferCleanup(th.DeleteDBService, th.CreateDBService(novaNames.APIMariaDBDatabaseName.Namespace, novaNames.APIMariaDBDatabaseName.Name, serviceSpec))
-			DeferCleanup(th.DeleteDBService, th.CreateDBService(cell0.MariaDBDatabaseName.Namespace, cell0.MariaDBDatabaseName.Name, serviceSpec))
-
-			spec := GetDefaultNovaSpec()
-			cell0Template := GetDefaultNovaCellTemplate()
-			cell0Template["cellDatabaseInstance"] = cell0.MariaDBDatabaseName.Name
-			cell0Template["cellDatabaseUser"] = "nova_cell0"
-
-			cell0Template["metadataServiceTemplate"] = map[string]interface{}{
-				"replicas": 1,
-			}
-
-			spec["cellTemplates"] = map[string]interface{}{
-				"cell0": cell0Template,
-			}
-			spec["metadataServiceTemplate"] = map[string]interface{}{
-				"replicas": 0,
-			}
-			spec["apiDatabaseInstance"] = novaNames.APIMariaDBDatabaseName.Name
-			spec["apiMessageBusInstance"] = cell0.TransportURLName.Name
-
-			DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
-			keystoneAPIName := th.CreateKeystoneAPI(novaNames.NovaName.Namespace)
-			DeferCleanup(th.DeleteKeystoneAPI, keystoneAPIName)
-			keystoneAPI := th.GetKeystoneAPI(keystoneAPIName)
-			Eventually(func(g Gomega) {
-				g.Expect(k8sClient.Status().Update(ctx, keystoneAPI.DeepCopy())).Should(Succeed())
-			}, timeout, interval).Should(Succeed())
-			th.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
-		})
-		It("cell0 never created", func() {
-			NovaCellNotExists(cell0.CellName)
-		})
-	})
 })

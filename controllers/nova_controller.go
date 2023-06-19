@@ -236,9 +236,9 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	// We need to create a list of cellNames to iterate on and as the map
 	// iteration order is undefined we need to make sure that cell0 is the
 	// first to allow dependency handling during ensureCell calls.
-	orderedCellNames := []string{Cell0Name}
+	orderedCellNames := []string{novav1.Cell0Name}
 	for cellName := range instance.Spec.CellTemplates {
-		if cellName != Cell0Name {
+		if cellName != novav1.Cell0Name {
 			orderedCellNames = append(orderedCellNames, cellName)
 		}
 	}
@@ -321,7 +321,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		cellTemplate := instance.Spec.CellTemplates[cellName]
 		// cell0 does not need its own cell message bus it uses the
 		// API message bus instead
-		if cellName == Cell0Name {
+		if cellName == novav1.Cell0Name {
 			cellMQ = apiMQSecretName
 			status = apiMQStatus
 			err = apiMQError
@@ -393,8 +393,8 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		// The cell0 is always handled first in the loop as we iterate on
 		// orderedCellNames. So for any other cells we can assume that if cell0
 		// is not in the list then cell0 is not ready
-		cell0Ready := (cells[Cell0Name] != nil && cells[Cell0Name].IsReady())
-		if cellName != Cell0Name && cellTemplate.HasAPIAccess && !cell0Ready {
+		cell0Ready := (cells[novav1.Cell0Name] != nil && cells[novav1.Cell0Name].IsReady())
+		if cellName != novav1.Cell0Name && cellTemplate.HasAPIAccess && !cell0Ready {
 			allCellsReady = false
 			skippedCells = append(skippedCells, cellName)
 			util.LogForObject(
@@ -459,7 +459,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 
 	// Don't move forward with the top level service creations like NovaAPI
 	// until cell0 is ready as top level services need cell0 to register in
-	if cell0, ok := cells[Cell0Name]; !ok || !cell0.IsReady() {
+	if cell0, ok := cells[novav1.Cell0Name]; !ok || !cell0.IsReady() {
 		// we need to stop here until cell0 is ready
 		util.LogForObject(h, "Waiting for cell0 to become Ready before creating the top level services", instance)
 		return ctrl.Result{}, nil
@@ -467,7 +467,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 
 	result, err = r.ensureAPI(
 		ctx, h, instance, cell0Template,
-		cellDBs[Cell0Name].Database, apiDB, apiMQSecretName, keystoneAuthURL,
+		cellDBs[novav1.Cell0Name].Database, apiDB, apiMQSecretName, keystoneAuthURL,
 	)
 	if err != nil {
 		return result, err
@@ -475,7 +475,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 
 	result, err = r.ensureScheduler(
 		ctx, h, instance, cell0Template,
-		cellDBs[Cell0Name].Database, apiDB, apiMQSecretName, keystoneAuthURL,
+		cellDBs[novav1.Cell0Name].Database, apiDB, apiMQSecretName, keystoneAuthURL,
 	)
 	if err != nil {
 		return result, err
@@ -484,7 +484,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	if *instance.Spec.MetadataServiceTemplate.Replicas != 0 {
 		result, err = r.ensureMetadata(
 			ctx, h, instance, cell0Template,
-			cellDBs[Cell0Name].Database, apiDB, apiMQSecretName, keystoneAuthURL,
+			cellDBs[novav1.Cell0Name].Database, apiDB, apiMQSecretName, keystoneAuthURL,
 		)
 		if err != nil {
 			return result, err
@@ -624,14 +624,14 @@ func (r *NovaReconciler) getCell0Template(instance *novav1.Nova) (novav1.NovaCel
 	var cell0Template novav1.NovaCellTemplate
 	var ok bool
 
-	if cell0Template, ok = instance.Spec.CellTemplates[Cell0Name]; !ok {
+	if cell0Template, ok = instance.Spec.CellTemplates[novav1.Cell0Name]; !ok {
 		err := fmt.Errorf("missing cell0 specification from Spec.CellTemplates")
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			novav1.NovaAllCellsReadyCondition,
 			condition.ErrorReason,
 			condition.SeverityError,
 			novav1.NovaAllCellsReadyErrorMessage,
-			fmt.Sprintf("%s(%v)", Cell0Name, err.Error()),
+			fmt.Sprintf("%s(%v)", novav1.Cell0Name, err.Error()),
 		))
 
 		return cell0Template, err
