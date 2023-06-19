@@ -137,7 +137,7 @@ func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		required_secret_fields = append(required_secret_fields, instance.Spec.PasswordSelectors.APIDatabase)
 	}
 
-	secretHash, result, _, err := ensureSecret(
+	secretHash, result, secret, err := ensureSecret(
 		ctx,
 		types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.Secret},
 		required_secret_fields,
@@ -154,7 +154,7 @@ func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	// all our input checks out so report InputReady
 	instance.Status.Conditions.MarkTrue(condition.InputReadyCondition, condition.InputReadyMessage)
 
-	err = r.ensureConfigMaps(ctx, h, instance, &hashes)
+	err = r.ensureConfigMaps(ctx, h, instance, &hashes, secret)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -254,6 +254,7 @@ func (r *NovaConductorReconciler) ensureConfigMaps(
 	h *helper.Helper,
 	instance *novav1.NovaConductor,
 	hashes *map[string]env.Setter,
+	secret corev1.Secret,
 ) error {
 	// create ConfigMaps required for nova-conductor service
 	// - %-scripts configmap holding scripts to e.g. bootstrap the service
@@ -261,7 +262,7 @@ func (r *NovaConductorReconciler) ensureConfigMaps(
 	//   the service up, user can add additional files to be added to the service
 	// - parameters which has passwords gets added from the OpenStack secret
 	//   via the init container
-	err := r.generateConfigs(ctx, h, instance, hashes)
+	err := r.generateConfigs(ctx, h, instance, hashes, secret)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.ServiceConfigReadyCondition,
@@ -275,7 +276,11 @@ func (r *NovaConductorReconciler) ensureConfigMaps(
 }
 
 func (r *NovaConductorReconciler) generateConfigs(
-	ctx context.Context, h *helper.Helper, instance *novav1.NovaConductor, hashes *map[string]env.Setter,
+	ctx context.Context,
+	h *helper.Helper,
+	instance *novav1.NovaConductor,
+	hashes *map[string]env.Setter,
+	secret corev1.Secret,
 ) error {
 	//
 	// create Configmap/Secret required for nova-conductor input
@@ -286,23 +291,12 @@ func (r *NovaConductorReconciler) generateConfigs(
 	//   init container
 	//
 
-	secret := &corev1.Secret{}
-	namespace := instance.GetNamespace()
-	secretName := types.NamespacedName{
-		Namespace: namespace,
-		Name:      instance.Spec.Secret,
-	}
-	err := h.GetClient().Get(ctx, secretName, secret)
-	if err != nil {
-		return err
-	}
-
 	messageBusSecret := &corev1.Secret{}
-	secretName = types.NamespacedName{
+	secretName := types.NamespacedName{
 		Namespace: instance.Namespace,
 		Name:      instance.Spec.CellMessageBusSecretName,
 	}
-	err = h.GetClient().Get(ctx, secretName, messageBusSecret)
+	err := h.GetClient().Get(ctx, secretName, messageBusSecret)
 	if err != nil {
 		util.LogForObject(
 			h, "Failed reading Secret", instance,
