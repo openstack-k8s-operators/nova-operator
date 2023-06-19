@@ -23,7 +23,10 @@ limitations under the License.
 package v1beta1
 
 import (
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
@@ -104,19 +107,69 @@ func (spec *NovaSpec) Default() {
 
 var _ webhook.Validator = &Nova{}
 
+func (r *NovaSpec) ValidateCellTemplates(basePath *field.Path) field.ErrorList {
+	var errors field.ErrorList
+
+	for name, cell := range r.CellTemplates {
+		cellPath := basePath.Child("cellTemplates").Key(name)
+		errors = append(
+			errors,
+			ValidateCellName(cellPath, name)...,
+		)
+		if name == Cell0Name {
+			errors = append(
+				errors,
+				cell.MetadataServiceTemplate.ValidateCell0(
+					cellPath.Child("metadataServiceTemplate"))...)
+		}
+	}
+
+	return errors
+}
+
+// ValidateCreate validates the NovaSpec during the webhook invocation. It is
+// expected to be called by the validation webhook in the higher level meta
+// operator
+func (r *NovaSpec) ValidateCreate(basePath *field.Path) field.ErrorList {
+	errors := r.ValidateCellTemplates(basePath)
+
+	return errors
+}
+
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (r *Nova) ValidateCreate() error {
 	novalog.Info("validate create", "name", r.Name)
 
-	// TODO(user): fill in your validation logic upon object creation.
+	errors := r.Spec.ValidateCreate(field.NewPath("spec"))
+	if len(errors) != 0 {
+		novalog.Info("validation failed", "name", r.Name)
+		return apierrors.NewInvalid(
+			schema.GroupKind{Group: "nova.openstack.org", Kind: "Nova"},
+			r.Name, errors)
+	}
 	return nil
+}
+
+// ValidateUpdate validates the NovaSpec during the webhook invocation. It is
+// expected to be called by the validation webhook in the higher level meta
+// operator
+func (r *NovaSpec) ValidateUpdate(old runtime.Object, basePath *field.Path) field.ErrorList {
+	errors := r.ValidateCellTemplates(basePath)
+
+	return errors
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
 func (r *Nova) ValidateUpdate(old runtime.Object) error {
 	novalog.Info("validate update", "name", r.Name)
 
-	// TODO(user): fill in your validation logic upon object update.
+	errors := r.Spec.ValidateUpdate(old, field.NewPath("spec"))
+	if len(errors) != 0 {
+		novalog.Info("validation failed", "name", r.Name)
+		return apierrors.NewInvalid(
+			schema.GroupKind{Group: "nova.openstack.org", Kind: "Nova"},
+			r.Name, errors)
+	}
 	return nil
 }
 

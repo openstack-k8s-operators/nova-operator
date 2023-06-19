@@ -24,6 +24,11 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
+const (
+	// Cell0Name is the name of Cell0 cell that is mandatory in every deployment
+	Cell0Name = "cell0"
+)
+
 // NovaCellTemplate defines the input parameters specified by the user to
 // create a NovaCell via higher level CRDs.
 type NovaCellTemplate struct {
