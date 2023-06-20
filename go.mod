@@ -6,19 +6,19 @@ require (
 	github.com/go-logr/logr v1.2.4
 	github.com/google/uuid v1.3.0
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.4.0
-	github.com/onsi/ginkgo/v2 v2.9.7
-	github.com/onsi/gomega v1.27.7
+	github.com/onsi/ginkgo/v2 v2.11.0
+	github.com/onsi/gomega v1.27.8
 	github.com/openshift/api v3.9.0+incompatible
-	github.com/openstack-k8s-operators/infra-operator/apis v0.0.0-20230525130454-a7f0f8afe772
-	github.com/openstack-k8s-operators/keystone-operator/api v0.0.0-20230602104114-29d472a62f87
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20230606033311-3b01713e4d45
-	github.com/openstack-k8s-operators/lib-common/modules/database v0.0.0-20230606033311-3b01713e4d45
-	github.com/openstack-k8s-operators/lib-common/modules/storage v0.0.0-20230606033311-3b01713e4d45
-	github.com/openstack-k8s-operators/lib-common/modules/test v0.0.0-20230606033311-3b01713e4d45
-	github.com/openstack-k8s-operators/lib-common/modules/test-operators v0.0.0-20230606033311-3b01713e4d45
+	github.com/openstack-k8s-operators/infra-operator/apis v0.0.0-20230620100436-011c7e736b1e
+	github.com/openstack-k8s-operators/keystone-operator/api v0.0.0-20230615172650-7d7aa98bc08c
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20230619102827-49e72f626a11
+	github.com/openstack-k8s-operators/lib-common/modules/database v0.0.0-20230619102827-49e72f626a11
+	github.com/openstack-k8s-operators/lib-common/modules/storage v0.0.0-20230619102827-49e72f626a11
+	github.com/openstack-k8s-operators/lib-common/modules/test v0.0.0-20230619102827-49e72f626a11
+	github.com/openstack-k8s-operators/lib-common/modules/test-operators v0.0.0-20230619102827-49e72f626a11
 	github.com/openstack-k8s-operators/mariadb-operator/api v0.0.0-20230602100742-579cb85d242d
 	github.com/openstack-k8s-operators/nova-operator/api v0.0.0-20221209164002-f9e6b9363961
-	github.com/openstack-k8s-operators/openstack-ansibleee-operator/api v0.0.0-20230602163853-caf143e55ca3
+	github.com/openstack-k8s-operators/openstack-ansibleee-operator/api v0.0.0-20230620085730-fddf65f65f88
 	go.uber.org/zap v1.24.0
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.26.3
@@ -55,7 +55,7 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
-	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.0.0-20230522113906-6f4206cbf317 // indirect
+	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.0.0-20230606033311-3b01713e4d45 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_golang v1.14.0 // indirect
 	github.com/prometheus/client_model v0.3.0 // indirect
@@ -64,14 +64,15 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
+	golang.org/x/exp v0.0.0-20230522175609-2e198f4a06a1 // indirect
 	golang.org/x/mod v0.10.0 // indirect
 	golang.org/x/net v0.10.0 // indirect
 	golang.org/x/oauth2 v0.0.0-20220909003341-f21342109be1 // indirect
-	golang.org/x/sys v0.8.0 // indirect
+	golang.org/x/sys v0.9.0 // indirect
 	golang.org/x/term v0.8.0 // indirect
 	golang.org/x/text v0.9.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
-	golang.org/x/tools v0.9.1 // indirect
+	golang.org/x/tools v0.9.3 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.2.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
