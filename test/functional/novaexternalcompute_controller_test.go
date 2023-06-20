@@ -51,6 +51,9 @@ func CreateNovaCellAndEnsureReady(cell CellNames) {
 }
 
 var _ = Describe("NovaExternalCompute", func() {
+	var libvirtAEEName types.NamespacedName
+	var novaAEEName types.NamespacedName
+
 	When("created", func() {
 
 		BeforeEach(func() {
@@ -78,12 +81,12 @@ var _ = Describe("NovaExternalCompute", func() {
 			}
 			CreateNovaExternalComputeSSHSecret(sshSecretName)
 			DeferCleanup(th.DeleteSecret, sshSecretName)
-			libvirtAEEName := types.NamespacedName{
+			libvirtAEEName = types.NamespacedName{
 				Namespace: novaNames.ComputeName.Namespace,
 				Name:      fmt.Sprintf("%s-%s-deploy-libvirt", compute.Spec.NovaInstance, compute.Name),
 			}
 			SimulateAEESucceeded(libvirtAEEName)
-			novaAEEName := types.NamespacedName{
+			novaAEEName = types.NamespacedName{
 				Namespace: novaNames.ComputeName.Namespace,
 				Name:      fmt.Sprintf("%s-%s-deploy-nova", compute.Spec.NovaInstance, compute.Name),
 			}
@@ -141,6 +144,22 @@ var _ = Describe("NovaExternalCompute", func() {
 			// it first
 			compute := GetNovaExternalCompute(novaNames.ComputeName)
 			th.DeleteInstance(compute)
+		})
+		It("adds controller reference to AnsibleEE", func() {
+			th.ExpectCondition(
+				novaNames.ComputeName,
+				ConditionGetterFunc(NovaExternalComputeConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			// Both AnsibleEE has a controller reference so that they
+			// are automatically cleaned up
+			var ansibleeeNames = []types.NamespacedName{libvirtAEEName, novaAEEName}
+			compute := GetNovaExternalCompute(novaNames.ComputeName)
+			for _, name := range ansibleeeNames {
+				AssertControllerRef(GetAEE(name), compute)
+			}
 		})
 	})
 	When("created but Secrets are missing or fields missing", func() {
