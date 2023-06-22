@@ -134,7 +134,7 @@ func (r *NovaNoVNCProxyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	hashes := make(map[string]env.Setter)
 
-	secretHash, result, err := ensureSecret(
+	secretHash, result, _, err := ensureSecret(
 		ctx,
 		types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.Secret},
 		[]string{

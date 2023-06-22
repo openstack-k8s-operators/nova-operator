@@ -149,7 +149,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 					corev1.ConditionTrue,
 				)
 			})
-			It("generated configs successfully", func() {
+			It("generated configs successfully t", func() {
 				th.ExpectCondition(
 					novaNames.NoVNCProxyName,
 					ConditionGetterFunc(NoVNCProxyConditionGetter),
@@ -167,13 +167,13 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 				Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
 				Expect(configDataMap.Data).Should(
 					HaveKeyWithValue("01-nova.conf",
-						ContainSubstring("novncproxy_host = 0.0.0.0")))
+						ContainSubstring("novncproxy_host = \"::0\"")))
 				Expect(configDataMap.Data).Should(
 					HaveKeyWithValue("01-nova.conf",
 						ContainSubstring("novncproxy_port = 6080")))
 				Expect(configDataMap.Data).Should(
 					HaveKeyWithValue("01-nova.conf",
-						ContainSubstring("novncproxy_base_url = http:/vnc_lite.htm")))
+						ContainSubstring("server_listen = \"::0\"")))
 				Expect(configDataMap.Data).Should(
 					HaveKeyWithValue("02-nova-override.conf", "foo=bar"))
 			})
@@ -274,7 +274,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 				})
 			})
 
-			It("exposes the service", func() {
+			It("exposes the service t", func() {
 				th.SimulateStatefulSetReplicaReady(novaNames.NoVNCProxyNameStatefulSetName)
 				th.ExpectCondition(
 					novaNames.NoVNCProxyName,
