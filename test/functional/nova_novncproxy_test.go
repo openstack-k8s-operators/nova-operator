@@ -157,7 +157,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 					corev1.ConditionTrue,
 				)
 
-				configDataMap := th.GetConfigMap(
+				configDataMap := th.GetSecret(
 					types.NamespacedName{
 						Namespace: novaNames.NoVNCProxyName.Namespace,
 						Name:      fmt.Sprintf("%s-config-data", novaNames.NoVNCProxyName.Name),
@@ -174,8 +174,9 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 				Expect(configDataMap.Data).Should(
 					HaveKeyWithValue("01-nova.conf",
 						ContainSubstring("server_listen = \"::0\"")))
-				Expect(configDataMap.Data).Should(
-					HaveKeyWithValue("02-nova-override.conf", "foo=bar"))
+				Expect(configDataMap.Data).Should(HaveKey("02-nova-override.conf"))
+				extraData := string(configDataMap.Data["02-nova-override.conf"])
+				Expect(extraData).To(Equal("foo=bar"))
 			})
 
 			It("stored the input hash in the Status", func() {

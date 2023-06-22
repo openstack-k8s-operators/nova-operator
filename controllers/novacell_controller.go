@@ -124,7 +124,7 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 		instance.Status.Conditions.Remove(novav1.NovaMetadataReadyCondition)
 	}
 
-	if *instance.Spec.NoVNCProxyServiceTemplate.Replicas != 0 && instance.Spec.CellName != Cell0Name {
+	if *instance.Spec.NoVNCProxyServiceTemplate.Replicas != 0 && instance.Spec.CellName != novav1.Cell0Name {
 		result, err = r.ensureNoVNCProxy(ctx, h, instance)
 		if err != nil {
 			return result, err

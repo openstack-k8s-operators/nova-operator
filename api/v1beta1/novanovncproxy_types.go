@@ -214,3 +214,8 @@ func NewNovaNoVNCProxySpec(
 	}
 	return noVNCProxSpec
 }
+
+// GetSecret returns the value of the NovaMetadata.Spec.Secret
+func (n NovaNoVNCProxy) GetSecret() string {
+	return n.Spec.Secret
+}

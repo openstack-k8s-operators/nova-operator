@@ -423,16 +423,17 @@ func SimulateAEESucceeded(name types.NamespacedName) {
 }
 
 type CellNames struct {
-	CellName                    types.NamespacedName
-	MariaDBDatabaseName         types.NamespacedName
-	CellConductorName           types.NamespacedName
-	CellDBSyncJobName           types.NamespacedName
-	ConductorStatefulSetName    types.NamespacedName
-	TransportURLName            types.NamespacedName
-	CellMappingJobName          types.NamespacedName
-	MetadataStatefulSetName     types.NamespacedName
-	CellConductorConfigDataName types.NamespacedName
-	NoVNCProxyNameStatefulSetName types.NamespacedName
+	CellName                         types.NamespacedName
+	MariaDBDatabaseName              types.NamespacedName
+	CellConductorName                types.NamespacedName
+	CellDBSyncJobName                types.NamespacedName
+	ConductorStatefulSetName         types.NamespacedName
+	TransportURLName                 types.NamespacedName
+	CellMappingJobName               types.NamespacedName
+	MetadataStatefulSetName          types.NamespacedName
+	CellConductorConfigDataName      types.NamespacedName
+	NoVNCProxyNameStatefulSetName    types.NamespacedName
+	CellNoVNCProxyNameConfigDataName types.NamespacedName
 }
 
 func GetCellNames(novaName types.NamespacedName, cell string) CellNames {
@@ -475,6 +476,10 @@ func GetCellNames(novaName types.NamespacedName, cell string) CellNames {
 		NoVNCProxyNameStatefulSetName: types.NamespacedName{
 			Namespace: novaName.Namespace,
 			Name:      cellName.Name + "-novncproxy",
+		},
+		CellNoVNCProxyNameConfigDataName: types.NamespacedName{
+			Namespace: novaName.Namespace,
+			Name:      cellName.Name + "-novncproxy" + "-config-data",
 		},
 	}
 
