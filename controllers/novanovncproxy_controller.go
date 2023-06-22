@@ -25,7 +25,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
@@ -160,7 +162,7 @@ func (r *NovaNoVNCProxyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, err
 	}
 
-	err = r.ensureConfigMaps(ctx, h, instance, &hashes, apiEndpoints)
+	err = r.ensureConfigs(ctx, h, instance, &hashes, apiEndpoints)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -206,7 +208,7 @@ func (r *NovaNoVNCProxyReconciler) initStatus(
 	return nil
 }
 
-func (r *NovaNoVNCProxyReconciler) ensureConfigMaps(
+func (r *NovaNoVNCProxyReconciler) ensureConfigs(
 	ctx context.Context,
 	h *helper.Helper,
 	instance *novav1beta1.NovaNoVNCProxy,
@@ -495,5 +497,7 @@ func (r *NovaNoVNCProxyReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.ConfigMap{}).
 		Owns(&corev1.Service{}).
 		Owns(&routev1.Route{}).
+		Watches(&source.Kind{Type: &corev1.Secret{}},
+			handler.EnqueueRequestsFromMapFunc(r.GetSecretMapperFor(&novav1beta1.NovaNoVNCProxyList{}))).
 		Complete(r)
 }

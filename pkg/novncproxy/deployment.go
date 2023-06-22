@@ -125,7 +125,7 @@ func StatefulSet(
 				Spec: corev1.PodSpec{
 					ServiceAccountName: instance.Spec.ServiceAccount,
 					Volumes: []corev1.Volume{
-						nova.GetConfigVolume(nova.GetServiceConfigConfigMapName(instance.Name)),
+						nova.GetConfigVolume(nova.GetServiceConfigSecretName(instance.Name)),
 						nova.GetLogVolume(),
 					},
 					Containers: []corev1.Container{
