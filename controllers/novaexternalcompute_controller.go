@@ -455,7 +455,7 @@ func (r *NovaExternalComputeReconciler) generateConfigs(
 
 	// we should restructure this to be in the same order as the reset of the resources
 	// <nova_instance>-<cell_name>-<service_name>-<service_type>
-	vncRouteName := fmt.Sprintf("%s-novncproxy-%s-public", instance.Spec.NovaInstance, instance.Spec.CellName)
+	vncRouteName := fmt.Sprintf("nova-novncproxy-%s-public", cell.Spec.CellName)
 
 	vncRoute := &routev1.Route{}
 	err = h.GetClient().Get(ctx, types.NamespacedName{
