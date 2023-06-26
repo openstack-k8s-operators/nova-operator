@@ -182,8 +182,8 @@ var _ = Describe("NovaExternalCompute", func() {
 			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
 			configData := string(configDataMap.Data["01-nova.conf"])
 			Expect(configData).To(ContainSubstring("transport_url=rabbit://rabbitmq-secret/fake"))
-			// FIXME(sean) This is bug #422 the password should be populated
-			Expect(configData).To(ContainSubstring("username = nova\npassword = \n"))
+			// NOTE(sean) This  check prevents regressing bug #422 the password should be populated
+			Expect(configData).To(ContainSubstring("username = nova\npassword = 12345678\n"))
 			Expect(configDataMap.Data).Should(HaveKey("02-nova-override.conf"))
 			extraConfigData := string(configDataMap.Data["02-nova-override.conf"])
 			Expect(extraConfigData).To(Equal(""))
