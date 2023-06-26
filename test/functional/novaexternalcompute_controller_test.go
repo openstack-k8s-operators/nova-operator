@@ -164,6 +164,31 @@ var _ = Describe("NovaExternalCompute", func() {
 			compute := GetNovaExternalCompute(novaNames.ComputeName)
 			th.DeleteInstance(compute)
 		})
+		It("generated configs successfully", func() {
+			th.ExpectCondition(
+				novaNames.ComputeName,
+				ConditionGetterFunc(NovaExternalComputeConditionGetter),
+				condition.ServiceConfigReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			configDataMap := th.GetSecret(
+				types.NamespacedName{
+					Namespace: novaNames.ComputeName.Namespace,
+					Name:      fmt.Sprintf("%s-config-data", novaNames.ComputeName.Name),
+				},
+			)
+			Expect(configDataMap).ShouldNot(BeNil())
+			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
+			configData := string(configDataMap.Data["01-nova.conf"])
+			Expect(configData).To(ContainSubstring("transport_url=rabbit://rabbitmq-secret/fake"))
+			// FIXME(sean) This is bug #422 the password should be populated
+			Expect(configData).To(ContainSubstring("username = nova\npassword = \n"))
+			Expect(configDataMap.Data).Should(HaveKey("02-nova-override.conf"))
+			extraConfigData := string(configDataMap.Data["02-nova-override.conf"])
+			Expect(extraConfigData).To(Equal(""))
+
+		})
 	})
 	When("created but Secrets are missing or fields missing", func() {
 		BeforeEach(func() {
