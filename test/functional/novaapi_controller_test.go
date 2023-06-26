@@ -17,7 +17,6 @@ package functional_test
 
 import (
 	"encoding/json"
-	"fmt"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -167,12 +166,7 @@ var _ = Describe("NovaAPI controller", func() {
 					corev1.ConditionTrue,
 				)
 
-				configDataMap := th.GetSecret(
-					types.NamespacedName{
-						Namespace: novaNames.APIName.Namespace,
-						Name:      fmt.Sprintf("%s-config-data", novaNames.APIName.Name),
-					},
-				)
+				configDataMap := th.GetSecret(novaNames.APIConfigDataName)
 				Expect(configDataMap).ShouldNot(BeNil())
 				Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
 				configData := string(configDataMap.Data["01-nova.conf"])
@@ -311,11 +305,11 @@ var _ = Describe("NovaAPI controller", func() {
 				condition.ExposeServiceReadyCondition,
 				corev1.ConditionTrue,
 			)
-			public := th.GetService(types.NamespacedName{Namespace: novaNames.APIName.Namespace, Name: "nova-public"})
+			public := th.GetService(novaNames.PublicNovaServiceName)
 			Expect(public.Labels["service"]).To(Equal("nova-api"))
-			internal := th.GetService(types.NamespacedName{Namespace: novaNames.APIName.Namespace, Name: "nova-internal"})
+			internal := th.GetService(novaNames.InternalNovaServiceName)
 			Expect(internal.Labels["service"]).To(Equal("nova-api"))
-			th.AssertRouteExists(types.NamespacedName{Namespace: novaNames.APIName.Namespace, Name: "nova-public"})
+			th.AssertRouteExists(novaNames.PublicNovaRouteName)
 		})
 
 		It("creates KeystoneEndpoint", func() {
@@ -409,8 +403,7 @@ var _ = Describe("NovaAPI controller", func() {
 			)
 		})
 		It("reports that network attachment is missing", func() {
-			internalAPINADName := types.NamespacedName{Namespace: novaNames.APIName.Namespace, Name: "internalapi"}
-			nad := th.CreateNetworkAttachmentDefinition(internalAPINADName)
+			nad := th.CreateNetworkAttachmentDefinition(novaNames.InternalAPINetworkNADName)
 			DeferCleanup(th.DeleteInstance, nad)
 
 			ss := th.GetStatefulSet(novaNames.APIStatefulSetName)
@@ -442,8 +435,7 @@ var _ = Describe("NovaAPI controller", func() {
 			)
 		})
 		It("reports that an IP is missing", func() {
-			internalAPINADName := types.NamespacedName{Namespace: novaNames.APIName.Namespace, Name: "internalapi"}
-			nad := th.CreateNetworkAttachmentDefinition(internalAPINADName)
+			nad := th.CreateNetworkAttachmentDefinition(novaNames.InternalAPINetworkNADName)
 			DeferCleanup(th.DeleteInstance, nad)
 
 			ss := th.GetStatefulSet(novaNames.APIStatefulSetName)
@@ -478,8 +470,7 @@ var _ = Describe("NovaAPI controller", func() {
 			)
 		})
 		It("reports NetworkAttachmentsReady if the Pods got the proper annotations", func() {
-			internalAPINADName := types.NamespacedName{Namespace: novaNames.APIName.Namespace, Name: "internalapi"}
-			nad := th.CreateNetworkAttachmentDefinition(internalAPINADName)
+			nad := th.CreateNetworkAttachmentDefinition(novaNames.InternalAPINetworkNADName)
 			DeferCleanup(th.DeleteInstance, nad)
 
 			th.SimulateStatefulSetReplicaReadyWithPods(
@@ -540,22 +531,22 @@ var _ = Describe("NovaAPI controller", func() {
 
 			// As the internal endpoint is configured in ExternalEndpoints it does not
 			// get a Route but a Service with MetalLB annotations instead
-			service := th.GetService(types.NamespacedName{Namespace: novaNames.APIName.Namespace, Name: "nova-internal"})
+			service := th.GetService(novaNames.InternalNovaServiceName)
 			Expect(service.Annotations).To(
 				HaveKeyWithValue("metallb.universe.tf/address-pool", "osp-internalapi"))
 			Expect(service.Annotations).To(
 				HaveKeyWithValue("metallb.universe.tf/allow-shared-ip", "osp-internalapi"))
 			Expect(service.Annotations).To(
 				HaveKeyWithValue("metallb.universe.tf/loadBalancerIPs", "internal-lb-ip-1,internal-lb-ip-2"))
-			th.AssertRouteNotExists(types.NamespacedName{Namespace: novaNames.APIName.Namespace, Name: "nova-internal"})
+			th.AssertRouteNotExists(novaNames.InternalNovaRouteName)
 
 			// As the public endpoint is not mentioned in the ExternalEndpoints a generic Service and
 			// a Route is created
-			service = th.GetService(types.NamespacedName{Namespace: novaNames.APIName.Namespace, Name: "nova-public"})
+			service = th.GetService(novaNames.PublicNovaServiceName)
 			Expect(service.Annotations).NotTo(HaveKey("metallb.universe.tf/address-pool"))
 			Expect(service.Annotations).NotTo(HaveKey("metallb.universe.tf/allow-shared-ip"))
 			Expect(service.Annotations).NotTo(HaveKey("metallb.universe.tf/loadBalancerIPs"))
-			th.AssertRouteExists(types.NamespacedName{Namespace: novaNames.APIName.Namespace, Name: "nova-public"})
+			th.AssertRouteExists(novaNames.PublicNovaRouteName)
 
 			th.ExpectCondition(
 				novaNames.APIName,
@@ -614,8 +605,7 @@ var _ = Describe("NovaAPI controller", func() {
 				"NetworkAttachment resources missing: internalapi",
 			)
 
-			internalAPINADName := types.NamespacedName{Namespace: novaNames.APIName.Namespace, Name: "internalapi"}
-			DeferCleanup(th.DeleteInstance, th.CreateNetworkAttachmentDefinition(internalAPINADName))
+			DeferCleanup(th.DeleteInstance, th.CreateNetworkAttachmentDefinition(novaNames.InternalAPINetworkNADName))
 
 			th.ExpectConditionWithDetails(
 				novaNames.APIName,

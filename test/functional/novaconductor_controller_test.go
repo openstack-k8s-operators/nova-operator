@@ -15,7 +15,6 @@ package functional_test
 
 import (
 	"encoding/json"
-	"fmt"
 
 	networkv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	. "github.com/onsi/ginkgo/v2"
@@ -26,7 +25,6 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
@@ -162,12 +160,7 @@ var _ = Describe("NovaConductor controller", func() {
 					corev1.ConditionTrue,
 				)
 
-				configDataMap := th.GetSecret(
-					types.NamespacedName{
-						Namespace: novaNames.ConductorName.Namespace,
-						Name:      fmt.Sprintf("%s-config-data", novaNames.ConductorName.Name),
-					},
-				)
+				configDataMap := th.GetSecret(novaNames.ConductorConfigDataName)
 				Expect(configDataMap.Data).Should(HaveKey("nova-blank.conf"))
 				blankData := string(configDataMap.Data["nova-blank.conf"])
 				Expect(blankData).To(Equal(""))
@@ -180,12 +173,7 @@ var _ = Describe("NovaConductor controller", func() {
 				extraData := string(configDataMap.Data["02-nova-override.conf"])
 				Expect(extraData).To(Equal("foo=bar"))
 
-				scriptMap := th.GetSecret(
-					types.NamespacedName{
-						Namespace: novaNames.ConductorName.Namespace,
-						Name:      fmt.Sprintf("%s-scripts", novaNames.ConductorName.Name),
-					},
-				)
+				scriptMap := th.GetSecret(novaNames.ConductorScriptDataName)
 				// Everything under templates/novaconductor are added automatically by
 				// lib-common
 				Expect(scriptMap.Data).Should(HaveKey("dbsync.sh"))
@@ -485,8 +473,7 @@ var _ = Describe("NovaConductor controller", func() {
 			)
 		})
 		It("reports that network attachment is missing", func() {
-			internalAPINADName := types.NamespacedName{Namespace: novaNames.ConductorName.Namespace, Name: "internalapi"}
-			nad := th.CreateNetworkAttachmentDefinition(internalAPINADName)
+			nad := th.CreateNetworkAttachmentDefinition(novaNames.InternalAPINetworkNADName)
 			DeferCleanup(th.DeleteInstance, nad)
 			th.SimulateJobSuccess(novaNames.ConductorDBSyncJobName)
 
@@ -519,8 +506,7 @@ var _ = Describe("NovaConductor controller", func() {
 			)
 		})
 		It("reports that an IP is missing", func() {
-			internalAPINADName := types.NamespacedName{Namespace: novaNames.ConductorName.Namespace, Name: "internalapi"}
-			nad := th.CreateNetworkAttachmentDefinition(internalAPINADName)
+			nad := th.CreateNetworkAttachmentDefinition(novaNames.InternalAPINetworkNADName)
 			DeferCleanup(th.DeleteInstance, nad)
 			th.SimulateJobSuccess(novaNames.ConductorDBSyncJobName)
 
@@ -556,8 +542,7 @@ var _ = Describe("NovaConductor controller", func() {
 			)
 		})
 		It("reports NetworkAttachmentsReady if the Pods got the proper annotations", func() {
-			internalAPINADName := types.NamespacedName{Namespace: novaNames.ConductorName.Namespace, Name: "internalapi"}
-			nad := th.CreateNetworkAttachmentDefinition(internalAPINADName)
+			nad := th.CreateNetworkAttachmentDefinition(novaNames.InternalAPINetworkNADName)
 			DeferCleanup(th.DeleteInstance, nad)
 			th.SimulateJobSuccess(novaNames.ConductorDBSyncJobName)
 
@@ -636,8 +621,7 @@ var _ = Describe("NovaConductor controller", func() {
 				"NetworkAttachment resources missing: internalapi",
 			)
 
-			internalAPINADName := types.NamespacedName{Namespace: novaNames.ConductorName.Namespace, Name: "internalapi"}
-			DeferCleanup(th.DeleteInstance, th.CreateNetworkAttachmentDefinition(internalAPINADName))
+			DeferCleanup(th.DeleteInstance, th.CreateNetworkAttachmentDefinition(novaNames.InternalAPINetworkNADName))
 
 			th.ExpectConditionWithDetails(
 				novaNames.ConductorName,

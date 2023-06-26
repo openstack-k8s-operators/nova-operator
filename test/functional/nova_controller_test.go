@@ -658,12 +658,7 @@ var _ = Describe("Nova controller", func() {
 
 			cell0DBSync := th.GetJob(cell0.CellDBSyncJobName)
 			Expect(len(cell0DBSync.Spec.Template.Spec.InitContainers)).To(Equal(0))
-			configDataMap := th.GetSecret(
-				types.NamespacedName{
-					Namespace: cell0.CellConductorName.Namespace,
-					Name:      fmt.Sprintf("%s-config-data", cell0.CellConductorName.Name),
-				},
-			)
+			configDataMap := th.GetSecret(cell0.CellConductorConfigDataName)
 			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
 			configData := string(configDataMap.Data["01-nova.conf"])
 			Expect(configData).To(
@@ -686,12 +681,7 @@ var _ = Describe("Nova controller", func() {
 			th.SimulateStatefulSetReplicaReady(novaNames.SchedulerStatefulSetName)
 			th.SimulateStatefulSetReplicaReady(novaNames.MetadataStatefulSetName)
 
-			configDataMap = th.GetSecret(
-				types.NamespacedName{
-					Namespace: novaNames.NovaName.Namespace,
-					Name:      fmt.Sprintf("%s-config-data", novaNames.APIName.Name),
-				},
-			)
+			configDataMap = th.GetSecret(novaNames.APIConfigDataName)
 			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
 			configData = string(configDataMap.Data["01-nova.conf"])
 			Expect(configData).To(
@@ -708,12 +698,7 @@ var _ = Describe("Nova controller", func() {
 			)
 			Expect(configData).To(ContainSubstring("password = service-password"))
 
-			configDataMap = th.GetSecret(
-				types.NamespacedName{
-					Namespace: novaNames.NovaName.Namespace,
-					Name:      fmt.Sprintf("%s-config-data", novaNames.SchedulerName.Name),
-				},
-			)
+			configDataMap = th.GetSecret(novaNames.SchedulerConfigDataName)
 			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
 			configData = string(configDataMap.Data["01-nova.conf"])
 			Expect(configData).To(
@@ -851,8 +836,7 @@ var _ = Describe("Nova controller", func() {
 			)
 			DeferCleanup(th.DeleteKeystoneAPI, th.CreateKeystoneAPI(novaNames.NovaName.Namespace))
 
-			internalAPINADName := types.NamespacedName{Namespace: novaNames.NovaName.Namespace, Name: "internalapi"}
-			nad := th.CreateNetworkAttachmentDefinition(internalAPINADName)
+			nad := th.CreateNetworkAttachmentDefinition(novaNames.InternalAPINetworkNADName)
 			DeferCleanup(th.DeleteInstance, nad)
 
 			var externalEndpoints []interface{}
