@@ -471,7 +471,7 @@ var _ = Describe("Nova reconfiguration", func() {
 					g.Expect(conf).Should(ContainSubstring(("password = new-service-password")))
 					g.Expect(conf).ShouldNot(ContainSubstring(("password = 12345678")))
 
-				}, timeout, interval).Should(Succeed())
+				}, timeout, interval).Should(Succeed(), fmt.Sprintf("Failed on %s", cmName))
 			}
 		})
 		It("updates the hash in the statefulsets to trigger the restart with the new config", func() {

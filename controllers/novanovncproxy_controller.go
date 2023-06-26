@@ -140,8 +140,8 @@ func (r *NovaNoVNCProxyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		ctx,
 		types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.Secret},
 		[]string{
-			instance.Spec.PasswordSelectors.Service,
-			instance.Spec.PasswordSelectors.CellDatabase,
+			ServicePasswordSelector,
+			CellDatabasePasswordSelector,
 		},
 		h.GetClient(),
 		&instance.Status.Conditions,
@@ -295,10 +295,10 @@ func (r *NovaNoVNCProxyReconciler) generateConfigs(
 		"service_name":           novncproxy.ServiceName,
 		"keystone_internal_url":  instance.Spec.KeystoneAuthURL,
 		"nova_keystone_user":     instance.Spec.ServiceUser,
-		"nova_keystone_password": string(secret.Data[instance.Spec.PasswordSelectors.Service]),
+		"nova_keystone_password": string(secret.Data[ServicePasswordSelector]),
 		"cell_db_name":           instance.Spec.CellDatabaseUser, // fixme
 		"cell_db_user":           instance.Spec.CellDatabaseUser,
-		"cell_db_password":       string(secret.Data[instance.Spec.PasswordSelectors.CellDatabase]),
+		"cell_db_password":       string(secret.Data[CellDatabasePasswordSelector]),
 		"cell_db_address":        instance.Spec.CellDatabaseHostname,
 		"cell_db_port":           3306,
 		"api_interface_address":  "",     // fixme

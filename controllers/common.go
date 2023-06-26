@@ -71,6 +71,19 @@ const (
 	DbSyncHash = "dbsync"
 	// CellSelector is the key name of a cell label
 	CellSelector = "cell"
+
+	// ServicePasswordSelector is the name of key in the internal Secret for
+	// the nova service password
+	ServicePasswordSelector = "ServicePassword"
+	// MetadataSecretSelector is the name of key in the internal Secret for
+	// the metadata shared secret
+	MetadataSecretSelector = "MetadataSecret"
+	// APIDatabasePasswordSelector is the name of key in the internal Secret
+	// for the API database
+	APIDatabasePasswordSelector = "APIDatabasePassword"
+	// APIDatabasePasswordSelector is the name of key in the internal cell
+	// Secret for the cell database of the given cell
+	CellDatabasePasswordSelector = "CellDatabasePassword"
 )
 
 type conditionsGetter interface {

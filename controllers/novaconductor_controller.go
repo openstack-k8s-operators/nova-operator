@@ -132,11 +132,11 @@ func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	hashes := make(map[string]env.Setter)
 
 	required_secret_fields := []string{
-		instance.Spec.PasswordSelectors.Service,
-		instance.Spec.PasswordSelectors.CellDatabase,
+		ServicePasswordSelector,
+		CellDatabasePasswordSelector,
 	}
 	if len(instance.Spec.APIDatabaseHostname) > 0 {
-		required_secret_fields = append(required_secret_fields, instance.Spec.PasswordSelectors.APIDatabase)
+		required_secret_fields = append(required_secret_fields, APIDatabasePasswordSelector)
 	}
 
 	secretHash, result, secret, err := ensureSecret(
@@ -310,10 +310,10 @@ func (r *NovaConductorReconciler) generateConfigs(
 		"service_name":           "nova-conductor",
 		"keystone_internal_url":  instance.Spec.KeystoneAuthURL,
 		"nova_keystone_user":     instance.Spec.ServiceUser,
-		"nova_keystone_password": string(secret.Data[instance.Spec.PasswordSelectors.Service]),
+		"nova_keystone_password": string(secret.Data[ServicePasswordSelector]),
 		"cell_db_name":           instance.Spec.CellDatabaseUser, // fixme
 		"cell_db_user":           instance.Spec.CellDatabaseUser,
-		"cell_db_password":       string(secret.Data[instance.Spec.PasswordSelectors.CellDatabase]),
+		"cell_db_password":       string(secret.Data[CellDatabasePasswordSelector]),
 		"cell_db_address":        instance.Spec.CellDatabaseHostname,
 		"cell_db_port":           3306,
 		"openstack_cacert":       "",          // fixme
@@ -325,7 +325,7 @@ func (r *NovaConductorReconciler) generateConfigs(
 	if len(instance.Spec.APIDatabaseHostname) > 0 && len(instance.Spec.APIDatabaseUser) > 0 {
 		templateParameters["api_db_name"] = instance.Spec.APIDatabaseUser // fixme
 		templateParameters["api_db_user"] = instance.Spec.APIDatabaseUser
-		templateParameters["api_db_password"] = string(secret.Data[instance.Spec.PasswordSelectors.APIDatabase])
+		templateParameters["api_db_password"] = string(secret.Data[APIDatabasePasswordSelector])
 		templateParameters["api_db_address"] = instance.Spec.APIDatabaseHostname
 		templateParameters["api_db_port"] = 3306
 	}

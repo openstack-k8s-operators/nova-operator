@@ -189,7 +189,7 @@ func (r *NovaExternalComputeReconciler) Reconcile(ctx context.Context, req ctrl.
 		// nova keystone user password. Add any additional fields here we expect to
 		// exists in the cell secret if we start using additional values in the future.
 		[]string{
-			cell.Spec.PasswordSelectors.Service,
+			ServicePasswordSelector,
 		},
 		h.GetClient(),
 		&instance.Status.Conditions,
@@ -476,7 +476,7 @@ func (r *NovaExternalComputeReconciler) generateConfigs(
 		"service_name":           "nova-compute",
 		"keystone_internal_url":  cell.Spec.KeystoneAuthURL,
 		"nova_keystone_user":     cell.Spec.ServiceUser,
-		"nova_keystone_password": string(secret.Data[cell.Spec.PasswordSelectors.Service]),
+		"nova_keystone_password": string(secret.Data[ServicePasswordSelector]),
 		"openstack_cacert":       "",          // fixme
 		"openstack_region_name":  "regionOne", // fixme
 		"default_project_domain": "Default",   // fixme

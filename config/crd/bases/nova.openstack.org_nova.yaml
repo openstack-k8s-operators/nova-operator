@@ -594,6 +594,18 @@ spec:
                       description: NodeSelector to target subset of worker nodes running
                         cell.
                       type: object
+                    passwordSelectors:
+                      default:
+                        database: NovaCell0DatabasePassword
+                      description: PasswordSelectors - Selectors to identify the DB
+                        passwords from the Secret
+                      properties:
+                        database:
+                          default: NovaCell0DatabasePassword
+                          description: CellDatabase - the name of the field to get
+                            the Cell DB password from the Secret
+                          type: string
+                      type: object
                   required:
                   - cellDatabaseUser
                   - hasAPIAccess
@@ -799,11 +811,6 @@ spec:
                   apiDatabase:
                     default: NovaAPIDatabasePassword
                     description: APIDatabase - the name of the field to get the API
-                      DB password from the Secret
-                    type: string
-                  cellDatabase:
-                    default: NovaCell0DatabasePassword
-                    description: CellDatabase - the name of the field to get the Cell
                       DB password from the Secret
                     type: string
                   metadataSecret:

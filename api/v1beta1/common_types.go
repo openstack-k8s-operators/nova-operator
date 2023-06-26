@@ -110,15 +110,19 @@ type PasswordSelector struct {
 	// Secret
 	APIDatabase string `json:"apiDatabase"`
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default="NovaCell0DatabasePassword"
-	// CellDatabase - the name of the field to get the Cell DB password from
-	// the Secret
-	CellDatabase string `json:"cellDatabase"`
-	// +kubebuilder:validation:Optional
 	// +kubebuilder:default="MetadataSecret"
 	// MetadataSecret - the name of the field to get the metadata secret from the
 	// Secret
 	MetadataSecret string `json:"metadataSecret"`
+}
+
+// PasswordSelector to identify the DB password for the Cell from the Secret
+type CellPasswordSelector struct {
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default="NovaCell0DatabasePassword"
+	// CellDatabase - the name of the field to get the Cell DB password from
+	// the Secret
+	Database string `json:"database"`
 }
 
 // MetalLBConfig to configure the MetalLB loadbalancer service
