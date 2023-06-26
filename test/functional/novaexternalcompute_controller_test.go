@@ -80,12 +80,12 @@ var _ = Describe("NovaExternalCompute", func() {
 			}
 			CreateNovaExternalComputeSSHSecret(sshSecretName)
 			DeferCleanup(th.DeleteSecret, sshSecretName)
-			libvirtAEEName := types.NamespacedName{
+			libvirtAEEName = types.NamespacedName{
 				Namespace: novaNames.ComputeName.Namespace,
 				Name:      fmt.Sprintf("%s-%s-deploy-libvirt", compute.Spec.NovaInstance, compute.Name),
 			}
 			SimulateAEESucceeded(libvirtAEEName)
-			novaAEEName := types.NamespacedName{
+			novaAEEName = types.NamespacedName{
 				Namespace: novaNames.ComputeName.Namespace,
 				Name:      fmt.Sprintf("%s-%s-deploy-nova", compute.Spec.NovaInstance, compute.Name),
 			}
