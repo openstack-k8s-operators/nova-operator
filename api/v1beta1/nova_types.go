@@ -182,3 +182,8 @@ func (instance Nova) RbacNamespace() string {
 func (instance Nova) RbacResourceName() string {
 	return "nova-" + instance.Name
 }
+
+// GetSecret returns the value of the Nova.Spec.Secret
+func (instance Nova) GetSecret() string {
+	return instance.Spec.Secret
+}

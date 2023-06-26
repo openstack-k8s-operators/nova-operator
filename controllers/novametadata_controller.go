@@ -140,10 +140,10 @@ func (r *NovaMetadataReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		ctx,
 		types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.Secret},
 		[]string{
-			instance.Spec.PasswordSelectors.APIDatabase,
-			instance.Spec.PasswordSelectors.Service,
-			instance.Spec.PasswordSelectors.CellDatabase,
-			instance.Spec.PasswordSelectors.MetadataSecret,
+			ServicePasswordSelector,
+			APIDatabasePasswordSelector,
+			CellDatabasePasswordSelector,
+			MetadataSecretSelector,
 		},
 		h.GetClient(),
 		&instance.Status.Conditions,
@@ -307,22 +307,22 @@ func (r *NovaMetadataReconciler) generateConfigs(
 		"service_name":            novametadata.ServiceName,
 		"keystone_internal_url":   instance.Spec.KeystoneAuthURL,
 		"nova_keystone_user":      instance.Spec.ServiceUser,
-		"nova_keystone_password":  string(secret.Data[instance.Spec.PasswordSelectors.Service]),
+		"nova_keystone_password":  string(secret.Data[ServicePasswordSelector]),
 		"api_db_name":             instance.Spec.APIDatabaseUser, // fixme
 		"api_db_user":             instance.Spec.APIDatabaseUser,
-		"api_db_password":         string(secret.Data[instance.Spec.PasswordSelectors.APIDatabase]),
+		"api_db_password":         string(secret.Data[APIDatabasePasswordSelector]),
 		"api_db_address":          instance.Spec.APIDatabaseHostname,
 		"api_db_port":             3306,
 		"cell_db_name":            instance.Spec.CellDatabaseUser, // fixme
 		"cell_db_user":            instance.Spec.CellDatabaseUser,
-		"cell_db_password":        string(secret.Data[instance.Spec.PasswordSelectors.CellDatabase]),
+		"cell_db_password":        string(secret.Data[CellDatabasePasswordSelector]),
 		"cell_db_address":         instance.Spec.CellDatabaseHostname,
 		"cell_db_port":            3306,
 		"openstack_cacert":        "",          // fixme
 		"openstack_region_name":   "regionOne", // fixme
 		"default_project_domain":  "Default",   // fixme
 		"default_user_domain":     "Default",   // fixme
-		"metadata_secret":         string(secret.Data[instance.Spec.PasswordSelectors.MetadataSecret]),
+		"metadata_secret":         string(secret.Data[MetadataSecretSelector]),
 		"log_file":                "/var/log/nova/nova-metadata.log",
 		"transport_url":           string(apiMessageBusSecret.Data["transport_url"]),
 		"local_metadata_per_cell": instance.Spec.CellName != "",

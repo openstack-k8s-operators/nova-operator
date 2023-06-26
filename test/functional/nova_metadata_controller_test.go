@@ -111,7 +111,7 @@ var _ = Describe("NovaMetadata controller", func() {
 						Namespace: novaNames.MetadataName.Namespace,
 					},
 					Data: map[string][]byte{
-						"NovaPassword": []byte("12345678"),
+						"ServicePassword": []byte("12345678"),
 					},
 				}
 				Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
@@ -172,7 +172,8 @@ var _ = Describe("NovaMetadata controller", func() {
 				Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
 				configData := string(configDataMap.Data["01-nova.conf"])
 				Expect(configData).Should(ContainSubstring("transport_url=rabbit://rabbitmq-secret/fake"))
-				Expect(configData).Should(ContainSubstring("metadata_proxy_shared_secret = 12345678"))
+				Expect(configData).Should(ContainSubstring("password = service-password"))
+				Expect(configData).Should(ContainSubstring("metadata_proxy_shared_secret = metadata-secret"))
 				Expect(configData).Should(ContainSubstring("local_metadata_per_cell = false"))
 				Expect(configDataMap.Data).Should(HaveKey("02-nova-override.conf"))
 				extraData := string(configDataMap.Data["02-nova-override.conf"])
@@ -340,7 +341,9 @@ var _ = Describe("NovaMetadata controller", func() {
 			Expect(configData).Should(
 				ContainSubstring("transport_url=rabbit://rabbitmq-secret/fake"))
 			Expect(configData).Should(
-				ContainSubstring("metadata_proxy_shared_secret = 12345678"))
+				ContainSubstring("metadata_proxy_shared_secret = metadata-secret"))
+			Expect(configData).Should(
+				ContainSubstring("password = service-password"))
 			Expect(configData).Should(
 				ContainSubstring("local_metadata_per_cell = true"))
 			th.ExpectCondition(

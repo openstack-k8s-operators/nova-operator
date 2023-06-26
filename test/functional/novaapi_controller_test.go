@@ -117,7 +117,7 @@ var _ = Describe("NovaAPI controller", func() {
 						Namespace: novaNames.APIName.Namespace,
 					},
 					Data: map[string][]byte{
-						"NovaPassword": []byte("12345678"),
+						"ServicePassword": []byte("12345678"),
 					},
 				}
 				Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
@@ -181,6 +181,7 @@ var _ = Describe("NovaAPI controller", func() {
 				// as of I3629b84d3255a8fe9d8a7cea8c6131d7c40899e8 nova now requires
 				// service_user configuration to work to address Bug: #2004555
 				Expect(configData).Should(ContainSubstring("[service_user]"))
+				Expect(configData).Should(ContainSubstring("password = service-password"))
 				Expect(configDataMap.Data).Should(HaveKey("02-nova-override.conf"))
 				extraData := string(configDataMap.Data["02-nova-override.conf"])
 				Expect(extraData).To(Equal("foo=bar"))

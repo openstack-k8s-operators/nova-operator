@@ -27,6 +27,7 @@ import (
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
+	"github.com/openstack-k8s-operators/nova-operator/controllers"
 )
 
 var _ = Describe("Nova controller", func() {
@@ -60,6 +61,54 @@ var _ = Describe("Nova controller", func() {
 				corev1.ConditionFalse,
 				condition.ErrorReason,
 				"NovaCell creation failed for cell0(missing cell0 specification from Spec.CellTemplates)",
+			)
+		})
+	})
+
+	When("Nova CR instance is created without a proper secret", func() {
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete, ctx, th.CreateSecret(
+					types.NamespacedName{Namespace: novaNames.Namespace, Name: SecretName},
+					map[string][]byte{
+						"NovaPassword": []byte("service-password"),
+					},
+				))
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateNovaMessageBusSecret(novaNames.NovaName.Namespace, MessageBusSecretName),
+			)
+			DeferCleanup(
+				th.DeleteDBService,
+				th.CreateDBService(
+					novaNames.NovaName.Namespace,
+					"openstack",
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+			DeferCleanup(th.DeleteKeystoneAPI, th.CreateKeystoneAPI(novaNames.NovaName.Namespace))
+
+			DeferCleanup(th.DeleteInstance, CreateNovaWithCell0(novaNames.NovaName))
+		})
+
+		It("is not Ready", func() {
+			th.ExpectCondition(
+				novaNames.NovaName,
+				ConditionGetterFunc(NovaConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+			)
+		})
+
+		It("reports that the inputs are not ready", func() {
+			th.ExpectCondition(
+				novaNames.NovaName,
+				ConditionGetterFunc(NovaConditionGetter),
+				condition.InputReadyCondition,
+				corev1.ConditionFalse,
 			)
 		})
 	})
@@ -219,6 +268,21 @@ var _ = Describe("Nova controller", func() {
 			Expect(conductor.Spec.ServiceUser).To(Equal("nova"))
 			Expect(conductor.Spec.ServiceAccount).To(Equal(novaNames.ServiceAccountName.Name))
 
+			// assert that a cell specific internal secret is created with the
+			// proper content and the cell subCRs are configured to use the
+			// internal secret
+			internalCellSecret := th.GetSecret(cell0.InternalCellSecretName)
+			Expect(internalCellSecret.Data).To(HaveLen(3))
+			Expect(internalCellSecret.Data).To(
+				HaveKeyWithValue(controllers.APIDatabasePasswordSelector, []byte("api-database-password")))
+			Expect(internalCellSecret.Data).To(
+				HaveKeyWithValue(controllers.CellDatabasePasswordSelector, []byte("cell0-database-password")))
+			Expect(internalCellSecret.Data).To(
+				HaveKeyWithValue(controllers.ServicePasswordSelector, []byte("service-password")))
+
+			Expect(cell.Spec.Secret).To(Equal(cell0.InternalCellSecretName.Name))
+			Expect(conductor.Spec.Secret).To(Equal(cell0.InternalCellSecretName.Name))
+
 			th.ExpectCondition(
 				cell0.CellConductorName,
 				ConditionGetterFunc(NovaConductorConditionGetter),
@@ -253,10 +317,10 @@ var _ = Describe("Nova controller", func() {
 			Expect(mappingJobConfig.Data).Should(HaveKey("01-nova.conf"))
 			configData := string(mappingJobConfig.Data["01-nova.conf"])
 			Expect(configData).To(
-				ContainSubstring("[database]\nconnection = mysql+pymysql://nova_cell0:12345678@hostname-for-openstack/nova_cell0"),
+				ContainSubstring("[database]\nconnection = mysql+pymysql://nova_cell0:cell0-database-password@hostname-for-openstack/nova_cell0"),
 			)
 			Expect(configData).To(
-				ContainSubstring("[api_database]\nconnection = mysql+pymysql://nova_api:12345678@hostname-for-openstack/nova_api"),
+				ContainSubstring("[api_database]\nconnection = mysql+pymysql://nova_api:api-database-password@hostname-for-openstack/nova_api"),
 			)
 			mappingJobScript := th.GetSecret(
 				types.NamespacedName{
@@ -283,7 +347,32 @@ var _ = Describe("Nova controller", func() {
 			)
 		})
 
-		It("create NovaAPI", func() {
+		It("creates an internal Secret for the top level services", func() {
+			th.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
+			th.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
+			th.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
+			th.SimulateTransportURLReady(cell0.TransportURLName)
+			th.SimulateJobSuccess(cell0.CellDBSyncJobName)
+			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
+			th.SimulateJobSuccess(cell0.CellMappingJobName)
+			th.SimulateStatefulSetReplicaReady(novaNames.SchedulerStatefulSetName)
+			th.SimulateStatefulSetReplicaReady(novaNames.MetadataStatefulSetName)
+
+			// assert that a the top level internal internal secret is created
+			// with the proper data
+			internalTopLevelSecret := th.GetSecret(novaNames.InternalTopLevelSecretName)
+			Expect(internalTopLevelSecret.Data).To(HaveLen(4))
+			Expect(internalTopLevelSecret.Data).To(
+				HaveKeyWithValue(controllers.APIDatabasePasswordSelector, []byte("api-database-password")))
+			Expect(internalTopLevelSecret.Data).To(
+				HaveKeyWithValue(controllers.CellDatabasePasswordSelector, []byte("cell0-database-password")))
+			Expect(internalTopLevelSecret.Data).To(
+				HaveKeyWithValue(controllers.ServicePasswordSelector, []byte("service-password")))
+			Expect(internalTopLevelSecret.Data).To(
+				HaveKeyWithValue(controllers.MetadataSecretSelector, []byte("metadata-secret")))
+		})
+
+		It("creates NovaAPI", func() {
 			th.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
 			th.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
 			th.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
@@ -298,6 +387,7 @@ var _ = Describe("Nova controller", func() {
 			Expect(api.Spec.APIMessageBusSecretName).To(Equal("rabbitmq-secret"))
 			Expect(api.Spec.ServiceUser).To(Equal("nova"))
 			Expect(api.Spec.ServiceAccount).To(Equal(novaNames.ServiceAccountName.Name))
+			Expect(api.Spec.Secret).To(Equal(novaNames.InternalTopLevelSecretName.Name))
 
 			th.SimulateStatefulSetReplicaReady(novaNames.APIDeploymentName)
 			th.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
@@ -321,7 +411,7 @@ var _ = Describe("Nova controller", func() {
 			)
 		})
 
-		It("create NovaScheduler", func() {
+		It("creates NovaScheduler", func() {
 			th.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
 			th.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
 			th.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
@@ -336,6 +426,7 @@ var _ = Describe("Nova controller", func() {
 			scheduler := GetNovaScheduler(novaNames.SchedulerName)
 			Expect(scheduler.Spec.APIMessageBusSecretName).To(Equal("rabbitmq-secret"))
 			Expect(scheduler.Spec.ServiceAccount).To(Equal(novaNames.ServiceAccountName.Name))
+			Expect(scheduler.Spec.Secret).To(Equal(novaNames.InternalTopLevelSecretName.Name))
 
 			th.SimulateStatefulSetReplicaReady(novaNames.SchedulerStatefulSetName)
 
@@ -359,7 +450,7 @@ var _ = Describe("Nova controller", func() {
 			)
 		})
 
-		It("create NovaMetadata", func() {
+		It("creates NovaMetadata", func() {
 			th.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
 			th.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
 			th.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
@@ -374,6 +465,7 @@ var _ = Describe("Nova controller", func() {
 			metadata := GetNovaMetadata(novaNames.MetadataName)
 			Expect(metadata.Spec.APIMessageBusSecretName).To(Equal("rabbitmq-secret"))
 			Expect(metadata.Spec.ServiceAccount).To(Equal(novaNames.ServiceAccountName.Name))
+			Expect(metadata.Spec.Secret).To(Equal(novaNames.InternalTopLevelSecretName.Name))
 
 			th.SimulateStatefulSetReplicaReady(novaNames.MetadataStatefulSetName)
 
@@ -575,11 +667,18 @@ var _ = Describe("Nova controller", func() {
 			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
 			configData := string(configDataMap.Data["01-nova.conf"])
 			Expect(configData).To(
-				ContainSubstring(fmt.Sprintf("[database]\nconnection = mysql+pymysql://nova_cell0:12345678@hostname-for-%s/nova_cell0", cell0.MariaDBDatabaseName.Name)),
+				ContainSubstring(
+					fmt.Sprintf(
+						"[database]\nconnection = mysql+pymysql://nova_cell0:cell0-database-password@hostname-for-%s/nova_cell0",
+						cell0.MariaDBDatabaseName.Name)),
 			)
 			Expect(configData).To(
-				ContainSubstring(fmt.Sprintf("[api_database]\nconnection = mysql+pymysql://nova_api:12345678@hostname-for-%s/nova_api", novaNames.APIMariaDBDatabaseName.Name)),
+				ContainSubstring(
+					fmt.Sprintf(
+						"[api_database]\nconnection = mysql+pymysql://nova_api:api-database-password@hostname-for-%s/nova_api",
+						novaNames.APIMariaDBDatabaseName.Name)),
 			)
+			Expect(configData).To(ContainSubstring("password = service-password"))
 
 			th.SimulateJobSuccess(cell0.CellDBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
@@ -596,14 +695,18 @@ var _ = Describe("Nova controller", func() {
 			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
 			configData = string(configDataMap.Data["01-nova.conf"])
 			Expect(configData).To(
-				ContainSubstring(fmt.Sprintf("[database]\nconnection = mysql+pymysql://nova_cell0:12345678@hostname-for-%s/nova_cell0",
-					cell0.MariaDBDatabaseName.Name)),
+				ContainSubstring(
+					fmt.Sprintf(
+						"[database]\nconnection = mysql+pymysql://nova_cell0:cell0-database-password@hostname-for-%s/nova_cell0",
+						cell0.MariaDBDatabaseName.Name)),
 			)
 			Expect(configData).To(
 				ContainSubstring(
-					fmt.Sprintf("[api_database]\nconnection = mysql+pymysql://nova_api:12345678@hostname-for-%s/nova_api",
+					fmt.Sprintf(
+						"[api_database]\nconnection = mysql+pymysql://nova_api:api-database-password@hostname-for-%s/nova_api",
 						novaNames.APIMariaDBDatabaseName.Name)),
 			)
+			Expect(configData).To(ContainSubstring("password = service-password"))
 
 			configDataMap = th.GetSecret(
 				types.NamespacedName{
@@ -614,14 +717,18 @@ var _ = Describe("Nova controller", func() {
 			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
 			configData = string(configDataMap.Data["01-nova.conf"])
 			Expect(configData).To(
-				ContainSubstring(fmt.Sprintf("[database]\nconnection = mysql+pymysql://nova_cell0:12345678@hostname-for-%s/nova_cell0",
-					cell0.MariaDBDatabaseName.Name)),
+				ContainSubstring(
+					fmt.Sprintf(
+						"[database]\nconnection = mysql+pymysql://nova_cell0:cell0-database-password@hostname-for-%s/nova_cell0",
+						cell0.MariaDBDatabaseName.Name)),
 			)
 			Expect(configData).To(
 				ContainSubstring(
-					fmt.Sprintf("[api_database]\nconnection = mysql+pymysql://nova_api:12345678@hostname-for-%s/nova_api",
+					fmt.Sprintf(
+						"[api_database]\nconnection = mysql+pymysql://nova_api:api-database-password@hostname-for-%s/nova_api",
 						novaNames.APIMariaDBDatabaseName.Name)),
 			)
+			Expect(configData).To(ContainSubstring("password = service-password"))
 
 			th.SimulateStatefulSetReplicaReady(novaNames.APIName)
 			th.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)

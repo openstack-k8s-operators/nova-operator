@@ -103,9 +103,9 @@ func CreateNovaAPISecret(namespace string, name string) *corev1.Secret {
 	return th.CreateSecret(
 		types.NamespacedName{Namespace: namespace, Name: name},
 		map[string][]byte{
-			"NovaPassword":              []byte("12345678"),
-			"NovaAPIDatabasePassword":   []byte("12345678"),
-			"NovaCell0DatabasePassword": []byte("12345678"),
+			"ServicePassword":      []byte("service-password"),
+			"APIDatabasePassword":  []byte("api-database-password"),
+			"CellDatabasePassword": []byte("cell-database-password"),
 		},
 	)
 }
@@ -233,8 +233,8 @@ func CreateNovaConductorSecret(namespace string, name string) *corev1.Secret {
 	return th.CreateSecret(
 		types.NamespacedName{Namespace: namespace, Name: name},
 		map[string][]byte{
-			"NovaCell0DatabasePassword": []byte("12345678"),
-			"NovaPassword":              []byte("12345678"),
+			"ServicePassword":      []byte("service-password"),
+			"CellDatabasePassword": []byte("cell-database-password"),
 		},
 	)
 }
@@ -302,10 +302,24 @@ func CreateNovaSecret(namespace string, name string) *corev1.Secret {
 	return th.CreateSecret(
 		types.NamespacedName{Namespace: namespace, Name: name},
 		map[string][]byte{
-			"NovaPassword":              []byte("12345678"),
-			"NovaAPIDatabasePassword":   []byte("12345678"),
-			"NovaCell0DatabasePassword": []byte("12345678"),
-			"MetadataSecret":            []byte("12345678"),
+			"NovaPassword":              []byte("service-password"),
+			"NovaAPIDatabasePassword":   []byte("api-database-password"),
+			"MetadataSecret":            []byte("metadata-secret"),
+			"NovaCell0DatabasePassword": []byte("cell0-database-password"),
+		},
+	)
+}
+
+func CreateNovaSecretFor3Cells(namespace string, name string) *corev1.Secret {
+	return th.CreateSecret(
+		types.NamespacedName{Namespace: namespace, Name: name},
+		map[string][]byte{
+			"NovaPassword":              []byte("service-password"),
+			"NovaAPIDatabasePassword":   []byte("api-database-password"),
+			"MetadataSecret":            []byte("metadata-secret"),
+			"NovaCell0DatabasePassword": []byte("cell0-database-password"),
+			"NovaCell1DatabasePassword": []byte("cell1-database-password"),
+			"NovaCell2DatabasePassword": []byte("cell2-database-password"),
 		},
 	)
 }
@@ -434,6 +448,7 @@ type CellNames struct {
 	CellConductorConfigDataName      types.NamespacedName
 	NoVNCProxyNameStatefulSetName    types.NamespacedName
 	CellNoVNCProxyNameConfigDataName types.NamespacedName
+	InternalCellSecretName           types.NamespacedName
 }
 
 func GetCellNames(novaName types.NamespacedName, cell string) CellNames {
@@ -481,6 +496,7 @@ func GetCellNames(novaName types.NamespacedName, cell string) CellNames {
 			Namespace: novaName.Namespace,
 			Name:      cellName.Name + "-novncproxy" + "-config-data",
 		},
+		InternalCellSecretName: cellName,
 	}
 
 	if cell == "cell0" {
@@ -529,6 +545,7 @@ type NovaNames struct {
 	MetadataConfigDataName          types.NamespacedName
 	InternalNovaMetadataServiceName types.NamespacedName
 	InternalNovaMetadataRouteName   types.NamespacedName
+	InternalTopLevelSecretName      types.NamespacedName
 	Cells                           map[string]CellNames
 }
 
@@ -665,6 +682,7 @@ func GetNovaNames(novaName types.NamespacedName, cellNames []string) NovaNames {
 			Namespace: novaMetadata.Namespace,
 			Name:      novaMetadata.Name + "-internal",
 		},
+		InternalTopLevelSecretName: novaName,
 
 		Cells: cells,
 	}
@@ -703,10 +721,10 @@ func CreateNovaMetadataSecret(namespace string, name string) *corev1.Secret {
 			Namespace: namespace,
 		},
 		Data: map[string][]byte{
-			"NovaPassword":              []byte("12345678"),
-			"NovaAPIDatabasePassword":   []byte("12345678"),
-			"NovaCell0DatabasePassword": []byte("12345678"),
-			"MetadataSecret":            []byte("12345678"),
+			"ServicePassword":      []byte("service-password"),
+			"APIDatabasePassword":  []byte("api-database-password"),
+			"CellDatabasePassword": []byte("cell-database-password"),
+			"MetadataSecret":       []byte("metadata-secret"),
 		},
 	}
 	Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
@@ -780,9 +798,8 @@ func CreateNovaNoVNCProxySecret(namespace string, name string) *corev1.Secret {
 			Namespace: namespace,
 		},
 		Data: map[string][]byte{
-			"NovaPassword":              []byte("12345678"),
-			"NovaAPIDatabasePassword":   []byte("12345678"),
-			"NovaCell0DatabasePassword": []byte("12345678"),
+			"ServicePassword":      []byte("service-password"),
+			"CellDatabasePassword": []byte("cell-database-password"),
 		},
 	}
 	Expect(k8sClient.Create(ctx, secret)).Should(Succeed())

@@ -114,7 +114,7 @@ var _ = Describe("NovaScheduler controller", func() {
 					Namespace: novaNames.SchedulerName.Namespace,
 				},
 				Data: map[string][]byte{
-					"NovaPassword": []byte("12345678"),
+					"ServicePassword": []byte("12345678"),
 				},
 			}
 			Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
@@ -175,6 +175,7 @@ var _ = Describe("NovaScheduler controller", func() {
 			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
 			configData := string(configDataMap.Data["01-nova.conf"])
 			Expect(configData).To(ContainSubstring("transport_url=rabbit://rabbitmq-secret/fake"))
+			Expect(configData).To(ContainSubstring("password = service-password"))
 			Expect(configDataMap.Data).Should(HaveKey("02-nova-override.conf"))
 			extraConfigData := string(configDataMap.Data["02-nova-override.conf"])
 			Expect(extraConfigData).To(Equal("foo=bar"))

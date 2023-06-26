@@ -32,7 +32,7 @@ var _ = Describe("Nova multicell", func() {
 	When("Nova CR instance is created with 3 cells", func() {
 		BeforeEach(func() {
 			// TODO(bogdando): deduplicate this into CreateNovaWith3CellsAndEnsureReady()
-			DeferCleanup(k8sClient.Delete, ctx, CreateNovaSecret(novaNames.NovaName.Namespace, SecretName))
+			DeferCleanup(k8sClient.Delete, ctx, CreateNovaSecretFor3Cells(novaNames.NovaName.Namespace, SecretName))
 			DeferCleanup(
 				k8sClient.Delete,
 				ctx,
@@ -64,12 +64,18 @@ var _ = Describe("Nova multicell", func() {
 			cell1Template["cellDatabaseInstance"] = cell1.MariaDBDatabaseName.Name
 			cell1Template["cellDatabaseUser"] = "nova_cell1"
 			cell1Template["cellMessageBusInstance"] = cell1.TransportURLName.Name
+			cell1Template["passwordSelectors"] = map[string]interface{}{
+				"database": "NovaCell1DatabasePassword",
+			}
 
 			cell2Template := GetDefaultNovaCellTemplate()
 			cell2Template["cellDatabaseInstance"] = cell2.MariaDBDatabaseName.Name
 			cell2Template["cellDatabaseUser"] = "nova_cell2"
 			cell2Template["cellMessageBusInstance"] = cell2.TransportURLName.Name
 			cell2Template["hasAPIAccess"] = false
+			cell2Template["passwordSelectors"] = map[string]interface{}{
+				"database": "NovaCell2DatabasePassword",
+			}
 
 			spec["cellTemplates"] = map[string]interface{}{
 				"cell0": cell0Template,
@@ -114,10 +120,16 @@ var _ = Describe("Nova multicell", func() {
 			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
 			configData := string(configDataMap.Data["01-nova.conf"])
 			Expect(configData).To(
-				ContainSubstring(fmt.Sprintf("[database]\nconnection = mysql+pymysql://nova_cell0:12345678@hostname-for-%s/nova_cell0", cell0.MariaDBDatabaseName.Name)),
+				ContainSubstring(
+					fmt.Sprintf(
+						"[database]\nconnection = mysql+pymysql://nova_cell0:cell0-database-password@hostname-for-%s/nova_cell0",
+						cell0.MariaDBDatabaseName.Name)),
 			)
 			Expect(configData).To(
-				ContainSubstring(fmt.Sprintf("[api_database]\nconnection = mysql+pymysql://nova_api:12345678@hostname-for-%s/nova_api", novaNames.APIMariaDBDatabaseName.Name)),
+				ContainSubstring(
+					fmt.Sprintf(
+						"[api_database]\nconnection = mysql+pymysql://nova_api:api-database-password@hostname-for-%s/nova_api",
+						novaNames.APIMariaDBDatabaseName.Name)),
 			)
 
 			th.SimulateJobSuccess(cell0.CellDBSyncJobName)
@@ -174,12 +186,14 @@ var _ = Describe("Nova multicell", func() {
 			configData := string(configDataMap.Data["01-nova.conf"])
 			Expect(configData).To(
 				ContainSubstring(
-					fmt.Sprintf("[database]\nconnection = mysql+pymysql://nova_cell0:12345678@hostname-for-%s/nova_cell0",
+					fmt.Sprintf(
+						"[database]\nconnection = mysql+pymysql://nova_cell0:cell0-database-password@hostname-for-%s/nova_cell0",
 						cell0.MariaDBDatabaseName.Name)),
 			)
 			Expect(configData).To(
 				ContainSubstring(
-					fmt.Sprintf("[api_database]\nconnection = mysql+pymysql://nova_api:12345678@hostname-for-%s/nova_api",
+					fmt.Sprintf(
+						"[api_database]\nconnection = mysql+pymysql://nova_api:api-database-password@hostname-for-%s/nova_api",
 						novaNames.APIMariaDBDatabaseName.Name)),
 			)
 
@@ -283,10 +297,16 @@ var _ = Describe("Nova multicell", func() {
 			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
 			configData := string(configDataMap.Data["01-nova.conf"])
 			Expect(configData).To(
-				ContainSubstring(fmt.Sprintf("[database]\nconnection = mysql+pymysql://nova_cell1:12345678@hostname-for-%s/nova_cell1", cell1.MariaDBDatabaseName.Name)),
+				ContainSubstring(
+					fmt.Sprintf(
+						"[database]\nconnection = mysql+pymysql://nova_cell1:cell1-database-password@hostname-for-%s/nova_cell1",
+						cell1.MariaDBDatabaseName.Name)),
 			)
 			Expect(configData).To(
-				ContainSubstring(fmt.Sprintf("[api_database]\nconnection = mysql+pymysql://nova_api:12345678@hostname-for-%s/nova_api", novaNames.APIMariaDBDatabaseName.Name)),
+				ContainSubstring(
+					fmt.Sprintf(
+						"[api_database]\nconnection = mysql+pymysql://nova_api:api-database-password@hostname-for-%s/nova_api",
+						novaNames.APIMariaDBDatabaseName.Name)),
 			)
 			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyNameStatefulSetName)
 			th.SimulateJobSuccess(cell1.CellDBSyncJobName)
@@ -371,7 +391,10 @@ var _ = Describe("Nova multicell", func() {
 			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
 			configData := string(configDataMap.Data["01-nova.conf"])
 			Expect(configData).To(
-				ContainSubstring(fmt.Sprintf("[database]\nconnection = mysql+pymysql://nova_cell2:12345678@hostname-for-%s/nova_cell2", cell2.MariaDBDatabaseName.Name)),
+				ContainSubstring(
+					fmt.Sprintf(
+						"[database]\nconnection = mysql+pymysql://nova_cell2:cell2-database-password@hostname-for-%s/nova_cell2",
+						cell2.MariaDBDatabaseName.Name)),
 			)
 			Expect(configData).ToNot(
 				ContainSubstring("[api_database]"),
@@ -399,11 +422,15 @@ var _ = Describe("Nova multicell", func() {
 			configData = string(mappingJobConfig.Data["01-nova.conf"])
 			Expect(configData).To(
 				ContainSubstring(
-					fmt.Sprintf("[database]\nconnection = mysql+pymysql://nova_cell2:12345678@hostname-for-%s/nova_cell2", cell2.MariaDBDatabaseName.Name)),
+					fmt.Sprintf(
+						"[database]\nconnection = mysql+pymysql://nova_cell2:cell2-database-password@hostname-for-%s/nova_cell2",
+						cell2.MariaDBDatabaseName.Name)),
 			)
 			Expect(configData).To(
 				ContainSubstring(
-					fmt.Sprintf("[api_database]\nconnection = mysql+pymysql://nova_api:12345678@hostname-for-%s/nova_api", novaNames.APIMariaDBDatabaseName.Name)),
+					fmt.Sprintf(
+						"[api_database]\nconnection = mysql+pymysql://nova_api:api-database-password@hostname-for-%s/nova_api",
+						novaNames.APIMariaDBDatabaseName.Name)),
 			)
 
 			th.ExpectCondition(

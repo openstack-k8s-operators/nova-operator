@@ -16,6 +16,7 @@ package functional_test
 import (
 	"encoding/json"
 	"fmt"
+
 	networkv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -128,7 +129,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 					condition.InputReadyCondition,
 					corev1.ConditionFalse,
 					condition.ErrorReason,
-					"Input data error occurred field 'NovaPassword' not found in secret/test-secret",
+					"Input data error occurred field 'ServicePassword' not found in secret/test-secret",
 				)
 			})
 		})
@@ -165,15 +166,11 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 				)
 				Expect(configDataMap).ShouldNot(BeNil())
 				Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
-				Expect(configDataMap.Data).Should(
-					HaveKeyWithValue("01-nova.conf",
-						ContainSubstring("novncproxy_host = \"::0\"")))
-				Expect(configDataMap.Data).Should(
-					HaveKeyWithValue("01-nova.conf",
-						ContainSubstring("novncproxy_port = 6080")))
-				Expect(configDataMap.Data).Should(
-					HaveKeyWithValue("01-nova.conf",
-						ContainSubstring("server_listen = \"::0\"")))
+				configData := string(configDataMap.Data["01-nova.conf"])
+				Expect(configData).Should(ContainSubstring("novncproxy_host = \"::0\""))
+				Expect(configData).Should(ContainSubstring("novncproxy_port = 6080"))
+				Expect(configData).Should(ContainSubstring("server_listen = \"::0\""))
+				Expect(configData).Should(ContainSubstring("password = service-password"))
 				Expect(configDataMap.Data).Should(HaveKey("02-nova-override.conf"))
 				extraData := string(configDataMap.Data["02-nova-override.conf"])
 				Expect(extraData).To(Equal("foo=bar"))
