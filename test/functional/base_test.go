@@ -404,10 +404,17 @@ func CreateNovaExternalComputeSSHSecret(name types.NamespacedName) *corev1.Secre
 
 func GetAEE(name types.NamespacedName) *aee.OpenStackAnsibleEE {
 	instance := &aee.OpenStackAnsibleEE{}
+	novaExt := GetNovaExternalCompute(novaNames.ComputeName)
 
 	Eventually(func(g Gomega) {
 		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
 	}, timeout, interval).Should(Succeed())
+
+	Expect(instance.GetOwnerReferences()).To(HaveLen(1))
+	Expect(instance.GetOwnerReferences()[0]).To(HaveField("Name", novaExt.GetName()))
+	t := true
+	Expect(instance.GetOwnerReferences()[0]).To(HaveField("Controller", &t))
+
 	return instance
 }
 
@@ -752,11 +759,4 @@ func UpdateSecret(secretName types.NamespacedName, key string, newValue []byte) 
 		g.Expect(k8sClient.Update(ctx, &secret)).Should(Succeed())
 	}, timeout, interval).Should(Succeed())
 	logger.Info("Secret updated", "secret", secretName, "key", key)
-}
-
-func AssertControllerRef(controlled client.Object, controlling client.Object) {
-	var ref = &metav1.OwnerReference{}
-	Expect(controlled.GetOwnerReferences()).To(
-		ContainElement(HaveField("Name", controlling.GetName()), ref))
-	Expect(*ref.Controller).To(BeTrue())
 }
