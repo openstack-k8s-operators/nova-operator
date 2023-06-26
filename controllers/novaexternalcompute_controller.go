@@ -229,7 +229,7 @@ func (r *NovaExternalComputeReconciler) Reconcile(ctx context.Context, req ctrl.
 			)
 		}
 
-		// we only get here if we completed successfully so we can just delete them
+		// we only get here if we completed successfully so we can just delete themg
 		err = r.cleanupAEE(ctx, h, libvirtAEE)
 		if err != nil {
 			return ctrl.Result{}, err
