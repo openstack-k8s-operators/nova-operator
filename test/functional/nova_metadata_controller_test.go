@@ -17,7 +17,6 @@ package functional_test
 
 import (
 	"encoding/json"
-	"fmt"
 
 	networkv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	. "github.com/onsi/ginkgo/v2"
@@ -161,12 +160,7 @@ var _ = Describe("NovaMetadata controller", func() {
 					corev1.ConditionTrue,
 				)
 
-				configDataMap := th.GetSecret(
-					types.NamespacedName{
-						Namespace: novaNames.MetadataName.Namespace,
-						Name:      fmt.Sprintf("%s-config-data", novaNames.MetadataName.Name),
-					},
-				)
+				configDataMap := th.GetSecret(novaNames.MetadataConfigDataName)
 				Expect(configDataMap).ShouldNot(BeNil())
 				Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
 				configData := string(configDataMap.Data["01-nova.conf"])
@@ -284,7 +278,7 @@ var _ = Describe("NovaMetadata controller", func() {
 					condition.ExposeServiceReadyCondition,
 					corev1.ConditionTrue,
 				)
-				service := th.GetService(types.NamespacedName{Namespace: novaNames.MetadataName.Namespace, Name: "nova-metadata-internal"})
+				service := th.GetService(novaNames.InternalNovaMetadataServiceName)
 				Expect(service.Labels["service"]).To(Equal("nova-metadata"))
 			})
 
@@ -328,12 +322,7 @@ var _ = Describe("NovaMetadata controller", func() {
 				corev1.ConditionTrue,
 			)
 
-			configDataMap := th.GetSecret(
-				types.NamespacedName{
-					Namespace: novaNames.MetadataName.Namespace,
-					Name:      fmt.Sprintf("%s-config-data", novaNames.MetadataName.Name),
-				},
-			)
+			configDataMap := th.GetSecret(novaNames.MetadataConfigDataName)
 			Expect(configDataMap).ShouldNot(BeNil())
 			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
 			configData := string(configDataMap.Data["01-nova.conf"])
@@ -508,14 +497,14 @@ var _ = Describe("NovaMetadata controller", func() {
 
 			// As the internal endpoint is configured in ExternalEndpoints it does not
 			// get a Route but a Service with MetalLB annotations instead
-			service := th.GetService(types.NamespacedName{Namespace: novaNames.MetadataName.Namespace, Name: "nova-metadata-internal"})
+			service := th.GetService(novaNames.InternalNovaMetadataServiceName)
 			Expect(service.Annotations).To(
 				HaveKeyWithValue("metallb.universe.tf/address-pool", "osp-internalapi"))
 			Expect(service.Annotations).To(
 				HaveKeyWithValue("metallb.universe.tf/allow-shared-ip", "osp-internalapi"))
 			Expect(service.Annotations).To(
 				HaveKeyWithValue("metallb.universe.tf/loadBalancerIPs", "internal-lb-ip-1,internal-lb-ip-2"))
-			th.AssertRouteNotExists(types.NamespacedName{Namespace: novaNames.MetadataName.Namespace, Name: "nova-metadata-internal"})
+			th.AssertRouteNotExists(novaNames.InternalNovaMetadataRouteName)
 
 			th.ExpectCondition(
 				novaNames.MetadataName,
@@ -574,8 +563,7 @@ var _ = Describe("NovaMetadata controller", func() {
 				"NetworkAttachment resources missing: internalapi",
 			)
 
-			internalAPINADName := types.NamespacedName{Namespace: novaNames.MetadataName.Namespace, Name: "internalapi"}
-			DeferCleanup(th.DeleteInstance, th.CreateNetworkAttachmentDefinition(internalAPINADName))
+			DeferCleanup(th.DeleteInstance, th.CreateNetworkAttachmentDefinition(novaNames.InternalAPINetworkNADName))
 
 			th.ExpectConditionWithDetails(
 				novaNames.MetadataName,

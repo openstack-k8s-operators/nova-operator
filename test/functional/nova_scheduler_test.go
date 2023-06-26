@@ -15,7 +15,6 @@ package functional_test
 
 import (
 	"encoding/json"
-	"fmt"
 
 	networkv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	. "github.com/onsi/ginkgo/v2"
@@ -25,7 +24,6 @@ import (
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 
 	. "github.com/openstack-k8s-operators/lib-common/modules/test/helpers"
 )
@@ -164,12 +162,7 @@ var _ = Describe("NovaScheduler controller", func() {
 				corev1.ConditionTrue,
 			)
 
-			configDataMap := th.GetSecret(
-				types.NamespacedName{
-					Namespace: novaNames.SchedulerName.Namespace,
-					Name:      fmt.Sprintf("%s-config-data", novaNames.SchedulerName.Name),
-				},
-			)
+			configDataMap := th.GetSecret(novaNames.SchedulerConfigDataName)
 			Expect(configDataMap).ShouldNot(BeNil())
 			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
 			configData := string(configDataMap.Data["01-nova.conf"])
@@ -317,8 +310,7 @@ var _ = Describe("NovaScheduler controller", func() {
 			)
 		})
 		It("reports that network attachment is missing", func() {
-			internalAPINADName := types.NamespacedName{Namespace: novaNames.SchedulerName.Namespace, Name: "internalapi"}
-			nad := th.CreateNetworkAttachmentDefinition(internalAPINADName)
+			nad := th.CreateNetworkAttachmentDefinition(novaNames.InternalAPINetworkNADName)
 			DeferCleanup(th.DeleteInstance, nad)
 
 			ss := th.GetStatefulSet(novaNames.SchedulerStatefulSetName)
@@ -350,8 +342,7 @@ var _ = Describe("NovaScheduler controller", func() {
 			)
 		})
 		It("reports that an IP is missing", func() {
-			internalAPINADName := types.NamespacedName{Namespace: novaNames.SchedulerName.Namespace, Name: "internalapi"}
-			nad := th.CreateNetworkAttachmentDefinition(internalAPINADName)
+			nad := th.CreateNetworkAttachmentDefinition(novaNames.InternalAPINetworkNADName)
 			DeferCleanup(th.DeleteInstance, nad)
 
 			ss := th.GetStatefulSet(novaNames.SchedulerStatefulSetName)
@@ -386,8 +377,7 @@ var _ = Describe("NovaScheduler controller", func() {
 			)
 		})
 		It("reports NetworkAttachmentsReady if the Pods got the proper annotations", func() {
-			internalAPINADName := types.NamespacedName{Namespace: novaNames.SchedulerName.Namespace, Name: "internalapi"}
-			nad := th.CreateNetworkAttachmentDefinition(internalAPINADName)
+			nad := th.CreateNetworkAttachmentDefinition(novaNames.InternalAPINetworkNADName)
 			DeferCleanup(th.DeleteInstance, nad)
 
 			th.SimulateStatefulSetReplicaReadyWithPods(
@@ -464,8 +454,7 @@ var _ = Describe("NovaScheduler controller", func() {
 				"NetworkAttachment resources missing: internalapi",
 			)
 
-			internalAPINADName := types.NamespacedName{Namespace: novaNames.SchedulerName.Namespace, Name: "internalapi"}
-			DeferCleanup(th.DeleteInstance, th.CreateNetworkAttachmentDefinition(internalAPINADName))
+			DeferCleanup(th.DeleteInstance, th.CreateNetworkAttachmentDefinition(novaNames.InternalAPINetworkNADName))
 
 			th.ExpectConditionWithDetails(
 				novaNames.SchedulerName,

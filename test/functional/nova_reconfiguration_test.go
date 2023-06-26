@@ -231,8 +231,7 @@ var _ = Describe("Nova reconfiguration", func() {
 				"NovaCell cell1 is not Ready",
 			)
 
-			internalAPINADName := types.NamespacedName{Namespace: novaNames.NovaName.Namespace, Name: "internalapi"}
-			DeferCleanup(th.DeleteInstance, th.CreateNetworkAttachmentDefinition(internalAPINADName))
+			DeferCleanup(th.DeleteInstance, th.CreateNetworkAttachmentDefinition(novaNames.InternalAPINetworkNADName))
 
 			th.ExpectConditionWithDetails(
 				novaNames.NovaName,
@@ -408,12 +407,7 @@ var _ = Describe("Nova reconfiguration", func() {
 
 			// Expect that the NovaConductor config is updated with the new transport URL
 			Eventually(func(g Gomega) {
-				configDataMap := th.GetSecret(
-					types.NamespacedName{
-						Namespace: cell1.CellName.Namespace,
-						Name:      fmt.Sprintf("%s-config-data", cell1.CellConductorName.Name),
-					},
-				)
+				configDataMap := th.GetSecret(cell1.CellConductorConfigDataName)
 				g.Expect(configDataMap).ShouldNot(BeNil())
 				g.Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
 				configData := string(configDataMap.Data["01-nova.conf"])

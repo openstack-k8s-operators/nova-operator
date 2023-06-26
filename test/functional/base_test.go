@@ -449,6 +449,7 @@ type CellNames struct {
 	NoVNCProxyNameStatefulSetName    types.NamespacedName
 	CellNoVNCProxyNameConfigDataName types.NamespacedName
 	InternalCellSecretName           types.NamespacedName
+	InternalAPINetworkNADName        types.NamespacedName
 }
 
 func GetCellNames(novaName types.NamespacedName, cell string) CellNames {
@@ -497,6 +498,10 @@ func GetCellNames(novaName types.NamespacedName, cell string) CellNames {
 			Name:      cellName.Name + "-novncproxy" + "-config-data",
 		},
 		InternalCellSecretName: cellName,
+		InternalAPINetworkNADName: types.NamespacedName{
+			Namespace: novaName.Namespace,
+			Name:      "internalapi",
+		},
 	}
 
 	if cell == "cell0" {
@@ -510,23 +515,24 @@ func GetCellNames(novaName types.NamespacedName, cell string) CellNames {
 }
 
 type NovaNames struct {
-	Namespace                       string
-	NovaName                        types.NamespacedName
-	InternalNovaServiceName         types.NamespacedName
-	PublicNovaServiceName           types.NamespacedName
-	AdminNovaServiceName            types.NamespacedName
-	InternalNovaRouteName           types.NamespacedName
-	PublicNovaRouteName             types.NamespacedName
-	AdminNovaRouteName              types.NamespacedName
-	ComputeName                     types.NamespacedName
-	KeystoneServiceName             types.NamespacedName
-	APIName                         types.NamespacedName
-	APIMariaDBDatabaseName          types.NamespacedName
-	APIDeploymentName               types.NamespacedName
-	APIKeystoneEndpointName         types.NamespacedName
-	APIStatefulSetName              types.NamespacedName
-	APIConfigDataName               types.NamespacedName
-	InternalAPINetworkNADName       types.NamespacedName // refers internalapi network, not Nova API
+	Namespace               string
+	NovaName                types.NamespacedName
+	InternalNovaServiceName types.NamespacedName
+	PublicNovaServiceName   types.NamespacedName
+	AdminNovaServiceName    types.NamespacedName
+	InternalNovaRouteName   types.NamespacedName
+	PublicNovaRouteName     types.NamespacedName
+	AdminNovaRouteName      types.NamespacedName
+	ComputeName             types.NamespacedName
+	KeystoneServiceName     types.NamespacedName
+	APIName                 types.NamespacedName
+	APIMariaDBDatabaseName  types.NamespacedName
+	APIDeploymentName       types.NamespacedName
+	APIKeystoneEndpointName types.NamespacedName
+	APIStatefulSetName      types.NamespacedName
+	APIConfigDataName       types.NamespacedName
+	// refers internal API network for all Nova services (not just nova API)
+	InternalAPINetworkNADName       types.NamespacedName
 	SchedulerName                   types.NamespacedName
 	SchedulerStatefulSetName        types.NamespacedName
 	SchedulerConfigDataName         types.NamespacedName
@@ -586,29 +592,21 @@ func GetNovaNames(novaName types.NamespacedName, cellNames []string) NovaNames {
 	return NovaNames{
 		Namespace: novaName.Namespace,
 		NovaName:  novaName,
-		InternalNovaServiceName: types.NamespacedName{ // TODO replace for nova-internal
+		InternalNovaServiceName: types.NamespacedName{
 			Namespace: novaName.Namespace,
-			Name:      novaName.Name + "-internal",
+			Name:      "nova-internal",
 		},
-		PublicNovaServiceName: types.NamespacedName{ // TODO replace for nova-public
+		PublicNovaServiceName: types.NamespacedName{
 			Namespace: novaName.Namespace,
-			Name:      novaName.Name + "-public",
+			Name:      "nova-public",
 		},
-		AdminNovaServiceName: types.NamespacedName{ // TODO replace for nova-admin
+		InternalNovaRouteName: types.NamespacedName{
 			Namespace: novaName.Namespace,
-			Name:      novaName.Name + "-admin",
+			Name:      "nova-internal",
 		},
-		InternalNovaRouteName: types.NamespacedName{ // TODO replace for nova-internal
+		PublicNovaRouteName: types.NamespacedName{
 			Namespace: novaName.Namespace,
-			Name:      novaName.Name + "-internal",
-		},
-		PublicNovaRouteName: types.NamespacedName{ // TODO replace for nova-public
-			Namespace: novaName.Namespace,
-			Name:      novaName.Name + "-public",
-		},
-		AdminNovaRouteName: types.NamespacedName{ // TODO replace for nova-admin
-			Namespace: novaName.Namespace,
-			Name:      novaName.Name + "-admin",
+			Name:      "nova-public",
 		},
 		ComputeName: computeExt,
 		KeystoneServiceName: types.NamespacedName{
@@ -626,17 +624,17 @@ func GetNovaNames(novaName types.NamespacedName, cellNames []string) NovaNames {
 			Name:      "nova", // a static keystone endpoint name for nova
 		},
 		APIStatefulSetName: novaAPI,
-		APIConfigDataName: types.NamespacedName{ // TODO replace configDataMap for API
+		APIConfigDataName: types.NamespacedName{
 			Namespace: novaAPI.Namespace,
 			Name:      novaAPI.Name + "-config-data",
 		},
-		InternalAPINetworkNADName: types.NamespacedName{ // TODO replace for internalAPINADName
-			Namespace: novaAPI.Namespace,
+		InternalAPINetworkNADName: types.NamespacedName{
+			Namespace: novaName.Namespace,
 			Name:      "internalapi",
 		},
 		SchedulerName:            novaScheduler,
 		SchedulerStatefulSetName: novaScheduler,
-		SchedulerConfigDataName: types.NamespacedName{ // TODO replace configDataMap for Sched
+		SchedulerConfigDataName: types.NamespacedName{
 			Namespace: novaScheduler.Namespace,
 			Name:      novaScheduler.Name + "-config-data",
 		},
@@ -646,13 +644,13 @@ func GetNovaNames(novaName types.NamespacedName, cellNames []string) NovaNames {
 			Name:      novaConductor.Name + "-db-sync",
 		},
 		ConductorStatefulSetName: novaConductor,
-		ConductorConfigDataName: types.NamespacedName{ // TODO replace configDataMap for Cond
+		ConductorConfigDataName: types.NamespacedName{
 			Namespace: novaConductor.Namespace,
 			Name:      novaConductor.Name + "-config-data",
 		},
-		ConductorScriptDataName: types.NamespacedName{ // TODO replace scriptMap for Cond
+		ConductorScriptDataName: types.NamespacedName{
 			Namespace: novaConductor.Namespace,
-			Name:      novaConductor.Name + "-script",
+			Name:      novaConductor.Name + "-scripts",
 		},
 		MetadataName:                  novaMetadata,
 		MetadataStatefulSetName:       novaMetadata,
@@ -670,17 +668,17 @@ func GetNovaNames(novaName types.NamespacedName, cellNames []string) NovaNames {
 			Namespace: novaName.Namespace,
 			Name:      "nova-" + novaName.Name + "-rolebinding",
 		},
-		MetadataConfigDataName: types.NamespacedName{ // TODO replace configDataMap for Sched
+		MetadataConfigDataName: types.NamespacedName{
 			Namespace: novaMetadata.Namespace,
 			Name:      novaMetadata.Name + "-config-data",
 		},
-		InternalNovaMetadataServiceName: types.NamespacedName{ // TODO replace for nova-metadata-internal
+		InternalNovaMetadataServiceName: types.NamespacedName{
 			Namespace: novaMetadata.Namespace,
-			Name:      novaMetadata.Name + "-internal",
+			Name:      "nova-metadata-internal",
 		},
-		InternalNovaMetadataRouteName: types.NamespacedName{ // TODO replace for nova-metadata-internal
+		InternalNovaMetadataRouteName: types.NamespacedName{
 			Namespace: novaMetadata.Namespace,
-			Name:      novaMetadata.Name + "-internal",
+			Name:      "nova-metadata-internal",
 		},
 		InternalTopLevelSecretName: novaName,
 
