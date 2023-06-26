@@ -336,40 +336,21 @@ gowork: ## Generate go.work file
 	go work use ./api
 	go work sync
 
-remove-nova-from-csv:
-	@echo "Removing nova-controller-manager from CSV"
-	$(eval OPERATOR_NAME="nova-operator")
-	@echo "OPERATOR_NAME: $(OPERATOR_NAME)"
-	$(eval OPERATOR_INDEX=$(shell oc get csv openstack-operator.v0.0.1 -o json | jq -r '.spec.install.spec.deployments | map(.name ==  $(OPERATOR_NAME) + "-controller-manager") | index(true)'))
-	@echo "OPERATOR_INDEX: '$(OPERATOR_INDEX)'"
-	if [ "$(OPERATOR_INDEX)" != "null" ]; then \
-	    oc patch csv openstack-operator.v0.0.1 --type json -p='[{"op": "remove", "path": "/spec/install/spec/deployments/${OPERATOR_INDEX}"}]'; \
+OPERATOR_NAMESPACE ?= openstack-operators
+
+update-nova-csv:
+	@echo "Scaling nova-controller-manager to 0 in CSV"
+	oc patch csv -n $(OPERATOR_NAMESPACE) nova-operator.v0.0.1 --type json -p='[{"op": "replace", "path": "/spec/install/spec/deployments/0/spec/replicas", "value": 0}]'
+	@echo "Removing olm installed webhooks from CSV"
+	$(eval has_webhooks=$(shell oc get -o json csv nova-operator.v0.0.1  | jq ".spec.webhookdefinitions"))
+	if [ "$(has_webhooks)" != "null" ]; then \
+	    oc patch csv -n $(OPERATOR_NAMESPACE) nova-operator.v0.0.1 --type json -p='[{"op": "remove", "path": "/spec/webhookdefinitions"}]'; \
 	fi
 
 # Used for webhook testing
-# Please ensure the nova-controller-manager deployment and
-# webhook definitions are removed from the csv before running
-# this. Also, cleanup the webhook configuration for local testing
-# before deplying with olm again.
-# $oc delete -n openstack validatingwebhookconfiguration/vnova.kb.io
-# $oc delete -n openstack mutatingwebhookconfiguration/mnova.kb.io
-# $oc delete -n openstack validatingwebhookconfiguration/vnovaapi.kb.io
-# $oc delete -n openstack mutatingwebhookconfiguration/mnovaapi.kb.io
-# $oc delete -n openstack validatingwebhookconfiguration/vnovacell.kb.io
-# $oc delete -n openstack mutatingwebhookconfiguration/mnovacell.kb.io
-# $oc delete -n openstack validatingwebhookconfiguration/vnovaconductor.kb.io
-# $oc delete -n openstack mutatingwebhookconfiguration/mnovaconductor.kb.io
-# $oc delete -n openstack validatingwebhookconfiguration/vnovaexternalcompute.kb.io
-# $oc delete -n openstack mutatingwebhookconfiguration/mnovaexternalcompute.kb.io
-# $oc delete -n openstack validatingwebhookconfiguration/vnovametadata.kb.io
-# $oc delete -n openstack mutatingwebhookconfiguration/mnovametadata.kb.io
-# $oc delete -n openstack validatingwebhookconfiguration/vnovanovncproxy.kb.io
-# $oc delete -n openstack mutatingwebhookconfiguration/mnovanovncproxy.kb.io
-# $oc delete -n openstack validatingwebhookconfiguration/vnovascheduler.kb.io
-# $oc delete -n openstack mutatingwebhookconfiguration/mnovascheduler.kb.io
 SKIP_CERT ?=false
 .PHONY: run-with-webhook
-run-with-webhook: manifests generate fmt vet## Run a controller from your host.
+run-with-webhook: manifests generate fmt vet update-nova-csv ## Run a controller from your host.
 	/bin/bash hack/clean_local_webhook.sh
 	/bin/bash hack/configure_local_webhook.sh
 	go run ./main.go
