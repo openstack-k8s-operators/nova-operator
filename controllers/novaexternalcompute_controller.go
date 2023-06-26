@@ -158,7 +158,7 @@ func (r *NovaExternalComputeReconciler) Reconcile(ctx context.Context, req ctrl.
 	}
 	hashes[instance.Spec.InventoryConfigMapName] = env.SetValue(inventoryHash)
 
-	sshKeyHHash, result, secret, err := ensureSecret(
+	sshKeyHHash, result, _, err := ensureSecret(
 		ctx,
 		types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.SSHKeySecretName},
 		// NOTE(gibi): Add the fields here we expect to exists in the SSHKeySecret
@@ -177,10 +177,27 @@ func (r *NovaExternalComputeReconciler) Reconcile(ctx context.Context, req ctrl.
 	hashes[instance.Spec.SSHKeySecretName] = env.SetValue(sshKeyHHash)
 
 	cell, result, err := r.ensureCellReady(ctx, instance)
-
 	if (err != nil || result != ctrl.Result{}) {
 		return result, err
 	}
+
+	instanceSecretHash, result, secret, err := ensureSecret(
+		ctx,
+		types.NamespacedName{Namespace: instance.Namespace, Name: cell.Spec.Secret},
+		// NOTE(sean): The nova external compute uses the cell secret to lookup the
+		// nova keystone user password. Add any additional fields here we expect to
+		// exists in the cell secret if we start using additional values in the future.
+		[]string{
+			cell.Spec.PasswordSelectors.Service,
+		},
+		h.GetClient(),
+		&instance.Status.Conditions,
+		r.RequeueTimeout,
+	)
+	if err != nil {
+		return result, err
+	}
+	hashes[cell.Spec.Secret] = env.SetValue(instanceSecretHash)
 
 	// TODO(gibi): gather the information from the cell we need for the config
 	// and hash that into our input hash
