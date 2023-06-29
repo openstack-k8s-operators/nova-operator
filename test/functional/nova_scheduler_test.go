@@ -24,7 +24,6 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
-	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -443,8 +442,7 @@ var _ = Describe("NovaScheduler controller", func() {
 				novaScheduler := GetNovaScheduler(novaNames.SchedulerName)
 				novaScheduler.Spec.NetworkAttachments = append(novaScheduler.Spec.NetworkAttachments, "internalapi")
 
-				err := k8sClient.Update(ctx, novaScheduler)
-				g.Expect(err == nil || k8s_errors.IsConflict(err)).To(BeTrue())
+				g.Expect(k8sClient.Update(ctx, novaScheduler)).To(Succeed())
 			}, timeout, interval).Should(Succeed())
 
 			th.ExpectConditionWithDetails(
@@ -523,8 +521,7 @@ var _ = Describe("NovaScheduler controller", func() {
 			Eventually(func(g Gomega) {
 				novaAPI := GetNovaScheduler(novaNames.SchedulerName)
 				novaAPI.Spec.RegisteredCells = map[string]string{"cell0": "cell0-config-hash"}
-				err := k8sClient.Update(ctx, novaAPI)
-				g.Expect(err == nil || k8s_errors.IsConflict(err)).To(BeTrue())
+				g.Expect(k8sClient.Update(ctx, novaAPI)).To(Succeed())
 			}, timeout, interval).Should(Succeed())
 
 			// Assert that the CONFIG_HASH of the StateFulSet is changed due to this reconfiguration

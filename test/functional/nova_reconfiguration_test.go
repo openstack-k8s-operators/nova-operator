@@ -26,7 +26,6 @@ import (
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -159,8 +158,7 @@ var _ = Describe("Nova reconfiguration", func() {
 				(&cell0).ConductorServiceTemplate.Replicas = &zero
 				nova.Spec.CellTemplates["cell0"] = cell0
 
-				err := k8sClient.Update(ctx, nova)
-				g.Expect(err == nil || k8s_errors.IsConflict(err)).To(BeTrue())
+				g.Expect(k8sClient.Update(ctx, nova)).To(Succeed())
 
 				deployment = &appsv1.StatefulSet{}
 				g.Expect(k8sClient.Get(ctx, cell0DeploymentName, deployment)).Should(Succeed())
@@ -179,8 +177,7 @@ var _ = Describe("Nova reconfiguration", func() {
 				(&cell1).ConductorServiceTemplate.NetworkAttachments = attachments
 				nova.Spec.CellTemplates["cell1"] = cell1
 
-				err := k8sClient.Update(ctx, nova)
-				g.Expect(err == nil || k8s_errors.IsConflict(err)).To(BeTrue())
+				g.Expect(k8sClient.Update(ctx, nova)).To(Succeed())
 			}, timeout, interval).Should(Succeed())
 
 			th.ExpectConditionWithDetails(
@@ -271,8 +268,7 @@ var _ = Describe("Nova reconfiguration", func() {
 				newSelector := map[string]string{"foo": "bar"}
 				nova.Spec.NodeSelector = newSelector
 
-				err := k8sClient.Update(ctx, nova)
-				g.Expect(err == nil || k8s_errors.IsConflict(err)).To(BeTrue())
+				g.Expect(k8sClient.Update(ctx, nova)).To(Succeed())
 
 				novaDeploymentName := serviceNameFunc()
 				serviceDeployment := th.GetStatefulSet(novaDeploymentName)
@@ -287,8 +283,7 @@ var _ = Describe("Nova reconfiguration", func() {
 				newSelector := map[string]string{}
 				nova.Spec.NodeSelector = newSelector
 
-				err := k8sClient.Update(ctx, nova)
-				g.Expect(err == nil || k8s_errors.IsConflict(err)).To(BeTrue())
+				g.Expect(k8sClient.Update(ctx, nova)).To(Succeed())
 
 				serviceDeploymentName := serviceNameFunc()
 				serviceDeployment := th.GetStatefulSet(serviceDeploymentName)
@@ -333,8 +328,7 @@ var _ = Describe("Nova reconfiguration", func() {
 					cellTemplate.ConductorServiceTemplate.NodeSelector = conductorSelector
 					nova.Spec.CellTemplates[cell] = cellTemplate
 				}
-				err := k8sClient.Update(ctx, nova)
-				g.Expect(err == nil || k8s_errors.IsConflict(err)).To(BeTrue())
+				g.Expect(k8sClient.Update(ctx, nova)).To(Succeed())
 
 				apiDeployment := th.GetStatefulSet(novaNames.APIDeploymentName)
 				g.Expect(apiDeployment.Spec.Template.Spec.NodeSelector).To(Equal(serviceSelector))
@@ -357,8 +351,7 @@ var _ = Describe("Nova reconfiguration", func() {
 				nova := GetNova(novaNames.NovaName)
 				nova.Spec.NodeSelector = globalSelector
 
-				err := k8sClient.Update(ctx, nova)
-				g.Expect(err == nil || k8s_errors.IsConflict(err)).To(BeTrue())
+				g.Expect(k8sClient.Update(ctx, nova)).To(Succeed())
 
 				// NovaService's deployment keeps it own selector
 				apiDeployment := th.GetStatefulSet(novaNames.APIDeploymentName)
@@ -393,8 +386,7 @@ var _ = Describe("Nova reconfiguration", func() {
 				cell1.CellMessageBusInstance = "alternate-mq-for-cell1"
 				nova.Spec.CellTemplates["cell1"] = cell1
 
-				err := k8sClient.Update(ctx, nova)
-				g.Expect(err == nil || k8s_errors.IsConflict(err)).To(BeTrue())
+				g.Expect(k8sClient.Update(ctx, nova)).To(Succeed())
 			}, timeout, interval).Should(Succeed())
 
 			// The new TransportURL will point to a new secret so we need to
