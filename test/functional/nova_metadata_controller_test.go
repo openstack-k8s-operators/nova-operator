@@ -25,7 +25,6 @@ import (
 	. "github.com/openstack-k8s-operators/lib-common/modules/test/helpers"
 
 	corev1 "k8s.io/api/core/v1"
-	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -555,8 +554,7 @@ var _ = Describe("NovaMetadata controller", func() {
 				novaMetadata := GetNovaMetadata(novaNames.MetadataName)
 				novaMetadata.Spec.NetworkAttachments = append(novaMetadata.Spec.NetworkAttachments, "internalapi")
 
-				err := k8sClient.Update(ctx, novaMetadata)
-				g.Expect(err == nil || k8s_errors.IsConflict(err)).To(BeTrue())
+				g.Expect(k8sClient.Update(ctx, novaMetadata)).To(Succeed())
 			}, timeout, interval).Should(Succeed())
 
 			th.ExpectConditionWithDetails(
@@ -633,8 +631,7 @@ var _ = Describe("NovaMetadata controller", func() {
 			Eventually(func(g Gomega) {
 				novaMetadata := GetNovaMetadata(novaNames.MetadataName)
 				novaMetadata.Spec.RegisteredCells = map[string]string{"cell0": "cell0-config-hash"}
-				err := k8sClient.Update(ctx, novaMetadata)
-				g.Expect(err == nil || k8s_errors.IsConflict(err)).To(BeTrue())
+				g.Expect(k8sClient.Update(ctx, novaMetadata)).To(Succeed())
 			}, timeout, interval).Should(Succeed())
 
 			// Assert that the CONFIG_HASH of the StateFulSet is changed due to this reconfiguration

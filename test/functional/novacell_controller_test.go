@@ -22,7 +22,6 @@ import (
 	. "github.com/openstack-k8s-operators/lib-common/modules/test/helpers"
 
 	corev1 "k8s.io/api/core/v1"
-	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -153,8 +152,7 @@ var _ = Describe("NovaCell controller", func() {
 				novaCell.Spec.ConductorServiceTemplate.NetworkAttachments = append(
 					novaCell.Spec.ConductorServiceTemplate.NetworkAttachments, "internalapi")
 
-				err := k8sClient.Update(ctx, novaCell)
-				g.Expect(err == nil || k8s_errors.IsConflict(err)).To(BeTrue())
+				g.Expect(k8sClient.Update(ctx, novaCell)).To(Succeed())
 			}, timeout, interval).Should(Succeed())
 
 			th.ExpectConditionWithDetails(

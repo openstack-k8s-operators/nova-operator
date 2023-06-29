@@ -25,7 +25,6 @@ import (
 
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -616,8 +615,7 @@ var _ = Describe("NovaConductor controller", func() {
 				novaConductor := GetNovaConductor(novaNames.ConductorName)
 				novaConductor.Spec.NetworkAttachments = append(novaConductor.Spec.NetworkAttachments, "internalapi")
 
-				err := k8sClient.Update(ctx, novaConductor)
-				g.Expect(err == nil || k8s_errors.IsConflict(err)).To(BeTrue())
+				g.Expect(k8sClient.Update(ctx, novaConductor)).To(Succeed())
 			}, timeout, interval).Should(Succeed())
 
 			th.ExpectConditionWithDetails(
