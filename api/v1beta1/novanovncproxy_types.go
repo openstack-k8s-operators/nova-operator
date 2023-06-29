@@ -129,7 +129,7 @@ type NovaNoVNCProxySpec struct {
 
 	// +kubebuilder:validation:Required
 	// CellMessageBusSecretName - the name of the Secret containing the
-	// transport URL information to use when accessing the API message
+	// transport URL information to use when accessing the Cell message
 	// bus.
 	CellMessageBusSecretName string `json:"cellMessageBusSecretName"`
 }
