@@ -275,7 +275,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 				})
 			})
 
-			It("exposes the service t", func() {
+			It("exposes the service", func() {
 				th.SimulateStatefulSetReplicaReady(novaNames.NoVNCProxyNameStatefulSetName)
 				th.ExpectCondition(
 					novaNames.NoVNCProxyName,

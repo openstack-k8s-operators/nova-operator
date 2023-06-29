@@ -136,11 +136,12 @@ func (r *NovaNoVNCProxyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	hashes := make(map[string]env.Setter)
 
-	secretHash, result, _, err := ensureSecret(
+	secretHash, result, secret, err := ensureSecret(
 		ctx,
 		types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.Secret},
 		[]string{
 			instance.Spec.PasswordSelectors.Service,
+			instance.Spec.PasswordSelectors.CellDatabase,
 		},
 		h.GetClient(),
 		&instance.Status.Conditions,
@@ -162,7 +163,7 @@ func (r *NovaNoVNCProxyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, err
 	}
 
-	err = r.ensureConfigs(ctx, h, instance, &hashes, apiEndpoints)
+	err = r.ensureConfigs(ctx, h, instance, &hashes, apiEndpoints, secret)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -214,8 +215,9 @@ func (r *NovaNoVNCProxyReconciler) ensureConfigs(
 	instance *novav1beta1.NovaNoVNCProxy,
 	hashes *map[string]env.Setter,
 	apiEndpoints map[string]string,
+	secret corev1.Secret,
 ) error {
-	err := r.generateConfigs(ctx, h, instance, hashes, apiEndpoints)
+	err := r.generateConfigs(ctx, h, instance, hashes, apiEndpoints, secret)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.ServiceConfigReadyCondition,
@@ -273,24 +275,15 @@ func (r *NovaNoVNCProxyReconciler) initConditions(
 func (r *NovaNoVNCProxyReconciler) generateConfigs(
 	ctx context.Context, h *helper.Helper, instance *novav1beta1.NovaNoVNCProxy, hashes *map[string]env.Setter,
 	apiEndpoints map[string]string,
+	secret corev1.Secret,
 ) error {
-	secret := &corev1.Secret{}
-	namespace := instance.GetNamespace()
-	secretName := types.NamespacedName{
-		Namespace: namespace,
-		Name:      instance.Spec.Secret,
-	}
-	err := h.GetClient().Get(ctx, secretName, secret)
-	if err != nil {
-		return err
-	}
 
 	cellMessageBusSecretName := &corev1.Secret{}
-	secretName = types.NamespacedName{
+	secretName := types.NamespacedName{
 		Namespace: instance.Namespace,
 		Name:      instance.Spec.CellMessageBusSecretName,
 	}
-	err = h.GetClient().Get(ctx, secretName, cellMessageBusSecretName)
+	err := h.GetClient().Get(ctx, secretName, cellMessageBusSecretName)
 	if err != nil {
 		util.LogForObject(
 			h, "Failed reading Secret", instance,
@@ -434,10 +427,7 @@ func (r *NovaNoVNCProxyReconciler) ensureServiceExposed(
 		ports[metallbcfg.Endpoint] = portCfg
 	}
 
-	serviceName := novncproxy.ServiceName
-	if instance.Spec.CellName != "" {
-		serviceName = novncproxy.ServiceName + "-" + instance.Spec.CellName
-	}
+	serviceName := novncproxy.ServiceName + "-" + instance.Spec.CellName
 
 	apiEndpoints, ctrlResult, err := endpoint.ExposeEndpoints(
 		ctx,

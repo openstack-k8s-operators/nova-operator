@@ -59,7 +59,7 @@ spec:
                 type: string
               cellMessageBusSecretName:
                 description: CellMessageBusSecretName - the name of the Secret containing
-                  the transport URL information to use when accessing the API message
+                  the transport URL information to use when accessing the Cell message
                   bus.
                 type: string
               cellName:
