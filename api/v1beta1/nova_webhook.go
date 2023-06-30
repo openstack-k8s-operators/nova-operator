@@ -23,6 +23,8 @@ limitations under the License.
 package v1beta1
 
 import (
+	"fmt"
+
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -153,7 +155,7 @@ func (r *Nova) ValidateCreate() error {
 // ValidateUpdate validates the NovaSpec during the webhook invocation. It is
 // expected to be called by the validation webhook in the higher level meta
 // operator
-func (r *NovaSpec) ValidateUpdate(old runtime.Object, basePath *field.Path) field.ErrorList {
+func (r *NovaSpec) ValidateUpdate(old NovaSpec, basePath *field.Path) field.ErrorList {
 	errors := r.ValidateCellTemplates(basePath)
 
 	return errors
@@ -162,8 +164,12 @@ func (r *NovaSpec) ValidateUpdate(old runtime.Object, basePath *field.Path) fiel
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
 func (r *Nova) ValidateUpdate(old runtime.Object) error {
 	novalog.Info("validate update", "name", r.Name)
+	oldNova, ok := old.(*Nova)
+	if !ok || oldNova == nil {
+		return apierrors.NewInternalError(fmt.Errorf("unable to convert existing object"))
+	}
 
-	errors := r.Spec.ValidateUpdate(old, field.NewPath("spec"))
+	errors := r.Spec.ValidateUpdate(oldNova.Spec, field.NewPath("spec"))
 	if len(errors) != 0 {
 		novalog.Info("validation failed", "name", r.Name)
 		return apierrors.NewInvalid(
