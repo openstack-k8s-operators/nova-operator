@@ -16,6 +16,17 @@
       - { "path": /var/lib/openstack/config/containers}
       - { 'path': /var/lib/nova}
       - { "path": /etc/tmpfiles.d/, "owner": "root", "group": "root"}
+      - { "path": "/var/lib/edpm-config/firewall", "owner": "root", "group": "root"}
+    - name: Copy qemu vnc firewall config
+      become: true
+      ansible.builtin.copy:
+        src: "/var/lib/openstack/config/firewall.yaml"
+        dest: "/var/lib/edpm-config/firewall/vnc.yaml"
+        mode: "640"
+    - name: Configure firewall for the vnc
+      ansible.builtin.include_role:
+          name: osp.edpm.edpm_nftables
+          tasks_from: "configure.yml"
     - name: ensure /var/run/libvirt is present upon reboot
       become: true
       ansible.builtin.copy:

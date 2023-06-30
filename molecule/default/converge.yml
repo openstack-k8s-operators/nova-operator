@@ -29,6 +29,7 @@
         name:
           - podman
           - rsync
+          - nano
         state: present
     - name: secret config dir
       become: true
@@ -58,6 +59,7 @@
           - podman
           - rsync
           - python-pyyaml
+          - nano
         state: present
     - name: set /etc/localtime
       become: true
