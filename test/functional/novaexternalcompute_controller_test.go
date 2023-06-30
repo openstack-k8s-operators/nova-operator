@@ -207,6 +207,27 @@ var _ = Describe("NovaExternalCompute", func() {
 			Expect(extraConfigData).To(Equal(""))
 
 		})
+		It("generated vnc firewall configs successfully", func() {
+			th.ExpectCondition(
+				novaNames.ComputeName,
+				ConditionGetterFunc(NovaExternalComputeConditionGetter),
+				condition.ServiceConfigReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			configDataMap := th.GetSecret(
+				types.NamespacedName{
+					Namespace: novaNames.ComputeName.Namespace,
+					Name:      fmt.Sprintf("%s-config-data", novaNames.ComputeName.Name),
+				},
+			)
+			Expect(configDataMap).ShouldNot(BeNil())
+			Expect(configDataMap.Data).Should(HaveKey("firewall.yaml"))
+			configData := string(configDataMap.Data["firewall.yaml"])
+			Expect(configData).To(ContainSubstring("005 Allow vnc access on all networks."))
+			Expect(configData).To(ContainSubstring("proto: tcp"))
+			Expect(configData).To(ContainSubstring("5900-6923"))
+		})
 	})
 	When("created but Secrets are missing or fields missing", func() {
 		BeforeEach(func() {

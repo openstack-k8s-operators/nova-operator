@@ -225,6 +225,7 @@ func (r *NovaExternalComputeReconciler) Reconcile(ctx context.Context, req ctrl.
 	// we support stopping before deploying the compute node
 	// so only create the AAE CRs if we have deployment enabled.
 	if *instance.Spec.Deploy {
+		l.Info("Deploying libvirt and nova")
 		// create all AEE resource in parallel
 		libvirtAEE, err := r.ensureAEEDeployLibvirt(ctx, h, instance)
 		if err != nil {
@@ -263,6 +264,7 @@ func (r *NovaExternalComputeReconciler) Reconcile(ctx context.Context, req ctrl.
 			condition.DeploymentReadyCondition, condition.DeploymentReadyMessage,
 		)
 	}
+	l.Info("Reconcile complete")
 	return ctrl.Result{}, nil
 }
 
@@ -522,6 +524,7 @@ func (r *NovaExternalComputeReconciler) generateConfigs(
 		"libvirt_virtlogd__libvirt_virtlogd.json":         "/libvirt_virtlogd/libvirt_virtlogd.json",
 		"libvirt_virtlogd__libvirt-virtlogd.json":         "/libvirt_virtlogd/libvirt-virtlogd.json",
 		"libvirt_virtlogd__virtlogd.conf":                 "/libvirt_virtlogd/virtlogd.conf",
+		"firewall.yaml":                                   "/firewall.goyaml",
 	}
 	return r.GenerateConfigs(
 		ctx, h, instance, hashes, templateParameters, extraData, cmLabels, addtionalTemplates,

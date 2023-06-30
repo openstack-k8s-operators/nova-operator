@@ -27,6 +27,8 @@
         - "/var/lib/_nova_secontext"
         - "/var/lib/nova/instances"
         - "/var/log/containers/nova"
+    - name: ensure firewall is configured
+      ansible.builtin.include_tasks: test-helpers/verify_firewall.yaml
     - name: ensure systemd services are defined and functional
       ansible.builtin.include_tasks: test-helpers/verify_systemd_service.yaml
       with_items:
