@@ -23,6 +23,8 @@ limitations under the License.
 package v1beta1
 
 import (
+	"fmt"
+
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -105,11 +107,15 @@ func (r *NovaCellSpec) validate(basePath *field.Path) field.ErrorList {
 	return errors
 }
 
+func (r *NovaCellSpec) ValidateCreate(basePath *field.Path) field.ErrorList {
+	return r.validate(basePath)
+}
+
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (r *NovaCell) ValidateCreate() error {
 	novacelllog.Info("validate create", "name", r.Name)
 
-	errors := r.Spec.validate(field.NewPath("spec"))
+	errors := r.Spec.ValidateCreate(field.NewPath("spec"))
 
 	if len(errors) != 0 {
 		novacelllog.Info("validation failed", "name", r.Name)
@@ -120,11 +126,19 @@ func (r *NovaCell) ValidateCreate() error {
 	return nil
 }
 
+func (r *NovaCellSpec) ValidateUpdate(old NovaCellSpec, basePath *field.Path) field.ErrorList {
+	return r.validate(basePath)
+}
+
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
 func (r *NovaCell) ValidateUpdate(old runtime.Object) error {
 	novacelllog.Info("validate update", "name", r.Name)
+	oldCell, ok := old.(*NovaCell)
+	if !ok || oldCell == nil {
+		return apierrors.NewInternalError(fmt.Errorf("unable to convert existing object"))
+	}
 
-	errors := r.Spec.validate(field.NewPath("spec"))
+	errors := r.Spec.ValidateUpdate(oldCell.Spec, field.NewPath("spec"))
 
 	if len(errors) != 0 {
 		novacelllog.Info("validation failed", "name", r.Name)
