@@ -1,0 +1,100 @@
+
+- name: Setup Test Environment
+  hosts: AEE
+  tasks:
+    - name: Copy playbooks to AEE vm
+      ansible.builtin.copy:
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+        mode: "{{ item.mode | default('640') }}"
+      with_items:
+      - { "src": "../../playbooks/deploy-libvirt.yaml",
+          "dest": "~/deploy-libvirt.yaml"
+        }
+      - { "src": "../../playbooks/deploy-nova.yaml",
+          "dest": "~/deploy-nova.yaml"
+        }
+    - name: Copy molecule files
+      ansible.builtin.copy:
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+        mode: "{{ item.mode | default('600') }}"
+      with_items:
+      - { "src": "{{ lookup('env', 'MOLECULE_EPHEMERAL_DIRECTORY') }}/.vagrant/machines/compute-1/libvirt/private_key",
+          "dest": "~/private_key"
+        }
+    - name: install packages
+      become: true
+      ansible.builtin.package:
+        name:
+          - podman
+          - rsync
+        state: present
+    - name: secret config dir
+      become: true
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: directory
+        setype: "{{ item.setype | default('container_file_t') }}"
+        owner: "{{ item.owner | default(ansible_user) }}"
+        group: "{{ item.group | default(ansible_user) }}"
+        mode: "{{ item.mode | default('750') }}"
+        recurse: true
+      with_items:
+      - {"path": /var/lib/openstack/config/}
+    - name: Copy playbooks to AEE vm
+      ansible.posix.synchronize:
+        src: "test-data/compute-secret/"
+        dest: "/var/lib/openstack/config/"
+        delete: true
+
+- name: Setup DUT
+  hosts: "compute-1"
+  tasks:
+    - name: install packages
+      become: true
+      ansible.builtin.package:
+        name:
+          - podman
+          - rsync
+          - python-pyyaml
+        state: present
+    - name: set /etc/localtime
+      become: true
+      ansible.builtin.file:
+        path: /etc/localtime
+        src: /usr/share/zoneinfo/UTC
+        state: link
+    - name: emulate ovs installation
+      become: true
+      ansible.builtin.file:
+        path: /run/openvswitch
+        state: directory
+
+
+- name: Run Playbooks
+  hosts: AEE
+  tasks:
+    # NOTE: this is a workaround to ensure that the files that are bind mounted
+    # into the AEE containers are accssible to ansible. Selinux is not disabled
+    # on the compute-1 vm so this has no impact on the playbook testing.
+    - name: disable selinux
+      become: true
+      ansible.builtin.selinux:
+        state: disabled
+    - name: pull quay.io/openstack-k8s-operators/openstack-ansibleee-runner:latest image with podman
+      ansible.builtin.command: podman pull quay.io/openstack-k8s-operators/openstack-ansibleee-runner:latest
+    - name: run deploy-libvirt.yaml with podman
+      ansible.builtin.command: |
+        podman run --net host --rm -v /var/lib/openstack/config/:/var/lib/openstack/config/ \
+        -v ~/deploy-libvirt.yaml:/runner/deploy-libvirt.yaml -v ~/private_key:/runner/private_key -e ANSIBLE_HOST_KEY_CHECKING=False \
+        -e ANSIBLE_REMOTE_USER=vagrant -e ANSIBLE_SSH_PRIVATE_KEY_FILE=/runner/private_key \
+        -e ANSIBLE_SSH_ARGS="-o StrictHostKeyChecking=no" quay.io/openstack-k8s-operators/openstack-ansibleee-runner:latest \
+        ansible-playbook -i 'compute-1,' --key-file /runner/private_key -u vagrant  /runner/deploy-libvirt.yaml
+    - name: run deploy-nova.yaml with podman
+      ansible.builtin.command: |
+        podman run --net host --rm -v /var/lib/openstack/config/:/var/lib/openstack/config/ \
+        -v ~/deploy-nova.yaml:/runner/deploy-nova.yaml -v ~/private_key:/runner/private_key -e ANSIBLE_HOST_KEY_CHECKING=False \
+        -e ANSIBLE_REMOTE_USER=vagrant -e ANSIBLE_SSH_PRIVATE_KEY_FILE=/runner/private_key \
+        -e ANSIBLE_SSH_ARGS="-o StrictHostKeyChecking=no" quay.io/openstack-k8s-operators/openstack-ansibleee-runner:latest \
+        ansible-playbook -i 'compute-1,' --key-file /runner/private_key -u vagrant  /runner/deploy-nova.yaml
