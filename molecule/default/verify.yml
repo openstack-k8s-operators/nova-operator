@@ -45,3 +45,63 @@
         - "libvirt_virtqemud"
         - "libvirt_virtsecretd"
         - "nova_compute"
+    - name: ensure podman container volume mounts
+      ansible.builtin.include_tasks: test-helpers/verify_podman_volumes.yaml
+      with_items:
+        - { name: "libvirt_virtlogd",
+            volumes: "\
+            [{bind  /var/lib/openstack/config/libvirt /var/lib/openstack/config   [rbind] false rprivate} \
+             {bind  /etc/localtime /etc/localtime   [rbind] false rprivate} \
+             {bind  /var/log/containers/libvirt /var/log/containers/libvirt   [rbind] true rprivate} \
+             {bind  /var/lib/libvirt /var/lib/libvirt   [rbind] true rprivate} \
+             {bind  /var/lib/nova /var/lib/nova   [rbind] true rprivate} \
+             {bind  /run/libvirt /run/libvirt   [nosuid nodev rbind] true rprivate}]"
+          }
+        - { name: "libvirt_virtnodedevd",
+            volumes: "\
+            [{bind  /dev /dev   [nosuid rbind] true rprivate} \
+             {bind  /var/lib/openstack/config/libvirt /var/lib/openstack/config   [rbind] false rprivate} \
+             {bind  /etc/localtime /etc/localtime   [rbind] false rprivate} \
+             {bind  /var/log/containers/libvirt /var/log/containers/libvirt   [rbind] true rprivate} \
+             {bind  /var/lib/libvirt /var/lib/libvirt   [rbind] true rprivate} \
+             {bind  /run/libvirt /run/libvirt   [nosuid nodev rbind] true rprivate}]"
+          }
+        - { name: "libvirt_virtproxyd",
+            volumes: "\
+            [{bind  /var/log/containers/libvirt /var/log/containers/libvirt   [rbind] true rprivate} \
+             {bind  /var/lib/libvirt /var/lib/libvirt   [rbind] true rprivate} \
+             {bind  /run/libvirt /run/libvirt   [nosuid nodev rbind] true rprivate} \
+             {bind  /var/lib/openstack/config/libvirt /var/lib/openstack/config   [rbind] false rprivate} \
+             {bind  /etc/localtime /etc/localtime   [rbind] false rprivate}]"
+          }
+        - { name: "libvirt_virtqemud",
+            volumes: "\
+            [{bind  /var/lib/libvirt /var/lib/libvirt   [rbind] true rprivate} \
+             {bind  /var/lib/nova /var/lib/nova   [rbind] true rprivate} \
+             {bind  /run/libvirt /run/libvirt   [nosuid nodev rbind] true rprivate} \
+             {bind  /dev /dev   [nosuid rbind] true rprivate} \
+             {bind  /etc/ceph /var/lib/openstack/config/ceph   [rbind] false rprivate} \
+             {bind  /var/lib/openstack/config/libvirt /var/lib/openstack/config   [rbind] false rprivate} \
+             {bind  /etc/localtime /etc/localtime   [rbind] false rprivate} \
+             {bind  /var/log/containers/libvirt /var/log/containers/libvirt   [rbind] true rprivate}]"
+          }
+        - { name: "libvirt_virtsecretd",
+            volumes: "\
+            [{bind  /etc/localtime /etc/localtime   [rbind] false rprivate} \
+             {bind  /var/log/containers/libvirt /var/log/containers/libvirt   [rbind] true rprivate} \
+             {bind  /var/lib/libvirt /var/lib/libvirt   [rbind] true rprivate} \
+             {bind  /run/libvirt /run/libvirt   [nosuid nodev rbind] true rprivate} \
+             {bind  /var/lib/openstack/config/libvirt /var/lib/openstack/config   [rbind] false rprivate}]"
+          }
+        - { name: "nova_compute",
+            volumes: "\
+            [{bind  /run/openvswitch /run/openvswitch   [nosuid nodev rbind] true rprivate} \
+             {bind  /etc/localtime /etc/localtime   [rbind] false rprivate} \
+             {bind  /var/lib/libvirt /var/lib/libvirt   [rbind] true rprivate} \
+             {bind  /lib/modules /lib/modules   [rbind] false rprivate} \
+             {bind  /var/log/containers/nova /var/log/containers/nova   [rbind] true rprivate} \
+             {bind  /var/lib/openstack/config/nova /var/lib/openstack/config/   [rbind] false rprivate} \
+             {bind  /run/libvirt /run/libvirt   [nosuid nodev rbind] true rprivate} \
+             {bind  /etc/ceph /var/lib/openstack/config/ceph   [rbind] false rprivate} \
+             {bind  /dev /dev   [nosuid rbind] true rprivate} {bind  /var/lib/nova /var/lib/nova/   [rbind] true rprivate}]"
+          }
