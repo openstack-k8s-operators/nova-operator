@@ -522,7 +522,6 @@ type NovaNames struct {
 	AdminNovaServiceName    types.NamespacedName
 	InternalNovaRouteName   types.NamespacedName
 	PublicNovaRouteName     types.NamespacedName
-	AdminNovaRouteName      types.NamespacedName
 	ComputeName             types.NamespacedName
 	KeystoneServiceName     types.NamespacedName
 	APIName                 types.NamespacedName
