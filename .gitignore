@@ -75,6 +75,8 @@ tags
 .vscode/*
 .history
 # End of https://www.gitignore.io/api/go,vim,emacs,visualstudiocode
+# vscode debug binary
+__debug_bin
 
 #Operator SDK generated files
 /bundle/
