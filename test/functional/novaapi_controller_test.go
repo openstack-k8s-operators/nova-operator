@@ -175,6 +175,8 @@ var _ = Describe("NovaAPI controller", func() {
 				// service_user configuration to work to address Bug: #2004555
 				Expect(configData).Should(ContainSubstring("[service_user]"))
 				Expect(configData).Should(ContainSubstring("password = service-password"))
+				Expect(configData).Should(ContainSubstring("enabled_apis=osapi_compute"))
+				Expect(configData).Should(ContainSubstring("osapi_compute_workers=1"))
 				Expect(configDataMap.Data).Should(HaveKey("02-nova-override.conf"))
 				extraData := string(configDataMap.Data["02-nova-override.conf"])
 				Expect(extraData).To(Equal("foo=bar"))
