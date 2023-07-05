@@ -761,7 +761,6 @@ var _ = Describe("Nova multicell", func() {
 			keystoneAPIName := th.CreateKeystoneAPI(novaNames.NovaName.Namespace)
 			DeferCleanup(th.DeleteKeystoneAPI, keystoneAPIName)
 			keystoneAPI := th.GetKeystoneAPI(keystoneAPIName)
-			keystoneAPI.Status.APIEndpoints["internal"] = "http://keystone-internal-openstack.testing"
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Status().Update(ctx, keystoneAPI.DeepCopy())).Should(Succeed())
 			}, timeout, interval).Should(Succeed())

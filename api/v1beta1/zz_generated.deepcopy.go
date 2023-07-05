@@ -218,13 +218,6 @@ func (in *NovaAPIStatus) DeepCopyInto(out *NovaAPIStatus) {
 			(*out)[key] = val
 		}
 	}
-	if in.APIEndpoints != nil {
-		in, out := &in.APIEndpoints, &out.APIEndpoints
-		*out = make(map[string]string, len(*in))
-		for key, val := range *in {
-			(*out)[key] = val
-		}
-	}
 	if in.Conditions != nil {
 		in, out := &in.Conditions, &out.Conditions
 		*out = make(condition.Conditions, len(*in))
@@ -953,13 +946,6 @@ func (in *NovaMetadataStatus) DeepCopyInto(out *NovaMetadataStatus) {
 				copy(*out, *in)
 			}
 			(*out)[key] = outVal
-		}
-	}
-	if in.APIEndpoints != nil {
-		in, out := &in.APIEndpoints, &out.APIEndpoints
-		*out = make(map[string]string, len(*in))
-		for key, val := range *in {
-			(*out)[key] = val
 		}
 	}
 }
