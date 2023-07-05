@@ -19,6 +19,8 @@
         "/var/log/containers/nova:/var/log/containers/nova",
         "/var/lib/libvirt:/var/lib/libvirt",
         "/var/lib/nova/:/var/lib/nova/",
+        "/var/lib/iscsi:/var/lib/iscsi",
+        "/etc/iscsi:/etc/iscsi:ro",
         "/etc/ceph:/var/lib/openstack/config/ceph:ro"
     ]
 }
