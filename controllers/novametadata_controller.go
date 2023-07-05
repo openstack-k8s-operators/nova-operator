@@ -213,9 +213,6 @@ func (r *NovaMetadataReconciler) initStatus(
 	if instance.Status.Hash == nil {
 		instance.Status.Hash = map[string]string{}
 	}
-	if instance.Status.APIEndpoints == nil {
-		instance.Status.APIEndpoints = map[string]string{}
-	}
 	if instance.Status.NetworkAttachments == nil {
 		instance.Status.NetworkAttachments = map[string][]string{}
 	}
@@ -475,7 +472,6 @@ func (r *NovaMetadataReconciler) ensureServiceExposed(
 		apiEndpoints[k] = v
 	}
 
-	instance.Status.APIEndpoints = apiEndpoints
 	return ctrl.Result{}, nil
 }
 

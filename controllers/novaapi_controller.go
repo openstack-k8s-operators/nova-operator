@@ -220,14 +220,14 @@ func (r *NovaAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (re
 		return ctrl.Result{}, nil
 	}
 
-	result, err = r.ensureServiceExposed(ctx, h, instance)
+	apiEndpoints, result, err := r.ensureServiceExposed(ctx, h, instance)
 	if (err != nil || result != ctrl.Result{}) {
 		// We can ignore RequeueAfter as we are watching the Service and Route resource
 		// but we have to return while waiting for the service to be exposed
 		return ctrl.Result{}, err
 	}
 
-	result, err = r.ensureKeystoneEndpoint(ctx, h, instance)
+	result, err = r.ensureKeystoneEndpoint(ctx, h, instance, apiEndpoints)
 	if (err != nil || result != ctrl.Result{}) {
 		// We can ignore RequeueAfter as we are watching the KeystoneEndpoint resource
 		return ctrl.Result{}, err
@@ -248,9 +248,6 @@ func (r *NovaAPIReconciler) initStatus(
 	// so that the reconcile loop later can assume they are not nil.
 	if instance.Status.Hash == nil {
 		instance.Status.Hash = map[string]string{}
-	}
-	if instance.Status.APIEndpoints == nil {
-		instance.Status.APIEndpoints = map[string]string{}
 	}
 	if instance.Status.NetworkAttachments == nil {
 		instance.Status.NetworkAttachments = map[string][]string{}
@@ -460,7 +457,7 @@ func (r *NovaAPIReconciler) ensureServiceExposed(
 	ctx context.Context,
 	h *helper.Helper,
 	instance *novav1.NovaAPI,
-) (ctrl.Result, error) {
+) (map[string]string, ctrl.Result, error) {
 	var ports = map[endpoint.Endpoint]endpoint.Data{
 		endpoint.EndpointPublic:   {Port: novaapi.APIServicePort},
 		endpoint.EndpointInternal: {Port: novaapi.APIServicePort},
@@ -493,14 +490,14 @@ func (r *NovaAPIReconciler) ensureServiceExposed(
 			condition.SeverityWarning,
 			condition.ExposeServiceReadyErrorMessage,
 			err.Error()))
-		return ctrlResult, err
+		return nil, ctrlResult, err
 	} else if (ctrlResult != ctrl.Result{}) {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.ExposeServiceReadyCondition,
 			condition.RequestedReason,
 			condition.SeverityInfo,
 			condition.ExposeServiceReadyRunningMessage))
-		return ctrlResult, err
+		return nil, ctrlResult, err
 	}
 	instance.Status.Conditions.MarkTrue(condition.ExposeServiceReadyCondition, condition.ExposeServiceReadyMessage)
 
@@ -508,18 +505,18 @@ func (r *NovaAPIReconciler) ensureServiceExposed(
 		apiEndpoints[k] = v + "/v2.1"
 	}
 
-	instance.Status.APIEndpoints = apiEndpoints
-	return ctrl.Result{}, nil
+	return apiEndpoints, ctrl.Result{}, nil
 }
 
 func (r *NovaAPIReconciler) ensureKeystoneEndpoint(
 	ctx context.Context,
 	h *helper.Helper,
 	instance *novav1.NovaAPI,
+	apiEndpoints map[string]string,
 ) (ctrl.Result, error) {
 	endpointSpec := keystonev1.KeystoneEndpointSpec{
 		ServiceName: novaapi.ServiceName,
-		Endpoints:   instance.Status.APIEndpoints,
+		Endpoints:   apiEndpoints,
 	}
 	endpoint := keystonev1.NewKeystoneEndpoint(
 		novaapi.ServiceName,

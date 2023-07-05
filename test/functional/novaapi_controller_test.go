@@ -58,9 +58,7 @@ var _ = Describe("NovaAPI controller", func() {
 			// they are initialized to {} that value is omitted from the output
 			// when sent to the client. So we see nils here.
 			Expect(instance.Status.Hash).To(BeEmpty())
-			Expect(instance.Status.APIEndpoints).To(BeEmpty())
 			Expect(instance.Status.ReadyCount).To(Equal(int32(0)))
-			Expect(instance.Status.ServiceID).To(Equal(""))
 		})
 
 		It("is missing the secret", func() {
