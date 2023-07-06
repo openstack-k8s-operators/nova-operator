@@ -15,6 +15,11 @@
             "recurse": true
         },
         {
+            "path": "/var/log/libvirt/qemu",
+            "owner": "libvirt:libvirt",
+            "recurse": true
+        },
+        {
             "path": "/var/lib/libvirt",
             "owner": "libvirt:libvirt",
             "recurse": true

@@ -11,6 +11,7 @@
     "volumes": [
         "/var/lib/openstack/config/libvirt:/var/lib/openstack/config:ro",
         "/etc/localtime:/etc/localtime:ro",
+        "/var/log/containers/qemu:/var/log/libvirt/qemu",
         "/var/log/containers/libvirt:/var/log/containers/libvirt",
         "/var/lib/libvirt:/var/lib/libvirt",
         "/var/lib/nova:/var/lib/nova",
