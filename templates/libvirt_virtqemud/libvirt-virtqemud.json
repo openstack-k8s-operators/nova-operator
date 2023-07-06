@@ -8,6 +8,12 @@
             "perm": "0600"
         },
         {
+            "source": "/var/lib/openstack/config/qemu.conf",
+            "dest": "/etc/libvirt/qemu.conf",
+            "owner": "libvirt:qemu",
+            "perm": "0660"
+        },
+        {
             "source": "/var/lib/openstack/config/ceph",
             "dest": "/etc/ceph",
             "owner": "libvirt:qemu",

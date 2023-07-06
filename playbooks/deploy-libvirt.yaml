@@ -48,6 +48,7 @@
       with_items:
       - { "path": /var/lib/libvirt}
       - { "path": /var/log/containers/libvirt, "mode": "0750" }
+      - { "path": /var/log/containers/qemu, "mode": "0750" }
       - { "path": /var/log/containers/stdouts, "mode": "0750" }
       # we could proably just assume tha this has been precreated by the dataplane operator.
       - { "path": /etc/ceph, "mode": "0750", "owner": "root", "group": "root"}
