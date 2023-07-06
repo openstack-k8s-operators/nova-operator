@@ -9,7 +9,7 @@
         setype: "{{ item.setype | default('container_file_t') }}"
         owner: "{{ item.owner | default(ansible_user) }}"
         group: "{{ item.group | default(ansible_user) }}"
-        mode: "{{ item.mode | default('750') }}"
+        mode: "{{ item.mode | default(omit) }}"
         recurse: true
       with_items:
       - { "path": /var/lib/openstack/config/libvirt}
