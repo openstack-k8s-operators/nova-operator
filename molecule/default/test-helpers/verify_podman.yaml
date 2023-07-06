@@ -1,34 +1,34 @@
 
 - name: verify podman containers
   block:
-    - name: Check if podman container exists
+    - name: Check if podman container exists {{ item }}
       become: true
       ansible.builtin.command: podman ps -a --filter name={{item}} --format \{\{.Names\}\}
       register: containers
-    - name: Assert podman container exists
+    - name: Assert podman container exists {{ item }}
       ansible.builtin.assert:
         that:
           - containers.rc == 0
           - containers.stdout_lines | length == 1
           - item in containers.stdout_lines | first
         fail_msg: "Podman container {{ item }} does not exist"
-    - name: Check if podman container is running
+    - name: Check if podman container is running {{ item }}
       become: true
       ansible.builtin.command: podman ps --filter name={{item}} --format \{\{.Status\}\}
-      register: containers
-    - name: Assert podman container is running
+      register: running_containers
+    - name: Assert podman container is running {{ item }}
       ansible.builtin.assert:
         that:
-          - containers.rc == 0
-          - containers.stdout_lines | length == 1
-          - "'Up' in containers.stdout_lines | first"
+          - running_containers.rc == 0
+          - running_containers.stdout_lines | length == 1
+          - "'Up' in running_containers.stdout_lines | first"
         fail_msg: "Podman container {{ item }} is not running"
-    - name: Check the contaienr stdout log exists
+    - name: Check the container stdout log exists {{ item }}
       become: true
       ansible.builtin.stat:
         path: "/var/log/containers/stdouts/{{ item }}.log"
       register: log_exists
-    - name: Assert the container stdout log exists
+    - name: Assert the container stdout log exists {{ item }}
       ansible.builtin.assert:
         that:
           - log_exists.stat.exists

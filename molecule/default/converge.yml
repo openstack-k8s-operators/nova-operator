@@ -87,6 +87,9 @@
     - name: pull quay.io/openstack-k8s-operators/openstack-ansibleee-runner:latest image with podman
       ansible.builtin.command: podman pull quay.io/openstack-k8s-operators/openstack-ansibleee-runner:latest
     - name: run deploy-libvirt.yaml with podman
+      async: 900
+      poll: 0
+      register: deploy_libvirt
       ansible.builtin.command: |
         podman run --net host --rm -v /var/lib/openstack/config/:/var/lib/openstack/config/ \
         -v ~/deploy-libvirt.yaml:/runner/deploy-libvirt.yaml -v ~/private_key:/runner/private_key -e ANSIBLE_HOST_KEY_CHECKING=False \
@@ -100,3 +103,10 @@
         -e ANSIBLE_REMOTE_USER=vagrant -e ANSIBLE_SSH_PRIVATE_KEY_FILE=/runner/private_key \
         -e ANSIBLE_SSH_ARGS="-o StrictHostKeyChecking=no" quay.io/openstack-k8s-operators/openstack-ansibleee-runner:latest \
         ansible-playbook -i 'compute-1,' --key-file /runner/private_key -u vagrant  /runner/deploy-nova.yaml
+    - name: wait for deploy-libvirt.yaml to finish
+      async_status:
+        jid: "{{ deploy_libvirt.ansible_job_id }}"
+      register: job_result
+      until: job_result.finished
+      retries: 90
+      delay: 10
