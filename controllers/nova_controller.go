@@ -1513,6 +1513,9 @@ func (r *NovaReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&novav1.NovaMetadata{}).
 		Owns(&rabbitmqv1.TransportURL{}).
 		Owns(&batchv1.Job{}).
+		Owns(&corev1.ServiceAccount{}).
+		Owns(&rbacv1.Role{}).
+		Owns(&rbacv1.RoleBinding{}).
 		Watches(&source.Kind{Type: &corev1.Secret{}},
 			handler.EnqueueRequestsFromMapFunc(r.GetSecretMapperFor(&novav1.NovaList{}))).
 		Complete(r)
