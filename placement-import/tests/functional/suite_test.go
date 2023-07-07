@@ -18,10 +18,15 @@ package functional_test
 
 import (
 	"context"
+	"crypto/tls"
+	"fmt"
+	"net"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/google/uuid"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/client-go/kubernetes"
@@ -41,10 +46,10 @@ import (
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	test "github.com/openstack-k8s-operators/lib-common/modules/test"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
-	placementv1beta1 "github.com/openstack-k8s-operators/placement-operator/api/v1beta1"
+	placementv1 "github.com/openstack-k8s-operators/placement-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/placement-operator/controllers"
 
-	. "github.com/openstack-k8s-operators/lib-common/modules/test/helpers"
+	. "github.com/openstack-k8s-operators/lib-common/modules/test-operators/helpers"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -59,6 +64,15 @@ var (
 	cancel    context.CancelFunc
 	logger    logr.Logger
 	th        *TestHelper
+	namespace string
+)
+
+const (
+	timeout = time.Second * 2
+
+	SecretName = "test-osp-secret"
+
+	interval = time.Millisecond * 200
 )
 
 func TestAPIs(t *testing.T) {
@@ -91,6 +105,13 @@ var _ = BeforeSuite(func() {
 			routev1CRDs,
 		},
 		ErrorIfCRDPathMissing: true,
+		WebhookInstallOptions: envtest.WebhookInstallOptions{
+			Paths: []string{filepath.Join("..", "..", "config", "webhook")},
+			// NOTE(gibi): if localhost is resolved to ::1 (ipv6) then starting
+			// the webhook fails as it try to parse the address as ipv4 and
+			// failing on the colons in ::1
+			LocalServingHost: "127.0.0.1",
+		},
 	}
 
 	// cfg is defined in this file globally.
@@ -102,7 +123,7 @@ var _ = BeforeSuite(func() {
 	// Keep this in synch with PlacementAPIReconciler.SetupWithManager,
 	// otherwise the reconciler loop will silently not start
 	// in the test env.
-	err = placementv1beta1.AddToScheme(scheme.Scheme)
+	err = placementv1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 	err = mariadbv1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
@@ -127,13 +148,28 @@ var _ = BeforeSuite(func() {
 	Expect(th).NotTo(BeNil())
 
 	// Start the controller-manager if goroutine
+	webhookInstallOptions := &testEnv.WebhookInstallOptions
 	k8sManager, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme: scheme.Scheme,
+		// NOTE(gibi): disable metrics reporting in test to allow
+		// parallel test execution. Otherwise each instance would like to
+		// bind to the same port
+		MetricsBindAddress: "0",
+		Host:               webhookInstallOptions.LocalServingHost,
+		Port:               webhookInstallOptions.LocalServingPort,
+		CertDir:            webhookInstallOptions.LocalServingCertDir,
+		LeaderElection:     false,
 	})
 	Expect(err).ToNot(HaveOccurred())
 
 	kclient, err := kubernetes.NewForConfig(cfg)
 	Expect(err).ToNot(HaveOccurred(), "failed to create kclient")
+
+	err = (&placementv1.PlacementAPI{}).SetupWebhookWithManager(k8sManager)
+	Expect(err).NotTo(HaveOccurred())
+
+	placementv1.SetupDefaults()
+
 	err = (&controllers.PlacementAPIReconciler{
 		Client:  k8sManager.GetClient(),
 		Scheme:  k8sManager.GetScheme(),
@@ -148,6 +184,17 @@ var _ = BeforeSuite(func() {
 		Expect(err).ToNot(HaveOccurred(), "failed to run manager")
 	}()
 
+	// wait for the webhook server to get ready
+	dialer := &net.Dialer{Timeout: time.Duration(10) * time.Second}
+	addrPort := fmt.Sprintf("%s:%d", webhookInstallOptions.LocalServingHost, webhookInstallOptions.LocalServingPort)
+	Eventually(func() error {
+		conn, err := tls.DialWithDialer(dialer, "tcp", addrPort, &tls.Config{InsecureSkipVerify: true})
+		if err != nil {
+			return err
+		}
+		conn.Close()
+		return nil
+	}).Should(Succeed())
 })
 
 var _ = AfterSuite(func() {
@@ -155,4 +202,15 @@ var _ = AfterSuite(func() {
 	cancel()
 	err := testEnv.Stop()
 	Expect(err).NotTo(HaveOccurred())
+})
+
+var _ = BeforeEach(func() {
+	// NOTE(gibi): We need to create a unique namespace for each test run
+	// as namespaces cannot be deleted in a locally running envtest. See
+	// https://book.kubebuilder.io/reference/envtest.html#namespace-usage-limitation
+	namespace = uuid.New().String()
+	th.CreateNamespace(namespace)
+	// We still request the delete of the Namespace to properly cleanup if
+	// we run the test in an existing cluster.
+	DeferCleanup(th.DeleteNamespace, namespace)
 })
