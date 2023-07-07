@@ -98,6 +98,7 @@ var _ = Describe("Nova validation", func() {
 		spec := GetDefaultNovaSpec()
 		cell0Template := GetDefaultNovaCellTemplate()
 		spec["cellTemplates"] = map[string]interface{}{
+			"cell0": cell0Template,
 			// the limit is 35 chars, this is 5 + 31
 			"cell1" + strings.Repeat("x", 31): cell0Template,
 		}
@@ -198,6 +199,39 @@ var _ = Describe("Nova validation", func() {
 					"should be shorter than 36 characters",
 				Field: "spec.cellTemplates[cell1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx]",
 			}),
+		)
+	})
+	It("rejects Nova if cell0 is missing", func() {
+		spec := GetDefaultNovaSpec()
+		cell1Template := GetDefaultNovaCellTemplate()
+
+		spec["cellTemplates"] = map[string]interface{}{
+			// We explicitly not define cell0 template to trigger the
+			// validation
+			"cell1": cell1Template,
+		}
+		raw := map[string]interface{}{
+			"apiVersion": "nova.openstack.org/v1beta1",
+			"kind":       "Nova",
+			"metadata": map[string]interface{}{
+				"name":      novaNames.NovaName.Name,
+				"namespace": novaNames.Namespace,
+			},
+			"spec": spec,
+		}
+
+		unstructuredObj := &unstructured.Unstructured{Object: raw}
+		_, err := controllerutil.CreateOrPatch(
+			ctx, k8sClient, unstructuredObj, func() error { return nil })
+
+		Expect(err).Should(HaveOccurred())
+		statusError, ok := err.(*errors.StatusError)
+		Expect(ok).To(BeTrue())
+		Expect(statusError.ErrStatus.Details.Kind).To(Equal("Nova"))
+		Expect(statusError.ErrStatus.Message).To(
+			ContainSubstring(
+				"invalid: spec.cellTemplates: Required value: " +
+					"cell0 specification is missing, cell0 key is required in cellTemplates"),
 		)
 	})
 })
