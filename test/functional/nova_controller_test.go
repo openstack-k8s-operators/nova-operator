@@ -322,6 +322,12 @@ var _ = Describe("Nova controller", func() {
 			Expect(configData).To(
 				ContainSubstring("[api_database]\nconnection = mysql+pymysql://nova_api:api-database-password@hostname-for-openstack/nova_api"),
 			)
+			// NOTE(gibi): cell mapping for cell0 should not have transport_url
+			// configured. As the nova-manage command used to create the mapping
+			// uses the transport_url from the nova.conf provided to the job
+			// we need to make sure that it is empty.
+			Expect(configData).NotTo(ContainSubstring("transport_url"))
+
 			mappingJobScript := th.GetSecret(
 				types.NamespacedName{
 					Namespace: cell0.CellName.Namespace,
