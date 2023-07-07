@@ -1324,7 +1324,15 @@ func (r *NovaReconciler) ensureCellMapped(
 		"openstack_region_name":  "regionOne", // fixme
 		"default_project_domain": "Default",   // fixme
 		"default_user_domain":    "Default",   // fixme
-		"transport_url":          string(mqSecret.Data["transport_url"]),
+	}
+
+	// NOTE(gibi): cell mapping for cell0 should not have transport_url
+	// configured. As the nova-manage command used to create the mapping
+	// uses the transport_url from the nova.conf provided to the job
+	// we need to make sure that transport_url is only configured for the job
+	// if it is mapping other than cell0.
+	if cell.Spec.CellName != novav1.Cell0Name {
+		templateParameters["transport_url"] = string(mqSecret.Data["transport_url"])
 	}
 
 	cms := []util.Template{
