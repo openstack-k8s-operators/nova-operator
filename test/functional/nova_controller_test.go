@@ -31,40 +31,6 @@ import (
 )
 
 var _ = Describe("Nova controller", func() {
-	When("Nova CR instance is created without cell0", func() {
-		BeforeEach(func() {
-			DeferCleanup(th.DeleteInstance, CreateNovaWithoutCell0(novaNames.NovaName))
-		})
-
-		It("is not Ready", func() {
-			th.ExpectCondition(
-				novaNames.NovaName,
-				ConditionGetterFunc(NovaConditionGetter),
-				condition.ReadyCondition,
-				corev1.ConditionFalse,
-			)
-		})
-
-		It("has no hash and no services ready", func() {
-			instance := GetNova(novaNames.NovaName)
-			Expect(instance.Status.Hash).To(BeEmpty())
-			Expect(instance.Status.APIServiceReadyCount).To(Equal(int32(0)))
-			Expect(instance.Status.SchedulerServiceReadyCount).To(Equal(int32(0)))
-			Expect(instance.Status.MetadataServiceReadyCount).To(Equal(int32(0)))
-		})
-
-		It("reports that cell0 is missing from the spec", func() {
-			th.ExpectConditionWithDetails(
-				novaNames.NovaName,
-				ConditionGetterFunc(NovaConditionGetter),
-				novav1.NovaAllCellsReadyCondition,
-				corev1.ConditionFalse,
-				condition.ErrorReason,
-				"NovaCell creation failed for cell0(missing cell0 specification from Spec.CellTemplates)",
-			)
-		})
-	})
-
 	When("Nova CR instance is created without a proper secret", func() {
 		BeforeEach(func() {
 			DeferCleanup(

@@ -112,6 +112,14 @@ var _ webhook.Validator = &Nova{}
 func (r *NovaSpec) ValidateCellTemplates(basePath *field.Path) field.ErrorList {
 	var errors field.ErrorList
 
+	if _, ok := r.CellTemplates[Cell0Name]; !ok {
+		errors = append(
+			errors,
+			field.Required(basePath.Child("cellTemplates"),
+				"cell0 specification is missing, cell0 key is required in cellTemplates"),
+		)
+	}
+
 	for name, cell := range r.CellTemplates {
 		cellPath := basePath.Child("cellTemplates").Key(name)
 		errors = append(

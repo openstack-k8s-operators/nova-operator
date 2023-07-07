@@ -184,12 +184,9 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		return rbacResult, nil
 	}
 
-	// TODO(gibi): This should be checked in a webhook and reject the CR
-	// creation instead of setting its status.
-	cell0Template, err := r.getCell0Template(instance)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
+	// There is a webhook validation that ensures that there is always cell0 in
+	// the cellTemplates
+	cell0Template := instance.Spec.CellTemplates[novav1.Cell0Name]
 
 	expectedSelectors := []string{
 		instance.Spec.PasswordSelectors.Service,
@@ -657,26 +654,6 @@ func (r *NovaReconciler) ensureDB(
 	}
 
 	return nova.DBCompleted, nil
-}
-
-func (r *NovaReconciler) getCell0Template(instance *novav1.Nova) (novav1.NovaCellTemplate, error) {
-	var cell0Template novav1.NovaCellTemplate
-	var ok bool
-
-	if cell0Template, ok = instance.Spec.CellTemplates[novav1.Cell0Name]; !ok {
-		err := fmt.Errorf("missing cell0 specification from Spec.CellTemplates")
-		instance.Status.Conditions.Set(condition.FalseCondition(
-			novav1.NovaAllCellsReadyCondition,
-			condition.ErrorReason,
-			condition.SeverityError,
-			novav1.NovaAllCellsReadyErrorMessage,
-			fmt.Sprintf("%s(%v)", novav1.Cell0Name, err.Error()),
-		))
-
-		return cell0Template, err
-	}
-
-	return cell0Template, nil
 }
 
 func (r *NovaReconciler) ensureAPIDB(
