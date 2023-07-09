@@ -4,4 +4,3 @@ delete:
 - apiVersion: placement.openstack.org/v1beta1
   kind: PlacementAPI
   name: placement
-  namespace: openstack

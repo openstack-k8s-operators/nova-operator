@@ -13,13 +13,11 @@ metadata:
   finalizers:
   - PlacementAPI
   name: placement
-  namespace: openstack
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: placement
-  namespace: openstack
 ---
 # the openshift annotations can't be checked through the deployment above
 apiVersion: v1
@@ -37,7 +35,6 @@ metadata:
     admin: "true"
     service: placement
   name: placement-admin
-  namespace: openstack
 spec:
   ports:
     - name: placement-admin
@@ -52,7 +49,6 @@ metadata:
     internal: "true"
     service: placement
   name: placement-internal
-  namespace: openstack
 spec:
   ports:
     - name: placement-internal
@@ -67,7 +63,6 @@ metadata:
     public: "true"
     service: placement
   name: placement-public
-  namespace: openstack
 spec:
   ports:
     - name: placement-public
@@ -82,7 +77,6 @@ metadata:
   labels:
     public: "true"
     service: placement
-  namespace: openstack
 spec:
   port:
     targetPort: placement-public

@@ -4,7 +4,6 @@ metadata:
   finalizers:
   - PlacementAPI
   name: placement
-  namespace: openstack
 spec:
   containerImage: quay.io/podified-antelope-centos9/openstack-placement-api:current-podified
   customServiceConfig: |
@@ -83,7 +82,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: placement-operator-controller-manager
-  namespace: openstack
 status:
   availableReplicas: 1
   replicas: 1
@@ -92,7 +90,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: placement
-  namespace: openstack
 spec:
   replicas: 1
   template:
@@ -195,7 +192,6 @@ metadata:
     internal: "true"
     service: placement
   name: placement-internal
-  namespace: openstack
 spec:
   ports:
     - name: placement-internal
@@ -210,7 +206,6 @@ metadata:
     public: "true"
     service: placement
   name: placement-public
-  namespace: openstack
 spec:
   ports:
     - name: placement-public
@@ -225,7 +220,6 @@ metadata:
   labels:
     public: "true"
     service: placement
-  namespace: openstack
 spec:
   port:
     targetPort: placement-public
@@ -266,7 +260,6 @@ apiVersion: keystone.openstack.org/v1beta1
 kind: KeystoneEndpoint
 metadata:
   name: placement
-  namespace: openstack
   ownerReferences:
   - apiVersion: placement.openstack.org/v1beta1
     blockOwnerDeletion: true
@@ -283,6 +276,6 @@ namespaced: true
 commands:
   - script: |
       . $PLACEMENT_KUTTL_TEST_DIR/../lib/helper_functions.sh
-      apiEndpoints=$(oc get -n openstack KeystoneEndpoint placement -o go-template-file=$PLACEMENT_KUTTL_TEST_DIR/../go_templates/apiEndpoints.gotemplate)
+      apiEndpoints=$(oc get -n $NAMESPACE KeystoneEndpoint placement -o go-template-file=$PLACEMENT_KUTTL_TEST_DIR/../go_templates/apiEndpoints.gotemplate)
       assert_regex $apiEndpoints 'http:\/\/placement-internal\.openstack\.svc.*'
       assert_regex $apiEndpoints 'http:\/\/placement-public-openstack\.apps.*'

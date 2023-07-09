@@ -33,7 +33,7 @@ apiVersion: kuttl.dev/v1beta1
 kind: TestSuite
 reportFormat: JSON
 reportName: kuttl-test-placement
-namespace: openstack
+namespace: placement-kuttl-tests
 timeout: 180
 parallel: 1
 suppress:

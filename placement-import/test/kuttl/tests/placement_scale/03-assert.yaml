@@ -11,7 +11,6 @@ metadata:
   finalizers:
   - PlacementAPI
   name: placement
-  namespace: openstack
 spec:
   replicas: 3
 status:

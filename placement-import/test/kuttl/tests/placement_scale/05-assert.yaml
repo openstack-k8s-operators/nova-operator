@@ -12,7 +12,6 @@ metadata:
   finalizers:
   - PlacementAPI
   name: placement
-  namespace: openstack
 spec:
   replicas: 0
 ---
@@ -20,6 +19,5 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: placement
-  namespace: openstack
 spec:
   replicas: 0
