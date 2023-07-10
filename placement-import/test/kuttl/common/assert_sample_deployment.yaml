@@ -269,5 +269,5 @@ commands:
   - script: |
       . $PLACEMENT_KUTTL_DIR/../lib/helper_functions.sh
       apiEndpoints=$(oc get -n $NAMESPACE KeystoneEndpoint placement -o go-template-file=$PLACEMENT_KUTTL_DIR/../go_templates/apiEndpoints.gotemplate)
-      assert_regex $apiEndpoints 'http:\/\/placement-internal\.openstack\.svc.*'
-      assert_regex $apiEndpoints 'http:\/\/placement-public-openstack\.apps.*'
+      assert_regex $apiEndpoints 'http:\/\/placement-internal\..+\.svc.*'
+      assert_regex $apiEndpoints 'http:\/\/placement-public-.+\.apps.*'
