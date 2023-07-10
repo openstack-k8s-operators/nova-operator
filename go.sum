@@ -250,8 +250,8 @@ github.com/openstack-k8s-operators/lib-common/modules/test v0.0.0-20230711124224
 github.com/openstack-k8s-operators/lib-common/modules/test v0.0.0-20230711124224-54bd95cadcf3/go.mod h1:qOUQZZ7eMirFWPS4uxoTWL5+CC+3vwX5kSyHsk9pLtg=
 github.com/openstack-k8s-operators/mariadb-operator/api v0.0.0-20230622153114-756aead1d819 h1:r/kKZytOCo11yiktcfpTyom3cecxZ5i37IJtfAypKbY=
 github.com/openstack-k8s-operators/mariadb-operator/api v0.0.0-20230622153114-756aead1d819/go.mod h1:YRgmQI2Z0IbQnDrU1jqvZqntSBmCmBU9CSbzoqPjrPw=
-github.com/openstack-k8s-operators/openstack-ansibleee-operator/api v0.0.0-20230620085730-fddf65f65f88 h1:l1s8NZfIRKeiMrTsDQAKw44EwWQ2waaWv+TpJz+93Bk=
-github.com/openstack-k8s-operators/openstack-ansibleee-operator/api v0.0.0-20230620085730-fddf65f65f88/go.mod h1:e4hw70sdvXG8anfBSGq5VMq11h52aN/TI3HYxjPyDGE=
+github.com/openstack-k8s-operators/openstack-ansibleee-operator/api v0.0.0-20230705201719-256e50a0daf5 h1:Ilb0sO91dSlG9PvfMte/gc/zWgTe9/ALp/FFu+df1rI=
+github.com/openstack-k8s-operators/openstack-ansibleee-operator/api v0.0.0-20230705201719-256e50a0daf5/go.mod h1:dpIdzGakxXSbkIC5f3iuqMVMtr7N2VLtKT2sqPK4fso=
 github.com/pkg/errors v0.8.0/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pkg/errors v0.8.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=

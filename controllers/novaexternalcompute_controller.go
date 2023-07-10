@@ -698,6 +698,7 @@ func initAEE(
 	playbook string,
 ) {
 	ansibleEE.Spec.Image = instance.Spec.AnsibleEEContainerImage
+	ansibleEE.Spec.DNSConfig = instance.Spec.DNSConfig
 	// TODO we don't currently have this on the NovaExternalComputeCR
 	// ansibleEE.Spec.NetworkAttachments = instance.Spec.NetworkAttachments
 	ansibleEE.Spec.Playbook = playbook
