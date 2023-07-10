@@ -23,6 +23,7 @@ package v1beta1
 
 import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
+	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -737,6 +738,11 @@ func (in *NovaExternalComputeSpec) DeepCopyInto(out *NovaExternalComputeSpec) {
 		in, out := &in.NetworkAttachments, &out.NetworkAttachments
 		*out = make([]string, len(*in))
 		copy(*out, *in)
+	}
+	if in.DNSConfig != nil {
+		in, out := &in.DNSConfig, &out.DNSConfig
+		*out = new(v1.PodDNSConfig)
+		(*in).DeepCopyInto(*out)
 	}
 }
 
