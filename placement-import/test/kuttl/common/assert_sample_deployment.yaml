@@ -63,7 +63,7 @@ status:
     type: NetworkAttachmentsReady
   - message: RoleBinding created
     reason: Ready
-    status: True
+    status: "True"
     type: RoleBindingReady
   - message: Role created
     reason: Ready
