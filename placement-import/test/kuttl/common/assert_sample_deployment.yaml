@@ -81,14 +81,6 @@ status:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: placement-operator-controller-manager
-status:
-  availableReplicas: 1
-  replicas: 1
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
   name: placement
 spec:
   replicas: 1
