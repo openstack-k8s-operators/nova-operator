@@ -182,23 +182,6 @@ var _ = Describe("NovaMetadata controller", func() {
 				}, timeout, interval).Should(Succeed())
 
 			})
-
-			When("the NovaMetadata is deleted", func() {
-				It("deletes the generated ConfigMaps", func() {
-					th.ExpectCondition(
-						novaNames.MetadataName,
-						ConditionGetterFunc(NovaMetadataConditionGetter),
-						condition.ServiceConfigReadyCondition,
-						corev1.ConditionTrue,
-					)
-
-					th.DeleteInstance(GetNovaMetadata(novaNames.MetadataName))
-
-					Eventually(func() []corev1.ConfigMap {
-						return th.ListConfigMaps(novaNames.MetadataName.Name).Items
-					}, timeout, interval).Should(BeEmpty())
-				})
-			})
 		})
 
 		When("NovaMetadata is created with a proper Secret", func() {

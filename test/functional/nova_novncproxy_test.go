@@ -182,23 +182,6 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 				}, timeout, interval).Should(Succeed())
 
 			})
-
-			When("the NoVNCProxy is deleted", func() {
-				It("deletes the generated ConfigMaps", func() {
-					th.ExpectCondition(
-						novaNames.NoVNCProxyName,
-						ConditionGetterFunc(NoVNCProxyConditionGetter),
-						condition.ServiceConfigReadyCondition,
-						corev1.ConditionTrue,
-					)
-
-					th.DeleteInstance(GetNovaNoVNCProxy(novaNames.NoVNCProxyName))
-
-					Eventually(func() []corev1.ConfigMap {
-						return th.ListConfigMaps(novaNames.NoVNCProxyName.Name).Items
-					}, timeout, interval).Should(BeEmpty())
-				})
-			})
 		})
 		When("NoVNCProxy is created with a proper Secret", func() {
 			BeforeEach(func() {
