@@ -30,7 +30,6 @@ import (
 func GetDefaultPlacementAPISpec() map[string]interface{} {
 	return map[string]interface{}{
 		"databaseInstance": "openstack",
-		"replicas":         1,
 		"secret":           SecretName,
 	}
 }

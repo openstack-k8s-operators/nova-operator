@@ -58,6 +58,7 @@ var _ = Describe("PlacementAPI controller", func() {
 			Expect(Placement.Spec.DatabaseInstance).Should(Equal("openstack"))
 			Expect(Placement.Spec.DatabaseUser).Should(Equal("placement"))
 			Expect(Placement.Spec.ServiceUser).Should(Equal("placement"))
+			Expect(*(Placement.Spec.Replicas)).Should(Equal(int32(1)))
 		})
 
 		It("should have the Status fields initialized", func() {
