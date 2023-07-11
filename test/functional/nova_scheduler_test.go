@@ -25,7 +25,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	. "github.com/openstack-k8s-operators/lib-common/modules/test/helpers"
+	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
 )
 
 var _ = Describe("NovaScheduler controller", func() {
