@@ -49,7 +49,7 @@ import (
 	placementv1 "github.com/openstack-k8s-operators/placement-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/placement-operator/controllers"
 
-	. "github.com/openstack-k8s-operators/lib-common/modules/test-operators/helpers"
+	. "github.com/openstack-k8s-operators/lib-common/modules/test/helpers"
 	//+kubebuilder:scaffold:imports
 )
 
