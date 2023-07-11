@@ -394,7 +394,6 @@ func (r *ReconcilerBase) generateConfigsGeneric(
 		extraTemplates[k] = v
 	}
 	cms := []util.Template{
-		// ConfigMap
 		{
 			Name:               configName,
 			Namespace:          instance.GetNamespace(),
