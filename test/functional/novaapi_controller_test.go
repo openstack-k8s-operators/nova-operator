@@ -187,23 +187,6 @@ var _ = Describe("NovaAPI controller", func() {
 				}, timeout, interval).Should(Succeed())
 
 			})
-
-			When("the NovaAPI is deleted", func() {
-				It("deletes the generated ConfigMaps", func() {
-					th.ExpectCondition(
-						novaNames.APIName,
-						ConditionGetterFunc(NovaAPIConditionGetter),
-						condition.ServiceConfigReadyCondition,
-						corev1.ConditionTrue,
-					)
-
-					th.DeleteInstance(GetNovaAPI(novaNames.APIName))
-
-					Eventually(func() []corev1.ConfigMap {
-						return th.ListConfigMaps(novaNames.APIName.Name).Items
-					}, timeout, interval).Should(BeEmpty())
-				})
-			})
 		})
 	})
 

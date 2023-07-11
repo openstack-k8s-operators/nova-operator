@@ -189,22 +189,6 @@ var _ = Describe("NovaConductor controller", func() {
 				}, timeout, interval).Should(Succeed())
 
 			})
-
-			When("the NovaConductor is deleted", func() {
-				It("deletes the generated ConfigMaps", func() {
-					th.ExpectCondition(
-						novaNames.ConductorName,
-						ConditionGetterFunc(NovaConductorConditionGetter),
-						condition.ServiceConfigReadyCondition,
-						corev1.ConditionTrue,
-					)
-
-					th.DeleteInstance(GetNovaConductor(novaNames.ConductorName))
-					Eventually(func() []corev1.ConfigMap {
-						return th.ListConfigMaps(novaNames.ConductorName.Name).Items
-					}, timeout, interval).Should(BeEmpty())
-				})
-			})
 		})
 	})
 

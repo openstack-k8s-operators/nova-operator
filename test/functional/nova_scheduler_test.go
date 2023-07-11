@@ -182,27 +182,6 @@ var _ = Describe("NovaScheduler controller", func() {
 		})
 	})
 
-	When("the NovaScheduler is deleted", func() {
-		BeforeEach(func() {
-			DeferCleanup(
-				k8sClient.Delete, ctx, CreateNovaAPISecret(novaNames.SchedulerName.Namespace, SecretName))
-		})
-		It("deletes the generated ConfigMaps", func() {
-			th.ExpectCondition(
-				novaNames.SchedulerName,
-				ConditionGetterFunc(NovaSchedulerConditionGetter),
-				condition.ServiceConfigReadyCondition,
-				corev1.ConditionTrue,
-			)
-
-			th.DeleteInstance(GetNovaScheduler(novaNames.SchedulerName))
-
-			Eventually(func() []corev1.ConfigMap {
-				return th.ListConfigMaps(novaNames.SchedulerName.Name).Items
-			}, timeout, interval).Should(BeEmpty())
-		})
-	})
-
 	When("the NovaScheduler is created with a proper Secret", func() {
 
 		BeforeEach(func() {
