@@ -258,12 +258,6 @@ func (r *NovaConductorReconciler) ensureConfigs(
 	hashes *map[string]env.Setter,
 	secret corev1.Secret,
 ) error {
-	// create ConfigMaps required for nova-conductor service
-	// - %-scripts configmap holding scripts to e.g. bootstrap the service
-	// - %-config configmap holding minimal nova-api config required to get
-	//   the service up, user can add additional files to be added to the service
-	// - parameters which has passwords gets added from the OpenStack secret
-	//   via the init container
 	err := r.generateConfigs(ctx, h, instance, hashes, secret)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
@@ -284,15 +278,6 @@ func (r *NovaConductorReconciler) generateConfigs(
 	hashes *map[string]env.Setter,
 	secret corev1.Secret,
 ) error {
-	//
-	// create Configmap/Secret required for nova-conductor input
-	// - %-scripts configmap holding scripts to e.g. bootstrap the service
-	// - %-config configmap holding minimal nova-api config required to get
-	//   the service up, user can add additional files to be added to the service
-	// - parameters which has passwords gets added from the ospSecret via the
-	//   init container
-	//
-
 	messageBusSecret := &corev1.Secret{}
 	secretName := types.NamespacedName{
 		Namespace: instance.Namespace,
@@ -472,8 +457,8 @@ func (r *NovaConductorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&novav1.NovaConductor{}).
 		Owns(&v1.StatefulSet{}).
-		Owns(&corev1.ConfigMap{}).
 		Owns(&batchv1.Job{}).
+		Owns(&corev1.Secret{}).
 		Watches(&source.Kind{Type: &corev1.Secret{}},
 			handler.EnqueueRequestsFromMapFunc(r.GetSecretMapperFor(&novav1.NovaConductorList{}))).
 		Complete(r)

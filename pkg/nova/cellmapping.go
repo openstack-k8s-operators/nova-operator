@@ -16,8 +16,8 @@ const (
 func CellMappingJob(
 	instance *novav1.Nova,
 	cell *novav1.NovaCell,
-	configMapName string,
-	scriptConfigMapName string,
+	configName string,
+	scriptName string,
 	inputHash string,
 	labels map[string]string,
 ) *batchv1.Job {
@@ -55,8 +55,8 @@ func CellMappingJob(
 					RestartPolicy:      corev1.RestartPolicyOnFailure,
 					ServiceAccountName: instance.RbacResourceName(),
 					Volumes: []corev1.Volume{
-						GetConfigVolume(configMapName),
-						GetScriptVolume(scriptConfigMapName),
+						GetConfigVolume(configName),
+						GetScriptVolume(scriptName),
 					},
 					Containers: []corev1.Container{
 						{

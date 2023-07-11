@@ -75,6 +75,7 @@ type NovaReconciler struct {
 // service account permissions that are needed to grant permission to the above
 // +kubebuilder:rbac:groups="security.openshift.io",resourceNames=anyuid,resources=securitycontextconstraints,verbs=use
 // +kubebuilder:rbac:groups="",resources=pods,verbs=create;delete;get;list;patch;update;watch
+// +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch;delete;
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -1288,8 +1289,8 @@ func (r *NovaReconciler) ensureCellMapped(
 		return nova.CellMappingFailed, err
 	}
 
-	configMapName := fmt.Sprintf("%s-config-data", cell.Name+"-manage")
-	scriptConfigMapName := fmt.Sprintf("%s-scripts", cell.Name+"-manage")
+	configName := fmt.Sprintf("%s-config-data", cell.Name+"-manage")
+	scriptName := fmt.Sprintf("%s-scripts", cell.Name+"-manage")
 
 	cmLabels := labels.GetLabels(
 		instance, labels.GetGroupLabel(NovaLabelPrefix), map[string]string{},
@@ -1336,17 +1337,15 @@ func (r *NovaReconciler) ensureCellMapped(
 	}
 
 	cms := []util.Template{
-		// ScriptsConfigMap
 		{
-			Name:         scriptConfigMapName,
+			Name:         scriptName,
 			Namespace:    instance.Namespace,
 			Type:         util.TemplateTypeScripts,
 			InstanceType: "nova-manage",
 			Labels:       cmLabels,
 		},
-		// ConfigMap
 		{
-			Name:               configMapName,
+			Name:               configName,
 			Namespace:          instance.Namespace,
 			Type:               util.TemplateTypeConfig,
 			InstanceType:       "nova-manage",
@@ -1378,7 +1377,7 @@ func (r *NovaReconciler) ensureCellMapped(
 	labels := map[string]string{
 		common.AppSelector: NovaLabelPrefix,
 	}
-	jobDef := nova.CellMappingJob(instance, cell, configMapName, scriptConfigMapName, inputHash, labels)
+	jobDef := nova.CellMappingJob(instance, cell, configName, scriptName, inputHash, labels)
 
 	job := job.NewJob(
 		jobDef, cell.Name+"-cell-mapping",
@@ -1524,6 +1523,7 @@ func (r *NovaReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.ServiceAccount{}).
 		Owns(&rbacv1.Role{}).
 		Owns(&rbacv1.RoleBinding{}).
+		Owns(&corev1.Secret{}).
 		Watches(&source.Kind{Type: &corev1.Secret{}},
 			handler.EnqueueRequestsFromMapFunc(r.GetSecretMapperFor(&novav1.NovaList{}))).
 		Complete(r)
