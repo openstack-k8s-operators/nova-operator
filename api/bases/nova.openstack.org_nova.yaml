@@ -1,0 +1,1012 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.10.0
+  creationTimestamp: null
+  name: nova.nova.openstack.org
+spec:
+  group: nova.openstack.org
+  names:
+    kind: Nova
+    listKind: NovaList
+    plural: nova
+    singular: nova
+  scope: Namespaced
+  versions:
+  - name: v1beta1
+    schema:
+      openAPIV3Schema:
+        description: Nova is the Schema for the nova API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: NovaSpec defines the desired state of Nova
+            properties:
+              apiDatabaseInstance:
+                default: openstack
+                description: APIDatabaseInstance is the name of the MariaDB CR to
+                  select the DB Service instance used for the Nova API DB.
+                type: string
+              apiDatabaseUser:
+                default: nova_api
+                description: APIDatabaseUser - username to use when accessing the
+                  API DB
+                type: string
+              apiMessageBusInstance:
+                default: rabbitmq
+                description: APIMessageBusInstance is the name of the RabbitMqCluster
+                  CR to select the Message Bus Service instance used by the Nova top
+                  level services to communicate.
+                type: string
+              apiServiceTemplate:
+                default:
+                  replicas: 1
+                description: APIServiceTemplate - define the nova-api service
+                properties:
+                  containerImage:
+                    description: ContainerImage - The service specific Container Image
+                      URL (will be set to environmental default if empty)
+                    type: string
+                  customServiceConfig:
+                    description: CustomServiceConfig - customize the service config
+                      using this parameter to change service defaults, or overwrite
+                      rendered information using raw OpenStack config format. The
+                      content gets added to to /etc/<service>/<service>.conf.d directory
+                      as custom.conf file.
+                    type: string
+                  defaultConfigOverwrite:
+                    additionalProperties:
+                      type: string
+                    description: ConfigOverwrite - interface to overwrite default
+                      config files like e.g. logging.conf But can also be used to
+                      add additional files. Those get added to the service config
+                      dir in /etc/<service> .
+                    type: object
+                  externalEndpoints:
+                    description: ExternalEndpoints, expose a VIP via MetalLB on the
+                      pre-created address pool
+                    items:
+                      description: MetalLBConfig to configure the MetalLB loadbalancer
+                        service
+                      properties:
+                        endpoint:
+                          description: Endpoint, OpenStack endpoint this service maps
+                            to
+                          enum:
+                          - internal
+                          - public
+                          type: string
+                        ipAddressPool:
+                          description: IPAddressPool expose VIP via MetalLB on the
+                            IPAddressPool
+                          minLength: 1
+                          type: string
+                        loadBalancerIPs:
+                          description: LoadBalancerIPs, request given IPs from the
+                            pool if available. Using a list to allow dual stack (IPv4/IPv6)
+                            support
+                          items:
+                            type: string
+                          type: array
+                        sharedIP:
+                          default: true
+                          description: SharedIP if true, VIP/VIPs get shared with
+                            multiple services
+                          type: boolean
+                        sharedIPKey:
+                          default: ""
+                          description: SharedIPKey specifies the sharing key which
+                            gets set as the annotation on the LoadBalancer service.
+                            Services which share the same VIP must have the same SharedIPKey.
+                            Defaults to the IPAddressPool if SharedIP is true, but
+                            no SharedIPKey specified.
+                          type: string
+                      required:
+                      - ipAddressPool
+                      type: object
+                    type: array
+                  networkAttachments:
+                    description: NetworkAttachments is a list of NetworkAttachment
+                      resource names to expose the services to the given network
+                    items:
+                      type: string
+                    type: array
+                  nodeSelector:
+                    additionalProperties:
+                      type: string
+                    description: NodeSelector to target subset of worker nodes running
+                      this service. Setting here overrides any global NodeSelector
+                      settings within the Nova CR.
+                    type: object
+                  replicas:
+                    default: 1
+                    description: Replicas of the service to run
+                    format: int32
+                    maximum: 32
+                    minimum: 0
+                    type: integer
+                  resources:
+                    description: Resources - Compute Resources required by this service
+                      (Limits/Requests). https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+                    properties:
+                      claims:
+                        description: "Claims lists the names of resources, defined
+                          in spec.resourceClaims, that are used by this container.
+                          \n This is an alpha field and requires enabling the DynamicResourceAllocation
+                          feature gate. \n This field is immutable. It can only be
+                          set for containers."
+                        items:
+                          description: ResourceClaim references one entry in PodSpec.ResourceClaims.
+                          properties:
+                            name:
+                              description: Name must match the name of one entry in
+                                pod.spec.resourceClaims of the Pod where this field
+                                is used. It makes that resource available inside a
+                                container.
+                              type: string
+                          required:
+                          - name
+                          type: object
+                        type: array
+                        x-kubernetes-list-map-keys:
+                        - name
+                        x-kubernetes-list-type: map
+                      limits:
+                        additionalProperties:
+                          anyOf:
+                          - type: integer
+                          - type: string
+                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                          x-kubernetes-int-or-string: true
+                        description: 'Limits describes the maximum amount of compute
+                          resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                        type: object
+                      requests:
+                        additionalProperties:
+                          anyOf:
+                          - type: integer
+                          - type: string
+                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                          x-kubernetes-int-or-string: true
+                        description: 'Requests describes the minimum amount of compute
+                          resources required. If Requests is omitted for a container,
+                          it defaults to Limits if that is explicitly specified, otherwise
+                          to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                        type: object
+                    type: object
+                type: object
+              cellTemplates:
+                additionalProperties:
+                  description: NovaCellTemplate defines the input parameters specified
+                    by the user to create a NovaCell via higher level CRDs.
+                  properties:
+                    cellDatabaseInstance:
+                      default: openstack
+                      description: CellDatabaseInstance is the name of the MariaDB
+                        CR to select the DB Service instance used as the DB of this
+                        cell.
+                      type: string
+                    cellDatabaseUser:
+                      description: CellDatabaseUser - username to use when accessing
+                        the give cell DB
+                      type: string
+                    cellMessageBusInstance:
+                      default: rabbitmq
+                      description: CellMessageBusInstance is the name of the RabbitMqCluster
+                        CR to select the Message Bus Service instance used by the
+                        nova services to communicate in this cell. For cell0 it is
+                        unused.
+                      type: string
+                    conductorServiceTemplate:
+                      default:
+                        containerImage: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
+                      description: ConductorServiceTemplate - defines the cell conductor
+                        deployment for the cell.
+                      properties:
+                        containerImage:
+                          description: The service specific Container Image URL (will
+                            be set to environmental default if empty)
+                          type: string
+                        customServiceConfig:
+                          description: CustomServiceConfig - customize the service
+                            config using this parameter to change service defaults,
+                            or overwrite rendered information using raw OpenStack
+                            config format. The content gets added to to /etc/<service>/<service>.conf.d
+                            directory as custom.conf file.
+                          type: string
+                        defaultConfigOverwrite:
+                          additionalProperties:
+                            type: string
+                          description: ConfigOverwrite - interface to overwrite default
+                            config files like e.g. logging.conf But can also be used
+                            to add additional files. Those get added to the service
+                            config dir in /etc/<service> .
+                          type: object
+                        networkAttachments:
+                          description: NetworkAttachments is a list of NetworkAttachment
+                            resource names to expose the services to the given network
+                          items:
+                            type: string
+                          type: array
+                        nodeSelector:
+                          additionalProperties:
+                            type: string
+                          description: NodeSelector to target subset of worker nodes
+                            running this service. Setting here overrides any global
+                            NodeSelector settings within the Nova CR.
+                          type: object
+                        replicas:
+                          default: 1
+                          description: Replicas of the service to run
+                          format: int32
+                          maximum: 32
+                          minimum: 0
+                          type: integer
+                        resources:
+                          description: Resources - Compute Resources required by this
+                            service (Limits/Requests). https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+                          properties:
+                            claims:
+                              description: "Claims lists the names of resources, defined
+                                in spec.resourceClaims, that are used by this container.
+                                \n This is an alpha field and requires enabling the
+                                DynamicResourceAllocation feature gate. \n This field
+                                is immutable. It can only be set for containers."
+                              items:
+                                description: ResourceClaim references one entry in
+                                  PodSpec.ResourceClaims.
+                                properties:
+                                  name:
+                                    description: Name must match the name of one entry
+                                      in pod.spec.resourceClaims of the Pod where
+                                      this field is used. It makes that resource available
+                                      inside a container.
+                                    type: string
+                                required:
+                                - name
+                                type: object
+                              type: array
+                              x-kubernetes-list-map-keys:
+                              - name
+                              x-kubernetes-list-type: map
+                            limits:
+                              additionalProperties:
+                                anyOf:
+                                - type: integer
+                                - type: string
+                                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                x-kubernetes-int-or-string: true
+                              description: 'Limits describes the maximum amount of
+                                compute resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                              type: object
+                            requests:
+                              additionalProperties:
+                                anyOf:
+                                - type: integer
+                                - type: string
+                                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                x-kubernetes-int-or-string: true
+                              description: 'Requests describes the minimum amount
+                                of compute resources required. If Requests is omitted
+                                for a container, it defaults to Limits if that is
+                                explicitly specified, otherwise to an implementation-defined
+                                value. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                              type: object
+                          type: object
+                      type: object
+                    hasAPIAccess:
+                      description: HasAPIAccess defines if this Cell is configured
+                        to have access to the API DB and message bus.
+                      type: boolean
+                    metadataServiceTemplate:
+                      default:
+                        replicas: 0
+                      description: MetadataServiceTemplate - defines the metadata
+                        service dedicated for the cell.
+                      properties:
+                        containerImage:
+                          description: The service specific Container Image URL (will
+                            be set to environmental default if empty)
+                          type: string
+                        customServiceConfig:
+                          description: CustomServiceConfig - customize the service
+                            config using this parameter to change service defaults,
+                            or overwrite rendered information using raw OpenStack
+                            config format. The content gets added to to /etc/<service>/<service>.conf.d
+                            directory as custom.conf file.
+                          type: string
+                        defaultConfigOverwrite:
+                          additionalProperties:
+                            type: string
+                          description: ConfigOverwrite - interface to overwrite default
+                            config files like e.g. logging.conf But can also be used
+                            to add additional files. Those get added to the service
+                            config dir in /etc/<service> .
+                          type: object
+                        externalEndpoints:
+                          description: ExternalEndpoints, expose a VIP via MetalLB
+                            on the pre-created address pool
+                          items:
+                            description: MetalLBConfig to configure the MetalLB loadbalancer
+                              service
+                            properties:
+                              endpoint:
+                                description: Endpoint, OpenStack endpoint this service
+                                  maps to
+                                enum:
+                                - internal
+                                - public
+                                type: string
+                              ipAddressPool:
+                                description: IPAddressPool expose VIP via MetalLB
+                                  on the IPAddressPool
+                                minLength: 1
+                                type: string
+                              loadBalancerIPs:
+                                description: LoadBalancerIPs, request given IPs from
+                                  the pool if available. Using a list to allow dual
+                                  stack (IPv4/IPv6) support
+                                items:
+                                  type: string
+                                type: array
+                              sharedIP:
+                                default: true
+                                description: SharedIP if true, VIP/VIPs get shared
+                                  with multiple services
+                                type: boolean
+                              sharedIPKey:
+                                default: ""
+                                description: SharedIPKey specifies the sharing key
+                                  which gets set as the annotation on the LoadBalancer
+                                  service. Services which share the same VIP must
+                                  have the same SharedIPKey. Defaults to the IPAddressPool
+                                  if SharedIP is true, but no SharedIPKey specified.
+                                type: string
+                            required:
+                            - ipAddressPool
+                            type: object
+                          type: array
+                        networkAttachments:
+                          description: NetworkAttachments is a list of NetworkAttachment
+                            resource names to expose the services to the given network
+                          items:
+                            type: string
+                          type: array
+                        nodeSelector:
+                          additionalProperties:
+                            type: string
+                          description: NodeSelector to target subset of worker nodes
+                            running this service. Setting here overrides any global
+                            NodeSelector settings within the Nova CR.
+                          type: object
+                        replicas:
+                          default: 1
+                          description: Replicas of the service to run
+                          format: int32
+                          maximum: 32
+                          minimum: 0
+                          type: integer
+                        resources:
+                          description: Resources - Compute Resources required by this
+                            service (Limits/Requests). https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+                          properties:
+                            claims:
+                              description: "Claims lists the names of resources, defined
+                                in spec.resourceClaims, that are used by this container.
+                                \n This is an alpha field and requires enabling the
+                                DynamicResourceAllocation feature gate. \n This field
+                                is immutable. It can only be set for containers."
+                              items:
+                                description: ResourceClaim references one entry in
+                                  PodSpec.ResourceClaims.
+                                properties:
+                                  name:
+                                    description: Name must match the name of one entry
+                                      in pod.spec.resourceClaims of the Pod where
+                                      this field is used. It makes that resource available
+                                      inside a container.
+                                    type: string
+                                required:
+                                - name
+                                type: object
+                              type: array
+                              x-kubernetes-list-map-keys:
+                              - name
+                              x-kubernetes-list-type: map
+                            limits:
+                              additionalProperties:
+                                anyOf:
+                                - type: integer
+                                - type: string
+                                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                x-kubernetes-int-or-string: true
+                              description: 'Limits describes the maximum amount of
+                                compute resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                              type: object
+                            requests:
+                              additionalProperties:
+                                anyOf:
+                                - type: integer
+                                - type: string
+                                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                x-kubernetes-int-or-string: true
+                              description: 'Requests describes the minimum amount
+                                of compute resources required. If Requests is omitted
+                                for a container, it defaults to Limits if that is
+                                explicitly specified, otherwise to an implementation-defined
+                                value. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                              type: object
+                          type: object
+                      type: object
+                    noVNCProxyServiceTemplate:
+                      description: NoVNCProxyServiceTemplate - defines the novvncproxy
+                        service dedicated for the cell.
+                      properties:
+                        containerImage:
+                          description: The service specific Container Image URL (will
+                            be set to environmental default if empty)
+                          type: string
+                        customServiceConfig:
+                          description: CustomServiceConfig - customize the service
+                            config using this parameter to change service defaults,
+                            or overwrite rendered information using raw OpenStack
+                            config format. The content gets added to to /etc/<service>/<service>.conf.d
+                            directory as custom.conf file.
+                          type: string
+                        defaultConfigOverwrite:
+                          additionalProperties:
+                            type: string
+                          description: ConfigOverwrite - interface to overwrite default
+                            config files like e.g. logging.conf But can also be used
+                            to add additional files. Those get added to the service
+                            config dir in /etc/<service> .
+                          type: object
+                        externalEndpoints:
+                          description: ExternalEndpoints, expose a VIP via MetalLB
+                            on the pre-created address pool
+                          items:
+                            description: MetalLBConfig to configure the MetalLB loadbalancer
+                              service
+                            properties:
+                              endpoint:
+                                description: Endpoint, OpenStack endpoint this service
+                                  maps to
+                                enum:
+                                - internal
+                                - public
+                                type: string
+                              ipAddressPool:
+                                description: IPAddressPool expose VIP via MetalLB
+                                  on the IPAddressPool
+                                minLength: 1
+                                type: string
+                              loadBalancerIPs:
+                                description: LoadBalancerIPs, request given IPs from
+                                  the pool if available. Using a list to allow dual
+                                  stack (IPv4/IPv6) support
+                                items:
+                                  type: string
+                                type: array
+                              sharedIP:
+                                default: true
+                                description: SharedIP if true, VIP/VIPs get shared
+                                  with multiple services
+                                type: boolean
+                              sharedIPKey:
+                                default: ""
+                                description: SharedIPKey specifies the sharing key
+                                  which gets set as the annotation on the LoadBalancer
+                                  service. Services which share the same VIP must
+                                  have the same SharedIPKey. Defaults to the IPAddressPool
+                                  if SharedIP is true, but no SharedIPKey specified.
+                                type: string
+                            required:
+                            - ipAddressPool
+                            type: object
+                          type: array
+                        networkAttachments:
+                          description: NetworkAttachments is a list of NetworkAttachment
+                            resource names to expose the services to the given network
+                          items:
+                            type: string
+                          type: array
+                        nodeSelector:
+                          additionalProperties:
+                            type: string
+                          description: NodeSelector to target subset of worker nodes
+                            running this service
+                          type: object
+                        replicas:
+                          default: 1
+                          description: Replicas of the service to run
+                          format: int32
+                          maximum: 32
+                          minimum: 0
+                          type: integer
+                        resources:
+                          description: Resources - Compute Resources required by this
+                            service (Limits/Requests). https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+                          properties:
+                            claims:
+                              description: "Claims lists the names of resources, defined
+                                in spec.resourceClaims, that are used by this container.
+                                \n This is an alpha field and requires enabling the
+                                DynamicResourceAllocation feature gate. \n This field
+                                is immutable. It can only be set for containers."
+                              items:
+                                description: ResourceClaim references one entry in
+                                  PodSpec.ResourceClaims.
+                                properties:
+                                  name:
+                                    description: Name must match the name of one entry
+                                      in pod.spec.resourceClaims of the Pod where
+                                      this field is used. It makes that resource available
+                                      inside a container.
+                                    type: string
+                                required:
+                                - name
+                                type: object
+                              type: array
+                              x-kubernetes-list-map-keys:
+                              - name
+                              x-kubernetes-list-type: map
+                            limits:
+                              additionalProperties:
+                                anyOf:
+                                - type: integer
+                                - type: string
+                                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                x-kubernetes-int-or-string: true
+                              description: 'Limits describes the maximum amount of
+                                compute resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                              type: object
+                            requests:
+                              additionalProperties:
+                                anyOf:
+                                - type: integer
+                                - type: string
+                                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                x-kubernetes-int-or-string: true
+                              description: 'Requests describes the minimum amount
+                                of compute resources required. If Requests is omitted
+                                for a container, it defaults to Limits if that is
+                                explicitly specified, otherwise to an implementation-defined
+                                value. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                              type: object
+                          type: object
+                      type: object
+                    nodeSelector:
+                      additionalProperties:
+                        type: string
+                      description: NodeSelector to target subset of worker nodes running
+                        cell.
+                      type: object
+                    passwordSelectors:
+                      default:
+                        database: NovaCell0DatabasePassword
+                      description: PasswordSelectors - Selectors to identify the DB
+                        passwords from the Secret
+                      properties:
+                        database:
+                          default: NovaCell0DatabasePassword
+                          description: CellDatabase - the name of the field to get
+                            the Cell DB password from the Secret
+                          type: string
+                      type: object
+                  required:
+                  - cellDatabaseUser
+                  - hasAPIAccess
+                  type: object
+                default:
+                  cell0:
+                    cellDatabaseUser: nova_cell0
+                    hasAPIAccess: true
+                  cell1:
+                    cellDatabaseInstance: openstack-cell1
+                    cellDatabaseUser: nova_cell1
+                    cellMessageBusInstance: rabbitmq-cell1
+                    hasAPIAccess: true
+                description: Cells is a mapping of cell names to NovaCellTemplate
+                  objects defining the cells in the deployment. The "cell0" cell is
+                  a mandatory cell in every deployment. Moreover any real deployment
+                  needs at least one additional normal cell as "cell0" cannot have
+                  any computes.
+                type: object
+              debug:
+                description: Debug - enable debug for different deploy stages. If
+                  an init container is used, it runs and the actual action pod gets
+                  started with sleep infinity
+                properties:
+                  preserveJobs:
+                    default: false
+                    description: PreserveJobs - do not delete jobs after they finished
+                      e.g. to check logs
+                    type: boolean
+                  stopDBSync:
+                    default: false
+                    description: 'StopDBSync allows stopping the init container before
+                      running db sync to apply the DB schema QUESTION(gibi): Not all
+                      CR will run dbsync, should we have per CR Debug struct or keep
+                      this generic one and ignore fields in the controller that are
+                      not applicable'
+                    type: boolean
+                  stopService:
+                    default: false
+                    description: 'StopService allows stopping the service container
+                      before staring the openstack service binary QUESTION(gibi):
+                      Not all CR will run a service, should we have per CR Debug struct
+                      or keep this generic one and ignore fields in the controller
+                      that are not applicable'
+                    type: boolean
+                type: object
+              keystoneInstance:
+                default: keystone
+                description: KeystoneInstance to name of the KeystoneAPI CR to select
+                  the Service instance used by the Nova services to authenticate.
+                type: string
+              metadataServiceTemplate:
+                default:
+                  replicas: 1
+                description: MetadataServiceTemplate - defines the metadata service
+                  that is global for the deployment serving all the cells.
+                properties:
+                  containerImage:
+                    description: The service specific Container Image URL (will be
+                      set to environmental default if empty)
+                    type: string
+                  customServiceConfig:
+                    description: CustomServiceConfig - customize the service config
+                      using this parameter to change service defaults, or overwrite
+                      rendered information using raw OpenStack config format. The
+                      content gets added to to /etc/<service>/<service>.conf.d directory
+                      as custom.conf file.
+                    type: string
+                  defaultConfigOverwrite:
+                    additionalProperties:
+                      type: string
+                    description: ConfigOverwrite - interface to overwrite default
+                      config files like e.g. logging.conf But can also be used to
+                      add additional files. Those get added to the service config
+                      dir in /etc/<service> .
+                    type: object
+                  externalEndpoints:
+                    description: ExternalEndpoints, expose a VIP via MetalLB on the
+                      pre-created address pool
+                    items:
+                      description: MetalLBConfig to configure the MetalLB loadbalancer
+                        service
+                      properties:
+                        endpoint:
+                          description: Endpoint, OpenStack endpoint this service maps
+                            to
+                          enum:
+                          - internal
+                          - public
+                          type: string
+                        ipAddressPool:
+                          description: IPAddressPool expose VIP via MetalLB on the
+                            IPAddressPool
+                          minLength: 1
+                          type: string
+                        loadBalancerIPs:
+                          description: LoadBalancerIPs, request given IPs from the
+                            pool if available. Using a list to allow dual stack (IPv4/IPv6)
+                            support
+                          items:
+                            type: string
+                          type: array
+                        sharedIP:
+                          default: true
+                          description: SharedIP if true, VIP/VIPs get shared with
+                            multiple services
+                          type: boolean
+                        sharedIPKey:
+                          default: ""
+                          description: SharedIPKey specifies the sharing key which
+                            gets set as the annotation on the LoadBalancer service.
+                            Services which share the same VIP must have the same SharedIPKey.
+                            Defaults to the IPAddressPool if SharedIP is true, but
+                            no SharedIPKey specified.
+                          type: string
+                      required:
+                      - ipAddressPool
+                      type: object
+                    type: array
+                  networkAttachments:
+                    description: NetworkAttachments is a list of NetworkAttachment
+                      resource names to expose the services to the given network
+                    items:
+                      type: string
+                    type: array
+                  nodeSelector:
+                    additionalProperties:
+                      type: string
+                    description: NodeSelector to target subset of worker nodes running
+                      this service. Setting here overrides any global NodeSelector
+                      settings within the Nova CR.
+                    type: object
+                  replicas:
+                    default: 1
+                    description: Replicas of the service to run
+                    format: int32
+                    maximum: 32
+                    minimum: 0
+                    type: integer
+                  resources:
+                    description: Resources - Compute Resources required by this service
+                      (Limits/Requests). https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+                    properties:
+                      claims:
+                        description: "Claims lists the names of resources, defined
+                          in spec.resourceClaims, that are used by this container.
+                          \n This is an alpha field and requires enabling the DynamicResourceAllocation
+                          feature gate. \n This field is immutable. It can only be
+                          set for containers."
+                        items:
+                          description: ResourceClaim references one entry in PodSpec.ResourceClaims.
+                          properties:
+                            name:
+                              description: Name must match the name of one entry in
+                                pod.spec.resourceClaims of the Pod where this field
+                                is used. It makes that resource available inside a
+                                container.
+                              type: string
+                          required:
+                          - name
+                          type: object
+                        type: array
+                        x-kubernetes-list-map-keys:
+                        - name
+                        x-kubernetes-list-type: map
+                      limits:
+                        additionalProperties:
+                          anyOf:
+                          - type: integer
+                          - type: string
+                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                          x-kubernetes-int-or-string: true
+                        description: 'Limits describes the maximum amount of compute
+                          resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                        type: object
+                      requests:
+                        additionalProperties:
+                          anyOf:
+                          - type: integer
+                          - type: string
+                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                          x-kubernetes-int-or-string: true
+                        description: 'Requests describes the minimum amount of compute
+                          resources required. If Requests is omitted for a container,
+                          it defaults to Limits if that is explicitly specified, otherwise
+                          to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                        type: object
+                    type: object
+                type: object
+              nodeSelector:
+                additionalProperties:
+                  type: string
+                description: NodeSelector to target subset of worker nodes running
+                  this service. Setting NodeSelector here acts as a default value
+                  and can be overridden by service specific NodeSelector Settings.
+                type: object
+              passwordSelectors:
+                default:
+                  service: NovaPassword
+                description: PasswordSelectors - Selectors to identify the DB and
+                  ServiceUser passwords from the Secret
+                properties:
+                  apiDatabase:
+                    default: NovaAPIDatabasePassword
+                    description: APIDatabase - the name of the field to get the API
+                      DB password from the Secret
+                    type: string
+                  metadataSecret:
+                    default: MetadataSecret
+                    description: MetadataSecret - the name of the field to get the
+                      metadata secret from the Secret
+                    type: string
+                  service:
+                    default: NovaPassword
+                    description: Service - Selector to get the keystone service user
+                      password from the Secret
+                    type: string
+                type: object
+              schedulerServiceTemplate:
+                default:
+                  replicas: 1
+                description: SchedulerServiceTemplate- define the nova-scheduler service
+                properties:
+                  containerImage:
+                    description: The service specific Container Image URL (will be
+                      set to environmental default if empty)
+                    type: string
+                  customServiceConfig:
+                    description: CustomServiceConfig - customize the service config
+                      using this parameter to change service defaults, or overwrite
+                      rendered information using raw OpenStack config format. The
+                      content gets added to to /etc/<service>/<service>.conf.d directory
+                      as custom.conf file.
+                    type: string
+                  defaultConfigOverwrite:
+                    additionalProperties:
+                      type: string
+                    description: ConfigOverwrite - interface to overwrite default
+                      config files like e.g. logging.conf But can also be used to
+                      add additional files. Those get added to the service config
+                      dir in /etc/<service> .
+                    type: object
+                  networkAttachments:
+                    description: NetworkAttachments is a list of NetworkAttachment
+                      resource names to expose the services to the given network
+                    items:
+                      type: string
+                    type: array
+                  nodeSelector:
+                    additionalProperties:
+                      type: string
+                    description: NodeSelector to target subset of worker nodes running
+                      this service. Setting here overrides any global NodeSelector
+                      settings within the Nova CR.
+                    type: object
+                  replicas:
+                    default: 1
+                    description: Replicas of the service to run
+                    format: int32
+                    maximum: 32
+                    minimum: 0
+                    type: integer
+                  resources:
+                    description: Resources - Compute Resources required by this service
+                      (Limits/Requests). https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+                    properties:
+                      claims:
+                        description: "Claims lists the names of resources, defined
+                          in spec.resourceClaims, that are used by this container.
+                          \n This is an alpha field and requires enabling the DynamicResourceAllocation
+                          feature gate. \n This field is immutable. It can only be
+                          set for containers."
+                        items:
+                          description: ResourceClaim references one entry in PodSpec.ResourceClaims.
+                          properties:
+                            name:
+                              description: Name must match the name of one entry in
+                                pod.spec.resourceClaims of the Pod where this field
+                                is used. It makes that resource available inside a
+                                container.
+                              type: string
+                          required:
+                          - name
+                          type: object
+                        type: array
+                        x-kubernetes-list-map-keys:
+                        - name
+                        x-kubernetes-list-type: map
+                      limits:
+                        additionalProperties:
+                          anyOf:
+                          - type: integer
+                          - type: string
+                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                          x-kubernetes-int-or-string: true
+                        description: 'Limits describes the maximum amount of compute
+                          resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                        type: object
+                      requests:
+                        additionalProperties:
+                          anyOf:
+                          - type: integer
+                          - type: string
+                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                          x-kubernetes-int-or-string: true
+                        description: 'Requests describes the minimum amount of compute
+                          resources required. If Requests is omitted for a container,
+                          it defaults to Limits if that is explicitly specified, otherwise
+                          to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                        type: object
+                    type: object
+                type: object
+              secret:
+                description: Secret is the name of the Secret instance containing
+                  password information for nova like the keystone service password
+                  and DB passwords
+                type: string
+              serviceUser:
+                default: nova
+                description: ServiceUser - optional username used for this service
+                  to register in keystone
+                type: string
+            required:
+            - secret
+            type: object
+          status:
+            description: NovaStatus defines the observed state of Nova
+            properties:
+              apiServiceReadyCount:
+                description: APIServiceReadyCount defines the number or replicas ready
+                  from nova-api
+                format: int32
+                type: integer
+              conditions:
+                description: Conditions
+                items:
+                  description: Condition defines an observation of a API resource
+                    operational state.
+                  properties:
+                    lastTransitionTime:
+                      description: Last time the condition transitioned from one status
+                        to another. This should be when the underlying condition changed.
+                        If that is not known, then using the time when the API field
+                        changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: A human readable message indicating details about
+                        the transition.
+                      type: string
+                    reason:
+                      description: The reason for the condition's last transition
+                        in CamelCase.
+                      type: string
+                    severity:
+                      description: Severity provides a classification of Reason code,
+                        so the current situation is immediately understandable and
+                        could act accordingly. It is meant for situations where Status=False
+                        and it should be indicated if it is just informational, warning
+                        (next reconciliation might fix it) or an error (e.g. DB create
+                        issue and no actions to automatically resolve the issue can/should
+                        be done). For conditions where Status=Unknown or Status=True
+                        the Severity should be SeverityNone.
+                      type: string
+                    status:
+                      description: Status of the condition, one of True, False, Unknown.
+                      type: string
+                    type:
+                      description: Type of condition in CamelCase.
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - status
+                  - type
+                  type: object
+                type: array
+              hash:
+                additionalProperties:
+                  type: string
+                description: Map of hashes to track e.g. job status
+                type: object
+              metadataServiceReadyCount:
+                description: MetadataReadyCount defines the number of replicas ready
+                  from nova-metadata service
+                format: int32
+                type: integer
+              registeredCells:
+                additionalProperties:
+                  type: string
+                description: RegisteredCells is a map keyed by cell names that are
+                  registered in the nova_api database with a value that is the hash
+                  of the given cell configuration.
+                type: object
+              schedulerServiceReadyCount:
+                description: SchedulerServiceReadyCount defines the number or replicas
+                  ready from nova-scheduler
+                format: int32
+                type: integer
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
