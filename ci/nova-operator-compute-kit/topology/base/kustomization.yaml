@@ -16,11 +16,8 @@ secretGenerator:
   - NeutronDatabasePassword=password
   - NovaPassword=password
   - NovaAPIDatabasePassword=password
-  - NovaAPIMessageBusPassword=password
   - NovaCell0DatabasePassword=password
-  - NovaCell0MessageBusPassword=password
   - NovaCell1DatabasePassword=password
-  - NovaCell1MessageBusPassword=password
   - MetadataSecret=42
   name: osp-secret
 generatorOptions:
