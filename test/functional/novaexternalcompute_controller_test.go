@@ -41,6 +41,8 @@ func CreateNovaCellAndEnsureReady(cell CellNames) {
 	th.SimulateJobSuccess(cell.CellDBSyncJobName)
 	th.SimulateStatefulSetReplicaReady(cell.ConductorStatefulSetName)
 
+	SimulateNoVNCProxyRouteIngress(cell1.CellName.Name, cell1.CellName.Namespace)
+
 	th.ExpectCondition(
 		cell.CellName,
 		ConditionGetterFunc(NovaCellConditionGetter),
@@ -78,8 +80,6 @@ var _ = Describe("NovaExternalCompute", func() {
 				Name:      compute.Spec.SSHKeySecretName,
 			}
 			CreateNovaExternalComputeSSHSecret(sshSecretName)
-
-			SimulateNoVNCProxyRouteIngress(cell1.CellName.Name, cell1.CellName.Namespace)
 
 			DeferCleanup(th.DeleteSecret, sshSecretName)
 			libvirtAEEName = types.NamespacedName{

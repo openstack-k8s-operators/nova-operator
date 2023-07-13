@@ -21,13 +21,13 @@ import (
 
 	"github.com/google/uuid"
 	. "github.com/onsi/gomega"
+	routev1 "github.com/openshift/api/route/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	routev1 "github.com/openshift/api/route/v1"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	aee "github.com/openstack-k8s-operators/openstack-ansibleee-operator/api/v1alpha1"
@@ -454,6 +454,7 @@ type CellNames struct {
 	CellNoVNCProxyNameConfigDataName types.NamespacedName
 	InternalCellSecretName           types.NamespacedName
 	InternalAPINetworkNADName        types.NamespacedName
+	ComputeConfigSecretName          types.NamespacedName
 }
 
 func GetCellNames(novaName types.NamespacedName, cell string) CellNames {
@@ -510,6 +511,10 @@ func GetCellNames(novaName types.NamespacedName, cell string) CellNames {
 		InternalAPINetworkNADName: types.NamespacedName{
 			Namespace: novaName.Namespace,
 			Name:      "internalapi",
+		},
+		ComputeConfigSecretName: types.NamespacedName{
+			Namespace: novaName.Namespace,
+			Name:      cellName.Name + "-config-data",
 		},
 	}
 
@@ -820,7 +825,7 @@ func AssertNoVNCProxyDoesNotExist(name types.NamespacedName) {
 	}, timeout, interval).Should(Succeed())
 }
 
-func SimulateNoVNCProxyRouteIngress(cellName string, namespace string) {
+func SimulateNoVNCProxyRouteIngress(cellName string, namespace string) string {
 	vncRouteName := types.NamespacedName{
 		Namespace: namespace,
 		Name:      fmt.Sprintf("nova-novncproxy-%s-public", cellName),
@@ -841,4 +846,5 @@ func SimulateNoVNCProxyRouteIngress(cellName string, namespace string) {
 		g.Expect(k8sClient.Update(ctx, vncRoute)).Should(Succeed())
 	}, timeout, interval).Should(Succeed())
 	logger.Info("Simulated Ingress for the NovaNoVncProxy Route", "on", vncRouteName)
+	return ingress.Host
 }
