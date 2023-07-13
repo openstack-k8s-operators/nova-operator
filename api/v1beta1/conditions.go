@@ -47,6 +47,9 @@ const (
 	NovaMetadataReadyCondition condition.Type = "NovaMetadataReady"
 	// NovaNoVNCProxyReadyCondition indicates when the given NoVNCProxy instance is Ready
 	NovaNoVNCProxyReadyCondition condition.Type = "NovaNoVNCProxyReady"
+	// NovaComputeServiceConfigReady indicates when the compute service config
+	// is ready for the given NovaCell
+	NovaComputeServiceConfigReady condition.Type = "NovaComputeServiceConfigReady"
 )
 
 // Common Messages used by API objects.
@@ -149,4 +152,10 @@ const (
 
 	//NovaNoVNCProxyReadyErrorMessage
 	NovaNoVNCProxyReadyErrorMessage = "NovaNoVNCProxy error occurred %s"
+
+	//NovaComputeServiceConfigInitMessage
+	NovaComputeServiceConfigInitMessage = "Compute service config generation is not started"
+
+	//NovaComputeServiceConfigErrorMessage
+	NovaComputeServiceConfigErrorMessage = "Compute service config generation error occurred %s"
 )

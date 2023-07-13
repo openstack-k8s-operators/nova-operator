@@ -57,6 +57,9 @@ const (
 	// NovaExternalComputeLabelPrefix - a unique, prefix used for the AEE CR
 	// and other children objects created to mange external computes
 	NovaExternalComputeLabelPrefix = "nova-external-compute"
+	// NovaCellLabelPrefix - a unique, prefix used for the compute config
+	// Secret
+	NovaCellLabelPrefix = "nova-cell"
 	// NovaLabelPrefix - a unique, prefix used for the playbooks owned by
 	// the nova operator
 	NovaLabelPrefix = "nova"

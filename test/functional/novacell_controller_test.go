@@ -16,6 +16,8 @@ limitations under the License.
 package functional_test
 
 import (
+	"fmt"
+
 	"github.com/google/uuid"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -33,6 +35,17 @@ var _ = Describe("NovaCell controller", func() {
 	When("A NovaCell CR instance is created without any input", func() {
 		BeforeEach(func() {
 			DeferCleanup(th.DeleteInstance, CreateNovaCell(cell0.CellName, GetDefaultNovaCellSpec("cell0")))
+		})
+
+		It("reports that input is not ready", func() {
+			th.ExpectConditionWithDetails(
+				cell0.CellName,
+				ConditionGetterFunc(NovaCellConditionGetter),
+				condition.InputReadyCondition,
+				corev1.ConditionFalse,
+				condition.RequestedReason,
+				"Input data resources missing: secret/test-secret",
+			)
 		})
 
 		It("is not Ready", func() {
@@ -205,6 +218,7 @@ var _ = Describe("NovaCell controller", func() {
 
 			// make novncproxy ready
 			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
+			SimulateNoVNCProxyRouteIngress("cell1", cell1.CellName.Namespace)
 
 			th.ExpectCondition(
 				cell1.CellName,
@@ -242,14 +256,107 @@ var _ = Describe("NovaCell controller", func() {
 			// Expect(novaCell.Status.MetadataServiceReadyCount).To(Equal(int32(1)))
 		})
 
+		It("creates the compute config secret", func() {
+			th.ExpectCondition(
+				cell1.CellName,
+				ConditionGetterFunc(NovaCellConditionGetter),
+				condition.InputReadyCondition,
+				corev1.ConditionTrue,
+			)
+			// compute config only generated after VNCProxy is ready,
+			// so make novncproxy ready
+			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
+			host := SimulateNoVNCProxyRouteIngress("cell1", cell1.CellName.Namespace)
+			th.ExpectCondition(
+				cell1.CellName,
+				ConditionGetterFunc(NovaCellConditionGetter),
+				novav1.NovaNoVNCProxyReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			computeConfigData := th.GetSecret(cell1.ComputeConfigSecretName)
+			Expect(computeConfigData).ShouldNot(BeNil())
+			Expect(computeConfigData.Data).Should(HaveKey("01-nova.conf"))
+			configData := string(computeConfigData.Data["01-nova.conf"])
+			Expect(configData).To(ContainSubstring("transport_url=rabbit://rabbitmq-secret/fake"))
+			Expect(configData).To(ContainSubstring("username = nova\npassword = service-password\n"))
+			vncUrlConfig := fmt.Sprintf("novncproxy_base_url = http://%s/vnc_lite.html", host)
+			Expect(configData).To(ContainSubstring(vncUrlConfig))
+
+			th.ExpectCondition(
+				cell1.CellName,
+				ConditionGetterFunc(NovaCellConditionGetter),
+				novav1.NovaComputeServiceConfigReady,
+				corev1.ConditionTrue,
+			)
+		})
+
 		It("is Ready when all cell services is ready", func() {
 			th.SimulateJobSuccess(cell1.CellDBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
 			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
+			SimulateNoVNCProxyRouteIngress("cell1", cell1.CellName.Namespace)
 			th.SimulateStatefulSetReplicaReady(cell1.MetadataStatefulSetName)
 
 			th.ExpectCondition(
 				cell1.CellName,
+				ConditionGetterFunc(NovaCellConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
+	})
+	When("A NovaCell/cell2 CR instance is created without VNCProxy", func() {
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateNovaMetadataSecret(cell2.CellName.Namespace, SecretName),
+			)
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateNovaMessageBusSecret(cell2.CellName.Namespace, MessageBusSecretName),
+			)
+			spec := GetDefaultNovaCellSpec("cell2")
+			spec["noVNCProxyServiceTemplate"] = map[string]interface{}{
+				"replicas": 0,
+			}
+			DeferCleanup(th.DeleteInstance, CreateNovaCell(cell2.CellName, spec))
+		})
+
+		It("creates the compute config secret", func() {
+			th.ExpectCondition(
+				cell2.CellName,
+				ConditionGetterFunc(NovaCellConditionGetter),
+				condition.InputReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			computeConfigData := th.GetSecret(cell2.ComputeConfigSecretName)
+			Expect(computeConfigData).ShouldNot(BeNil())
+			Expect(computeConfigData.Data).Should(HaveKey("01-nova.conf"))
+			configData := string(computeConfigData.Data["01-nova.conf"])
+			Expect(configData).To(ContainSubstring("transport_url=rabbit://rabbitmq-secret/fake"))
+			Expect(configData).To(ContainSubstring("username = nova\npassword = service-password\n"))
+			// There is no VNCProxy created but we still get a compute config just
+			// without any vnc proxy url
+			Expect(configData).NotTo(ContainSubstring("novncproxy_base_url "))
+
+			th.ExpectCondition(
+				cell2.CellName,
+				ConditionGetterFunc(NovaCellConditionGetter),
+				novav1.NovaComputeServiceConfigReady,
+				corev1.ConditionTrue,
+			)
+		})
+
+		It("is Ready when all cell services is ready", func() {
+			th.SimulateJobSuccess(cell2.CellDBSyncJobName)
+			th.SimulateStatefulSetReplicaReady(cell2.ConductorStatefulSetName)
+
+			th.ExpectCondition(
+				cell2.CellName,
 				ConditionGetterFunc(NovaCellConditionGetter),
 				condition.ReadyCondition,
 				corev1.ConditionTrue,

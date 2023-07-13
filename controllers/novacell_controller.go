@@ -20,14 +20,19 @@ import (
 	"context"
 	"fmt"
 
+	corev1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
+	routev1 "github.com/openshift/api/route/v1"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/labels"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
@@ -110,12 +115,48 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 		}
 	}()
 
+	// For the compute config generation we need to read the input secrets
+	_, result, secret, err := ensureSecret(
+		ctx,
+		types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.Secret},
+		[]string{
+			ServicePasswordSelector,
+		},
+		h.GetClient(),
+		&instance.Status.Conditions,
+		r.RequeueTimeout,
+	)
+	if err != nil {
+		return result, err
+	}
+
+	_, result, messageBusSecret, err := ensureSecret(
+		ctx,
+		types.NamespacedName{
+			Namespace: instance.Namespace,
+			Name:      instance.Spec.CellMessageBusSecretName,
+		},
+		[]string{
+			"transport_url",
+		},
+		h.GetClient(),
+		&instance.Status.Conditions,
+		r.RequeueTimeout,
+	)
+	if err != nil {
+		return result, err
+	}
+
+	// all our input checks out so report InputReady
+	instance.Status.Conditions.MarkTrue(condition.InputReadyCondition, condition.InputReadyMessage)
+
 	result, err = r.ensureConductor(ctx, h, instance)
 	if err != nil {
 		return result, err
 	}
 
-	if *instance.Spec.MetadataServiceTemplate.Replicas != 0 && instance.Spec.CellName != novav1.Cell0Name {
+	isCell0 := (instance.Spec.CellName == novav1.Cell0Name)
+	if *instance.Spec.MetadataServiceTemplate.Replicas != 0 && !isCell0 {
 		result, err = r.ensureMetadata(ctx, h, instance)
 		if err != nil {
 			return result, err
@@ -124,13 +165,46 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 		instance.Status.Conditions.Remove(novav1.NovaMetadataReadyCondition)
 	}
 
-	if *instance.Spec.NoVNCProxyServiceTemplate.Replicas != 0 && instance.Spec.CellName != novav1.Cell0Name {
+	cellHasVNCService := (*instance.Spec.NoVNCProxyServiceTemplate.Replicas != 0 && !isCell0)
+	if cellHasVNCService {
 		result, err = r.ensureNoVNCProxy(ctx, h, instance)
 		if err != nil {
 			return result, err
 		}
 	} else {
 		instance.Status.Conditions.Remove(novav1.NovaNoVNCProxyReadyCondition)
+	}
+
+	// We need to wait for the NovaNoVNCProxy to become Ready before we can try
+	// to generate the compute config secret as that needs the route of the
+	// proxy to be included.
+	// However NovaNoVNCProxy is never deployed in cell0, and optional in other
+	// cells too.
+	if cellHasVNCService && !instance.Status.Conditions.IsTrue(novav1.NovaNoVNCProxyReadyCondition) {
+		util.LogForObject(
+			h,
+			"Waiting for the NovaNoVNCProxyService to become Ready before "+
+				"generating the compute config", instance,
+		)
+		return ctrl.Result{}, nil
+	}
+
+	var vncHost *string
+	if cellHasVNCService {
+		vncHost, err = r.getVNCHost(ctx, h, instance)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+
+	if !isCell0 {
+		result, err = r.ensureComputeConfig(ctx, h, instance, secret, messageBusSecret, vncHost)
+		if (err != nil || result != ctrl.Result{}) {
+			return result, err
+		}
+
+	} else {
+		instance.Status.Conditions.Remove(novav1.NovaComputeServiceConfigReady)
 	}
 
 	util.LogForObject(h, "Successfully reconciled", instance)
@@ -158,6 +232,11 @@ func (r *NovaCellReconciler) initConditions(
 			// here to Unknown. By default only the top level Ready condition is
 			// created by Conditions.Init()
 			condition.UnknownCondition(
+				condition.InputReadyCondition,
+				condition.InitReason,
+				condition.InputReadyInitMessage,
+			),
+			condition.UnknownCondition(
 				novav1.NovaConductorReadyCondition,
 				condition.InitReason,
 				novav1.NovaConductorReadyInitMessage,
@@ -171,6 +250,11 @@ func (r *NovaCellReconciler) initConditions(
 				novav1.NovaNoVNCProxyReadyCondition,
 				condition.InitReason,
 				novav1.NovaNoVNCProxyReadyInitMessage,
+			),
+			condition.UnknownCondition(
+				novav1.NovaComputeServiceConfigReady,
+				condition.InitReason,
+				novav1.NovaComputeServiceConfigInitMessage,
 			),
 		)
 		instance.Status.Conditions.Init(&cl)
@@ -328,6 +412,96 @@ func (r *NovaCellReconciler) ensureMetadata(
 	}
 
 	return ctrl.Result{}, nil
+}
+
+// ensureComputeConfig ensures the the compute config Secret exists and up to
+// date. The compute config Secret then can be used to configure a nova-compute
+// service to connect to this cell.
+func (r *NovaCellReconciler) ensureComputeConfig(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *novav1.NovaCell,
+	secret corev1.Secret,
+	messageBusSecret corev1.Secret,
+	vncHost *string,
+) (ctrl.Result, error) {
+
+	err := r.generateComputeConfigs(ctx, h, instance, secret, messageBusSecret, vncHost)
+	if err != nil {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			novav1.NovaComputeServiceConfigReady,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			novav1.NovaComputeServiceConfigErrorMessage,
+			err.Error()))
+		return ctrl.Result{}, err
+	}
+	instance.Status.Conditions.MarkTrue(
+		novav1.NovaComputeServiceConfigReady, condition.ServiceConfigReadyMessage,
+	)
+
+	return ctrl.Result{}, nil
+}
+
+func (r *NovaCellReconciler) generateComputeConfigs(
+	ctx context.Context, h *helper.Helper, instance *novav1.NovaCell,
+	secret corev1.Secret, messageBusSecret corev1.Secret, vncHost *string,
+) error {
+	templateParameters := map[string]interface{}{
+		"service_name":           "nova-compute",
+		"keystone_internal_url":  instance.Spec.KeystoneAuthURL,
+		"nova_keystone_user":     instance.Spec.ServiceUser,
+		"nova_keystone_password": string(secret.Data[ServicePasswordSelector]),
+		"openstack_cacert":       "",          // fixme
+		"openstack_region_name":  "regionOne", // fixme
+		"default_project_domain": "Default",   // fixme
+		"default_user_domain":    "Default",   // fixme
+		"transport_url":          string(messageBusSecret.Data["transport_url"]),
+		"log_file":               "/var/log/containers/nova/nova-compute.log",
+	}
+	// vnc is optional so we only need to configure it for the compute
+	// if the proxy service is deployed in the cell
+	if vncHost != nil {
+		templateParameters["novncproxy_base_url"] = "http://" + *vncHost // fixme use https
+	}
+
+	// TODO(gibi): Add the hash of the config Secret as annotation
+	cmLabels := labels.GetLabels(
+		instance, labels.GetGroupLabel(NovaCellLabelPrefix), map[string]string{},
+	)
+
+	hashes := make(map[string]env.Setter)
+
+	return r.GenerateConfigs(
+		ctx, h, instance, &hashes, templateParameters, map[string]string{}, cmLabels, map[string]string{},
+	)
+}
+
+func (r *NovaCellReconciler) getVNCHost(
+	ctx context.Context, h *helper.Helper, instance *novav1.NovaCell,
+) (*string, error) {
+
+	// we should restructure this to be in the same order as the reset of the resources
+	// <nova_instance>-<cell_name>-<service_name>-<service_type>
+	vncRouteName := fmt.Sprintf("nova-novncproxy-%s-public", instance.Spec.CellName)
+
+	vncRoute := &routev1.Route{}
+	err := h.GetClient().Get(ctx, types.NamespacedName{
+		Namespace: instance.Namespace,
+		Name:      vncRouteName,
+	}, vncRoute)
+	if err != nil {
+		return nil, err
+	}
+	vncHost := vncRoute.Spec.Host
+	if vncHost == "" && len(vncRoute.Status.Ingress) > 0 {
+		vncHost = vncRoute.Status.Ingress[0].Host
+	} else if vncHost == "" {
+		// This should not happen as we waited for the NovaNoVncProxy to
+		// to become ready, so the route should exits
+		return nil, fmt.Errorf("vncHost is empty")
+	}
+	return &vncHost, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
