@@ -32,7 +32,7 @@ import (
 var _ = Describe("NovaCell controller", func() {
 	When("A NovaCell CR instance is created without any input", func() {
 		BeforeEach(func() {
-			DeferCleanup(th.DeleteInstance, CreateNovaCell(cell0.CellName, GetDefaultNovaCellSpec()))
+			DeferCleanup(th.DeleteInstance, CreateNovaCell(cell0.CellName, GetDefaultNovaCellSpec("cell0")))
 		})
 
 		It("is not Ready", func() {
@@ -66,7 +66,7 @@ var _ = Describe("NovaCell controller", func() {
 				CreateNovaMessageBusSecret(cell0.CellName.Namespace, MessageBusSecretName),
 			)
 
-			DeferCleanup(th.DeleteInstance, CreateNovaCell(cell0.CellName, GetDefaultNovaCellSpec()))
+			DeferCleanup(th.DeleteInstance, CreateNovaCell(cell0.CellName, GetDefaultNovaCellSpec("cell0")))
 		})
 
 		It("creates the NovaConductor and tracks its readiness", func() {
@@ -133,7 +133,7 @@ var _ = Describe("NovaCell controller", func() {
 				CreateNovaMessageBusSecret(cell0.CellName.Namespace, MessageBusSecretName),
 			)
 
-			DeferCleanup(th.DeleteInstance, CreateNovaCell(cell0.CellName, GetDefaultNovaCellSpec()))
+			DeferCleanup(th.DeleteInstance, CreateNovaCell(cell0.CellName, GetDefaultNovaCellSpec("cell0")))
 			th.SimulateJobSuccess(cell0.CellDBSyncJobName)
 
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
@@ -223,8 +223,7 @@ var _ = Describe("NovaCell controller webhook", func() {
 		DeferCleanup(
 			k8sClient.Delete, ctx, CreateNovaMessageBusSecret(cell1.CellName.Namespace, MessageBusSecretName))
 
-		spec := GetDefaultNovaCellSpec()
-		spec["cellName"] = uuid.New().String()
+		spec := GetDefaultNovaCellSpec(uuid.New().String())
 		rawObj := map[string]interface{}{
 			"apiVersion": "nova.openstack.org/v1beta1",
 			"kind":       "NovaCell",

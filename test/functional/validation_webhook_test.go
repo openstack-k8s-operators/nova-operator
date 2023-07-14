@@ -66,7 +66,7 @@ var _ = Describe("Nova validation", func() {
 		)
 	})
 	It("rejects NovaCell with metadata in cell0", func() {
-		spec := GetDefaultNovaCellSpec()
+		spec := GetDefaultNovaCellSpec("cell0")
 		spec["metadataServiceTemplate"] = map[string]interface{}{
 			"replicas": 3,
 		}
@@ -127,8 +127,7 @@ var _ = Describe("Nova validation", func() {
 		)
 	})
 	It("rejects NovaCell with too long cell name", func() {
-		spec := GetDefaultNovaCellSpec()
-		spec["cellName"] = "cell1" + strings.Repeat("x", 31)
+		spec := GetDefaultNovaCellSpec("cell1" + strings.Repeat("x", 31))
 		raw := map[string]interface{}{
 			"apiVersion": "nova.openstack.org/v1beta1",
 			"kind":       "NovaCell",
