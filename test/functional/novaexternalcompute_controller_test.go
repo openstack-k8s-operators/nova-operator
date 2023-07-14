@@ -40,9 +40,7 @@ func CreateNovaCellAndEnsureReady(cell CellNames) {
 	DeferCleanup(
 		k8sClient.Delete, ctx, CreateNovaMessageBusSecret(cell.CellName.Namespace, MessageBusSecretName))
 
-	spec := GetDefaultNovaCellSpec()
-
-	spec["cellName"] = cell.CellName.Name
+	spec := GetDefaultNovaCellSpec(cell.CellName.Name)
 	DeferCleanup(th.DeleteInstance, CreateNovaCell(cell.CellName, spec))
 
 	th.SimulateStatefulSetReplicaReady(cell.NoVNCProxyNameStatefulSetName)
@@ -345,8 +343,7 @@ var _ = Describe("NovaExternalCompute", func() {
 		It("reports if NovaCell is not Ready", func() {
 			// Create the NovaCell but keep in unready by not simulating
 			// deployment success
-			spec := GetDefaultNovaCellSpec()
-			spec["cellName"] = "cell1"
+			spec := GetDefaultNovaCellSpec("cell1")
 			instance := CreateNovaCell(cell1.CellName, spec)
 
 			DeferCleanup(th.DeleteInstance, instance)

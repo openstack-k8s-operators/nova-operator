@@ -250,9 +250,9 @@ func CreateNovaMessageBusSecret(namespace string, name string) *corev1.Secret {
 	return s
 }
 
-func GetDefaultNovaCellSpec() map[string]interface{} {
+func GetDefaultNovaCellSpec(cellName string) map[string]interface{} {
 	return map[string]interface{}{
-		"cellName":                  "cell0",
+		"cellName":                  cellName,
 		"secret":                    SecretName,
 		"cellDatabaseHostname":      "cell-database-hostname",
 		"cellMessageBusSecretName":  MessageBusSecretName,
