@@ -121,9 +121,8 @@ var _ = Describe("NovaCell controller", func() {
 					novav1.NovaConductorReadyCondition,
 					corev1.ConditionTrue,
 				)
-				// TODO(gibi): this is a bug in the cell controller
-				// novaCell = GetNovaCell(cell0.CellName)
-				// Expect(novaCell.Status.ConductorServiceReadyCount).To(Equal(int32(1)))
+				novaCell := GetNovaCell(cell0.CellName)
+				Expect(novaCell.Status.ConductorServiceReadyCount).To(Equal(int32(1)))
 			})
 
 			It("does not create Metadata or NoVNCProxy services in cell0", func() {
@@ -200,9 +199,8 @@ var _ = Describe("NovaCell controller", func() {
 				novav1.NovaConductorReadyCondition,
 				corev1.ConditionTrue,
 			)
-			// TODO(gibi): this is a bug in the cell controller
-			// novaCell = GetNovaCell(cell1.CellName)
-			// Expect(novaCell.Status.ConductorServiceReadyCount).To(Equal(int32(1)))
+			novaCell = GetNovaCell(cell1.CellName)
+			Expect(novaCell.Status.ConductorServiceReadyCount).To(Equal(int32(1)))
 		})
 
 		It("creates the NovaNoVNCProxy and tracks its readiness", func() {
@@ -226,9 +224,8 @@ var _ = Describe("NovaCell controller", func() {
 				novav1.NovaNoVNCProxyReadyCondition,
 				corev1.ConditionTrue,
 			)
-			// TODO(gibi): this is a bug in the cell controller
-			// novaCell = GetNovaCell(cell1.CellName)
-			// Expect(novaCell.Status.NoVNCPRoxyServiceReadyCount).To(Equal(int32(1)))
+			novaCell = GetNovaCell(cell1.CellName)
+			Expect(novaCell.Status.NoVNCPRoxyServiceReadyCount).To(Equal(int32(1)))
 		})
 
 		It("creates the NovaMetadata and tracks its readiness", func() {
@@ -251,9 +248,8 @@ var _ = Describe("NovaCell controller", func() {
 				novav1.NovaMetadataReadyCondition,
 				corev1.ConditionTrue,
 			)
-			// TODO(gibi): this is a bug in the cell controller
-			// novaCell = GetNovaCell(cell1.CellName)
-			// Expect(novaCell.Status.MetadataServiceReadyCount).To(Equal(int32(1)))
+			novaCell = GetNovaCell(cell1.CellName)
+			Expect(novaCell.Status.MetadataServiceReadyCount).To(Equal(int32(1)))
 		})
 
 		It("creates the compute config secret", func() {

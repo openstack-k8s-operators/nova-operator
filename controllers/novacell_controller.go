@@ -308,6 +308,8 @@ func (r *NovaCellReconciler) ensureConductor(
 		util.LogForObject(h, fmt.Sprintf("NovaConductor %s.", string(op)), instance, "NovaConductor.Name", conductor.Name)
 	}
 
+	instance.Status.ConductorServiceReadyCount = conductor.Status.ReadyCount
+
 	c := conductor.Status.Conditions.Mirror(novav1.NovaConductorReadyCondition)
 	// NOTE(gibi): it can be nil if the NovaConductor CR is created but no
 	// reconciliation is run on it to initialize the ReadyCondition yet.
@@ -359,6 +361,8 @@ func (r *NovaCellReconciler) ensureNoVNCProxy(
 		util.LogForObject(h, fmt.Sprintf("NovaNoVNCProxy %s.", string(op)), instance, "NovaNoVNCProxy.Name", novncproxy.Name)
 	}
 
+	instance.Status.NoVNCPRoxyServiceReadyCount = novncproxy.Status.ReadyCount
+
 	c := novncproxy.Status.Conditions.Mirror(novav1.NovaNoVNCProxyReadyCondition)
 
 	if c != nil {
@@ -408,6 +412,8 @@ func (r *NovaCellReconciler) ensureMetadata(
 	if op != controllerutil.OperationResultNone {
 		util.LogForObject(h, fmt.Sprintf("NovaMetadata %s.", string(op)), instance, "NovaMetadata.Name", metadata.Name)
 	}
+
+	instance.Status.MetadataServiceReadyCount = metadata.Status.ReadyCount
 
 	c := metadata.Status.Conditions.Mirror(novav1.NovaMetadataReadyCondition)
 	// NOTE(gibi): it can be nil if the NovaMetadata CR is created but no
