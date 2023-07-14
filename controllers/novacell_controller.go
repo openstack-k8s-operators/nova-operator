@@ -26,7 +26,9 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	routev1 "github.com/openshift/api/route/v1"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
@@ -512,5 +514,10 @@ func (r *NovaCellReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&novav1.NovaConductor{}).
 		Owns(&novav1.NovaMetadata{}).
 		Owns(&novav1.NovaNoVNCProxy{}).
+		// It generates and therefor owns the compute config secret
+		Owns(&corev1.Secret{}).
+		// and it needs to watch the input secrets
+		Watches(&source.Kind{Type: &corev1.Secret{}},
+			handler.EnqueueRequestsFromMapFunc(r.GetSecretMapperFor(&novav1.NovaCellList{}))).
 		Complete(r)
 }

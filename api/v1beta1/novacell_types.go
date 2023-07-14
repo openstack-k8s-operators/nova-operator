@@ -223,3 +223,8 @@ func (s NovaCellStatus) GetConditions() condition.Conditions {
 func (instance NovaCell) IsReady() bool {
 	return instance.Status.Conditions.IsTrue(condition.ReadyCondition)
 }
+
+// GetSecret returns the value of the NovaCell.Spec.Secret
+func (n NovaCell) GetSecret() string {
+	return n.Spec.Secret
+}
