@@ -444,8 +444,10 @@ type CellNames struct {
 	ConductorStatefulSetName         types.NamespacedName
 	TransportURLName                 types.NamespacedName
 	CellMappingJobName               types.NamespacedName
+	MetadataName                     types.NamespacedName
 	MetadataStatefulSetName          types.NamespacedName
 	CellConductorConfigDataName      types.NamespacedName
+	NoVNCProxyName                   types.NamespacedName
 	NoVNCProxyNameStatefulSetName    types.NamespacedName
 	CellNoVNCProxyNameConfigDataName types.NamespacedName
 	InternalCellSecretName           types.NamespacedName
@@ -461,6 +463,15 @@ func GetCellNames(novaName types.NamespacedName, cell string) CellNames {
 		Namespace: novaName.Namespace,
 		Name:      cellName.Name + "-conductor",
 	}
+	metadataName := types.NamespacedName{
+		Namespace: novaName.Namespace,
+		Name:      cellName.Name + "-metadata",
+	}
+	novncproxyName := types.NamespacedName{
+		Namespace: novaName.Namespace,
+		Name:      cellName.Name + "-novncproxy",
+	}
+
 	c := CellNames{
 		CellName: cellName,
 		MariaDBDatabaseName: types.NamespacedName{
@@ -481,18 +492,14 @@ func GetCellNames(novaName types.NamespacedName, cell string) CellNames {
 			Namespace: novaName.Namespace,
 			Name:      cellName.Name + "-cell-mapping",
 		},
-		MetadataStatefulSetName: types.NamespacedName{
-			Namespace: novaName.Namespace,
-			Name:      cellName.Name + "-metadata",
-		},
 		CellConductorConfigDataName: types.NamespacedName{
 			Namespace: novaName.Namespace,
 			Name:      cellConductor.Name + "-config-data",
 		},
-		NoVNCProxyNameStatefulSetName: types.NamespacedName{
-			Namespace: novaName.Namespace,
-			Name:      cellName.Name + "-novncproxy",
-		},
+		MetadataName:                  metadataName,
+		MetadataStatefulSetName:       metadataName,
+		NoVNCProxyName:                novncproxyName,
+		NoVNCProxyNameStatefulSetName: novncproxyName,
 		CellNoVNCProxyNameConfigDataName: types.NamespacedName{
 			Namespace: novaName.Namespace,
 			Name:      cellName.Name + "-novncproxy" + "-config-data",
@@ -740,6 +747,14 @@ func GetDefaultNovaMetadataSpec() map[string]interface{} {
 	}
 }
 
+func AssertMetadataDoesNotExist(name types.NamespacedName) {
+	instance := &novav1.NovaMetadata{}
+	Eventually(func(g Gomega) {
+		err := k8sClient.Get(ctx, name, instance)
+		g.Expect(k8s_errors.IsNotFound(err)).To(BeTrue())
+	}, timeout, interval).Should(Succeed())
+}
+
 func CreateNovaNoVNCProxy(name types.NamespacedName, spec map[string]interface{}) client.Object {
 	raw := map[string]interface{}{
 		"apiVersion": "nova.openstack.org/v1beta1",
@@ -801,4 +816,12 @@ func CreateNovaNoVNCProxySecret(namespace string, name string) *corev1.Secret {
 	}
 	Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
 	return secret
+}
+
+func AssertNoVNCProxyDoesNotExist(name types.NamespacedName) {
+	instance := &novav1.NovaNoVNCProxy{}
+	Eventually(func(g Gomega) {
+		err := k8sClient.Get(ctx, name, instance)
+		g.Expect(k8s_errors.IsNotFound(err)).To(BeTrue())
+	}, timeout, interval).Should(Succeed())
 }
