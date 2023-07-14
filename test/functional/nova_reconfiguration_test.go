@@ -432,6 +432,16 @@ var _ = Describe("Nova reconfiguration", func() {
 				newCell1Hash := GetNova(novaNames.NovaName).Status.RegisteredCells[cell1.CellName.Name]
 				g.Expect(newCell1Hash).NotTo(Equal(oldCell1Hash))
 			}, timeout, interval).Should(Succeed())
+
+			// Expect that the compute config is updated with the new transport URL
+			Eventually(func(g Gomega) {
+				configDataMap := th.GetSecret(cell1.ComputeConfigSecretName)
+				g.Expect(configDataMap).ShouldNot(BeNil())
+				g.Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
+				configData := string(configDataMap.Data["01-nova.conf"])
+				g.Expect(configData).Should(ContainSubstring("transport_url=rabbit://alternate-mq-for-cell1-secret/fake"))
+			}, timeout, interval).Should(Succeed())
+
 		})
 	})
 
@@ -444,9 +454,11 @@ var _ = Describe("Nova reconfiguration", func() {
 			for _, cmName := range []types.NamespacedName{
 				cell0.CellConductorConfigDataName,
 				cell1.CellConductorConfigDataName,
-				cell2.CellConductorConfigDataName,
 				cell1.CellNoVNCProxyNameConfigDataName,
+				cell1.ComputeConfigSecretName,
+				cell2.CellConductorConfigDataName,
 				cell2.CellNoVNCProxyNameConfigDataName,
+				cell2.ComputeConfigSecretName,
 				novaNames.APIConfigDataName,
 				novaNames.SchedulerConfigDataName,
 				novaNames.MetadataConfigDataName,
