@@ -53,7 +53,7 @@ var _ = Describe("NovaCell controller", func() {
 		})
 	})
 
-	When("A NovaCell CR instance is created", func() {
+	When("A NovaCell/cell0 CR instance is created", func() {
 		BeforeEach(func() {
 			DeferCleanup(
 				k8sClient.Delete,
@@ -108,6 +108,20 @@ var _ = Describe("NovaCell controller", func() {
 					novav1.NovaConductorReadyCondition,
 					corev1.ConditionTrue,
 				)
+				// TODO(gibi): this is a bug in the cell controller
+				// novaCell = GetNovaCell(cell0.CellName)
+				// Expect(novaCell.Status.ConductorServiceReadyCount).To(Equal(int32(1)))
+			})
+
+			It("does not create Metadata or NoVNCProxy services in cell0", func() {
+				th.ExpectCondition(
+					cell0.CellName,
+					ConditionGetterFunc(NovaCellConditionGetter),
+					condition.ReadyCondition,
+					corev1.ConditionTrue,
+				)
+				AssertMetadataDoesNotExist(cell0.MetadataName)
+				AssertNoVNCProxyDoesNotExist(cell0.MetadataName)
 			})
 
 			It("is Ready", func() {
@@ -118,6 +132,128 @@ var _ = Describe("NovaCell controller", func() {
 					corev1.ConditionTrue,
 				)
 			})
+		})
+	})
+	When("A NovaCell/cell1 CR instance is created", func() {
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateNovaMetadataSecret(cell1.CellName.Namespace, SecretName),
+			)
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateNovaMessageBusSecret(cell1.CellName.Namespace, MessageBusSecretName),
+			)
+			spec := GetDefaultNovaCellSpec("cell1")
+			spec["metadataServiceTemplate"] = map[string]interface{}{
+				"replicas": 1,
+			}
+			DeferCleanup(th.DeleteInstance, CreateNovaCell(cell1.CellName, spec))
+		})
+
+		It("creates the NovaConductor and tracks its readiness", func() {
+			GetNovaConductor(cell1.CellConductorName)
+			th.ExpectCondition(
+				cell1.CellName,
+				ConditionGetterFunc(NovaCellConditionGetter),
+				novav1.NovaConductorReadyCondition,
+				corev1.ConditionFalse,
+			)
+			novaCell := GetNovaCell(cell1.CellName)
+			Expect(novaCell.Status.ConductorServiceReadyCount).To(Equal(int32(0)))
+
+			th.ExpectCondition(
+				cell1.CellConductorName,
+				ConditionGetterFunc(NovaConductorConditionGetter),
+				condition.DBSyncReadyCondition,
+				corev1.ConditionFalse,
+			)
+
+			// make conductor ready
+			th.SimulateJobSuccess(cell1.CellDBSyncJobName)
+			th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
+
+			th.ExpectCondition(
+				cell1.CellConductorName,
+				ConditionGetterFunc(NovaConductorConditionGetter),
+				condition.DBSyncReadyCondition,
+				corev1.ConditionTrue,
+			)
+			th.ExpectCondition(
+				cell1.CellName,
+				ConditionGetterFunc(NovaCellConditionGetter),
+				novav1.NovaConductorReadyCondition,
+				corev1.ConditionTrue,
+			)
+			// TODO(gibi): this is a bug in the cell controller
+			// novaCell = GetNovaCell(cell1.CellName)
+			// Expect(novaCell.Status.ConductorServiceReadyCount).To(Equal(int32(1)))
+		})
+
+		It("creates the NovaNoVNCProxy and tracks its readiness", func() {
+			GetNovaNoVNCProxy(cell1.NoVNCProxyName)
+			th.ExpectCondition(
+				cell1.CellName,
+				ConditionGetterFunc(NovaCellConditionGetter),
+				novav1.NovaNoVNCProxyReadyCondition,
+				corev1.ConditionFalse,
+			)
+			novaCell := GetNovaCell(cell1.CellName)
+			Expect(novaCell.Status.NoVNCPRoxyServiceReadyCount).To(Equal(int32(0)))
+
+			// make novncproxy ready
+			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyNameStatefulSetName)
+
+			th.ExpectCondition(
+				cell1.CellName,
+				ConditionGetterFunc(NovaCellConditionGetter),
+				novav1.NovaNoVNCProxyReadyCondition,
+				corev1.ConditionTrue,
+			)
+			// TODO(gibi): this is a bug in the cell controller
+			// novaCell = GetNovaCell(cell1.CellName)
+			// Expect(novaCell.Status.NoVNCPRoxyServiceReadyCount).To(Equal(int32(1)))
+		})
+
+		It("creates the NovaMetadata and tracks its readiness", func() {
+			GetNovaMetadata(cell1.MetadataName)
+			th.ExpectCondition(
+				cell1.CellName,
+				ConditionGetterFunc(NovaCellConditionGetter),
+				novav1.NovaMetadataReadyCondition,
+				corev1.ConditionFalse,
+			)
+			novaCell := GetNovaCell(cell1.CellName)
+			Expect(novaCell.Status.MetadataServiceReadyCount).To(Equal(int32(0)))
+
+			// make metadata ready
+			th.SimulateStatefulSetReplicaReady(cell1.MetadataStatefulSetName)
+
+			th.ExpectCondition(
+				cell1.CellName,
+				ConditionGetterFunc(NovaCellConditionGetter),
+				novav1.NovaMetadataReadyCondition,
+				corev1.ConditionTrue,
+			)
+			// TODO(gibi): this is a bug in the cell controller
+			// novaCell = GetNovaCell(cell1.CellName)
+			// Expect(novaCell.Status.MetadataServiceReadyCount).To(Equal(int32(1)))
+		})
+
+		It("is Ready when all cell services is ready", func() {
+			th.SimulateJobSuccess(cell1.CellDBSyncJobName)
+			th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
+			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyNameStatefulSetName)
+			th.SimulateStatefulSetReplicaReady(cell1.MetadataStatefulSetName)
+
+			th.ExpectCondition(
+				cell1.CellName,
+				ConditionGetterFunc(NovaCellConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
 		})
 	})
 	When("NovaCell is reconfigured", func() {
