@@ -17,7 +17,6 @@ limitations under the License.
 package functional_test
 
 import (
-	"fmt"
 	"os"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -33,12 +32,17 @@ import (
 var _ = Describe("PlacementAPI controller", func() {
 
 	var placementApiName types.NamespacedName
+	var placementApiConfigMapName types.NamespacedName
 	var keystoneAPI *keystonev1.KeystoneAPI
 
 	BeforeEach(func() {
 		placementApiName = types.NamespacedName{
 			Name:      "placement",
 			Namespace: namespace,
+		}
+		placementApiConfigMapName = types.NamespacedName{
+			Namespace: namespace,
+			Name:      placementApiName.Name + "-config-data",
 		}
 
 		// lib-common uses OPERATOR_TEMPLATES env var to locate the "templates"
@@ -74,6 +78,10 @@ var _ = Describe("PlacementAPI controller", func() {
 			Eventually(func() []string {
 				return GetPlacementAPI(placementApiName).Finalizers
 			}, timeout, interval).Should(ContainElement("PlacementAPI"))
+		})
+
+		It("should not create a config map", func() {
+			th.AssertConfigMapDoesNotExist(placementApiConfigMapName)
 		})
 
 		It("should have input not ready and unknown Conditions initialized", func() {
@@ -129,6 +137,10 @@ var _ = Describe("PlacementAPI controller", func() {
 				corev1.ConditionFalse,
 			)
 		})
+
+		It("should not create a config map", func() {
+			th.AssertConfigMapDoesNotExist(placementApiConfigMapName)
+		})
 	})
 
 	When("keystoneAPI instance is available", func() {
@@ -150,10 +162,8 @@ var _ = Describe("PlacementAPI controller", func() {
 			)
 		})
 		It("should create a ConfigMap for placement.conf", func() {
-			cm := th.GetConfigMap(types.NamespacedName{
-				Namespace: placementApiName.Namespace,
-				Name:      fmt.Sprintf("%s-%s", placementApiName.Name, "config-data"),
-			})
+			cm := th.GetConfigMap(placementApiConfigMapName)
+
 			Expect(cm.Data["placement.conf"]).Should(
 				ContainSubstring("auth_url = %s", keystoneAPI.Status.APIEndpoints["internal"]))
 			Expect(cm.Data["placement.conf"]).Should(
