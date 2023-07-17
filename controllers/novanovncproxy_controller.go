@@ -335,11 +335,9 @@ func (r *NovaNoVNCProxyReconciler) ensureDeployment(
 	inputHash string,
 	annotations map[string]string,
 ) (ctrl.Result, error) {
-	serviceLabels := map[string]string{
-		common.AppSelector: NovaNoVNCProxyLabelPrefix,
-		CellSelector:       instance.Spec.CellName,
-	}
-	ss := statefulset.NewStatefulSet(novncproxy.StatefulSet(instance, inputHash, serviceLabels, annotations), r.RequeueTimeout)
+	serviceLabels := getNoVNCProxyServiceLabels(instance.Spec.CellName)
+	ss := statefulset.NewStatefulSet(
+		novncproxy.StatefulSet(instance, inputHash, serviceLabels, annotations), r.RequeueTimeout)
 	ctrlResult, err := ss.CreateOrPatch(ctx, h)
 	if err != nil && !k8s_errors.IsNotFound(err) {
 		util.LogErrorForObject(h, err, "Deployment failed", instance)
@@ -433,7 +431,7 @@ func (r *NovaNoVNCProxyReconciler) ensureServiceExposed(
 		ctx,
 		h,
 		serviceName,
-		getNoVNCProxyServiceLabels(),
+		getNoVNCProxyServiceLabels(instance.Spec.CellName),
 		ports,
 		r.RequeueTimeout,
 	)
@@ -473,9 +471,10 @@ func (r *NovaNoVNCProxyReconciler) reconcileDelete(
 	return nil
 }
 
-func getNoVNCProxyServiceLabels() map[string]string {
+func getNoVNCProxyServiceLabels(cell string) map[string]string {
 	return map[string]string{
 		common.AppSelector: NovaNoVNCProxyLabelPrefix,
+		CellSelector:       cell,
 	}
 }
 

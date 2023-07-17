@@ -264,6 +264,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 				)
 				service := th.GetService(types.NamespacedName{Namespace: novaNames.NoVNCProxyName.Namespace, Name: "nova-novncproxy-cell1-internal"})
 				Expect(service.Labels["service"]).To(Equal("nova-novncproxy"))
+				Expect(service.Labels["cell"]).To(Equal("cell1"))
 			})
 
 			It("is Ready", func() {

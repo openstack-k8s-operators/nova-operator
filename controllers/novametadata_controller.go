@@ -349,7 +349,7 @@ func (r *NovaMetadataReconciler) ensureDeployment(
 	inputHash string,
 	annotations map[string]string,
 ) (ctrl.Result, error) {
-	serviceLabels := getMetadataServiceLabels()
+	serviceLabels := getMetadataServiceLabels(instance.Spec.CellName)
 	ss := statefulset.NewStatefulSet(novametadata.StatefulSet(instance, inputHash, serviceLabels, annotations), r.RequeueTimeout)
 	ctrlResult, err := ss.CreateOrPatch(ctx, h)
 	if err != nil && !k8s_errors.IsNotFound(err) {
@@ -446,7 +446,7 @@ func (r *NovaMetadataReconciler) ensureServiceExposed(
 		ctx,
 		h,
 		serviceName,
-		getMetadataServiceLabels(),
+		getMetadataServiceLabels(instance.Spec.CellName),
 		ports,
 		r.RequeueTimeout,
 	)
@@ -487,7 +487,13 @@ func (r *NovaMetadataReconciler) reconcileDelete(
 	return nil
 }
 
-func getMetadataServiceLabels() map[string]string {
+func getMetadataServiceLabels(cell string) map[string]string {
+	if cell != "" {
+		return map[string]string{
+			common.AppSelector: NovaMetadataLabelPrefix,
+			CellSelector:       cell,
+		}
+	}
 	return map[string]string{
 		common.AppSelector: NovaMetadataLabelPrefix,
 	}

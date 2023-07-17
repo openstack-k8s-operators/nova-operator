@@ -265,6 +265,7 @@ var _ = Describe("NovaMetadata controller", func() {
 				)
 				service := th.GetService(novaNames.InternalNovaMetadataServiceName)
 				Expect(service.Labels["service"]).To(Equal("nova-metadata"))
+				Expect(service.Labels).NotTo(HaveKey("cell"))
 			})
 
 			It("is Ready", func() {
@@ -327,6 +328,14 @@ var _ = Describe("NovaMetadata controller", func() {
 			)
 			service := th.GetService(types.NamespacedName{Namespace: novaNames.MetadataName.Namespace, Name: "nova-metadata-some-cell-name-internal"})
 			Expect(service.Labels["service"]).To(Equal("nova-metadata"))
+			Expect(service.Labels["cell"]).To(Equal("some-cell-name"))
+
+			ss := th.GetStatefulSet(novaNames.MetadataStatefulSetName)
+			Expect(ss.Spec.Selector.MatchLabels).To(
+				Equal(map[string]string{
+					"service": "nova-metadata",
+					"cell":    "some-cell-name",
+				}))
 		})
 	})
 
