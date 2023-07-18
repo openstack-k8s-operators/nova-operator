@@ -24,6 +24,7 @@ import (
 
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
+	"github.com/openstack-k8s-operators/nova-operator/controllers"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
@@ -745,16 +746,12 @@ var _ = Describe("Nova multicell", func() {
 			cell0Template["cellDatabaseInstance"] = cell0.MariaDBDatabaseName.Name
 			cell0Template["cellDatabaseUser"] = "nova_cell0"
 
-			cell0Template["metadataServiceTemplate"] = map[string]interface{}{
-				"replicas": 0,
-			}
-
 			cell1Template := GetDefaultNovaCellTemplate()
 			cell1Template["cellDatabaseInstance"] = cell1.MariaDBDatabaseName.Name
 			cell1Template["cellDatabaseUser"] = "nova_cell1"
 			cell1Template["cellMessageBusInstance"] = cell1.TransportURLName.Name
 			cell1Template["metadataServiceTemplate"] = map[string]interface{}{
-				"replicas": 1,
+				"enabled": true,
 			}
 
 			spec["cellTemplates"] = map[string]interface{}{
@@ -762,7 +759,7 @@ var _ = Describe("Nova multicell", func() {
 				"cell1": cell1Template,
 			}
 			spec["metadataServiceTemplate"] = map[string]interface{}{
-				"replicas": 0,
+				"enabled": false,
 			}
 			spec["apiDatabaseInstance"] = novaNames.APIMariaDBDatabaseName.Name
 			spec["apiMessageBusInstance"] = cell0.TransportURLName.Name
@@ -776,7 +773,7 @@ var _ = Describe("Nova multicell", func() {
 			}, timeout, interval).Should(Succeed())
 			th.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
 		})
-		It("cell0 becomes ready with 0 metadata replicas and the rest of nova is deployed", func() {
+		It("cell0 becomes ready without metadata and the rest of nova is deployed", func() {
 			th.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
 			th.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
 			th.SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
@@ -803,6 +800,24 @@ var _ = Describe("Nova multicell", func() {
 				novav1.NovaMetadataReadyCondition,
 				corev1.ConditionTrue,
 			)
+			AssertMetadataDoesNotExist(cell0.MetadataName)
+		})
+		It("puts the metadata secret to cell1 secret but not to cell0 secret", func() {
+			th.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
+			th.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
+			th.SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
+			th.SimulateTransportURLReady(cell0.TransportURLName)
+			th.SimulateTransportURLReady(cell1.TransportURLName)
+			th.SimulateJobSuccess(cell0.CellDBSyncJobName)
+			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
+			th.SimulateJobSuccess(cell0.CellMappingJobName)
+
+			cell1Secret := th.GetSecret(cell1.InternalCellSecretName)
+			Expect(cell1Secret.Data).To(
+				HaveKeyWithValue(controllers.MetadataSecretSelector, []byte("metadata-secret")))
+			cell0Secret := th.GetSecret(cell0.InternalCellSecretName)
+			Expect(cell0Secret.Data).NotTo(
+				HaveKeyWithValue(controllers.MetadataSecretSelector, []byte("metadata-secret")))
 		})
 	})
 })

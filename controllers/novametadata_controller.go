@@ -135,15 +135,18 @@ func (r *NovaMetadataReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	hashes := make(map[string]env.Setter)
 
+	expectedSelectors := []string{
+		ServicePasswordSelector,
+		CellDatabasePasswordSelector,
+		MetadataSecretSelector,
+	}
+	if instance.Spec.CellName == "" {
+		expectedSelectors = append(expectedSelectors, APIDatabasePasswordSelector)
+	}
 	secretHash, result, secret, err := ensureSecret(
 		ctx,
 		types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.Secret},
-		[]string{
-			ServicePasswordSelector,
-			APIDatabasePasswordSelector,
-			CellDatabasePasswordSelector,
-			MetadataSecretSelector,
-		},
+		expectedSelectors,
 		h.GetClient(),
 		&instance.Status.Conditions,
 		r.RequeueTimeout,
@@ -300,29 +303,35 @@ func (r *NovaMetadataReconciler) generateConfigs(
 	}
 
 	templateParameters := map[string]interface{}{
-		"service_name":            novametadata.ServiceName,
-		"keystone_internal_url":   instance.Spec.KeystoneAuthURL,
-		"nova_keystone_user":      instance.Spec.ServiceUser,
-		"nova_keystone_password":  string(secret.Data[ServicePasswordSelector]),
-		"api_db_name":             instance.Spec.APIDatabaseUser, // fixme
-		"api_db_user":             instance.Spec.APIDatabaseUser,
-		"api_db_password":         string(secret.Data[APIDatabasePasswordSelector]),
-		"api_db_address":          instance.Spec.APIDatabaseHostname,
-		"api_db_port":             3306,
-		"cell_db_name":            instance.Spec.CellDatabaseUser, // fixme
-		"cell_db_user":            instance.Spec.CellDatabaseUser,
-		"cell_db_password":        string(secret.Data[CellDatabasePasswordSelector]),
-		"cell_db_address":         instance.Spec.CellDatabaseHostname,
-		"cell_db_port":            3306,
-		"openstack_cacert":        "",          // fixme
-		"openstack_region_name":   "regionOne", // fixme
-		"default_project_domain":  "Default",   // fixme
-		"default_user_domain":     "Default",   // fixme
-		"metadata_secret":         string(secret.Data[MetadataSecretSelector]),
-		"log_file":                "/var/log/nova/nova-metadata.log",
-		"transport_url":           string(apiMessageBusSecret.Data["transport_url"]),
-		"local_metadata_per_cell": instance.Spec.CellName != "",
+		"service_name":           novametadata.ServiceName,
+		"keystone_internal_url":  instance.Spec.KeystoneAuthURL,
+		"nova_keystone_user":     instance.Spec.ServiceUser,
+		"nova_keystone_password": string(secret.Data[ServicePasswordSelector]),
+		"cell_db_name":           instance.Spec.CellDatabaseUser, // fixme
+		"cell_db_user":           instance.Spec.CellDatabaseUser,
+		"cell_db_password":       string(secret.Data[CellDatabasePasswordSelector]),
+		"cell_db_address":        instance.Spec.CellDatabaseHostname,
+		"cell_db_port":           3306,
+		"openstack_cacert":       "",          // fixme
+		"openstack_region_name":  "regionOne", // fixme
+		"default_project_domain": "Default",   // fixme
+		"default_user_domain":    "Default",   // fixme
+		"metadata_secret":        string(secret.Data[MetadataSecretSelector]),
+		"log_file":               "/var/log/nova/nova-metadata.log",
+		"transport_url":          string(apiMessageBusSecret.Data["transport_url"]),
 	}
+
+	if instance.Spec.CellName == "" {
+		templateParameters["api_db_name"] = instance.Spec.APIDatabaseUser // fixme
+		templateParameters["api_db_user"] = instance.Spec.APIDatabaseUser // fixme
+		templateParameters["api_db_password"] = string(secret.Data[APIDatabasePasswordSelector])
+		templateParameters["api_db_address"] = instance.Spec.APIDatabaseHostname
+		templateParameters["api_db_port"] = 3306
+		templateParameters["local_metadata_per_cell"] = false
+	} else {
+		templateParameters["local_metadata_per_cell"] = true
+	}
+
 	extraData := map[string]string{}
 	if instance.Spec.CustomServiceConfig != "" {
 		extraData["02-nova-override.conf"] = instance.Spec.CustomServiceConfig

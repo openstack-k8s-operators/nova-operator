@@ -170,6 +170,9 @@ var _ = Describe("NovaMetadata controller", func() {
 				Expect(configData).Should(ContainSubstring("local_metadata_per_cell = false"))
 				Expect(configData).Should(ContainSubstring("enabled_apis=metadata"))
 				Expect(configData).Should(ContainSubstring("metadata_workers=1"))
+				Expect(configData).Should(
+					ContainSubstring(
+						"connection = mysql+pymysql://nova_api:api-database-password@nova-api-db-hostname/nova_api"))
 				Expect(configDataMap.Data).Should(HaveKey("02-nova-override.conf"))
 				extraData := string(configDataMap.Data["02-nova-override.conf"])
 				Expect(extraData).To(Equal("foo=bar"))

@@ -157,13 +157,13 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 		return result, err
 	}
 
-	isCell0 := (instance.Spec.CellName == novav1.Cell0Name)
-	if *instance.Spec.MetadataServiceTemplate.Replicas != 0 && !isCell0 {
+	if *instance.Spec.MetadataServiceTemplate.Enabled {
 		result, err = r.ensureMetadata(ctx, h, instance)
 		if err != nil {
 			return result, err
 		}
 	} else {
+		// TODO(gibi): delete the metadata service if it exists and owned by us
 		instance.Status.Conditions.Remove(novav1.NovaMetadataReadyCondition)
 	}
 
@@ -205,7 +205,7 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 		}
 	}
 
-	if !isCell0 {
+	if instance.Spec.CellName != novav1.Cell0Name {
 		result, err = r.ensureComputeConfig(ctx, h, instance, secret, messageBusSecret, vncHost)
 		if (err != nil || result != ctrl.Result{}) {
 			return result, err

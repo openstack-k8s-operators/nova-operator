@@ -100,9 +100,11 @@ type NovaSpec struct {
 	SchedulerServiceTemplate NovaSchedulerTemplate `json:"schedulerServiceTemplate"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default={replicas:1}
-	// MetadataServiceTemplate - defines the metadata service that is global for the
-	// deployment serving all the cells.
+	// +kubebuilder:default={enabled: true}
+	// MetadataServiceTemplate - defines the metadata service that is global
+	// for the deployment serving all the cells. Note that if you want to
+	// deploy metadata per cell then the metadata service should be disabled
+	// here and enabled in the cellTemplates instead.
 	MetadataServiceTemplate NovaMetadataTemplate `json:"metadataServiceTemplate"`
 }
 

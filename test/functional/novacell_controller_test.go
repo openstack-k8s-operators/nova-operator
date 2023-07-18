@@ -161,7 +161,7 @@ var _ = Describe("NovaCell controller", func() {
 			)
 			spec := GetDefaultNovaCellSpec("cell1")
 			spec["metadataServiceTemplate"] = map[string]interface{}{
-				"replicas": 1,
+				"enabled": true,
 			}
 			DeferCleanup(th.DeleteInstance, CreateNovaCell(cell1.CellName, spec))
 		})
@@ -260,6 +260,8 @@ var _ = Describe("NovaCell controller", func() {
 				condition.InputReadyCondition,
 				corev1.ConditionTrue,
 			)
+			th.SimulateJobSuccess(cell1.CellDBSyncJobName)
+			th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
 			// compute config only generated after VNCProxy is ready,
 			// so make novncproxy ready
 			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
@@ -668,7 +670,7 @@ var _ = Describe("NovaCell controller", func() {
 
 			spec := GetDefaultNovaCellSpec("cell1")
 			spec["metadataServiceTemplate"] = map[string]interface{}{
-				"replicas": 1,
+				"enabled": true,
 			}
 			DeferCleanup(th.DeleteInstance, CreateNovaCell(cell1.CellName, spec))
 			th.SimulateJobSuccess(cell1.CellDBSyncJobName)
@@ -721,6 +723,31 @@ var _ = Describe("NovaCell controller", func() {
 				cell1.CellName,
 				ConditionGetterFunc(NovaCellConditionGetter),
 				novav1.NovaNoVNCProxyReadyCondition,
+				corev1.ConditionTrue,
+			)
+			th.ExpectCondition(
+				cell1.CellName,
+				ConditionGetterFunc(NovaCellConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
+		It("applies zero replicas to NovaMetadata if requested", func() {
+			Eventually(func(g Gomega) {
+				novaCell := GetNovaCell(cell1.CellName)
+				novaCell.Spec.MetadataServiceTemplate.Replicas = ptr.To[int32](0)
+
+				g.Expect(k8sClient.Update(ctx, novaCell)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				ss := th.GetStatefulSet(cell1.MetadataStatefulSetName)
+				g.Expect(ss.Spec.Replicas).To(Equal(ptr.To[int32](0)))
+			}, timeout, interval).Should(Succeed())
+			th.ExpectCondition(
+				cell1.CellName,
+				ConditionGetterFunc(NovaCellConditionGetter),
+				novav1.NovaMetadataReadyCondition,
 				corev1.ConditionTrue,
 			)
 			th.ExpectCondition(

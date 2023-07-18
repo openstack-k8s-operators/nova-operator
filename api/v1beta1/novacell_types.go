@@ -64,8 +64,12 @@ type NovaCellTemplate struct {
 	ConductorServiceTemplate NovaConductorTemplate `json:"conductorServiceTemplate"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default={replicas:0}
-	// MetadataServiceTemplate - defines the metadata service dedicated for the cell.
+	// MetadataServiceTemplate - defines the metadata service dedicated for the
+	// cell. Note that for cell0 metadata service should not be deployed. Also
+	// if metadata service needs to be deployed per cell here then it should
+	// not be enabled to be deployed on the top level via the Nova CR at the
+	// same time. By default Nova CR deploys the metadata service at the top
+	// level and disables it on the cell level.
 	MetadataServiceTemplate NovaMetadataTemplate `json:"metadataServiceTemplate"`
 
 	// +kubebuilder:validation:Optional

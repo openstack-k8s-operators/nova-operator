@@ -511,7 +511,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		return result, err
 	}
 
-	if *instance.Spec.MetadataServiceTemplate.Replicas != 0 {
+	if *instance.Spec.MetadataServiceTemplate.Enabled {
 		result, err = r.ensureMetadata(
 			ctx, h, instance, cell0Template,
 			cellDBs[novav1.Cell0Name].Database, apiDB, apiMQSecretName, keystoneAuthURL,
@@ -521,6 +521,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 			return result, err
 		}
 	} else {
+		// TODO(gibi): delete the metadata service if it exists and owned by us
 		instance.Status.Conditions.Remove(novav1.NovaMetadataReadyCondition)
 	}
 
@@ -1408,11 +1409,9 @@ func (r *NovaReconciler) ensureCellSecret(
 		data[APIDatabasePasswordSelector] = string(externalSecret.Data[instance.Spec.PasswordSelectors.APIDatabase])
 	}
 
-	// NOTE(gibi): there could be two reasons for 0 replicas in a cell
-	// i) cell0 always have 0 replicas from metadata
-	// ii) metadata can be deployed on the top level instead of deployed per
-	// cell. In this case each cell will have 0 replica from metadta.
-	if *cellTemplate.MetadataServiceTemplate.Replicas > 0 {
+	// If metadata is enabled in the cell then the cell secret needs the
+	// metadata shared secret
+	if *cellTemplate.MetadataServiceTemplate.Enabled {
 		data[MetadataSecretSelector] = string(externalSecret.Data[instance.Spec.PasswordSelectors.MetadataSecret])
 	}
 

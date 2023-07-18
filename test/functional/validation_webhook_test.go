@@ -32,7 +32,7 @@ var _ = Describe("Nova validation", func() {
 		spec := GetDefaultNovaSpec()
 		cell0Template := GetDefaultNovaCellTemplate()
 		cell0Template["metadataServiceTemplate"] = map[string]interface{}{
-			"replicas": 1,
+			"enabled": true,
 		}
 
 		spec["cellTemplates"] = map[string]interface{}{
@@ -61,14 +61,14 @@ var _ = Describe("Nova validation", func() {
 		Expect(statusError.ErrStatus.Details.Kind).To(Equal("Nova"))
 		Expect(statusError.ErrStatus.Message).To(
 			ContainSubstring(
-				"invalid: spec.cellTemplates[cell0].metadataServiceTemplate.replicas: " +
-					"Invalid value: 1: should be 0 for cell0"),
+				"invalid: spec.cellTemplates[cell0].metadataServiceTemplate.enabled: " +
+					"Invalid value: true: should be false for cell0"),
 		)
 	})
 	It("rejects NovaCell with metadata in cell0", func() {
 		spec := GetDefaultNovaCellSpec("cell0")
 		spec["metadataServiceTemplate"] = map[string]interface{}{
-			"replicas": 3,
+			"enabled": true,
 		}
 		raw := map[string]interface{}{
 			"apiVersion": "nova.openstack.org/v1beta1",
@@ -90,8 +90,8 @@ var _ = Describe("Nova validation", func() {
 		Expect(statusError.ErrStatus.Details.Kind).To(Equal("NovaCell"))
 		Expect(statusError.ErrStatus.Message).To(
 			ContainSubstring(
-				"invalid: spec.metadataServiceTemplate.replicas: " +
-					"Invalid value: 3: should be 0 for cell0"),
+				"invalid: spec.metadataServiceTemplate.enabled: " +
+					"Invalid value: true: should be false for cell0"),
 		)
 	})
 	It("rejects Nova with NoVNCProxy in cell0", func() {
@@ -223,7 +223,7 @@ var _ = Describe("Nova validation", func() {
 		spec := GetDefaultNovaSpec()
 		cell0Template := GetDefaultNovaCellTemplate()
 		cell0Template["metadataServiceTemplate"] = map[string]interface{}{
-			"replicas": 1,
+			"enabled": true,
 		}
 
 		spec["cellTemplates"] = map[string]interface{}{
@@ -254,8 +254,8 @@ var _ = Describe("Nova validation", func() {
 		Expect(statusError.ErrStatus.Details.Causes).To(
 			ContainElement(metav1.StatusCause{
 				Type:    "FieldValueInvalid",
-				Message: "Invalid value: 1: should be 0 for cell0",
-				Field:   "spec.cellTemplates[cell0].metadataServiceTemplate.replicas",
+				Message: "Invalid value: true: should be false for cell0",
+				Field:   "spec.cellTemplates[cell0].metadataServiceTemplate.enabled",
 			}),
 		)
 		Expect(statusError.ErrStatus.Details.Causes).To(

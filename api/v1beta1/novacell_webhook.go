@@ -81,6 +81,10 @@ func (spec *NovaCellSpec) Default() {
 		spec.MetadataServiceTemplate.ContainerImage = novaCellDefaults.MetadataContainerImageURL
 	}
 
+	if spec.MetadataServiceTemplate.Enabled == nil {
+		spec.MetadataServiceTemplate.Enabled = ptr.To(false)
+	}
+
 	if spec.NoVNCProxyServiceTemplate.ContainerImage == "" {
 		spec.NoVNCProxyServiceTemplate.ContainerImage = novaCellDefaults.NoVNCContainerImageURL
 	}
