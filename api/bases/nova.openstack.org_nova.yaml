@@ -452,8 +452,11 @@ spec:
                           type: object
                       type: object
                     noVNCProxyServiceTemplate:
-                      description: NoVNCProxyServiceTemplate - defines the novvncproxy
-                        service dedicated for the cell.
+                      description: NoVNCProxyServiceTemplate - defines the novncproxy
+                        service dedicated for the cell. Note that for cell0 novncproxy
+                        should not be deployed so the enabled field of this template
+                        is defaulted to false in cell0 but defaulted to true in other
+                        cells.
                       properties:
                         containerImage:
                           description: The service specific Container Image URL (will
@@ -474,6 +477,11 @@ spec:
                             to add additional files. Those get added to the service
                             config dir in /etc/<service> .
                           type: object
+                        enabled:
+                          description: Enabled - Whether NovaNoVNCProxy services should
+                            be deployed and managed If it is set to false then the
+                            related NovaNoVNCProxy CR will be deleted if exists
+                          type: boolean
                         externalEndpoints:
                           description: ExternalEndpoints, expose a VIP via MetalLB
                             on the pre-created address pool

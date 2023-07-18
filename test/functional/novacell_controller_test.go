@@ -25,7 +25,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
@@ -134,7 +134,7 @@ var _ = Describe("NovaCell controller", func() {
 					corev1.ConditionTrue,
 				)
 				AssertMetadataDoesNotExist(cell0.MetadataName)
-				AssertNoVNCProxyDoesNotExist(cell0.MetadataName)
+				AssertNoVNCProxyDoesNotExist(cell0.NoVNCProxyName)
 			})
 
 			It("is Ready", func() {
@@ -319,7 +319,7 @@ var _ = Describe("NovaCell controller", func() {
 			)
 			spec := GetDefaultNovaCellSpec("cell2")
 			spec["noVNCProxyServiceTemplate"] = map[string]interface{}{
-				"replicas": 0,
+				"enabled": false,
 			}
 			DeferCleanup(th.DeleteInstance, CreateNovaCell(cell2.CellName, spec))
 		})
@@ -352,7 +352,7 @@ var _ = Describe("NovaCell controller", func() {
 			Expect(GetNovaCell(cell2.CellName).Status.Hash).To(HaveKey(cell2.ComputeConfigSecretName.Name))
 		})
 
-		It("is Ready when all cell services is ready", func() {
+		It("is Ready without NoVNCProxy", func() {
 			th.SimulateJobSuccess(cell2.CellDBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell2.ConductorStatefulSetName)
 
@@ -362,6 +362,71 @@ var _ = Describe("NovaCell controller", func() {
 				condition.ReadyCondition,
 				corev1.ConditionTrue,
 			)
+			AssertNoVNCProxyDoesNotExist(cell2.NoVNCProxyName)
+		})
+
+		It("deploys NoVNCProxy if it is later enabled", func() {
+			th.SimulateJobSuccess(cell2.CellDBSyncJobName)
+			th.SimulateStatefulSetReplicaReady(cell2.ConductorStatefulSetName)
+
+			th.ExpectCondition(
+				cell2.CellName,
+				ConditionGetterFunc(NovaCellConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+			oldComputeConfigHash := GetNovaCell(cell2.CellName).Status.Hash[cell2.ComputeConfigSecretName.Name]
+
+			// Now that the cell is deployed without VNCProxy, enabled the
+			// VNCProxy for this cell
+			Eventually(func(g Gomega) {
+				novaCell := GetNovaCell(cell2.CellName)
+				novaCell.Spec.NoVNCProxyServiceTemplate.Enabled = ptr.To(true)
+
+				g.Expect(k8sClient.Update(ctx, novaCell)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			// Check that the NVCProxy is now deployed
+			GetNovaNoVNCProxy(cell2.NoVNCProxyName)
+			th.ExpectCondition(
+				cell2.CellName,
+				ConditionGetterFunc(NovaCellConditionGetter),
+				novav1.NovaNoVNCProxyReadyCondition,
+				corev1.ConditionFalse,
+			)
+			novaCell := GetNovaCell(cell2.CellName)
+			Expect(novaCell.Status.NoVNCPRoxyServiceReadyCount).To(Equal(int32(0)))
+
+			// make novncproxy ready
+			th.SimulateStatefulSetReplicaReady(cell2.NoVNCProxyStatefulSetName)
+			host := SimulateNoVNCProxyRouteIngress("cell2", cell2.CellName.Namespace)
+
+			th.ExpectCondition(
+				cell2.CellName,
+				ConditionGetterFunc(NovaCellConditionGetter),
+				novav1.NovaNoVNCProxyReadyCondition,
+				corev1.ConditionTrue,
+			)
+			novaCell = GetNovaCell(cell2.CellName)
+			Expect(novaCell.Status.NoVNCPRoxyServiceReadyCount).To(Equal(int32(1)))
+
+			// And the compute config is updated with the VNCProxy url
+			th.ExpectCondition(
+				cell2.CellName,
+				ConditionGetterFunc(NovaCellConditionGetter),
+				novav1.NovaComputeServiceConfigReady,
+				corev1.ConditionTrue,
+			)
+
+			computeConfigData := th.GetSecret(cell2.ComputeConfigSecretName)
+			Expect(computeConfigData).ShouldNot(BeNil())
+			Expect(computeConfigData.Data).Should(HaveKey("01-nova.conf"))
+			configData := string(computeConfigData.Data["01-nova.conf"])
+			vncUrlConfig := fmt.Sprintf("novncproxy_base_url = http://%s/vnc_lite.html", host)
+			Expect(configData).To(ContainSubstring(vncUrlConfig))
+
+			Expect(GetNovaCell(cell2.CellName).Status.Hash[cell2.ComputeConfigSecretName.Name]).NotTo(BeNil())
+			Expect(GetNovaCell(cell2.CellName).Status.Hash[cell2.ComputeConfigSecretName.Name]).NotTo(Equal(oldComputeConfigHash))
 		})
 	})
 	When("NovaCell/cell0 is reconfigured", func() {
@@ -379,8 +444,10 @@ var _ = Describe("NovaCell controller", func() {
 
 			DeferCleanup(th.DeleteInstance, CreateNovaCell(cell0.CellName, GetDefaultNovaCellSpec("cell0")))
 			th.SimulateJobSuccess(cell0.CellDBSyncJobName)
-
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
+
+			cell := GetNovaCell(cell0.CellName)
+			Expect(cell.Spec.MetadataServiceTemplate.Replicas).To(Equal(ptr.To[int32](0)))
 			th.ExpectCondition(
 				cell0.CellName,
 				ConditionGetterFunc(NovaCellConditionGetter),
@@ -459,7 +526,7 @@ var _ = Describe("NovaCell controller", func() {
 		})
 	})
 
-	When("NovaCell/cell1 is reconfigured", func() {
+	When("NovaCell/cell1 with metadata is reconfigured", func() {
 		BeforeEach(func() {
 			DeferCleanup(
 				k8sClient.Delete,
@@ -483,6 +550,8 @@ var _ = Describe("NovaCell controller", func() {
 			SimulateNoVNCProxyRouteIngress("cell1", cell1.CellName.Namespace)
 			th.SimulateStatefulSetReplicaReady(cell1.MetadataStatefulSetName)
 
+			cell := GetNovaCell(cell1.CellName)
+			Expect(cell.Spec.MetadataServiceTemplate.Replicas).To(Equal(ptr.To[int32](1)))
 			th.ExpectCondition(
 				cell1.CellName,
 				ConditionGetterFunc(NovaCellConditionGetter),
@@ -512,34 +581,27 @@ var _ = Describe("NovaCell controller", func() {
 		It("applies zero replicas to NovaNoVNCProxy if requested", func() {
 			Eventually(func(g Gomega) {
 				novaCell := GetNovaCell(cell1.CellName)
-				novaCell.Spec.NoVNCProxyServiceTemplate.Replicas = pointer.Int32(0)
+				novaCell.Spec.NoVNCProxyServiceTemplate.Replicas = ptr.To[int32](0)
 
 				g.Expect(k8sClient.Update(ctx, novaCell)).To(Succeed())
 			}, timeout, interval).Should(Succeed())
 
-			// FIXME(gibi): This is the bug #457 as setting the replicas to 0
-			// is not propagated down
-			Consistently(func(g Gomega) {
+			Eventually(func(g Gomega) {
 				ss := th.GetStatefulSet(cell1.NoVNCProxyStatefulSetName)
-				g.Expect(ss.Spec.Replicas).To(Equal(pointer.Int32(1)))
+				g.Expect(ss.Spec.Replicas).To(Equal(ptr.To[int32](0)))
 			}, timeout, interval).Should(Succeed())
-			// This should be passing after a fix
-			// Eventually(func(g Gomega) {
-			// 	ss := th.GetStatefulSet(cell1.NoVNCProxyNameStatefulSetName)
-			// 	g.Expect(ss.Spec.Replicas).To(Equal(pointer.Int32(0)))
-			// }, timeout, interval).Should(Succeed())
-			// th.ExpectCondition(
-			// 	cell1.CellName,
-			// 	ConditionGetterFunc(NovaCellConditionGetter),
-			// 	novav1.NovaNoVNCProxyReadyCondition,
-			// 	corev1.ConditionTrue,
-			// )
-			// th.ExpectCondition(
-			// 	cell1.CellName,
-			// 	ConditionGetterFunc(NovaCellConditionGetter),
-			// 	condition.ReadyCondition,
-			// 	corev1.ConditionTrue,
-			// )
+			th.ExpectCondition(
+				cell1.CellName,
+				ConditionGetterFunc(NovaCellConditionGetter),
+				novav1.NovaNoVNCProxyReadyCondition,
+				corev1.ConditionTrue,
+			)
+			th.ExpectCondition(
+				cell1.CellName,
+				ConditionGetterFunc(NovaCellConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
 		})
 	})
 })

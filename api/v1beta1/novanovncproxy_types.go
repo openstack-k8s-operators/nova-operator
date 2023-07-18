@@ -29,6 +29,12 @@ import (
 // create a NovaNoVNCProxy via higher level CRDs.
 type NovaNoVNCProxyTemplate struct {
 	// +kubebuilder:validation:Optional
+	// Enabled - Whether NovaNoVNCProxy services should be deployed and managed
+	// If it is set to false then the related NovaNoVNCProxy CR will be deleted
+	// if exists
+	Enabled *bool `json:"enabled"`
+
+	// +kubebuilder:validation:Optional
 	// The service specific Container Image URL (will be set to environmental default if empty)
 	ContainerImage string `json:"containerImage"`
 
