@@ -25,6 +25,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
@@ -363,7 +364,7 @@ var _ = Describe("NovaCell controller", func() {
 			)
 		})
 	})
-	When("NovaCell is reconfigured", func() {
+	When("NovaCell/cell0 is reconfigured", func() {
 		BeforeEach(func() {
 			DeferCleanup(
 				k8sClient.Delete,
@@ -455,6 +456,90 @@ var _ = Describe("NovaCell controller", func() {
 				condition.ReadyCondition,
 				corev1.ConditionTrue,
 			)
+		})
+	})
+
+	When("NovaCell/cell1 is reconfigured", func() {
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateNovaMetadataSecret(cell1.CellName.Namespace, SecretName),
+			)
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateNovaMessageBusSecret(cell1.CellName.Namespace, MessageBusSecretName),
+			)
+
+			spec := GetDefaultNovaCellSpec("cell1")
+			spec["metadataServiceTemplate"] = map[string]interface{}{
+				"replicas": 1,
+			}
+			DeferCleanup(th.DeleteInstance, CreateNovaCell(cell1.CellName, spec))
+			th.SimulateJobSuccess(cell1.CellDBSyncJobName)
+			th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
+			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
+			SimulateNoVNCProxyRouteIngress("cell1", cell1.CellName.Namespace)
+			th.SimulateStatefulSetReplicaReady(cell1.MetadataStatefulSetName)
+
+			th.ExpectCondition(
+				cell1.CellName,
+				ConditionGetterFunc(NovaCellConditionGetter),
+				novav1.NovaConductorReadyCondition,
+				corev1.ConditionTrue,
+			)
+			th.ExpectCondition(
+				cell1.CellName,
+				ConditionGetterFunc(NovaCellConditionGetter),
+				novav1.NovaNoVNCProxyReadyCondition,
+				corev1.ConditionTrue,
+			)
+			th.ExpectCondition(
+				cell1.CellName,
+				ConditionGetterFunc(NovaCellConditionGetter),
+				novav1.NovaMetadataReadyCondition,
+				corev1.ConditionTrue,
+			)
+			th.ExpectCondition(
+				cell1.CellName,
+				ConditionGetterFunc(NovaCellConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
+
+		It("applies zero replicas to NovaNoVNCProxy if requested", func() {
+			Eventually(func(g Gomega) {
+				novaCell := GetNovaCell(cell1.CellName)
+				novaCell.Spec.NoVNCProxyServiceTemplate.Replicas = pointer.Int32(0)
+
+				g.Expect(k8sClient.Update(ctx, novaCell)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			// FIXME(gibi): This is the bug #457 as setting the replicas to 0
+			// is not propagated down
+			Consistently(func(g Gomega) {
+				ss := th.GetStatefulSet(cell1.NoVNCProxyStatefulSetName)
+				g.Expect(ss.Spec.Replicas).To(Equal(pointer.Int32(1)))
+			}, timeout, interval).Should(Succeed())
+			// This should be passing after a fix
+			// Eventually(func(g Gomega) {
+			// 	ss := th.GetStatefulSet(cell1.NoVNCProxyNameStatefulSetName)
+			// 	g.Expect(ss.Spec.Replicas).To(Equal(pointer.Int32(0)))
+			// }, timeout, interval).Should(Succeed())
+			// th.ExpectCondition(
+			// 	cell1.CellName,
+			// 	ConditionGetterFunc(NovaCellConditionGetter),
+			// 	novav1.NovaNoVNCProxyReadyCondition,
+			// 	corev1.ConditionTrue,
+			// )
+			// th.ExpectCondition(
+			// 	cell1.CellName,
+			// 	ConditionGetterFunc(NovaCellConditionGetter),
+			// 	condition.ReadyCondition,
+			// 	corev1.ConditionTrue,
+			// )
 		})
 	})
 })
