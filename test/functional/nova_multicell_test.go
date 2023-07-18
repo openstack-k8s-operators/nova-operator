@@ -26,6 +26,7 @@ import (
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 )
 
 var _ = Describe("Nova multicell", func() {
@@ -98,6 +99,8 @@ var _ = Describe("Nova multicell", func() {
 			// assert that cell related CRs are created pointing to the API MQ
 			cell := GetNovaCell(cell0.CellName)
 			Expect(cell.Spec.CellMessageBusSecretName).To(Equal(fmt.Sprintf("%s-secret", cell0.TransportURLName.Name)))
+			// and NoVNCProxy is defaulted to be disabled in cell0
+			Expect(cell.Spec.NoVNCProxyServiceTemplate.Enabled).To(Equal(ptr.To(false)))
 			conductor := GetNovaConductor(cell0.CellConductorName)
 			Expect(conductor.Spec.CellMessageBusSecretName).To(Equal(fmt.Sprintf("%s-secret", cell0.TransportURLName.Name)))
 
@@ -266,6 +269,8 @@ var _ = Describe("Nova multicell", func() {
 			// assert that cell related CRs are created pointing to the cell1 MQ
 			c1 := GetNovaCell(cell1.CellName)
 			Expect(c1.Spec.CellMessageBusSecretName).To(Equal(fmt.Sprintf("%s-secret", cell1.TransportURLName.Name)))
+			// and NoVNCProxy default to be enabled
+			Expect(c1.Spec.NoVNCProxyServiceTemplate.Enabled).To(Equal(ptr.To(true)))
 			c1Conductor := GetNovaConductor(cell1.CellConductorName)
 			Expect(c1Conductor.Spec.CellMessageBusSecretName).To(Equal(fmt.Sprintf("%s-secret", cell1.TransportURLName.Name)))
 

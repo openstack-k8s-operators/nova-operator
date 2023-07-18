@@ -167,7 +167,7 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 		instance.Status.Conditions.Remove(novav1.NovaMetadataReadyCondition)
 	}
 
-	cellHasVNCService := (*instance.Spec.NoVNCProxyServiceTemplate.Replicas != 0 && !isCell0)
+	cellHasVNCService := (*instance.Spec.NoVNCProxyServiceTemplate.Enabled)
 	if cellHasVNCService {
 		result, err = r.ensureNoVNCProxy(ctx, h, instance)
 		if err != nil {
@@ -175,6 +175,7 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 		}
 	} else {
 		instance.Status.Conditions.Remove(novav1.NovaNoVNCProxyReadyCondition)
+		// TODO(gibi): delete the VNC service if it exists and owned by us
 	}
 
 	// We need to wait for the NovaNoVNCProxy to become Ready before we can try

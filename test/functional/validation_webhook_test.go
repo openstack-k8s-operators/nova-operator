@@ -37,7 +37,7 @@ var _ = Describe("Nova validation", func() {
 
 		spec["cellTemplates"] = map[string]interface{}{
 			"cell0": cell0Template,
-			// note that this is intentional to test that metadata 0 is allowed
+			// note that this is intentional to test that metadata 1 is allowed
 			// in cell1 but not in cell0
 			"cell1": cell0Template,
 		}
@@ -92,6 +92,72 @@ var _ = Describe("Nova validation", func() {
 			ContainSubstring(
 				"invalid: spec.metadataServiceTemplate.replicas: " +
 					"Invalid value: 3: should be 0 for cell0"),
+		)
+	})
+	It("rejects Nova with NoVNCProxy in cell0", func() {
+		spec := GetDefaultNovaSpec()
+		cell0Template := GetDefaultNovaCellTemplate()
+		cell0Template["noVNCProxyServiceTemplate"] = map[string]interface{}{
+			"enabled": true,
+		}
+
+		spec["cellTemplates"] = map[string]interface{}{
+			"cell0": cell0Template,
+			// note that this is intentional to test that novncproxy is allowed
+			// in cell1 but not in cell0
+			"cell1": cell0Template,
+		}
+		raw := map[string]interface{}{
+			"apiVersion": "nova.openstack.org/v1beta1",
+			"kind":       "Nova",
+			"metadata": map[string]interface{}{
+				"name":      novaNames.NovaName.Name,
+				"namespace": novaNames.Namespace,
+			},
+			"spec": spec,
+		}
+
+		unstructuredObj := &unstructured.Unstructured{Object: raw}
+		_, err := controllerutil.CreateOrPatch(
+			ctx, k8sClient, unstructuredObj, func() error { return nil })
+
+		Expect(err).Should(HaveOccurred())
+		statusError, ok := err.(*errors.StatusError)
+		Expect(ok).To(BeTrue())
+		Expect(statusError.ErrStatus.Details.Kind).To(Equal("Nova"))
+		Expect(statusError.ErrStatus.Message).To(
+			ContainSubstring(
+				"invalid: spec.cellTemplates[cell0].noVNCProxyServiceTemplate.enabled: " +
+					"Invalid value: true: should be false for cell0"),
+		)
+	})
+	It("rejects NovaCell with NoVNCProxy in cell0", func() {
+		spec := GetDefaultNovaCellSpec("cell0")
+		spec["noVNCProxyServiceTemplate"] = map[string]interface{}{
+			"enabled": true,
+		}
+		raw := map[string]interface{}{
+			"apiVersion": "nova.openstack.org/v1beta1",
+			"kind":       "NovaCell",
+			"metadata": map[string]interface{}{
+				"name":      cell0.CellName.Name,
+				"namespace": novaNames.Namespace,
+			},
+			"spec": spec,
+		}
+
+		unstructuredObj := &unstructured.Unstructured{Object: raw}
+		_, err := controllerutil.CreateOrPatch(
+			ctx, k8sClient, unstructuredObj, func() error { return nil })
+
+		Expect(err).Should(HaveOccurred())
+		statusError, ok := err.(*errors.StatusError)
+		Expect(ok).To(BeTrue())
+		Expect(statusError.ErrStatus.Details.Kind).To(Equal("NovaCell"))
+		Expect(statusError.ErrStatus.Message).To(
+			ContainSubstring(
+				"invalid: spec.noVNCProxyServiceTemplate.enabled: " +
+					"Invalid value: true: should be false for cell0"),
 		)
 	})
 	It("rejects Nova with too long cell name", func() {

@@ -29,6 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
@@ -86,7 +87,7 @@ func (spec *NovaSpec) Default() {
 		spec.SchedulerServiceTemplate.ContainerImage = novaDefaults.SchedulerContainerImageURL
 	}
 
-	for key, cellTemplate := range spec.CellTemplates {
+	for cellName, cellTemplate := range spec.CellTemplates {
 		if cellTemplate.ConductorServiceTemplate.ContainerImage == "" {
 			cellTemplate.ConductorServiceTemplate.ContainerImage = novaDefaults.ConductorContainerImageURL
 		}
@@ -99,8 +100,20 @@ func (spec *NovaSpec) Default() {
 			cellTemplate.NoVNCProxyServiceTemplate.ContainerImage = novaDefaults.NoVNCContainerImageURL
 		}
 
+		if cellName == Cell0Name {
+			// in cell0 disable VNC by default
+			if cellTemplate.NoVNCProxyServiceTemplate.Enabled == nil {
+				cellTemplate.NoVNCProxyServiceTemplate.Enabled = ptr.To(false)
+			}
+		} else {
+			// in other cells enable VNC by default
+			if cellTemplate.NoVNCProxyServiceTemplate.Enabled == nil {
+				cellTemplate.NoVNCProxyServiceTemplate.Enabled = ptr.To(true)
+			}
+		}
+
 		// "cellTemplate" is a by-value copy, so we need to re-inject the updated version of it into the map
-		spec.CellTemplates[key] = cellTemplate
+		spec.CellTemplates[cellName] = cellTemplate
 	}
 }
 
@@ -131,6 +144,10 @@ func (r *NovaSpec) ValidateCellTemplates(basePath *field.Path) field.ErrorList {
 				errors,
 				cell.MetadataServiceTemplate.ValidateCell0(
 					cellPath.Child("metadataServiceTemplate"))...)
+			errors = append(
+				errors,
+				cell.NoVNCProxyServiceTemplate.ValidateCell0(
+					cellPath.Child("noVNCProxyServiceTemplate"))...)
 		}
 	}
 

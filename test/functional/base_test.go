@@ -251,14 +251,12 @@ func CreateNovaMessageBusSecret(namespace string, name string) *corev1.Secret {
 
 func GetDefaultNovaCellSpec(cellName string) map[string]interface{} {
 	return map[string]interface{}{
-		"cellName":                  cellName,
-		"secret":                    SecretName,
-		"cellDatabaseHostname":      "cell-database-hostname",
-		"cellMessageBusSecretName":  MessageBusSecretName,
-		"keystoneAuthURL":           "keystone-auth-url",
-		"conductorServiceTemplate":  map[string]interface{}{},
-		"noVNCProxyServiceTemplate": map[string]interface{}{},
-		"serviceAccount":            "nova",
+		"cellName":                 cellName,
+		"secret":                   SecretName,
+		"cellDatabaseHostname":     "cell-database-hostname",
+		"cellMessageBusSecretName": MessageBusSecretName,
+		"keystoneAuthURL":          "keystone-auth-url",
+		"serviceAccount":           "nova",
 	}
 }
 

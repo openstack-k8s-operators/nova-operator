@@ -29,6 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
@@ -83,6 +84,18 @@ func (spec *NovaCellSpec) Default() {
 	if spec.NoVNCProxyServiceTemplate.ContainerImage == "" {
 		spec.NoVNCProxyServiceTemplate.ContainerImage = novaCellDefaults.NoVNCContainerImageURL
 	}
+
+	if spec.CellName == Cell0Name {
+		// in cell0 disable VNC by default
+		if spec.NoVNCProxyServiceTemplate.Enabled == nil {
+			spec.NoVNCProxyServiceTemplate.Enabled = ptr.To(false)
+		}
+	} else {
+		// in other cells enable VNC  by default
+		if spec.NoVNCProxyServiceTemplate.Enabled == nil {
+			spec.NoVNCProxyServiceTemplate.Enabled = ptr.To(true)
+		}
+	}
 }
 
 // NOTE: change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
@@ -97,6 +110,10 @@ func (r *NovaCellSpec) validate(basePath *field.Path) field.ErrorList {
 		errors = append(
 			errors, r.MetadataServiceTemplate.ValidateCell0(
 				basePath.Child("metadataServiceTemplate"))...,
+		)
+		errors = append(
+			errors, r.NoVNCProxyServiceTemplate.ValidateCell0(
+				basePath.Child("noVNCProxyServiceTemplate"))...,
 		)
 	}
 

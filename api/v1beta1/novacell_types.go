@@ -69,8 +69,10 @@ type NovaCellTemplate struct {
 	MetadataServiceTemplate NovaMetadataTemplate `json:"metadataServiceTemplate"`
 
 	// +kubebuilder:validation:Optional
-	// NoVNCProxyServiceTemplate - defines the novvncproxy service dedicated for
-	// the cell.
+	// NoVNCProxyServiceTemplate - defines the novncproxy service dedicated for
+	// the cell. Note that for cell0 novncproxy should not be deployed so
+	// the enabled field of this template is defaulted to false in cell0 but
+	// defaulted to true in other cells.
 	NoVNCProxyServiceTemplate NovaNoVNCProxyTemplate `json:"noVNCProxyServiceTemplate"`
 
 	// +kubebuilder:validation:Optional
