@@ -448,7 +448,7 @@ type CellNames struct {
 	MetadataStatefulSetName          types.NamespacedName
 	CellConductorConfigDataName      types.NamespacedName
 	NoVNCProxyName                   types.NamespacedName
-	NoVNCProxyNameStatefulSetName    types.NamespacedName
+	NoVNCProxyStatefulSetName        types.NamespacedName
 	CellNoVNCProxyNameConfigDataName types.NamespacedName
 	InternalCellSecretName           types.NamespacedName
 	InternalAPINetworkNADName        types.NamespacedName
@@ -496,10 +496,10 @@ func GetCellNames(novaName types.NamespacedName, cell string) CellNames {
 			Namespace: novaName.Namespace,
 			Name:      cellConductor.Name + "-config-data",
 		},
-		MetadataName:                  metadataName,
-		MetadataStatefulSetName:       metadataName,
-		NoVNCProxyName:                novncproxyName,
-		NoVNCProxyNameStatefulSetName: novncproxyName,
+		MetadataName:              metadataName,
+		MetadataStatefulSetName:   metadataName,
+		NoVNCProxyName:            novncproxyName,
+		NoVNCProxyStatefulSetName: novncproxyName,
 		CellNoVNCProxyNameConfigDataName: types.NamespacedName{
 			Namespace: novaName.Namespace,
 			Name:      cellName.Name + "-novncproxy" + "-config-data",

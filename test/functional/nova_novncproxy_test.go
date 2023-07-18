@@ -208,7 +208,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 					condition.DeploymentReadyRunningMessage,
 				)
 
-				ss := th.GetStatefulSet(cell1.NoVNCProxyNameStatefulSetName)
+				ss := th.GetStatefulSet(cell1.NoVNCProxyStatefulSetName)
 				Expect(int(*ss.Spec.Replicas)).To(Equal(1))
 				Expect(ss.Spec.Template.Spec.Volumes).To(HaveLen(2))
 				Expect(ss.Spec.Template.Spec.Containers).To(HaveLen(2))
@@ -237,11 +237,11 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 						condition.RequestedReason,
 						condition.DeploymentReadyRunningMessage,
 					)
-					th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyNameStatefulSetName)
+					th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
 				})
 
 				It("reports that the StatefulSet is ready", func() {
-					th.GetStatefulSet(cell1.NoVNCProxyNameStatefulSetName)
+					th.GetStatefulSet(cell1.NoVNCProxyStatefulSetName)
 					th.ExpectCondition(
 						cell1.NoVNCProxyName,
 						ConditionGetterFunc(NoVNCProxyConditionGetter),
@@ -255,7 +255,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 			})
 
 			It("exposes the service", func() {
-				th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyNameStatefulSetName)
+				th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
 				th.ExpectCondition(
 					cell1.NoVNCProxyName,
 					ConditionGetterFunc(NoVNCProxyConditionGetter),
@@ -268,7 +268,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 			})
 
 			It("is Ready", func() {
-				th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyNameStatefulSetName)
+				th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
 
 				th.ExpectCondition(
 					cell1.NoVNCProxyName,
@@ -332,7 +332,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 			nad := th.CreateNetworkAttachmentDefinition(internalNoVNCName)
 			DeferCleanup(th.DeleteInstance, nad)
 
-			ss := th.GetStatefulSet(cell1.NoVNCProxyNameStatefulSetName)
+			ss := th.GetStatefulSet(cell1.NoVNCProxyStatefulSetName)
 
 			expectedAnnotation, err := json.Marshal(
 				[]networkv1.NetworkSelectionElement{
@@ -348,7 +348,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 
 			// We don't add network attachment status annotations to the Pods
 			// to simulate that the network attachments are missing.
-			th.SimulateStatefulSetReplicaReadyWithPods(cell1.NoVNCProxyNameStatefulSetName, map[string][]string{})
+			th.SimulateStatefulSetReplicaReadyWithPods(cell1.NoVNCProxyStatefulSetName, map[string][]string{})
 
 			th.ExpectConditionWithDetails(
 				cell1.NoVNCProxyName,
@@ -365,7 +365,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 			nad := th.CreateNetworkAttachmentDefinition(internalNoVNCName)
 			DeferCleanup(th.DeleteInstance, nad)
 
-			ss := th.GetStatefulSet(cell1.NoVNCProxyNameStatefulSetName)
+			ss := th.GetStatefulSet(cell1.NoVNCProxyStatefulSetName)
 
 			expectedAnnotation, err := json.Marshal(
 				[]networkv1.NetworkSelectionElement{
@@ -382,7 +382,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 			// We simulate that there is no IP associated with the internalapi
 			// network attachment
 			th.SimulateStatefulSetReplicaReadyWithPods(
-				cell1.NoVNCProxyNameStatefulSetName,
+				cell1.NoVNCProxyStatefulSetName,
 				map[string][]string{cell1.NoVNCProxyName.Namespace + "/internalapi": {}},
 			)
 
@@ -402,7 +402,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 			DeferCleanup(th.DeleteInstance, nad)
 
 			th.SimulateStatefulSetReplicaReadyWithPods(
-				cell1.NoVNCProxyNameStatefulSetName,
+				cell1.NoVNCProxyStatefulSetName,
 				map[string][]string{cell1.NoVNCProxyName.Namespace + "/internalapi": {"10.0.0.1"}},
 			)
 
@@ -450,7 +450,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 		})
 
 		It("creates MetalLB service", func() {
-			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyNameStatefulSetName)
+			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
 
 			// As the internal endpoint is configured in ExternalEndpoints it does not
 			// get a Route but a Service with MetalLB annotations instead
@@ -486,7 +486,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 				corev1.ConditionTrue,
 			)
 
-			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyNameStatefulSetName)
+			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
 			th.ExpectCondition(
 				cell1.NoVNCProxyName,
 				ConditionGetterFunc(NoVNCProxyConditionGetter),
@@ -543,7 +543,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 			)
 
 			th.SimulateStatefulSetReplicaReadyWithPods(
-				cell1.NoVNCProxyNameStatefulSetName,
+				cell1.NoVNCProxyStatefulSetName,
 				map[string][]string{cell1.NoVNCProxyName.Namespace + "/internalapi": {"10.0.0.1"}},
 			)
 
@@ -580,7 +580,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 			DeferCleanup(th.DeleteInstance, noVNCProxy)
 		})
 		It("and deployment is Ready", func() {
-			ss := th.GetStatefulSet(cell1.NoVNCProxyNameStatefulSetName)
+			ss := th.GetStatefulSet(cell1.NoVNCProxyStatefulSetName)
 			Expect(int(*ss.Spec.Replicas)).To(Equal(0))
 			th.ExpectCondition(
 				cell1.NoVNCProxyName,
