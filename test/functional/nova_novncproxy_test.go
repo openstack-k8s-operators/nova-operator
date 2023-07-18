@@ -33,23 +33,23 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 	When("with standard spec without network interface", func() {
 		BeforeEach(func() {
 			DeferCleanup(
-				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(novaNames.NoVNCProxyName.Namespace, MessageBusSecretName))
+				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(cell1.NoVNCProxyName.Namespace, MessageBusSecretName))
 
 			spec := GetDefaultNovaNoVNCProxySpec()
 			spec["customServiceConfig"] = "foo=bar"
-			DeferCleanup(th.DeleteInstance, CreateNovaNoVNCProxy(novaNames.NoVNCProxyName, spec))
+			DeferCleanup(th.DeleteInstance, CreateNovaNoVNCProxy(cell1.NoVNCProxyName, spec))
 		})
 		When("a NovaNoVNCProxy CR is created pointing to a non existent Secret", func() {
 			It("is not Ready", func() {
 				th.ExpectCondition(
-					novaNames.NoVNCProxyName,
+					cell1.NoVNCProxyName,
 					ConditionGetterFunc(NoVNCProxyConditionGetter),
 					condition.ReadyCondition, corev1.ConditionFalse,
 				)
 			})
 
 			It("has empty Status fields", func() {
-				instance := GetNovaNoVNCProxy(novaNames.NoVNCProxyName)
+				instance := GetNovaNoVNCProxy(cell1.NoVNCProxyName)
 				// NOTE(gibi): Hash has `omitempty` tags so while
 				// they are initialized to an empty map that value is omitted from
 				// the output when sent to the client. So we see nils here.
@@ -58,7 +58,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 			})
 			It("is missing the secret", func() {
 				th.ExpectConditionWithDetails(
-					novaNames.NoVNCProxyName,
+					cell1.NoVNCProxyName,
 					ConditionGetterFunc(NoVNCProxyConditionGetter),
 					condition.InputReadyCondition,
 					corev1.ConditionFalse,
@@ -72,7 +72,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 				secret := &corev1.Secret{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "not-relevant-secret",
-						Namespace: novaNames.NoVNCProxyName.Namespace,
+						Namespace: cell1.NoVNCProxyName.Namespace,
 					},
 				}
 				Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
@@ -81,7 +81,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 
 			It("is not Ready", func() {
 				th.ExpectCondition(
-					novaNames.NoVNCProxyName,
+					cell1.NoVNCProxyName,
 					ConditionGetterFunc(NoVNCProxyConditionGetter),
 					condition.ReadyCondition,
 					corev1.ConditionFalse,
@@ -90,7 +90,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 
 			It("is missing the secret", func() {
 				th.ExpectCondition(
-					novaNames.NoVNCProxyName,
+					cell1.NoVNCProxyName,
 					ConditionGetterFunc(NoVNCProxyConditionGetter),
 					condition.InputReadyCondition,
 					corev1.ConditionFalse,
@@ -102,7 +102,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 				secret := &corev1.Secret{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      SecretName,
-						Namespace: novaNames.NoVNCProxyName.Namespace,
+						Namespace: cell1.NoVNCProxyName.Namespace,
 					},
 					Data: map[string][]byte{
 						"data": []byte("12345678"),
@@ -114,7 +114,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 
 			It("is not Ready", func() {
 				th.ExpectCondition(
-					novaNames.NoVNCProxyName,
+					cell1.NoVNCProxyName,
 					ConditionGetterFunc(NoVNCProxyConditionGetter),
 					condition.ReadyCondition,
 					corev1.ConditionFalse,
@@ -123,7 +123,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 
 			It("reports that the inputs are not ready", func() {
 				th.ExpectConditionWithDetails(
-					novaNames.NoVNCProxyName,
+					cell1.NoVNCProxyName,
 					ConditionGetterFunc(NoVNCProxyConditionGetter),
 					condition.InputReadyCondition,
 					corev1.ConditionFalse,
@@ -137,13 +137,13 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 				DeferCleanup(
 					k8sClient.Delete,
 					ctx,
-					CreateNovaNoVNCProxySecret(novaNames.NoVNCProxyName.Namespace, SecretName),
+					CreateNovaNoVNCProxySecret(cell1.NoVNCProxyName.Namespace, SecretName),
 				)
 			})
 
 			It("reports that input is ready", func() {
 				th.ExpectCondition(
-					novaNames.NoVNCProxyName,
+					cell1.NoVNCProxyName,
 					ConditionGetterFunc(NoVNCProxyConditionGetter),
 					condition.InputReadyCondition,
 					corev1.ConditionTrue,
@@ -151,7 +151,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 			})
 			It("generated configs successfully t", func() {
 				th.ExpectCondition(
-					novaNames.NoVNCProxyName,
+					cell1.NoVNCProxyName,
 					ConditionGetterFunc(NoVNCProxyConditionGetter),
 					condition.ServiceConfigReadyCondition,
 					corev1.ConditionTrue,
@@ -159,8 +159,8 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 
 				configDataMap := th.GetSecret(
 					types.NamespacedName{
-						Namespace: novaNames.NoVNCProxyName.Namespace,
-						Name:      fmt.Sprintf("%s-config-data", novaNames.NoVNCProxyName.Name),
+						Namespace: cell1.NoVNCProxyName.Namespace,
+						Name:      fmt.Sprintf("%s-config-data", cell1.NoVNCProxyName.Name),
 					},
 				)
 				Expect(configDataMap).ShouldNot(BeNil())
@@ -177,7 +177,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 
 			It("stored the input hash in the Status", func() {
 				Eventually(func(g Gomega) {
-					noVNCProxy := GetNovaNoVNCProxy(novaNames.NoVNCProxyName)
+					noVNCProxy := GetNovaNoVNCProxy(cell1.NoVNCProxyName)
 					g.Expect(noVNCProxy.Status.Hash).Should(HaveKeyWithValue("input", Not(BeEmpty())))
 				}, timeout, interval).Should(Succeed())
 
@@ -186,12 +186,12 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 		When("NoVNCProxy is created with a proper Secret", func() {
 			BeforeEach(func() {
 				DeferCleanup(
-					k8sClient.Delete, ctx, CreateNovaNoVNCProxySecret(novaNames.NoVNCProxyName.Namespace, SecretName))
+					k8sClient.Delete, ctx, CreateNovaNoVNCProxySecret(cell1.NoVNCProxyName.Namespace, SecretName))
 			})
 
 			It(" reports input ready", func() {
 				th.ExpectCondition(
-					novaNames.NoVNCProxyName,
+					cell1.NoVNCProxyName,
 					ConditionGetterFunc(NoVNCProxyConditionGetter),
 					condition.InputReadyCondition,
 					corev1.ConditionTrue,
@@ -200,7 +200,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 
 			It("creates a StatefulSet for the nova-novncproxy service", func() {
 				th.ExpectConditionWithDetails(
-					novaNames.NoVNCProxyName,
+					cell1.NoVNCProxyName,
 					ConditionGetterFunc(NoVNCProxyConditionGetter),
 					condition.DeploymentReadyCondition,
 					corev1.ConditionFalse,
@@ -208,7 +208,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 					condition.DeploymentReadyRunningMessage,
 				)
 
-				ss := th.GetStatefulSet(novaNames.NoVNCProxyNameStatefulSetName)
+				ss := th.GetStatefulSet(cell1.NoVNCProxyNameStatefulSetName)
 				Expect(int(*ss.Spec.Replicas)).To(Equal(1))
 				Expect(ss.Spec.Template.Spec.Volumes).To(HaveLen(2))
 				Expect(ss.Spec.Template.Spec.Containers).To(HaveLen(2))
@@ -230,48 +230,48 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 			When("the StatefulSet has at least one Replica ready", func() {
 				BeforeEach(func() {
 					th.ExpectConditionWithDetails(
-						novaNames.NoVNCProxyName,
+						cell1.NoVNCProxyName,
 						ConditionGetterFunc(NoVNCProxyConditionGetter),
 						condition.DeploymentReadyCondition,
 						corev1.ConditionFalse,
 						condition.RequestedReason,
 						condition.DeploymentReadyRunningMessage,
 					)
-					th.SimulateStatefulSetReplicaReady(novaNames.NoVNCProxyNameStatefulSetName)
+					th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyNameStatefulSetName)
 				})
 
 				It("reports that the StatefulSet is ready", func() {
-					th.GetStatefulSet(novaNames.NoVNCProxyNameStatefulSetName)
+					th.GetStatefulSet(cell1.NoVNCProxyNameStatefulSetName)
 					th.ExpectCondition(
-						novaNames.NoVNCProxyName,
+						cell1.NoVNCProxyName,
 						ConditionGetterFunc(NoVNCProxyConditionGetter),
 						condition.DeploymentReadyCondition,
 						corev1.ConditionTrue,
 					)
 
-					noVNCProxyName := GetNovaNoVNCProxy(novaNames.NoVNCProxyName)
+					noVNCProxyName := GetNovaNoVNCProxy(cell1.NoVNCProxyName)
 					Expect(noVNCProxyName.Status.ReadyCount).To(BeNumerically(">", 0))
 				})
 			})
 
 			It("exposes the service", func() {
-				th.SimulateStatefulSetReplicaReady(novaNames.NoVNCProxyNameStatefulSetName)
+				th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyNameStatefulSetName)
 				th.ExpectCondition(
-					novaNames.NoVNCProxyName,
+					cell1.NoVNCProxyName,
 					ConditionGetterFunc(NoVNCProxyConditionGetter),
 					condition.ExposeServiceReadyCondition,
 					corev1.ConditionTrue,
 				)
-				service := th.GetService(types.NamespacedName{Namespace: novaNames.NoVNCProxyName.Namespace, Name: "nova-novncproxy-cell1-internal"})
+				service := th.GetService(types.NamespacedName{Namespace: cell1.NoVNCProxyName.Namespace, Name: "nova-novncproxy-cell1-internal"})
 				Expect(service.Labels["service"]).To(Equal("nova-novncproxy"))
 				Expect(service.Labels["cell"]).To(Equal("cell1"))
 			})
 
 			It("is Ready", func() {
-				th.SimulateStatefulSetReplicaReady(novaNames.NoVNCProxyNameStatefulSetName)
+				th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyNameStatefulSetName)
 
 				th.ExpectCondition(
-					novaNames.NoVNCProxyName,
+					cell1.NoVNCProxyName,
 					ConditionGetterFunc(NoVNCProxyConditionGetter),
 					condition.ReadyCondition,
 					corev1.ConditionTrue,
@@ -283,11 +283,11 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 		BeforeEach(func() {
 			spec := GetDefaultNovaNoVNCProxySpec()
 			spec["containerImage"] = ""
-			novncproxy := CreateNovaNoVNCProxy(novaNames.NoVNCProxyName, spec)
+			novncproxy := CreateNovaNoVNCProxy(cell1.NoVNCProxyName, spec)
 			DeferCleanup(th.DeleteInstance, novncproxy)
 		})
 		It("has the expected container image default", func() {
-			novaNoVNCProxyDefault := GetNovaNoVNCProxy(novaNames.NoVNCProxyName)
+			novaNoVNCProxyDefault := GetNovaNoVNCProxy(cell1.NoVNCProxyName)
 			Expect(novaNoVNCProxyDefault.Spec.ContainerImage).To(Equal(util.GetEnvVar("NOVA_NOVNC_IMAGE_URL_DEFAULT", novav1.NovaNoVNCContainerImage)))
 		})
 	})
@@ -296,24 +296,24 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 var _ = Describe("NovaNoVNCProxy controller", func() {
 	BeforeEach(func() {
 		DeferCleanup(
-			k8sClient.Delete, ctx, CreateNovaMessageBusSecret(novaNames.NoVNCProxyName.Namespace, MessageBusSecretName))
+			k8sClient.Delete, ctx, CreateNovaMessageBusSecret(cell1.NoVNCProxyName.Namespace, MessageBusSecretName))
 	})
 
 	When(" is created with networkAttachments", func() {
 		BeforeEach(func() {
 			spec := GetDefaultNovaNoVNCProxySpec()
 			spec["networkAttachments"] = []string{"internalapi"}
-			DeferCleanup(th.DeleteInstance, CreateNovaNoVNCProxy(novaNames.NoVNCProxyName, spec))
+			DeferCleanup(th.DeleteInstance, CreateNovaNoVNCProxy(cell1.NoVNCProxyName, spec))
 			DeferCleanup(
 				k8sClient.Delete,
 				ctx,
-				CreateNovaNoVNCProxySecret(novaNames.NoVNCProxyName.Namespace, SecretName),
+				CreateNovaNoVNCProxySecret(cell1.NoVNCProxyName.Namespace, SecretName),
 			)
 		})
 
 		It("reports that the definition is missing", func() {
 			th.ExpectConditionWithDetails(
-				novaNames.NoVNCProxyName,
+				cell1.NoVNCProxyName,
 				ConditionGetterFunc(NoVNCProxyConditionGetter),
 				condition.NetworkAttachmentsReadyCondition,
 				corev1.ConditionFalse,
@@ -321,24 +321,24 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 				"NetworkAttachment resources missing: internalapi",
 			)
 			th.ExpectCondition(
-				novaNames.NoVNCProxyName,
+				cell1.NoVNCProxyName,
 				ConditionGetterFunc(NoVNCProxyConditionGetter),
 				condition.ReadyCondition,
 				corev1.ConditionFalse,
 			)
 		})
 		It("reports that network attachment is missing", func() {
-			internalNoVNCName := types.NamespacedName{Namespace: novaNames.NoVNCProxyName.Namespace, Name: "internalapi"}
+			internalNoVNCName := types.NamespacedName{Namespace: cell1.NoVNCProxyName.Namespace, Name: "internalapi"}
 			nad := th.CreateNetworkAttachmentDefinition(internalNoVNCName)
 			DeferCleanup(th.DeleteInstance, nad)
 
-			ss := th.GetStatefulSet(novaNames.NoVNCProxyNameStatefulSetName)
+			ss := th.GetStatefulSet(cell1.NoVNCProxyNameStatefulSetName)
 
 			expectedAnnotation, err := json.Marshal(
 				[]networkv1.NetworkSelectionElement{
 					{
 						Name:             "internalapi",
-						Namespace:        novaNames.NoVNCProxyName.Namespace,
+						Namespace:        cell1.NoVNCProxyName.Namespace,
 						InterfaceRequest: "internalapi",
 					}})
 			Expect(err).ShouldNot(HaveOccurred())
@@ -348,10 +348,10 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 
 			// We don't add network attachment status annotations to the Pods
 			// to simulate that the network attachments are missing.
-			th.SimulateStatefulSetReplicaReadyWithPods(novaNames.NoVNCProxyNameStatefulSetName, map[string][]string{})
+			th.SimulateStatefulSetReplicaReadyWithPods(cell1.NoVNCProxyNameStatefulSetName, map[string][]string{})
 
 			th.ExpectConditionWithDetails(
-				novaNames.NoVNCProxyName,
+				cell1.NoVNCProxyName,
 				ConditionGetterFunc(NoVNCProxyConditionGetter),
 				condition.NetworkAttachmentsReadyCondition,
 				corev1.ConditionFalse,
@@ -361,17 +361,17 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 			)
 		})
 		It("reports that an IP is missing", func() {
-			internalNoVNCName := types.NamespacedName{Namespace: novaNames.NoVNCProxyName.Namespace, Name: "internalapi"}
+			internalNoVNCName := types.NamespacedName{Namespace: cell1.NoVNCProxyName.Namespace, Name: "internalapi"}
 			nad := th.CreateNetworkAttachmentDefinition(internalNoVNCName)
 			DeferCleanup(th.DeleteInstance, nad)
 
-			ss := th.GetStatefulSet(novaNames.NoVNCProxyNameStatefulSetName)
+			ss := th.GetStatefulSet(cell1.NoVNCProxyNameStatefulSetName)
 
 			expectedAnnotation, err := json.Marshal(
 				[]networkv1.NetworkSelectionElement{
 					{
 						Name:             "internalapi",
-						Namespace:        novaNames.NoVNCProxyName.Namespace,
+						Namespace:        cell1.NoVNCProxyName.Namespace,
 						InterfaceRequest: "internalapi",
 					}})
 			Expect(err).ShouldNot(HaveOccurred())
@@ -382,12 +382,12 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 			// We simulate that there is no IP associated with the internalapi
 			// network attachment
 			th.SimulateStatefulSetReplicaReadyWithPods(
-				novaNames.NoVNCProxyNameStatefulSetName,
-				map[string][]string{novaNames.NoVNCProxyName.Namespace + "/internalapi": {}},
+				cell1.NoVNCProxyNameStatefulSetName,
+				map[string][]string{cell1.NoVNCProxyName.Namespace + "/internalapi": {}},
 			)
 
 			th.ExpectConditionWithDetails(
-				novaNames.NoVNCProxyName,
+				cell1.NoVNCProxyName,
 				ConditionGetterFunc(NoVNCProxyConditionGetter),
 				condition.NetworkAttachmentsReadyCondition,
 				corev1.ConditionFalse,
@@ -397,31 +397,31 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 			)
 		})
 		It("reports NetworkAttachmentsReady if the Pods got the proper annotations", func() {
-			internalNoVNCName := types.NamespacedName{Namespace: novaNames.NoVNCProxyName.Namespace, Name: "internalapi"}
+			internalNoVNCName := types.NamespacedName{Namespace: cell1.NoVNCProxyName.Namespace, Name: "internalapi"}
 			nad := th.CreateNetworkAttachmentDefinition(internalNoVNCName)
 			DeferCleanup(th.DeleteInstance, nad)
 
 			th.SimulateStatefulSetReplicaReadyWithPods(
-				novaNames.NoVNCProxyNameStatefulSetName,
-				map[string][]string{novaNames.NoVNCProxyName.Namespace + "/internalapi": {"10.0.0.1"}},
+				cell1.NoVNCProxyNameStatefulSetName,
+				map[string][]string{cell1.NoVNCProxyName.Namespace + "/internalapi": {"10.0.0.1"}},
 			)
 
 			th.ExpectCondition(
-				novaNames.NoVNCProxyName,
+				cell1.NoVNCProxyName,
 				ConditionGetterFunc(NoVNCProxyConditionGetter),
 				condition.NetworkAttachmentsReadyCondition,
 				corev1.ConditionTrue,
 			)
 
 			Eventually(func(g Gomega) {
-				instance := GetNovaNoVNCProxy(novaNames.NoVNCProxyName)
+				instance := GetNovaNoVNCProxy(cell1.NoVNCProxyName)
 				g.Expect(instance.Status.NetworkAttachments).To(
-					Equal(map[string][]string{novaNames.NoVNCProxyName.Namespace + "/internalapi": {"10.0.0.1"}}))
+					Equal(map[string][]string{cell1.NoVNCProxyName.Namespace + "/internalapi": {"10.0.0.1"}}))
 
 			}, timeout, interval).Should(Succeed())
 
 			th.ExpectCondition(
-				novaNames.NoVNCProxyName,
+				cell1.NoVNCProxyName,
 				ConditionGetterFunc(NoVNCProxyConditionGetter),
 				condition.ReadyCondition,
 				corev1.ConditionTrue,
@@ -432,7 +432,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 	When("NovaNoVNCProxy is created with externalEndpoints", func() {
 		BeforeEach(func() {
 			DeferCleanup(
-				k8sClient.Delete, ctx, CreateNovaNoVNCProxySecret(novaNames.NoVNCProxyName.Namespace, SecretName))
+				k8sClient.Delete, ctx, CreateNovaNoVNCProxySecret(cell1.NoVNCProxyName.Namespace, SecretName))
 
 			spec := GetDefaultNovaNoVNCProxySpec()
 			var externalEndpoints []interface{}
@@ -445,26 +445,26 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 			)
 			spec["externalEndpoints"] = externalEndpoints
 
-			noVNCP := CreateNovaNoVNCProxy(novaNames.NoVNCProxyName, spec)
+			noVNCP := CreateNovaNoVNCProxy(cell1.NoVNCProxyName, spec)
 			DeferCleanup(th.DeleteInstance, noVNCP)
 		})
 
 		It("creates MetalLB service", func() {
-			th.SimulateStatefulSetReplicaReady(novaNames.NoVNCProxyNameStatefulSetName)
+			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyNameStatefulSetName)
 
 			// As the internal endpoint is configured in ExternalEndpoints it does not
 			// get a Route but a Service with MetalLB annotations instead
-			service := th.GetService(types.NamespacedName{Namespace: novaNames.NoVNCProxyName.Namespace, Name: "nova-novncproxy-cell1-internal"})
+			service := th.GetService(types.NamespacedName{Namespace: cell1.NoVNCProxyName.Namespace, Name: "nova-novncproxy-cell1-internal"})
 			Expect(service.Annotations).To(
 				HaveKeyWithValue("metallb.universe.tf/address-pool", "osp-internalapi"))
 			Expect(service.Annotations).To(
 				HaveKeyWithValue("metallb.universe.tf/allow-shared-ip", "osp-internalapi"))
 			Expect(service.Annotations).To(
 				HaveKeyWithValue("metallb.universe.tf/loadBalancerIPs", "internal-lb-ip-1,internal-lb-ip-2"))
-			th.AssertRouteNotExists(types.NamespacedName{Namespace: novaNames.NoVNCProxyName.Namespace, Name: "nova-novncproxy-cell1-internal"})
+			th.AssertRouteNotExists(types.NamespacedName{Namespace: cell1.NoVNCProxyName.Namespace, Name: "nova-novncproxy-cell1-internal"})
 
 			th.ExpectCondition(
-				novaNames.NoVNCProxyName,
+				cell1.NoVNCProxyName,
 				ConditionGetterFunc(NoVNCProxyConditionGetter),
 				condition.ReadyCondition,
 				corev1.ConditionTrue,
@@ -474,21 +474,21 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 	When("NovaNoVNCProxy is reconfigured", func() {
 		BeforeEach(func() {
 			DeferCleanup(
-				k8sClient.Delete, ctx, CreateNovaNoVNCProxySecret(novaNames.NoVNCProxyName.Namespace, SecretName))
+				k8sClient.Delete, ctx, CreateNovaNoVNCProxySecret(cell1.NoVNCProxyName.Namespace, SecretName))
 
-			noVNCProxy := CreateNovaNoVNCProxy(novaNames.NoVNCProxyName, GetDefaultNovaNoVNCProxySpec())
+			noVNCProxy := CreateNovaNoVNCProxy(cell1.NoVNCProxyName, GetDefaultNovaNoVNCProxySpec())
 			DeferCleanup(th.DeleteInstance, noVNCProxy)
 
 			th.ExpectCondition(
-				novaNames.NoVNCProxyName,
+				cell1.NoVNCProxyName,
 				ConditionGetterFunc(NoVNCProxyConditionGetter),
 				condition.ServiceConfigReadyCondition,
 				corev1.ConditionTrue,
 			)
 
-			th.SimulateStatefulSetReplicaReady(novaNames.NoVNCProxyNameStatefulSetName)
+			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyNameStatefulSetName)
 			th.ExpectCondition(
-				novaNames.NoVNCProxyName,
+				cell1.NoVNCProxyName,
 				ConditionGetterFunc(NoVNCProxyConditionGetter),
 				condition.ReadyCondition,
 				corev1.ConditionTrue,
@@ -497,14 +497,14 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 
 		It("applies new NetworkAttachments configuration", func() {
 			Eventually(func(g Gomega) {
-				noVNCProxy := GetNovaNoVNCProxy(novaNames.NoVNCProxyName)
+				noVNCProxy := GetNovaNoVNCProxy(cell1.NoVNCProxyName)
 				noVNCProxy.Spec.NetworkAttachments = append(noVNCProxy.Spec.NetworkAttachments, "internalapi")
 
 				g.Expect(k8sClient.Update(ctx, noVNCProxy)).To(Succeed())
 			}, timeout, interval).Should(Succeed())
 
 			th.ExpectConditionWithDetails(
-				novaNames.NoVNCProxyName,
+				cell1.NoVNCProxyName,
 				ConditionGetterFunc(NoVNCProxyConditionGetter),
 				condition.NetworkAttachmentsReadyCondition,
 				corev1.ConditionFalse,
@@ -512,7 +512,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 				"NetworkAttachment resources missing: internalapi",
 			)
 			th.ExpectConditionWithDetails(
-				novaNames.NoVNCProxyName,
+				cell1.NoVNCProxyName,
 				ConditionGetterFunc(NoVNCProxyConditionGetter),
 				condition.ReadyCondition,
 				corev1.ConditionFalse,
@@ -520,11 +520,11 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 				"NetworkAttachment resources missing: internalapi",
 			)
 
-			internalAPINADName := types.NamespacedName{Namespace: novaNames.NoVNCProxyName.Namespace, Name: "internalapi"}
+			internalAPINADName := types.NamespacedName{Namespace: cell1.NoVNCProxyName.Namespace, Name: "internalapi"}
 			DeferCleanup(th.DeleteInstance, th.CreateNetworkAttachmentDefinition(internalAPINADName))
 
 			th.ExpectConditionWithDetails(
-				novaNames.NoVNCProxyName,
+				cell1.NoVNCProxyName,
 				ConditionGetterFunc(NoVNCProxyConditionGetter),
 				condition.NetworkAttachmentsReadyCondition,
 				corev1.ConditionFalse,
@@ -533,7 +533,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 					"not all pods have interfaces with ips as configured in NetworkAttachments: [internalapi]",
 			)
 			th.ExpectConditionWithDetails(
-				novaNames.NoVNCProxyName,
+				cell1.NoVNCProxyName,
 				ConditionGetterFunc(NoVNCProxyConditionGetter),
 				condition.ReadyCondition,
 				corev1.ConditionFalse,
@@ -543,26 +543,26 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 			)
 
 			th.SimulateStatefulSetReplicaReadyWithPods(
-				novaNames.NoVNCProxyNameStatefulSetName,
-				map[string][]string{novaNames.NoVNCProxyName.Namespace + "/internalapi": {"10.0.0.1"}},
+				cell1.NoVNCProxyNameStatefulSetName,
+				map[string][]string{cell1.NoVNCProxyName.Namespace + "/internalapi": {"10.0.0.1"}},
 			)
 
 			th.ExpectCondition(
-				novaNames.NoVNCProxyName,
+				cell1.NoVNCProxyName,
 				ConditionGetterFunc(NoVNCProxyConditionGetter),
 				condition.NetworkAttachmentsReadyCondition,
 				corev1.ConditionTrue,
 			)
 
 			Eventually(func(g Gomega) {
-				noVNCProxy := GetNovaNoVNCProxy(novaNames.NoVNCProxyName)
+				noVNCProxy := GetNovaNoVNCProxy(cell1.NoVNCProxyName)
 				g.Expect(noVNCProxy.Status.NetworkAttachments).To(
-					Equal(map[string][]string{novaNames.NoVNCProxyName.Namespace + "/internalapi": {"10.0.0.1"}}))
+					Equal(map[string][]string{cell1.NoVNCProxyName.Namespace + "/internalapi": {"10.0.0.1"}}))
 
 			}, timeout, interval).Should(Succeed())
 
 			th.ExpectCondition(
-				novaNames.NoVNCProxyName,
+				cell1.NoVNCProxyName,
 				ConditionGetterFunc(NoVNCProxyConditionGetter),
 				condition.ReadyCondition,
 				corev1.ConditionTrue,
@@ -572,18 +572,18 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 	When("starts zero replicas", func() {
 		BeforeEach(func() {
 			DeferCleanup(
-				k8sClient.Delete, ctx, CreateNovaNoVNCProxySecret(novaNames.NoVNCProxyName.Namespace, SecretName))
+				k8sClient.Delete, ctx, CreateNovaNoVNCProxySecret(cell1.NoVNCProxyName.Namespace, SecretName))
 
 			spec := GetDefaultNovaNoVNCProxySpec()
 			spec["replicas"] = 0
-			noVNCProxy := CreateNovaNoVNCProxy(novaNames.NoVNCProxyName, spec)
+			noVNCProxy := CreateNovaNoVNCProxy(cell1.NoVNCProxyName, spec)
 			DeferCleanup(th.DeleteInstance, noVNCProxy)
 		})
 		It("and deployment is Ready", func() {
-			ss := th.GetStatefulSet(novaNames.NoVNCProxyNameStatefulSetName)
+			ss := th.GetStatefulSet(cell1.NoVNCProxyNameStatefulSetName)
 			Expect(int(*ss.Spec.Replicas)).To(Equal(0))
 			th.ExpectCondition(
-				novaNames.NoVNCProxyName,
+				cell1.NoVNCProxyName,
 				ConditionGetterFunc(NoVNCProxyConditionGetter),
 				condition.DeploymentReadyCondition,
 				corev1.ConditionTrue,

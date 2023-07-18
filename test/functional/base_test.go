@@ -549,8 +549,6 @@ type NovaNames struct {
 	ConductorScriptDataName         types.NamespacedName
 	MetadataName                    types.NamespacedName
 	MetadataStatefulSetName         types.NamespacedName
-	NoVNCProxyName                  types.NamespacedName
-	NoVNCProxyNameStatefulSetName   types.NamespacedName
 	ServiceAccountName              types.NamespacedName
 	RoleName                        types.NamespacedName
 	RoleBindingName                 types.NamespacedName
@@ -585,10 +583,6 @@ func GetNovaNames(novaName types.NamespacedName, cellNames []string) NovaNames {
 	novaMetadata := types.NamespacedName{
 		Namespace: novaName.Namespace,
 		Name:      fmt.Sprintf("%s-metadata", novaName.Name),
-	}
-	novaNoVNCProxy := types.NamespacedName{
-		Namespace: novaName.Namespace,
-		Name:      fmt.Sprintf("%s-novncproxy", novaName.Name),
 	}
 	cells := map[string]CellNames{}
 	for _, cellName := range cellNames {
@@ -658,10 +652,8 @@ func GetNovaNames(novaName types.NamespacedName, cellNames []string) NovaNames {
 			Namespace: novaConductor.Namespace,
 			Name:      novaConductor.Name + "-scripts",
 		},
-		MetadataName:                  novaMetadata,
-		MetadataStatefulSetName:       novaMetadata,
-		NoVNCProxyName:                novaNoVNCProxy,
-		NoVNCProxyNameStatefulSetName: novaNoVNCProxy,
+		MetadataName:            novaMetadata,
+		MetadataStatefulSetName: novaMetadata,
 		ServiceAccountName: types.NamespacedName{
 			Namespace: novaName.Namespace,
 			Name:      "nova-" + novaName.Name,
