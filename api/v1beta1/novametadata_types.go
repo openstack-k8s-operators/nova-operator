@@ -29,6 +29,14 @@ import (
 // create a NovaMetadata via higher level CRDs.
 type NovaMetadataTemplate struct {
 	// +kubebuilder:validation:Optional
+	// Enabled - Whether NovaMetadata services should be deployed and managed
+	// If it is set to false then the related NovaMetadata CR will be deleted
+	// if exists
+	Enabled *bool `json:"enabled"`
+	// NOTE(gibi): the default value of enabled depends on the context so
+	// it is set by webhooks
+
+	// +kubebuilder:validation:Optional
 	// The service specific Container Image URL (will be set to environmental default if empty)
 	ContainerImage string `json:"containerImage"`
 

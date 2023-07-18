@@ -312,10 +312,13 @@ spec:
                         to have access to the API DB and message bus.
                       type: boolean
                     metadataServiceTemplate:
-                      default:
-                        replicas: 0
                       description: MetadataServiceTemplate - defines the metadata
-                        service dedicated for the cell.
+                        service dedicated for the cell. Note that for cell0 metadata
+                        service should not be deployed. Also if metadata service needs
+                        to be deployed per cell here then it should not be enabled
+                        to be deployed on the top level via the Nova CR at the same
+                        time. By default Nova CR deploys the metadata service at the
+                        top level and disables it on the cell level.
                       properties:
                         containerImage:
                           description: The service specific Container Image URL (will
@@ -336,6 +339,11 @@ spec:
                             to add additional files. Those get added to the service
                             config dir in /etc/<service> .
                           type: object
+                        enabled:
+                          description: Enabled - Whether NovaMetadata services should
+                            be deployed and managed If it is set to false then the
+                            related NovaMetadata CR will be deleted if exists
+                          type: boolean
                         externalEndpoints:
                           description: ExternalEndpoints, expose a VIP via MetalLB
                             on the pre-created address pool
@@ -675,9 +683,11 @@ spec:
                 type: string
               metadataServiceTemplate:
                 default:
-                  replicas: 1
+                  enabled: true
                 description: MetadataServiceTemplate - defines the metadata service
-                  that is global for the deployment serving all the cells.
+                  that is global for the deployment serving all the cells. Note that
+                  if you want to deploy metadata per cell then the metadata service
+                  should be disabled here and enabled in the cellTemplates instead.
                 properties:
                   containerImage:
                     description: The service specific Container Image URL (will be
@@ -698,6 +708,11 @@ spec:
                       add additional files. Those get added to the service config
                       dir in /etc/<service> .
                     type: object
+                  enabled:
+                    description: Enabled - Whether NovaMetadata services should be
+                      deployed and managed If it is set to false then the related
+                      NovaMetadata CR will be deleted if exists
+                    type: boolean
                   externalEndpoints:
                     description: ExternalEndpoints, expose a VIP via MetalLB on the
                       pre-created address pool

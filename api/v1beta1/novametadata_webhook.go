@@ -104,11 +104,11 @@ func (r *NovaMetadata) ValidateDelete() error {
 // by higher level validation webhooks
 func (r *NovaMetadataTemplate) ValidateCell0(basePath *field.Path) field.ErrorList {
 	var errors field.ErrorList
-	if *r.Replicas != 0 {
+	if *r.Enabled {
 		errors = append(
 			errors,
 			field.Invalid(
-				basePath.Child("replicas"), *r.Replicas, "should be 0 for cell0"),
+				basePath.Child("enabled"), *r.Enabled, "should be false for cell0"),
 		)
 	}
 	return errors

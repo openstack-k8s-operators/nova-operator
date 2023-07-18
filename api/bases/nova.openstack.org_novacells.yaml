@@ -215,6 +215,11 @@ spec:
                       add additional files. Those get added to the service config
                       dir in /etc/<service> .
                     type: object
+                  enabled:
+                    description: Enabled - Whether NovaMetadata services should be
+                      deployed and managed If it is set to false then the related
+                      NovaMetadata CR will be deleted if exists
+                    type: boolean
                   externalEndpoints:
                     description: ExternalEndpoints, expose a VIP via MetalLB on the
                       pre-created address pool
