@@ -104,12 +104,12 @@ func CreateNovaWith3CellsAndEnsureReady(novaNames NovaNames) {
 	th.SimulateStatefulSetReplicaReady(novaNames.APIDeploymentName)
 	th.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
 
-	th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyNameStatefulSetName)
+	th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
 	th.SimulateJobSuccess(cell1.CellDBSyncJobName)
 	th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
 	th.SimulateJobSuccess(cell1.CellMappingJobName)
 
-	th.SimulateStatefulSetReplicaReady(cell2.NoVNCProxyNameStatefulSetName)
+	th.SimulateStatefulSetReplicaReady(cell2.NoVNCProxyStatefulSetName)
 	th.SimulateJobSuccess(cell2.CellDBSyncJobName)
 	th.SimulateStatefulSetReplicaReady(cell2.ConductorStatefulSetName)
 	th.SimulateJobSuccess(cell2.CellMappingJobName)
@@ -465,8 +465,8 @@ var _ = Describe("Nova reconfiguration", func() {
 				cell0.ConductorStatefulSetName,
 				cell1.ConductorStatefulSetName,
 				cell2.ConductorStatefulSetName,
-				cell1.NoVNCProxyNameStatefulSetName,
-				cell2.NoVNCProxyNameStatefulSetName,
+				cell1.NoVNCProxyStatefulSetName,
+				cell2.NoVNCProxyStatefulSetName,
 				novaNames.APIStatefulSetName,
 				novaNames.SchedulerStatefulSetName,
 				novaNames.MetadataStatefulSetName,

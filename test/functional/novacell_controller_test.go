@@ -204,7 +204,7 @@ var _ = Describe("NovaCell controller", func() {
 			Expect(novaCell.Status.NoVNCPRoxyServiceReadyCount).To(Equal(int32(0)))
 
 			// make novncproxy ready
-			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyNameStatefulSetName)
+			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
 
 			th.ExpectCondition(
 				cell1.CellName,
@@ -245,7 +245,7 @@ var _ = Describe("NovaCell controller", func() {
 		It("is Ready when all cell services is ready", func() {
 			th.SimulateJobSuccess(cell1.CellDBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
-			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyNameStatefulSetName)
+			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
 			th.SimulateStatefulSetReplicaReady(cell1.MetadataStatefulSetName)
 
 			th.ExpectCondition(
