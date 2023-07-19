@@ -9,11 +9,11 @@ require (
 	github.com/onsi/ginkgo/v2 v2.11.0
 	github.com/onsi/gomega v1.27.8
 	github.com/openshift/api v3.9.0+incompatible
-	github.com/openstack-k8s-operators/keystone-operator/api v0.0.0-20230719150813-d341e7f8faa0
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20230714104628-12cc1e43cccd
-	github.com/openstack-k8s-operators/lib-common/modules/database v0.0.0-20230711124224-54bd95cadcf3
-	github.com/openstack-k8s-operators/lib-common/modules/test v0.0.0-20230711124224-54bd95cadcf3
-	github.com/openstack-k8s-operators/mariadb-operator/api v0.0.0-20230720060126-0cd9f689e16a
+	github.com/openstack-k8s-operators/keystone-operator/api v0.1.0
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.1.0
+	github.com/openstack-k8s-operators/lib-common/modules/database v0.1.0
+	github.com/openstack-k8s-operators/lib-common/modules/test v0.1.1
+	github.com/openstack-k8s-operators/mariadb-operator/api v0.1.0
 	github.com/openstack-k8s-operators/placement-operator/api v0.0.0-20230602092913-53f380989946
 	go.uber.org/zap v1.24.0
 	k8s.io/api v0.26.7
@@ -25,7 +25,7 @@ require (
 require (
 	github.com/go-task/slim-sprig v0.0.0-20230315185526-52ccab3ef572 // indirect
 	github.com/google/pprof v0.0.0-20210720184732-4bb14d4b1be1 // indirect
-	github.com/openstack-k8s-operators/infra-operator/apis v0.0.0-20230609175832-5a9a30056080 // indirect
+	github.com/openstack-k8s-operators/infra-operator/apis v0.0.0-20230720153501-076b82bb4427 // indirect
 	golang.org/x/exp v0.0.0-20230522175609-2e198f4a06a1 // indirect
 	golang.org/x/tools v0.9.3 // indirect
 )
@@ -56,7 +56,7 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
-	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.0.0-20230606033311-3b01713e4d45 //indirect
+	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.1.0 //indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_golang v1.14.0 // indirect
 	github.com/prometheus/client_model v0.3.0 // indirect
