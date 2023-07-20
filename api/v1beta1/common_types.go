@@ -24,11 +24,12 @@ import (
 
 // Container image fall-back defaults
 const (
-	NovaAPIContainerImage       = "quay.io/podified-antelope-centos9/openstack-nova-api:current-podified"
-	NovaConductorContainerImage = "quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified"
-	NovaMetadataContainerImage  = "quay.io/podified-antelope-centos9/openstack-nova-api:current-podified"
-	NovaNoVNCContainerImage     = "quay.io/podified-antelope-centos9/openstack-nova-novncproxy:current-podified"
-	NovaSchedulerContainerImage = "quay.io/podified-antelope-centos9/openstack-nova-scheduler:current-podified"
+	NovaAPIContainerImage           = "quay.io/podified-antelope-centos9/openstack-nova-api:current-podified"
+	NovaConductorContainerImage     = "quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified"
+	NovaMetadataContainerImage      = "quay.io/podified-antelope-centos9/openstack-nova-api:current-podified"
+	NovaNoVNCContainerImage         = "quay.io/podified-antelope-centos9/openstack-nova-novncproxy:current-podified"
+	NovaSchedulerContainerImage     = "quay.io/podified-antelope-centos9/openstack-nova-scheduler:current-podified"
+	NovaIronicComputeContainerImage = "quay.io/podified-antelope-centos9/openstack-nova-compute-ironic:current-podified"
 )
 
 // NovaServiceBase contains the fields that are needed for each nova service CRD
@@ -175,6 +176,12 @@ func SetupDefaults() {
 	novaSchedulerDefaults := NovaSchedulerDefaults{
 		ContainerImageURL: util.GetEnvVar("RELATED_IMAGE_NOVA_SCHEDULER_IMAGE_URL_DEFAULT", NovaSchedulerContainerImage),
 	}
-
 	SetupNovaSchedulerDefaults(novaSchedulerDefaults)
+
+	// Acquire environmental defaults and initialize NovaComputeIronic defaults with them
+	novaComputeIronicDefaults := NovaComputeIronicDefaults{
+		ContainerImageURL: util.GetEnvVar("NOVA_IRONIC_COMPUTE_IMAGE_URL_DEFAULT", NovaIronicComputeContainerImage),
+	}
+
+	SetupNovaComputeIronicDefaults(novaComputeIronicDefaults)
 }

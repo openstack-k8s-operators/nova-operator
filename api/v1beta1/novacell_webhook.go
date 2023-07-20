@@ -37,9 +37,10 @@ import (
 
 // NovaCellDefaults -
 type NovaCellDefaults struct {
-	ConductorContainerImageURL string
-	MetadataContainerImageURL  string
-	NoVNCContainerImageURL     string
+	ConductorContainerImageURL         string
+	MetadataContainerImageURL          string
+	NoVNCContainerImageURL             string
+	NovaIronicComputeContainerImageURL string
 }
 
 var novaCellDefaults NovaCellDefaults
@@ -98,6 +99,9 @@ func (spec *NovaCellSpec) Default() {
 		if spec.NoVNCProxyServiceTemplate.Enabled == nil {
 			spec.NoVNCProxyServiceTemplate.Enabled = ptr.To(true)
 		}
+	}
+	if spec.NovaComputeIronicServiceTemplate.ContainerImage == "" {
+		spec.NovaComputeIronicServiceTemplate.ContainerImage = novaCellDefaults.NovaIronicComputeContainerImageURL
 	}
 }
 

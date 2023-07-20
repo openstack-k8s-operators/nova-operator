@@ -80,10 +80,16 @@ type NovaCellTemplate struct {
 	NoVNCProxyServiceTemplate NovaNoVNCProxyTemplate `json:"noVNCProxyServiceTemplate"`
 
 	// +kubebuilder:validation:Optional
+	// NovaComputeIronicServiceTemplate - defines the novvncproxy service dedicated for
+	// the cell.
+	NovaComputeIronicServiceTemplate NovaComputeIronicTemplate `json:"novaComputeIronicServiceTemplate"`
+
+	// +kubebuilder:validation:Optional
 	// +kubebuilder:default={database: NovaCell0DatabasePassword}
 	// PasswordSelectors - Selectors to identify the DB passwords from the
 	// Secret
 	PasswordSelectors CellPasswordSelector `json:"passwordSelectors"`
+
 }
 
 // NovaCellSpec defines the desired state of NovaCell
@@ -161,8 +167,18 @@ type NovaCellSpec struct {
 	NoVNCProxyServiceTemplate NovaNoVNCProxyTemplate `json:"noVNCProxyServiceTemplate"`
 
 	// +kubebuilder:validation:Required
+	// NovaComputeIronicServiceTemplate - defines the novvncproxy service dedicated for
+	// the cell.
+	NovaComputeIronicServiceTemplate NovaComputeIronicTemplate `json:"novaComputeIronicServiceTemplate"`
+
+	// +kubebuilder:validation:Required
 	// ServiceAccount - service account name used internally to provide Nova services the default SA name
 	ServiceAccount string `json:"serviceAccount"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default="libvirt.LibvirtDriver"
+	// ComputeDriver defines which driver to use for controlling virtualization
+	ComputeDriver string `json:"computeDriver"`
 }
 
 // NovaCellStatus defines the observed state of NovaCell
