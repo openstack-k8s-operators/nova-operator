@@ -471,6 +471,12 @@ func GetNovaNames(novaName types.NamespacedName, cellNames []string) NovaNames {
 		Namespace: novaName.Namespace,
 		Name:      fmt.Sprintf("%s-metadata", novaName.Name),
 	}
+
+	novaComputeIronic := types.NamespacedName{
+		Namespace: novaName.Namespace,
+		Name:      fmt.Sprintf("%s-compute-ironic", novaName.Name),
+	}
+
 	cells := map[string]CellNames{}
 	for _, cellName := range cellNames {
 		cells[cellName] = GetCellNames(novaName, cellName)

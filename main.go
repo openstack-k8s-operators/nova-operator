@@ -163,6 +163,11 @@ func main() {
 		}
 
 		checker = mgr.GetWebhookServer().StartedChecker()
+
+		if err = (&novav1beta1.NovaComputeIronic{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "NovaComputeIronic")
+			os.Exit(1)
+		}
 	}
 
 	//+kubebuilder:scaffold:builder

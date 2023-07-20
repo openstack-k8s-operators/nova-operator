@@ -215,6 +215,32 @@ rules:
 - apiGroups:
   - nova.openstack.org
   resources:
+  - novacomputeironics
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - nova.openstack.org
+  resources:
+  - novacomputeironics/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - nova.openstack.org
+  resources:
+  - novacomputeironics/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - nova.openstack.org
+  resources:
   - novaconductors
   verbs:
   - create

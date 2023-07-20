@@ -50,6 +50,8 @@ const (
 	// NovaComputeServiceConfigReady indicates when the compute service config
 	// is ready for the given NovaCell
 	NovaComputeServiceConfigReady condition.Type = "NovaComputeServiceConfigReady"
+	// NovaComputeIronicReadyCondition indicates when the given NoVNCProxy instance is Ready
+	NovaComputeIronicReadyCondition condition.Type = "NovaComputeIronicReady"
 )
 
 // Common Messages used by API objects.
@@ -158,4 +160,10 @@ const (
 
 	//NovaComputeServiceConfigErrorMessage
 	NovaComputeServiceConfigErrorMessage = "Compute service config generation error occurred %s"
+
+	//NovaNoVNCProxyReadyInitMessage
+	NovaComputeIronicReadyInitMessage = "NovaComputeIronic not started"
+
+	//NovaNoVNCProxyReadyErrorMessage
+	NovaComputeIronicReadyErrorMessage = "NovaComputeIronic error occurred %s"
 )
