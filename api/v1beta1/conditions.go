@@ -47,6 +47,8 @@ const (
 	NovaMetadataReadyCondition condition.Type = "NovaMetadataReady"
 	// NovaNoVNCProxyReadyCondition indicates when the given NoVNCProxy instance is Ready
 	NovaNoVNCProxyReadyCondition condition.Type = "NovaNoVNCProxyReady"
+	// NovaComputeIronicReadyCondition indicates when the given NoVNCProxy instance is Ready
+	NovaComputeIronicReadyCondition condition.Type = "NovaComputeIronicReady"
 )
 
 // Common Messages used by API objects.
@@ -149,4 +151,10 @@ const (
 
 	//NovaNoVNCProxyReadyErrorMessage
 	NovaNoVNCProxyReadyErrorMessage = "NovaNoVNCProxy error occurred %s"
+
+	//NovaNoVNCProxyReadyInitMessage
+	NovaComputeIronicReadyInitMessage = "NovaComputeIronic not started"
+
+	//NovaNoVNCProxyReadyErrorMessage
+	NovaComputeIronicReadyErrorMessage = "NovaComputeIronic error occurred %s"
 )

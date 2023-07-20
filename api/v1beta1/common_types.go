@@ -33,6 +33,7 @@ const (
 	NovaComputeContainerImage   = "quay.io/podified-antelope-centos9/openstack-nova-compute:current-podified"
 	NovaLibvirtContainerImage   = "quay.io/podified-antelope-centos9/openstack-nova-libvirt:current-podified"
 	AnsibleEEContainerImage     = "quay.io/openstack-k8s-operators/openstack-ansibleee-runner:latest"
+	NovaIronicComputeContainerImage = "quay.io/podified-antelope-centos9/openstack-nova-compute-ironic:current-podified"
 )
 
 // NovaServiceBase contains the fields that are needed for each nova service CRD
@@ -163,6 +164,7 @@ func SetupDefaults() {
 		MetadataContainerImageURL:  util.GetEnvVar("NOVA_METADATA_IMAGE_URL_DEFAULT", NovaMetadataContainerImage),
 		NoVNCContainerImageURL:     util.GetEnvVar("NOVA_NOVNC_IMAGE_URL_DEFAULT", NovaNoVNCContainerImage),
 		SchedulerContainerImageURL: util.GetEnvVar("NOVA_SCHEDULER_IMAGE_URL_DEFAULT", NovaSchedulerContainerImage),
+		NovaIronicComputeContainerImageURL: util.GetEnvVar("NOVA_SCHEDULER_IMAGE_URL_DEFAULT", NovaIronicComputeContainerImage),
 	}
 
 	SetupNovaDefaults(novaDefaults)

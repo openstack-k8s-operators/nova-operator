@@ -478,6 +478,7 @@ func (r *NovaExternalComputeReconciler) generateConfigs(
 		"service_name":           "nova-compute",
 		"keystone_internal_url":  cell.Spec.KeystoneAuthURL,
 		"nova_keystone_user":     cell.Spec.ServiceUser,
+		"compute_driver":         cell.Spec.ComputeDriver,
 		"nova_keystone_password": string(secret.Data[ServicePasswordSelector]),
 		"openstack_cacert":       "",          // fixme
 		"openstack_region_name":  "regionOne", // fixme

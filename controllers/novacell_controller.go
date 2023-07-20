@@ -133,6 +133,15 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 		instance.Status.Conditions.Remove(novav1.NovaNoVNCProxyReadyCondition)
 	}
 
+	if instance.Spec.CellName != novav1.Cell0Name {
+		result, err = r.ensureNovaComputeIronic(ctx, h, instance)
+		if err != nil {
+			return result, err
+		}
+	} else {
+		instance.Status.Conditions.Remove(novav1.NovaComputeIronicReadyCondition)
+	}
+
 	util.LogForObject(h, "Successfully reconciled", instance)
 	return ctrl.Result{}, nil
 }
@@ -330,6 +339,56 @@ func (r *NovaCellReconciler) ensureMetadata(
 	return ctrl.Result{}, nil
 }
 
+func (r *NovaCellReconciler) ensureNovaComputeIronic(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *novav1.NovaCell,
+) (ctrl.Result, error) {
+	novacomputeironicSpec := novav1.NewNovaComputeIronicSpec(instance.Spec)
+	novacomputeironic := &novav1.NovaComputeIronic{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      instance.Name + "-novacomputeironic",
+			Namespace: instance.Namespace,
+		},
+	}
+
+	op, err := controllerutil.CreateOrPatch(ctx, r.Client, novacomputeironic, func() error {
+		novacomputeironic.Spec = novacomputeironicSpec
+		if len(novacomputeironic.Spec.NodeSelector) == 0 {
+			novacomputeironic.Spec.NodeSelector = instance.Spec.NodeSelector
+		}
+		err := controllerutil.SetControllerReference(instance, novacomputeironic, r.Scheme)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		condition.FalseCondition(
+			novav1.NovaComputeIronicReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityError,
+			novav1.NovaComputeIronicReadyErrorMessage,
+			err.Error(),
+		)
+		return ctrl.Result{}, err
+	}
+
+	if op != controllerutil.OperationResultNone {
+		util.LogForObject(h, fmt.Sprintf("NovaComputeIronic %s.", string(op)), instance, "NovaComputeIronic.Name", novacomputeironic.Name)
+	}
+
+	c := novacomputeironic.Status.Conditions.Mirror(novav1.NovaComputeIronicReadyCondition)
+
+	if c != nil {
+		instance.Status.Conditions.Set(c)
+	}
+
+	return ctrl.Result{}, nil
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *NovaCellReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
@@ -337,5 +396,6 @@ func (r *NovaCellReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&novav1.NovaConductor{}).
 		Owns(&novav1.NovaMetadata{}).
 		Owns(&novav1.NovaNoVNCProxy{}).
+		Owns(&novav1.NovaComputeIronic{}).
 		Complete(r)
 }

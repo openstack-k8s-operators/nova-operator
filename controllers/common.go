@@ -66,6 +66,9 @@ const (
 	// NovaNoVNCProxyLabelPrefix - a unique, service binary specific prefix for
 	// the labels the NovaNoVNCProxy controller uses on children objects
 	NovaNoVNCProxyLabelPrefix = "nova-novncproxy"
+	// NovaComputeIronicLabelPrefix - a unique, service binary specific prefix for
+	// the labels the nova-compute-ironic controller uses on children objects
+	NovaComputeIronicLabelPrefix = "nova-compute-ironic"
 	// DbSyncHash - the field name in Status.Hashes storing the has of the DB
 	// sync job
 	DbSyncHash = "dbsync"
