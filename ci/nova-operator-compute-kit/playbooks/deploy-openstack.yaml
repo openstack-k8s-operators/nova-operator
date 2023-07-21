@@ -3,7 +3,7 @@
 # in https://github.com/rdo-infra/review.rdoproject.org-config/blob/master/playbooks/crc/openstack.yaml
 # We can override the openstack operator image by defining openstack_img in the zuul job
 
-- hosts: controller
+- hosts: "{{ target_host | default('controller') }}"
   name: Deploy Openstack Operators
   vars:
     nova_operator_basedir: "{{ ansible_user_dir }}/src/github.com/openstack-k8s-operators/nova-operator"
@@ -12,13 +12,10 @@
       ansible.builtin.command: "oc apply -k {{ nova_operator_basedir }}/ci/nova-operator-compute-kit/topology/ci"
       changed_when: true
 
-    # note(sean-k-mooney): the openstack operator does not properly init its ready status
-    # so we need to wait for the nova and openstack cr to be ready before we can proceed.
-    # This can be removed later once the operator is fixed.
-    - name: Make sure Nova CR is ready
-      ansible.builtin.command: oc wait Nova nova --for condition=Ready --timeout=120s
-      changed_when: false
-
     - name: Make sure Openstack CR is ready
-      ansible.builtin.command: oc wait OpenstackControlPlane openstack --for condition=Ready --timeout=120s
+      ansible.builtin.command: oc wait OpenstackControlPlane openstack --for condition=Ready --timeout=180s
       changed_when: false
+      retries: 3
+      delay: 5
+      register: status
+      until: status.rc == 0

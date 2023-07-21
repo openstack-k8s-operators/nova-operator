@@ -164,6 +164,36 @@ make manifests
 
 More information can be found via the [Kubebuilder Documentation](https://book.kubebuilder.io/introduction.html)
 
+### Running tempest locally
+
+1. Attach default interface, assumes in [install_yamls/devsetup](https://github.com/openstack-k8s-operators/install_yamls/tree/main/devsetup) directory
+```sh
+make crc_attach_default_interface
+```
+
+2. Install operators, from install_yamls directory
+```sh
+make openstack
+```
+
+3. From nova-operator deploy openstack
+```sh
+ansible-playbook ci/nova-operator-compute-kit/playbooks/deploy-openstack.yaml -e @${HOME}/my-envs.yml
+```
+
+**NOTE:** The my-envs.yaml contains overrides pointing to base directory of nova operator and sets target host to localhost
+```sh
+cat ~/my-envs.yml
+---
+nova_operator_basedir: '/home/stack/nova-operator'
+target_host: 'localhost'
+```
+
+4. Run tempest playbook
+```sh
+ansible-playbook ci/nova-operator-compute-kit/playbooks/tempest.yaml -e @${HOME}/my-envs.yml
+```
+
 ## License
 
 Copyright 2022.
