@@ -1,155 +1,117 @@
-#
-# Check for:
-#
-# - 1 Nova CR with 0 replicas
-# - Placement Deployment with 0 Pods
-# NOTE: This test is asserting for spec.replicas to be 0
-# NOT status.availableReplicas
-
 apiVersion: nova.openstack.org/v1beta1
 kind: Nova
 metadata:
   finalizers:
   - Nova
-  name: nova
-spec:
-  apiDatabaseInstance: openstack
-  apiDatabaseUser: nova_api
-  apiMessageBusInstance: rabbitmq
-  apiServiceTemplate:
-    containerImage: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
-    customServiceConfig: ""
-    replicas: 0
-  cellTemplates:
-    cell0:
-      cellDatabaseInstance: openstack
-      cellDatabaseUser: nova_cell0
-      cellMessageBusInstance: rabbitmq
-      conductorServiceTemplate:
-        containerImage: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
-        customServiceConfig: ""
-        replicas: 0
-      hasAPIAccess: true
-      metadataServiceTemplate:
-        containerImage: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
-        customServiceConfig: ""
-        replicas: 0
-      noVNCProxyServiceTemplate:
-        containerImage: quay.io/podified-antelope-centos9/openstack-nova-novncproxy:current-podified
-        customServiceConfig: ""
-        replicas: 1
-    cell1:
-      cellDatabaseInstance: openstack-cell1
-      cellDatabaseUser: nova_cell1
-      cellMessageBusInstance: rabbitmq-cell1
-      conductorServiceTemplate:
-        containerImage: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
-        customServiceConfig: ""
-        replicas: 0
-      hasAPIAccess: true
-      metadataServiceTemplate:
-        containerImage: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
-        customServiceConfig: ""
-        replicas: 0
-      noVNCProxyServiceTemplate:
-        containerImage: quay.io/podified-antelope-centos9/openstack-nova-novncproxy:current-podified
-        customServiceConfig: ""
-        replicas: 1
+  name: nova-kuttl
+status:
+  apiServiceReadyCount: 1
+  schedulerServiceReadyCount: 1
 ---
 apiVersion: nova.openstack.org/v1beta1
 kind: NovaAPI
 metadata:
   finalizers:
   - NovaAPI
-  name: nova-api
-  namespace: openstack
+  name: nova-kuttl-api
+  namespace: nova-kuttl-default
 spec:
-  replicas: 0
-  secret: osp-secret
-  serviceAccount: nova-nova
+  replicas: 1
+  secret: nova-kuttl
+  serviceAccount: nova-nova-kuttl
   serviceUser: nova
+status:
+  readyCount: 1
 ---
 apiVersion: nova.openstack.org/v1beta1
 kind: NovaScheduler
 metadata:
-  name: nova-scheduler
-  namespace: openstack
+  name: nova-kuttl-scheduler
+  namespace: nova-kuttl-default
 spec:
   apiDatabaseHostname: openstack
   apiDatabaseUser: nova_api
-  apiMessageBusSecretName: rabbitmq-transport-url-nova-api-transport
+  apiMessageBusSecretName: rabbitmq-transport-url-nova-kuttl-api-transport
   cell0DatabaseHostname: openstack
   cell0DatabaseUser: nova_cell0
-  replicas: 0
+  replicas: 1
+status:
+  readyCount: 1
 ---
 apiVersion: nova.openstack.org/v1beta1
 kind: NovaMetadata
 metadata:
-  name: nova-metadata
-  namespace: openstack
+  name: nova-kuttl-metadata
+  namespace: nova-kuttl-default
 spec:
   apiDatabaseHostname: openstack
   apiDatabaseUser: nova_api
-  apiMessageBusSecretName: rabbitmq-transport-url-nova-api-transport
+  apiMessageBusSecretName: rabbitmq-transport-url-nova-kuttl-api-transport
   cellDatabaseHostname: openstack
   cellDatabaseUser: nova_cell0
   replicas: 1
+status:
+  readyCount: 1
 ---
 apiVersion: nova.openstack.org/v1beta1
 kind: NovaConductor
 metadata:
-  name: nova-cell0-conductor
-  namespace: openstack
+  name: nova-kuttl-cell0-conductor
+  namespace: nova-kuttl-default
   ownerReferences:
   - apiVersion: nova.openstack.org/v1beta1
     blockOwnerDeletion: true
     controller: true
     kind: NovaCell
-    name: nova-cell0
+    name: nova-kuttl-cell0
 spec:
   apiDatabaseHostname: openstack
   apiDatabaseUser: nova_api
   cellDatabaseHostname: openstack
   cellDatabaseUser: nova_cell0
-  cellMessageBusSecretName: rabbitmq-transport-url-nova-api-transport
+  cellMessageBusSecretName: rabbitmq-transport-url-nova-kuttl-api-transport
   cellName: cell0
   containerImage: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
-  replicas: 0
+  replicas: 1
+status:
+  readyCount: 1
 ---
 apiVersion: nova.openstack.org/v1beta1
 kind: NovaConductor
 metadata:
-  name: nova-cell1-conductor
-  namespace: openstack
+  name: nova-kuttl-cell1-conductor
+  namespace: nova-kuttl-default
   ownerReferences:
   - apiVersion: nova.openstack.org/v1beta1
     blockOwnerDeletion: true
     controller: true
     kind: NovaCell
-    name: nova-cell1
+    name: nova-kuttl-cell1
 spec:
   apiDatabaseHostname: openstack
   apiDatabaseUser: nova_api
   cellDatabaseHostname: openstack-cell1
   cellDatabaseUser: nova_cell1
-  cellMessageBusSecretName: rabbitmq-transport-url-nova-cell1-transport
+  cellMessageBusSecretName: rabbitmq-transport-url-nova-kuttl-cell1-transport
   cellName: cell1
   containerImage: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
-  replicas: 0
+  replicas: 1
+status:
+  readyCount: 1
 ---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: nova-api
-  namespace: openstack
+  name: nova-kuttl-api
+  namespace: nova-kuttl-default
   ownerReferences:
   - apiVersion: nova.openstack.org/v1beta1
     blockOwnerDeletion: true
     controller: true
     kind: NovaAPI
-    name: nova-api
+    name: nova-kuttl-api
 spec:
-  replicas: 0
+  replicas: 1
   selector:
     matchLabels:
       service: nova-api
@@ -158,18 +120,23 @@ spec:
     metadata:
       labels:
         service: nova-api
+status:
+  availableReplicas: 1
+  currentReplicas: 1
+  readyReplicas: 1
+  replicas: 1
 ---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: nova-metadata
-  namespace: openstack
+  name: nova-kuttl-metadata
+  namespace: nova-kuttl-default
   ownerReferences:
   - apiVersion: nova.openstack.org/v1beta1
     blockOwnerDeletion: true
     controller: true
     kind: NovaMetadata
-    name: nova-metadata
+    name: nova-kuttl-metadata
 spec:
   replicas: 1
   selector:
@@ -179,20 +146,25 @@ spec:
     metadata:
       labels:
         service: nova-metadata
+status:
+  availableReplicas: 1
+  currentReplicas: 1
+  readyReplicas: 1
+  replicas: 1
 ---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: nova-scheduler
-  namespace: openstack
+  name: nova-kuttl-scheduler
+  namespace: nova-kuttl-default
   ownerReferences:
   - apiVersion: nova.openstack.org/v1beta1
     blockOwnerDeletion: true
     controller: true
     kind: NovaScheduler
-    name: nova-scheduler
+    name: nova-kuttl-scheduler
 spec:
-  replicas: 0
+  replicas: 1
   selector:
     matchLabels:
       service: nova-scheduler
@@ -200,20 +172,25 @@ spec:
     metadata:
       labels:
         service: nova-scheduler
+status:
+  availableReplicas: 1
+  currentReplicas: 1
+  readyReplicas: 1
+  replicas: 1
 ---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: nova-cell0-conductor
-  namespace: openstack
+  name: nova-kuttl-cell0-conductor
+  namespace: nova-kuttl-default
   ownerReferences:
   - apiVersion: nova.openstack.org/v1beta1
     blockOwnerDeletion: true
     controller: true
     kind: NovaConductor
-    name: nova-cell0-conductor
+    name: nova-kuttl-cell0-conductor
 spec:
-  replicas: 0
+  replicas: 1
   selector:
     matchLabels:
       cell: cell0
@@ -223,20 +200,25 @@ spec:
       labels:
         cell: cell0
         service: nova-conductor
+status:
+  availableReplicas: 1
+  currentReplicas: 1
+  readyReplicas: 1
+  replicas: 1
 ---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: nova-cell1-conductor
-  namespace: openstack
+  name: nova-kuttl-cell1-conductor
+  namespace: nova-kuttl-default
   ownerReferences:
   - apiVersion: nova.openstack.org/v1beta1
     blockOwnerDeletion: true
     controller: true
     kind: NovaConductor
-    name: nova-cell1-conductor
+    name: nova-kuttl-cell1-conductor
 spec:
-  replicas: 0
+  replicas: 1
   selector:
     matchLabels:
       cell: cell1
@@ -246,4 +228,9 @@ spec:
       labels:
         cell: cell1
         service: nova-conductor
+status:
+  availableReplicas: 1
+  currentReplicas: 1
+  readyReplicas: 1
+  replicas: 1
 ---

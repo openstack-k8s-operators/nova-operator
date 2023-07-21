@@ -1,0 +1,9 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+  - script: |
+      oc patch -n nova-kuttl-default nova/nova-kuttl --type='json' -p='[{"op": "replace", "path": "/spec/apiServiceTemplate/replicas", "value":3}]'
+      oc patch -n nova-kuttl-default nova/nova-kuttl --type='json' -p='[{"op": "replace", "path": "/spec/cellTemplates/cell0/conductorServiceTemplate/replicas", "value":3}]'
+      oc patch -n nova-kuttl-default nova/nova-kuttl --type='json' -p='[{"op": "replace", "path": "/spec/cellTemplates/cell1/conductorServiceTemplate/replicas", "value":3}]'
+      oc patch -n nova-kuttl-default nova/nova-kuttl --type='json' -p='[{"op": "replace", "path": "/spec/metadataServiceTemplate/replicas", "value":3}]'
+      oc patch -n nova-kuttl-default nova/nova-kuttl --type='json' -p='[{"op": "replace", "path": "/spec/schedulerServiceTemplate/replicas", "value":3}]'

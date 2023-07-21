@@ -355,3 +355,36 @@ run-with-webhook: manifests generate fmt vet update-nova-csv ## Run a controller
 	/bin/bash hack/clean_local_webhook.sh
 	/bin/bash hack/configure_local_webhook.sh
 	go run ./main.go
+
+KUTTL_SUITE ?= default
+KUTTL_NAMESPACE ?= nova-kuttl-$(KUTTL_SUITE)
+KUTTL_SUITE_DIR ?= test/kuttl/test-suites/$(KUTTL_SUITE)
+
+.PHONY: kuttl-test-prep
+kuttl-test-prep:
+	oc apply -k $(KUTTL_SUITE_DIR)/deps/ --timeout=120s
+	oc wait -n $(KUTTL_NAMESPACE) openstackcontrolplane openstack --for condition=Ready --timeout=300s
+
+.PHONY: kuttl-test-run
+kuttl-test-run:
+	oc kuttl test --v 1 --start-kind=false --config $(KUTTL_SUITE_DIR)/config.yaml
+
+.PHONY: kuttl-test
+kuttl-test: kuttl-test-prep kuttl-test-run
+
+.PHONY: kuttl-test-cleanup
+kuttl-test-cleanup:
+	# only cleanup if the $(KUTTL_NAMESPACE) exists
+	$(eval namespace_exists=$(shell oc get namespace $(KUTTL_NAMESPACE) --ignore-not-found -o name))
+	if [ "${namespace_exists}" != "" ]; then \
+		oc delete --wait=true --all=true -n $(KUTTL_NAMESPACE) --timeout=120s nova; \
+		oc patch -n $(KUTTL_NAMESPACE) openstackcontrolplane openstack --type json -p='[{"op": "replace", "path": "/spec/placement/replicas", "value": 0}]'; \
+		oc wait -n $(KUTTL_NAMESPACE) placementapi placement --for condition=Ready --timeout=120s; \
+		sleep 5 ; \
+		oc patch -n $(KUTTL_NAMESPACE) openstackcontrolplane openstack --type json -p='[{"op": "remove", "path": "/spec/placement"}]'; \
+		sleep 5; \
+		oc wait -n $(KUTTL_NAMESPACE) openstackcontrolplane openstack --for condition=Ready --timeout=120s; \
+		oc delete --wait=true -k $(KUTTL_SUITE_DIR)/deps/ --timeout=120s; \
+	else \
+		echo "Namespce already cleaned up. Nothing to do"; \
+	fi
