@@ -27,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	routev1 "github.com/openshift/api/route/v1"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	aee "github.com/openstack-k8s-operators/openstack-ansibleee-operator/api/v1alpha1"
@@ -817,4 +818,27 @@ func AssertNoVNCProxyDoesNotExist(name types.NamespacedName) {
 		err := k8sClient.Get(ctx, name, instance)
 		g.Expect(k8s_errors.IsNotFound(err)).To(BeTrue())
 	}, timeout, interval).Should(Succeed())
+}
+
+func SimulateNoVNCProxyRouteIngress(cellName string, namespace string) {
+	vncRouteName := types.NamespacedName{
+		Namespace: namespace,
+		Name:      fmt.Sprintf("nova-novncproxy-%s-public", cellName),
+	}
+	ingress := routev1.RouteIngress{
+		Host: fmt.Sprintf(
+			"nova-novncproxy-%s-public-openstack.apps-crc.testing", cellName),
+		RouterName: "name",
+	}
+	Eventually(func(g Gomega) {
+		vncRoute := &routev1.Route{}
+		g.Expect(k8sClient.Get(ctx, vncRouteName, vncRoute)).Should(Succeed())
+
+		vncRoute.Status.Ingress = append(vncRoute.Status.Ingress, ingress)
+		// NOTE(gibi): Here we intentionally not using the Status client even
+		// though we are updating the Status. While this is strange but it
+		// does not work otherwise. (The status client will return 404)
+		g.Expect(k8sClient.Update(ctx, vncRoute)).Should(Succeed())
+	}, timeout, interval).Should(Succeed())
+	logger.Info("Simulated Ingress for the NovaNoVncProxy Route", "on", vncRouteName)
 }

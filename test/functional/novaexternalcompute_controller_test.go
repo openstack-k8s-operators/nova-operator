@@ -19,7 +19,6 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	routev1 "github.com/openshift/api/route/v1"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
 	corev1 "k8s.io/api/core/v1"
@@ -28,11 +27,6 @@ import (
 
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 )
-
-var globalRoute routev1.RouteIngress = routev1.RouteIngress{
-	Host:       "nova-novncproxy-cell1-public-openstack.apps-crc.testing",
-	RouterName: "name",
-}
 
 func CreateNovaCellAndEnsureReady(cell CellNames) {
 	DeferCleanup(
@@ -85,15 +79,7 @@ var _ = Describe("NovaExternalCompute", func() {
 			}
 			CreateNovaExternalComputeSSHSecret(sshSecretName)
 
-			vncRouteName := fmt.Sprintf("nova-novncproxy-%s-public", cell1.CellName.Name)
-			vncRoute := &routev1.Route{}
-			k8sClient.Get(ctx, types.NamespacedName{
-				Namespace: novaNames.ComputeName.Namespace,
-				Name:      vncRouteName,
-			}, vncRoute)
-			vncRoute.Spec.Host = "nova-novncproxy-cell1-public-openstack.apps-crc.testing"
-			vncRoute.Status.Ingress = append(vncRoute.Status.Ingress, globalRoute)
-			Expect(k8sClient.Update(ctx, vncRoute)).Should(Succeed())
+			SimulateNoVNCProxyRouteIngress(cell1.CellName.Name, cell1.CellName.Namespace)
 
 			DeferCleanup(th.DeleteSecret, sshSecretName)
 			libvirtAEEName = types.NamespacedName{
@@ -387,15 +373,7 @@ var _ = Describe("NovaExternalCompute", func() {
 			}
 			CreateNovaExternalComputeSSHSecret(sshSecretName)
 
-			vncRouteName := fmt.Sprintf("nova-novncproxy-%s-public", cell1.CellName.Name)
-			vncRoute := &routev1.Route{}
-			k8sClient.Get(ctx, types.NamespacedName{
-				Namespace: novaNames.ComputeName.Namespace,
-				Name:      vncRouteName,
-			}, vncRoute)
-			vncRoute.Spec.Host = "nova-novncproxy-cell1-public-openstack.apps-crc.testing"
-			vncRoute.Status.Ingress = append(vncRoute.Status.Ingress, globalRoute)
-			Expect(k8sClient.Update(ctx, vncRoute)).Should(Succeed())
+			SimulateNoVNCProxyRouteIngress(cell1.CellName.Name, cell1.CellName.Namespace)
 
 			DeferCleanup(th.DeleteSecret, sshSecretName)
 
