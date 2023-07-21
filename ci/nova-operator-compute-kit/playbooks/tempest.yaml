@@ -1,6 +1,6 @@
 ---
 - name: Tempest
-  hosts: controller
+  hosts: "{{ target_host | default('controller') }}"
   vars:
     nova_operator_basedir: "{{ ansible_user_dir }}/src/github.com/openstack-k8s-operators/nova-operator"
   tasks:
