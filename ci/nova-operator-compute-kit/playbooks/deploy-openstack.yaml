@@ -3,7 +3,7 @@
 # in https://github.com/rdo-infra/review.rdoproject.org-config/blob/master/playbooks/crc/openstack.yaml
 # We can override the openstack operator image by defining openstack_img in the zuul job
 
-- hosts: controller
+- hosts: "{{ target_host | default('controller') }}"
   name: Deploy Openstack Operators
   vars:
     nova_operator_basedir: "{{ ansible_user_dir }}/src/github.com/openstack-k8s-operators/nova-operator"

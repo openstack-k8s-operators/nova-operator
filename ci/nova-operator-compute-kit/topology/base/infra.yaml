@@ -13,8 +13,14 @@ spec:
         storageRequest: 500M
   memcached:
     enabled: true
+    templates:
+      memcached:
+        replicas: 1
   ovn:
     template:
+      ovnController:
+        external-ids:
+          ovn-encap-type: geneve
       ovnDBCluster:
         ovndbcluster-nb:
           replicas: 1
