@@ -89,6 +89,93 @@ don't commit to branch...................................................Passed
 trim trailing whitespace.................................................Passed
 ```
 
+### Running kuttl tests
+
+Kuttl testing requires some inital setup on the host to enable running them.
+first the kuttl oc/kubectl plugin need to be installed, that is done via using
+the krew plugin manager. kuttl testing in this repo will never install or modify
+operators in the test cloud. that means that you can run them in the openshift
+cluster or locally (with or without a debugger). While these test should be able
+to run on any openshift they have only been tested with crc.
+
+1. install krew
+
+```sh
+bash hack/install-krew.sh
+```
+
+this will download the latest krew tar and unpack it in a temp dir
+the use krew to install itself. This will result in the creation of ${HOME}/.krew
+
+To make krew usable we then need to add it to the path.
+add this to your ~/.bashrc and source it.
+
+```sh
+if [[ ! "${PATH}" =~ "$HOME/.krew/bin"  ]]; then
+    export PATH="$HOME/.krew/bin:$PATH"
+fi
+```
+
+this will make the krew kubectl/oc plug available
+and any future plugins will be available automatically.
+
+2. install kuttl
+
+```sh
+oc krew install kuttl
+```
+
+3. prepare crc
+
+kuttl testing should be usable with any existing crc env and is
+is intended to be runnable in parallel to a dev openstack deployment.
+As such i will not describe this in detail but the hi level steps are as follows
+
+```sh
+crc setup
+crc start
+oc login ...
+cd /path/to/install_yamls/devsetup
+make crc_attach_default_interface
+cd ..
+make openstack
+```
+note: we will use the `crc-csi-hostpath-provisioner` storage class so "make crc_storage"
+is not required but it wont break anything either.
+
+4. prepare kuttl deps
+
+The makefile supports specifying a kuttl test suite to use via `KUTTL_SUITE`
+currently only one suite exist `multi-cell` and this is the default.
+
+prepare the deps using
+
+```sh
+make kuttl-test-prep
+```
+
+This will use the openstack operator to deploy rabbitmq, galera, memcached,
+keystone and placement into a dedicated kuttl namespace via the OpenStackControlplane CR.
+
+5. run kuttl tests
+
+```sh
+make kuttl-test-run
+```
+
+Note: step 4 and 5 can be combined by using `make kuttl-test`
+
+6. kuttl cleanup
+
+if you want to reclaim resources form the CRC env when you are finished doing kuttl testing
+locally you can do that with:
+
+```sh
+make kuttl-test-cleanup
+```
+
+This will clean up the kuttl deps including the kuttl namespace for the test suite.
+
 ### Running on the cluster
 
 1. Install Instances of Custom Resources:

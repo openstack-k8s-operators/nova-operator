@@ -99,3 +99,7 @@ clouds.yaml
 # https://github.com/containerbuildsystem/cachito/commit/c7fbbb13eeb7d7edec3c01643eb5b24381027365
 go.work
 go.work.sum
+
+# kuttl testing
+test/kuttl/test-suites/*/output/
+kubeconfig

@@ -1,0 +1,32 @@
+apiVersion: core.openstack.org/v1beta1
+kind: OpenStackControlPlane
+metadata:
+  name: openstack
+spec:
+  mariadb:
+    enabled: false
+  galera:
+    enabled: true
+    templates:
+      openstack:
+        storageRequest: 500M
+      openstack-cell1:
+        storageRequest: 500M
+  rabbitmq:
+    templates:
+      rabbitmq:
+        replicas: 1
+      rabbitmq-cell1:
+        replicas: 1
+  memcached:
+    templates:
+      memcached:
+        replicas: 1
+  ovn:
+    enabled: false
+    template:
+      ovnController:
+        external-ids:
+          ovn-encap-type: geneve
+  ovs:
+    enabled: false

@@ -1,9 +1,0 @@
-apiVersion: mariadb.openstack.org/v1beta1
-kind: MariaDB
-metadata:
-  name: openstack-cell1
-spec:
-  secret: mariadb-secret
-  storageClass: local-storage
-  storageRequest: 500M
-  containerImage: quay.io/podified-antelope-centos9/openstack-mariadb:current-podified

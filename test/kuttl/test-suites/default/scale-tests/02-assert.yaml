@@ -3,7 +3,7 @@ kind: Nova
 metadata:
   finalizers:
   - Nova
-  name: nova
+  name: nova-kuttl
 status:
   apiServiceReadyCount: 3
   schedulerServiceReadyCount: 3
@@ -13,12 +13,12 @@ kind: NovaAPI
 metadata:
   finalizers:
   - NovaAPI
-  name: nova-api
-  namespace: openstack
+  name: nova-kuttl-api
+  namespace: nova-kuttl-default
 spec:
   replicas: 3
-  secret: osp-secret
-  serviceAccount: nova-nova
+  secret: nova-kuttl
+  serviceAccount: nova-nova-kuttl
   serviceUser: nova
 status:
   readyCount: 3
@@ -26,12 +26,12 @@ status:
 apiVersion: nova.openstack.org/v1beta1
 kind: NovaScheduler
 metadata:
-  name: nova-scheduler
-  namespace: openstack
+  name: nova-kuttl-scheduler
+  namespace: nova-kuttl-default
 spec:
   apiDatabaseHostname: openstack
   apiDatabaseUser: nova_api
-  apiMessageBusSecretName: rabbitmq-transport-url-nova-api-transport
+  apiMessageBusSecretName: rabbitmq-transport-url-nova-kuttl-api-transport
   cell0DatabaseHostname: openstack
   cell0DatabaseUser: nova_cell0
   replicas: 3
@@ -41,12 +41,12 @@ status:
 apiVersion: nova.openstack.org/v1beta1
 kind: NovaMetadata
 metadata:
-  name: nova-metadata
-  namespace: openstack
+  name: nova-kuttl-metadata
+  namespace: nova-kuttl-default
 spec:
   apiDatabaseHostname: openstack
   apiDatabaseUser: nova_api
-  apiMessageBusSecretName: rabbitmq-transport-url-nova-api-transport
+  apiMessageBusSecretName: rabbitmq-transport-url-nova-kuttl-api-transport
   cellDatabaseHostname: openstack
   cellDatabaseUser: nova_cell0
   replicas: 3
@@ -56,20 +56,20 @@ status:
 apiVersion: nova.openstack.org/v1beta1
 kind: NovaConductor
 metadata:
-  name: nova-cell0-conductor
-  namespace: openstack
+  name: nova-kuttl-cell0-conductor
+  namespace: nova-kuttl-default
   ownerReferences:
   - apiVersion: nova.openstack.org/v1beta1
     blockOwnerDeletion: true
     controller: true
     kind: NovaCell
-    name: nova-cell0
+    name: nova-kuttl-cell0
 spec:
   apiDatabaseHostname: openstack
   apiDatabaseUser: nova_api
   cellDatabaseHostname: openstack
   cellDatabaseUser: nova_cell0
-  cellMessageBusSecretName: rabbitmq-transport-url-nova-api-transport
+  cellMessageBusSecretName: rabbitmq-transport-url-nova-kuttl-api-transport
   cellName: cell0
   containerImage: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
   replicas: 3
@@ -79,20 +79,20 @@ status:
 apiVersion: nova.openstack.org/v1beta1
 kind: NovaConductor
 metadata:
-  name: nova-cell1-conductor
-  namespace: openstack
+  name: nova-kuttl-cell1-conductor
+  namespace: nova-kuttl-default
   ownerReferences:
   - apiVersion: nova.openstack.org/v1beta1
     blockOwnerDeletion: true
     controller: true
     kind: NovaCell
-    name: nova-cell1
+    name: nova-kuttl-cell1
 spec:
   apiDatabaseHostname: openstack
   apiDatabaseUser: nova_api
   cellDatabaseHostname: openstack-cell1
   cellDatabaseUser: nova_cell1
-  cellMessageBusSecretName: rabbitmq-transport-url-nova-cell1-transport
+  cellMessageBusSecretName: rabbitmq-transport-url-nova-kuttl-cell1-transport
   cellName: cell1
   containerImage: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
   replicas: 3
@@ -102,14 +102,14 @@ status:
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: nova-api
-  namespace: openstack
+  name: nova-kuttl-api
+  namespace: nova-kuttl-default
   ownerReferences:
   - apiVersion: nova.openstack.org/v1beta1
     blockOwnerDeletion: true
     controller: true
     kind: NovaAPI
-    name: nova-api
+    name: nova-kuttl-api
 spec:
   replicas: 3
   selector:
@@ -129,14 +129,14 @@ status:
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: nova-metadata
-  namespace: openstack
+  name: nova-kuttl-metadata
+  namespace: nova-kuttl-default
   ownerReferences:
   - apiVersion: nova.openstack.org/v1beta1
     blockOwnerDeletion: true
     controller: true
     kind: NovaMetadata
-    name: nova-metadata
+    name: nova-kuttl-metadata
 spec:
   replicas: 3
   selector:
@@ -155,14 +155,14 @@ status:
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: nova-scheduler
-  namespace: openstack
+  name: nova-kuttl-scheduler
+  namespace: nova-kuttl-default
   ownerReferences:
   - apiVersion: nova.openstack.org/v1beta1
     blockOwnerDeletion: true
     controller: true
     kind: NovaScheduler
-    name: nova-scheduler
+    name: nova-kuttl-scheduler
 spec:
   replicas: 3
   selector:
@@ -181,14 +181,14 @@ status:
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: nova-cell0-conductor
-  namespace: openstack
+  name: nova-kuttl-cell0-conductor
+  namespace: nova-kuttl-default
   ownerReferences:
   - apiVersion: nova.openstack.org/v1beta1
     blockOwnerDeletion: true
     controller: true
     kind: NovaConductor
-    name: nova-cell0-conductor
+    name: nova-kuttl-cell0-conductor
 spec:
   replicas: 3
   selector:
@@ -209,14 +209,14 @@ status:
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: nova-cell1-conductor
-  namespace: openstack
+  name: nova-kuttl-cell1-conductor
+  namespace: nova-kuttl-default
   ownerReferences:
   - apiVersion: nova.openstack.org/v1beta1
     blockOwnerDeletion: true
     controller: true
     kind: NovaConductor
-    name: nova-cell1-conductor
+    name: nova-kuttl-cell1-conductor
 spec:
   replicas: 3
   selector:
@@ -241,15 +241,15 @@ metadata:
     openshift.io/scc: anyuid
   labels:
     service: nova-api
-  name: nova-api-0
+  name: nova-kuttl-api-0
 status:
   containerStatuses:
   - image: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
-    name: nova-api-api
+    name: nova-kuttl-api-api
     ready: true
     started: true
   - image: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
-    name: nova-api-log
+    name: nova-kuttl-api-log
     ready: true
     started: true
 ---
@@ -260,16 +260,16 @@ metadata:
     openshift.io/scc: anyuid
   labels:
     service: nova-api
-    statefulset.kubernetes.io/pod-name: nova-api-1
-  name: nova-api-1
+    statefulset.kubernetes.io/pod-name: nova-kuttl-api-1
+  name: nova-kuttl-api-1
 status:
   containerStatuses:
   - image: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
-    name: nova-api-api
+    name: nova-kuttl-api-api
     ready: true
     started: true
   - image: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
-    name: nova-api-log
+    name: nova-kuttl-api-log
     ready: true
     started: true
 ---
@@ -280,16 +280,16 @@ metadata:
     openshift.io/scc: anyuid
   labels:
     service: nova-api
-    statefulset.kubernetes.io/pod-name: nova-api-2
-  name: nova-api-2
+    statefulset.kubernetes.io/pod-name: nova-kuttl-api-2
+  name: nova-kuttl-api-2
 status:
   containerStatuses:
   - image: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
-    name: nova-api-api
+    name: nova-kuttl-api-api
     ready: true
     started: true
   - image: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
-    name: nova-api-log
+    name: nova-kuttl-api-log
     ready: true
     started: true
 ---
@@ -298,17 +298,17 @@ kind: Pod
 metadata:
   labels:
     service: nova-scheduler
-  name: nova-scheduler-0
+  name: nova-kuttl-scheduler-0
   ownerReferences:
   - apiVersion: apps/v1
     blockOwnerDeletion: true
     controller: true
     kind: StatefulSet
-    name: nova-scheduler
+    name: nova-kuttl-scheduler
 status:
   containerStatuses:
   - image: quay.io/podified-antelope-centos9/openstack-nova-scheduler:current-podified
-    name: nova-scheduler-scheduler
+    name: nova-kuttl-scheduler-scheduler
     ready: true
     started: true
 ---
@@ -317,18 +317,18 @@ kind: Pod
 metadata:
   labels:
     service: nova-scheduler
-    statefulset.kubernetes.io/pod-name: nova-scheduler-1
-  name: nova-scheduler-1
+    statefulset.kubernetes.io/pod-name: nova-kuttl-scheduler-1
+  name: nova-kuttl-scheduler-1
   ownerReferences:
   - apiVersion: apps/v1
     blockOwnerDeletion: true
     controller: true
     kind: StatefulSet
-    name: nova-scheduler
+    name: nova-kuttl-scheduler
 status:
   containerStatuses:
   - image: quay.io/podified-antelope-centos9/openstack-nova-scheduler:current-podified
-    name: nova-scheduler-scheduler
+    name: nova-kuttl-scheduler-scheduler
     ready: true
     started: true
 ---
@@ -337,18 +337,18 @@ kind: Pod
 metadata:
   labels:
     service: nova-scheduler
-    statefulset.kubernetes.io/pod-name: nova-scheduler-2
-  name: nova-scheduler-2
+    statefulset.kubernetes.io/pod-name: nova-kuttl-scheduler-2
+  name: nova-kuttl-scheduler-2
   ownerReferences:
   - apiVersion: apps/v1
     blockOwnerDeletion: true
     controller: true
     kind: StatefulSet
-    name: nova-scheduler
+    name: nova-kuttl-scheduler
 status:
   containerStatuses:
   - image: quay.io/podified-antelope-centos9/openstack-nova-scheduler:current-podified
-    name: nova-scheduler-scheduler
+    name: nova-kuttl-scheduler-scheduler
     ready: true
     started: true
 ---
@@ -359,22 +359,22 @@ metadata:
     openshift.io/scc: anyuid
   labels:
     service: nova-metadata
-    statefulset.kubernetes.io/pod-name: nova-metadata-0
-  name: nova-metadata-0
+    statefulset.kubernetes.io/pod-name: nova-kuttl-metadata-0
+  name: nova-kuttl-metadata-0
   ownerReferences:
   - apiVersion: apps/v1
     blockOwnerDeletion: true
     controller: true
     kind: StatefulSet
-    name: nova-metadata
+    name: nova-kuttl-metadata
 status:
   containerStatuses:
   - image: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
-    name: nova-metadata-log
+    name: nova-kuttl-metadata-log
     ready: true
     started: true
   - image: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
-    name: nova-metadata-metadata
+    name: nova-kuttl-metadata-metadata
     ready: true
     started: true
 ---
@@ -385,22 +385,22 @@ metadata:
     openshift.io/scc: anyuid
   labels:
     service: nova-metadata
-    statefulset.kubernetes.io/pod-name: nova-metadata-1
-  name: nova-metadata-1
+    statefulset.kubernetes.io/pod-name: nova-kuttl-metadata-1
+  name: nova-kuttl-metadata-1
   ownerReferences:
   - apiVersion: apps/v1
     blockOwnerDeletion: true
     controller: true
     kind: StatefulSet
-    name: nova-metadata
+    name: nova-kuttl-metadata
 status:
   containerStatuses:
   - image: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
-    name: nova-metadata-log
+    name: nova-kuttl-metadata-log
     ready: true
     started: true
   - image: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
-    name: nova-metadata-metadata
+    name: nova-kuttl-metadata-metadata
     ready: true
     started: true
 ---
@@ -411,22 +411,22 @@ metadata:
     openshift.io/scc: anyuid
   labels:
     service: nova-metadata
-    statefulset.kubernetes.io/pod-name: nova-metadata-2
-  name: nova-metadata-2
+    statefulset.kubernetes.io/pod-name: nova-kuttl-metadata-2
+  name: nova-kuttl-metadata-2
   ownerReferences:
   - apiVersion: apps/v1
     blockOwnerDeletion: true
     controller: true
     kind: StatefulSet
-    name: nova-metadata
+    name: nova-kuttl-metadata
 status:
   containerStatuses:
   - image: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
-    name: nova-metadata-log
+    name: nova-kuttl-metadata-log
     ready: true
     started: true
   - image: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
-    name: nova-metadata-metadata
+    name: nova-kuttl-metadata-metadata
     ready: true
     started: true
 ---
@@ -438,18 +438,18 @@ metadata:
   labels:
     cell: cell0
     service: nova-conductor
-    statefulset.kubernetes.io/pod-name: nova-cell0-conductor-0
-  name: nova-cell0-conductor-0
+    statefulset.kubernetes.io/pod-name: nova-kuttl-cell0-conductor-0
+  name: nova-kuttl-cell0-conductor-0
   ownerReferences:
   - apiVersion: apps/v1
     blockOwnerDeletion: true
     controller: true
     kind: StatefulSet
-    name: nova-cell0-conductor
+    name: nova-kuttl-cell0-conductor
 status:
   containerStatuses:
   - image: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
-    name: nova-cell0-conductor-conductor
+    name: nova-kuttl-cell0-conductor-conductor
     ready: true
     started: true
 ---
@@ -461,18 +461,18 @@ metadata:
   labels:
     cell: cell0
     service: nova-conductor
-    statefulset.kubernetes.io/pod-name: nova-cell0-conductor-1
-  name: nova-cell0-conductor-1
+    statefulset.kubernetes.io/pod-name: nova-kuttl-cell0-conductor-1
+  name: nova-kuttl-cell0-conductor-1
   ownerReferences:
   - apiVersion: apps/v1
     blockOwnerDeletion: true
     controller: true
     kind: StatefulSet
-    name: nova-cell0-conductor
+    name: nova-kuttl-cell0-conductor
 status:
   containerStatuses:
   - image: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
-    name: nova-cell0-conductor-conductor
+    name: nova-kuttl-cell0-conductor-conductor
     ready: true
     started: true
 ---
@@ -484,18 +484,18 @@ metadata:
   labels:
     cell: cell0
     service: nova-conductor
-    statefulset.kubernetes.io/pod-name: nova-cell0-conductor-2
-  name: nova-cell0-conductor-2
+    statefulset.kubernetes.io/pod-name: nova-kuttl-cell0-conductor-2
+  name: nova-kuttl-cell0-conductor-2
   ownerReferences:
   - apiVersion: apps/v1
     blockOwnerDeletion: true
     controller: true
     kind: StatefulSet
-    name: nova-cell0-conductor
+    name: nova-kuttl-cell0-conductor
 status:
   containerStatuses:
   - image: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
-    name: nova-cell0-conductor-conductor
+    name: nova-kuttl-cell0-conductor-conductor
     ready: true
     started: true
 ---
@@ -507,17 +507,17 @@ metadata:
   labels:
     cell: cell1
     service: nova-conductor
-    statefulset.kubernetes.io/pod-name: nova-cell1-conductor-0
-  name: nova-cell1-conductor-0
+    statefulset.kubernetes.io/pod-name: nova-kuttl-cell1-conductor-0
+  name: nova-kuttl-cell1-conductor-0
   ownerReferences:
   - blockOwnerDeletion: true
     controller: true
     kind: StatefulSet
-    name: nova-cell1-conductor
+    name: nova-kuttl-cell1-conductor
 status:
   containerStatuses:
   - image: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
-    name: nova-cell1-conductor-conductor
+    name: nova-kuttl-cell1-conductor-conductor
     ready: true
     started: true
 ---
@@ -529,17 +529,17 @@ metadata:
   labels:
     cell: cell1
     service: nova-conductor
-    statefulset.kubernetes.io/pod-name: nova-cell1-conductor-1
-  name: nova-cell1-conductor-1
+    statefulset.kubernetes.io/pod-name: nova-kuttl-cell1-conductor-1
+  name: nova-kuttl-cell1-conductor-1
   ownerReferences:
   - blockOwnerDeletion: true
     controller: true
     kind: StatefulSet
-    name: nova-cell1-conductor
+    name: nova-kuttl-cell1-conductor
 status:
   containerStatuses:
   - image: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
-    name: nova-cell1-conductor-conductor
+    name: nova-kuttl-cell1-conductor-conductor
     ready: true
     started: true
 ---
@@ -551,17 +551,17 @@ metadata:
   labels:
     cell: cell1
     service: nova-conductor
-    statefulset.kubernetes.io/pod-name: nova-cell1-conductor-2
-  name: nova-cell1-conductor-2
+    statefulset.kubernetes.io/pod-name: nova-kuttl-cell1-conductor-2
+  name: nova-kuttl-cell1-conductor-2
   ownerReferences:
   - blockOwnerDeletion: true
     controller: true
     kind: StatefulSet
-    name: nova-cell1-conductor
+    name: nova-kuttl-cell1-conductor
 status:
   containerStatuses:
   - image: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
-    name: nova-cell1-conductor-conductor
+    name: nova-kuttl-cell1-conductor-conductor
     ready: true
     started: true
 ---
