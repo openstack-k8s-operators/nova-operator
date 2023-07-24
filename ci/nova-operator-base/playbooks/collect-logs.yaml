@@ -12,6 +12,8 @@
 - hosts: controller
   name: Collect logs on the controller
   gather_facts: false
+  vars:
+    collection_namespace: "{{ collection_namespace_override | default('openstack') }}"
   tasks:
     - name: Create log dir
       ansible.builtin.file:
@@ -22,38 +24,57 @@
     - name: Collect general openshift cr info
       ansible.builtin.shell: |
         source ~/.bashrc
-        cp /etc/resolv.conf .
-        cp /etc/hosts .
-        ip a > network.txt
-        ip ro ls >> network.txt
-        oc get pods > all_pods.txt
-        oc get secrets > all_secrets.txt
-        oc get pv > all_pv.txt
-        oc get events > oc_events.txt
-        oc get routes > oc_routes.txt
-        oc get all > oc_all.txt
-        oc get -o yaml openstackdataplane > openstackdataplane.yaml
-        oc get -o yaml openstackdataplanerole > openstackdataplanerole.yaml
-        oc get -o yaml openstackdataplanenode > openstackdataplanenode.yaml
-        pod_dir="{{ ansible_user_dir }}/zuul-output/logs/controller/pods"
+        collection_namespace_dir="{{ ansible_user_dir }}/zuul-output/logs/controller/{{collection_namespace}}"
+        mkdir ${collection_namespace_dir}
+        pushd ${collection_namespace_dir}
+          oc get -n {{collection_namespace}} secrets > all_secrets.txt
+          oc get -n {{collection_namespace}} pv > all_pv.txt
+          oc get -n {{collection_namespace}} events > oc_events.txt
+          oc get -n {{collection_namespace}} routes > oc_routes.txt
+          oc get -n {{collection_namespace}} all > oc_all.txt
+        popd
+        pod_dir="${collection_namespace_dir}/pods"
         mkdir ${pod_dir}
         pushd ${pod_dir}
-          all_pods=$(oc get pods | awk '{print $1}' | awk -F '.' '{print $1}')
+          all_pods=$(oc get -n {{collection_namespace}} pods | awk '{print $1}' | awk -F '.' '{print $1}')
           for pod in $all_pods; do
             echo $pod
-            oc logs pod/${pod} > ${pod}-logs.txt
-            oc get -o yaml pod/${pod} > ${pod}.yaml
-            oc describe pod/${pod} > ${pod}-describe.txt
+            oc logs -n {{collection_namespace}} pod/${pod} > ${pod}-logs.txt
+            oc get  -n {{collection_namespace}} -o yaml pod/${pod} > ${pod}.yaml
+            oc describe -n {{collection_namespace}} pod/${pod} > ${pod}-describe.txt
           done
         popd
-        crd_logs="{{ ansible_user_dir }}/zuul-output/logs/controller/crd"
+        crd_logs="${collection_namespace_dir}/crd"
         mkdir ${crd_logs}
         pushd ${crd_logs}
           all_crds=$(oc get crd | grep openstack | awk '{print $1}' | awk -F '.' '{print $1}')
           for cr in $all_crds; do
             echo $crd
-            oc get -o yaml $cr > ${cr}.yaml
-            oc describe $cr > ${cr}-describe.txt
+            oc get -n {{collection_namespace}} -o yaml $cr > ${cr}.yaml
+            oc describe -n {{collection_namespace}} $cr > ${cr}-describe.txt
+          done
+        popd
+        openstack_operator_namespace_dir="{{ ansible_user_dir }}/zuul-output/logs/controller/openstack-operators"
+        mkdir ${openstack_operator_namespace_dir}
+        csv_logs="${openstack_operator_namespace_dir}/csv"
+        mkdir ${csv_logs}
+        pushd ${csv_logs}
+          all_csv=$(oc get -n openstack-operators csv | awk '{print $1}')
+          for csv in $all_csv; do
+            echo $crd
+            oc get -n openstack-operators -o yaml csv/${csv} > ${csv}.yaml
+            oc describe -n openstack-operators csv/${csv} > ${csv}-describe.txt
+          done
+        popd
+        pod_dir="${openstack_operator_namespace_dir}/pods"
+        mkdir ${pod_dir}
+        pushd ${pod_dir}
+          all_pods=$(oc get -n openstack-operators pods | awk '{print $1}' | awk -F '.' '{print $1}')
+          for pod in $all_pods; do
+            echo $pod
+            oc logs -n openstack-operators pod/${pod} > ${pod}-logs.txt
+            oc get  -n openstack-operators -o yaml pod/${pod} > ${pod}.yaml
+            oc describe -n openstack-operators pod/${pod} > ${pod}-describe.txt
           done
         popd
       args:
@@ -62,11 +83,3 @@
       ignore_errors: true
       tags:
         - skip_ansible_lint
-
-- hosts: all
-  name: Copy files from controller on node
-  gather_facts: false
-  tasks:
-    - name: Copy files from controller on node
-      ansible.builtin.include_role:
-        name: fetch-output
