@@ -16,7 +16,7 @@ require (
 	github.com/openstack-k8s-operators/lib-common/modules/storage v0.1.0
 	github.com/openstack-k8s-operators/lib-common/modules/test v0.1.1
 	github.com/openstack-k8s-operators/mariadb-operator/api v0.1.0
-	github.com/openstack-k8s-operators/nova-operator/api v0.0.0-20221209164002-f9e6b9363961
+	github.com/openstack-k8s-operators/nova-operator/api v0.1.0
 	github.com/openstack-k8s-operators/openstack-ansibleee-operator/api v0.1.0
 	go.uber.org/zap v1.24.0
 	gopkg.in/yaml.v3 v3.0.1
