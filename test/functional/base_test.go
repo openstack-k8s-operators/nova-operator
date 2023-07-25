@@ -514,7 +514,7 @@ func GetCellNames(novaName types.NamespacedName, cell string) CellNames {
 		},
 		ComputeConfigSecretName: types.NamespacedName{
 			Namespace: novaName.Namespace,
-			Name:      cellName.Name + "-config-data",
+			Name:      cellName.Name + "-compute-config",
 		},
 	}
 

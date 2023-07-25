@@ -41,6 +41,7 @@ import (
 	aee "github.com/openstack-k8s-operators/openstack-ansibleee-operator/api/v1alpha1"
 
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
+	"github.com/openstack-k8s-operators/nova-operator/pkg/nova"
 )
 
 // NovaExternalComputeReconciler reconciles a NovaExternalCompute object
@@ -527,7 +528,8 @@ func (r *NovaExternalComputeReconciler) generateConfigs(
 		"firewall.yaml":                                   "/firewall.goyaml",
 	}
 	return r.GenerateConfigs(
-		ctx, h, instance, hashes, templateParameters, extraData, cmLabels, addtionalTemplates,
+		ctx, h, instance, nova.GetServiceConfigSecretName(instance.GetName()),
+		hashes, templateParameters, extraData, cmLabels, addtionalTemplates,
 	)
 }
 
