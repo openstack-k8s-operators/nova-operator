@@ -415,6 +415,7 @@ var _ = Describe("Nova controller", func() {
 				condition.ReadyCondition,
 				corev1.ConditionTrue,
 			)
+			Expect(GetNova(novaNames.NovaName).Status.APIServiceReadyCount).To(Equal(int32(1)))
 		})
 
 		It("creates NovaScheduler", func() {
@@ -454,6 +455,7 @@ var _ = Describe("Nova controller", func() {
 				condition.ReadyCondition,
 				corev1.ConditionTrue,
 			)
+			Expect(GetNova(novaNames.NovaName).Status.SchedulerServiceReadyCount).To(Equal(int32(1)))
 		})
 
 		It("creates NovaMetadata", func() {
@@ -493,6 +495,7 @@ var _ = Describe("Nova controller", func() {
 				condition.ReadyCondition,
 				corev1.ConditionTrue,
 			)
+			Expect(GetNova(novaNames.NovaName).Status.MetadataServiceReadyCount).To(Equal(int32(1)))
 		})
 	})
 
