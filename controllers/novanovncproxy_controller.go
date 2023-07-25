@@ -39,6 +39,7 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/statefulset"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	novav1beta1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
+	"github.com/openstack-k8s-operators/nova-operator/pkg/nova"
 	"github.com/openstack-k8s-operators/nova-operator/pkg/novncproxy"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 )
@@ -323,7 +324,8 @@ func (r *NovaNoVNCProxyReconciler) generateConfigs(
 	)
 
 	err = r.GenerateConfigs(
-		ctx, h, instance, hashes, templateParameters, extraData, cmLabels, map[string]string{},
+		ctx, h, instance, nova.GetServiceConfigSecretName(instance.GetName()),
+		hashes, templateParameters, extraData, cmLabels, map[string]string{},
 	)
 	return err
 }

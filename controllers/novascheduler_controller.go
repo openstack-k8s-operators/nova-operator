@@ -39,6 +39,7 @@ import (
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
+	"github.com/openstack-k8s-operators/nova-operator/pkg/nova"
 	"github.com/openstack-k8s-operators/nova-operator/pkg/novascheduler"
 )
 
@@ -330,7 +331,8 @@ func (r *NovaSchedulerReconciler) generateConfigs(
 	)
 
 	return r.GenerateConfigs(
-		ctx, h, instance, hashes, templateParameters, extraData, cmLabels, map[string]string{},
+		ctx, h, instance, nova.GetServiceConfigSecretName(instance.GetName()),
+		hashes, templateParameters, extraData, cmLabels, map[string]string{},
 	)
 }
 

@@ -384,7 +384,7 @@ func (r *Reconcilers) OverrideRequeueTimeout(timeout time.Duration) {
 // generateConfigsGeneric helper function to generate config maps
 func (r *ReconcilerBase) generateConfigsGeneric(
 	ctx context.Context, h *helper.Helper,
-	instance client.Object, envVars *map[string]env.Setter,
+	instance client.Object, configName string, envVars *map[string]env.Setter,
 	templateParameters map[string]interface{},
 	extraData map[string]string, cmLabels map[string]string,
 	additionalTemplates map[string]string,
@@ -402,7 +402,7 @@ func (r *ReconcilerBase) generateConfigsGeneric(
 	cms := []util.Template{
 		// ConfigMap
 		{
-			Name:               nova.GetServiceConfigSecretName(instance.GetName()),
+			Name:               configName,
 			Namespace:          instance.GetNamespace(),
 			Type:               util.TemplateTypeConfig,
 			InstanceType:       instance.GetObjectKind().GroupVersionKind().Kind,
@@ -430,13 +430,13 @@ func (r *ReconcilerBase) generateConfigsGeneric(
 // GenerateConfigs helper function to generate config maps
 func (r *ReconcilerBase) GenerateConfigs(
 	ctx context.Context, h *helper.Helper,
-	instance client.Object, envVars *map[string]env.Setter,
+	instance client.Object, configName string, envVars *map[string]env.Setter,
 	templateParameters map[string]interface{},
 	extraData map[string]string, cmLabels map[string]string,
 	additionalTemplates map[string]string,
 ) error {
 	return r.generateConfigsGeneric(
-		ctx, h, instance, envVars, templateParameters, extraData,
+		ctx, h, instance, configName, envVars, templateParameters, extraData,
 		cmLabels, additionalTemplates, false,
 	)
 }
@@ -451,7 +451,8 @@ func (r *ReconcilerBase) GenerateConfigsWithScripts(
 	additionalTemplates map[string]string,
 ) error {
 	return r.generateConfigsGeneric(
-		ctx, h, instance, envVars, templateParameters, extraData,
+		ctx, h, instance, nova.GetServiceConfigSecretName(instance.GetName()),
+		envVars, templateParameters, extraData,
 		cmLabels, additionalTemplates, true,
 	)
 }

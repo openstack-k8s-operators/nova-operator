@@ -472,8 +472,9 @@ func (r *NovaCellReconciler) generateComputeConfigs(
 
 	hashes := make(map[string]env.Setter)
 
+	configName := instance.GetName() + "-compute-config"
 	return r.GenerateConfigs(
-		ctx, h, instance, &hashes, templateParameters, map[string]string{}, cmLabels, map[string]string{},
+		ctx, h, instance, configName, &hashes, templateParameters, map[string]string{}, cmLabels, map[string]string{},
 	)
 }
 
