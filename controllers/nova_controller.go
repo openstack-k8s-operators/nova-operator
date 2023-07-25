@@ -1238,7 +1238,7 @@ func (r *NovaReconciler) ensureMetadata(
 	if c != nil {
 		instance.Status.Conditions.Set(c)
 	}
-	instance.Status.APIServiceReadyCount = metadata.Status.ReadyCount
+	instance.Status.MetadataServiceReadyCount = metadata.Status.ReadyCount
 
 	return ctrl.Result{}, nil
 }
