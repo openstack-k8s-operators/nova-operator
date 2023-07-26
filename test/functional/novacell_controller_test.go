@@ -289,6 +289,8 @@ var _ = Describe("NovaCell controller", func() {
 				novav1.NovaComputeServiceConfigReady,
 				corev1.ConditionTrue,
 			)
+
+			Expect(GetNovaCell(cell1.CellName).Status.Hash).To(HaveKey(cell1.ComputeConfigSecretName.Name))
 		})
 
 		It("is Ready when all cell services is ready", func() {
@@ -349,6 +351,8 @@ var _ = Describe("NovaCell controller", func() {
 				novav1.NovaComputeServiceConfigReady,
 				corev1.ConditionTrue,
 			)
+
+			Expect(GetNovaCell(cell2.CellName).Status.Hash).To(HaveKey(cell2.ComputeConfigSecretName.Name))
 		})
 
 		It("is Ready when all cell services is ready", func() {
