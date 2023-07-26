@@ -219,6 +219,9 @@ func (r *NovaCellReconciler) initStatus(
 	if err := r.initConditions(ctx, h, instance); err != nil {
 		return err
 	}
+	if instance.Status.Hash == nil {
+		instance.Status.Hash = map[string]string{}
+	}
 
 	return nil
 }
@@ -467,7 +470,6 @@ func (r *NovaCellReconciler) generateComputeConfigs(
 		templateParameters["novncproxy_base_url"] = "http://" + *vncHost // fixme use https
 	}
 
-	// TODO(gibi): Add the hash of the config Secret as annotation
 	cmLabels := labels.GetLabels(
 		instance, labels.GetGroupLabel(NovaCellLabelPrefix), map[string]string{},
 	)
@@ -475,9 +477,14 @@ func (r *NovaCellReconciler) generateComputeConfigs(
 	hashes := make(map[string]env.Setter)
 
 	configName := instance.GetName() + "-compute-config"
-	return r.GenerateConfigs(
+	err := r.GenerateConfigs(
 		ctx, h, instance, configName, &hashes, templateParameters, map[string]string{}, cmLabels, map[string]string{},
 	)
+	// TODO(gibi): can we make it simpler?
+	a := &corev1.EnvVar{}
+	hashes[configName](a)
+	instance.Status.Hash[configName] = a.Value
+	return err
 }
 
 func (r *NovaCellReconciler) getVNCHost(

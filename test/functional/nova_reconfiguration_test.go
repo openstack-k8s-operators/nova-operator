@@ -373,12 +373,13 @@ var _ = Describe("Nova reconfiguration", func() {
 		})
 	})
 	When("CellMessageBusInstance is reconfigured for a cell", func() {
-		It("re-runs the cell mapping job and updates the cell hash", func() {
+		It("updates the cell, re-runs the cell mapping job and updates the cell hash", func() {
 			mappingJob := th.GetJob(cell1.CellMappingJobName)
 			oldJobInputHash := GetEnvVarValue(
 				mappingJob.Spec.Template.Spec.Containers[0].Env, "INPUT_HASH", "")
 
 			oldCell1Hash := GetNova(novaNames.NovaName).Status.RegisteredCells[cell1.CellName.Name]
+			oldComputeConfigHash := GetNovaCell(cell1.CellName).Status.Hash[cell1.ComputeConfigSecretName.Name]
 
 			Eventually(func(g Gomega) {
 				nova := GetNova(novaNames.NovaName)
@@ -441,7 +442,7 @@ var _ = Describe("Nova reconfiguration", func() {
 				configData := string(configDataMap.Data["01-nova.conf"])
 				g.Expect(configData).Should(ContainSubstring("transport_url=rabbit://alternate-mq-for-cell1-secret/fake"))
 			}, timeout, interval).Should(Succeed())
-
+			Expect(GetNovaCell(cell1.CellName).Status.Hash[cell1.ComputeConfigSecretName.Name]).NotTo(Equal(oldComputeConfigHash))
 		})
 	})
 
