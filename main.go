@@ -44,7 +44,6 @@ import (
 	rabbitmqv1 "github.com/openstack-k8s-operators/infra-operator/apis/rabbitmq/v1beta1"
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
-	aee "github.com/openstack-k8s-operators/openstack-ansibleee-operator/api/v1alpha1"
 
 	novav1beta1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 
@@ -67,7 +66,6 @@ func init() {
 	utilruntime.Must(routev1.AddToScheme(scheme))
 	utilruntime.Must(rabbitmqv1.AddToScheme(scheme))
 	utilruntime.Must(networkv1.AddToScheme(scheme))
-	utilruntime.Must(aee.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
@@ -150,10 +148,6 @@ func main() {
 		}
 		if err = (&novav1beta1.NovaConductor{}).SetupWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "NovaConductor")
-			os.Exit(1)
-		}
-		if err = (&novav1beta1.NovaExternalCompute{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "NovaExternalCompute")
 			os.Exit(1)
 		}
 		if err = (&novav1beta1.NovaMetadata{}).SetupWebhookWithManager(mgr); err != nil {

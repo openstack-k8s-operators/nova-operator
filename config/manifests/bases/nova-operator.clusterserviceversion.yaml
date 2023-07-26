@@ -28,12 +28,6 @@ spec:
       kind: NovaConductor
       name: novaconductors.nova.openstack.org
       version: v1beta1
-    - description: NovaExternalCompute is the Schema for the novaexternalcomputes
-        API
-      displayName: Nova External Compute
-      kind: NovaExternalCompute
-      name: novaexternalcomputes.nova.openstack.org
-      version: v1beta1
     - description: NovaMetadata is the Schema for the novametadata API
       displayName: Nova Metadata
       kind: NovaMetadata

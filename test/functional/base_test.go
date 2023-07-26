@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/uuid"
 	. "github.com/onsi/gomega"
 	routev1 "github.com/openshift/api/route/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -30,7 +29,6 @@ import (
 
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
-	aee "github.com/openstack-k8s-operators/openstack-ansibleee-operator/api/v1alpha1"
 )
 
 const (
@@ -367,77 +365,6 @@ func NovaSchedulerNotExists(name types.NamespacedName) {
 	}, consistencyTimeout, interval).Should(Succeed())
 }
 
-func GetDefaultNovaExternalComputeSpec(novaName string, computeName string) map[string]interface{} {
-	return map[string]interface{}{
-		"novaInstance":           novaName,
-		"inventoryConfigMapName": computeName + "-inventory-configmap",
-		"sshKeySecretName":       computeName + "-ssh-key-secret",
-		"networkAttachments":     []string{"internalapi"},
-	}
-}
-
-func CreateNovaExternalCompute(name types.NamespacedName, spec map[string]interface{}) client.Object {
-	raw := map[string]interface{}{
-		"apiVersion": "nova.openstack.org/v1beta1",
-		"kind":       "NovaExternalCompute",
-		"metadata": map[string]interface{}{
-			"name":      name.Name,
-			"namespace": name.Namespace,
-		},
-		"spec": spec,
-	}
-	return th.CreateUnstructured(raw)
-}
-
-func GetNovaExternalCompute(name types.NamespacedName) *novav1.NovaExternalCompute {
-	instance := &novav1.NovaExternalCompute{}
-
-	Eventually(func(g Gomega) {
-		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
-	}, timeout, interval).Should(Succeed())
-	return instance
-}
-
-func NovaExternalComputeConditionGetter(name types.NamespacedName) condition.Conditions {
-	instance := GetNovaExternalCompute(name)
-	return instance.Status.Conditions
-}
-
-func CreateNovaExternalComputeInventoryConfigMap(name types.NamespacedName) client.Object {
-
-	return th.CreateConfigMap(
-		name, map[string]interface{}{"inventory": "an ansible inventory"})
-}
-
-func CreateNovaExternalComputeSSHSecret(name types.NamespacedName) *corev1.Secret {
-	return th.CreateSecret(
-		name,
-		map[string][]byte{
-			"ssh-privatekey": []byte("a private key"),
-		},
-	)
-}
-
-func GetAEE(name types.NamespacedName) *aee.OpenStackAnsibleEE {
-	instance := &aee.OpenStackAnsibleEE{}
-
-	Eventually(func(g Gomega) {
-		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
-	}, timeout, interval).Should(Succeed())
-	return instance
-}
-
-func SimulateAEESucceeded(name types.NamespacedName) {
-	Eventually(func(g Gomega) {
-		ansibleEE := GetAEE(name)
-		ansibleEE.Status.JobStatus = "Succeeded"
-		g.Expect(k8sClient.Status().Update(ctx, ansibleEE)).To(Succeed())
-
-	}, timeout, interval).Should(Succeed())
-
-	logger.Info("Simulated AEE success", "on", name)
-}
-
 type CellNames struct {
 	CellName                         types.NamespacedName
 	MariaDBDatabaseName              types.NamespacedName
@@ -536,7 +463,6 @@ type NovaNames struct {
 	AdminNovaServiceName    types.NamespacedName
 	InternalNovaRouteName   types.NamespacedName
 	PublicNovaRouteName     types.NamespacedName
-	ComputeName             types.NamespacedName
 	KeystoneServiceName     types.NamespacedName
 	APIName                 types.NamespacedName
 	APIMariaDBDatabaseName  types.NamespacedName
@@ -571,10 +497,6 @@ func GetNovaNames(novaName types.NamespacedName, cellNames []string) NovaNames {
 	// These **must** replicate existing Nova*/Dataplane controllers suffixing/prefixing logic.
 	// While dynamic UUIDs also provide enhanced testing coverage for "synthetic" cases,
 	// which could not be caught for normal names with static "nova" prefixes.
-	computeExt := types.NamespacedName{
-		Namespace: novaName.Namespace,
-		Name:      uuid.New().String(),
-	}
 	novaAPI := types.NamespacedName{
 		Namespace: novaName.Namespace,
 		Name:      fmt.Sprintf("%s-api", novaName.Name),
@@ -615,7 +537,6 @@ func GetNovaNames(novaName types.NamespacedName, cellNames []string) NovaNames {
 			Namespace: novaName.Namespace,
 			Name:      "nova-public",
 		},
-		ComputeName: computeExt,
 		KeystoneServiceName: types.NamespacedName{
 			Namespace: novaName.Namespace,
 			Name:      "nova", // static value hardcoded in controller code

@@ -30,9 +30,6 @@ const (
 	NovaMetadataContainerImage  = "quay.io/podified-antelope-centos9/openstack-nova-api:current-podified"
 	NovaNoVNCContainerImage     = "quay.io/podified-antelope-centos9/openstack-nova-novncproxy:current-podified"
 	NovaSchedulerContainerImage = "quay.io/podified-antelope-centos9/openstack-nova-scheduler:current-podified"
-	NovaComputeContainerImage   = "quay.io/podified-antelope-centos9/openstack-nova-compute:current-podified"
-	NovaLibvirtContainerImage   = "quay.io/podified-antelope-centos9/openstack-nova-libvirt:current-podified"
-	AnsibleEEContainerImage     = "quay.io/openstack-k8s-operators/openstack-ansibleee-runner:latest"
 )
 
 // NovaServiceBase contains the fields that are needed for each nova service CRD
@@ -189,15 +186,6 @@ func SetupDefaults() {
 	}
 
 	SetupNovaConductorDefaults(novaConductorDefaults)
-
-	// Acquire environmental defaults and initialize NovaExternalCompute defaults with them
-	novaExternalComputeDefaults := NovaExternalComputeDefaults{
-		ComputeContainerImageURL:   util.GetEnvVar("RELATED_IMAGE_NOVA_COMPUTE_IMAGE_URL_DEFAULT", NovaComputeContainerImage),
-		LibvirtContainerImageURL:   util.GetEnvVar("RELATED_IMAGE_NOVA_LIBVIRT_IMAGE_URL_DEFAULT", NovaLibvirtContainerImage),
-		AnsibleEEContainerImageURL: util.GetEnvVar("RELATED_IMAGE_NOVA_ANSIBLE_EE_IMAGE_URL_DEFAULT", AnsibleEEContainerImage),
-	}
-
-	SetupNovaExternalComputeDefaults(novaExternalComputeDefaults)
 
 	// Acquire environmental defaults and initialize NovaMetadata defaults with them
 	novaMetadataDefaults := NovaMetadataDefaults{

@@ -54,7 +54,6 @@ import (
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/nova-operator/controllers"
-	aee "github.com/openstack-k8s-operators/openstack-ansibleee-operator/api/v1alpha1"
 
 	. "github.com/openstack-k8s-operators/lib-common/modules/test/helpers"
 	//+kubebuilder:scaffold:imports
@@ -108,9 +107,6 @@ var _ = BeforeSuite(func() {
 	networkv1CRD, err := test.GetCRDDirFromModule(
 		"github.com/k8snetworkplumbingwg/network-attachment-definition-client", gomod, "artifacts/networks-crd.yaml")
 	Expect(err).ShouldNot(HaveOccurred())
-	aeeCRDs, err := test.GetCRDDirFromModule(
-		"github.com/openstack-k8s-operators/openstack-ansibleee-operator/api", gomod, "bases")
-	Expect(err).ShouldNot(HaveOccurred())
 
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
@@ -121,7 +117,6 @@ var _ = BeforeSuite(func() {
 			keystoneCRDs,
 			rabbitCRDs,
 			routev1CRDs,
-			aeeCRDs,
 		},
 		CRDInstallOptions: envtest.CRDInstallOptions{
 			Paths: []string{
@@ -162,8 +157,6 @@ var _ = BeforeSuite(func() {
 	err = rabbitmqv1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 	err = networkv1.AddToScheme(scheme.Scheme)
-	Expect(err).NotTo(HaveOccurred())
-	err = aee.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 	err = rbacv1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
@@ -216,8 +209,6 @@ var _ = BeforeSuite(func() {
 	err = (&novav1.NovaCell{}).SetupWebhookWithManager(k8sManager)
 	Expect(err).NotTo(HaveOccurred())
 	err = (&novav1.NovaConductor{}).SetupWebhookWithManager(k8sManager)
-	Expect(err).NotTo(HaveOccurred())
-	err = (&novav1.NovaExternalCompute{}).SetupWebhookWithManager(k8sManager)
 	Expect(err).NotTo(HaveOccurred())
 	err = (&novav1.NovaMetadata{}).SetupWebhookWithManager(k8sManager)
 	Expect(err).NotTo(HaveOccurred())

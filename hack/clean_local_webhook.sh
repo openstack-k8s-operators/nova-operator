@@ -9,8 +9,6 @@ oc delete validatingwebhookconfiguration/vnovacell.kb.io --ignore-not-found
 oc delete mutatingwebhookconfiguration/mnovacell.kb.io --ignore-not-found
 oc delete validatingwebhookconfiguration/vnovaconductor.kb.io --ignore-not-found
 oc delete mutatingwebhookconfiguration/mnovaconductor.kb.io --ignore-not-found
-oc delete validatingwebhookconfiguration/vnovaexternalcompute.kb.io --ignore-not-found
-oc delete mutatingwebhookconfiguration/mnovaexternalcompute.kb.io --ignore-not-found
 oc delete validatingwebhookconfiguration/vnovametadata.kb.io --ignore-not-found
 oc delete mutatingwebhookconfiguration/mnovametadata.kb.io --ignore-not-found
 oc delete validatingwebhookconfiguration/vnovanovncproxy.kb.io --ignore-not-found
