@@ -13,11 +13,9 @@ require (
 	github.com/openstack-k8s-operators/keystone-operator/api v0.1.1-0.20230814191321-13dac2395fc0
 	github.com/openstack-k8s-operators/lib-common/modules/common v0.1.1-0.20230811131408-7be84c6eae21
 	github.com/openstack-k8s-operators/lib-common/modules/database v0.1.1-0.20230811131408-7be84c6eae21
-	github.com/openstack-k8s-operators/lib-common/modules/storage v0.1.1-0.20230811131408-7be84c6eae21
 	github.com/openstack-k8s-operators/lib-common/modules/test v0.1.2-0.20230731040448-903adc91d330
 	github.com/openstack-k8s-operators/mariadb-operator/api v0.1.1-0.20230809092129-21af8a109394
 	github.com/openstack-k8s-operators/nova-operator/api v0.0.0-20221209164002-f9e6b9363961
-	github.com/openstack-k8s-operators/openstack-ansibleee-operator/api v0.1.1-0.20230811185952-ac0404d40f5b
 	go.uber.org/zap v1.25.0
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.26.7

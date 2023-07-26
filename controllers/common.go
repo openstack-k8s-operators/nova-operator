@@ -54,14 +54,11 @@ const (
 	// NovaSchedulerLabelPrefix - a unique, service binary specific prefix for
 	// the labels the NovaScheduler controller uses on children objects
 	NovaSchedulerLabelPrefix = "nova-scheduler"
-	// NovaExternalComputeLabelPrefix - a unique, prefix used for the AEE CR
-	// and other children objects created to mange external computes
-	NovaExternalComputeLabelPrefix = "nova-external-compute"
 	// NovaCellLabelPrefix - a unique, prefix used for the compute config
 	// Secret
 	NovaCellLabelPrefix = "nova-cell"
-	// NovaLabelPrefix - a unique, prefix used for the playbooks owned by
-	// the nova operator
+	// NovaLabelPrefix - a unique, prefix used for labels on Nova CR level jobs
+	// and Secrets
 	NovaLabelPrefix = "nova"
 	// NovaMetadataLabelPrefix - a unique, service binary specific prefix for
 	// the labels the NovaMetadata controller uses on children objects
@@ -355,9 +352,6 @@ func NewReconcilers(mgr ctrl.Manager, kclient *kubernetes.Clientset) *Reconciler
 			},
 			"NovaNoVNCProxy": &NovaNoVNCProxyReconciler{
 				ReconcilerBase: NewReconcilerBase("NovaNoVNCProxy", mgr, kclient),
-			},
-			"NovaExternalCompute": &NovaExternalComputeReconciler{
-				ReconcilerBase: NewReconcilerBase("NovaExternalCompute", mgr, kclient),
 			},
 		}}
 }

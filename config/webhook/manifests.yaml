@@ -91,26 +91,6 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
-      path: /mutate-nova-openstack-org-v1beta1-novaexternalcompute
-  failurePolicy: Fail
-  name: mnovaexternalcompute.kb.io
-  rules:
-  - apiGroups:
-    - nova.openstack.org
-    apiVersions:
-    - v1beta1
-    operations:
-    - CREATE
-    - UPDATE
-    resources:
-    - novaexternalcomputes
-  sideEffects: None
-- admissionReviewVersions:
-  - v1
-  clientConfig:
-    service:
-      name: webhook-service
-      namespace: system
       path: /mutate-nova-openstack-org-v1beta1-novametadata
   failurePolicy: Fail
   name: mnovametadata.kb.io
@@ -251,26 +231,6 @@ webhooks:
     - UPDATE
     resources:
     - novaconductors
-  sideEffects: None
-- admissionReviewVersions:
-  - v1
-  clientConfig:
-    service:
-      name: webhook-service
-      namespace: system
-      path: /validate-nova-openstack-org-v1beta1-novaexternalcompute
-  failurePolicy: Fail
-  name: vnovaexternalcompute.kb.io
-  rules:
-  - apiGroups:
-    - nova.openstack.org
-    apiVersions:
-    - v1beta1
-    operations:
-    - CREATE
-    - UPDATE
-    resources:
-    - novaexternalcomputes
   sideEffects: None
 - admissionReviewVersions:
   - v1
