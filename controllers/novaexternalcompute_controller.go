@@ -699,8 +699,7 @@ func initAEE(
 ) {
 	ansibleEE.Spec.Image = instance.Spec.AnsibleEEContainerImage
 	ansibleEE.Spec.DNSConfig = instance.Spec.DNSConfig
-	// TODO we don't currently have this on the NovaExternalComputeCR
-	// ansibleEE.Spec.NetworkAttachments = instance.Spec.NetworkAttachments
+	ansibleEE.Spec.NetworkAttachments = instance.Spec.NetworkAttachments
 	ansibleEE.Spec.Playbook = playbook
 	ansibleEE.Spec.Env = []corev1.EnvVar{
 		{Name: "ANSIBLE_FORCE_COLOR", Value: "True"},

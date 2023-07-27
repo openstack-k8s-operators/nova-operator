@@ -138,6 +138,7 @@ var _ = Describe("NovaExternalCompute", func() {
 		})
 
 		It("creates AnsibleEE for libvirt", func() {
+			compute := GetNovaExternalCompute(novaNames.ComputeName)
 			// TODO(gibi): assert more fields on AnsibleEE
 			libvirtAEE := GetAEE(libvirtAEEName)
 			Expect(libvirtAEE.Spec.ExtraMounts).To(HaveLen(1))
@@ -145,9 +146,11 @@ var _ = Describe("NovaExternalCompute", func() {
 			configVol := &corev1.Volume{}
 			Expect(extraMounts.Volumes).To(ContainElement(HaveField("Name", "compute-configs"), configVol))
 			Expect(configVol.VolumeSource.Secret.SecretName).To(Equal(novaNames.ComputeName.Name + "-config-data"))
+			Expect(libvirtAEE.Spec.NetworkAttachments).To(Equal(compute.Spec.NetworkAttachments))
 		})
 
 		It("creates AnsibleEE for nova", func() {
+			compute := GetNovaExternalCompute(novaNames.ComputeName)
 			// TODO(gibi): assert more fields on AnsibleEE
 			novaAEE := GetAEE(novaAEEName)
 			Expect(novaAEE.Spec.ExtraMounts).To(HaveLen(1))
@@ -155,6 +158,7 @@ var _ = Describe("NovaExternalCompute", func() {
 			configVol := &corev1.Volume{}
 			Expect(extraMounts.Volumes).To(ContainElement(HaveField("Name", "compute-configs"), configVol))
 			Expect(configVol.VolumeSource.Secret.SecretName).To(Equal(novaNames.ComputeName.Name + "-config-data"))
+			Expect(novaAEE.Spec.NetworkAttachments).To(Equal(compute.Spec.NetworkAttachments))
 		})
 
 		It("is Ready", func() {
