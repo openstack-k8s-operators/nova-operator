@@ -207,6 +207,7 @@ func CreateNovaMessageBusSecret(cell CellNames) *corev1.Secret {
 
 func GetDefaultNovaCellSpec(cell CellNames) map[string]interface{} {
 	return map[string]interface{}{
+
 		"cellName":             cell.CellName,
 		"secret":               cell.InternalCellSecretName.Name,
 		"cellDatabaseHostname": "cell-database-hostname",
@@ -338,6 +339,9 @@ type CellNames struct {
 	InternalCellSecretName           types.NamespacedName
 	InternalAPINetworkNADName        types.NamespacedName
 	ComputeConfigSecretName          types.NamespacedName
+	NovaComputeIronicName            types.NamespacedName
+	NovaComputeIronicStatefulSetName types.NamespacedName
+	NovaComputeIronicConfigDataName  types.NamespacedName
 }
 
 func GetCellNames(novaName types.NamespacedName, cell string) CellNames {
@@ -356,6 +360,10 @@ func GetCellNames(novaName types.NamespacedName, cell string) CellNames {
 	novncproxyName := types.NamespacedName{
 		Namespace: novaName.Namespace,
 		Name:      cellName.Name + "-novncproxy",
+	}
+	novaComputeIronic := types.NamespacedName{
+		Namespace: novaName.Namespace,
+		Name:      cellName.Name + "-compute-ironic",
 	}
 
 	c := CellNames{
@@ -402,6 +410,10 @@ func GetCellNames(novaName types.NamespacedName, cell string) CellNames {
 		CellNoVNCProxyNameConfigDataName: types.NamespacedName{
 			Namespace: novaName.Namespace,
 			Name:      cellName.Name + "-novncproxy" + "-config-data",
+		},
+		NovaComputeIronicConfigDataName: types.NamespacedName{
+			Namespace: novaComputeIronic.Namespace,
+			Name:      cellName.Name + "-compute-ironic" + "-config-data",
 		},
 		InternalCellSecretName: cellName,
 		InternalAPINetworkNADName: types.NamespacedName{

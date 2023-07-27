@@ -206,14 +206,19 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 
 	} else {
 		instance.Status.Conditions.Remove(novav1.NovaComputeServiceConfigReady)
+	}
 
-	if instance.Spec.CellName != novav1.Cell0Name {
-		result, err = r.ensureNovaComputeIronic(ctx, h, instance)
-		if err != nil {
-			return result, err
-		}
+	if len(instance.Spec.NovaComputeTemplates) == 0 {
+		instance.Status.Conditions.Remove(novav1.NovaComputeReadyCondition)
 	} else {
-		instance.Status.Conditions.Remove(novav1.NovaComputeIronicReadyCondition)
+		for _, computeTemplate := range instance.Spec.NovaComputeTemplates {
+			if instance.Spec.CellName != novav1.Cell0Name {
+				result, err = r.ensureNovaCompute(ctx, h, instance, computeTemplate)
+				if err != nil {
+					return result, err
+				}
+			}
+		}
 	}
 
 	util.LogForObject(h, "Successfully reconciled", instance)
@@ -267,13 +272,11 @@ func (r *NovaCellReconciler) initConditions(
 				novav1.NovaComputeServiceConfigReady,
 				condition.InitReason,
 				novav1.NovaComputeServiceConfigInitMessage,
-
 			),
 			condition.UnknownCondition(
 				novav1.NovaComputeIronicReadyCondition,
 				condition.InitReason,
 				novav1.NovaComputeIronicReadyInitMessage,
-
 			),
 		)
 		instance.Status.Conditions.Init(&cl)
@@ -583,7 +586,6 @@ func (r *NovaCellReconciler) ensureComputeConfig(
 	return ctrl.Result{}, nil
 }
 
-
 func (r *NovaCellReconciler) ensureNovaComputeIronic(
 	ctx context.Context,
 	h *helper.Helper,
@@ -592,7 +594,7 @@ func (r *NovaCellReconciler) ensureNovaComputeIronic(
 	novacomputeironicSpec := novav1.NewNovaComputeIronicSpec(instance.Spec)
 	novacomputeironic := &novav1.NovaComputeIronic{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      instance.Name + "-novacomputeironic",
+			Name:      instance.Name + "-compute-ironic",
 			Namespace: instance.Namespace,
 		},
 	}
@@ -709,7 +711,6 @@ func (r *NovaCellReconciler) getVNCProxyURL(
 
 	return ptr.To(vncProxyURL), nil
 }
-
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *NovaCellReconciler) SetupWithManager(mgr ctrl.Manager) error {
