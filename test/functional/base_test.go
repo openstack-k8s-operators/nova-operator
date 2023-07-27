@@ -371,6 +371,7 @@ func GetDefaultNovaExternalComputeSpec(novaName string, computeName string) map[
 		"novaInstance":           novaName,
 		"inventoryConfigMapName": computeName + "-inventory-configmap",
 		"sshKeySecretName":       computeName + "-ssh-key-secret",
+		"networkAttachments":     []string{"internalapi"},
 	}
 }
 
