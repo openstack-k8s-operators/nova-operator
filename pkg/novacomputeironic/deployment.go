@@ -26,7 +26,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 // StatefulSet - returns the StatefulSet definition for the nova-compute-ironic service
@@ -77,14 +76,21 @@ func StatefulSet(
 		}
 	} else {
 		args = append(args, nova.KollaServiceCommand)
-		livenessProbe.HTTPGet = &corev1.HTTPGetAction{
-			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(APIServicePort)},
+		livenessProbe.Exec = &corev1.ExecAction{
+			Command: []string{
+				"/bin/true",
+			},
 		}
-		readinessProbe.HTTPGet = &corev1.HTTPGetAction{
-			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(APIServicePort)},
+
+		readinessProbe.Exec = &corev1.ExecAction{
+			Command: []string{
+				"/bin/true",
+			},
 		}
-		startupProbe.HTTPGet = &corev1.HTTPGetAction{
-			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(APIServicePort)},
+		startupProbe.Exec = &corev1.ExecAction{
+			Command: []string{
+				"/bin/true",
+			},
 		}
 	}
 
@@ -146,7 +152,7 @@ func StatefulSet(
 							LivenessProbe:  livenessProbe,
 						},
 						{
-							Name: instance.Name + "-computeironic",
+							Name: instance.Name + "-compute-ironic",
 							Command: []string{
 								"/bin/bash",
 							},

@@ -47,10 +47,14 @@ const (
 	NovaMetadataReadyCondition condition.Type = "NovaMetadataReady"
 	// NovaNoVNCProxyReadyCondition indicates when the given NoVNCProxy instance is Ready
 	NovaNoVNCProxyReadyCondition condition.Type = "NovaNoVNCProxyReady"
+<<<<<<< HEAD
 	// NovaComputeServiceConfigReady indicates when the compute service config
 	// is ready for the given NovaCell
 	NovaComputeServiceConfigReady condition.Type = "NovaComputeServiceConfigReady"
 	// NovaComputeIronicReadyCondition indicates when the given NoVNCProxy instance is Ready
+=======
+	// NovaComputeIronicReadyCondition indicates when the given NovaComputeIronic instance is Ready
+>>>>>>> 549da277 ([ironic-compute] Remove ExternalEndpoints and correct log files)
 	NovaComputeIronicReadyCondition condition.Type = "NovaComputeIronicReady"
 )
 
@@ -161,9 +165,9 @@ const (
 	//NovaComputeServiceConfigErrorMessage
 	NovaComputeServiceConfigErrorMessage = "Compute service config generation error occurred %s"
 
-	//NovaNoVNCProxyReadyInitMessage
+	//NovaComputeIronicReadyInitMessage
 	NovaComputeIronicReadyInitMessage = "NovaComputeIronic not started"
 
-	//NovaNoVNCProxyReadyErrorMessage
+	//NovaComputeIronicReadyErrorMessage
 	NovaComputeIronicReadyErrorMessage = "NovaComputeIronic error occurred %s"
 )
