@@ -19,7 +19,7 @@ package novacomputeironic
 const (
 	// MergedServiceConfigPath - The location of the merged configuration file
 	// for the service
-	MergedServiceConfigPath = "/var/lib/openstack/config/nova-api-config.json"
+	MergedServiceConfigPath = "/var/lib/openstack/config/nova-compute-ironic.json"
 	//APIServicePort - The port the nova-api service is exposed on
 	APIServicePort = 8774
 	// ServiceName - The name of the service exposed to k8s

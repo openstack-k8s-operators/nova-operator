@@ -120,10 +120,6 @@ type NovaComputeIronicSpec struct {
 	// NovaServiceBase specifies the generic fields of the service
 	NovaServiceBase `json:",inline"`
 
-	// +kubebuilder:validation:Optional
-	// ExternalEndpoints, expose a VIP via MetalLB on the pre-created address pool
-	ExternalEndpoints []MetalLBConfig `json:"externalEndpoints,omitempty"`
-
 	// +kubebuilder:validation:Required
 	// ServiceAccount - service account name used internally to provide Nova services the default SA name
 	ServiceAccount string `json:"serviceAccount"`
@@ -190,12 +186,12 @@ func NewNovaComputeIronicSpec(
 	novaCell NovaCellSpec,
 ) NovaComputeIronicSpec {
 	novaironicSpec := NovaComputeIronicSpec{
-		CellName:                novaCell.CellName,
-		Secret:                  novaCell.Secret,
+		CellName:                 novaCell.CellName,
+		Secret:                   novaCell.Secret,
 		CellDatabaseHostname:     novaCell.CellDatabaseHostname,
 		CellDatabaseUser:         novaCell.CellDatabaseUser,
 		CellMessageBusSecretName: novaCell.CellMessageBusSecretName,
-		Debug:                   novaCell.Debug,
+		Debug:                    novaCell.Debug,
 		NovaServiceBase: NovaServiceBase{
 			ContainerImage:         novaCell.NovaComputeIronicServiceTemplate.ContainerImage,
 			Replicas:               novaCell.NovaComputeIronicServiceTemplate.Replicas,
@@ -208,7 +204,6 @@ func NewNovaComputeIronicSpec(
 		KeystoneAuthURL:   novaCell.KeystoneAuthURL,
 		ServiceUser:       novaCell.ServiceUser,
 		ServiceAccount:    novaCell.ServiceAccount,
-		ExternalEndpoints: novaCell.NovaComputeIronicServiceTemplate.ExternalEndpoints,
 	}
 	return novaironicSpec
 }
