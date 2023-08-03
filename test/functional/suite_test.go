@@ -215,7 +215,7 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	err = (&novav1.NovaScheduler{}).SetupWebhookWithManager(k8sManager)
 	Expect(err).NotTo(HaveOccurred())
-	err = (&novav1.NovaComputeIronic{}).SetupWebhookWithManager(k8sManager)
+	err = (&novav1.NovaCompute{}).SetupWebhookWithManager(k8sManager)
 	Expect(err).NotTo(HaveOccurred())
 
 	go func() {

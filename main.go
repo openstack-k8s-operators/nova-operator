@@ -164,8 +164,9 @@ func main() {
 
 		checker = mgr.GetWebhookServer().StartedChecker()
 
-		if err = (&novav1beta1.NovaComputeIronic{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "NovaComputeIronic")
+
+		if err = (&novav1beta1.NovaCompute{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "NovaCompute")
 			os.Exit(1)
 		}
 	}

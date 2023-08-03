@@ -207,12 +207,12 @@ func CreateNovaMessageBusSecret(cell CellNames) *corev1.Secret {
 
 func GetDefaultNovaCellSpec(cell CellNames) map[string]interface{} {
 	return map[string]interface{}{
-
-		"cellName":             cell.CellName,
-		"secret":               cell.InternalCellSecretName.Name,
-		"cellDatabaseHostname": "cell-database-hostname",
-		"keystoneAuthURL":      "keystone-auth-url",
-		"serviceAccount":       "nova",
+		"cellName":                 cellName,
+		"secret":                   SecretName,
+		"cellDatabaseHostname":     "cell-database-hostname",
+		"cellMessageBusSecretName": MessageBusSecretName,
+		"keystoneAuthURL":          "keystone-auth-url",
+		"serviceAccount":           "nova",
 	}
 }
 
@@ -339,9 +339,9 @@ type CellNames struct {
 	InternalCellSecretName           types.NamespacedName
 	InternalAPINetworkNADName        types.NamespacedName
 	ComputeConfigSecretName          types.NamespacedName
-	NovaComputeIronicName            types.NamespacedName
-	NovaComputeIronicStatefulSetName types.NamespacedName
-	NovaComputeIronicConfigDataName  types.NamespacedName
+	NovaComputeName                  types.NamespacedName
+	NovaComputeStatefulSetName       types.NamespacedName
+	NovaComputeConfigDataName        types.NamespacedName
 }
 
 func GetCellNames(novaName types.NamespacedName, cell string) CellNames {
@@ -361,9 +361,9 @@ func GetCellNames(novaName types.NamespacedName, cell string) CellNames {
 		Namespace: novaName.Namespace,
 		Name:      cellName.Name + "-novncproxy",
 	}
-	novaComputeIronic := types.NamespacedName{
+	novaCompute := types.NamespacedName{
 		Namespace: novaName.Namespace,
-		Name:      cellName.Name + "-compute-ironic",
+		Name:      cellName.Name + "-compute",
 	}
 
 	c := CellNames{
@@ -411,9 +411,9 @@ func GetCellNames(novaName types.NamespacedName, cell string) CellNames {
 			Namespace: novaName.Namespace,
 			Name:      cellName.Name + "-novncproxy" + "-config-data",
 		},
-		NovaComputeIronicConfigDataName: types.NamespacedName{
-			Namespace: novaComputeIronic.Namespace,
-			Name:      cellName.Name + "-compute-ironic" + "-config-data",
+		NovaComputeConfigDataName: types.NamespacedName{
+			Namespace: novaCompute.Namespace,
+			Name:      cellName.Name + "-compute" + "-config-data",
 		},
 		InternalCellSecretName: cellName,
 		InternalAPINetworkNADName: types.NamespacedName{
@@ -454,6 +454,11 @@ type NovaNames struct {
 	SchedulerName                   types.NamespacedName
 	SchedulerStatefulSetName        types.NamespacedName
 	SchedulerConfigDataName         types.NamespacedName
+	ConductorName                   types.NamespacedName
+	ConductorDBSyncJobName          types.NamespacedName
+	ConductorStatefulSetName        types.NamespacedName
+	ConductorConfigDataName         types.NamespacedName
+	ConductorScriptDataName         types.NamespacedName
 	MetadataName                    types.NamespacedName
 	MetadataStatefulSetName         types.NamespacedName
 	MetadataNeutronConfigDataName   types.NamespacedName
@@ -484,9 +489,9 @@ func GetNovaNames(novaName types.NamespacedName, cellNames []string) NovaNames {
 		Name:      fmt.Sprintf("%s-metadata", novaName.Name),
 	}
 
-	novaComputeIronic := types.NamespacedName{
+	novaCompute := types.NamespacedName{
 		Namespace: novaName.Namespace,
-		Name:      fmt.Sprintf("%s-compute-ironic", novaName.Name),
+		Name:      fmt.Sprintf("%s-compute", novaName.Name),
 	}
 
 	cells := map[string]CellNames{}
@@ -534,8 +539,24 @@ func GetNovaNames(novaName types.NamespacedName, cellNames []string) NovaNames {
 			Namespace: novaScheduler.Namespace,
 			Name:      novaScheduler.Name + "-config-data",
 		},
-		MetadataName:            novaMetadata,
-		MetadataStatefulSetName: novaMetadata,
+		ConductorName: novaConductor,
+		ConductorDBSyncJobName: types.NamespacedName{
+			Namespace: novaConductor.Namespace,
+			Name:      novaConductor.Name + "-db-sync",
+		},
+		ConductorStatefulSetName: novaConductor,
+		ConductorConfigDataName: types.NamespacedName{
+			Namespace: novaConductor.Namespace,
+			Name:      novaConductor.Name + "-config-data",
+		},
+		ConductorScriptDataName: types.NamespacedName{
+			Namespace: novaConductor.Namespace,
+			Name:      novaConductor.Name + "-scripts",
+		},
+		MetadataName:               novaMetadata,
+		MetadataStatefulSetName:    novaMetadata,
+		NovaComputeName:            novaCompute,
+		NovaComputeStatefulSetName: novaCompute,
 		ServiceAccountName: types.NamespacedName{
 			Namespace: novaName.Namespace,
 			Name:      "nova-" + novaName.Name,

@@ -80,9 +80,9 @@ type NovaCellTemplate struct {
 	NoVNCProxyServiceTemplate NovaNoVNCProxyTemplate `json:"noVNCProxyServiceTemplate"`
 
 	// +kubebuilder:validation:Optional
-	// NovaComputeIronicServiceTemplate - defines the novvncproxy service dedicated for
+	// NovaComputeServiceTemplate - defines the novvncproxy service dedicated for
 	// the cell.
-	NovaComputeIronicServiceTemplate NovaComputeIronicTemplate `json:"novaComputeIronicServiceTemplate"`
+	NovaComputeServiceTemplate NovaComputeTemplate `json:"novaComputeServiceTemplate"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default={database: NovaCell0DatabasePassword}
@@ -167,9 +167,9 @@ type NovaCellSpec struct {
 	NoVNCProxyServiceTemplate NovaNoVNCProxyTemplate `json:"noVNCProxyServiceTemplate"`
 
 	// +kubebuilder:validation:Required
-	// NovaComputeIronicServiceTemplate - defines the novvncproxy service dedicated for
+	// NovaComputeServiceTemplate - defines the novvncproxy service dedicated for
 	// the cell.
-	NovaComputeIronicServiceTemplate NovaComputeIronicTemplate `json:"novaComputeIronicServiceTemplate"`
+	NovaComputeServiceTemplate NovaComputeTemplate `json:"NovaComputeTemplate"`
 
 	// +kubebuilder:validation:Required
 	// ServiceAccount - service account name used internally to provide Nova services the default SA name

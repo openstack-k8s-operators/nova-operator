@@ -274,9 +274,9 @@ func (r *NovaCellReconciler) initConditions(
 				novav1.NovaComputeServiceConfigInitMessage,
 			),
 			condition.UnknownCondition(
-				novav1.NovaComputeIronicReadyCondition,
+				novav1.NovaComputeReadyCondition,
 				condition.InitReason,
-				novav1.NovaComputeIronicReadyInitMessage,
+				novav1.NovaComputeReadyInitMessage,
 			),
 		)
 		instance.Status.Conditions.Init(&cl)
@@ -586,25 +586,25 @@ func (r *NovaCellReconciler) ensureComputeConfig(
 	return ctrl.Result{}, nil
 }
 
-func (r *NovaCellReconciler) ensureNovaComputeIronic(
+func (r *NovaCellReconciler) ensureNovaCompute(
 	ctx context.Context,
 	h *helper.Helper,
 	instance *novav1.NovaCell,
 ) (ctrl.Result, error) {
-	novacomputeironicSpec := novav1.NewNovaComputeIronicSpec(instance.Spec)
-	novacomputeironic := &novav1.NovaComputeIronic{
+	novacomputeSpec := novav1.NewNovaComputeSpec(instance.Spec)
+	novacompute := &novav1.NovaCompute{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      instance.Name + "-compute-ironic",
+			Name:      instance.Name + "-compute",
 			Namespace: instance.Namespace,
 		},
 	}
 
-	op, err := controllerutil.CreateOrPatch(ctx, r.Client, novacomputeironic, func() error {
-		novacomputeironic.Spec = novacomputeironicSpec
-		if len(novacomputeironic.Spec.NodeSelector) == 0 {
-			novacomputeironic.Spec.NodeSelector = instance.Spec.NodeSelector
+	op, err := controllerutil.CreateOrPatch(ctx, r.Client, novacompute, func() error {
+		novacompute.Spec = novacomputeSpec
+		if len(novacompute.Spec.NodeSelector) == 0 {
+			novacompute.Spec.NodeSelector = instance.Spec.NodeSelector
 		}
-		err := controllerutil.SetControllerReference(instance, novacomputeironic, r.Scheme)
+		err := controllerutil.SetControllerReference(instance, novacompute, r.Scheme)
 		if err != nil {
 			return err
 		}
@@ -614,20 +614,20 @@ func (r *NovaCellReconciler) ensureNovaComputeIronic(
 
 	if err != nil {
 		condition.FalseCondition(
-			novav1.NovaComputeIronicReadyCondition,
+			novav1.NovaComputeReadyCondition,
 			condition.ErrorReason,
 			condition.SeverityError,
-			novav1.NovaComputeIronicReadyErrorMessage,
+			novav1.NovaComputeReadyErrorMessage,
 			err.Error(),
 		)
 		return ctrl.Result{}, err
 	}
 
 	if op != controllerutil.OperationResultNone {
-		util.LogForObject(h, fmt.Sprintf("NovaComputeIronic %s.", string(op)), instance, "NovaComputeIronic.Name", novacomputeironic.Name)
+		util.LogForObject(h, fmt.Sprintf("NovaCompute %s.", string(op)), instance, "NovaCompute.Name", novacompute.Name)
 	}
 
-	c := novacomputeironic.Status.Conditions.Mirror(novav1.NovaComputeIronicReadyCondition)
+	c := novacompute.Status.Conditions.Mirror(novav1.NovaComputeReadyCondition)
 
 	if c != nil {
 		instance.Status.Conditions.Set(c)
@@ -719,7 +719,7 @@ func (r *NovaCellReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&novav1.NovaConductor{}).
 		Owns(&novav1.NovaMetadata{}).
 		Owns(&novav1.NovaNoVNCProxy{}).
-		Owns(&novav1.NovaComputeIronic{}).
+		Owns(&novav1.NovaCompute{}).
 		// It generates and therefor owns the compute config secret
 		Owns(&corev1.Secret{}).
 		// and it needs to watch the input secrets

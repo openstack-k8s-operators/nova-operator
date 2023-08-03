@@ -71,9 +71,9 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
-      path: /mutate-nova-openstack-org-v1beta1-novacomputeironic
+      path: /mutate-nova-openstack-org-v1beta1-novacompute
   failurePolicy: Fail
-  name: mnovacomputeironic.kb.io
+  name: mnovacompute.kb.io
   rules:
   - apiGroups:
     - nova.openstack.org
@@ -83,7 +83,7 @@ webhooks:
     - CREATE
     - UPDATE
     resources:
-    - novacomputeironics
+    - novacomputes
   sideEffects: None
 - admissionReviewVersions:
   - v1
@@ -238,9 +238,9 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
-      path: /validate-nova-openstack-org-v1beta1-novacomputeironic
+      path: /validate-nova-openstack-org-v1beta1-novacompute
   failurePolicy: Fail
-  name: vnovacomputeironic.kb.io
+  name: vnovacompute.kb.io
   rules:
   - apiGroups:
     - nova.openstack.org
@@ -250,7 +250,7 @@ webhooks:
     - CREATE
     - UPDATE
     resources:
-    - novacomputeironics
+    - novacomputes
   sideEffects: None
 - admissionReviewVersions:
   - v1

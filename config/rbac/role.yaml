@@ -215,7 +215,7 @@ rules:
 - apiGroups:
   - nova.openstack.org
   resources:
-  - novacomputeironics
+  - novacomputes
   verbs:
   - create
   - delete
@@ -227,13 +227,13 @@ rules:
 - apiGroups:
   - nova.openstack.org
   resources:
-  - novacomputeironics/finalizers
+  - novacomputes/finalizers
   verbs:
   - update
 - apiGroups:
   - nova.openstack.org
   resources:
-  - novacomputeironics/status
+  - novacomputes/status
   verbs:
   - get
   - patch

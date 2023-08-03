@@ -123,8 +123,9 @@ func (spec *NovaSpec) Default() {
 				cellTemplate.NoVNCProxyServiceTemplate.Enabled = ptr.To(true)
 			}
 		}
-		if cellTemplate.NovaComputeIronicServiceTemplate.ContainerImage == "" {
-			cellTemplate.NovaComputeIronicServiceTemplate.ContainerImage = novaDefaults.NovaIronicComputeContainerImageURL
+
+		if cellTemplate.NovaComputeServiceTemplate.ContainerImage == "" {
+			cellTemplate.NovaComputeServiceTemplate.ContainerImage = novaDefaults.NovaIronicComputeContainerImageURL
 		}
 
 		// "cellTemplate" is a by-value copy, so we need to re-inject the updated version of it into the map
