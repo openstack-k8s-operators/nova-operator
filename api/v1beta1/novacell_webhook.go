@@ -100,8 +100,8 @@ func (spec *NovaCellSpec) Default() {
 			spec.NoVNCProxyServiceTemplate.Enabled = ptr.To(true)
 		}
 	}
-	if spec.NovaComputeIronicServiceTemplate.ContainerImage == "" {
-		spec.NovaComputeIronicServiceTemplate.ContainerImage = novaCellDefaults.NovaIronicComputeContainerImageURL
+	if spec.NovaComputeServiceTemplate.ContainerImage == "" {
+		spec.NovaComputeServiceTemplate.ContainerImage = novaCellDefaults.NovaIronicComputeContainerImageURL
 	}
 }
 

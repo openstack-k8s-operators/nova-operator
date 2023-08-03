@@ -1049,9 +1049,9 @@ spec:
                       description: NodeSelector to target subset of worker nodes running
                         cell.
                       type: object
-                    novaComputeIronicServiceTemplate:
-                      description: NovaComputeIronicServiceTemplate - defines the
-                        novvncproxy service dedicated for the cell.
+                    novaComputeServiceTemplate:
+                      description: NovaComputeServiceTemplate - defines the novvncproxy
+                        service dedicated for the cell.
                       properties:
                         containerImage:
                           description: ContainerImage - The service specific Container

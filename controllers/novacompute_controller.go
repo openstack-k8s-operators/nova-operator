@@ -41,19 +41,19 @@ import (
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
-	"github.com/openstack-k8s-operators/nova-operator/pkg/novacomputeironic"
+	"github.com/openstack-k8s-operators/nova-operator/pkg/novacompute"
 
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 )
 
-// NovaComputeIronicReconciler reconciles a NovaComputeIronic object
-type NovaComputeIronicReconciler struct {
+// NovaComputeReconciler reconciles a NovaCompute object
+type NovaComputeReconciler struct {
 	ReconcilerBase
 }
 
-//+kubebuilder:rbac:groups=nova.openstack.org,resources=novacomputeironics,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=nova.openstack.org,resources=novacomputeironics/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=nova.openstack.org,resources=novacomputeironics/finalizers,verbs=update
+//+kubebuilder:rbac:groups=nova.openstack.org,resources=novacomputes,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=nova.openstack.org,resources=novacomputes/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=nova.openstack.org,resources=novacomputes/finalizers,verbs=update
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;
@@ -67,28 +67,28 @@ type NovaComputeIronicReconciler struct {
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 // TODO(user): Modify the Reconcile function to compare the state specified by
-// the NovaComputeIronic object against the actual cluster state, and then
+// the NovaCompute object against the actual cluster state, and then
 // perform operations to make the cluster state reflect the state specified by
 // the user.
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.2/pkg/reconcile
-func (r *NovaComputeIronicReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, _err error) {
+func (r *NovaComputeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, _err error) {
 	l := log.FromContext(ctx)
 
-	// Fetch the NovaComputeIronic instance that needs to be reconciled
-	instance := &novav1.NovaComputeIronic{}
+	// Fetch the NovaCompute instance that needs to be reconciled
+	instance := &novav1.NovaCompute{}
 	err := r.Client.Get(ctx, req.NamespacedName, instance)
 	if err != nil {
 		if k8s_errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected.
 			// For additional cleanup logic use finalizers. Return and don't requeue.
-			l.Info("NovaComputeIronic instance not found, probably deleted before reconciled. Nothing to do.")
+			l.Info("NovaCompute instance not found, probably deleted before reconciled. Nothing to do.")
 			return ctrl.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
-		l.Error(err, "Failed to read the NovaComputeIronic instance.")
+		l.Error(err, "Failed to read the NovaCompute instance.")
 		return ctrl.Result{}, err
 	}
 
@@ -185,8 +185,8 @@ func (r *NovaComputeIronicReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	return ctrl.Result{}, nil
 }
 
-func (r *NovaComputeIronicReconciler) initStatus(
-	ctx context.Context, h *helper.Helper, instance *novav1.NovaComputeIronic,
+func (r *NovaComputeReconciler) initStatus(
+	ctx context.Context, h *helper.Helper, instance *novav1.NovaCompute,
 ) error {
 	if err := r.initConditions(ctx, h, instance); err != nil {
 		return err
@@ -202,8 +202,8 @@ func (r *NovaComputeIronicReconciler) initStatus(
 	return nil
 }
 
-func (r *NovaComputeIronicReconciler) initConditions(
-	ctx context.Context, h *helper.Helper, instance *novav1.NovaComputeIronic,
+func (r *NovaComputeReconciler) initConditions(
+	ctx context.Context, h *helper.Helper, instance *novav1.NovaCompute,
 ) error {
 	if instance.Status.Conditions == nil {
 		instance.Status.Conditions = condition.Conditions{}
@@ -239,10 +239,10 @@ func (r *NovaComputeIronicReconciler) initConditions(
 	return nil
 }
 
-func (r *NovaComputeIronicReconciler) ensureConfigs(
+func (r *NovaComputeReconciler) ensureConfigs(
 	ctx context.Context,
 	h *helper.Helper,
-	instance *novav1.NovaComputeIronic,
+	instance *novav1.NovaCompute,
 	hashes *map[string]env.Setter,
 	secret corev1.Secret,
 ) error {
@@ -259,8 +259,8 @@ func (r *NovaComputeIronicReconciler) ensureConfigs(
 	return nil
 }
 
-func (r *NovaComputeIronicReconciler) generateConfigs(
-	ctx context.Context, h *helper.Helper, instance *novav1.NovaComputeIronic, hashes *map[string]env.Setter, secret corev1.Secret,
+func (r *NovaComputeReconciler) generateConfigs(
+	ctx context.Context, h *helper.Helper, instance *novav1.NovaCompute, hashes *map[string]env.Setter, secret corev1.Secret,
 ) error {
 
 	apiMessageBusSecret := &corev1.Secret{}
@@ -277,7 +277,7 @@ func (r *NovaComputeIronicReconciler) generateConfigs(
 	}
 
 	templateParameters := map[string]interface{}{
-		"service_name":           NovaComputeIronicLabelPrefix,
+		"service_name":           NovaComputeLabelPrefix,
 		"keystone_internal_url":  instance.Spec.KeystoneAuthURL,
 		"nova_keystone_user":     instance.Spec.ServiceUser,
 		"nova_keystone_password": string(secret.Data[ServicePasswordSelector]),
@@ -291,7 +291,7 @@ func (r *NovaComputeIronicReconciler) generateConfigs(
 		"default_project_domain": "Default",   // fixme
 		"default_user_domain":    "Default",   // fixme
 		"transport_url":          string(apiMessageBusSecret.Data["transport_url"]),
-		"log_file":               "/var/log/nova/nova-compute-ironic.log",
+		"log_file":               "/var/log/nova/nova-compute.log",
 		"compute_driver":         "ironic.IronicDriver",
 	}
 	extraData := map[string]string{}
@@ -303,7 +303,7 @@ func (r *NovaComputeIronicReconciler) generateConfigs(
 	}
 
 	cmLabels := labels.GetLabels(
-		instance, labels.GetGroupLabel(NovaComputeIronicLabelPrefix), map[string]string{},
+		instance, labels.GetGroupLabel(NovaComputeLabelPrefix), map[string]string{},
 	)
 
 	err = r.GenerateConfigs(
@@ -312,15 +312,15 @@ func (r *NovaComputeIronicReconciler) generateConfigs(
 	return err
 }
 
-func (r *NovaComputeIronicReconciler) ensureDeployment(
+func (r *NovaComputeReconciler) ensureDeployment(
 	ctx context.Context,
 	h *helper.Helper,
-	instance *novav1.NovaComputeIronic,
+	instance *novav1.NovaCompute,
 	inputHash string,
 	annotations map[string]string,
 ) (ctrl.Result, error) {
-	serviceLabels := getComputeIronicServiceLabels(instance.Spec.CellName)
-	ss := statefulset.NewStatefulSet(novacomputeironic.StatefulSet(instance, inputHash, serviceLabels, annotations), r.RequeueTimeout)
+	serviceLabels := getComputeServiceLabels(instance.Spec.CellName)
+	ss := statefulset.NewStatefulSet(novacompute.StatefulSet(instance, inputHash, serviceLabels, annotations), r.RequeueTimeout)
 	ctrlResult, err := ss.CreateOrPatch(ctx, h)
 	if err != nil && !k8s_errors.IsNotFound(err) {
 		util.LogErrorForObject(h, err, "Deployment failed", instance)
@@ -386,10 +386,10 @@ func (r *NovaComputeIronicReconciler) ensureDeployment(
 	return ctrl.Result{}, nil
 }
 
-func (r *NovaComputeIronicReconciler) reconcileDelete(
+func (r *NovaComputeReconciler) reconcileDelete(
 	ctx context.Context,
 	h *helper.Helper,
-	instance *novav1.NovaComputeIronic,
+	instance *novav1.NovaCompute,
 ) error {
 	util.LogForObject(h, "Reconciling delete", instance)
 
@@ -404,22 +404,22 @@ func (r *NovaComputeIronicReconciler) reconcileDelete(
 	return nil
 }
 
-func getComputeIronicServiceLabels(cell string) map[string]string {
+func getComputeServiceLabels(cell string) map[string]string {
 	return map[string]string{
-		common.AppSelector: NovaComputeIronicLabelPrefix,
+		common.AppSelector: NovaComputeLabelPrefix,
 		CellSelector:       cell,
 	}
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *NovaComputeIronicReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *NovaComputeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&novav1.NovaComputeIronic{}).
+		For(&novav1.NovaCompute{}).
 		Owns(&v1.StatefulSet{}).
 		Owns(&corev1.Service{}).
 		Owns(&corev1.ConfigMap{}).
 		Owns(&routev1.Route{}).
 		Watches(&source.Kind{Type: &corev1.Secret{}},
-			handler.EnqueueRequestsFromMapFunc(r.GetSecretMapperFor(&novav1.NovaComputeIronicList{}))).
+			handler.EnqueueRequestsFromMapFunc(r.GetSecretMapperFor(&novav1.NovaComputeList{}))).
 		Complete(r)
 }

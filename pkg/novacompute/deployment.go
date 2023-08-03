@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package novacomputeironic
+package novacompute
 
 import (
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
@@ -28,9 +28,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// StatefulSet - returns the StatefulSet definition for the nova-compute-ironic service
+// StatefulSet - returns the StatefulSet definition for the nova-compute service
 func StatefulSet(
-	instance *novav1.NovaComputeIronic,
+	instance *novav1.NovaCompute,
 	configHash string,
 	labels map[string]string,
 	annotations map[string]string,
@@ -139,7 +139,7 @@ func StatefulSet(
 							Command: []string{
 								"/bin/bash",
 							},
-							Args:  []string{"-c", "tail -n+1 -F /var/log/nova/nova-compute-ironic.log"},
+							Args:  []string{"-c", "tail -n+1 -F /var/log/nova/nova-compute.log"},
 							Image: instance.Spec.ContainerImage,
 							SecurityContext: &corev1.SecurityContext{
 								RunAsUser: &runAsUser,
@@ -152,7 +152,7 @@ func StatefulSet(
 							LivenessProbe:  livenessProbe,
 						},
 						{
-							Name: instance.Name + "-compute-ironic",
+							Name: instance.Name + "-compute",
 							Command: []string{
 								"/bin/bash",
 							},

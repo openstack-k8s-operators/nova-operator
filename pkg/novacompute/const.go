@@ -14,14 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package novacomputeironic
+package novacompute
 
 const (
 	// MergedServiceConfigPath - The location of the merged configuration file
 	// for the service
-	MergedServiceConfigPath = "/var/lib/openstack/config/nova-compute-ironic.json"
+	MergedServiceConfigPath = "/var/lib/openstack/config/nova-compute.json"
 	//APIServicePort - The port the nova-api service is exposed on
 	APIServicePort = 8774
 	// ServiceName - The name of the service exposed to k8s
-	ServiceName = "nova-compute-ironic"
+	ServiceName = "nova-compute"
 )

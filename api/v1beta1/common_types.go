@@ -179,9 +179,9 @@ func SetupDefaults() {
 	SetupNovaSchedulerDefaults(novaSchedulerDefaults)
 
 	// Acquire environmental defaults and initialize NovaComputeIronic defaults with them
-	novaComputeIronicDefaults := NovaComputeIronicDefaults{
+	novaComputeIronicDefaults := NovaComputeDefaults{
 		ContainerImageURL: util.GetEnvVar("NOVA_IRONIC_COMPUTE_IMAGE_URL_DEFAULT", NovaIronicComputeContainerImage),
 	}
 
-	SetupNovaComputeIronicDefaults(novaComputeIronicDefaults)
+	SetupNovaComputeDefaults(novaComputeIronicDefaults)
 }
