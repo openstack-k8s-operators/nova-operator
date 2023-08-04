@@ -17,6 +17,7 @@ limitations under the License.
 package functional_test
 
 import (
+	"fmt"
 	"os"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -168,6 +169,147 @@ var _ = Describe("PlacementAPI controller", func() {
 				ContainSubstring("auth_url = %s", keystoneAPI.Status.APIEndpoints["internal"]))
 			Expect(cm.Data["placement.conf"]).Should(
 				ContainSubstring("www_authenticate_uri = %s", keystoneAPI.Status.APIEndpoints["public"]))
+		})
+	})
+
+	When("A PlacementAPI is created with service override", func() {
+		BeforeEach(func() {
+			DeferCleanup(k8sClient.Delete, ctx, CreatePlacementAPISecret(namespace, SecretName))
+			DeferCleanup(th.DeleteKeystoneAPI, th.CreateKeystoneAPI(placementApiName.Namespace))
+
+			spec := GetDefaultPlacementAPISpec()
+			serviceOverride := map[string]interface{}{}
+			serviceOverride["internal"] = map[string]interface{}{
+				"metadata": map[string]map[string]string{
+					"annotations": {
+						"dnsmasq.network.openstack.org/hostname": "placement-internal.openstack.svc",
+						"metallb.universe.tf/address-pool":       "osp-internalapi",
+						"metallb.universe.tf/allow-shared-ip":    "osp-internalapi",
+						"metallb.universe.tf/loadBalancerIPs":    "internal-lb-ip-1,internal-lb-ip-2",
+					},
+					"labels": {
+						"internal": "true",
+						"service":  "placement",
+					},
+				},
+				"spec": map[string]interface{}{
+					"type": "LoadBalancer",
+				},
+			}
+
+			spec["override"] = map[string]interface{}{
+				"service": serviceOverride,
+			}
+
+			placementAPI := CreatePlacementAPI(placementApiName, spec)
+			DeferCleanup(
+				th.DeleteDBService,
+				th.CreateDBService(
+					placementApiName.Namespace,
+					GetPlacementAPI(placementApiName).Spec.DatabaseInstance,
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+
+			th.SimulateMariaDBDatabaseCompleted(placementApiName)
+			th.SimulateJobSuccess(types.NamespacedName{
+				Namespace: placementApiName.Namespace,
+				Name:      fmt.Sprintf("%s-db-sync", placementApiName.Name),
+			})
+			th.SimulateDeploymentReplicaReady(placementApiName)
+			th.SimulateKeystoneServiceReady(placementApiName)
+			th.SimulateKeystoneEndpointReady(placementApiName)
+			DeferCleanup(th.DeleteInstance, placementAPI)
+		})
+
+		It("creates KeystoneEndpoint", func() {
+			keystoneEndpoint := th.GetKeystoneEndpoint(placementApiName)
+			endpoints := keystoneEndpoint.Spec.Endpoints
+			Expect(endpoints).To(HaveKeyWithValue("public", "http://placement-public."+placementApiName.Namespace+".svc:8778"))
+			Expect(endpoints).To(HaveKeyWithValue("internal", "http://placement-internal."+placementApiName.Namespace+".svc:8778"))
+
+			th.ExpectCondition(
+				placementApiName,
+				ConditionGetterFunc(PlacementConditionGetter),
+				condition.KeystoneEndpointReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
+
+		It("creates LoadBalancer service", func() {
+			// As the internal endpoint is configured in ExternalEndpoints it
+			// gets a LoadBalancer Service with MetalLB annotations
+			service := th.GetService(types.NamespacedName{Namespace: namespace, Name: "placement-internal"})
+			Expect(service.Annotations).To(
+				HaveKeyWithValue("dnsmasq.network.openstack.org/hostname", "placement-internal.openstack.svc"))
+			Expect(service.Annotations).To(
+				HaveKeyWithValue("metallb.universe.tf/address-pool", "osp-internalapi"))
+			Expect(service.Annotations).To(
+				HaveKeyWithValue("metallb.universe.tf/allow-shared-ip", "osp-internalapi"))
+			Expect(service.Annotations).To(
+				HaveKeyWithValue("metallb.universe.tf/loadBalancerIPs", "internal-lb-ip-1,internal-lb-ip-2"))
+
+			th.ExpectCondition(
+				placementApiName,
+				ConditionGetterFunc(PlacementConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
+	})
+
+	When("A PlacementAPI is created with service override endpointURL set", func() {
+		BeforeEach(func() {
+			DeferCleanup(k8sClient.Delete, ctx, CreatePlacementAPISecret(namespace, SecretName))
+			DeferCleanup(th.DeleteKeystoneAPI, th.CreateKeystoneAPI(placementApiName.Namespace))
+
+			spec := GetDefaultPlacementAPISpec()
+			serviceOverride := map[string]interface{}{}
+			serviceOverride["public"] = map[string]interface{}{
+				"endpointURL": "http://placement-openstack.apps-crc.testing",
+			}
+
+			spec["override"] = map[string]interface{}{
+				"service": serviceOverride,
+			}
+
+			placementAPI := CreatePlacementAPI(placementApiName, spec)
+			DeferCleanup(
+				th.DeleteDBService,
+				th.CreateDBService(
+					placementApiName.Namespace,
+					GetPlacementAPI(placementApiName).Spec.DatabaseInstance,
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+
+			th.SimulateMariaDBDatabaseCompleted(placementApiName)
+			th.SimulateJobSuccess(types.NamespacedName{
+				Namespace: placementApiName.Namespace,
+				Name:      fmt.Sprintf("%s-db-sync", placementApiName.Name),
+			})
+			th.SimulateDeploymentReplicaReady(placementApiName)
+			th.SimulateKeystoneServiceReady(placementApiName)
+			th.SimulateKeystoneEndpointReady(placementApiName)
+			DeferCleanup(th.DeleteInstance, placementAPI)
+		})
+
+		It("creates KeystoneEndpoint", func() {
+			keystoneEndpoint := th.GetKeystoneEndpoint(placementApiName)
+			endpoints := keystoneEndpoint.Spec.Endpoints
+			Expect(endpoints).To(HaveKeyWithValue("public", "http://placement-openstack.apps-crc.testing"))
+			Expect(endpoints).To(HaveKeyWithValue("internal", "http://placement-internal."+placementApiName.Namespace+".svc:8778"))
+
+			th.ExpectCondition(
+				placementApiName,
+				ConditionGetterFunc(PlacementConditionGetter),
+				condition.KeystoneEndpointReadyCondition,
+				corev1.ConditionTrue,
+			)
 		})
 	})
 })

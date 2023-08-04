@@ -178,7 +178,7 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
-    internal: "true"
+    endpoint: internal
     service: placement
   name: placement-internal
 spec:
@@ -192,7 +192,7 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
-    public: "true"
+    endpoint: public
     service: placement
   name: placement-public
 spec:
@@ -201,25 +201,6 @@ spec:
   selector:
     service: placement
   type: ClusterIP
----
-apiVersion: route.openshift.io/v1
-kind: Route
-metadata:
-  name: placement-public
-  labels:
-    public: "true"
-    service: placement
-spec:
-  port:
-    targetPort: placement-public
-  to:
-    kind: Service
-    name: placement-public
-status:
-  ingress:
-  - conditions:
-    - status: "True"
-      type: Admitted
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -267,7 +248,7 @@ commands:
       . $PLACEMENT_KUTTL_DIR/../lib/helper_functions.sh
       apiEndpoints=$(oc get -n $NAMESPACE KeystoneEndpoint placement -o go-template-file=$PLACEMENT_KUTTL_DIR/../go_templates/apiEndpoints.gotemplate)
       assert_regex $apiEndpoints 'http:\/\/placement-internal\..+\.svc.*'
-      assert_regex $apiEndpoints 'http:\/\/placement-public-.+\.apps.*'
+      assert_regex $apiEndpoints 'http:\/\/placement-public\..+\.svc.*'
 
       # when using image digests the containerImage URLs are SHA's so we verify them with a script
       tupleTemplate='{{ range (index .spec.template.spec.containers 1).env }}{{ .name }}{{ "#" }}{{ .value}}{{"\n"}}{{ end }}'

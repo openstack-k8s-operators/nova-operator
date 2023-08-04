@@ -5,7 +5,6 @@
 # No Deployment for PlacementAPI CR
 # No Pods in placement Deployment
 # No Placement Services
-# No Placement Routes
 #
 apiVersion: placement.openstack.org/v1beta1
 kind: PlacementAPI
@@ -46,7 +45,7 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
-    internal: "true"
+    endpoint: internal
     service: placement
   name: placement-internal
 spec:
@@ -60,7 +59,7 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
-    public: "true"
+    endpoint: public
     service: placement
   name: placement-public
 spec:
@@ -69,20 +68,6 @@ spec:
   selector:
     service: placement
   type: ClusterIP
----
-apiVersion: route.openshift.io/v1
-kind: Route
-metadata:
-  name: placement-public
-  labels:
-    public: "true"
-    service: placement
-spec:
-  port:
-    targetPort: placement-public
-  to:
-    kind: Service
-    name: placement-public
 ---
 apiVersion: v1
 kind: ConfigMap

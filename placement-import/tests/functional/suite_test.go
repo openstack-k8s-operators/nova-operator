@@ -38,8 +38,6 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	routev1 "github.com/openshift/api/route/v1"
-
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	test "github.com/openstack-k8s-operators/lib-common/modules/test"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
@@ -89,8 +87,6 @@ var _ = BeforeSuite(func() {
 	mariaDBCRDs, err := test.GetCRDDirFromModule(
 		"github.com/openstack-k8s-operators/mariadb-operator/api", "../../go.mod", "bases")
 	Expect(err).ShouldNot(HaveOccurred())
-	routev1CRDs, err := test.GetOpenShiftCRDDir("route/v1", "../../go.mod")
-	Expect(err).ShouldNot(HaveOccurred())
 
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
@@ -99,7 +95,6 @@ var _ = BeforeSuite(func() {
 			// NOTE(gibi): we need to list all the external CRDs our operator depends on
 			keystoneCRDs,
 			mariaDBCRDs,
-			routev1CRDs,
 		},
 		ErrorIfCRDPathMissing: true,
 		WebhookInstallOptions: envtest.WebhookInstallOptions{
@@ -125,8 +120,6 @@ var _ = BeforeSuite(func() {
 	err = mariadbv1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 	err = keystonev1.AddToScheme(scheme.Scheme)
-	Expect(err).NotTo(HaveOccurred())
-	err = routev1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 	//+kubebuilder:scaffold:scheme
 

@@ -26,7 +26,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
-	routev1 "github.com/openshift/api/route/v1"
 	"go.uber.org/zap/zapcore"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -55,7 +54,6 @@ func init() {
 	utilruntime.Must(placementv1.AddToScheme(scheme))
 	utilruntime.Must(mariadbv1.AddToScheme(scheme))
 	utilruntime.Must(keystonev1.AddToScheme(scheme))
-	utilruntime.Must(routev1.AddToScheme(scheme))
 	utilruntime.Must(networkv1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
