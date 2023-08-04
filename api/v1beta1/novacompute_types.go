@@ -68,6 +68,12 @@ type NovaComputeTemplate struct {
 	// +kubebuilder:validation:Optional
 	// ExternalEndpoints, expose a VIP via MetalLB on the pre-created address pool
 	ExternalEndpoints []MetalLBConfig `json:"externalEndpoints,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Enum=ironic.IronicDriver;fake.FakeDriver
+	// +kubebuilder:default="ironic.IronicDriver"
+	// ComputeDriver defines which driver to use for controlling virtualization
+	ComputeDriver string `json:"computeDriver"`
 }
 
 // NovaComputeSpec defines the desired state of NovaCompute
@@ -123,6 +129,12 @@ type NovaComputeSpec struct {
 	// +kubebuilder:validation:Required
 	// ServiceAccount - service account name used internally to provide Nova services the default SA name
 	ServiceAccount string `json:"serviceAccount"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Enum=ironic.IronicDriver;fake.FakeDriver
+	// +kubebuilder:default="ironic.IronicDriver"
+	// ComputeDriver defines which driver to use for controlling virtualization
+	ComputeDriver string `json:"computeDriver"`
 }
 
 // NovaComputeStatus defines the observed state of NovaCompute

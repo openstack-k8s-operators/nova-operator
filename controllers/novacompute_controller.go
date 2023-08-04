@@ -292,7 +292,7 @@ func (r *NovaComputeReconciler) generateConfigs(
 		"default_user_domain":    "Default",   // fixme
 		"transport_url":          string(apiMessageBusSecret.Data["transport_url"]),
 		"log_file":               "/var/log/nova/nova-compute.log",
-		"compute_driver":         "ironic.IronicDriver",
+		"compute_driver":         instance.Spec.ComputeDriver,
 	}
 	extraData := map[string]string{}
 	if instance.Spec.CustomServiceConfig != "" {

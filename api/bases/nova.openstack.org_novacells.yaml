@@ -39,6 +39,14 @@ spec:
                 description: NovaComputeServiceTemplate - defines the novvncproxy
                   service dedicated for the cell.
                 properties:
+                  computeDriver:
+                    default: ironic.IronicDriver
+                    description: ComputeDriver defines which driver to use for controlling
+                      virtualization
+                    enum:
+                    - ironic.IronicDriver
+                    - fake.FakeDriver
+                    type: string
                   containerImage:
                     description: ContainerImage - The service specific Container Image
                       URL (will be set to environmental default if empty)
@@ -196,11 +204,6 @@ spec:
                   has a special meaning. The "cell0" Cell cannot have compute nodes
                   associated and the conductor in this cell acts as the super conductor
                   for all the cells in the deployment.
-                type: string
-              computeDriver:
-                default: libvirt.LibvirtDriver
-                description: ComputeDriver defines which driver to use for controlling
-                  virtualization
                 type: string
               conductorServiceTemplate:
                 description: ConductorServiceTemplate - defines the cell conductor

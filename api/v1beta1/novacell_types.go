@@ -80,7 +80,7 @@ type NovaCellTemplate struct {
 	NoVNCProxyServiceTemplate NovaNoVNCProxyTemplate `json:"noVNCProxyServiceTemplate"`
 
 	// +kubebuilder:validation:Optional
-	// NovaComputeServiceTemplate - defines the novvncproxy service dedicated for
+	// NovaComputeServiceTemplate - defines the nova compute nodes in cell service dedicated for
 	// the cell.
 	NovaComputeServiceTemplate NovaComputeTemplate `json:"novaComputeServiceTemplate"`
 
@@ -174,11 +174,6 @@ type NovaCellSpec struct {
 	// +kubebuilder:validation:Required
 	// ServiceAccount - service account name used internally to provide Nova services the default SA name
 	ServiceAccount string `json:"serviceAccount"`
-
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default="libvirt.LibvirtDriver"
-	// ComputeDriver defines which driver to use for controlling virtualization
-	ComputeDriver string `json:"computeDriver"`
 }
 
 // NovaCellStatus defines the observed state of NovaCell
