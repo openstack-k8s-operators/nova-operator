@@ -288,7 +288,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 		})
 		It("has the expected container image default", func() {
 			novaNoVNCProxyDefault := GetNovaNoVNCProxy(cell1.NoVNCProxyName)
-			Expect(novaNoVNCProxyDefault.Spec.ContainerImage).To(Equal(util.GetEnvVar("NOVA_NOVNC_IMAGE_URL_DEFAULT", novav1.NovaNoVNCContainerImage)))
+			Expect(novaNoVNCProxyDefault.Spec.ContainerImage).To(Equal(util.GetEnvVar("RELATED_IMAGE_NOVA_NOVNC_IMAGE_URL_DEFAULT", novav1.NovaNoVNCContainerImage)))
 		})
 	})
 })

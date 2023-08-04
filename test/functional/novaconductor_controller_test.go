@@ -664,7 +664,7 @@ var _ = Describe("NovaConductor controller", func() {
 		})
 		It("has the expected container image default", func() {
 			novaConductorDefault := GetNovaConductor(novaNames.ConductorName)
-			Expect(novaConductorDefault.Spec.ContainerImage).To(Equal(util.GetEnvVar("NOVA_CONDUCTOR_IMAGE_URL_DEFAULT", novav1.NovaConductorContainerImage)))
+			Expect(novaConductorDefault.Spec.ContainerImage).To(Equal(util.GetEnvVar("RELATED_IMAGE_NOVA_CONDUCTOR_IMAGE_URL_DEFAULT", novav1.NovaConductorContainerImage)))
 		})
 	})
 })

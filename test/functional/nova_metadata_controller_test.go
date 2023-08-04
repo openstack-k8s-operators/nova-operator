@@ -658,7 +658,7 @@ var _ = Describe("NovaMetadata controller", func() {
 		})
 		It("has the expected container image default", func() {
 			novaMetadataDefault := GetNovaMetadata(novaNames.MetadataName)
-			Expect(novaMetadataDefault.Spec.ContainerImage).To(Equal(util.GetEnvVar("NOVA_METADATA_IMAGE_URL_DEFAULT", novav1.NovaMetadataContainerImage)))
+			Expect(novaMetadataDefault.Spec.ContainerImage).To(Equal(util.GetEnvVar("RELATED_IMAGE_NOVA_METADATA_IMAGE_URL_DEFAULT", novav1.NovaMetadataContainerImage)))
 		})
 	})
 })
