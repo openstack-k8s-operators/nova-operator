@@ -512,7 +512,7 @@ var _ = Describe("NovaScheduler controller", func() {
 		})
 		It("has the expected container image default", func() {
 			novaSchedulerDefault := GetNovaScheduler(novaNames.SchedulerName)
-			Expect(novaSchedulerDefault.Spec.ContainerImage).To(Equal(util.GetEnvVar("NOVA_SCHEDULER_IMAGE_URL_DEFAULT", novav1.NovaSchedulerContainerImage)))
+			Expect(novaSchedulerDefault.Spec.ContainerImage).To(Equal(util.GetEnvVar("RELATED_IMAGE_NOVA_SCHEDULER_IMAGE_URL_DEFAULT", novav1.NovaSchedulerContainerImage)))
 		})
 	})
 })

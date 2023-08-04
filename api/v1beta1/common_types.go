@@ -158,64 +158,64 @@ type MetalLBConfig struct {
 func SetupDefaults() {
 	// Acquire environmental defaults and initialize Nova defaults with them
 	novaDefaults := NovaDefaults{
-		APIContainerImageURL:       util.GetEnvVar("NOVA_API_IMAGE_URL_DEFAULT", NovaAPIContainerImage),
-		ConductorContainerImageURL: util.GetEnvVar("NOVA_CONDUCTOR_IMAGE_URL_DEFAULT", NovaConductorContainerImage),
-		MetadataContainerImageURL:  util.GetEnvVar("NOVA_METADATA_IMAGE_URL_DEFAULT", NovaMetadataContainerImage),
-		NoVNCContainerImageURL:     util.GetEnvVar("NOVA_NOVNC_IMAGE_URL_DEFAULT", NovaNoVNCContainerImage),
-		SchedulerContainerImageURL: util.GetEnvVar("NOVA_SCHEDULER_IMAGE_URL_DEFAULT", NovaSchedulerContainerImage),
+		APIContainerImageURL:       util.GetEnvVar("RELATED_IMAGE_NOVA_API_IMAGE_URL_DEFAULT", NovaAPIContainerImage),
+		ConductorContainerImageURL: util.GetEnvVar("RELATED_IMAGE_NOVA_CONDUCTOR_IMAGE_URL_DEFAULT", NovaConductorContainerImage),
+		MetadataContainerImageURL:  util.GetEnvVar("RELATED_IMAGE_NOVA_METADATA_IMAGE_URL_DEFAULT", NovaMetadataContainerImage),
+		NoVNCContainerImageURL:     util.GetEnvVar("RELATED_IMAGE_NOVA_NOVNC_IMAGE_URL_DEFAULT", NovaNoVNCContainerImage),
+		SchedulerContainerImageURL: util.GetEnvVar("RELATED_IMAGE_NOVA_SCHEDULER_IMAGE_URL_DEFAULT", NovaSchedulerContainerImage),
 	}
 
 	SetupNovaDefaults(novaDefaults)
 
 	// Acquire environmental defaults and initialize NovaAPI defaults with them
 	novaAPIDefaults := NovaAPIDefaults{
-		ContainerImageURL: util.GetEnvVar("NOVA_API_IMAGE_URL_DEFAULT", NovaAPIContainerImage),
+		ContainerImageURL: util.GetEnvVar("RELATED_IMAGE_NOVA_API_IMAGE_URL_DEFAULT", NovaAPIContainerImage),
 	}
 
 	SetupNovaAPIDefaults(novaAPIDefaults)
 
 	// Acquire environmental defaults and initialize NovaCell defaults with them
 	novaCellDefaults := NovaCellDefaults{
-		ConductorContainerImageURL: util.GetEnvVar("NOVA_CONDUCTOR_IMAGE_URL_DEFAULT", NovaConductorContainerImage),
-		MetadataContainerImageURL:  util.GetEnvVar("NOVA_METADATA_IMAGE_URL_DEFAULT", NovaMetadataContainerImage),
-		NoVNCContainerImageURL:     util.GetEnvVar("NOVA_NOVNC_IMAGE_URL_DEFAULT", NovaNoVNCContainerImage),
+		ConductorContainerImageURL: util.GetEnvVar("RELATED_IMAGE_NOVA_CONDUCTOR_IMAGE_URL_DEFAULT", NovaConductorContainerImage),
+		MetadataContainerImageURL:  util.GetEnvVar("RELATED_IMAGE_NOVA_METADATA_IMAGE_URL_DEFAULT", NovaMetadataContainerImage),
+		NoVNCContainerImageURL:     util.GetEnvVar("RELATED_IMAGE_NOVA_NOVNC_IMAGE_URL_DEFAULT", NovaNoVNCContainerImage),
 	}
 
 	SetupNovaCellDefaults(novaCellDefaults)
 
 	// Acquire environmental defaults and initialize NovaConductor defaults with them
 	novaConductorDefaults := NovaConductorDefaults{
-		ContainerImageURL: util.GetEnvVar("NOVA_CONDUCTOR_IMAGE_URL_DEFAULT", NovaConductorContainerImage),
+		ContainerImageURL: util.GetEnvVar("RELATED_IMAGE_NOVA_CONDUCTOR_IMAGE_URL_DEFAULT", NovaConductorContainerImage),
 	}
 
 	SetupNovaConductorDefaults(novaConductorDefaults)
 
 	// Acquire environmental defaults and initialize NovaExternalCompute defaults with them
 	novaExternalComputeDefaults := NovaExternalComputeDefaults{
-		ComputeContainerImageURL:   util.GetEnvVar("NOVA_COMPUTE_IMAGE_URL_DEFAULT", NovaComputeContainerImage),
-		LibvirtContainerImageURL:   util.GetEnvVar("NOVA_LIBVIRT_IMAGE_URL_DEFAULT", NovaLibvirtContainerImage),
-		AnsibleEEContainerImageURL: util.GetEnvVar("NOVA_ANSIBLE_EE_IMAGE_URL_DEFAULT", AnsibleEEContainerImage),
+		ComputeContainerImageURL:   util.GetEnvVar("RELATED_IMAGE_NOVA_COMPUTE_IMAGE_URL_DEFAULT", NovaComputeContainerImage),
+		LibvirtContainerImageURL:   util.GetEnvVar("RELATED_IMAGE_NOVA_LIBVIRT_IMAGE_URL_DEFAULT", NovaLibvirtContainerImage),
+		AnsibleEEContainerImageURL: util.GetEnvVar("RELATED_IMAGE_NOVA_ANSIBLE_EE_IMAGE_URL_DEFAULT", AnsibleEEContainerImage),
 	}
 
 	SetupNovaExternalComputeDefaults(novaExternalComputeDefaults)
 
 	// Acquire environmental defaults and initialize NovaMetadata defaults with them
 	novaMetadataDefaults := NovaMetadataDefaults{
-		ContainerImageURL: util.GetEnvVar("NOVA_METADATA_IMAGE_URL_DEFAULT", NovaMetadataContainerImage),
+		ContainerImageURL: util.GetEnvVar("RELATED_IMAGE_NOVA_METADATA_IMAGE_URL_DEFAULT", NovaMetadataContainerImage),
 	}
 
 	SetupNovaMetadataDefaults(novaMetadataDefaults)
 
 	// Acquire environmental defaults and initialize NovaNoVNCProxy defaults with them
 	novaNoVNCProxyDefaults := NovaNoVNCProxyDefaults{
-		ContainerImageURL: util.GetEnvVar("NOVA_NOVNC_IMAGE_URL_DEFAULT", NovaNoVNCContainerImage),
+		ContainerImageURL: util.GetEnvVar("RELATED_IMAGE_NOVA_NOVNC_IMAGE_URL_DEFAULT", NovaNoVNCContainerImage),
 	}
 
 	SetupNovaNoVNCProxyDefaults(novaNoVNCProxyDefaults)
 
 	// Acquire environmental defaults and initialize NovaScheduler defaults with them
 	novaSchedulerDefaults := NovaSchedulerDefaults{
-		ContainerImageURL: util.GetEnvVar("NOVA_SCHEDULER_IMAGE_URL_DEFAULT", NovaSchedulerContainerImage),
+		ContainerImageURL: util.GetEnvVar("RELATED_IMAGE_NOVA_SCHEDULER_IMAGE_URL_DEFAULT", NovaSchedulerContainerImage),
 	}
 
 	SetupNovaSchedulerDefaults(novaSchedulerDefaults)

@@ -669,7 +669,7 @@ var _ = Describe("NovaAPI controller", func() {
 		})
 		It("has the expected container image default", func() {
 			novaApiDefault := GetNovaAPI(novaNames.APIName)
-			Expect(novaApiDefault.Spec.ContainerImage).To(Equal(util.GetEnvVar("NOVA_API_IMAGE_URL_DEFAULT", novav1.NovaAPIContainerImage)))
+			Expect(novaApiDefault.Spec.ContainerImage).To(Equal(util.GetEnvVar("RELATED_IMAGE_NOVA_API_IMAGE_URL_DEFAULT", novav1.NovaAPIContainerImage)))
 		})
 	})
 })
