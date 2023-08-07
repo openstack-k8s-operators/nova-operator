@@ -29,8 +29,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	routev1 "github.com/openshift/api/route/v1"
-
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/endpoint"
@@ -38,6 +36,7 @@ import (
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/labels"
 	nad "github.com/openstack-k8s-operators/lib-common/modules/common/networkattachment"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/statefulset"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 
@@ -62,7 +61,6 @@ type NovaAPIReconciler struct {
 // +kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;list;watch;create;update;patch;delete;
-// +kubebuilder:rbac:groups=route.openshift.io,resources=routes,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneendpoints,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=k8s.cni.cncf.io,resources=network-attachment-definitions,verbs=get;list;watch
 
@@ -223,7 +221,7 @@ func (r *NovaAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (re
 
 	apiEndpoints, result, err := r.ensureServiceExposed(ctx, h, instance)
 	if (err != nil || result != ctrl.Result{}) {
-		// We can ignore RequeueAfter as we are watching the Service and Route resource
+		// We can ignore RequeueAfter as we are watching the Service resource
 		// but we have to return while waiting for the service to be exposed
 		return ctrl.Result{}, err
 	}
@@ -447,52 +445,109 @@ func (r *NovaAPIReconciler) ensureServiceExposed(
 	h *helper.Helper,
 	instance *novav1.NovaAPI,
 ) (map[string]string, ctrl.Result, error) {
-	var ports = map[endpoint.Endpoint]endpoint.Data{
-		endpoint.EndpointPublic:   {Port: novaapi.APIServicePort},
-		endpoint.EndpointInternal: {Port: novaapi.APIServicePort},
+	var ports = map[service.Endpoint]endpoint.Data{
+		service.EndpointPublic: {
+			Port: novaapi.APIServicePort,
+			Path: "/v2.1",
+		},
+		service.EndpointInternal: {
+			Port: novaapi.APIServicePort,
+			Path: "/v2.1",
+		},
 	}
 
-	for _, metallbcfg := range instance.Spec.ExternalEndpoints {
-		portCfg := ports[metallbcfg.Endpoint]
-		portCfg.MetalLB = &endpoint.MetalLBData{
-			IPAddressPool:   metallbcfg.IPAddressPool,
-			SharedIP:        metallbcfg.SharedIP,
-			SharedIPKey:     metallbcfg.SharedIPKey,
-			LoadBalancerIPs: metallbcfg.LoadBalancerIPs,
+	apiEndpoints := make(map[string]string)
+
+	for endpointType, data := range ports {
+		endpointTypeStr := string(endpointType)
+		endpointName := novaapi.ServiceName + "-" + endpointTypeStr
+		svcOverride := instance.Spec.Override.Service[endpointType]
+		if svcOverride.EmbeddedLabelsAnnotations == nil {
+			svcOverride.EmbeddedLabelsAnnotations = &service.EmbeddedLabelsAnnotations{}
 		}
 
-		ports[metallbcfg.Endpoint] = portCfg
-	}
+		exportLabels := util.MergeStringMaps(
+			getAPIServiceLabels(),
+			map[string]string{
+				service.AnnotationEndpointKey: endpointTypeStr,
+			},
+		)
 
-	apiEndpoints, ctrlResult, err := endpoint.ExposeEndpoints(
-		ctx,
-		h,
-		novaapi.ServiceName,
-		getAPIServiceLabels(),
-		ports,
-		r.RequeueTimeout,
-	)
-	if err != nil {
-		instance.Status.Conditions.Set(condition.FalseCondition(
-			condition.ExposeServiceReadyCondition,
-			condition.ErrorReason,
-			condition.SeverityWarning,
-			condition.ExposeServiceReadyErrorMessage,
-			err.Error()))
-		return nil, ctrlResult, err
-	} else if (ctrlResult != ctrl.Result{}) {
-		instance.Status.Conditions.Set(condition.FalseCondition(
-			condition.ExposeServiceReadyCondition,
-			condition.RequestedReason,
-			condition.SeverityInfo,
-			condition.ExposeServiceReadyRunningMessage))
-		return nil, ctrlResult, err
+		// Create the service
+		svc, err := service.NewService(
+			service.GenericService(&service.GenericServiceDetails{
+				Name:      endpointName,
+				Namespace: instance.Namespace,
+				Labels:    exportLabels,
+				Selector:  getAPIServiceLabels(),
+				Port: service.GenericServicePort{
+					Name:     endpointName,
+					Port:     data.Port,
+					Protocol: corev1.ProtocolTCP,
+				},
+			}),
+			5,
+			&svcOverride.OverrideSpec,
+		)
+		if err != nil {
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				condition.ExposeServiceReadyCondition,
+				condition.ErrorReason,
+				condition.SeverityWarning,
+				condition.ExposeServiceReadyErrorMessage,
+				err.Error()))
+
+			return nil, ctrl.Result{}, err
+		}
+
+		svc.AddAnnotation(map[string]string{
+			service.AnnotationEndpointKey: endpointTypeStr,
+		})
+
+		// add Annotation to whether creating an ingress is required or not
+		if endpointType == service.EndpointPublic && svc.GetServiceType() == corev1.ServiceTypeClusterIP {
+			svc.AddAnnotation(map[string]string{
+				service.AnnotationIngressCreateKey: "true",
+			})
+		} else {
+			svc.AddAnnotation(map[string]string{
+				service.AnnotationIngressCreateKey: "false",
+			})
+			if svc.GetServiceType() == corev1.ServiceTypeLoadBalancer {
+				svc.AddAnnotation(map[string]string{
+					service.AnnotationHostnameKey: svc.GetServiceHostname(), // add annotation to register service name in dnsmasq
+				})
+			}
+		}
+
+		ctrlResult, err := svc.CreateOrPatch(ctx, h)
+		if err != nil {
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				condition.ExposeServiceReadyCondition,
+				condition.ErrorReason,
+				condition.SeverityWarning,
+				condition.ExposeServiceReadyErrorMessage,
+				err.Error()))
+
+			return nil, ctrlResult, err
+		} else if (ctrlResult != ctrl.Result{}) {
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				condition.ExposeServiceReadyCondition,
+				condition.RequestedReason,
+				condition.SeverityInfo,
+				condition.ExposeServiceReadyRunningMessage))
+			return nil, ctrlResult, nil
+		}
+		// create service - end
+
+		// TODO: TLS, pass in https as protocol
+		apiEndpoints[string(endpointType)], err = svc.GetAPIEndpoint(
+			svcOverride.EndpointURL, data.Protocol, data.Path)
+		if err != nil {
+			return nil, ctrl.Result{}, err
+		}
 	}
 	instance.Status.Conditions.MarkTrue(condition.ExposeServiceReadyCondition, condition.ExposeServiceReadyMessage)
-
-	for k, v := range apiEndpoints {
-		apiEndpoints[k] = v + "/v2.1"
-	}
 
 	return apiEndpoints, ctrl.Result{}, nil
 }
@@ -598,7 +653,6 @@ func (r *NovaAPIReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&novav1.NovaAPI{}).
 		Owns(&v1.StatefulSet{}).
 		Owns(&corev1.Service{}).
-		Owns(&routev1.Route{}).
 		Owns(&keystonev1.KeystoneEndpoint{}).
 		Owns(&corev1.Secret{}).
 		Watches(&source.Kind{Type: &corev1.Secret{}},

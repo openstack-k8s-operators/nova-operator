@@ -24,21 +24,20 @@ import (
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	routev1 "github.com/openshift/api/route/v1"
-
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
-	"github.com/openstack-k8s-operators/lib-common/modules/common/endpoint"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/labels"
 	nad "github.com/openstack-k8s-operators/lib-common/modules/common/networkattachment"
 	common_secret "github.com/openstack-k8s-operators/lib-common/modules/common/secret"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/statefulset"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
@@ -59,7 +58,6 @@ type NovaMetadataReconciler struct {
 // +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;
 // +kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;list;watch;create;update;patch;delete;
-// +kubebuilder:rbac:groups=route.openshift.io,resources=routes,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=k8s.cni.cncf.io,resources=network-attachment-definitions,verbs=get;list;watch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
@@ -197,9 +195,9 @@ func (r *NovaMetadataReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return result, err
 	}
 
-	apiEndpoints, result, err := r.ensureServiceExposed(ctx, h, instance)
+	apiEndpoint, result, err := r.ensureServiceExposed(ctx, h, instance)
 	if (err != nil || result != ctrl.Result{}) {
-		// We can ignore RequeueAfter as we are watching the Service and Route resource
+		// We can ignore RequeueAfter as we are watching the Service resource
 		// but we have to return while waiting for the service to be exposed
 		return ctrl.Result{}, err
 	}
@@ -214,7 +212,7 @@ func (r *NovaMetadataReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	// TODO(gibi): fix lib-common endpoint.ExposeEndpoints return value to
 	// avoid the need for the cast
-	err = r.ensureNeutronConfig(ctx, h, instance, apiEndpoints[string(endpoint.EndpointInternal)], secret)
+	err = r.ensureNeutronConfig(ctx, h, instance, apiEndpoint, secret)
 	if err != nil {
 		return result, err
 	}
@@ -438,35 +436,43 @@ func (r *NovaMetadataReconciler) ensureServiceExposed(
 	ctx context.Context,
 	h *helper.Helper,
 	instance *novav1.NovaMetadata,
-) (map[string]string, ctrl.Result, error) {
-	var ports = map[endpoint.Endpoint]endpoint.Data{
-		endpoint.EndpointInternal: {Port: novametadata.APIServicePort},
-	}
-
-	for _, metallbcfg := range instance.Spec.ExternalEndpoints {
-		portCfg := ports[metallbcfg.Endpoint]
-		portCfg.MetalLB = &endpoint.MetalLBData{
-			IPAddressPool:   metallbcfg.IPAddressPool,
-			SharedIP:        metallbcfg.SharedIP,
-			SharedIPKey:     metallbcfg.SharedIPKey,
-			LoadBalancerIPs: metallbcfg.LoadBalancerIPs,
-		}
-
-		ports[metallbcfg.Endpoint] = portCfg
-	}
-
+) (string, ctrl.Result, error) {
+	endpointTypeStr := string(service.EndpointInternal)
 	serviceName := novametadata.ServiceName
 	if instance.Spec.CellName != "" {
 		serviceName = novametadata.ServiceName + "-" + instance.Spec.CellName
 	}
+	serviceName = serviceName + "-" + endpointTypeStr
+	svcOverride := instance.Spec.Override.Service
+	if svcOverride == nil {
+		svcOverride = &service.OverrideSpec{}
+	}
+	if svcOverride.EmbeddedLabelsAnnotations == nil {
+		svcOverride.EmbeddedLabelsAnnotations = &service.EmbeddedLabelsAnnotations{}
+	}
 
-	apiEndpoints, ctrlResult, err := endpoint.ExposeEndpoints(
-		ctx,
-		h,
-		serviceName,
+	exportLabels := util.MergeStringMaps(
 		getMetadataServiceLabels(instance.Spec.CellName),
-		ports,
-		r.RequeueTimeout,
+		map[string]string{
+			service.AnnotationEndpointKey: endpointTypeStr,
+		},
+	)
+
+	// Create the service
+	svc, err := service.NewService(
+		service.GenericService(&service.GenericServiceDetails{
+			Name:      serviceName,
+			Namespace: instance.Namespace,
+			Labels:    exportLabels,
+			Selector:  getMetadataServiceLabels(instance.Spec.CellName),
+			Port: service.GenericServicePort{
+				Name:     serviceName,
+				Port:     novametadata.APIServicePort,
+				Protocol: corev1.ProtocolTCP,
+			},
+		}),
+		5,
+		svcOverride,
 	)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
@@ -475,18 +481,45 @@ func (r *NovaMetadataReconciler) ensureServiceExposed(
 			condition.SeverityWarning,
 			condition.ExposeServiceReadyErrorMessage,
 			err.Error()))
-		return apiEndpoints, ctrlResult, err
+		return "", ctrl.Result{}, err
+	}
+
+	if svc.GetServiceType() == corev1.ServiceTypeLoadBalancer {
+		svc.AddAnnotation(map[string]string{
+			service.AnnotationHostnameKey: svc.GetServiceHostname(), // add annotation to register service name in dnsmasq
+		})
+	}
+
+	ctrlResult, err := svc.CreateOrPatch(ctx, h)
+	if err != nil {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.ExposeServiceReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.ExposeServiceReadyErrorMessage,
+			err.Error()))
+
+		return "", ctrlResult, err
 	} else if (ctrlResult != ctrl.Result{}) {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.ExposeServiceReadyCondition,
 			condition.RequestedReason,
 			condition.SeverityInfo,
 			condition.ExposeServiceReadyRunningMessage))
-		return apiEndpoints, ctrlResult, err
+		return "", ctrlResult, err
 	}
+	// create service - end
+
+	// TODO: TLS, pass in https as protocol
+	apiEndpoint, err := svc.GetAPIEndpoint(
+		nil, ptr.To(service.ProtocolHTTP), "")
+	if err != nil {
+		return "", ctrl.Result{}, err
+	}
+
 	instance.Status.Conditions.MarkTrue(condition.ExposeServiceReadyCondition, condition.ExposeServiceReadyMessage)
 
-	return apiEndpoints, ctrl.Result{}, nil
+	return apiEndpoint, ctrl.Result{}, nil
 }
 
 func (r *NovaMetadataReconciler) reconcileDelete(
@@ -597,7 +630,6 @@ func (r *NovaMetadataReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&novav1.NovaMetadata{}).
 		Owns(&v1.StatefulSet{}).
 		Owns(&corev1.Service{}).
-		Owns(&routev1.Route{}).
 		Owns(&corev1.Secret{}).
 		Watches(&source.Kind{Type: &corev1.Secret{}},
 			handler.EnqueueRequestsFromMapFunc(r.GetSecretMapperFor(&novav1.NovaMetadataList{}))).

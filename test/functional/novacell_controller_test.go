@@ -21,6 +21,7 @@ import (
 	"github.com/google/uuid"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
 
 	corev1 "k8s.io/api/core/v1"
@@ -202,7 +203,6 @@ var _ = Describe("NovaCell controller", func() {
 
 			// make novncproxy ready
 			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
-			SimulateNoVNCProxyRouteIngress("cell1", cell1.CellCRName.Namespace)
 
 			th.ExpectCondition(
 				cell1.CellCRName,
@@ -250,7 +250,6 @@ var _ = Describe("NovaCell controller", func() {
 			// compute config only generated after VNCProxy is ready,
 			// so make novncproxy ready
 			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
-			host := SimulateNoVNCProxyRouteIngress("cell1", cell1.CellCRName.Namespace)
 			th.ExpectCondition(
 				cell1.CellCRName,
 				ConditionGetterFunc(NovaCellConditionGetter),
@@ -264,7 +263,56 @@ var _ = Describe("NovaCell controller", func() {
 			configData := string(computeConfigData.Data["01-nova.conf"])
 			Expect(configData).To(ContainSubstring("transport_url=rabbit://cell1/fake"))
 			Expect(configData).To(ContainSubstring("username = nova\npassword = service-password\n"))
-			vncUrlConfig := fmt.Sprintf("novncproxy_base_url = http://%s/vnc_lite.html", host)
+			vncUrlConfig := fmt.Sprintf("novncproxy_base_url = http://%s/vnc_lite.html",
+				fmt.Sprintf("nova-novncproxy-%s-public.%s.svc:6080", cell1.CellName, cell1.CellCRName.Namespace))
+			Expect(configData).To(ContainSubstring(vncUrlConfig))
+
+			th.ExpectCondition(
+				cell1.CellCRName,
+				ConditionGetterFunc(NovaCellConditionGetter),
+				novav1.NovaComputeServiceConfigReady,
+				corev1.ConditionTrue,
+			)
+
+			Expect(GetNovaCell(cell1.CellCRName).Status.Hash).To(HaveKey(cell1.ComputeConfigSecretName.Name))
+		})
+
+		It("updates the novncproxy_base_url in the compute config secret when VNCProxy endpointURL is set", func() {
+			// Update the VNCProxy endpointURL
+			Eventually(func(g Gomega) {
+				novaCell := GetNovaCell(cell1.CellCRName)
+				novaCell.Spec.NoVNCProxyServiceTemplate.Override.Service = &service.RoutedOverrideSpec{
+					EndpointURL: ptr.To("http://foo"),
+				}
+
+				g.Expect(k8sClient.Update(ctx, novaCell)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			th.ExpectCondition(
+				cell1.CellCRName,
+				ConditionGetterFunc(NovaCellConditionGetter),
+				condition.InputReadyCondition,
+				corev1.ConditionTrue,
+			)
+			th.SimulateJobSuccess(cell1.DBSyncJobName)
+			th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
+			// compute config only generated after VNCProxy is ready,
+			// so make novncproxy ready
+			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
+			th.ExpectCondition(
+				cell1.CellCRName,
+				ConditionGetterFunc(NovaCellConditionGetter),
+				novav1.NovaNoVNCProxyReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			computeConfigData := th.GetSecret(cell1.ComputeConfigSecretName)
+			Expect(computeConfigData).ShouldNot(BeNil())
+			Expect(computeConfigData.Data).Should(HaveKey("01-nova.conf"))
+			configData := string(computeConfigData.Data["01-nova.conf"])
+			Expect(configData).To(ContainSubstring("transport_url=rabbit://cell1/fake"))
+			Expect(configData).To(ContainSubstring("username = nova\npassword = service-password\n"))
+			vncUrlConfig := fmt.Sprintf("novncproxy_base_url = http://foo/vnc_lite.html")
 			Expect(configData).To(ContainSubstring(vncUrlConfig))
 
 			th.ExpectCondition(
@@ -281,7 +329,6 @@ var _ = Describe("NovaCell controller", func() {
 			th.SimulateJobSuccess(cell1.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
 			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
-			SimulateNoVNCProxyRouteIngress("cell1", cell1.CellCRName.Namespace)
 			th.SimulateStatefulSetReplicaReady(cell1.MetadataStatefulSetName)
 
 			th.ExpectCondition(
@@ -296,7 +343,6 @@ var _ = Describe("NovaCell controller", func() {
 			th.SimulateJobSuccess(cell1.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
 			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
-			SimulateNoVNCProxyRouteIngress("cell1", cell1.CellCRName.Namespace)
 			th.SimulateStatefulSetReplicaReady(cell1.MetadataStatefulSetName)
 
 			th.ExpectCondition(
@@ -328,7 +374,6 @@ var _ = Describe("NovaCell controller", func() {
 			th.SimulateJobSuccess(cell1.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
 			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
-			SimulateNoVNCProxyRouteIngress("cell1", cell1.CellCRName.Namespace)
 			th.SimulateStatefulSetReplicaReady(cell1.MetadataStatefulSetName)
 
 			th.ExpectCondition(
@@ -444,7 +489,6 @@ var _ = Describe("NovaCell controller", func() {
 
 			// make novncproxy ready
 			th.SimulateStatefulSetReplicaReady(cell2.NoVNCProxyStatefulSetName)
-			host := SimulateNoVNCProxyRouteIngress("cell2", cell2.CellCRName.Namespace)
 
 			th.ExpectCondition(
 				cell2.CellCRName,
@@ -467,7 +511,8 @@ var _ = Describe("NovaCell controller", func() {
 			Expect(computeConfigData).ShouldNot(BeNil())
 			Expect(computeConfigData.Data).Should(HaveKey("01-nova.conf"))
 			configData := string(computeConfigData.Data["01-nova.conf"])
-			vncUrlConfig := fmt.Sprintf("novncproxy_base_url = http://%s/vnc_lite.html", host)
+			vncUrlConfig := fmt.Sprintf("novncproxy_base_url = http://%s/vnc_lite.html",
+				fmt.Sprintf("nova-novncproxy-%s-public.%s.svc:6080", cell2.CellName, cell2.CellCRName.Namespace))
 			Expect(configData).To(ContainSubstring(vncUrlConfig))
 
 			Expect(GetNovaCell(cell2.CellCRName).Status.Hash[cell2.ComputeConfigSecretName.Name]).NotTo(BeNil())
@@ -553,7 +598,6 @@ var _ = Describe("NovaCell controller", func() {
 				"Deployment in progress",
 			)
 			th.SimulateStatefulSetReplicaReady(cell2.NoVNCProxyStatefulSetName)
-			SimulateNoVNCProxyRouteIngress("cell2", cell2.CellCRName.Namespace)
 			th.ExpectCondition(
 				cell2.CellCRName,
 				ConditionGetterFunc(NovaCellConditionGetter),
@@ -805,7 +849,6 @@ var _ = Describe("NovaCell controller", func() {
 			th.SimulateJobSuccess(cell1.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
 			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
-			SimulateNoVNCProxyRouteIngress("cell1", cell1.CellCRName.Namespace)
 			th.SimulateStatefulSetReplicaReady(cell1.MetadataStatefulSetName)
 
 			cell := GetNovaCell(cell1.CellCRName)

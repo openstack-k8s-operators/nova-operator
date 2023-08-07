@@ -520,39 +520,52 @@ var _ = Describe("NovaMetadata controller", func() {
 			)
 		})
 	})
-	When("NovaMetadata is created with externalEndpoints", func() {
+	When("NovaMetadata is created with service override", func() {
 		BeforeEach(func() {
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreateInternalTopLevelSecret(novaNames))
 
 			spec := GetDefaultNovaMetadataSpec(novaNames.InternalTopLevelSecretName)
-			var externalEndpoints []interface{}
-			externalEndpoints = append(
-				externalEndpoints, map[string]interface{}{
-					"endpoint":        "internal",
-					"ipAddressPool":   "osp-internalapi",
-					"loadBalancerIPs": []string{"internal-lb-ip-1", "internal-lb-ip-2"},
+			serviceOverride := map[string]interface{}{
+				"metadata": map[string]map[string]string{
+					"annotations": {
+						"metallb.universe.tf/address-pool":    "osp-internalapi",
+						"metallb.universe.tf/allow-shared-ip": "osp-internalapi",
+						"metallb.universe.tf/loadBalancerIPs": "internal-lb-ip-1,internal-lb-ip-2",
+					},
+					"labels": {
+						"internal": "true",
+						"service":  "nova",
+					},
 				},
-			)
-			spec["externalEndpoints"] = externalEndpoints
+				"spec": map[string]interface{}{
+					"type": "LoadBalancer",
+				},
+			}
+
+			spec["override"] = map[string]interface{}{
+				"service": serviceOverride,
+			}
 
 			metadata := CreateNovaMetadata(novaNames.MetadataName, spec)
 			DeferCleanup(th.DeleteInstance, metadata)
 		})
 
-		It("creates MetalLB service", func() {
+		It("creates LoadBalancer service", func() {
 			th.SimulateStatefulSetReplicaReady(novaNames.MetadataStatefulSetName)
 
-			// As the internal endpoint is configured in ExternalEndpoints it does not
-			// get a Route but a Service with MetalLB annotations instead
+			// As the internal endpoint is configured via service override to
+			// be a LoadBalancer Service with MetalLB annotations
 			service := th.GetService(novaNames.InternalNovaMetadataServiceName)
+			Expect(service.Annotations).To(
+				HaveKeyWithValue("dnsmasq.network.openstack.org/hostname", fmt.Sprintf("nova-metadata-internal.%s.svc", novaNames.Namespace)))
 			Expect(service.Annotations).To(
 				HaveKeyWithValue("metallb.universe.tf/address-pool", "osp-internalapi"))
 			Expect(service.Annotations).To(
 				HaveKeyWithValue("metallb.universe.tf/allow-shared-ip", "osp-internalapi"))
 			Expect(service.Annotations).To(
 				HaveKeyWithValue("metallb.universe.tf/loadBalancerIPs", "internal-lb-ip-1,internal-lb-ip-2"))
-			th.AssertRouteNotExists(novaNames.InternalNovaMetadataRouteName)
+			Expect(service.Spec.Type).To(Equal(corev1.ServiceTypeLoadBalancer))
 
 			th.ExpectCondition(
 				novaNames.MetadataName,
