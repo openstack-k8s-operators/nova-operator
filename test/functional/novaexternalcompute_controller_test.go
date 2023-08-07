@@ -74,10 +74,10 @@ var _ = Describe("NovaExternalCompute", func() {
 			// TODO(bogdando): move to novaNames.Compute*
 			inventoryName := types.NamespacedName{
 				Namespace: novaNames.ComputeName.Namespace,
-				Name:      compute.Spec.InventoryConfigMapName,
+				Name:      compute.Spec.InventorySecretName,
 			}
-			CreateNovaExternalComputeInventoryConfigMap(inventoryName)
-			DeferCleanup(th.DeleteConfigMap, inventoryName)
+			CreateNovaExternalComputeInventorySecret(inventoryName)
+			DeferCleanup(th.DeleteSecret, inventoryName)
 
 			sshSecretName := types.NamespacedName{
 				Namespace: novaNames.ComputeName.Namespace,
@@ -240,7 +240,7 @@ var _ = Describe("NovaExternalCompute", func() {
 					GetDefaultNovaExternalComputeSpec(novaNames.NovaName.Name, novaNames.ComputeName.Name)))
 		})
 
-		It("reports missing Inventory configmap", func() {
+		It("reports missing Inventory secret", func() {
 			compute := GetNovaExternalCompute(novaNames.ComputeName)
 			th.ExpectConditionWithDetails(
 				novaNames.ComputeName,
@@ -248,17 +248,17 @@ var _ = Describe("NovaExternalCompute", func() {
 				condition.InputReadyCondition,
 				corev1.ConditionFalse,
 				condition.RequestedReason,
-				"Input data resources missing: configmap/"+compute.Spec.InventoryConfigMapName,
+				"Input data resources missing: secret/"+compute.Spec.InventorySecretName,
 			)
 			compute = GetNovaExternalCompute(novaNames.ComputeName)
 			Expect(compute.Status.Hash["input"]).To(BeEmpty())
 		})
 
-		It("reports missing field from Inventory configmap", func() {
+		It("reports missing field from Inventory secret", func() {
 			compute := GetNovaExternalCompute(novaNames.ComputeName)
-			cm := th.CreateConfigMap(
-				types.NamespacedName{Namespace: novaNames.ComputeName.Namespace, Name: compute.Spec.InventoryConfigMapName},
-				map[string]interface{}{},
+			cm := th.CreateSecret(
+				types.NamespacedName{Namespace: novaNames.ComputeName.Namespace, Name: compute.Spec.InventorySecretName},
+				map[string][]byte{},
 			)
 			DeferCleanup(th.DeleteInstance, cm)
 			th.ExpectConditionWithDetails(
@@ -267,7 +267,7 @@ var _ = Describe("NovaExternalCompute", func() {
 				condition.InputReadyCondition,
 				corev1.ConditionFalse,
 				condition.ErrorReason,
-				"Input data error occurred field 'inventory' not found in configmap/"+compute.Spec.InventoryConfigMapName,
+				"Input data error occurred field 'inventory' not found in secret/"+compute.Spec.InventorySecretName,
 			)
 			compute = GetNovaExternalCompute(novaNames.ComputeName)
 			Expect(compute.Status.Hash["input"]).To(BeEmpty())
@@ -275,9 +275,9 @@ var _ = Describe("NovaExternalCompute", func() {
 
 		It("reports missing SSH key secret", func() {
 			compute := GetNovaExternalCompute(novaNames.ComputeName)
-			inventoryName := types.NamespacedName{Namespace: novaNames.ComputeName.Namespace, Name: compute.Spec.InventoryConfigMapName}
-			CreateNovaExternalComputeInventoryConfigMap(inventoryName)
-			DeferCleanup(th.DeleteConfigMap, inventoryName)
+			inventoryName := types.NamespacedName{Namespace: novaNames.ComputeName.Namespace, Name: compute.Spec.InventorySecretName}
+			CreateNovaExternalComputeInventorySecret(inventoryName)
+			DeferCleanup(th.DeleteSecret, inventoryName)
 			th.ExpectConditionWithDetails(
 				novaNames.ComputeName,
 				ConditionGetterFunc(NovaExternalComputeConditionGetter),
@@ -292,8 +292,8 @@ var _ = Describe("NovaExternalCompute", func() {
 
 		It("reports missing field from SSH key secret", func() {
 			compute := GetNovaExternalCompute(novaNames.ComputeName)
-			CreateNovaExternalComputeInventoryConfigMap(
-				types.NamespacedName{Namespace: novaNames.ComputeName.Namespace, Name: compute.Spec.InventoryConfigMapName})
+			CreateNovaExternalComputeInventorySecret(
+				types.NamespacedName{Namespace: novaNames.ComputeName.Namespace, Name: compute.Spec.InventorySecretName})
 			th.CreateEmptySecret(
 				types.NamespacedName{Namespace: novaNames.ComputeName.Namespace, Name: compute.Spec.SSHKeySecretName})
 			th.ExpectConditionWithDetails(
@@ -320,9 +320,9 @@ var _ = Describe("NovaExternalCompute", func() {
 			compute := GetNovaExternalCompute(novaNames.ComputeName)
 			inventoryName := types.NamespacedName{
 				Namespace: novaNames.ComputeName.Namespace,
-				Name:      compute.Spec.InventoryConfigMapName,
+				Name:      compute.Spec.InventorySecretName,
 			}
-			CreateNovaExternalComputeInventoryConfigMap(inventoryName)
+			CreateNovaExternalComputeInventorySecret(inventoryName)
 			DeferCleanup(th.DeleteSecret, inventoryName)
 
 			sshSecretName := types.NamespacedName{
@@ -376,9 +376,9 @@ var _ = Describe("NovaExternalCompute", func() {
 			compute := GetNovaExternalCompute(novaNames.ComputeName)
 			inventoryName := types.NamespacedName{
 				Namespace: novaNames.ComputeName.Namespace,
-				Name:      compute.Spec.InventoryConfigMapName,
+				Name:      compute.Spec.InventorySecretName,
 			}
-			CreateNovaExternalComputeInventoryConfigMap(inventoryName)
+			CreateNovaExternalComputeInventorySecret(inventoryName)
 			DeferCleanup(th.DeleteConfigMap, inventoryName)
 
 			sshSecretName := types.NamespacedName{
@@ -421,7 +421,7 @@ var _ = Describe("NovaExternalCompute", func() {
 		It("reports that the inventory is missing", func() {
 			Eventually(func(g Gomega) {
 				compute := GetNovaExternalCompute(novaNames.ComputeName)
-				compute.Spec.InventoryConfigMapName = "non-existent"
+				compute.Spec.InventorySecretName = "non-existent"
 				g.Expect(k8sClient.Update(ctx, compute)).To(Succeed())
 			}, timeout, interval).Should(Succeed())
 
@@ -448,13 +448,13 @@ var _ = Describe("NovaExternalCompute", func() {
 			CreateNovaExternalCompute(
 				computeNameUnstructured,
 				map[string]interface{}{
-					"inventoryConfigMapName": "foo-inventory-configmap",
-					"sshKeySecretName":       "foo-ssh-key-secret",
+					"inventorySecretName": "foo-inventory-secret",
+					"sshKeySecretName":    "foo-ssh-key-secret",
 				})
 			computeFromUnstructured := GetNovaExternalCompute(computeNameUnstructured)
 			DeferCleanup(th.DeleteInstance, computeFromUnstructured)
 
-			spec := novav1.NewNovaExternalComputeSpec("foo-inventory-configmap", "foo-ssh-key-secret")
+			spec := novav1.NewNovaExternalComputeSpec("foo-inventory-secret", "foo-ssh-key-secret")
 			err := k8sClient.Create(ctx, &novav1.NovaExternalCompute{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      computeNameGolang.Name,

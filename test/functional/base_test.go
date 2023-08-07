@@ -368,10 +368,10 @@ func NovaSchedulerNotExists(name types.NamespacedName) {
 
 func GetDefaultNovaExternalComputeSpec(novaName string, computeName string) map[string]interface{} {
 	return map[string]interface{}{
-		"novaInstance":           novaName,
-		"inventoryConfigMapName": computeName + "-inventory-configmap",
-		"sshKeySecretName":       computeName + "-ssh-key-secret",
-		"networkAttachments":     []string{"internalapi"},
+		"novaInstance":        novaName,
+		"InventorySecretName": computeName + "-inventory-secret",
+		"sshKeySecretName":    computeName + "-ssh-key-secret",
+		"networkAttachments":  []string{"internalapi"},
 	}
 }
 
@@ -402,10 +402,10 @@ func NovaExternalComputeConditionGetter(name types.NamespacedName) condition.Con
 	return instance.Status.Conditions
 }
 
-func CreateNovaExternalComputeInventoryConfigMap(name types.NamespacedName) client.Object {
+func CreateNovaExternalComputeInventorySecret(name types.NamespacedName) client.Object {
 
-	return th.CreateConfigMap(
-		name, map[string]interface{}{"inventory": "an ansible inventory"})
+	return th.CreateSecret(
+		name, map[string][]byte{"inventory": []byte("an ansible inventory")})
 }
 
 func CreateNovaExternalComputeSSHSecret(name types.NamespacedName) *corev1.Secret {

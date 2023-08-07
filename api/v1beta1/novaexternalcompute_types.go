@@ -51,9 +51,9 @@ type NovaExternalComputeSpec struct {
 	DefaultConfigOverwrite map[string]string `json:"defaultConfigOverwrite,omitempty"`
 
 	// +kubebuilder:validation:Required
-	// InventoryConfigMapName is the name of the k8s config map that contains the ansible inventory information
+	// InventorySecretName is the name of the k8s secret that contains the ansible inventory information
 	// for this node
-	InventoryConfigMapName string `json:"inventoryConfigMapName"`
+	InventorySecretName string `json:"inventorySecretName"`
 
 	// +kubebuilder:validation:Required
 	// SSHKeySecretName is the name of the k8s Secret that contains the ssh keys to access the node
@@ -140,7 +140,7 @@ func (instance NovaExternalCompute) IsReady() bool {
 
 // NewNovaExternalComputeSpec returns a NovaExternalComputeSpec where the fields are defaulted according
 // to the CRD definition
-func NewNovaExternalComputeSpec(inventoryConfigMapName string, sshKeySecretName string) NovaExternalComputeSpec {
+func NewNovaExternalComputeSpec(inventorySecretName string, sshKeySecretName string) NovaExternalComputeSpec {
 	trueVar := true
 
 	spec := NovaExternalComputeSpec{
@@ -148,7 +148,7 @@ func NewNovaExternalComputeSpec(inventoryConfigMapName string, sshKeySecretName 
 		CellName:               "cell1",
 		CustomServiceConfig:    "",
 		DefaultConfigOverwrite: nil,
-		InventoryConfigMapName: inventoryConfigMapName,
+		InventorySecretName:    inventorySecretName,
 		SSHKeySecretName:       sshKeySecretName,
 		Deploy:                 &trueVar,
 		NetworkAttachments:     nil,

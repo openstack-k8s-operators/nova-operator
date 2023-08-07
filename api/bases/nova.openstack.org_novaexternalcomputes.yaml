@@ -104,9 +104,9 @@ spec:
                       type: string
                     type: array
                 type: object
-              inventoryConfigMapName:
-                description: InventoryConfigMapName is the name of the k8s config
-                  map that contains the ansible inventory information for this node
+              inventorySecretName:
+                description: InventorySecretName is the name of the k8s secret that
+                  contains the ansible inventory information for this node
                 type: string
               networkAttachments:
                 description: NetworkAttachments is a list of NetworkAttachment resource
@@ -134,7 +134,7 @@ spec:
                   the ssh keys to access the node
                 type: string
             required:
-            - inventoryConfigMapName
+            - inventorySecretName
             - sshKeySecretName
             type: object
           status:

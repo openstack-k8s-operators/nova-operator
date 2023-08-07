@@ -142,10 +142,10 @@ func (r *NovaExternalComputeReconciler) Reconcile(ctx context.Context, req ctrl.
 	// detect if something is changed.
 	hashes := make(map[string]env.Setter)
 
-	inventoryHash, result, err := ensureConfigMap(
+	inventoryHash, result, _, err := ensureSecret(
 		ctx,
 
-		types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.InventoryConfigMapName},
+		types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.InventorySecretName},
 		// NOTE(gibi): Add the fields here we expect to exists in the InventorySecret
 		[]string{
 			"inventory",
@@ -157,7 +157,7 @@ func (r *NovaExternalComputeReconciler) Reconcile(ctx context.Context, req ctrl.
 	if err != nil {
 		return result, err
 	}
-	hashes[instance.Spec.InventoryConfigMapName] = env.SetValue(inventoryHash)
+	hashes[instance.Spec.InventorySecretName] = env.SetValue(inventoryHash)
 
 	sshKeyHHash, result, _, err := ensureSecret(
 		ctx,
@@ -740,7 +740,7 @@ func initAEE(
 		VolumeSource: corev1.VolumeSource{
 			ConfigMap: &corev1.ConfigMapVolumeSource{
 				LocalObjectReference: corev1.LocalObjectReference{
-					Name: instance.Spec.InventoryConfigMapName,
+					Name: instance.Spec.InventorySecretName,
 				},
 				Items: []corev1.KeyToPath{
 					{
@@ -760,14 +760,12 @@ func initAEE(
 	ansibleEEMounts.Mounts = append(ansibleEEMounts.Mounts, inventoryMount)
 
 	// mount nova playbooks
-	playbookCMName := fmt.Sprintf("%s-external-compute-playbooks", instance.Spec.NovaInstance)
+	playbookSecretName := fmt.Sprintf("%s-external-compute-playbooks", instance.Spec.NovaInstance)
 	playbookVolume := corev1.Volume{
 		Name: "playbooks",
 		VolumeSource: corev1.VolumeSource{
-			ConfigMap: &corev1.ConfigMapVolumeSource{
-				LocalObjectReference: corev1.LocalObjectReference{
-					Name: playbookCMName,
-				},
+			Secret: &corev1.SecretVolumeSource{
+				SecretName: playbookSecretName,
 			},
 		},
 	}
