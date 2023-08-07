@@ -920,7 +920,7 @@ var _ = Describe("Nova controller", func() {
 
 			api := GetNovaAPI(novaNames.APIName)
 			Expect(api.Spec.NetworkAttachments).To(Equal(nova.Spec.APIServiceTemplate.NetworkAttachments))
-			Expect(api.Spec.ExternalEndpoints).To(Equal(nova.Spec.APIServiceTemplate.ExternalEndpoints))
+			Expect(api.Spec.Override).To(Equal(nova.Spec.APIServiceTemplate.Override))
 
 			scheduler := GetNovaScheduler(novaNames.SchedulerName)
 			Expect(scheduler.Spec.NetworkAttachments).To(Equal(nova.Spec.APIServiceTemplate.NetworkAttachments))

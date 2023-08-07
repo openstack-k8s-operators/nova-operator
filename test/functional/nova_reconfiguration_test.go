@@ -105,13 +105,11 @@ func CreateNovaWith3CellsAndEnsureReady(novaNames NovaNames) {
 	th.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
 
 	th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
-	SimulateNoVNCProxyRouteIngress("cell1", novaNames.Namespace)
 	th.SimulateJobSuccess(cell1.CellDBSyncJobName)
 	th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
 	th.SimulateJobSuccess(cell1.CellMappingJobName)
 
 	th.SimulateStatefulSetReplicaReady(cell2.NoVNCProxyStatefulSetName)
-	SimulateNoVNCProxyRouteIngress("cell2", novaNames.Namespace)
 	th.SimulateJobSuccess(cell2.CellDBSyncJobName)
 	th.SimulateStatefulSetReplicaReady(cell2.ConductorStatefulSetName)
 	th.SimulateJobSuccess(cell2.CellMappingJobName)

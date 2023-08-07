@@ -41,7 +41,7 @@ func CreateNovaCellAndEnsureReady(cell CellNames) {
 	th.SimulateJobSuccess(cell.CellDBSyncJobName)
 	th.SimulateStatefulSetReplicaReady(cell.ConductorStatefulSetName)
 
-	SimulateNoVNCProxyRouteIngress(cell1.CellName.Name, cell1.CellName.Namespace)
+	//SimulateNoVNCProxyRouteIngress(cell1.CellName.Name, cell1.CellName.Namespace)
 
 	th.ExpectCondition(
 		cell.CellName,
@@ -373,7 +373,7 @@ var _ = Describe("NovaExternalCompute", func() {
 			}
 			CreateNovaExternalComputeSSHSecret(sshSecretName)
 
-			SimulateNoVNCProxyRouteIngress(cell1.CellName.Name, cell1.CellName.Namespace)
+			//SimulateNoVNCProxyRouteIngress(cell1.CellName.Name, cell1.CellName.Namespace)
 
 			DeferCleanup(th.DeleteSecret, sshSecretName)
 

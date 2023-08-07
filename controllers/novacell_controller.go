@@ -19,22 +19,24 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	routev1 "github.com/openshift/api/route/v1"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/labels"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
@@ -178,7 +180,7 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 	}
 
 	// We need to wait for the NovaNoVNCProxy to become Ready before we can try
-	// to generate the compute config secret as that needs the route of the
+	// to generate the compute config secret as that needs the endpoint of the
 	// proxy to be included.
 	// However NovaNoVNCProxy is never deployed in cell0, and optional in other
 	// cells too.
@@ -191,16 +193,16 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 		return ctrl.Result{}, nil
 	}
 
-	var vncHost *string
+	var vncProxyURL *string
 	if cellHasVNCService {
-		vncHost, err = r.getVNCHost(ctx, h, instance)
+		vncProxyURL, err = r.getVNCHost(ctx, h, instance)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
 	}
 
 	if !isCell0 {
-		result, err = r.ensureComputeConfig(ctx, h, instance, secret, messageBusSecret, vncHost)
+		result, err = r.ensureComputeConfig(ctx, h, instance, secret, messageBusSecret, vncProxyURL)
 		if (err != nil || result != ctrl.Result{}) {
 			return result, err
 		}
@@ -450,7 +452,7 @@ func (r *NovaCellReconciler) ensureComputeConfig(
 
 func (r *NovaCellReconciler) generateComputeConfigs(
 	ctx context.Context, h *helper.Helper, instance *novav1.NovaCell,
-	secret corev1.Secret, messageBusSecret corev1.Secret, vncHost *string,
+	secret corev1.Secret, messageBusSecret corev1.Secret, vncProxyURL *string,
 ) error {
 	templateParameters := map[string]interface{}{
 		"service_name":           "nova-compute",
@@ -466,8 +468,8 @@ func (r *NovaCellReconciler) generateComputeConfigs(
 	}
 	// vnc is optional so we only need to configure it for the compute
 	// if the proxy service is deployed in the cell
-	if vncHost != nil {
-		templateParameters["novncproxy_base_url"] = "http://" + *vncHost // fixme use https
+	if vncProxyURL != nil {
+		templateParameters["novncproxy_base_url"] = *vncProxyURL
 	}
 
 	cmLabels := labels.GetLabels(
@@ -495,23 +497,28 @@ func (r *NovaCellReconciler) getVNCHost(
 	// <nova_instance>-<cell_name>-<service_name>-<service_type>
 	vncRouteName := fmt.Sprintf("nova-novncproxy-%s-public", instance.Spec.CellName)
 
-	vncRoute := &routev1.Route{}
-	err := h.GetClient().Get(ctx, types.NamespacedName{
-		Namespace: instance.Namespace,
-		Name:      vncRouteName,
-	}, vncRoute)
+	svcOverride := ptr.To(instance.Spec.NoVNCProxyServiceTemplate.Override.Service[string(service.EndpointPublic)])
+	if svcOverride != nil &&
+		svcOverride.EndpointURL != nil {
+		return svcOverride.EndpointURL, nil
+	}
+
+	vncSvc, err := service.GetServiceWithName(ctx, h, vncRouteName, instance.Namespace)
 	if err != nil {
 		return nil, err
 	}
-	vncHost := vncRoute.Spec.Host
-	if vncHost == "" && len(vncRoute.Status.Ingress) > 0 {
-		vncHost = vncRoute.Status.Ingress[0].Host
-	} else if vncHost == "" {
-		// This should not happen as we waited for the NovaNoVncProxy to
-		// to become ready, so the route should exits
-		return nil, fmt.Errorf("vncHost is empty")
+	svc, err := service.NewService(vncSvc, time.Duration(5)*time.Second, svcOverride)
+	if err != nil {
+		return nil, err
 	}
-	return &vncHost, nil
+
+	// TODO: TLS
+	vncProxyURL, err := svc.GetAPIEndpoint(svcOverride, ptr.To(service.ProtocolHTTP), "/vnc_lite.html")
+	if err != nil {
+		return nil, err
+	}
+
+	return ptr.To(vncProxyURL), nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

@@ -282,30 +282,6 @@ spec:
   selector:
     service: nova-api
 ---
-apiVersion: route.openshift.io/v1
-kind: Route
-metadata:
-  labels:
-    public: "true"
-    service: nova-api
-  name: nova-public
-  ownerReferences:
-  - blockOwnerDeletion: true
-    controller: true
-    kind: NovaAPI
-    name: nova-kuttl-api
-spec:
-  port:
-    targetPort: nova-public
-  to:
-    kind: Service
-    name: nova-public
-status:
-  ingress:
-  - conditions:
-    - status: "True"
-      type: Admitted
----
 apiVersion: v1
 kind: Secret
 metadata:

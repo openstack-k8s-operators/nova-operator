@@ -294,7 +294,6 @@ var _ = Describe("Nova multicell", func() {
 						novaNames.APIMariaDBDatabaseName.Name)),
 			)
 			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
-			SimulateNoVNCProxyRouteIngress("cell1", novaNames.Namespace)
 			th.SimulateJobSuccess(cell1.CellDBSyncJobName)
 			th.ExpectCondition(
 				cell1.CellConductorName,
@@ -347,7 +346,6 @@ var _ = Describe("Nova multicell", func() {
 			th.SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
 			th.SimulateTransportURLReady(cell1.TransportURLName)
 			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
-			SimulateNoVNCProxyRouteIngress("cell1", novaNames.Namespace)
 			th.SimulateJobSuccess(cell1.CellDBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
 			th.SimulateJobSuccess(cell1.CellMappingJobName)
@@ -382,7 +380,6 @@ var _ = Describe("Nova multicell", func() {
 				ContainSubstring("[api_database]"),
 			)
 			th.SimulateStatefulSetReplicaReady(cell2.NoVNCProxyStatefulSetName)
-			SimulateNoVNCProxyRouteIngress("cell2", novaNames.Namespace)
 			th.SimulateJobSuccess(cell2.CellDBSyncJobName)
 			th.ExpectCondition(
 				cell2.CellConductorName,
@@ -466,7 +463,6 @@ var _ = Describe("Nova multicell", func() {
 			GetNovaConductor(cell2.CellConductorName)
 
 			th.SimulateStatefulSetReplicaReady(cell2.NoVNCProxyStatefulSetName)
-			SimulateNoVNCProxyRouteIngress("cell2", novaNames.Namespace)
 			th.SimulateJobSuccess(cell2.CellDBSyncJobName)
 			th.ExpectCondition(
 				cell2.CellConductorName,
@@ -618,7 +614,6 @@ var _ = Describe("Nova multicell", func() {
 
 			// As cell0 is ready cell1 is deployed
 			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
-			SimulateNoVNCProxyRouteIngress("cell1", novaNames.Namespace)
 			th.SimulateJobSuccess(cell1.CellDBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
 			th.SimulateJobSuccess(cell1.CellMappingJobName)
@@ -786,7 +781,6 @@ var _ = Describe("Nova multicell", func() {
 
 			// As cell0 is ready cell1 is deployed
 			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
-			SimulateNoVNCProxyRouteIngress("cell1", cell1.CellName.Namespace)
 			th.SimulateJobSuccess(cell1.CellDBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
 			th.SimulateStatefulSetReplicaReady(cell1.MetadataStatefulSetName)

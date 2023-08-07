@@ -18,6 +18,7 @@ package v1beta1
 
 import (
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
+	service "github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -64,9 +65,15 @@ type NovaNoVNCProxyTemplate struct {
 	NetworkAttachments []string `json:"networkAttachments,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	// ExternalEndpoints, expose a VIP via MetalLB on the pre-created address pool
-	//
-	ExternalEndpoints []MetalLBConfig `json:"externalEndpoints,omitempty"`
+	// Override, provides the ability to override the generated manifest of several child resources.
+	Override VNCProxyOverrideSpec `json:"override,omitempty"`
+}
+
+// VNCProxyOverrideSpec to override the generated manifest of several child resources.
+type VNCProxyOverrideSpec struct {
+	// Override configuration for the Service created to serve traffic to the cluster.
+	// The key must be the endpoint type (public, internal)
+	Service map[string]service.OverrideSpec `json:"service,omitempty"`
 }
 
 // NovaNoVNCProxySpec defines the desired state of NovaNoVNCProxy
@@ -116,8 +123,8 @@ type NovaNoVNCProxySpec struct {
 	NovaServiceBase `json:",inline"`
 
 	// +kubebuilder:validation:Optional
-	// ExternalEndpoints, expose a VIP via MetalLB on the pre-created address pool
-	ExternalEndpoints []MetalLBConfig `json:"externalEndpoints,omitempty"`
+	// Override, provides the ability to override the generated manifest of several child resources.
+	Override VNCProxyOverrideSpec `json:"override,omitempty"`
 
 	// +kubebuilder:validation:Required
 	// ServiceAccount - service account name used internally to provide Nova services the default SA name
@@ -201,10 +208,10 @@ func NewNovaNoVNCProxySpec(
 			Resources:              novaCell.NoVNCProxyServiceTemplate.Resources,
 			NetworkAttachments:     novaCell.NoVNCProxyServiceTemplate.NetworkAttachments,
 		},
-		KeystoneAuthURL:   novaCell.KeystoneAuthURL,
-		ServiceUser:       novaCell.ServiceUser,
-		ServiceAccount:    novaCell.ServiceAccount,
-		ExternalEndpoints: novaCell.NoVNCProxyServiceTemplate.ExternalEndpoints,
+		KeystoneAuthURL: novaCell.KeystoneAuthURL,
+		ServiceUser:     novaCell.ServiceUser,
+		ServiceAccount:  novaCell.ServiceAccount,
+		Override:        novaCell.NoVNCProxyServiceTemplate.Override,
 	}
 	return noVNCProxSpec
 }

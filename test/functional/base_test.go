@@ -21,7 +21,6 @@ import (
 
 	"github.com/google/uuid"
 	. "github.com/onsi/gomega"
-	routev1 "github.com/openshift/api/route/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -534,8 +533,6 @@ type NovaNames struct {
 	InternalNovaServiceName types.NamespacedName
 	PublicNovaServiceName   types.NamespacedName
 	AdminNovaServiceName    types.NamespacedName
-	InternalNovaRouteName   types.NamespacedName
-	PublicNovaRouteName     types.NamespacedName
 	ComputeName             types.NamespacedName
 	KeystoneServiceName     types.NamespacedName
 	APIName                 types.NamespacedName
@@ -561,7 +558,6 @@ type NovaNames struct {
 	RoleBindingName                 types.NamespacedName
 	MetadataConfigDataName          types.NamespacedName
 	InternalNovaMetadataServiceName types.NamespacedName
-	InternalNovaMetadataRouteName   types.NamespacedName
 	InternalTopLevelSecretName      types.NamespacedName
 	Cells                           map[string]CellNames
 }
@@ -604,14 +600,6 @@ func GetNovaNames(novaName types.NamespacedName, cellNames []string) NovaNames {
 			Name:      "nova-internal",
 		},
 		PublicNovaServiceName: types.NamespacedName{
-			Namespace: novaName.Namespace,
-			Name:      "nova-public",
-		},
-		InternalNovaRouteName: types.NamespacedName{
-			Namespace: novaName.Namespace,
-			Name:      "nova-internal",
-		},
-		PublicNovaRouteName: types.NamespacedName{
 			Namespace: novaName.Namespace,
 			Name:      "nova-public",
 		},
@@ -678,10 +666,6 @@ func GetNovaNames(novaName types.NamespacedName, cellNames []string) NovaNames {
 			Name:      novaMetadata.Name + "-config-data",
 		},
 		InternalNovaMetadataServiceName: types.NamespacedName{
-			Namespace: novaMetadata.Namespace,
-			Name:      "nova-metadata-internal",
-		},
-		InternalNovaMetadataRouteName: types.NamespacedName{
 			Namespace: novaMetadata.Namespace,
 			Name:      "nova-metadata-internal",
 		},
@@ -825,26 +809,9 @@ func AssertNoVNCProxyDoesNotExist(name types.NamespacedName) {
 	}, timeout, interval).Should(Succeed())
 }
 
-func SimulateNoVNCProxyRouteIngress(cellName string, namespace string) string {
-	vncRouteName := types.NamespacedName{
-		Namespace: namespace,
-		Name:      fmt.Sprintf("nova-novncproxy-%s-public", cellName),
-	}
-	ingress := routev1.RouteIngress{
-		Host: fmt.Sprintf(
-			"nova-novncproxy-%s-public-openstack.apps-crc.testing", cellName),
-		RouterName: "name",
-	}
-	Eventually(func(g Gomega) {
-		vncRoute := &routev1.Route{}
-		g.Expect(k8sClient.Get(ctx, vncRouteName, vncRoute)).Should(Succeed())
+func SimulateNoVNCProxyService(cellName string, namespace string) string {
+	vncServiceHost := fmt.Sprintf("nova-novncproxy-%s-public.%s.svc:6080", cellName, namespace)
+	logger.Info("Simulated host for the NovaNoVncProxy Service", "on", vncServiceHost)
 
-		vncRoute.Status.Ingress = append(vncRoute.Status.Ingress, ingress)
-		// NOTE(gibi): Here we intentionally not using the Status client even
-		// though we are updating the Status. While this is strange but it
-		// does not work otherwise. (The status client will return 404)
-		g.Expect(k8sClient.Update(ctx, vncRoute)).Should(Succeed())
-	}, timeout, interval).Should(Succeed())
-	logger.Info("Simulated Ingress for the NovaNoVncProxy Route", "on", vncRouteName)
-	return ingress.Host
+	return vncServiceHost
 }

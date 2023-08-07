@@ -429,39 +429,53 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 		})
 	})
 
-	When("NovaNoVNCProxy is created with externalEndpoints", func() {
+	When("NovaNoVNCProxy is created with service override", func() {
 		BeforeEach(func() {
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreateNovaNoVNCProxySecret(cell1.NoVNCProxyName.Namespace, SecretName))
 
 			spec := GetDefaultNovaNoVNCProxySpec()
-			var externalEndpoints []interface{}
-			externalEndpoints = append(
-				externalEndpoints, map[string]interface{}{
-					"endpoint":        "internal",
-					"ipAddressPool":   "osp-internalapi",
-					"loadBalancerIPs": []string{"internal-lb-ip-1", "internal-lb-ip-2"},
+			serviceOverride := map[string]interface{}{}
+			serviceOverride["internal"] = map[string]interface{}{
+				"metadata": map[string]map[string]string{
+					"annotations": {
+						"dnsmasq.network.openstack.org/hostname": "nova-novncproxy-cell1-internal.openstack.svc",
+						"metallb.universe.tf/address-pool":       "osp-internalapi",
+						"metallb.universe.tf/allow-shared-ip":    "osp-internalapi",
+						"metallb.universe.tf/loadBalancerIPs":    "internal-lb-ip-1,internal-lb-ip-2",
+					},
+					"labels": {
+						"internal": "true",
+						"service":  "nova",
+					},
 				},
-			)
-			spec["externalEndpoints"] = externalEndpoints
+				"spec": map[string]interface{}{
+					"type": "LoadBalancer",
+				},
+			}
+
+			spec["override"] = map[string]interface{}{
+				"service": serviceOverride,
+			}
 
 			noVNCP := CreateNovaNoVNCProxy(cell1.NoVNCProxyName, spec)
 			DeferCleanup(th.DeleteInstance, noVNCP)
 		})
 
-		It("creates MetalLB service", func() {
+		It("creates LoadBalancer service", func() {
 			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
 
-			// As the internal endpoint is configured in ExternalEndpoints it does not
-			// get a Route but a Service with MetalLB annotations instead
+			// As the internal endpoint is configured in ExternalEndpoints it
+			// gets a LoadBalancer Service with MetalLB annotations
 			service := th.GetService(types.NamespacedName{Namespace: cell1.NoVNCProxyName.Namespace, Name: "nova-novncproxy-cell1-internal"})
+			Expect(service.Annotations).To(
+				HaveKeyWithValue("dnsmasq.network.openstack.org/hostname", "nova-novncproxy-cell1-internal.openstack.svc"))
 			Expect(service.Annotations).To(
 				HaveKeyWithValue("metallb.universe.tf/address-pool", "osp-internalapi"))
 			Expect(service.Annotations).To(
 				HaveKeyWithValue("metallb.universe.tf/allow-shared-ip", "osp-internalapi"))
 			Expect(service.Annotations).To(
 				HaveKeyWithValue("metallb.universe.tf/loadBalancerIPs", "internal-lb-ip-1,internal-lb-ip-2"))
-			th.AssertRouteNotExists(types.NamespacedName{Namespace: cell1.NoVNCProxyName.Namespace, Name: "nova-novncproxy-cell1-internal"})
 
 			th.ExpectCondition(
 				cell1.NoVNCProxyName,

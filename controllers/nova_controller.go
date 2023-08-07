@@ -850,11 +850,11 @@ func (r *NovaReconciler) ensureAPI(
 			Resources:              instance.Spec.APIServiceTemplate.Resources,
 			NetworkAttachments:     instance.Spec.APIServiceTemplate.NetworkAttachments,
 		},
-		ExternalEndpoints: instance.Spec.APIServiceTemplate.ExternalEndpoints,
-		KeystoneAuthURL:   keystoneAuthURL,
-		ServiceUser:       instance.Spec.ServiceUser,
-		ServiceAccount:    instance.RbacResourceName(),
-		RegisteredCells:   instance.Status.RegisteredCells,
+		Override:        instance.Spec.APIServiceTemplate.Override,
+		KeystoneAuthURL: keystoneAuthURL,
+		ServiceUser:     instance.Spec.ServiceUser,
+		ServiceAccount:  instance.RbacResourceName(),
+		RegisteredCells: instance.Status.RegisteredCells,
 	}
 	api := &novav1.NovaAPI{
 		ObjectMeta: metav1.ObjectMeta{
@@ -1212,11 +1212,11 @@ func (r *NovaReconciler) ensureMetadata(
 			Resources:              instance.Spec.MetadataServiceTemplate.Resources,
 			NetworkAttachments:     instance.Spec.MetadataServiceTemplate.NetworkAttachments,
 		},
-		ExternalEndpoints: instance.Spec.MetadataServiceTemplate.ExternalEndpoints,
-		ServiceUser:       instance.Spec.ServiceUser,
-		KeystoneAuthURL:   keystoneAuthURL,
-		ServiceAccount:    instance.RbacResourceName(),
-		RegisteredCells:   instance.Status.RegisteredCells,
+		Override:        instance.Spec.MetadataServiceTemplate.Override,
+		ServiceUser:     instance.Spec.ServiceUser,
+		KeystoneAuthURL: keystoneAuthURL,
+		ServiceAccount:  instance.RbacResourceName(),
+		RegisteredCells: instance.Status.RegisteredCells,
 	}
 	metadata := &novav1.NovaMetadata{
 		ObjectMeta: metav1.ObjectMeta{

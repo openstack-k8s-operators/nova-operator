@@ -292,7 +292,6 @@ var _ = Describe("NovaAPI controller", func() {
 			Expect(public.Labels["service"]).To(Equal("nova-api"))
 			internal := th.GetService(novaNames.InternalNovaServiceName)
 			Expect(internal.Labels["service"]).To(Equal("nova-api"))
-			th.AssertRouteExists(novaNames.PublicNovaRouteName)
 		})
 
 		It("creates KeystoneEndpoint", func() {
@@ -301,7 +300,7 @@ var _ = Describe("NovaAPI controller", func() {
 
 			keystoneEndpoint := th.GetKeystoneEndpoint(types.NamespacedName{Namespace: novaNames.APIName.Namespace, Name: "nova"})
 			endpoints := keystoneEndpoint.Spec.Endpoints
-			Expect(endpoints).To(HaveKeyWithValue("public", "http:/v2.1"))
+			Expect(endpoints).To(HaveKeyWithValue("public", "http://nova-public."+novaNames.APIName.Namespace+".svc:8774/v2.1"))
 			Expect(endpoints).To(HaveKeyWithValue("internal", "http://nova-internal."+novaNames.APIName.Namespace+".svc:8774/v2.1"))
 
 			th.ExpectCondition(
@@ -486,50 +485,60 @@ var _ = Describe("NovaAPI controller", func() {
 		})
 	})
 
-	When("NovaAPI is created with externalEndpoints", func() {
+	When("NovaAPI is created with service override", func() {
 		BeforeEach(func() {
 			spec := GetDefaultNovaAPISpec()
-			// NOTE(gibi): We need to create the data as raw list of maps
-			// to allow defaulting to happen according to the kubebuilder
-			// definitions
-			var externalEndpoints []interface{}
-			externalEndpoints = append(
-				externalEndpoints, map[string]interface{}{
-					"endpoint":        "internal",
-					"ipAddressPool":   "osp-internalapi",
-					"loadBalancerIPs": []string{"internal-lb-ip-1", "internal-lb-ip-2"},
+			serviceOverride := map[string]interface{}{}
+			serviceOverride["internal"] = map[string]interface{}{
+				"metadata": map[string]map[string]string{
+					"annotations": {
+						"dnsmasq.network.openstack.org/hostname": "nova-internal.openstack.svc",
+						"metallb.universe.tf/address-pool":       "osp-internalapi",
+						"metallb.universe.tf/allow-shared-ip":    "osp-internalapi",
+						"metallb.universe.tf/loadBalancerIPs":    "internal-lb-ip-1,internal-lb-ip-2",
+					},
+					"labels": {
+						"internal": "true",
+						"service":  "nova",
+					},
 				},
-			)
-			spec["externalEndpoints"] = externalEndpoints
+				"spec": map[string]interface{}{
+					"type": "LoadBalancer",
+				},
+			}
+
+			spec["override"] = map[string]interface{}{
+				"service": serviceOverride,
+			}
 
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreateNovaAPISecret(novaNames.APIName.Namespace, SecretName))
 			DeferCleanup(th.DeleteInstance, CreateNovaAPI(novaNames.APIName, spec))
 		})
 
-		It("creates MetalLB service", func() {
+		It("creates LoadBalancer service", func() {
 			th.SimulateStatefulSetReplicaReady(novaNames.APIStatefulSetName)
 
 			th.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
 
-			// As the internal endpoint is configured in ExternalEndpoints it does not
-			// get a Route but a Service with MetalLB annotations instead
+			// As the internal endpoint has service override configured it
+			// gets a LoadBalancer Service with MetalLB annotations
 			service := th.GetService(novaNames.InternalNovaServiceName)
+			Expect(service.Annotations).To(
+				HaveKeyWithValue("dnsmasq.network.openstack.org/hostname", "nova-internal.openstack.svc"))
 			Expect(service.Annotations).To(
 				HaveKeyWithValue("metallb.universe.tf/address-pool", "osp-internalapi"))
 			Expect(service.Annotations).To(
 				HaveKeyWithValue("metallb.universe.tf/allow-shared-ip", "osp-internalapi"))
 			Expect(service.Annotations).To(
 				HaveKeyWithValue("metallb.universe.tf/loadBalancerIPs", "internal-lb-ip-1,internal-lb-ip-2"))
-			th.AssertRouteNotExists(novaNames.InternalNovaRouteName)
 
-			// As the public endpoint is not mentioned in the ExternalEndpoints a generic Service and
-			// a Route is created
+			// As the public endpoint does not have overrides, a generic Service
+			// is created
 			service = th.GetService(novaNames.PublicNovaServiceName)
 			Expect(service.Annotations).NotTo(HaveKey("metallb.universe.tf/address-pool"))
 			Expect(service.Annotations).NotTo(HaveKey("metallb.universe.tf/allow-shared-ip"))
 			Expect(service.Annotations).NotTo(HaveKey("metallb.universe.tf/loadBalancerIPs"))
-			th.AssertRouteExists(novaNames.PublicNovaRouteName)
 
 			th.ExpectCondition(
 				novaNames.APIName,

@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 
-	routev1 "github.com/openshift/api/route/v1"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -36,6 +35,7 @@ import (
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/labels"
 	nad "github.com/openstack-k8s-operators/lib-common/modules/common/networkattachment"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/statefulset"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	novav1beta1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
@@ -57,7 +57,6 @@ type NovaNoVNCProxyReconciler struct {
 // +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;
 // +kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;list;watch;create;update;patch;delete;
-// +kubebuilder:rbac:groups=route.openshift.io,resources=routes,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneendpoints,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=k8s.cni.cncf.io,resources=network-attachment-definitions,verbs=get;list;watch
 
@@ -159,7 +158,7 @@ func (r *NovaNoVNCProxyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	apiEndpoints, result, err := r.ensureServiceExposed(ctx, h, instance)
 	if (err != nil || result != ctrl.Result{}) {
-		// We can ignore RequeueAfter as we are watching the Service and Route resource
+		// We can ignore RequeueAfter as we are watching the Service resource
 		// but we have to return while waiting for the service to be exposed
 		return ctrl.Result{}, err
 	}
@@ -410,54 +409,81 @@ func (r *NovaNoVNCProxyReconciler) ensureServiceExposed(
 	h *helper.Helper,
 	instance *novav1beta1.NovaNoVNCProxy,
 ) (map[string]string, ctrl.Result, error) {
-	var ports = map[endpoint.Endpoint]endpoint.Data{
-		endpoint.EndpointPublic:   {Port: novncproxy.NoVNCProxyPort},
-		endpoint.EndpointInternal: {Port: novncproxy.NoVNCProxyPort},
+	var ports = map[service.Endpoint]endpoint.Data{
+		service.EndpointPublic:   {Port: novncproxy.NoVNCProxyPort},
+		service.EndpointInternal: {Port: novncproxy.NoVNCProxyPort},
 	}
 
-	for _, metallbcfg := range instance.Spec.ExternalEndpoints {
-		portCfg := ports[metallbcfg.Endpoint]
-		portCfg.MetalLB = &endpoint.MetalLBData{
-			IPAddressPool:   metallbcfg.IPAddressPool,
-			SharedIP:        metallbcfg.SharedIP,
-			SharedIPKey:     metallbcfg.SharedIPKey,
-			LoadBalancerIPs: metallbcfg.LoadBalancerIPs,
+	apiEndpoints := make(map[string]string)
+
+	for endpointType, data := range ports {
+		endpointTypeStr := string(endpointType)
+		serviceName := novncproxy.ServiceName + "-" + instance.Spec.CellName + "-" + endpointTypeStr
+
+		svcOverride := instance.Spec.Override.Service[endpointTypeStr]
+
+		exportLabels := util.MergeStringMaps(
+			getNoVNCProxyServiceLabels(instance.Spec.CellName),
+			map[string]string{
+				string(endpointType): "true",
+			},
+		)
+
+		// Create the service
+		svc, err := service.NewService(
+			service.GenericService(&service.GenericServiceDetails{
+				Name:      serviceName,
+				Namespace: instance.Namespace,
+				Labels:    exportLabels,
+				Selector:  getNoVNCProxyServiceLabels(instance.Spec.CellName),
+				Port: service.GenericServicePort{
+					Name:     serviceName,
+					Port:     data.Port,
+					Protocol: corev1.ProtocolTCP,
+				},
+			}),
+			5,
+			&svcOverride,
+		)
+		if err != nil {
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				condition.ExposeServiceReadyCondition,
+				condition.ErrorReason,
+				condition.SeverityWarning,
+				condition.ExposeServiceReadyErrorMessage,
+				err.Error()))
+
+			return nil, ctrl.Result{}, err
 		}
 
-		ports[metallbcfg.Endpoint] = portCfg
-	}
+		ctrlResult, err := svc.CreateOrPatch(ctx, h)
+		if err != nil {
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				condition.ExposeServiceReadyCondition,
+				condition.ErrorReason,
+				condition.SeverityWarning,
+				condition.ExposeServiceReadyErrorMessage,
+				err.Error()))
 
-	serviceName := novncproxy.ServiceName + "-" + instance.Spec.CellName
+			return nil, ctrlResult, err
+		} else if (ctrlResult != ctrl.Result{}) {
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				condition.ExposeServiceReadyCondition,
+				condition.RequestedReason,
+				condition.SeverityInfo,
+				condition.ExposeServiceReadyRunningMessage))
+			return nil, ctrlResult, nil
+		}
+		// create service - end
 
-	apiEndpoints, ctrlResult, err := endpoint.ExposeEndpoints(
-		ctx,
-		h,
-		serviceName,
-		getNoVNCProxyServiceLabels(instance.Spec.CellName),
-		ports,
-		r.RequeueTimeout,
-	)
-	if err != nil {
-		instance.Status.Conditions.Set(condition.FalseCondition(
-			condition.ExposeServiceReadyCondition,
-			condition.ErrorReason,
-			condition.SeverityWarning,
-			condition.ExposeServiceReadyErrorMessage,
-			err.Error()))
-		return apiEndpoints, ctrlResult, err
-	} else if (ctrlResult != ctrl.Result{}) {
-		instance.Status.Conditions.Set(condition.FalseCondition(
-			condition.ExposeServiceReadyCondition,
-			condition.RequestedReason,
-			condition.SeverityInfo,
-			condition.ExposeServiceReadyRunningMessage))
-		return apiEndpoints, ctrlResult, err
+		// TODO: TLS, pass in https as protocol, create TLS cert
+		apiEndpoints[string(endpointType)], err = svc.GetAPIEndpoint(
+			&svcOverride, data.Protocol, data.Path)
+		if err != nil {
+			return nil, ctrl.Result{}, err
+		}
 	}
 	instance.Status.Conditions.MarkTrue(condition.ExposeServiceReadyCondition, condition.ExposeServiceReadyMessage)
-
-	for k, v := range apiEndpoints {
-		apiEndpoints[k] = v
-	}
 
 	return apiEndpoints, ctrl.Result{}, nil
 }
@@ -487,7 +513,6 @@ func (r *NovaNoVNCProxyReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&v1.StatefulSet{}).
 		Owns(&corev1.ConfigMap{}).
 		Owns(&corev1.Service{}).
-		Owns(&routev1.Route{}).
 		Watches(&source.Kind{Type: &corev1.Secret{}},
 			handler.EnqueueRequestsFromMapFunc(r.GetSecretMapperFor(&novav1beta1.NovaNoVNCProxyList{}))).
 		Complete(r)
