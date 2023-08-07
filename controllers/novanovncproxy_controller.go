@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 
-	routev1 "github.com/openshift/api/route/v1"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -31,11 +30,11 @@ import (
 
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
-	"github.com/openstack-k8s-operators/lib-common/modules/common/endpoint"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/labels"
 	nad "github.com/openstack-k8s-operators/lib-common/modules/common/networkattachment"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/statefulset"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
@@ -56,7 +55,6 @@ type NovaNoVNCProxyReconciler struct {
 // +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;
 // +kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;list;watch;create;update;patch;delete;
-// +kubebuilder:rbac:groups=route.openshift.io,resources=routes,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneendpoints,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=k8s.cni.cncf.io,resources=network-attachment-definitions,verbs=get;list;watch
 
@@ -157,14 +155,14 @@ func (r *NovaNoVNCProxyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	// all our input checks out so report InputReady
 	instance.Status.Conditions.MarkTrue(condition.InputReadyCondition, condition.InputReadyMessage)
 
-	apiEndpoints, result, err := r.ensureServiceExposed(ctx, h, instance)
+	result, err = r.ensureServiceExposed(ctx, h, instance)
 	if (err != nil || result != ctrl.Result{}) {
-		// We can ignore RequeueAfter as we are watching the Service and Route resource
+		// We can ignore RequeueAfter as we are watching the Service resource
 		// but we have to return while waiting for the service to be exposed
 		return ctrl.Result{}, err
 	}
 
-	err = r.ensureConfigs(ctx, h, instance, &hashes, apiEndpoints, secret)
+	err = r.ensureConfigs(ctx, h, instance, &hashes, secret)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -215,10 +213,9 @@ func (r *NovaNoVNCProxyReconciler) ensureConfigs(
 	h *helper.Helper,
 	instance *novav1.NovaNoVNCProxy,
 	hashes *map[string]env.Setter,
-	apiEndpoints map[string]string,
 	secret corev1.Secret,
 ) error {
-	err := r.generateConfigs(ctx, h, instance, hashes, apiEndpoints, secret)
+	err := r.generateConfigs(ctx, h, instance, hashes, secret)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.ServiceConfigReadyCondition,
@@ -275,7 +272,6 @@ func (r *NovaNoVNCProxyReconciler) initConditions(
 
 func (r *NovaNoVNCProxyReconciler) generateConfigs(
 	ctx context.Context, h *helper.Helper, instance *novav1.NovaNoVNCProxy, hashes *map[string]env.Setter,
-	apiEndpoints map[string]string,
 	secret corev1.Secret,
 ) error {
 
@@ -396,33 +392,40 @@ func (r *NovaNoVNCProxyReconciler) ensureServiceExposed(
 	ctx context.Context,
 	h *helper.Helper,
 	instance *novav1.NovaNoVNCProxy,
-) (map[string]string, ctrl.Result, error) {
-	var ports = map[endpoint.Endpoint]endpoint.Data{
-		endpoint.EndpointPublic:   {Port: novncproxy.NoVNCProxyPort},
-		endpoint.EndpointInternal: {Port: novncproxy.NoVNCProxyPort},
+) (ctrl.Result, error) {
+	endpointTypeStr := string(service.EndpointPublic)
+	serviceName := novncproxy.ServiceName + "-" + instance.Spec.CellName + "-" + endpointTypeStr
+
+	svcOverride := instance.Spec.Override.Service
+	if svcOverride == nil {
+		svcOverride = &service.RoutedOverrideSpec{}
+	}
+	if svcOverride.EmbeddedLabelsAnnotations == nil {
+		svcOverride.EmbeddedLabelsAnnotations = &service.EmbeddedLabelsAnnotations{}
 	}
 
-	for _, metallbcfg := range instance.Spec.ExternalEndpoints {
-		portCfg := ports[metallbcfg.Endpoint]
-		portCfg.MetalLB = &endpoint.MetalLBData{
-			IPAddressPool:   metallbcfg.IPAddressPool,
-			SharedIP:        metallbcfg.SharedIP,
-			SharedIPKey:     metallbcfg.SharedIPKey,
-			LoadBalancerIPs: metallbcfg.LoadBalancerIPs,
-		}
-
-		ports[metallbcfg.Endpoint] = portCfg
-	}
-
-	serviceName := novncproxy.ServiceName + "-" + instance.Spec.CellName
-
-	apiEndpoints, ctrlResult, err := endpoint.ExposeEndpoints(
-		ctx,
-		h,
-		serviceName,
+	exportLabels := util.MergeStringMaps(
 		getNoVNCProxyServiceLabels(instance.Spec.CellName),
-		ports,
-		r.RequeueTimeout,
+		map[string]string{
+			service.AnnotationEndpointKey: endpointTypeStr,
+		},
+	)
+
+	// Create the service
+	svc, err := service.NewService(
+		service.GenericService(&service.GenericServiceDetails{
+			Name:      serviceName,
+			Namespace: instance.Namespace,
+			Labels:    exportLabels,
+			Selector:  getNoVNCProxyServiceLabels(instance.Spec.CellName),
+			Port: service.GenericServicePort{
+				Name:     serviceName,
+				Port:     novncproxy.NoVNCProxyPort,
+				Protocol: corev1.ProtocolTCP,
+			},
+		}),
+		5,
+		&svcOverride.OverrideSpec,
 	)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
@@ -431,22 +434,52 @@ func (r *NovaNoVNCProxyReconciler) ensureServiceExposed(
 			condition.SeverityWarning,
 			condition.ExposeServiceReadyErrorMessage,
 			err.Error()))
-		return apiEndpoints, ctrlResult, err
+
+		return ctrl.Result{}, err
+	}
+
+	svc.AddAnnotation(map[string]string{
+		service.AnnotationEndpointKey: endpointTypeStr,
+	})
+
+	// add Annotation to whether creating an ingress is required or not
+	if svc.GetServiceType() == corev1.ServiceTypeClusterIP {
+		svc.AddAnnotation(map[string]string{
+			service.AnnotationIngressCreateKey: "true",
+		})
+	} else {
+		svc.AddAnnotation(map[string]string{
+			service.AnnotationIngressCreateKey: "false",
+		})
+		if svc.GetServiceType() == corev1.ServiceTypeLoadBalancer {
+			svc.AddAnnotation(map[string]string{
+				service.AnnotationHostnameKey: svc.GetServiceHostname(), // add annotation to register service name in dnsmasq
+			})
+		}
+	}
+
+	ctrlResult, err := svc.CreateOrPatch(ctx, h)
+	if err != nil {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.ExposeServiceReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.ExposeServiceReadyErrorMessage,
+			err.Error()))
+
+		return ctrlResult, err
 	} else if (ctrlResult != ctrl.Result{}) {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.ExposeServiceReadyCondition,
 			condition.RequestedReason,
 			condition.SeverityInfo,
 			condition.ExposeServiceReadyRunningMessage))
-		return apiEndpoints, ctrlResult, err
+		return ctrlResult, nil
 	}
+	// create service - end
 	instance.Status.Conditions.MarkTrue(condition.ExposeServiceReadyCondition, condition.ExposeServiceReadyMessage)
 
-	for k, v := range apiEndpoints {
-		apiEndpoints[k] = v
-	}
-
-	return apiEndpoints, ctrl.Result{}, nil
+	return ctrl.Result{}, nil
 }
 
 func (r *NovaNoVNCProxyReconciler) reconcileDelete(
@@ -473,7 +506,6 @@ func (r *NovaNoVNCProxyReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&novav1.NovaNoVNCProxy{}).
 		Owns(&v1.StatefulSet{}).
 		Owns(&corev1.Service{}).
-		Owns(&routev1.Route{}).
 		Owns(&corev1.Secret{}).
 		Watches(&source.Kind{Type: &corev1.Secret{}},
 			handler.EnqueueRequestsFromMapFunc(r.GetSecretMapperFor(&novav1.NovaNoVNCProxyList{}))).

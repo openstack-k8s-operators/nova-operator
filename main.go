@@ -37,7 +37,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	networkv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
-	routev1 "github.com/openshift/api/route/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 
@@ -63,7 +62,6 @@ func init() {
 	utilruntime.Must(keystonev1.AddToScheme(scheme))
 	utilruntime.Must(corev1.AddToScheme(scheme))
 	utilruntime.Must(appsv1.AddToScheme(scheme))
-	utilruntime.Must(routev1.AddToScheme(scheme))
 	utilruntime.Must(rabbitmqv1.AddToScheme(scheme))
 	utilruntime.Must(networkv1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
