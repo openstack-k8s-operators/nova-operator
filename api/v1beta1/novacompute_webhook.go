@@ -24,6 +24,7 @@ package v1beta1
 
 import (
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
@@ -97,4 +98,17 @@ func (r *NovaCompute) ValidateDelete() error {
 
 	// TODO(user): fill in your validation logic upon object deletion.
 	return nil
+}
+
+// ValidateReplicas validates replicas depend on compute driver
+func (r *NovaComputeTemplate) ValidateIronicDriverReplicas(basePath *field.Path) field.ErrorList {
+	var errors field.ErrorList
+	if *r.Replicas > 1 {
+		errors = append(
+			errors,
+			field.Invalid(
+				basePath.Child("replicas"), *r.Replicas, "should be max 1 for ironic.IronicDriver"),
+		)
+	}
+	return errors
 }

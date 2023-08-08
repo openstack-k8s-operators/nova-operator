@@ -158,6 +158,7 @@ var _ = Describe("NovaCompute controller", func() {
 				configData := string(configDataMap.Data["01-nova.conf"])
 				Expect(configData).Should(ContainSubstring("transport_url=rabbit://rabbitmq-secret/fake"))
 				Expect(configData).Should(ContainSubstring("password = service-password"))
+				Expect(configData).Should(ContainSubstring("compute_driver = ironic.IronicDriver"))
 				Expect(configDataMap.Data).Should(HaveKey("02-nova-override.conf"))
 				extraData := string(configDataMap.Data["02-nova-override.conf"])
 				Expect(extraData).To(Equal("foo=bar"))

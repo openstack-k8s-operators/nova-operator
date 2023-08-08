@@ -220,7 +220,6 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 			}
 		}
 	}
-
 	util.LogForObject(h, "Successfully reconciled", instance)
 	return ctrl.Result{}, nil
 }
@@ -590,8 +589,9 @@ func (r *NovaCellReconciler) ensureNovaCompute(
 	ctx context.Context,
 	h *helper.Helper,
 	instance *novav1.NovaCell,
+	compute novav1.NovaComputeTemplate,
 ) (ctrl.Result, error) {
-	novacomputeSpec := novav1.NewNovaComputeSpec(instance.Spec)
+	novacomputeSpec := novav1.NewNovaComputeSpec(instance.Spec, compute)
 	novacompute := &novav1.NovaCompute{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      instance.Name + "-compute",

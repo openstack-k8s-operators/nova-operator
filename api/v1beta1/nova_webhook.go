@@ -112,6 +112,7 @@ func (spec *NovaSpec) Default() {
 			cellTemplate.NoVNCProxyServiceTemplate.ContainerImage = novaDefaults.NoVNCContainerImageURL
 		}
 
+<<<<<<< HEAD
 		if cellName == Cell0Name {
 			// in cell0 disable VNC by default
 			if cellTemplate.NoVNCProxyServiceTemplate.Enabled == nil {
@@ -126,6 +127,13 @@ func (spec *NovaSpec) Default() {
 
 		if cellTemplate.NovaComputeServiceTemplate.ContainerImage == "" {
 			cellTemplate.NovaComputeServiceTemplate.ContainerImage = novaDefaults.NovaIronicComputeContainerImageURL
+=======
+		for key, computeTemplate := range cellTemplate.NovaComputeTemplates{
+			if computeTemplate.ContainerImage == "" {
+				computeTemplate.ContainerImage = novaCellDefaults.NovaIronicComputeContainerImageURL
+			}
+			cellTemplate.NovaComputeTemplates[key] = computeTemplate
+>>>>>>> c3e54de2 ([ironic-compute] Change crd structure)
 		}
 
 		// "cellTemplate" is a by-value copy, so we need to re-inject the updated version of it into the map

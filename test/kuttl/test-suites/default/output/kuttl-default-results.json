@@ -1,0 +1,36 @@
+{
+   "name": "",
+   "tests": 3,
+   "failures": 0,
+   "time": "214.322",
+   "testsuite": [
+     {
+       "tests": 3,
+       "failures": 0,
+       "timestamp": "2023-08-04T11:39:21.251975663+02:00",
+       "time": "202.907",
+       "name": "test/kuttl/test-suites/default/",
+       "testcase": [
+         {
+           "classname": "default",
+           "name": "deps",
+           "timestamp": "2023-08-04T11:39:21.252056484+02:00",
+           "time": "0.000"
+         },
+         {
+           "classname": "default",
+           "name": "scale-tests",
+           "timestamp": "2023-08-04T11:39:21.257387947+02:00",
+           "time": "202.901",
+           "assertions": 69
+         },
+         {
+           "classname": "default",
+           "name": "output",
+           "timestamp": "2023-08-04T11:42:44.158903202+02:00",
+           "time": "0.000"
+         }
+       ]
+     }
+   ]
+ }
