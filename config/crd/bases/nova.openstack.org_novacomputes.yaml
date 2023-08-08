@@ -67,7 +67,6 @@ spec:
                   belongs to.
                 type: string
               computeDriver:
-                default: ironic.IronicDriver
                 description: ComputeDriver defines which driver to use for controlling
                   virtualization
                 enum:
@@ -208,6 +207,7 @@ spec:
             - cellDatabaseHostname
             - cellMessageBusSecretName
             - cellName
+            - computeDriver
             - keystoneAuthURL
             - secret
             - serviceAccount

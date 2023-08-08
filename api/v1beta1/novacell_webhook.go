@@ -100,8 +100,11 @@ func (spec *NovaCellSpec) Default() {
 			spec.NoVNCProxyServiceTemplate.Enabled = ptr.To(true)
 		}
 	}
-	if spec.NovaComputeServiceTemplate.ContainerImage == "" {
-		spec.NovaComputeServiceTemplate.ContainerImage = novaCellDefaults.NovaIronicComputeContainerImageURL
+	for key, computeTemplate := range spec.NovaComputeTemplates {
+		if computeTemplate.ContainerImage == "" {
+			computeTemplate.ContainerImage = novaCellDefaults.NovaIronicComputeContainerImageURL
+		}
+		spec.NovaComputeTemplates[key] = computeTemplate
 	}
 }
 
@@ -124,6 +127,16 @@ func (r *NovaCellSpec) validate(basePath *field.Path) field.ErrorList {
 		)
 	}
 
+	if len(r.NovaComputeTemplates) > 0 {
+		for _, computeTemplate := range r.NovaComputeTemplates {
+			if computeTemplate.ComputeDriver == "ironic.IronicDriver" {
+				errors = append(
+					errors, computeTemplate.ValidateIronicDriverReplicas(
+						basePath.Child("novaComputeTemplates"))...,
+				)
+			}
+		}
+	}
 	errors = append(
 		errors, ValidateCellName(
 			basePath.Child("cellName"), r.CellName)...,

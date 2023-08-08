@@ -69,9 +69,8 @@ type NovaComputeTemplate struct {
 	// ExternalEndpoints, expose a VIP via MetalLB on the pre-created address pool
 	ExternalEndpoints []MetalLBConfig `json:"externalEndpoints,omitempty"`
 
-	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Enum=ironic.IronicDriver;fake.FakeDriver
-	// +kubebuilder:default="ironic.IronicDriver"
 	// ComputeDriver defines which driver to use for controlling virtualization
 	ComputeDriver string `json:"computeDriver"`
 }
@@ -130,9 +129,8 @@ type NovaComputeSpec struct {
 	// ServiceAccount - service account name used internally to provide Nova services the default SA name
 	ServiceAccount string `json:"serviceAccount"`
 
-	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Enum=ironic.IronicDriver;fake.FakeDriver
-	// +kubebuilder:default="ironic.IronicDriver"
 	// ComputeDriver defines which driver to use for controlling virtualization
 	ComputeDriver string `json:"computeDriver"`
 }
@@ -196,6 +194,7 @@ func (n NovaCompute) GetSecret() string {
 // NewNovaComputeSpec constructs a NovaMetadataSpec
 func NewNovaComputeSpec(
 	novaCell NovaCellSpec,
+	computeTemplate NovaComputeTemplate,
 ) NovaComputeSpec {
 	novacomputeSpec := NovaComputeSpec{
 		CellName:                 novaCell.CellName,
@@ -205,13 +204,13 @@ func NewNovaComputeSpec(
 		CellMessageBusSecretName: novaCell.CellMessageBusSecretName,
 		Debug:                    novaCell.Debug,
 		NovaServiceBase: NovaServiceBase{
-			ContainerImage:         novaCell.NovaComputeServiceTemplate.ContainerImage,
-			Replicas:               novaCell.NovaComputeServiceTemplate.Replicas,
-			NodeSelector:           novaCell.NovaComputeServiceTemplate.NodeSelector,
-			CustomServiceConfig:    novaCell.NovaComputeServiceTemplate.CustomServiceConfig,
-			DefaultConfigOverwrite: novaCell.NovaComputeServiceTemplate.DefaultConfigOverwrite,
-			Resources:              novaCell.NovaComputeServiceTemplate.Resources,
-			NetworkAttachments:     novaCell.NovaComputeServiceTemplate.NetworkAttachments,
+			ContainerImage:         computeTemplate.ContainerImage,
+			Replicas:               computeTemplate.Replicas,
+			NodeSelector:           computeTemplate.NodeSelector,
+			CustomServiceConfig:    computeTemplate.CustomServiceConfig,
+			DefaultConfigOverwrite: computeTemplate.DefaultConfigOverwrite,
+			Resources:              computeTemplate.Resources,
+			NetworkAttachments:     computeTemplate.NetworkAttachments,
 		},
 		KeystoneAuthURL:   novaCell.KeystoneAuthURL,
 		ServiceUser:       novaCell.ServiceUser,

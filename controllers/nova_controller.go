@@ -738,17 +738,17 @@ func (r *NovaReconciler) ensureCell(
 	}
 
 	cellSpec := novav1.NovaCellSpec{
-		CellName:                   cellName,
-		Secret:                     cellSecretName,
-		CellDatabaseHostname:       cellDB.GetDatabaseHostname(),
-		CellDatabaseUser:           cellTemplate.CellDatabaseUser,
-		CellMessageBusSecretName:   cellMQSecretName,
-		ConductorServiceTemplate:   cellTemplate.ConductorServiceTemplate,
-		MetadataServiceTemplate:    cellTemplate.MetadataServiceTemplate,
-		NoVNCProxyServiceTemplate:  cellTemplate.NoVNCProxyServiceTemplate,
-		NovaComputeServiceTemplate: cellTemplate.NovaComputeServiceTemplate,
-		NodeSelector:               cellTemplate.NodeSelector,
-		Debug:                      instance.Spec.Debug,
+		CellName:                  cellName,
+		Secret:                    cellSecretName,
+		CellDatabaseHostname:      cellDB.GetDatabaseHostname(),
+		CellDatabaseUser:          cellTemplate.CellDatabaseUser,
+		CellMessageBusSecretName:  cellMQSecretName,
+		ConductorServiceTemplate:  cellTemplate.ConductorServiceTemplate,
+		MetadataServiceTemplate:   cellTemplate.MetadataServiceTemplate,
+		NoVNCProxyServiceTemplate: cellTemplate.NoVNCProxyServiceTemplate,
+		NovaComputeTemplates:      cellTemplate.NovaComputeTemplates,
+		NodeSelector:              cellTemplate.NodeSelector,
+		Debug:                     instance.Spec.Debug,
 		// TODO(gibi): this should be part of the secret
 		ServiceUser:     instance.Spec.ServiceUser,
 		KeystoneAuthURL: keystoneAuthURL,
