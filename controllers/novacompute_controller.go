@@ -41,6 +41,7 @@ import (
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
+	"github.com/openstack-k8s-operators/nova-operator/pkg/nova"
 	"github.com/openstack-k8s-operators/nova-operator/pkg/novacompute"
 
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
@@ -263,12 +264,12 @@ func (r *NovaComputeReconciler) generateConfigs(
 	ctx context.Context, h *helper.Helper, instance *novav1.NovaCompute, hashes *map[string]env.Setter, secret corev1.Secret,
 ) error {
 
-	apiMessageBusSecret := &corev1.Secret{}
+	cellMessageBusSecretName := &corev1.Secret{}
 	secretName := types.NamespacedName{
 		Namespace: instance.Namespace,
 		Name:      instance.Spec.CellMessageBusSecretName,
 	}
-	err := h.GetClient().Get(ctx, secretName, apiMessageBusSecret)
+	err := h.GetClient().Get(ctx, secretName, cellMessageBusSecretName)
 	if err != nil {
 		util.LogForObject(
 			h, "Failed reading Secret", instance,
@@ -290,9 +291,10 @@ func (r *NovaComputeReconciler) generateConfigs(
 		"openstack_region_name":  "regionOne", // fixme
 		"default_project_domain": "Default",   // fixme
 		"default_user_domain":    "Default",   // fixme
-		"transport_url":          string(apiMessageBusSecret.Data["transport_url"]),
-		"log_file":               "/var/log/nova/nova-compute.log",
-		"compute_driver":         instance.Spec.ComputeDriver,
+		"transport_url":          string(cellMessageBusSecretName.Data["transport_url"]),
+		"log_file":               "/var/log/containers/nova/nova-compute.log",
+		"nova_compute_image":     instance.Spec.ContainerImage,
+		"compute_driver":         "ironic.IronicDriver",
 	}
 	extraData := map[string]string{}
 	if instance.Spec.CustomServiceConfig != "" {
@@ -306,8 +308,11 @@ func (r *NovaComputeReconciler) generateConfigs(
 		instance, labels.GetGroupLabel(NovaComputeLabelPrefix), map[string]string{},
 	)
 
+	addtionalTemplates := map[string]string{
+		"nova-compute.json": "/novacompute/config/nova-compute.json",
+	}
 	err = r.GenerateConfigs(
-		ctx, h, instance, hashes, templateParameters, extraData, cmLabels, map[string]string{},
+		ctx, h, instance, nova.GetServiceConfigSecretName(instance.GetName()), hashes, templateParameters, extraData, cmLabels, addtionalTemplates,
 	)
 	return err
 }

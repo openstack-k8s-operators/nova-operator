@@ -215,6 +215,7 @@ func NewNovaComputeSpec(
 		KeystoneAuthURL:   novaCell.KeystoneAuthURL,
 		ServiceUser:       novaCell.ServiceUser,
 		ServiceAccount:    novaCell.ServiceAccount,
+		ComputeDriver:	computeTemplate.ComputeDriver,
 	}
 	return novacomputeSpec
 }
