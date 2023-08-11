@@ -22,8 +22,20 @@
         state: directory
         mode: "0755"
 
+    - name: Install pip
+      ansible.builtin.command: "oc rsh pod/tempest-worker sudo dnf install -y --nogpgcheck python3-pip"
+      changed_when: true
+
+    - name: Install whitebox requirements
+      ansible.builtin.command: "oc rsh pod/tempest-worker pip install -r /home/stack/whitebox-tempest-plugin/requirements.txt"
+      changed_when: true
+
+    - name: Install whitebox
+      ansible.builtin.command: "oc rsh pod/tempest-worker pip install /home/stack/whitebox-tempest-plugin"
+      changed_when: true
+
     - name: Run tempest tests
-      ansible.builtin.command: "oc rsh pod/tempest-worker /var/lib/tempest/run_tempest.sh"
+      ansible.builtin.command: "oc rsh pod/tempest-worker /home/stack/tempest/run_tempest.sh"
       register: tempest_output
       changed_when: true
 

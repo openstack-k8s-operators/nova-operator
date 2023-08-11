@@ -14,6 +14,15 @@ spec:
           name: openstack-config
     - name: pre-install
       emptyDir: {}
+    - name: whitebox-plugin
+      hostPath:
+        path: /home/stack/whitebox-tempest-plugin
+    - name: tempest-script
+      hostPath:
+        path: /home/stack/tempest
+    - name: tempest-logs
+      hostPath:
+        path: /home/stack/tempest/external_files
 
   containers:
     - name: tempest-container
@@ -30,6 +39,12 @@ spec:
         - mountPath: "/etc/openstack/secure.yaml"
           name: cloud-passwd
           subPath: secure.yaml
+        - mountPath: "/home/stack/whitebox-tempest-plugin"
+          name: whitebox-plugin
+        - mountPath: "/home/stack/tempest"
+          name: tempest-script
+        - mountPath: "/var/lib/tempest/external_files"
+          name: tempest-logs
       env:
         - name: OS_CLOUD
           valueFrom:
