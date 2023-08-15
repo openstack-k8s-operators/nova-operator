@@ -3,7 +3,7 @@ module github.com/openstack-k8s-operators/nova-operator/api
 go 1.19
 
 require (
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.1.1-0.20230731040448-903adc91d330
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.1.1-0.20230811131408-7be84c6eae21
 	k8s.io/api v0.26.7
 	k8s.io/apimachinery v0.26.7
 	sigs.k8s.io/controller-runtime v0.14.6
