@@ -25,7 +25,4 @@ const (
 	PlacementPublicPort int32 = 8778
 	// PlacementInternalPort -
 	PlacementInternalPort int32 = 8778
-
-	// KollaConfig -
-	KollaConfig = "/var/lib/config-data/merged/placement-api-config.json"
 )
