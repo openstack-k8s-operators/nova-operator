@@ -26,6 +26,11 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
+const (
+	// NoVNCProxyServiceName - The name of the service exposed to k8s
+	NoVNCProxyServiceName = "nova-novncproxy"
+)
+
 // NovaNoVNCProxyTemplate defines the input parameters specified by the user to
 // create a NovaNoVNCProxy via higher level CRDs.
 type NovaNoVNCProxyTemplate struct {
@@ -219,4 +224,14 @@ func NewNovaNoVNCProxySpec(
 // GetSecret returns the value of the NovaMetadata.Spec.Secret
 func (n NovaNoVNCProxy) GetSecret() string {
 	return n.Spec.Secret
+}
+
+// GetNoVNCProxyServiceName - returns the name of the service exposed to k8s
+func GetNoVNCProxyServiceName(cellName *string) string {
+	serviceName := NoVNCProxyServiceName
+	if cellName != nil {
+		serviceName = NoVNCProxyServiceName + "-" + *cellName
+	}
+
+	return serviceName
 }

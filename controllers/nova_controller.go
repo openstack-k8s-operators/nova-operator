@@ -47,7 +47,6 @@ import (
 
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/nova-operator/pkg/nova"
-	"github.com/openstack-k8s-operators/nova-operator/pkg/novaapi"
 
 	rabbitmqv1 "github.com/openstack-k8s-operators/infra-operator/apis/rabbitmq/v1beta1"
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
@@ -1030,7 +1029,7 @@ func (r *NovaReconciler) ensureDBDeletion(
 	// initialize a nova dbs list with default db names and add used cells:
 	novaDbs := []string{"nova-api"}
 	for cellName := range instance.Spec.CellTemplates {
-		novaDbs = append(novaDbs, novaapi.ServiceName+"-"+cellName)
+		novaDbs = append(novaDbs, novav1.APIServiceName+"-"+cellName)
 	}
 	// iterate over novaDbs and remove finalizers
 	for _, dbName := range novaDbs {

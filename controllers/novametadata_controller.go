@@ -300,7 +300,7 @@ func (r *NovaMetadataReconciler) generateConfigs(
 	}
 
 	templateParameters := map[string]interface{}{
-		"service_name":            novametadata.ServiceName,
+		"service_name":            novav1.MetadataServiceName,
 		"keystone_internal_url":   instance.Spec.KeystoneAuthURL,
 		"nova_keystone_user":      instance.Spec.ServiceUser,
 		"nova_keystone_password":  string(secret.Data[ServicePasswordSelector]),
@@ -429,11 +429,7 @@ func (r *NovaMetadataReconciler) ensureServiceExposed(
 
 	for endpointType, data := range ports {
 		endpointTypeStr := string(endpointType)
-		serviceName := novametadata.ServiceName
-		if instance.Spec.CellName != "" {
-			serviceName = novametadata.ServiceName + "-" + instance.Spec.CellName
-		}
-		serviceName = serviceName + "-" + endpointTypeStr
+		serviceName := novav1.GetMetadataServiceName(&instance.Spec.CellName) + "-" + endpointTypeStr
 		svcOverride := instance.Spec.Override.Service[endpointTypeStr]
 
 		exportLabels := util.MergeStringMaps(

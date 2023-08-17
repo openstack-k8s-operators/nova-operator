@@ -27,6 +27,11 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
+const (
+	// APIServiceName - The name of the service exposed to k8s
+	APIServiceName = "nova"
+)
+
 // NovaAPITemplate defines the input parameters specified by the user to
 // create a NovaAPI via higher level CRDs.
 // NOTE(gibi): NovaAPITemplate has the same structure than NovaServiceBase BUT
@@ -207,4 +212,9 @@ func (s NovaAPIStatus) GetConditions() condition.Conditions {
 // GetSecret returns the value of the NovaAPI.Spec.Secret
 func (n NovaAPI) GetSecret() string {
 	return n.Spec.Secret
+}
+
+// GetAPIServiceName - returns the name of the service exposed to k8s
+func GetAPIServiceName() string {
+	return APIServiceName
 }

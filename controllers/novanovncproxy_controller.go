@@ -23,6 +23,7 @@ import (
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -292,7 +293,7 @@ func (r *NovaNoVNCProxyReconciler) generateConfigs(
 	}
 
 	templateParameters := map[string]interface{}{
-		"service_name":           novncproxy.ServiceName,
+		"service_name":           novav1beta1.NoVNCProxyServiceName,
 		"keystone_internal_url":  instance.Spec.KeystoneAuthURL,
 		"nova_keystone_user":     instance.Spec.ServiceUser,
 		"nova_keystone_password": string(secret.Data[ServicePasswordSelector]),
@@ -418,7 +419,7 @@ func (r *NovaNoVNCProxyReconciler) ensureServiceExposed(
 
 	for endpointType, data := range ports {
 		endpointTypeStr := string(endpointType)
-		serviceName := novncproxy.ServiceName + "-" + instance.Spec.CellName + "-" + endpointTypeStr
+		serviceName := novav1beta1.GetNoVNCProxyServiceName(ptr.To(instance.Spec.CellName)) + "-" + endpointTypeStr
 
 		svcOverride := instance.Spec.Override.Service[endpointTypeStr]
 

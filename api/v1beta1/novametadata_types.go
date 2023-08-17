@@ -26,6 +26,11 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
+const (
+	// MetadataServiceName - The name of the service exposed to k8s
+	MetadataServiceName = "nova-metadata"
+)
+
 // NovaMetadataTemplate defines the input parameters specified by the user to
 // create a NovaMetadata via higher level CRDs.
 type NovaMetadataTemplate struct {
@@ -249,4 +254,14 @@ func NewNovaMetadataSpec(
 // GetSecret returns the value of the NovaMetadata.Spec.Secret
 func (n NovaMetadata) GetSecret() string {
 	return n.Spec.Secret
+}
+
+// GetMetadataServiceName - returns the name of the service exposed to k8s
+func GetMetadataServiceName(cellName *string) string {
+	serviceName := MetadataServiceName
+	if cellName != nil {
+		serviceName = MetadataServiceName + "-" + *cellName
+	}
+
+	return serviceName
 }

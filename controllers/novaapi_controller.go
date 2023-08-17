@@ -473,7 +473,7 @@ func (r *NovaAPIReconciler) ensureServiceExposed(
 
 	for endpointType, data := range ports {
 		endpointTypeStr := string(endpointType)
-		endpointName := novaapi.ServiceName + "-" + endpointTypeStr
+		serviceName := novav1.GetAPIServiceName() + "-" + endpointTypeStr
 		svcOverride := instance.Spec.Override.Service[endpointTypeStr]
 
 		exportLabels := util.MergeStringMaps(
@@ -486,12 +486,12 @@ func (r *NovaAPIReconciler) ensureServiceExposed(
 		// Create the service
 		svc, err := service.NewService(
 			service.GenericService(&service.GenericServiceDetails{
-				Name:      endpointName,
+				Name:      serviceName,
 				Namespace: instance.Namespace,
 				Labels:    exportLabels,
 				Selector:  getAPIServiceLabels(),
 				Port: service.GenericServicePort{
-					Name:     endpointName,
+					Name:     serviceName,
 					Port:     data.Port,
 					Protocol: corev1.ProtocolTCP,
 				},
@@ -549,11 +549,11 @@ func (r *NovaAPIReconciler) ensureKeystoneEndpoint(
 	apiEndpoints map[string]string,
 ) (ctrl.Result, error) {
 	endpointSpec := keystonev1.KeystoneEndpointSpec{
-		ServiceName: novaapi.ServiceName,
+		ServiceName: novav1.GetAPIServiceName(),
 		Endpoints:   apiEndpoints,
 	}
 	endpoint := keystonev1.NewKeystoneEndpoint(
-		novaapi.ServiceName,
+		novav1.GetAPIServiceName(),
 		instance.Namespace,
 		endpointSpec,
 		getAPIServiceLabels(),
@@ -584,7 +584,7 @@ func (r *NovaAPIReconciler) ensureKeystoneEndpointDeletion(
 	// Remove the finalizer from our KeystoneEndpoint CR
 	// This is oddly added automatically when we created KeystoneEndpoint but
 	// we need to remove it manually
-	endpoint, err := keystonev1.GetKeystoneEndpointWithName(ctx, h, novaapi.ServiceName, instance.Namespace)
+	endpoint, err := keystonev1.GetKeystoneEndpointWithName(ctx, h, novav1.GetAPIServiceName(), instance.Namespace)
 	if err != nil && !k8s_errors.IsNotFound(err) {
 		return err
 	}
