@@ -239,7 +239,7 @@ func (instance PlacementAPI) RbacResourceName() string {
 func SetupDefaults() {
 	// Acquire environmental defaults and initialize Placement defaults with them
 	placementDefaults := PlacementAPIDefaults{
-		ContainerImageURL: util.GetEnvVar("PLACEMENT_API_IMAGE_URL_DEFAULT", PlacementAPIContainerImage),
+		ContainerImageURL: util.GetEnvVar("RELATED_IMAGE_PLACEMENT_API_IMAGE_URL_DEFAULT", PlacementAPIContainerImage),
 	}
 
 	SetupPlacementAPIDefaults(placementDefaults)

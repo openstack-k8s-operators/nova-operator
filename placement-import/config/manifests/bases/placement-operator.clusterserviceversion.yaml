@@ -6,6 +6,7 @@ metadata:
     capabilities: Basic Install
     operatorframework.io/suggested-namespace: openstack
     operators.operatorframework.io/operator-type: non-standalone
+    operators.openshift.io/infrastructure-features: '["disconnected"]'
   name: placement-operator.v0.0.0
   namespace: placeholder
 spec:

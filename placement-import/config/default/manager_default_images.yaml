@@ -11,5 +11,5 @@ spec:
       containers:
       - name: manager
         env:
-        - name: PLACEMENT_API_IMAGE_URL_DEFAULT
+        - name: RELATED_IMAGE_PLACEMENT_API_IMAGE_URL_DEFAULT
           value: quay.io/podified-antelope-centos9/openstack-placement-api:current-podified

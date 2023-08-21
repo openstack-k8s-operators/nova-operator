@@ -5,7 +5,6 @@ metadata:
   - PlacementAPI
   name: placement
 spec:
-  containerImage: quay.io/podified-antelope-centos9/openstack-placement-api:current-podified
   customServiceConfig: |
     [DEFAULT]
     debug = true
@@ -107,7 +106,6 @@ spec:
         - /usr/local/bin/kolla_set_configs && /usr/local/bin/kolla_start
         command:
         - /bin/bash
-        image: quay.io/podified-antelope-centos9/openstack-placement-api:current-podified
         imagePullPolicy: IfNotPresent
         livenessProbe:
           failureThreshold: 3
@@ -154,7 +152,6 @@ spec:
           value: placement
         - name: DatabaseUser
           value: placement
-        image: quay.io/podified-antelope-centos9/openstack-placement-api:current-podified
         imagePullPolicy: IfNotPresent
         name: init
         resources: {}
@@ -271,3 +268,25 @@ commands:
       apiEndpoints=$(oc get -n $NAMESPACE KeystoneEndpoint placement -o go-template-file=$PLACEMENT_KUTTL_DIR/../go_templates/apiEndpoints.gotemplate)
       assert_regex $apiEndpoints 'http:\/\/placement-internal\..+\.svc.*'
       assert_regex $apiEndpoints 'http:\/\/placement-public-.+\.apps.*'
+
+      # when using image digests the containerImage URLs are SHA's so we verify them with a script
+      tupleTemplate='{{ range (index .spec.template.spec.containers 1).env }}{{ .name }}{{ "#" }}{{ .value}}{{"\n"}}{{ end }}'
+      imageTuples=$(oc get -n openstack-operators deployment placement-operator-controller-manager -o go-template="$tupleTemplate")
+      # format of imageTuple is: RELATED_IMAGE_PLACEMENT_<service>#<image URL with SHA> separated by newlines
+      for ITEM in $(echo $imageTuples); do
+        # it is an image
+        if echo $ITEM | grep 'RELATED_IMAGE' &> /dev/null; then
+          NAME=$(echo $ITEM | sed -e 's|^RELATED_IMAGE_PLACEMENT_\([^_]*\)_.*|\1|')
+          IMG_FROM_ENV=$(echo $ITEM | sed -e 's|^.*#\(.*\)|\1|')
+          template='{{.spec.containerImage}}'
+          case $NAME in
+            API)
+              SERVICE_IMAGE=$(oc get -n $NAMESPACE placementapi placement -o go-template="$template")
+              ;;
+          esac
+          if [ "$SERVICE_IMAGE" != "$IMG_FROM_ENV" ]; then
+            echo "$NAME image does not equal $VALUE"
+            exit 1
+          fi
+        fi
+      done
