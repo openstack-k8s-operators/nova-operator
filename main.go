@@ -45,7 +45,7 @@ import (
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 
-	novav1beta1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
+	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 
 	"github.com/openstack-k8s-operators/nova-operator/controllers"
 	//+kubebuilder:scaffold:imports
@@ -58,7 +58,7 @@ var (
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-	utilruntime.Must(novav1beta1.AddToScheme(scheme))
+	utilruntime.Must(novav1.AddToScheme(scheme))
 	utilruntime.Must(mariadbv1.AddToScheme(scheme))
 	utilruntime.Must(keystonev1.AddToScheme(scheme))
 	utilruntime.Must(corev1.AddToScheme(scheme))
@@ -130,36 +130,36 @@ func main() {
 	}
 
 	// Acquire environmental defaults and initialize operator defaults with them
-	novav1beta1.SetupDefaults()
+	novav1.SetupDefaults()
 
 	checker := healthz.Ping
 	// Setup webhooks if requested
 	if strings.ToLower(os.Getenv("ENABLE_WEBHOOKS")) != "false" {
-		if err = (&novav1beta1.Nova{}).SetupWebhookWithManager(mgr); err != nil {
+		if err = (&novav1.Nova{}).SetupWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "Nova")
 			os.Exit(1)
 		}
-		if err = (&novav1beta1.NovaAPI{}).SetupWebhookWithManager(mgr); err != nil {
+		if err = (&novav1.NovaAPI{}).SetupWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "NovaAPI")
 			os.Exit(1)
 		}
-		if err = (&novav1beta1.NovaCell{}).SetupWebhookWithManager(mgr); err != nil {
+		if err = (&novav1.NovaCell{}).SetupWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "NovaCell")
 			os.Exit(1)
 		}
-		if err = (&novav1beta1.NovaConductor{}).SetupWebhookWithManager(mgr); err != nil {
+		if err = (&novav1.NovaConductor{}).SetupWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "NovaConductor")
 			os.Exit(1)
 		}
-		if err = (&novav1beta1.NovaMetadata{}).SetupWebhookWithManager(mgr); err != nil {
+		if err = (&novav1.NovaMetadata{}).SetupWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "NovaMetadata")
 			os.Exit(1)
 		}
-		if err = (&novav1beta1.NovaNoVNCProxy{}).SetupWebhookWithManager(mgr); err != nil {
+		if err = (&novav1.NovaNoVNCProxy{}).SetupWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "NovaNoVNCProxy")
 			os.Exit(1)
 		}
-		if err = (&novav1beta1.NovaScheduler{}).SetupWebhookWithManager(mgr); err != nil {
+		if err = (&novav1.NovaScheduler{}).SetupWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "NovaScheduler")
 			os.Exit(1)
 		}

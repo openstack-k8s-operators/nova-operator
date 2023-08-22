@@ -38,7 +38,7 @@ import (
 	nad "github.com/openstack-k8s-operators/lib-common/modules/common/networkattachment"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/statefulset"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
-	novav1beta1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
+	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/nova-operator/pkg/nova"
 	"github.com/openstack-k8s-operators/nova-operator/pkg/novncproxy"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
@@ -73,7 +73,7 @@ func (r *NovaNoVNCProxyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	l := log.FromContext(ctx)
 
 	// Fetch the NovaNoVNCProxy instance that needs to be reconciled
-	instance := &novav1beta1.NovaNoVNCProxy{}
+	instance := &novav1.NovaNoVNCProxy{}
 	err := r.Client.Get(ctx, req.NamespacedName, instance)
 
 	if err != nil {
@@ -192,7 +192,7 @@ func (r *NovaNoVNCProxyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 }
 
 func (r *NovaNoVNCProxyReconciler) initStatus(
-	ctx context.Context, h *helper.Helper, instance *novav1beta1.NovaNoVNCProxy,
+	ctx context.Context, h *helper.Helper, instance *novav1.NovaNoVNCProxy,
 ) error {
 	if err := r.initConditions(ctx, h, instance); err != nil {
 		return err
@@ -212,7 +212,7 @@ func (r *NovaNoVNCProxyReconciler) initStatus(
 func (r *NovaNoVNCProxyReconciler) ensureConfigs(
 	ctx context.Context,
 	h *helper.Helper,
-	instance *novav1beta1.NovaNoVNCProxy,
+	instance *novav1.NovaNoVNCProxy,
 	hashes *map[string]env.Setter,
 	apiEndpoints map[string]string,
 	secret corev1.Secret,
@@ -231,7 +231,7 @@ func (r *NovaNoVNCProxyReconciler) ensureConfigs(
 }
 
 func (r *NovaNoVNCProxyReconciler) initConditions(
-	ctx context.Context, h *helper.Helper, instance *novav1beta1.NovaNoVNCProxy,
+	ctx context.Context, h *helper.Helper, instance *novav1.NovaNoVNCProxy,
 ) error {
 	if instance.Status.Conditions == nil {
 		instance.Status.Conditions = condition.Conditions{}
@@ -273,7 +273,7 @@ func (r *NovaNoVNCProxyReconciler) initConditions(
 }
 
 func (r *NovaNoVNCProxyReconciler) generateConfigs(
-	ctx context.Context, h *helper.Helper, instance *novav1beta1.NovaNoVNCProxy, hashes *map[string]env.Setter,
+	ctx context.Context, h *helper.Helper, instance *novav1.NovaNoVNCProxy, hashes *map[string]env.Setter,
 	apiEndpoints map[string]string,
 	secret corev1.Secret,
 ) error {
@@ -332,7 +332,7 @@ func (r *NovaNoVNCProxyReconciler) generateConfigs(
 func (r *NovaNoVNCProxyReconciler) ensureDeployment(
 	ctx context.Context,
 	h *helper.Helper,
-	instance *novav1beta1.NovaNoVNCProxy,
+	instance *novav1.NovaNoVNCProxy,
 	inputHash string,
 	annotations map[string]string,
 ) (ctrl.Result, error) {
@@ -407,7 +407,7 @@ func (r *NovaNoVNCProxyReconciler) ensureDeployment(
 func (r *NovaNoVNCProxyReconciler) ensureServiceExposed(
 	ctx context.Context,
 	h *helper.Helper,
-	instance *novav1beta1.NovaNoVNCProxy,
+	instance *novav1.NovaNoVNCProxy,
 ) (map[string]string, ctrl.Result, error) {
 	var ports = map[endpoint.Endpoint]endpoint.Data{
 		endpoint.EndpointPublic:   {Port: novncproxy.NoVNCProxyPort},
@@ -464,7 +464,7 @@ func (r *NovaNoVNCProxyReconciler) ensureServiceExposed(
 func (r *NovaNoVNCProxyReconciler) reconcileDelete(
 	ctx context.Context,
 	h *helper.Helper,
-	instance *novav1beta1.NovaNoVNCProxy,
+	instance *novav1.NovaNoVNCProxy,
 ) error {
 	util.LogForObject(h, "Reconciling delete", instance)
 	// TODO(ksambor): add cleanups
@@ -482,12 +482,12 @@ func getNoVNCProxyServiceLabels(cell string) map[string]string {
 // SetupWithManager sets up the controller with the Manager.
 func (r *NovaNoVNCProxyReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&novav1beta1.NovaNoVNCProxy{}).
+		For(&novav1.NovaNoVNCProxy{}).
 		Owns(&v1.StatefulSet{}).
 		Owns(&corev1.Service{}).
 		Owns(&routev1.Route{}).
 		Owns(&corev1.Secret{}).
 		Watches(&source.Kind{Type: &corev1.Secret{}},
-			handler.EnqueueRequestsFromMapFunc(r.GetSecretMapperFor(&novav1beta1.NovaNoVNCProxyList{}))).
+			handler.EnqueueRequestsFromMapFunc(r.GetSecretMapperFor(&novav1.NovaNoVNCProxyList{}))).
 		Complete(r)
 }

@@ -40,7 +40,6 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/statefulset"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
-	novav1beta1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/nova-operator/pkg/nova"
 	"github.com/openstack-k8s-operators/nova-operator/pkg/novametadata"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
@@ -74,7 +73,7 @@ func (r *NovaMetadataReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	l := log.FromContext(ctx)
 
 	// Fetch the NovaMetadata instance that needs to be reconciled
-	instance := &novav1beta1.NovaMetadata{}
+	instance := &novav1.NovaMetadata{}
 	err := r.Client.Get(ctx, req.NamespacedName, instance)
 
 	if err != nil {
@@ -204,7 +203,7 @@ func (r *NovaMetadataReconciler) Reconcile(ctx context.Context, req ctrl.Request
 }
 
 func (r *NovaMetadataReconciler) initStatus(
-	ctx context.Context, h *helper.Helper, instance *novav1beta1.NovaMetadata,
+	ctx context.Context, h *helper.Helper, instance *novav1.NovaMetadata,
 ) error {
 	if err := r.initConditions(ctx, h, instance); err != nil {
 		return err
@@ -221,7 +220,7 @@ func (r *NovaMetadataReconciler) initStatus(
 }
 
 func (r *NovaMetadataReconciler) initConditions(
-	ctx context.Context, h *helper.Helper, instance *novav1beta1.NovaMetadata,
+	ctx context.Context, h *helper.Helper, instance *novav1.NovaMetadata,
 ) error {
 	if instance.Status.Conditions == nil {
 		instance.Status.Conditions = condition.Conditions{}
@@ -265,7 +264,7 @@ func (r *NovaMetadataReconciler) initConditions(
 func (r *NovaMetadataReconciler) ensureConfigs(
 	ctx context.Context,
 	h *helper.Helper,
-	instance *novav1beta1.NovaMetadata,
+	instance *novav1.NovaMetadata,
 	hashes *map[string]env.Setter,
 	secret corev1.Secret,
 ) error {
@@ -283,7 +282,7 @@ func (r *NovaMetadataReconciler) ensureConfigs(
 }
 
 func (r *NovaMetadataReconciler) generateConfigs(
-	ctx context.Context, h *helper.Helper, instance *novav1beta1.NovaMetadata, hashes *map[string]env.Setter,
+	ctx context.Context, h *helper.Helper, instance *novav1.NovaMetadata, hashes *map[string]env.Setter,
 	secret corev1.Secret,
 ) error {
 
@@ -346,7 +345,7 @@ func (r *NovaMetadataReconciler) generateConfigs(
 func (r *NovaMetadataReconciler) ensureDeployment(
 	ctx context.Context,
 	h *helper.Helper,
-	instance *novav1beta1.NovaMetadata,
+	instance *novav1.NovaMetadata,
 	inputHash string,
 	annotations map[string]string,
 ) (ctrl.Result, error) {
@@ -420,7 +419,7 @@ func (r *NovaMetadataReconciler) ensureDeployment(
 func (r *NovaMetadataReconciler) ensureServiceExposed(
 	ctx context.Context,
 	h *helper.Helper,
-	instance *novav1beta1.NovaMetadata,
+	instance *novav1.NovaMetadata,
 ) (ctrl.Result, error) {
 	var ports = map[endpoint.Endpoint]endpoint.Data{
 		endpoint.EndpointInternal: {Port: novametadata.APIServicePort},
@@ -479,7 +478,7 @@ func (r *NovaMetadataReconciler) ensureServiceExposed(
 func (r *NovaMetadataReconciler) reconcileDelete(
 	ctx context.Context,
 	h *helper.Helper,
-	instance *novav1beta1.NovaMetadata,
+	instance *novav1.NovaMetadata,
 ) error {
 	util.LogForObject(h, "Reconciling delete", instance)
 	// TODO(ksambor): add cleanup for the service rows in the nova DB
@@ -503,7 +502,7 @@ func getMetadataServiceLabels(cell string) map[string]string {
 // SetupWithManager sets up the controller with the Manager.
 func (r *NovaMetadataReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&novav1beta1.NovaMetadata{}).
+		For(&novav1.NovaMetadata{}).
 		Owns(&v1.StatefulSet{}).
 		Owns(&corev1.Service{}).
 		Owns(&routev1.Route{}).
