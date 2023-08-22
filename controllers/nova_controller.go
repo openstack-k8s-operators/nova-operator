@@ -34,6 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	"github.com/go-logr/logr"
 	"github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/endpoint"
@@ -57,6 +58,11 @@ import (
 // NovaReconciler reconciles a Nova object
 type NovaReconciler struct {
 	ReconcilerBase
+}
+
+// getlogger returns a logger object with a prefix of "conroller.name" and aditional controller context fields
+func (r *NovaReconciler) GetLogger(ctx context.Context) logr.Logger {
+	return log.FromContext(ctx).WithName("Controllers").WithName("Nova")
 }
 
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=nova,verbs=get;list;watch;create;update;patch;delete
@@ -87,7 +93,7 @@ type NovaReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.2/pkg/reconcile
 func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, _err error) {
-	l := log.FromContext(ctx)
+	Log := r.GetLogger(ctx)
 
 	// Fetch the NovaAPI instance that needs to be reconciled
 	instance := &novav1.Nova{}
@@ -97,11 +103,11 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected.
 			// For additional cleanup logic use finalizers. Return and don't requeue.
-			l.Info("Nova instance not found, probably deleted before reconciled. Nothing to do.")
+			Log.Info("Nova instance not found, probably deleted before reconciled. Nothing to do.")
 			return ctrl.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
-		l.Error(err, "Failed to read the Nova instance.")
+		Log.Error(err, "Failed to read the Nova instance.")
 		return ctrl.Result{}, err
 	}
 
@@ -110,13 +116,13 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		r.Client,
 		r.Kclient,
 		r.Scheme,
-		r.Log,
+		Log,
 	)
 	if err != nil {
-		l.Error(err, "Failed to create lib-common Helper")
+		Log.Error(err, "Failed to create lib-common Helper")
 		return ctrl.Result{}, err
 	}
-	util.LogForObject(h, "Reconciling", instance)
+	Log.Info("Reconciling")
 
 	// initialize status fields
 	if err = r.initStatus(ctx, h, instance); err != nil {
@@ -155,7 +161,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	// the our KeystoneService so that is also deleted.
 	updated := controllerutil.AddFinalizer(instance, h.GetFinalizer())
 	if updated {
-		util.LogForObject(h, "Added finalizer to ourselves", instance)
+		Log.Info("Added finalizer to ourselves")
 		// we intentionally return immediately to force the deferred function
 		// to persist the Instance with the finalizer. We need to have our own
 		// finalizer persisted before we try to create the KeystoneService with
@@ -217,7 +223,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 
 	// We have to wait until our service is registered to keystone
 	if !instance.Status.Conditions.IsTrue(condition.KeystoneServiceReadyCondition) {
-		util.LogForObject(h, "Waiting for the KeystoneService to become Ready", instance)
+		Log.Info("Waiting for the KeystoneService to become Ready")
 		return ctrl.Result{}, nil
 	}
 
@@ -401,17 +407,15 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		if cellDB.Status != nova.DBCompleted {
 			allCellsReady = false
 			skippedCells = append(skippedCells, cellName)
-			util.LogForObject(
-				h, "Skipping NovaCell as waiting for the cell DB to be created",
-				instance, "CellName", cellName)
+			Log.Info("Skipping NovaCell as waiting for the cell DB to be created",
+				"CellName", cellName)
 			continue
 		}
 		if cellMQ.Status != nova.MQCompleted {
 			allCellsReady = false
 			skippedCells = append(skippedCells, cellName)
-			util.LogForObject(
-				h, "Skipping NovaCell as waiting for the cell MQ to be created",
-				instance, "CellName", cellName)
+			Log.Info("Skipping NovaCell as waiting for the cell MQ to be created",
+				"CellName", cellName)
 			continue
 		}
 
@@ -422,9 +426,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		if cellName != novav1.Cell0Name && cellTemplate.HasAPIAccess && !cell0Ready {
 			allCellsReady = false
 			skippedCells = append(skippedCells, cellName)
-			util.LogForObject(
-				h, "Skip NovaCell as cell0 is not ready yet and this cell needs API DB access",
-				instance, "CellName", cellName)
+			Log.Info("Skip NovaCell as cell0 is not ready yet and this cell needs API DB access", "CellName", cellName)
 			continue
 		}
 
@@ -448,8 +450,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		}
 		allCellsReady = allCellsReady && status == nova.CellReady
 	}
-	util.LogForObject(
-		h, "Cell statuses", instance,
+	Log.Info("Cell statuses",
 		"waiting", skippedCells,
 		"deploying", deployingCells,
 		"mapping", mappingCells,
@@ -491,7 +492,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	// until cell0 is ready as top level services need cell0 to register in
 	if cell0, ok := cells[novav1.Cell0Name]; !ok || !cell0.IsReady() {
 		// we need to stop here until cell0 is ready
-		util.LogForObject(h, "Waiting for cell0 to become Ready before creating the top level services", instance)
+		Log.Info("Waiting for cell0 to become Ready before creating the top level services")
 		return ctrl.Result{}, nil
 	}
 
@@ -539,7 +540,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		instance.Status.MetadataServiceReadyCount = 0
 	}
 
-	util.LogForObject(h, "Successfully reconciled", instance)
+	Log.Info("Successfully reconciled")
 	return ctrl.Result{}, nil
 }
 
@@ -822,6 +823,7 @@ func (r *NovaReconciler) ensureCell(
 	keystoneAuthURL string,
 	secret corev1.Secret,
 ) (*novav1.NovaCell, nova.CellDeploymentStatus, error) {
+	Log := r.GetLogger(ctx)
 
 	cellSecretName, err := r.ensureCellSecret(ctx, h, instance, cellName, cellTemplate, cellTransportURL, secret)
 	if err != nil {
@@ -877,7 +879,7 @@ func (r *NovaReconciler) ensureCell(
 	}
 
 	if op != controllerutil.OperationResultNone {
-		util.LogForObject(h, fmt.Sprintf("NovaCell %s.", string(op)), instance, "NovaCell.Name", cell.Name)
+		Log.Info(fmt.Sprintf("NovaCell %s.", string(op)), "NovaCell.Name", cell.Name)
 	}
 
 	if !cell.IsReady() {
@@ -977,6 +979,7 @@ func (r *NovaReconciler) ensureAPI(
 	keystonePublicAuthURL string,
 	secretName string,
 ) (ctrl.Result, error) {
+	Log := r.GetLogger(ctx)
 	// TODO(gibi): Pass down a narrowed secret that only hold
 	// specific information but also holds user names
 	apiSpec := novav1.NovaAPISpec{
@@ -1033,7 +1036,7 @@ func (r *NovaReconciler) ensureAPI(
 	}
 
 	if op != controllerutil.OperationResultNone {
-		util.LogForObject(h, fmt.Sprintf("NovaAPI %s.", string(op)), instance, "NovaAPI.Name", api.Name)
+		Log.Info(fmt.Sprintf("NovaAPI %s.", string(op)), "NovaAPI.Name", api.Name)
 	}
 
 	c := api.Status.Conditions.Mirror(novav1.NovaAPIReadyCondition)
@@ -1057,6 +1060,7 @@ func (r *NovaReconciler) ensureScheduler(
 	keystoneAuthURL string,
 	secretName string,
 ) (ctrl.Result, error) {
+	Log := r.GetLogger(ctx)
 	// TODO(gibi): Pass down a narrowed secret that only hold
 	// specific information but also holds user names
 	spec := novav1.NovaSchedulerSpec{
@@ -1106,8 +1110,7 @@ func (r *NovaReconciler) ensureScheduler(
 	}
 
 	if op != controllerutil.OperationResultNone {
-		util.LogForObject(
-			h, fmt.Sprintf("NovaScheduler %s.", string(op)), instance,
+		Log.Info(fmt.Sprintf("NovaScheduler %s.", string(op)),
 			"NovaScheduler.Name", scheduler.Name,
 		)
 	}
@@ -1168,7 +1171,7 @@ func (r *NovaReconciler) ensureDBDeletion(
 ) error {
 	// remove finalizers from all of our MariaDBDatabases to ensure they
 	// are deleted
-
+	Log := r.GetLogger(ctx)
 	// initialize a nova dbs list with default db names and add used cells:
 	novaDbs := []string{"nova-api"}
 	for cellName := range instance.Spec.CellTemplates {
@@ -1187,7 +1190,7 @@ func (r *NovaReconciler) ensureDBDeletion(
 		}
 	}
 
-	util.LogForObject(h, "Removed finalizer from MariaDBDatabase CRs", instance, "MariaDBDatabase names", novaDbs)
+	Log.Info("Removed finalizer from MariaDBDatabase CRs", "MariaDBDatabase names", novaDbs)
 	return nil
 }
 
@@ -1196,6 +1199,7 @@ func (r *NovaReconciler) ensureKeystoneServiceUserDeletion(
 	h *helper.Helper,
 	instance *novav1.Nova,
 ) error {
+	Log := r.GetLogger(ctx)
 	// Remove the finalizer from our KeystoneService CR
 	// This is oddly added automatically when we created KeystoneService but
 	// we need to remove it manually
@@ -1218,7 +1222,7 @@ func (r *NovaReconciler) ensureKeystoneServiceUserDeletion(
 	if err = h.GetClient().Update(ctx, service); err != nil && !k8s_errors.IsNotFound(err) {
 		return err
 	}
-	util.LogForObject(h, "Removed finalizer from nova KeystoneService", instance)
+	Log.Info("Removed finalizer from nova KeystoneService")
 
 	return nil
 }
@@ -1257,7 +1261,8 @@ func (r *NovaReconciler) reconcileDelete(
 	h *helper.Helper,
 	instance *novav1.Nova,
 ) error {
-	util.LogForObject(h, "Reconciling delete", instance)
+	Log := r.GetLogger(ctx)
+	Log.Info("Reconciling delete")
 
 	err := r.ensureDBDeletion(ctx, h, instance)
 	if err != nil {
@@ -1273,10 +1278,10 @@ func (r *NovaReconciler) reconcileDelete(
 	// finalizer from ourselves to allow the deletion of Nova CR itself
 	updated := controllerutil.RemoveFinalizer(instance, h.GetFinalizer())
 	if updated {
-		util.LogForObject(h, "Removed finalizer from ourselves", instance)
+		Log.Info("Removed finalizer from ourselves")
 	}
 
-	util.LogForObject(h, "Reconciled delete successfully", instance)
+	Log.Info("Reconciled delete successfully")
 	return nil
 }
 
@@ -1287,6 +1292,7 @@ func (r *NovaReconciler) ensureMQ(
 	transportName string,
 	messageBusInstanceName string,
 ) (string, nova.MessageBusStatus, error) {
+	Log := r.GetLogger(ctx)
 	transportURL := &rabbitmqv1.TransportURL{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      transportName,
@@ -1310,7 +1316,7 @@ func (r *NovaReconciler) ensureMQ(
 	}
 
 	if op != controllerutil.OperationResultNone {
-		util.LogForObject(h, fmt.Sprintf("TransportURL object %s created or patched", transportName), transportURL)
+		Log.Info(fmt.Sprintf("TransportURL object %s created or patched", transportName), transportURL)
 		return "", nova.MQCreating, nil
 	}
 
@@ -1360,7 +1366,7 @@ func (r *NovaReconciler) ensureMetadata(
 	keystoneAuthURL string,
 	secretName string,
 ) (ctrl.Result, error) {
-
+	Log := r.GetLogger(ctx)
 	// There is a case when the user manually created a NovaMetadata while it
 	// was disabled in the Nova and then tries to enable it in Nova.
 	// One can think that this means we adopts the NovaMetadata and
@@ -1383,12 +1389,11 @@ func (r *NovaReconciler) ensureMetadata(
 	if !k8s_errors.IsNotFound(err) && !OwnedBy(metadata, instance) {
 		err := fmt.Errorf(
 			"cannot update NovaMetadata/%s as the cell is not owning it", metadata.Name)
-		util.LogErrorForObject(
-			h, err,
+		Log.Error(err,
 			"NovaMetadata is enabled, but there is a "+
 				"NovaMetadata CR not owned by us. We cannot update it. "+
 				"Please delete the NovaMetadata.",
-			instance, "NovaMetadata", metadataName)
+			"NovaMetadata", metadataName)
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			novav1.NovaMetadataReadyCondition,
 			condition.ErrorReason,
@@ -1455,7 +1460,7 @@ func (r *NovaReconciler) ensureMetadata(
 	}
 
 	if op != controllerutil.OperationResultNone {
-		util.LogForObject(h, fmt.Sprintf("NovaMetadata %s.", string(op)), instance, "NovaMetadata.Name", metadata.Name)
+		Log.Info(fmt.Sprintf("NovaMetadata %s.", string(op)), "NovaMetadata.Name", metadata.Name)
 	}
 
 	c := metadata.Status.Conditions.Mirror(novav1.NovaMetadataReadyCondition)
@@ -1483,6 +1488,87 @@ func (r *NovaReconciler) ensureCellMapped(
 	scriptName string,
 	configName string,
 ) (nova.CellDeploymentStatus, error) {
+	Log := r.GetLogger(ctx)
+
+	ospSecret, _, err := secret.GetSecret(ctx, h, instance.Spec.Secret, instance.Namespace)
+	if err != nil {
+		return nova.CellMappingFailed, err
+	}
+
+	configName := fmt.Sprintf("%s-config-data", cell.Name+"-manage")
+	scriptName := fmt.Sprintf("%s-scripts", cell.Name+"-manage")
+
+	cmLabels := labels.GetLabels(
+		instance, labels.GetGroupLabel(NovaLabelPrefix), map[string]string{},
+	)
+
+	extraTemplates := map[string]string{
+		"01-nova.conf":    "/nova.conf",
+		"nova-blank.conf": "/nova-blank.conf",
+	}
+
+	// We configure the Job like it runs in the env of the conductor of the given cell
+	// but we ensure that the config always has [api_database] section configure
+	// even if the cell has no API access at all.
+	templateParameters := map[string]interface{}{
+		"service_name":           "nova-conductor",
+		"keystone_internal_url":  cell.Spec.KeystoneAuthURL,
+		"nova_keystone_user":     cell.Spec.ServiceUser,
+		"nova_keystone_password": string(ospSecret.Data[instance.Spec.PasswordSelectors.Service]),
+		// cell.Spec.APIDatabaseUser is empty for cells without APIDB access
+		"api_db_name":     instance.Spec.APIDatabaseUser, // fixme
+		"api_db_user":     instance.Spec.APIDatabaseUser,
+		"api_db_password": string(ospSecret.Data[instance.Spec.PasswordSelectors.APIDatabase]),
+		// cell.Spec.APIDatabaseHostname is empty for cells without APIDB access
+		"api_db_address":         apiDBHostname,
+		"api_db_port":            3306,
+		"cell_db_name":           cell.Spec.CellDatabaseUser, // fixme
+		"cell_db_user":           cell.Spec.CellDatabaseUser,
+		"cell_db_password":       string(ospSecret.Data[cellTemplate.PasswordSelectors.Database]),
+		"cell_db_address":        cell.Spec.CellDatabaseHostname,
+		"cell_db_port":           3306,
+		"openstack_cacert":       "",          // fixme
+		"openstack_region_name":  "regionOne", // fixme
+		"default_project_domain": "Default",   // fixme
+		"default_user_domain":    "Default",   // fixme
+	}
+
+	// NOTE(gibi): cell mapping for cell0 should not have transport_url
+	// configured. As the nova-manage command used to create the mapping
+	// uses the transport_url from the nova.conf provided to the job
+	// we need to make sure that transport_url is only configured for the job
+	// if it is mapping other than cell0.
+	if cell.Spec.CellName != novav1.Cell0Name {
+		templateParameters["transport_url"] = cellTransportURL
+	}
+
+	cms := []util.Template{
+		{
+			Name:         scriptName,
+			Namespace:    instance.Namespace,
+			Type:         util.TemplateTypeScripts,
+			InstanceType: "nova-manage",
+			Labels:       cmLabels,
+		},
+		{
+			Name:               configName,
+			Namespace:          instance.Namespace,
+			Type:               util.TemplateTypeConfig,
+			InstanceType:       "nova-manage",
+			ConfigOptions:      templateParameters,
+			Labels:             cmLabels,
+			CustomData:         map[string]string{},
+			Annotations:        map[string]string{},
+			AdditionalTemplate: extraTemplates,
+		},
+	}
+
+	configHash := make(map[string]env.Setter)
+	err = secret.EnsureSecrets(ctx, h, instance, cms, &configHash)
+
+	if err != nil {
+		return nova.CellMappingFailed, err
+	}
 
 	// This defines those input parameters that can trigger the re-run of the
 	// job and therefore an update on the cell mapping row of this cell in the
@@ -1526,7 +1612,7 @@ func (r *NovaReconciler) ensureCellMapped(
 	// information to the top level services so that each service can restart
 	// their Pods if a new cell is registered or an existing cell is updated.
 	instance.Status.RegisteredCells[cell.Name] = job.GetHash()
-	r.Log.Info(fmt.Sprintf("Job %s hash added - %s", jobDef.Name, instance.Status.RegisteredCells[cell.Name]))
+	Log.Info("Job hash added ", "job", jobDef.Name, "hash", instance.Status.RegisteredCells[cell.Name])
 
 	return nova.CellMappingReady, nil
 }
@@ -1645,6 +1731,6 @@ func (r *NovaReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&rbacv1.RoleBinding{}).
 		Owns(&corev1.Secret{}).
 		Watches(&source.Kind{Type: &corev1.Secret{}},
-			handler.EnqueueRequestsFromMapFunc(r.GetSecretMapperFor(&novav1.NovaList{}))).
+			handler.EnqueueRequestsFromMapFunc(r.GetSecretMapperFor(&novav1.NovaList{}, context.TODO()))).
 		Complete(r)
 }

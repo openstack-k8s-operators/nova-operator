@@ -33,12 +33,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	"github.com/go-logr/logr"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/labels"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
-	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 )
@@ -46,6 +46,11 @@ import (
 // NovaCellReconciler reconciles a NovaCell object
 type NovaCellReconciler struct {
 	ReconcilerBase
+}
+
+// getlogger returns a logger object with a prefix of "conroller.name" and aditional controller context fields
+func (r *NovaCellReconciler) GetLogger(ctx context.Context) logr.Logger {
+	return log.FromContext(ctx).WithName("Controllers").WithName("NovaCell")
 }
 
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=novacells,verbs=get;list;watch;create;update;patch;delete
@@ -62,7 +67,7 @@ type NovaCellReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.2/pkg/reconcile
 func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, _err error) {
-	l := log.FromContext(ctx)
+	Log := r.GetLogger(ctx)
 
 	// Fetch the NovaAPI instance that needs to be reconciled
 	instance := &novav1.NovaCell{}
@@ -72,11 +77,11 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected.
 			// For additional cleanup logic use finalizers. Return and don't requeue.
-			l.Info("NovaCell instance not found, probably deleted before reconciled. Nothing to do.")
+			Log.Info("NovaCell instance not found, probably deleted before reconciled. Nothing to do.")
 			return ctrl.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
-		l.Error(err, "Failed to read the NovaCell instance.")
+		Log.Error(err, "Failed to read the NovaCell instance.")
 		return ctrl.Result{}, err
 	}
 
@@ -85,13 +90,13 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 		r.Client,
 		r.Kclient,
 		r.Scheme,
-		r.Log,
+		Log,
 	)
 	if err != nil {
-		l.Error(err, "Failed to create lib-common Helper")
+		Log.Error(err, "Failed to create lib-common Helper")
 		return ctrl.Result{}, err
 	}
-	util.LogForObject(h, "Reconciling", instance)
+	Log.Info("Reconciling")
 
 	// initialize status fields
 	if err = r.initStatus(ctx, h, instance); err != nil {
@@ -188,7 +193,7 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 
 	// We need to check if all computes are deployed
 	if len(instance.Spec.NovaComputeTemplates) == 0 {
-		util.LogForObject(h, "No compute nodes in cell", instance)
+		Log.Info("No compute nodes in cell")
 		instance.Status.Conditions.Remove(novav1.NovaAllComputesReadyCondition)
 	} else {
 		failedComputes := []string{}
@@ -207,8 +212,7 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 			)
 		}
 
-		util.LogForObject(
-			h, "Nova compute statuses", instance,
+		Log.Info("Nova compute statuses",
 			"ready", readyComputes,
 			"failed", failedComputes,
 		)
@@ -242,11 +246,7 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 	// However NovaNoVNCProxy is never deployed in cell0, and optional in other
 	// cells too.
 	if cellHasVNCService && !instance.Status.Conditions.IsTrue(novav1.NovaNoVNCProxyReadyCondition) {
-		util.LogForObject(
-			h,
-			"Waiting for the NovaNoVNCProxyService to become Ready before "+
-				"generating the compute config", instance,
-		)
+		Log.Info("Waiting for the NovaNoVNCProxyService to become Ready before generating the compute config")
 		return ctrl.Result{}, nil
 	}
 
@@ -268,7 +268,7 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 		instance.Status.Conditions.Remove(novav1.NovaComputeServiceConfigReady)
 	}
 
-	util.LogForObject(h, "Successfully reconciled", instance)
+	Log.Info("Successfully reconciled")
 	return ctrl.Result{}, nil
 }
 
@@ -339,6 +339,8 @@ func (r *NovaCellReconciler) ensureConductor(
 	h *helper.Helper,
 	instance *novav1.NovaCell,
 ) (ctrl.Result, error) {
+	Log := r.GetLogger(ctx)
+
 	conductorSpec := novav1.NewNovaConductorSpec(instance.Spec)
 	conductor := &novav1.NovaConductor{
 		ObjectMeta: metav1.ObjectMeta{
@@ -371,7 +373,7 @@ func (r *NovaCellReconciler) ensureConductor(
 	}
 
 	if op != controllerutil.OperationResultNone {
-		util.LogForObject(h, fmt.Sprintf("NovaConductor %s.", string(op)), instance, "NovaConductor.Name", conductor.Name)
+		Log.Info(fmt.Sprintf("NovaConductor %s.", string(op)))
 	}
 
 	instance.Status.ConductorServiceReadyCount = conductor.Status.ReadyCount
@@ -395,6 +397,7 @@ func (r *NovaCellReconciler) ensureNoVNCProxy(
 	h *helper.Helper,
 	instance *novav1.NovaCell,
 ) (ctrl.Result, error) {
+	Log := r.GetLogger(ctx)
 	// There is a case when the user manually created a NoVNCProxy while it
 	// was disabled in the cell and then tries to enable it in the cell.
 	// One can think that this means the cell adopts the NoVNCProxy and
@@ -417,12 +420,11 @@ func (r *NovaCellReconciler) ensureNoVNCProxy(
 	if !k8s_errors.IsNotFound(err) && !OwnedBy(novncproxy, instance) {
 		err := fmt.Errorf(
 			"cannot update NovaNoVNCProxy/%s as the cell is not owning it", novncproxyName.Name)
-		util.LogErrorForObject(
-			h, err,
+		Log.Error(err,
 			"NovaNoVNCProxy is enabled in this cell, but there is a "+
 				"NovaNoVNCProxy CR not owned by the cell. We cannot update it. "+
 				"Please delete the NovaNoVNCProxy.",
-			instance, "NovaNoVNCProxy", novncproxy)
+			"NovaNoVNCProxy", novncproxy)
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			novav1.NovaNoVNCProxyReadyCondition,
 			condition.ErrorReason,
@@ -467,7 +469,7 @@ func (r *NovaCellReconciler) ensureNoVNCProxy(
 	}
 
 	if op != controllerutil.OperationResultNone {
-		util.LogForObject(h, fmt.Sprintf("NovaNoVNCProxy %s.", string(op)), instance, "NovaNoVNCProxy.Name", novncproxy.Name)
+		Log.Info(fmt.Sprintf("NovaNoVNCProxy %s.", string(op)))
 	}
 
 	instance.Status.NoVNCPRoxyServiceReadyCount = novncproxy.Status.ReadyCount
@@ -486,6 +488,7 @@ func (r *NovaCellReconciler) ensureNoVNCProxyDeleted(
 	h *helper.Helper,
 	instance *novav1.NovaCell,
 ) error {
+	Log := r.GetLogger(ctx)
 	novncproxyName := getNoVNCProxyName(instance)
 	novncproxy := &novav1.NovaNoVNCProxy{}
 	err := r.Client.Get(ctx, novncproxyName, novncproxy)
@@ -498,10 +501,9 @@ func (r *NovaCellReconciler) ensureNoVNCProxyDeleted(
 	}
 	// If it is not created by us, we don't touch it
 	if !OwnedBy(novncproxy, instance) {
-		util.LogForObject(
-			h, "NovaNoVNCProxy is disabled in this cell, but there is a "+
-				"NovaNoVNCProxy CR not owned by the cell. Not deleting it.",
-			instance, "NovaNoVNCProxy", novncproxy)
+		Log.Info("NovaNoVNCProxy is disabled in this cell, but there is a "+
+			"NovaNoVNCProxy CR not owned by the cell. Not deleting it.",
+			"NovaNoVNCProxy", novncproxy)
 		return nil
 	}
 
@@ -510,9 +512,8 @@ func (r *NovaCellReconciler) ensureNoVNCProxyDeleted(
 	if err != nil && k8s_errors.IsNotFound(err) {
 		return nil
 	}
-	util.LogForObject(
-		h, "NovaNoVNCProxy is disabled in this cell, so deleted NovaNoVNCProxy",
-		instance, "NovaNoVNCProxy", novncproxy)
+	Log.Info("NovaNoVNCProxy is disabled in this cell, so deleted NovaNoVNCProxy",
+		"NovaNoVNCProxy", novncproxy)
 
 	return nil
 }
@@ -522,7 +523,7 @@ func (r *NovaCellReconciler) ensureMetadata(
 	h *helper.Helper,
 	instance *novav1.NovaCell,
 ) (ctrl.Result, error) {
-
+	Log := r.GetLogger(ctx)
 	// There is a case when the user manually created a NovaMetadata while it
 	// was disabled in the NovaCell and then tries to enable it in NovaCell.
 	// One can think that this means the cell adopts the NovaMetadata and
@@ -545,12 +546,11 @@ func (r *NovaCellReconciler) ensureMetadata(
 	if !k8s_errors.IsNotFound(err) && !OwnedBy(metadata, instance) {
 		err := fmt.Errorf(
 			"cannot update NovaMetadata/%s as the cell is not owning it", metadata.Name)
-		util.LogErrorForObject(
-			h, err,
+		Log.Error(err,
 			"NovaMetadata is enabled, but there is a "+
 				"NovaMetadata CR not owned by us. We cannot update it. "+
 				"Please delete the NovaMetadata.",
-			instance, "NovaMetadata", metadataName)
+			"NovaMetadata", metadataName)
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			novav1.NovaMetadataReadyCondition,
 			condition.ErrorReason,
@@ -593,7 +593,7 @@ func (r *NovaCellReconciler) ensureMetadata(
 	}
 
 	if op != controllerutil.OperationResultNone {
-		util.LogForObject(h, fmt.Sprintf("NovaMetadata %s.", string(op)), instance, "NovaMetadata.Name", metadata.Name)
+		Log.Info(fmt.Sprintf("NovaMetadata %s.", string(op)))
 	}
 
 	instance.Status.MetadataServiceReadyCount = metadata.Status.ReadyCount
@@ -646,6 +646,7 @@ func (r *NovaCellReconciler) ensureNovaComputeDeleted(
 	instance client.Object,
 	computeName string,
 ) error {
+	Log := r.GetLogger(ctx)
 	fullComputeName := getNovaComputeName(instance, computeName)
 	compute := &novav1.NovaCompute{}
 	err := r.Client.Get(ctx, fullComputeName, compute)
@@ -658,10 +659,9 @@ func (r *NovaCellReconciler) ensureNovaComputeDeleted(
 	}
 	// If it is not created by us, we don't touch it
 	if !OwnedBy(compute, instance) {
-		util.LogForObject(
-			h, "NovaCompute isn't defined in the cell, but there is a  "+
-				"NovaCompute CR not owned by us. Not deleting it.",
-			instance, "NovaCompute", compute)
+		Log.Info("NovaCompute isn't defined in the cell, but there is a  "+
+			"NovaCompute CR not owned by us. Not deleting it.",
+			"NovaCompute", compute)
 		return nil
 	}
 
@@ -670,8 +670,7 @@ func (r *NovaCellReconciler) ensureNovaComputeDeleted(
 	if err != nil && k8s_errors.IsNotFound(err) {
 		return err
 	}
-	util.LogForObject(
-		h, "NovaCompute isn't defined in the cell, so deleted NovaCompute",
+	Log.Info("NovaCompute isn't defined in the cell, so deleted NovaCompute",
 		instance, "NovaCompute", compute)
 
 	return nil
@@ -685,6 +684,7 @@ func (r *NovaCellReconciler) ensureNovaCompute(
 	computeName string,
 	secret corev1.Secret,
 ) novav1.NovaComputeCellStatus {
+	Log := r.GetLogger(ctx)
 	// There is a case when the user manually created a NovaCompute with selected name.
 	// One can think that this means the cell adopts the NovaCompute and
 	// starts managing it.
@@ -713,12 +713,11 @@ func (r *NovaCellReconciler) ensureNovaCompute(
 	if !k8s_errors.IsNotFound(err) && !OwnedBy(novacompute, instance) {
 		err := fmt.Errorf(
 			"cannot update NovaCompute/%s as the cell is not owning it", novacompute.Name)
-		util.LogErrorForObject(
-			h, err,
+		Log.Error(err,
 			"NovaCompute is defined in the cell, but there is a "+
 				"NovaCompute CR not owned by us. We cannot update it. "+
 				"Please delete the NovaCompute.",
-			instance, "NovaCompute", fullComputeName)
+			"NovaCompute", fullComputeName)
 
 		computeStatus.Errors = true
 
@@ -752,7 +751,7 @@ func (r *NovaCellReconciler) ensureNovaCompute(
 	}
 
 	if op != controllerutil.OperationResultNone {
-		util.LogForObject(h, fmt.Sprintf("NovaCompute %s.", string(op)), instance, "NovaCompute.Name", novacompute.Name)
+		Log.Info(fmt.Sprintf("NovaCompute %s.", string(op)), "NovaCompute.Name", novacompute.Name)
 	}
 
 	if novacompute.IsReady() {
@@ -859,6 +858,6 @@ func (r *NovaCellReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.Secret{}).
 		// and it needs to watch the input secrets
 		Watches(&source.Kind{Type: &corev1.Secret{}},
-			handler.EnqueueRequestsFromMapFunc(r.GetSecretMapperFor(&novav1.NovaCellList{}))).
+			handler.EnqueueRequestsFromMapFunc(r.GetSecretMapperFor(&novav1.NovaCellList{}, context.TODO()))).
 		Complete(r)
 }
