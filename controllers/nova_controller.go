@@ -33,6 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	"github.com/go-logr/logr"
 	"github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/endpoint"
@@ -57,6 +58,11 @@ import (
 // NovaReconciler reconciles a Nova object
 type NovaReconciler struct {
 	ReconcilerBase
+}
+
+// getlog returns a logger object with a prefix of "conroller.name" and aditional controller context fields
+func GetLog(ctx context.Context, controller string) logr.Logger {
+	return log.FromContext(ctx).WithName("Controllers").WithName(controller)
 }
 
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=nova,verbs=get;list;watch;create;update;patch;delete
@@ -87,7 +93,7 @@ type NovaReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.2/pkg/reconcile
 func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, _err error) {
-	l := log.FromContext(ctx)
+	l := GetLog(ctx, "nova")
 
 	// Fetch the NovaAPI instance that needs to be reconciled
 	instance := &novav1.Nova{}
@@ -110,7 +116,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		r.Client,
 		r.Kclient,
 		r.Scheme,
-		r.Log,
+		l,
 	)
 	if err != nil {
 		l.Error(err, "Failed to create lib-common Helper")
@@ -1256,6 +1262,8 @@ func (r *NovaReconciler) ensureCellMapped(
 	cellTemplate novav1.NovaCellTemplate,
 	apiDBHostname string,
 ) (nova.CellDeploymentStatus, error) {
+	l := GetLog(ctx, "nova")
+
 	ospSecret, _, err := secret.GetSecret(ctx, h, instance.Spec.Secret, instance.Namespace)
 	if err != nil {
 		return nova.CellMappingFailed, err
@@ -1383,7 +1391,7 @@ func (r *NovaReconciler) ensureCellMapped(
 	// information to the top level services so that each service can restart
 	// their Pods if a new cell is registered or an existing cell is updated.
 	instance.Status.RegisteredCells[cell.Name] = job.GetHash()
-	r.Log.Info(fmt.Sprintf("Job %s hash added - %s", jobDef.Name, instance.Status.RegisteredCells[cell.Name]))
+	l.Info(fmt.Sprintf("Job %s hash added - %s", jobDef.Name, instance.Status.RegisteredCells[cell.Name]))
 
 	return nova.CellMappingReady, nil
 }
