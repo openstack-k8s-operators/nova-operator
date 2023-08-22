@@ -469,3 +469,13 @@ func (r *ReconcilerBase) GetSecretMapperFor(crs client.ObjectList) func(client.O
 
 	return mapper
 }
+
+// OwnedBy returns true if the owner has an OwnerReference on the owned object
+func OwnedBy(owned client.Object, owner client.Object) bool {
+	for _, ref := range owned.GetOwnerReferences() {
+		if owner.GetUID() == ref.UID {
+			return true
+		}
+	}
+	return false
+}

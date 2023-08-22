@@ -174,8 +174,13 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 			return result, err
 		}
 	} else {
+		// The NoVNCProxy is explicitly disable for this cell so we delete its
+		// deployment if exists
+		err = r.ensureNoVNCProxyDeleted(ctx, h, instance)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
 		instance.Status.Conditions.Remove(novav1.NovaNoVNCProxyReadyCondition)
-		// TODO(gibi): delete the VNC service if it exists and owned by us
 	}
 
 	// We need to wait for the NovaNoVNCProxy to become Ready before we can try
@@ -320,15 +325,59 @@ func (r *NovaCellReconciler) ensureConductor(
 	return ctrl.Result{}, nil
 }
 
+func getNoVNCProxyName(instance *novav1.NovaCell) types.NamespacedName {
+	return types.NamespacedName{Namespace: instance.Namespace, Name: instance.Name + "-novncproxy"}
+}
+
 func (r *NovaCellReconciler) ensureNoVNCProxy(
 	ctx context.Context,
 	h *helper.Helper,
 	instance *novav1.NovaCell,
 ) (ctrl.Result, error) {
+	// There is a case when the user manually created a NoVNCProxy while it
+	// was disabled in the cell and then tries to enable it in the cell.
+	// One can think that this means the cell adopts the NoVNCProxy and
+	// starts managing it.
+	// However at least the label selector of the StatefulSet spec is
+	// immutable, so the cell cannot simply start adopting an existing
+	// NoVNCProxy. But instead the Cell CR will be in error state until the
+	// human deletes the manually created NoVNCProxy and the the Cell will
+	// create its own NoVNCProxy.
+	// See https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#label-selector-updates
+
+	novncproxyName := getNoVNCProxyName(instance)
+	novncproxy := &novav1.NovaNoVNCProxy{}
+	err := r.Client.Get(ctx, novncproxyName, novncproxy)
+	if err != nil && !k8s_errors.IsNotFound(err) {
+		return ctrl.Result{}, err
+	}
+
+	// If it is not created by us, we don't touch it
+	if !k8s_errors.IsNotFound(err) && !OwnedBy(novncproxy, instance) {
+		err := fmt.Errorf(
+			"cannot update NovaNoVNCProxy/%s as the cell is not owning it", novncproxyName.Name)
+		util.LogErrorForObject(
+			h, err,
+			"NovaNoVNCProxy is enabled in this cell, but there is a "+
+				"NovaNoVNCProxy CR not owned by the cell. We cannot update it. "+
+				"Please delete the NovaNoVNCProxy.",
+			instance, "NovaNoVNCProxy", novncproxy)
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			novav1.NovaNoVNCProxyReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityError,
+			novav1.NovaNoVNCProxyReadyErrorMessage,
+			err.Error()))
+
+		return ctrl.Result{}, err
+	}
+
+	// NoVNCProxy is either not exists, or it exists but owned by us so we can
+	// create or update it
 	novncproxySpec := novav1.NewNovaNoVNCProxySpec(instance.Spec)
-	novncproxy := &novav1.NovaNoVNCProxy{
+	novncproxy = &novav1.NovaNoVNCProxy{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      instance.Name + "-novncproxy",
+			Name:      novncproxyName.Name,
 			Namespace: instance.Namespace,
 		},
 	}
@@ -369,6 +418,42 @@ func (r *NovaCellReconciler) ensureNoVNCProxy(
 	}
 
 	return ctrl.Result{}, nil
+}
+
+func (r *NovaCellReconciler) ensureNoVNCProxyDeleted(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *novav1.NovaCell,
+) error {
+	novncproxyName := getNoVNCProxyName(instance)
+	novncproxy := &novav1.NovaNoVNCProxy{}
+	err := r.Client.Get(ctx, novncproxyName, novncproxy)
+	if k8s_errors.IsNotFound(err) {
+		// Nothing to do as it does not exists
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	// If it is not created by us, we don't touch it
+	if !OwnedBy(novncproxy, instance) {
+		util.LogForObject(
+			h, "NovaNoVNCProxy is disabled in this cell, but there is a "+
+				"NovaNoVNCProxy CR not owned by the cell. Not deleting it.",
+			instance, "NovaNoVNCProxy", novncproxy)
+		return nil
+	}
+
+	// OK this was created by us so we go and delete it
+	err = r.Client.Delete(ctx, novncproxy)
+	if err != nil && k8s_errors.IsNotFound(err) {
+		return nil
+	}
+	util.LogForObject(
+		h, "NovaNoVNCProxy is disabled in this cell, so deleted NovaNoVNCProxy",
+		instance, "NovaNoVNCProxy", novncproxy)
+
+	return nil
 }
 
 func (r *NovaCellReconciler) ensureMetadata(
