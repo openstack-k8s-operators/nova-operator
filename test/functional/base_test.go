@@ -708,7 +708,6 @@ func GetDefaultNovaNoVNCProxySpec() map[string]interface{} {
 		"cellMessageBusSecretName": MessageBusSecretName,
 		"serviceAccount":           "nova",
 		"cellName":                 "cell1",
-		"registeredCells":          map[string]string{},
 	}
 }
 

@@ -479,8 +479,16 @@ spec:
                           type: object
                         enabled:
                           description: Enabled - Whether NovaNoVNCProxy services should
-                            be deployed and managed If it is set to false then the
-                            related NovaNoVNCProxy CR will be deleted if exists
+                            be deployed and managed. If it is set to false then the
+                            related NovaNoVNCProxy CR will be deleted if exists and
+                            owned by the NovaCell. If it exist but not owned by the
+                            NovaCell then the NovaNoVNCProxy will not be touched.
+                            If it is set to true the a NovaNoVNCProxy CR will be created.
+                            If there is already a manually created NovaNoVNCProxy
+                            CR with the relevant name then the cell will not try to
+                            update that CR, instead the NovaCell be in error state
+                            until the manually create NovaNoVNCProxy CR is deleted
+                            by the operator.
                           type: boolean
                         externalEndpoints:
                           description: ExternalEndpoints, expose a VIP via MetalLB

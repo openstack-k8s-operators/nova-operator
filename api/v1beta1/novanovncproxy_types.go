@@ -29,9 +29,15 @@ import (
 // create a NovaNoVNCProxy via higher level CRDs.
 type NovaNoVNCProxyTemplate struct {
 	// +kubebuilder:validation:Optional
-	// Enabled - Whether NovaNoVNCProxy services should be deployed and managed
+	// Enabled - Whether NovaNoVNCProxy services should be deployed and managed.
 	// If it is set to false then the related NovaNoVNCProxy CR will be deleted
-	// if exists
+	// if exists and owned by the NovaCell. If it exist but not owned by the
+	// NovaCell then the NovaNoVNCProxy will not be touched.
+	// If it is set to true the a NovaNoVNCProxy CR will be created.
+	// If there is already a manually created NovaNoVNCProxy CR with the
+	// relevant name then the cell will not try to update that CR, instead the
+	// NovaCell be in error state until the manually create NovaNoVNCProxy CR
+	// is deleted by the operator.
 	Enabled *bool `json:"enabled"`
 
 	// +kubebuilder:validation:Optional
