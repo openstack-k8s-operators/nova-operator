@@ -29,6 +29,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	"github.com/go-logr/logr"
+
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/endpoint"
@@ -53,6 +55,11 @@ type NovaAPIReconciler struct {
 	ReconcilerBase
 }
 
+// getlogger returns a logger object with a prefix of "conroller.name" and aditional controller context fields
+func (r *NovaAPIReconciler) GetLogger(ctx context.Context) logr.Logger {
+	return log.FromContext(ctx).WithName("Controllers").WithName("NovaAPI")
+}
+
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=novaapis,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=novaapis/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=novaapis/finalizers,verbs=update
@@ -74,7 +81,7 @@ type NovaAPIReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.2/pkg/reconcile
 func (r *NovaAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, _err error) {
-	l := log.FromContext(ctx)
+	Log := r.GetLogger(ctx)
 
 	// Fetch the NovaAPI instance that needs to be reconciled
 	instance := &novav1.NovaAPI{}
@@ -84,11 +91,11 @@ func (r *NovaAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (re
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected.
 			// For additional cleanup logic use finalizers. Return and don't requeue.
-			l.Info("NovaAPI instance not found, probably deleted before reconciled. Nothing to do.")
+			Log.Info("NovaAPI instance not found, probably deleted before reconciled. Nothing to do.")
 			return ctrl.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
-		l.Error(err, "Failed to read the NovaAPI instance.")
+		Log.Error(err, "Failed to read the NovaAPI instance.")
 		return ctrl.Result{}, err
 	}
 
@@ -97,13 +104,13 @@ func (r *NovaAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (re
 		r.Client,
 		r.Kclient,
 		r.Scheme,
-		r.Log,
+		Log,
 	)
 	if err != nil {
-		l.Error(err, "Failed to create lib-common Helper")
+		Log.Error(err, "Failed to create lib-common Helper")
 		return ctrl.Result{}, err
 	}
-	util.LogForObject(h, "Reconciling", instance)
+	Log.Info("Reconciling")
 
 	// initialize status fields
 	if err = r.initStatus(ctx, h, instance); err != nil {
@@ -141,7 +148,7 @@ func (r *NovaAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (re
 	// the our KeystoneEndpoint so that is also deleted.
 	updated := controllerutil.AddFinalizer(instance, h.GetFinalizer())
 	if updated {
-		util.LogForObject(h, "Added finalizer to ourselves", instance)
+		Log.Info("Added finalizer to ourselves")
 		// we intentionally return immediately to force the deferred function
 		// to persist the Instance with the finalizer. We need to have our own
 		// finalizer persisted before we try to create the KeystoneEndpoint with
@@ -215,7 +222,7 @@ func (r *NovaAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (re
 
 	// Only expose the service is the deployment succeeded
 	if !instance.Status.Conditions.IsTrue(condition.DeploymentReadyCondition) {
-		util.LogForObject(h, "Waiting for the Deployment to become Ready before exposing the sevice in Keystone", instance)
+		Log.Info("Waiting for the Deployment to become Ready before exposing the sevice in Keystone")
 		return ctrl.Result{}, nil
 	}
 
@@ -232,7 +239,7 @@ func (r *NovaAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (re
 		return ctrl.Result{}, err
 	}
 
-	util.LogForObject(h, "Successfully reconciled", instance)
+	Log.Info("Successfully reconciled")
 	return ctrl.Result{}, nil
 }
 
@@ -377,10 +384,12 @@ func (r *NovaAPIReconciler) ensureDeployment(
 	inputHash string,
 	annotations map[string]string,
 ) (ctrl.Result, error) {
+	Log := r.GetLogger(ctx)
+
 	ss := statefulset.NewStatefulSet(novaapi.StatefulSet(instance, inputHash, getAPIServiceLabels(), annotations), r.RequeueTimeout)
 	ctrlResult, err := ss.CreateOrPatch(ctx, h)
 	if err != nil && !k8s_errors.IsNotFound(err) {
-		util.LogErrorForObject(h, err, "Deployment failed", instance)
+		Log.Error(err, "Deployment failed")
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.DeploymentReadyCondition,
 			condition.ErrorReason,
@@ -389,7 +398,7 @@ func (r *NovaAPIReconciler) ensureDeployment(
 			err.Error()))
 		return ctrlResult, err
 	} else if (ctrlResult != ctrl.Result{} || k8s_errors.IsNotFound(err)) {
-		util.LogForObject(h, "Deployment in progress", instance)
+		Log.Info("Deployment in progress")
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.DeploymentReadyCondition,
 			condition.RequestedReason,
@@ -428,10 +437,10 @@ func (r *NovaAPIReconciler) ensureDeployment(
 	}
 
 	if instance.Status.ReadyCount > 0 {
-		util.LogForObject(h, "Deployment is ready", instance)
+		Log.Info("Deployment is ready")
 		instance.Status.Conditions.MarkTrue(condition.DeploymentReadyCondition, condition.DeploymentReadyMessage)
 	} else {
-		util.LogForObject(h, "Deployment is not ready", instance, "Status", ss.GetStatefulSet().Status)
+		Log.Info("Deployment is not ready", "Status", ss.GetStatefulSet().Status)
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.DeploymentReadyCondition,
 			condition.RequestedReason,
@@ -597,6 +606,8 @@ func (r *NovaAPIReconciler) ensureKeystoneEndpointDeletion(
 	// Remove the finalizer from our KeystoneEndpoint CR
 	// This is oddly added automatically when we created KeystoneEndpoint but
 	// we need to remove it manually
+	Log := r.GetLogger(ctx)
+
 	endpoint, err := keystonev1.GetKeystoneEndpointWithName(ctx, h, novaapi.ServiceName, instance.Namespace)
 	if err != nil && !k8s_errors.IsNotFound(err) {
 		return err
@@ -616,7 +627,7 @@ func (r *NovaAPIReconciler) ensureKeystoneEndpointDeletion(
 	if err = h.GetClient().Update(ctx, endpoint); err != nil && !k8s_errors.IsNotFound(err) {
 		return err
 	}
-	util.LogForObject(h, "Removed finalizer from nova KeystoneEndpoint", instance)
+	Log.Info("Removed finalizer from nova KeystoneEndpoint")
 
 	return nil
 }
@@ -626,7 +637,9 @@ func (r *NovaAPIReconciler) reconcileDelete(
 	h *helper.Helper,
 	instance *novav1.NovaAPI,
 ) error {
-	util.LogForObject(h, "Reconciling delete", instance)
+	Log := r.GetLogger(ctx)
+
+	Log.Info("Reconciling delete")
 
 	err := r.ensureKeystoneEndpointDeletion(ctx, h, instance)
 	if err != nil {
@@ -637,10 +650,10 @@ func (r *NovaAPIReconciler) reconcileDelete(
 	// finalizer from ourselves to allow the deletion of NovaAPI CR itself
 	updated := controllerutil.RemoveFinalizer(instance, h.GetFinalizer())
 	if updated {
-		util.LogForObject(h, "Removed finalizer from ourselves", instance)
+		Log.Info("Removed finalizer from ourselves")
 	}
 
-	util.LogForObject(h, "Reconciled delete successfully", instance)
+	Log.Info("Reconciled delete successfully")
 	return nil
 }
 
@@ -659,6 +672,6 @@ func (r *NovaAPIReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&keystonev1.KeystoneEndpoint{}).
 		Owns(&corev1.Secret{}).
 		Watches(&source.Kind{Type: &corev1.Secret{}},
-			handler.EnqueueRequestsFromMapFunc(r.GetSecretMapperFor(&novav1.NovaAPIList{}))).
+			handler.EnqueueRequestsFromMapFunc(r.GetSecretMapperFor(&novav1.NovaAPIList{}, context.TODO()))).
 		Complete(r)
 }

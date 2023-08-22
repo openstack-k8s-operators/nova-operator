@@ -34,6 +34,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
@@ -237,7 +238,6 @@ func ensureNetworkAttachments(
 type ReconcilerBase struct {
 	Client         client.Client
 	Kclient        kubernetes.Interface
-	Log            logr.Logger
 	Scheme         *runtime.Scheme
 	RequeueTimeout time.Duration
 }
@@ -257,12 +257,10 @@ type Reconciler interface {
 func NewReconcilerBase(
 	name string, mgr ctrl.Manager, kclient kubernetes.Interface,
 ) ReconcilerBase {
-	log := ctrl.Log.WithName("controllers").WithName(name)
 	return ReconcilerBase{
 		Client:         mgr.GetClient(),
 		Scheme:         mgr.GetScheme(),
 		Kclient:        kclient,
-		Log:            log,
 		RequeueTimeout: time.Duration(5) * time.Second,
 	}
 }
@@ -428,6 +426,11 @@ type GetSecret interface {
 	client.Object
 }
 
+// getlogger returns a logger object with a prefix of "conroller.name" and aditional controller context fields
+func (r *ReconcilerBase) GetLogger(ctx context.Context) logr.Logger {
+	return log.FromContext(ctx).WithName("Controllers").WithName("ReconcilerBase")
+}
+
 // GetSecretMapperFor returns a function that creates reconcile.Request for each
 // NovaXXX CR where the value of Spec.Secret matches to the name of the given
 // Secret. The specific CRD to match against is defined by the type of the crs
@@ -441,8 +444,8 @@ type GetSecret interface {
 //    controller) and expose a "generation" field that the central component
 //    can bump to trigger a reconcile if the secret content changed.
 
-func (r *ReconcilerBase) GetSecretMapperFor(crs client.ObjectList) func(client.Object) []reconcile.Request {
-
+func (r *ReconcilerBase) GetSecretMapperFor(crs client.ObjectList, ctx context.Context) func(client.Object) []reconcile.Request {
+	Log := r.GetLogger(ctx)
 	mapper := func(secret client.Object) []reconcile.Request {
 		var namespace string = secret.GetNamespace()
 		var secretName string = secret.GetName()
@@ -451,8 +454,8 @@ func (r *ReconcilerBase) GetSecretMapperFor(crs client.ObjectList) func(client.O
 		listOpts := []client.ListOption{
 			client.InNamespace(namespace),
 		}
-		if err := r.Client.List(context.TODO(), crs, listOpts...); err != nil {
-			r.Log.Error(err, "Unable to retrieve the list of CRs")
+		if err := r.Client.List(ctx, crs, listOpts...); err != nil {
+			Log.Error(err, "Unable to retrieve the list of CRs")
 			panic(err)
 		}
 
@@ -465,7 +468,7 @@ func (r *ReconcilerBase) GetSecretMapperFor(crs client.ObjectList) func(client.O
 					Namespace: namespace,
 					Name:      cr.GetName(),
 				}
-				r.Log.Info(
+				Log.Info(
 					"Requesting reconcile due to secret change",
 					"Secret", secretName, "CR", name.Name,
 				)
@@ -475,7 +478,7 @@ func (r *ReconcilerBase) GetSecretMapperFor(crs client.ObjectList) func(client.O
 		})
 
 		if err != nil {
-			r.Log.Error(err, "Unable to iterate the list of CRs")
+			Log.Error(err, "Unable to iterate the list of CRs")
 			panic(err)
 		}
 
@@ -503,6 +506,7 @@ func (r *ReconcilerBase) ensureMetadataDeleted(
 	h *helper.Helper,
 	instance client.Object,
 ) error {
+	Log := r.GetLogger(ctx)
 	metadataName := getNovaMetadataName(instance)
 	metadata := &novav1.NovaMetadata{}
 	err := r.Client.Get(ctx, metadataName, metadata)
@@ -515,10 +519,9 @@ func (r *ReconcilerBase) ensureMetadataDeleted(
 	}
 	// If it is not created by us, we don't touch it
 	if !OwnedBy(metadata, instance) {
-		util.LogForObject(
-			h, "NovaMetadata is disabled, but there is a "+
-				"NovaMetadata CR not owned by us. Not deleting it.",
-			instance, "NovaMetadata", metadata)
+		Log.Info("NovaMetadata is disabled, but there is a "+
+			"NovaMetadata CR not owned by us. Not deleting it.",
+			"NovaMetadata", metadata)
 		return nil
 	}
 
@@ -527,9 +530,8 @@ func (r *ReconcilerBase) ensureMetadataDeleted(
 	if err != nil && k8s_errors.IsNotFound(err) {
 		return nil
 	}
-	util.LogForObject(
-		h, "NovaMetadata is disabled, so deleted NovaMetadata",
-		instance, "NovaMetadata", metadata)
+	Log.Info("NovaMetadata is disabled, so deleted NovaMetadata",
+		"NovaMetadata", metadata)
 
 	return nil
 }

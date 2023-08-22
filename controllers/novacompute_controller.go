@@ -28,6 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	"github.com/go-logr/logr"
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
@@ -47,6 +48,11 @@ import (
 // NovaComputeReconciler reconciles a NovaCompute object
 type NovaComputeReconciler struct {
 	ReconcilerBase
+}
+
+// getlogger returns a logger object with a prefix of "conroller.name" and aditional controller context fields
+func (r *NovaComputeReconciler) GetLogger(ctx context.Context) logr.Logger {
+	return log.FromContext(ctx).WithName("Controllers").WithName("NovaCompute")
 }
 
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=novacomputes,verbs=get;list;watch;create;update;patch;delete
@@ -71,7 +77,7 @@ type NovaComputeReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.2/pkg/reconcile
 func (r *NovaComputeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, _err error) {
-	l := log.FromContext(ctx)
+	Log := r.GetLogger(ctx)
 
 	// Fetch the NovaCompute instance that needs to be reconciled
 	instance := &novav1.NovaCompute{}
@@ -81,11 +87,11 @@ func (r *NovaComputeReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected.
 			// For additional cleanup logic use finalizers. Return and don't requeue.
-			l.Info("NovaCompute instance not found, probably deleted before reconciled. Nothing to do.")
+			Log.Info("NovaCompute instance not found, probably deleted before reconciled. Nothing to do.")
 			return ctrl.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
-		l.Error(err, "Failed to read the NovaCompute instance.")
+		Log.Error(err, "Failed to read the NovaCompute instance.")
 		return ctrl.Result{}, err
 	}
 
@@ -94,13 +100,13 @@ func (r *NovaComputeReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		r.Client,
 		r.Kclient,
 		r.Scheme,
-		r.Log,
+		Log,
 	)
 	if err != nil {
-		l.Error(err, "Failed to create lib-common Helper")
+		Log.Error(err, "Failed to create lib-common Helper")
 		return ctrl.Result{}, err
 	}
-	util.LogForObject(h, "Reconciling", instance)
+	Log.Info("Reconciling")
 
 	// initialize status fields
 	if err = r.initStatus(ctx, h, instance); err != nil {
@@ -179,7 +185,7 @@ func (r *NovaComputeReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return result, err
 	}
 
-	util.LogForObject(h, "Successfully reconciled", instance)
+	Log.Info("Successfully reconciled")
 	return ctrl.Result{}, nil
 }
 
@@ -301,11 +307,12 @@ func (r *NovaComputeReconciler) ensureDeployment(
 	inputHash string,
 	annotations map[string]string,
 ) (ctrl.Result, error) {
+	Log := r.GetLogger(ctx)
 	serviceLabels := getComputeServiceLabels(instance.Spec.CellName)
 	ss := statefulset.NewStatefulSet(novacompute.StatefulSet(instance, inputHash, serviceLabels, annotations), r.RequeueTimeout)
 	ctrlResult, err := ss.CreateOrPatch(ctx, h)
 	if err != nil && !k8s_errors.IsNotFound(err) {
-		util.LogErrorForObject(h, err, "Deployment failed", instance)
+		Log.Error(err, "Deployment failed")
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.DeploymentReadyCondition,
 			condition.ErrorReason,
@@ -314,7 +321,7 @@ func (r *NovaComputeReconciler) ensureDeployment(
 			err.Error()))
 		return ctrlResult, err
 	} else if (ctrlResult != ctrl.Result{} || k8s_errors.IsNotFound(err)) {
-		util.LogForObject(h, "Deployment in progress", instance)
+		Log.Info("Deployment in progress")
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.DeploymentReadyCondition,
 			condition.RequestedReason,
@@ -353,10 +360,10 @@ func (r *NovaComputeReconciler) ensureDeployment(
 	}
 
 	if instance.Status.ReadyCount > 0 || *instance.Spec.Replicas == 0 {
-		util.LogForObject(h, "Deployment is ready", instance)
+		Log.Info("Deployment is ready")
 		instance.Status.Conditions.MarkTrue(condition.DeploymentReadyCondition, condition.DeploymentReadyMessage)
 	} else {
-		util.LogForObject(h, "Deployment is not ready", instance, "Status", ss.GetStatefulSet().Status)
+		Log.Info("Deployment is not ready", "Status", ss.GetStatefulSet().Status)
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.DeploymentReadyCondition,
 			condition.RequestedReason,
@@ -373,8 +380,9 @@ func (r *NovaComputeReconciler) reconcileDelete(
 	h *helper.Helper,
 	instance *novav1.NovaCompute,
 ) error {
-	util.LogForObject(h, "Reconciling delete", instance)
-	util.LogForObject(h, "Reconciled delete successfully", instance)
+	Log := r.GetLogger(ctx)
+	Log.Info("Reconciling delete")
+	Log.Info("Reconciled delete successfully")
 	return nil
 }
 
@@ -392,6 +400,6 @@ func (r *NovaComputeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&v1.StatefulSet{}).
 		Owns(&corev1.Secret{}).
 		Watches(&source.Kind{Type: &corev1.Secret{}},
-			handler.EnqueueRequestsFromMapFunc(r.GetSecretMapperFor(&novav1.NovaComputeList{}))).
+			handler.EnqueueRequestsFromMapFunc(r.GetSecretMapperFor(&novav1.NovaComputeList{}, context.TODO()))).
 		Complete(r)
 }
