@@ -294,13 +294,12 @@ func (r *NovaCellReconciler) ensureConductor(
 	})
 
 	if err != nil {
-		condition.FalseCondition(
+		instance.Status.Conditions.Set(condition.FalseCondition(
 			novav1.NovaConductorReadyCondition,
 			condition.ErrorReason,
 			condition.SeverityError,
 			novav1.NovaConductorReadyErrorMessage,
-			err.Error(),
-		)
+			err.Error()))
 		return ctrl.Result{}, err
 	}
 
@@ -347,13 +346,12 @@ func (r *NovaCellReconciler) ensureNoVNCProxy(
 	})
 
 	if err != nil {
-		condition.FalseCondition(
+		instance.Status.Conditions.Set(condition.FalseCondition(
 			novav1.NovaNoVNCProxyReadyCondition,
 			condition.ErrorReason,
 			condition.SeverityError,
 			novav1.NovaNoVNCProxyReadyErrorMessage,
-			err.Error(),
-		)
+			err.Error()))
 		return ctrl.Result{}, err
 	}
 
@@ -399,13 +397,12 @@ func (r *NovaCellReconciler) ensureMetadata(
 	})
 
 	if err != nil {
-		condition.FalseCondition(
+		instance.Status.Conditions.Set(condition.FalseCondition(
 			novav1.NovaMetadataReadyCondition,
 			condition.ErrorReason,
 			condition.SeverityError,
 			novav1.NovaMetadataReadyErrorMessage,
-			err.Error(),
-		)
+			err.Error()))
 		return ctrl.Result{}, err
 	}
 

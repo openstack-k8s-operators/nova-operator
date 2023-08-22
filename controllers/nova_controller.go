@@ -855,13 +855,12 @@ func (r *NovaReconciler) ensureAPI(
 	})
 
 	if err != nil {
-		condition.FalseCondition(
+		instance.Status.Conditions.Set(condition.FalseCondition(
 			novav1.NovaAPIReadyCondition,
 			condition.ErrorReason,
 			condition.SeverityError,
 			novav1.NovaAPIReadyErrorMessage,
-			err.Error(),
-		)
+			err.Error()))
 		return ctrl.Result{}, err
 	}
 
@@ -931,13 +930,12 @@ func (r *NovaReconciler) ensureScheduler(
 	})
 
 	if err != nil {
-		condition.FalseCondition(
+		instance.Status.Conditions.Set(condition.FalseCondition(
 			novav1.NovaSchedulerReadyCondition,
 			condition.ErrorReason,
 			condition.SeverityError,
 			novav1.NovaSchedulerReadyErrorMessage,
-			err.Error(),
-		)
+			err.Error()))
 		return ctrl.Result{}, err
 	}
 
@@ -1218,13 +1216,12 @@ func (r *NovaReconciler) ensureMetadata(
 	})
 
 	if err != nil {
-		condition.FalseCondition(
+		instance.Status.Conditions.Set(condition.FalseCondition(
 			novav1.NovaMetadataReadyCondition,
 			condition.ErrorReason,
 			condition.SeverityError,
 			novav1.NovaMetadataReadyErrorMessage,
-			err.Error(),
-		)
+			err.Error()))
 		return ctrl.Result{}, err
 	}
 
