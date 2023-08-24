@@ -86,7 +86,7 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 		l.Error(err, "Failed to create lib-common Helper")
 		return ctrl.Result{}, err
 	}
-	l.Info("Reconciling", "instance", instance)
+	l.Info("Reconciling")
 
 	// initialize status fields
 	if err = r.initStatus(ctx, h, instance); err != nil {
@@ -181,7 +181,7 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 	// However NovaNoVNCProxy is never deployed in cell0, and optional in other
 	// cells too.
 	if cellHasVNCService && !instance.Status.Conditions.IsTrue(novav1.NovaNoVNCProxyReadyCondition) {
-		l.Info("Waiting for the NovaNoVNCProxyService to become Ready before generating the compute config", "instance", instance)
+		l.Info("Waiting for the NovaNoVNCProxyService to become Ready before generating the compute config")
 		return ctrl.Result{}, nil
 	}
 
@@ -203,7 +203,7 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 		instance.Status.Conditions.Remove(novav1.NovaComputeServiceConfigReady)
 	}
 
-	l.Info("Successfully reconciled", "instance", instance)
+	l.Info("Successfully reconciled")
 	return ctrl.Result{}, nil
 }
 
@@ -301,7 +301,7 @@ func (r *NovaCellReconciler) ensureConductor(
 	}
 
 	if op != controllerutil.OperationResultNone {
-		l.Info("", "NovaConductor", string(op), "instance", instance, "NovaConductor.Name", conductor.Name)
+		l.Info(fmt.Sprintf("NovaConductor %s.", string(op)))
 	}
 
 	instance.Status.ConductorServiceReadyCount = conductor.Status.ReadyCount
@@ -356,7 +356,7 @@ func (r *NovaCellReconciler) ensureNoVNCProxy(
 	}
 
 	if op != controllerutil.OperationResultNone {
-		l.Info("", "NovaNoVNCProxy", string(op), "instance", instance, "NovaNoVNCProxy.Name", novncproxy.Name)
+		l.Info(fmt.Sprintf("NovaNoVNCProxy %s.", string(op)))
 	}
 
 	instance.Status.NoVNCPRoxyServiceReadyCount = novncproxy.Status.ReadyCount
@@ -410,7 +410,7 @@ func (r *NovaCellReconciler) ensureMetadata(
 	}
 
 	if op != controllerutil.OperationResultNone {
-		l.Info("", "NovaMetadata", string(op), "instance", instance, "NovaMetadata.Name", metadata.Name)
+		l.Info(fmt.Sprintf("NovaMetadata %s.", string(op)))
 	}
 
 	instance.Status.MetadataServiceReadyCount = metadata.Status.ReadyCount

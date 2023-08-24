@@ -1391,7 +1391,7 @@ func (r *NovaReconciler) ensureCellMapped(
 	// information to the top level services so that each service can restart
 	// their Pods if a new cell is registered or an existing cell is updated.
 	instance.Status.RegisteredCells[cell.Name] = job.GetHash()
-	l.Info(fmt.Sprintf("Job %s hash added - %s", jobDef.Name, instance.Status.RegisteredCells[cell.Name]))
+	l.Info("Job hash added ", "job", jobDef.Name, "hash", instance.Status.RegisteredCells[cell.Name])
 
 	return nova.CellMappingReady, nil
 }

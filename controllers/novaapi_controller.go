@@ -215,7 +215,7 @@ func (r *NovaAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (re
 
 	// Only expose the service is the deployment succeeded
 	if !instance.Status.Conditions.IsTrue(condition.DeploymentReadyCondition) {
-		l("Waiting for the Deployment to become Ready before exposing the sevice in Keystone")
+		l.Info("Waiting for the Deployment to become Ready before exposing the sevice in Keystone")
 		return ctrl.Result{}, nil
 	}
 
@@ -391,7 +391,7 @@ func (r *NovaAPIReconciler) ensureDeployment(
 	ss := statefulset.NewStatefulSet(novaapi.StatefulSet(instance, inputHash, getAPIServiceLabels(), annotations), r.RequeueTimeout)
 	ctrlResult, err := ss.CreateOrPatch(ctx, h)
 	if err != nil && !k8s_errors.IsNotFound(err) {
-		l.Error(err, "Deployment failed", "instance", instance)
+		l.Error(err, "Deployment failed")
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.DeploymentReadyCondition,
 			condition.ErrorReason,
@@ -400,7 +400,7 @@ func (r *NovaAPIReconciler) ensureDeployment(
 			err.Error()))
 		return ctrlResult, err
 	} else if (ctrlResult != ctrl.Result{} || k8s_errors.IsNotFound(err)) {
-		l.Info("Deployment in progress", "instance", instance)
+		l.Info("Deployment in progress")
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.DeploymentReadyCondition,
 			condition.RequestedReason,
@@ -439,10 +439,10 @@ func (r *NovaAPIReconciler) ensureDeployment(
 	}
 
 	if instance.Status.ReadyCount > 0 {
-		l.Info("Deployment is ready", "instance", instance)
+		l.Info("Deployment is ready")
 		instance.Status.Conditions.MarkTrue(condition.DeploymentReadyCondition, condition.DeploymentReadyMessage)
 	} else {
-		l.Info("Deployment is not ready", "instance", instance, "Status", ss.GetStatefulSet().Status)
+		l.Info("Deployment is not ready", "Status", ss.GetStatefulSet().Status)
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.DeploymentReadyCondition,
 			condition.RequestedReason,
@@ -572,7 +572,7 @@ func (r *NovaAPIReconciler) ensureKeystoneEndpointDeletion(
 	if err = h.GetClient().Update(ctx, endpoint); err != nil && !k8s_errors.IsNotFound(err) {
 		return err
 	}
-	l.Info("Removed finalizer from nova KeystoneEndpoint", "instance", instance)
+	l.Info("Removed finalizer from nova KeystoneEndpoint")
 
 	return nil
 }
@@ -584,7 +584,7 @@ func (r *NovaAPIReconciler) reconcileDelete(
 ) error {
 	l := GetLog(ctx, "novaapi")
 
-	l.Info("Reconciling delete", "instance", instance)
+	l.Info("Reconciling delete")
 
 	err := r.ensureKeystoneEndpointDeletion(ctx, h, instance)
 	if err != nil {
@@ -595,10 +595,10 @@ func (r *NovaAPIReconciler) reconcileDelete(
 	// finalizer from ourselves to allow the deletion of NovaAPI CR itself
 	updated := controllerutil.RemoveFinalizer(instance, h.GetFinalizer())
 	if updated {
-		l.Info("Removed finalizer from ourselves", "instance", instance)
+		l.Info("Removed finalizer from ourselves")
 	}
 
-	l.Info("Reconciled delete successfully", "instance", instance)
+	l.Info("Reconciled delete successfully")
 	return nil
 }
 

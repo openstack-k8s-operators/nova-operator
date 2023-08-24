@@ -95,7 +95,7 @@ func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		l.Error(err, "Failed to create lib-common Helper")
 		return ctrl.Result{}, err
 	}
-	l.Info("Reconciling", "instance", instance)
+	l.Info("Reconciling",)
 
 	// initialize status fields
 	if err = r.initStatus(ctx, h, instance); err != nil {
@@ -185,7 +185,7 @@ func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return result, err
 	}
 
-	l.Info("Successfully reconciled", "instance", instance)
+	l.Info("Successfully reconciled")
 	return ctrl.Result{}, nil
 }
 
@@ -286,8 +286,7 @@ func (r *NovaConductorReconciler) generateConfigs(
 	}
 	err := h.GetClient().Get(ctx, secretName, messageBusSecret)
 	if err != nil {
-		l.Info("Failed reading Secret", "instance", instance,
-			"CellMessageBusSecretName", instance.Spec.CellMessageBusSecretName)
+		l.Info("Failed reading Secret","CellMessageBusSecretName", instance.Spec.CellMessageBusSecretName)
 		return err
 	}
 
