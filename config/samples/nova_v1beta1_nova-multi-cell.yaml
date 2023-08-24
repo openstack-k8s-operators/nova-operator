@@ -121,14 +121,9 @@ spec:
         containerImage: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
         nodeSelector: {}
       metadataServiceTemplate:
+        enabled: true
         customServiceConfig: |
           # service config customization
-          [DEFAULT]
-          debug=True
-          [api]
-          # make sure this is in sync with the fact that this nova-metadata
-          # service is expected to run on the cell level
-          local_metadata_per_cell = True
         defaultConfigOverwrite:
           logging.conf: |
             # my custom logging configuration

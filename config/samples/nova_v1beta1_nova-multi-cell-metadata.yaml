@@ -5,17 +5,15 @@ metadata:
 spec:
   secret: osp-secret
   metadataServiceTemplate:
-    replicas: 0
+    enabled: false
   cellTemplates:
     cell0:
       cellDatabaseUser: nova_cell0
       hasAPIAccess: true
-      metadataServiceTemplate:
-        replicas: 0
     cell1:
       cellDatabaseUser: nova_cell1
       conductorServiceTemplate:
         replicas: 1
       hasAPIAccess: true
       metadataServiceTemplate:
-        replicas: 1
+        enabled: true
