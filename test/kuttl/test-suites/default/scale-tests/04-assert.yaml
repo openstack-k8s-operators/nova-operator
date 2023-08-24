@@ -20,6 +20,9 @@ spec:
     containerImage: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
     customServiceConfig: ""
     replicas: 0
+  metadataServiceTemplate:
+    enabled: True
+    replicas: 0
   cellTemplates:
     cell0:
       cellDatabaseInstance: openstack
@@ -31,13 +34,9 @@ spec:
         replicas: 0
       hasAPIAccess: true
       metadataServiceTemplate:
-        containerImage: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
-        customServiceConfig: ""
-        replicas: 0
+        enabled: false
       noVNCProxyServiceTemplate:
-        containerImage: quay.io/podified-antelope-centos9/openstack-nova-novncproxy:current-podified
-        customServiceConfig: ""
-        replicas: 1
+        enabled: false
     cell1:
       cellDatabaseInstance: openstack-cell1
       cellDatabaseUser: nova_cell1
@@ -48,10 +47,9 @@ spec:
         replicas: 0
       hasAPIAccess: true
       metadataServiceTemplate:
-        containerImage: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
-        customServiceConfig: ""
-        replicas: 0
+        enabled: false
       noVNCProxyServiceTemplate:
+        enabled: true
         containerImage: quay.io/podified-antelope-centos9/openstack-nova-novncproxy:current-podified
         customServiceConfig: ""
         replicas: 1
@@ -93,7 +91,7 @@ spec:
   apiMessageBusSecretName: rabbitmq-transport-url-nova-kuttl-api-transport
   cellDatabaseHostname: openstack
   cellDatabaseUser: nova_cell0
-  replicas: 1
+  replicas: 0
 ---
 apiVersion: nova.openstack.org/v1beta1
 kind: NovaConductor
@@ -171,7 +169,7 @@ metadata:
     kind: NovaMetadata
     name: nova-kuttl-metadata
 spec:
-  replicas: 1
+  replicas: 0
   selector:
     matchLabels:
       service: nova-metadata
