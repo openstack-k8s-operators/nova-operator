@@ -375,15 +375,13 @@ kuttl-test: kuttl-test-prep kuttl-test-run
 kuttl-test-cleanup:
 	# only cleanup if the $(KUTTL_NAMESPACE) exists
 	$(eval namespace_exists=$(shell oc get namespace $(KUTTL_NAMESPACE) --ignore-not-found -o name))
+	# We need to order the deletion. Simply deleting the namespace will
+	# result in errors in mariadb- and keystone-operator and then
+	# finalizer removal get stuck blocking the namespace deletion.
 	if [ "${namespace_exists}" != "" ]; then \
-		oc delete --wait=true --all=true -n $(KUTTL_NAMESPACE) --timeout=120s nova; \
-		oc patch -n $(KUTTL_NAMESPACE) openstackcontrolplane openstack --type json -p='[{"op": "replace", "path": "/spec/placement/replicas", "value": 0}]'; \
-		oc wait -n $(KUTTL_NAMESPACE) placementapi placement --for condition=Ready --timeout=120s; \
-		sleep 5 ; \
-		oc patch -n $(KUTTL_NAMESPACE) openstackcontrolplane openstack --type json -p='[{"op": "remove", "path": "/spec/placement"}]'; \
-		sleep 5; \
-		oc wait -n $(KUTTL_NAMESPACE) openstackcontrolplane openstack --for condition=Ready --timeout=120s; \
-		oc delete --wait=true -k $(KUTTL_SUITE_DIR)/deps/ --timeout=120s; \
+		oc delete --wait=true --all=true -n $(KUTTL_NAMESPACE) --timeout=120s Nova; \
+		oc delete --wait=true --all=true -n $(KUTTL_NAMESPACE) --timeout=120s OpenStackControlPlane; \
+		oc delete --wait=true namespace $(KUTTL_NAMESPACE); \
 	else \
 		echo "Namespce already cleaned up. Nothing to do"; \
 	fi
