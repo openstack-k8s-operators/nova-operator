@@ -26,15 +26,9 @@ spec:
         resources: {}
       hasAPIAccess: true
       metadataServiceTemplate:
-        containerImage: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
-        customServiceConfig: ""
-        replicas: 0
-        resources: {}
+        enabled: false
       noVNCProxyServiceTemplate:
-        containerImage: quay.io/podified-antelope-centos9/openstack-nova-novncproxy:current-podified
-        customServiceConfig: ""
-        replicas: 1
-        resources: {}
+        enabled: false
       passwordSelectors:
         database: NovaCell0DatabasePassword
     cell1:
@@ -48,11 +42,9 @@ spec:
         resources: {}
       hasAPIAccess: true
       metadataServiceTemplate:
-        containerImage: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
-        customServiceConfig: ""
-        replicas: 0
-        resources: {}
+        enabled: false
       noVNCProxyServiceTemplate:
+        enabled: true
         containerImage: quay.io/podified-antelope-centos9/openstack-nova-novncproxy:current-podified
         customServiceConfig: ""
         replicas: 1
@@ -61,6 +53,7 @@ spec:
         database: NovaCell0DatabasePassword
   keystoneInstance: keystone
   metadataServiceTemplate:
+    enabled: true
     containerImage: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
     customServiceConfig: ""
     replicas: 1
@@ -78,6 +71,8 @@ spec:
   serviceUser: nova
 status:
   apiServiceReadyCount: 1
+  metadataServiceReadyCount: 1
+  schedulerServiceReadyCount: 1
   conditions:
   - message: Setup complete
     reason: Ready
@@ -135,7 +130,6 @@ status:
     reason: Ready
     status: "True"
     type: ServiceAccountReady
-  schedulerServiceReadyCount: 1
 ---
 apiVersion: v1
 kind: Pod
