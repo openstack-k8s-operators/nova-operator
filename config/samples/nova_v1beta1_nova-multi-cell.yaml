@@ -70,10 +70,6 @@ spec:
           # my custom logging configuration
         containerImage: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
         nodeSelector: {}
-      # we never need a metadata service in cell0 as there are no computes there
-      metadataServiceTemplate: null
-      # we never need novncproxy service in cell0
-      noVNCProxyServiceTemplate: null
     cell1:
       cellDatabaseInstance: mariadb-cell1
       cellDatabaseUser: nova_cell1
@@ -91,9 +87,6 @@ spec:
           # my custom logging configuration
         containerImage: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
         nodeSelector: {}
-      # we could decide not to add metadata service to this cell as there
-      # is metadata at the top
-      metadataServiceTemplate: null
       noVNCProxyServiceTemplate:
         customServiceConfig: |
           # service config customization
@@ -119,15 +112,6 @@ spec:
           logging.conf: |
           # my custom logging configuration
         containerImage: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
-        nodeSelector: {}
-      metadataServiceTemplate:
-        enabled: true
-        customServiceConfig: |
-          # service config customization
-        defaultConfigOverwrite:
-          logging.conf: |
-            # my custom logging configuration
-        containerImage: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
         nodeSelector: {}
       noVNCProxyServiceTemplate:
         customServiceConfig: |
