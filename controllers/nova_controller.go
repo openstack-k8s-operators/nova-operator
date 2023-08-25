@@ -28,6 +28,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -521,8 +522,14 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 			return result, err
 		}
 	} else {
-		// TODO(gibi): delete the metadata service if it exists and owned by us
+		// The NovaMetadata is explicitly disable so we delete its deployment
+		// if exists
+		err = r.ensureMetadataDeleted(ctx, h, instance)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
 		instance.Status.Conditions.Remove(novav1.NovaMetadataReadyCondition)
+		instance.Status.MetadataServiceReadyCount = 0
 	}
 
 	util.LogForObject(h, "Successfully reconciled", instance)
@@ -1158,6 +1165,10 @@ func (r *NovaReconciler) ensureMQ(
 	return transportURL.Status.SecretName, nova.MQCompleted, nil
 }
 
+func getNovaMetadataName(instance client.Object) types.NamespacedName {
+	return types.NamespacedName{Namespace: instance.GetNamespace(), Name: instance.GetName() + "-metadata"}
+}
+
 func (r *NovaReconciler) ensureMetadata(
 	ctx context.Context,
 	h *helper.Helper,
@@ -1169,6 +1180,44 @@ func (r *NovaReconciler) ensureMetadata(
 	keystoneAuthURL string,
 	secretName string,
 ) (ctrl.Result, error) {
+
+	// There is a case when the user manually created a NovaMetadata while it
+	// was disabled in the Nova and then tries to enable it in Nova.
+	// One can think that this means we adopts the NovaMetadata and
+	// starts managing it.
+	// However at least the label selector of the StatefulSet spec is
+	// immutable, so the controller cannot simply start adopting an existing
+	// NovaMetadata. But instead the our CR will be in error state until the
+	// human deletes the manually created NovaMetadata and then Nova will
+	// create its own NovaMetadata.
+	// See https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#label-selector-updates
+
+	metadataName := getNovaMetadataName(instance)
+	metadata := &novav1.NovaMetadata{}
+	err := r.Client.Get(ctx, metadataName, metadata)
+	if err != nil && !k8s_errors.IsNotFound(err) {
+		return ctrl.Result{}, err
+	}
+
+	// If it is not created by us, we don't touch it
+	if !k8s_errors.IsNotFound(err) && !OwnedBy(metadata, instance) {
+		err := fmt.Errorf(
+			"cannot update NovaMetadata/%s as the cell is not owning it", metadata.Name)
+		util.LogErrorForObject(
+			h, err,
+			"NovaMetadata is enabled, but there is a "+
+				"NovaMetadata CR not owned by us. We cannot update it. "+
+				"Please delete the NovaMetadata.",
+			instance, "NovaMetadata", metadataName)
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			novav1.NovaMetadataReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityError,
+			novav1.NovaMetadataReadyErrorMessage,
+			err.Error()))
+
+		return ctrl.Result{}, err
+	}
 
 	// TODO(gibi): Pass down a narrowed secret that only hold
 	// specific information but also holds user names
@@ -1195,9 +1244,9 @@ func (r *NovaReconciler) ensureMetadata(
 		ServiceAccount:    instance.RbacResourceName(),
 		RegisteredCells:   instance.Status.RegisteredCells,
 	}
-	metadata := &novav1.NovaMetadata{
+	metadata = &novav1.NovaMetadata{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      instance.Name + "-metadata",
+			Name:      metadataName.Name,
 			Namespace: instance.Namespace,
 		},
 	}

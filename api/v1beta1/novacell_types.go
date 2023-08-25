@@ -158,7 +158,6 @@ type NovaCellSpec struct {
 	ConductorServiceTemplate NovaConductorTemplate `json:"conductorServiceTemplate"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default={replicas:0}
 	// MetadataServiceTemplate - defines the metadata service dedicated for the cell.
 	MetadataServiceTemplate NovaMetadataTemplate `json:"metadataServiceTemplate"`
 

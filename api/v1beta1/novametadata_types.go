@@ -29,9 +29,16 @@ import (
 // create a NovaMetadata via higher level CRDs.
 type NovaMetadataTemplate struct {
 	// +kubebuilder:validation:Optional
-	// Enabled - Whether NovaMetadata services should be deployed and managed
+	// Enabled - Whether NovaMetadata services should be deployed and managed.
 	// If it is set to false then the related NovaMetadata CR will be deleted
-	// if exists
+	// if exists and owned by a higher level nova CR (Nova or NovaCell). If it
+	// exist but not owned by a higher level nova CR then the NovaMetadata CR
+	// will not be touched.
+	// If it is set to true the a NovaMetadata CR will be created.
+	// If there is already a manually created NovaMetadata CR with the relevant
+	// name then this operator will not try to update that CR, instead
+	// the higher level nova CR will be in error state until the manually
+	// create NovaMetadata CR is deleted manually.
 	Enabled *bool `json:"enabled"`
 	// NOTE(gibi): the default value of enabled depends on the context so
 	// it is set by webhooks

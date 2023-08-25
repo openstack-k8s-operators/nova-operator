@@ -27,6 +27,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 )
 
 func CreateNovaWith3CellsAndEnsureReady(novaNames NovaNames) {
@@ -509,5 +510,71 @@ var _ = Describe("Nova reconfiguration", func() {
 				})
 			}
 		})
+	})
+	It("deletes NovaMetadata if it is disabled", func() {
+		Eventually(func(g Gomega) {
+			nova := GetNova(novaNames.NovaName)
+			nova.Spec.MetadataServiceTemplate.Enabled = ptr.To(false)
+
+			g.Expect(k8sClient.Update(ctx, nova)).To(Succeed())
+		}, timeout, interval).Should(Succeed())
+
+		AssertMetadataDoesNotExist(novaNames.MetadataName)
+		th.ExpectCondition(
+			novaNames.NovaName,
+			ConditionGetterFunc(NovaConditionGetter),
+			condition.ReadyCondition,
+			corev1.ConditionTrue,
+		)
+	})
+	It("creates NovaMetadata if it is enabled", func() {
+		//disable it first
+		Eventually(func(g Gomega) {
+			nova := GetNova(novaNames.NovaName)
+			nova.Spec.MetadataServiceTemplate.Enabled = ptr.To(false)
+
+			g.Expect(k8sClient.Update(ctx, nova)).To(Succeed())
+		}, timeout, interval).Should(Succeed())
+
+		AssertMetadataDoesNotExist(novaNames.MetadataName)
+		th.ExpectCondition(
+			novaNames.NovaName,
+			ConditionGetterFunc(NovaConditionGetter),
+			condition.ReadyCondition,
+			corev1.ConditionTrue,
+		)
+		nova := GetNova(novaNames.NovaName)
+		Expect(nova.Status.MetadataServiceReadyCount).To(Equal(int32(0)))
+		// NOTE(gibi): This only needed in envtest, in a real k8s
+		// deployment the garbage collector would delete the StatefulSet
+		// when its parents, the NovaMetadata, is deleted, but that garbage
+		// collector does not run in envtest. So we manually clean up here
+		th.DeleteInstance(th.GetStatefulSet(novaNames.MetadataStatefulSetName))
+
+		// then enable it again
+		Eventually(func(g Gomega) {
+			nova := GetNova(novaNames.NovaName)
+			nova.Spec.MetadataServiceTemplate.Enabled = ptr.To(true)
+
+			g.Expect(k8sClient.Update(ctx, nova)).To(Succeed())
+		}, timeout, interval).Should(Succeed())
+
+		th.ExpectCondition(
+			novaNames.NovaName,
+			ConditionGetterFunc(NovaConditionGetter),
+			condition.ReadyCondition,
+			corev1.ConditionFalse,
+		)
+
+		th.SimulateStatefulSetReplicaReady(novaNames.MetadataStatefulSetName)
+
+		th.ExpectCondition(
+			novaNames.NovaName,
+			ConditionGetterFunc(NovaConditionGetter),
+			condition.ReadyCondition,
+			corev1.ConditionTrue,
+		)
+		nova = GetNova(novaNames.NovaName)
+		Expect(nova.Status.MetadataServiceReadyCount).To(Equal(int32(1)))
 	})
 })

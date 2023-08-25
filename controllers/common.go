@@ -479,3 +479,39 @@ func OwnedBy(owned client.Object, owner client.Object) bool {
 	}
 	return false
 }
+
+func (r *ReconcilerBase) ensureMetadataDeleted(
+	ctx context.Context,
+	h *helper.Helper,
+	instance client.Object,
+) error {
+	metadataName := getNovaMetadataName(instance)
+	metadata := &novav1.NovaMetadata{}
+	err := r.Client.Get(ctx, metadataName, metadata)
+	if k8s_errors.IsNotFound(err) {
+		// Nothing to do as it does not exists
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	// If it is not created by us, we don't touch it
+	if !OwnedBy(metadata, instance) {
+		util.LogForObject(
+			h, "NovaMetadata is disabled, but there is a "+
+				"NovaMetadata CR not owned by us. Not deleting it.",
+			instance, "NovaMetadata", metadata)
+		return nil
+	}
+
+	// OK this was created by us so we go and delete it
+	err = r.Client.Delete(ctx, metadata)
+	if err != nil && k8s_errors.IsNotFound(err) {
+		return nil
+	}
+	util.LogForObject(
+		h, "NovaMetadata is disabled, so deleted NovaMetadata",
+		instance, "NovaMetadata", metadata)
+
+	return nil
+}

@@ -339,6 +339,36 @@ var _ = Describe("NovaCell controller", func() {
 			)
 
 		})
+		It("deletes NovaMetadata if it is disabled later", func() {
+			th.SimulateJobSuccess(cell1.CellDBSyncJobName)
+			th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
+			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
+			SimulateNoVNCProxyRouteIngress("cell1", cell1.CellName.Namespace)
+			th.SimulateStatefulSetReplicaReady(cell1.MetadataStatefulSetName)
+
+			th.ExpectCondition(
+				cell1.CellName,
+				ConditionGetterFunc(NovaCellConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			// Cell is ready. Now disable NovaMetadata in it
+			Eventually(func(g Gomega) {
+				novaCell := GetNovaCell(cell1.CellName)
+				novaCell.Spec.MetadataServiceTemplate.Enabled = ptr.To(false)
+
+				g.Expect(k8sClient.Update(ctx, novaCell)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			AssertMetadataDoesNotExist(cell1.MetadataName)
+			th.ExpectCondition(
+				cell1.CellName,
+				ConditionGetterFunc(NovaCellConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
 	})
 	When("A NovaCell/cell2 CR instance is created without VNCProxy", func() {
 		BeforeEach(func() {
@@ -557,6 +587,143 @@ var _ = Describe("NovaCell controller", func() {
 				corev1.ConditionTrue,
 			)
 		})
+		It("deploys NovaMetadata if it is later enabled", func() {
+			th.SimulateJobSuccess(cell2.CellDBSyncJobName)
+			th.SimulateStatefulSetReplicaReady(cell2.ConductorStatefulSetName)
+
+			th.ExpectCondition(
+				cell2.CellName,
+				ConditionGetterFunc(NovaCellConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			// Now that the cell is deployed, enabled the Metadata for this
+			// cell
+			Eventually(func(g Gomega) {
+				novaCell := GetNovaCell(cell2.CellName)
+				novaCell.Spec.MetadataServiceTemplate.Enabled = ptr.To(true)
+
+				g.Expect(k8sClient.Update(ctx, novaCell)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			// Check that the Metdata is now deployed
+			GetNovaMetadata(cell2.MetadataName)
+			th.ExpectCondition(
+				cell2.CellName,
+				ConditionGetterFunc(NovaCellConditionGetter),
+				novav1.NovaMetadataReadyCondition,
+				corev1.ConditionFalse,
+			)
+			novaCell := GetNovaCell(cell2.CellName)
+			Expect(novaCell.Status.MetadataServiceReadyCount).To(Equal(int32(0)))
+
+			// make metadata ready
+			th.SimulateStatefulSetReplicaReady(cell2.MetadataStatefulSetName)
+
+			th.ExpectCondition(
+				cell2.CellName,
+				ConditionGetterFunc(NovaCellConditionGetter),
+				novav1.NovaMetadataReadyCondition,
+				corev1.ConditionTrue,
+			)
+			novaCell = GetNovaCell(cell2.CellName)
+			Expect(novaCell.Status.MetadataServiceReadyCount).To(Equal(int32(1)))
+		})
+		It("fails if Metadata is enabled later while a manually created Metadata already exists until that is deleted", func() {
+			th.SimulateJobSuccess(cell2.CellDBSyncJobName)
+			th.SimulateStatefulSetReplicaReady(cell2.ConductorStatefulSetName)
+
+			th.ExpectCondition(
+				cell2.CellName,
+				ConditionGetterFunc(NovaCellConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			// Now that the cell is deployed, create one Metadata
+			// manually not owned by the cell to simulate some advanced user
+			spec := GetDefaultNovaMetadataSpec()
+			// We don't need to make this deployed successfully for this test
+			CreateNovaMetadata(cell2.MetadataName, spec)
+
+			// NOTE(gibi): The manually created NovaMetadata CR should not
+			// trigger any NovaCell reconciliation but if for other reasons
+			// the NovaCell is reconciled then that will see the NovaMetadata
+			// instance exists. So lets trigger a NovaCell reconciliation to
+			// make sure that does not try to mess with the manually created
+			// NovaMetadata.
+			Eventually(func(g Gomega) {
+				novaCell := GetNovaCell(cell2.CellName)
+				novaCell.Spec.ConductorServiceTemplate.Replicas = ptr.To[int32](3)
+
+				g.Expect(k8sClient.Update(ctx, novaCell)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			// Just ensure that it is not automatically gets owned or deleted
+			// by the cell
+			Consistently(func(g Gomega) {
+				metadata := GetNovaMetadata(cell2.MetadataName)
+				g.Expect(metadata.OwnerReferences).To(BeEmpty())
+			}, consistencyTimeout, interval).Should(Succeed())
+
+			// Now enable Metadata in the cell config
+			Eventually(func(g Gomega) {
+				novaCell := GetNovaCell(cell2.CellName)
+				novaCell.Spec.MetadataServiceTemplate.Enabled = ptr.To(true)
+
+				g.Expect(k8sClient.Update(ctx, novaCell)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			// The cell goes to error state as the NovaMetadata is not owned by
+			// it
+			th.ExpectConditionWithDetails(
+				cell2.CellName,
+				ConditionGetterFunc(NovaCellConditionGetter),
+				novav1.NovaMetadataReadyCondition,
+				corev1.ConditionFalse,
+				condition.ErrorReason,
+				fmt.Sprintf(
+					"NovaMetadata error occurred cannot update "+
+						"NovaMetadata/%s as the cell is not owning it",
+					cell2.MetadataName.Name,
+				),
+			)
+
+			// Now simulate that the user follows our documentation and deletes
+			// the manually created NovaMetadata CR
+			th.DeleteInstance(GetNovaMetadata(cell2.MetadataName))
+			// NOTE(gibi): This only needed in envtest, in a real k8s
+			// deployment the garbage collector would delete the StatefulSet
+			// when its parents, the NovaMetadata, is deleted, but that garbage
+			// collector does not run in envtest. So we manually clean up here
+			th.DeleteInstance(th.GetStatefulSet(cell2.MetadataStatefulSetName))
+
+			th.ExpectConditionWithDetails(
+				cell2.CellName,
+				ConditionGetterFunc(NovaCellConditionGetter),
+				novav1.NovaMetadataReadyCondition,
+				corev1.ConditionFalse,
+				condition.RequestedReason,
+				"Deployment in progress",
+			)
+
+			// As the manually created Metadata is deleted the controller is
+			// unblocked to deploy its own NovaMetadata CR
+			th.SimulateStatefulSetReplicaReady(cell2.MetadataStatefulSetName)
+			th.ExpectCondition(
+				cell2.CellName,
+				ConditionGetterFunc(NovaCellConditionGetter),
+				novav1.NovaMetadataReadyCondition,
+				corev1.ConditionTrue,
+			)
+			th.ExpectCondition(
+				cell2.CellName,
+				ConditionGetterFunc(NovaCellConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
 	})
 	When("NovaCell/cell0 is reconfigured", func() {
 		BeforeEach(func() {
@@ -576,7 +743,7 @@ var _ = Describe("NovaCell controller", func() {
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 
 			cell := GetNovaCell(cell0.CellName)
-			Expect(cell.Spec.MetadataServiceTemplate.Replicas).To(Equal(ptr.To[int32](0)))
+			Expect(cell.Spec.MetadataServiceTemplate.Enabled).To(Equal(ptr.To(false)))
 			th.ExpectCondition(
 				cell0.CellName,
 				ConditionGetterFunc(NovaCellConditionGetter),
