@@ -163,8 +163,15 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 			return result, err
 		}
 	} else {
-		// TODO(gibi): delete the metadata service if it exists and owned by us
+		// The NovaMetadata is explicitly disable so we delete its deployment
+		// if exists
+		err = r.ensureMetadataDeleted(ctx, h, instance)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
 		instance.Status.Conditions.Remove(novav1.NovaMetadataReadyCondition)
+		instance.Status.MetadataServiceReadyCount = 0
+
 	}
 
 	cellHasVNCService := (*instance.Spec.NoVNCProxyServiceTemplate.Enabled)
@@ -461,10 +468,49 @@ func (r *NovaCellReconciler) ensureMetadata(
 	h *helper.Helper,
 	instance *novav1.NovaCell,
 ) (ctrl.Result, error) {
+
+	// There is a case when the user manually created a NovaMetadata while it
+	// was disabled in the NovaCell and then tries to enable it in NovaCell.
+	// One can think that this means the cell adopts the NovaMetadata and
+	// starts managing it.
+	// However at least the label selector of the StatefulSet spec is
+	// immutable, so the controller cannot simply start adopting an existing
+	// NovaMetadata. But instead the our CR will be in error state until the
+	// human deletes the manually created NovaMetadata and then Nova will
+	// create its own NovaMetadata.
+	// See https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#label-selector-updates
+
+	metadataName := getNovaMetadataName(instance)
+	metadata := &novav1.NovaMetadata{}
+	err := r.Client.Get(ctx, metadataName, metadata)
+	if err != nil && !k8s_errors.IsNotFound(err) {
+		return ctrl.Result{}, err
+	}
+
+	// If it is not created by us, we don't touch it
+	if !k8s_errors.IsNotFound(err) && !OwnedBy(metadata, instance) {
+		err := fmt.Errorf(
+			"cannot update NovaMetadata/%s as the cell is not owning it", metadata.Name)
+		util.LogErrorForObject(
+			h, err,
+			"NovaMetadata is enabled, but there is a "+
+				"NovaMetadata CR not owned by us. We cannot update it. "+
+				"Please delete the NovaMetadata.",
+			instance, "NovaMetadata", metadataName)
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			novav1.NovaMetadataReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityError,
+			novav1.NovaMetadataReadyErrorMessage,
+			err.Error()))
+
+		return ctrl.Result{}, err
+	}
+
 	metadataSpec := novav1.NewNovaMetadataSpec(instance.Spec)
-	metadata := &novav1.NovaMetadata{
+	metadata = &novav1.NovaMetadata{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      instance.Name + "-metadata",
+			Name:      metadataName.Name,
 			Namespace: instance.Namespace,
 		},
 	}
