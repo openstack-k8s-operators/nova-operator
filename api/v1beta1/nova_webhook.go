@@ -150,6 +150,19 @@ func (r *NovaSpec) ValidateCellTemplates(basePath *field.Path) field.ErrorList {
 			errors,
 			ValidateCellName(cellPath, name)...,
 		)
+
+		if *cell.MetadataServiceTemplate.Enabled && *r.MetadataServiceTemplate.Enabled {
+			errors = append(
+				errors,
+				field.Invalid(
+					cellPath.Child("metadataServiceTemplate").Child("enabled"),
+					*cell.MetadataServiceTemplate.Enabled,
+					"should be false as metadata is enabled on the top level too. "+
+						"The metadata service can be either enabled on top "+
+						"or in the cells but not in both places at the same time."),
+			)
+		}
+
 		if name == Cell0Name {
 			errors = append(
 				errors,

@@ -30,6 +30,9 @@ import (
 var _ = Describe("Nova validation", func() {
 	It("rejects Nova with metadata in cell0", func() {
 		spec := GetDefaultNovaSpec()
+		spec["metadataServiceTemplate"] = map[string]interface{}{
+			"enabled": false,
+		}
 		cell0Template := GetDefaultNovaCellTemplate()
 		cell0Template["metadataServiceTemplate"] = map[string]interface{}{
 			"enabled": true,
@@ -221,6 +224,9 @@ var _ = Describe("Nova validation", func() {
 	})
 	It("rejects Nova with multiple errors", func() {
 		spec := GetDefaultNovaSpec()
+		spec["metadataServiceTemplate"] = map[string]interface{}{
+			"enabled": false,
+		}
 		cell0Template := GetDefaultNovaCellTemplate()
 		cell0Template["metadataServiceTemplate"] = map[string]interface{}{
 			"enabled": true,
@@ -298,6 +304,49 @@ var _ = Describe("Nova validation", func() {
 			ContainSubstring(
 				"invalid: spec.cellTemplates: Required value: " +
 					"cell0 specification is missing, cell0 key is required in cellTemplates"),
+		)
+	})
+	It("rejects Nova with metadata both on top and in cells", func() {
+		spec := GetDefaultNovaSpec()
+		spec["metadataServiceTemplate"] = map[string]interface{}{
+			"enabled": true,
+		}
+		cell0Template := GetDefaultNovaCellTemplate()
+		cell1Template := GetDefaultNovaCellTemplate()
+		cell1Template["metadataServiceTemplate"] = map[string]interface{}{
+			"enabled": true,
+		}
+
+		spec["cellTemplates"] = map[string]interface{}{
+			"cell0": cell0Template,
+			"cell1": cell1Template,
+		}
+		raw := map[string]interface{}{
+			"apiVersion": "nova.openstack.org/v1beta1",
+			"kind":       "Nova",
+			"metadata": map[string]interface{}{
+				"name":      novaNames.NovaName.Name,
+				"namespace": novaNames.Namespace,
+			},
+			"spec": spec,
+		}
+
+		unstructuredObj := &unstructured.Unstructured{Object: raw}
+		_, err := controllerutil.CreateOrPatch(
+			ctx, k8sClient, unstructuredObj, func() error { return nil })
+
+		Expect(err).Should(HaveOccurred())
+		statusError, ok := err.(*errors.StatusError)
+		Expect(ok).To(BeTrue())
+		Expect(statusError.ErrStatus.Details.Kind).To(Equal("Nova"))
+		Expect(statusError.ErrStatus.Message).To(
+			ContainSubstring(
+				"invalid: spec.cellTemplates[cell1].metadataServiceTemplate.enabled: " +
+					"Invalid value: true: should be false " +
+					"as metadata is enabled on the top level too. " +
+					"The metadata service can be either enabled on top " +
+					"or in the cells but not in both places at the same time.",
+			),
 		)
 	})
 })
