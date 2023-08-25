@@ -17,9 +17,6 @@ limitations under the License.
 package novncproxy
 
 const (
-	// MergedServiceConfigPath - The location of the merged configuration file
-	// for the service
-	MergedServiceConfigPath = "/var/lib/openstack/config/nova-novncproxy-config.json"
 	//NoVNCProxyPort - The port the nova-noVNCProxyPort service is exposed on
 	NoVNCProxyPort = 6080
 	// ServiceName - The name of the service exposed to k8s

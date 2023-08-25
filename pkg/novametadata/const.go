@@ -17,9 +17,6 @@ limitations under the License.
 package novametadata
 
 const (
-	// MergedServiceConfigPath - The location of the merged configuration file
-	// for the service
-	MergedServiceConfigPath = "/var/lib/openstack/config/nova-metadata-config.json"
 	//APIServicePort - The port the nova-api service is exposed on
 	APIServicePort = 8775
 	// ServiceName - The name of the service exposed to k8s

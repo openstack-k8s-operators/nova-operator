@@ -219,7 +219,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 				Expect(container.Image).To(Equal(ContainerImage))
 
 				container = ss.Spec.Template.Spec.Containers[1]
-				Expect(container.VolumeMounts).To(HaveLen(2))
+				Expect(container.VolumeMounts).To(HaveLen(3))
 				Expect(container.Image).To(Equal(ContainerImage))
 
 				Expect(container.LivenessProbe.HTTPGet.Port.IntVal).To(Equal(int32(6080)))
