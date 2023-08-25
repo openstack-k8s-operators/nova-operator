@@ -214,7 +214,7 @@ var _ = Describe("NovaScheduler controller", func() {
 			Expect(ss.Spec.Template.Spec.Containers).To(HaveLen(1))
 
 			container := ss.Spec.Template.Spec.Containers[0]
-			Expect(container.VolumeMounts).To(HaveLen(1))
+			Expect(container.VolumeMounts).To(HaveLen(2))
 			Expect(container.Image).To(Equal(ContainerImage))
 		})
 

@@ -49,7 +49,6 @@ func CellDBSyncJob(
 	}
 
 	envVars := map[string]env.Setter{}
-	envVars["KOLLA_CONFIG_FILE"] = env.SetValue(MergedServiceConfigPath)
 	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
 	envVars["KOLLA_BOOTSTRAP"] = env.SetValue("true")
 
@@ -88,6 +87,7 @@ func CellDBSyncJob(
 							VolumeMounts: []corev1.VolumeMount{
 								nova.GetConfigVolumeMount(),
 								nova.GetScriptVolumeMount(),
+								nova.GetKollaConfigVolumeMount("nova-conductor"),
 							},
 						},
 					},

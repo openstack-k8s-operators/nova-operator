@@ -39,6 +39,15 @@ func GetConfigVolumeMount() corev1.VolumeMount {
 	}
 }
 
+func GetKollaConfigVolumeMount(serviceName string) corev1.VolumeMount {
+	return corev1.VolumeMount{
+		Name:      configVolume,
+		MountPath: "/var/lib/kolla/config_files/config.json",
+		SubPath:   serviceName + "-config.json",
+		ReadOnly:  false,
+	}
+}
+
 func GetConfigVolume(secretName string) corev1.Volume {
 	return corev1.Volume{
 		Name: configVolume,

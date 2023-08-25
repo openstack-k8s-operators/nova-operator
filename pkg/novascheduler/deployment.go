@@ -99,7 +99,6 @@ func StatefulSet(
 	}
 
 	envVars := map[string]env.Setter{}
-	envVars["KOLLA_CONFIG_FILE"] = env.SetValue(MergedServiceConfigPath)
 	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
 	// NOTE(gibi): The statefulset does not use this hash directly. We store it
 	// in the environment to trigger a Pod restart if any input of the
@@ -140,8 +139,11 @@ func StatefulSet(
 							SecurityContext: &corev1.SecurityContext{
 								RunAsUser: &runAsUser,
 							},
-							Env:            env,
-							VolumeMounts:   []corev1.VolumeMount{nova.GetConfigVolumeMount()},
+							Env: env,
+							VolumeMounts: []corev1.VolumeMount{
+								nova.GetConfigVolumeMount(),
+								nova.GetKollaConfigVolumeMount("nova-scheduler"),
+							},
 							Resources:      instance.Spec.Resources,
 							StartupProbe:   startupProbe,
 							ReadinessProbe: readinessProbe,

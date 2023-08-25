@@ -9,10 +9,6 @@ import (
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 )
 
-const (
-	mergedServiceConfigPath = "/var/lib/openstack/config/nova-manage-config.json"
-)
-
 func CellMappingJob(
 	instance *novav1.Nova,
 	cell *novav1.NovaCell,
@@ -29,7 +25,6 @@ func CellMappingJob(
 	}
 
 	envVars := map[string]env.Setter{}
-	envVars["KOLLA_CONFIG_FILE"] = env.SetValue(mergedServiceConfigPath)
 	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
 	envVars["KOLLA_BOOTSTRAP"] = env.SetValue("true")
 	envVars["CELL_NAME"] = env.SetValue(cell.Spec.CellName)
@@ -73,6 +68,7 @@ func CellMappingJob(
 							VolumeMounts: []corev1.VolumeMount{
 								GetConfigVolumeMount(),
 								GetScriptVolumeMount(),
+								GetKollaConfigVolumeMount("nova-manage"),
 							},
 						},
 					},
