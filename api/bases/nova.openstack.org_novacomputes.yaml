@@ -63,7 +63,7 @@ spec:
                   bus.
                 type: string
               cellName:
-                description: CellName is the name of the Nova Cell this novncproxy
+                description: CellName is the name of the Nova Cell this NovaCompute
                   belongs to.
                 type: string
               computeDriver:
@@ -72,6 +72,9 @@ spec:
                 enum:
                 - ironic.IronicDriver
                 - fake.FakeDriver
+                type: string
+              computeName:
+                description: ComputeName - compute name.
                 type: string
               containerImage:
                 description: The service specific Container Image URL (will be set
@@ -208,6 +211,7 @@ spec:
             - cellMessageBusSecretName
             - cellName
             - computeDriver
+            - computeName
             - keystoneAuthURL
             - secret
             - serviceAccount

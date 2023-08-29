@@ -745,8 +745,8 @@ spec:
                     by the user to create a NovaCompute via higher level CRDs.
                   properties:
                     computeDriver:
-                      description: ComputeDriver defines which driver to use for controlling
-                        virtualization
+                      description: ComputeDriver - defines which driver to use for
+                        controlling virtualization
                       enum:
                       - ironic.IronicDriver
                       - fake.FakeDriver
@@ -770,49 +770,6 @@ spec:
                         add additional files. Those get added to the service config
                         dir in /etc/<service> .
                       type: object
-                    externalEndpoints:
-                      description: ExternalEndpoints, expose a VIP via MetalLB on
-                        the pre-created address pool
-                      items:
-                        description: MetalLBConfig to configure the MetalLB loadbalancer
-                          service
-                        properties:
-                          endpoint:
-                            description: Endpoint, OpenStack endpoint this service
-                              maps to
-                            enum:
-                            - internal
-                            - public
-                            type: string
-                          ipAddressPool:
-                            description: IPAddressPool expose VIP via MetalLB on the
-                              IPAddressPool
-                            minLength: 1
-                            type: string
-                          loadBalancerIPs:
-                            description: LoadBalancerIPs, request given IPs from the
-                              pool if available. Using a list to allow dual stack
-                              (IPv4/IPv6) support
-                            items:
-                              type: string
-                            type: array
-                          sharedIP:
-                            default: true
-                            description: SharedIP if true, VIP/VIPs get shared with
-                              multiple services
-                            type: boolean
-                          sharedIPKey:
-                            default: ""
-                            description: SharedIPKey specifies the sharing key which
-                              gets set as the annotation on the LoadBalancer service.
-                              Services which share the same VIP must have the same
-                              SharedIPKey. Defaults to the IPAddressPool if SharedIP
-                              is true, but no SharedIPKey specified.
-                            type: string
-                        required:
-                        - ipAddressPool
-                        type: object
-                      type: array
                     networkAttachments:
                       description: NetworkAttachments is a list of NetworkAttachment
                         resource names to expose the services to the given network
@@ -886,7 +843,8 @@ spec:
                   required:
                   - computeDriver
                   type: object
-                description: List of nova computes with selected drivers
+                description: NovaComputeTemplates - map of nova computes template
+                  with selected drivers in format
                 type: object
               secret:
                 description: Secret is the name of the Secret instance containing
@@ -978,6 +936,11 @@ spec:
               noVNCProxyServiceReadyCount:
                 description: NoVNCPRoxyServiceReadyCount defines the number of replicas
                   ready from nova-novncproxy service in the cell
+                format: int32
+                type: integer
+              novaComputeReadyCount:
+                description: NovaComputeReadyCount defines the number of replicas
+                  ready from nova-compute service in the cell
                 format: int32
                 type: integer
             type: object

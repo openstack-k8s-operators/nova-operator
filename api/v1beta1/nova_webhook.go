@@ -37,12 +37,12 @@ import (
 
 // NovaDefaults -
 type NovaDefaults struct {
-	APIContainerImageURL               string
-	ConductorContainerImageURL         string
-	MetadataContainerImageURL          string
-	NoVNCContainerImageURL             string
-	SchedulerContainerImageURL         string
-	NovaIronicComputeContainerImageURL string
+	APIContainerImageURL         string
+	ConductorContainerImageURL   string
+	MetadataContainerImageURL    string
+	NoVNCContainerImageURL       string
+	SchedulerContainerImageURL   string
+	NovaComputeContainerImageURL string
 }
 
 var novaDefaults NovaDefaults
@@ -112,7 +112,6 @@ func (spec *NovaSpec) Default() {
 			cellTemplate.NoVNCProxyServiceTemplate.ContainerImage = novaDefaults.NoVNCContainerImageURL
 		}
 
-<<<<<<< HEAD
 		if cellName == Cell0Name {
 			// in cell0 disable VNC by default
 			if cellTemplate.NoVNCProxyServiceTemplate.Enabled == nil {
@@ -125,17 +124,12 @@ func (spec *NovaSpec) Default() {
 			}
 		}
 
-		if cellTemplate.NovaComputeServiceTemplate.ContainerImage == "" {
-			cellTemplate.NovaComputeServiceTemplate.ContainerImage = novaDefaults.NovaIronicComputeContainerImageURL
-=======
-		for key, computeTemplate := range cellTemplate.NovaComputeTemplates{
+		for computeName, computeTemplate := range cellTemplate.NovaComputeTemplates {
 			if computeTemplate.ContainerImage == "" {
-				computeTemplate.ContainerImage = novaCellDefaults.NovaIronicComputeContainerImageURL
+				computeTemplate.ContainerImage = novaCellDefaults.NovaComputeContainerImageURL
 			}
-			cellTemplate.NovaComputeTemplates[key] = computeTemplate
->>>>>>> c3e54de2 ([ironic-compute] Change crd structure)
+			cellTemplate.NovaComputeTemplates[computeName] = computeTemplate
 		}
-
 		// "cellTemplate" is a by-value copy, so we need to re-inject the updated version of it into the map
 		spec.CellTemplates[cellName] = cellTemplate
 	}
