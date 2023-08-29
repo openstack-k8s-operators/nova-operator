@@ -36,7 +36,7 @@ the need to restructure the existing deployment. This means:
 
 ## Configuration generation
 The configuration for the podified nova services are generated into Secrets.
-The top level services has Secret in the form of
+The top level services generate Secrets in the form of
 '`nova-<service-name>-config-data` (e.g. `nova-scheduler-config-data`). The
 cell level service config Secrets are named with the pattern
 `nova-<cell-name>-<service-name>-config-data` (e.g.
