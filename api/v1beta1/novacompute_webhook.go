@@ -23,7 +23,11 @@ limitations under the License.
 package v1beta1
 
 import (
+	"fmt"
+
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -80,16 +84,43 @@ var _ webhook.Validator = &NovaCompute{}
 func (r *NovaCompute) ValidateCreate() error {
 	novacomputelog.Info("validate create", "name", r.Name)
 
-	// TODO(user): fill in your validation logic upon object creation.
+	errors := r.Spec.ValidateCreate(field.NewPath("spec"))
+
+	if len(errors) != 0 {
+		novacomputelog.Info("validation failed", "name", r.Name)
+		return apierrors.NewInvalid(
+			schema.GroupKind{Group: "nova.openstack.org", Kind: "NovaCompute"},
+			r.Name, errors)
+	}
 	return nil
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
 func (r *NovaCompute) ValidateUpdate(old runtime.Object) error {
 	novacomputelog.Info("validate update", "name", r.Name)
+	oldNovaCompute, ok := old.(*NovaCompute)
+	if !ok || oldNovaCompute == nil {
+		return apierrors.NewInternalError(fmt.Errorf("unable to convert existing object"))
+	}
 
-	// TODO(user): fill in your validation logic upon object update.
+	errors := r.Spec.ValidateUpdate(oldNovaCompute.Spec, field.NewPath("spec"))
+
+	if len(errors) != 0 {
+		novacomputelog.Info("validation failed", "name", r.Name)
+		return apierrors.NewInvalid(
+			schema.GroupKind{Group: "nova.openstack.org", Kind: "NovaCompute"},
+			r.Name, errors)
+	}
+
 	return nil
+}
+
+func (r *NovaComputeSpec) ValidateCreate(basePath *field.Path) field.ErrorList {
+	return r.validate(basePath)
+}
+
+func (r *NovaComputeSpec) ValidateUpdate(old NovaComputeSpec, basePath *field.Path) field.ErrorList {
+	return r.validate(basePath)
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
@@ -98,6 +129,20 @@ func (r *NovaCompute) ValidateDelete() error {
 
 	// TODO(user): fill in your validation logic upon object deletion.
 	return nil
+}
+
+func (r *NovaComputeSpec) validate(basePath *field.Path) field.ErrorList {
+	var errors field.ErrorList
+
+	if r.ComputeDriver == "ironic.IronicDriver" && *r.NovaServiceBase.Replicas > 1 {
+		errors = append(
+			errors,
+			field.Invalid(
+				basePath.Child("replicas"), *r.NovaServiceBase.Replicas, "should be max 1 for ironic.IronicDriver"),
+		)
+	}
+
+	return errors
 }
 
 // ValidateReplicas validates replicas depend on compute driver

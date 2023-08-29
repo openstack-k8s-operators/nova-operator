@@ -211,9 +211,9 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 	if len(instance.Spec.NovaComputeTemplates) == 0 {
 		instance.Status.Conditions.Remove(novav1.NovaComputeReadyCondition)
 	} else {
-		for _, computeTemplate := range instance.Spec.NovaComputeTemplates {
-			if instance.Spec.CellName != novav1.Cell0Name {
-				result, err = r.ensureNovaCompute(ctx, h, instance, computeTemplate)
+		for computeName, computeTemplate := range instance.Spec.NovaComputeTemplates {
+			if !isCell0 {
+				result, err = r.ensureNovaCompute(ctx, h, instance, computeTemplate, computeName)
 				if err != nil {
 					return result, err
 				}
@@ -590,8 +590,9 @@ func (r *NovaCellReconciler) ensureNovaCompute(
 	h *helper.Helper,
 	instance *novav1.NovaCell,
 	compute novav1.NovaComputeTemplate,
+	computeName string,
 ) (ctrl.Result, error) {
-	novacomputeSpec := novav1.NewNovaComputeSpec(instance.Spec, compute)
+	novacomputeSpec := novav1.NewNovaComputeSpec(instance.Spec, compute, computeName)
 	novacompute := &novav1.NovaCompute{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      instance.Name + "-compute",
@@ -613,19 +614,20 @@ func (r *NovaCellReconciler) ensureNovaCompute(
 	})
 
 	if err != nil {
-		condition.FalseCondition(
+		instance.Status.Conditions.Set(condition.FalseCondition(
 			novav1.NovaComputeReadyCondition,
 			condition.ErrorReason,
 			condition.SeverityError,
 			novav1.NovaComputeReadyErrorMessage,
-			err.Error(),
-		)
+			err.Error()))
 		return ctrl.Result{}, err
 	}
 
 	if op != controllerutil.OperationResultNone {
 		util.LogForObject(h, fmt.Sprintf("NovaCompute %s.", string(op)), instance, "NovaCompute.Name", novacompute.Name)
 	}
+
+	instance.Status.NovaComputeReadyCount = novacompute.Status.ReadyCount
 
 	c := novacompute.Status.Conditions.Mirror(novav1.NovaComputeReadyCondition)
 

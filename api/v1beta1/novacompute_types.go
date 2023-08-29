@@ -65,13 +65,9 @@ type NovaComputeTemplate struct {
 	// NetworkAttachments is a list of NetworkAttachment resource names to expose the services to the given network
 	NetworkAttachments []string `json:"networkAttachments,omitempty"`
 
-	// +kubebuilder:validation:Optional
-	// ExternalEndpoints, expose a VIP via MetalLB on the pre-created address pool
-	ExternalEndpoints []MetalLBConfig `json:"externalEndpoints,omitempty"`
-
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Enum=ironic.IronicDriver;fake.FakeDriver
-	// ComputeDriver defines which driver to use for controlling virtualization
+	// ComputeDriver - defines which driver to use for controlling virtualization
 	ComputeDriver string `json:"computeDriver"`
 }
 
@@ -81,8 +77,12 @@ type NovaComputeSpec struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	// +kubebuilder:validation:Required
-	// CellName is the name of the Nova Cell this novncproxy belongs to.
+	// CellName is the name of the Nova Cell this NovaCompute belongs to.
 	CellName string `json:"cellName"`
+
+	// +kubebuilder:validation:Required
+	// ComputeName - compute name.
+	ComputeName string `json:"computeName"`
 
 	// +kubebuilder:validation:Required
 	// Secret is the name of the Secret instance containing password
@@ -191,13 +191,15 @@ func (n NovaCompute) GetSecret() string {
 	return n.Spec.Secret
 }
 
-// NewNovaComputeSpec constructs a NovaMetadataSpec
+// NewNovaComputeSpec constructs a NewNovaComputeSpec
 func NewNovaComputeSpec(
 	novaCell NovaCellSpec,
 	computeTemplate NovaComputeTemplate,
+	novaComputeName string,
 ) NovaComputeSpec {
 	novacomputeSpec := NovaComputeSpec{
 		CellName:                 novaCell.CellName,
+		ComputeName:              novaComputeName,
 		Secret:                   novaCell.Secret,
 		CellDatabaseHostname:     novaCell.CellDatabaseHostname,
 		CellDatabaseUser:         novaCell.CellDatabaseUser,
@@ -212,10 +214,10 @@ func NewNovaComputeSpec(
 			Resources:              computeTemplate.Resources,
 			NetworkAttachments:     computeTemplate.NetworkAttachments,
 		},
-		KeystoneAuthURL:   novaCell.KeystoneAuthURL,
-		ServiceUser:       novaCell.ServiceUser,
-		ServiceAccount:    novaCell.ServiceAccount,
-		ComputeDriver:	computeTemplate.ComputeDriver,
+		KeystoneAuthURL: novaCell.KeystoneAuthURL,
+		ServiceUser:     novaCell.ServiceUser,
+		ServiceAccount:  novaCell.ServiceAccount,
+		ComputeDriver:   computeTemplate.ComputeDriver,
 	}
 	return novacomputeSpec
 }

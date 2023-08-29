@@ -37,10 +37,10 @@ import (
 
 // NovaCellDefaults -
 type NovaCellDefaults struct {
-	ConductorContainerImageURL         string
-	MetadataContainerImageURL          string
-	NoVNCContainerImageURL             string
-	NovaIronicComputeContainerImageURL string
+	ConductorContainerImageURL   string
+	MetadataContainerImageURL    string
+	NoVNCContainerImageURL       string
+	NovaComputeContainerImageURL string
 }
 
 var novaCellDefaults NovaCellDefaults
@@ -88,7 +88,6 @@ func (spec *NovaCellSpec) Default() {
 	if spec.NoVNCProxyServiceTemplate.ContainerImage == "" {
 		spec.NoVNCProxyServiceTemplate.ContainerImage = novaCellDefaults.NoVNCContainerImageURL
 	}
-
 	if spec.CellName == Cell0Name {
 		// in cell0 disable VNC by default
 		if spec.NoVNCProxyServiceTemplate.Enabled == nil {
@@ -100,11 +99,11 @@ func (spec *NovaCellSpec) Default() {
 			spec.NoVNCProxyServiceTemplate.Enabled = ptr.To(true)
 		}
 	}
-	for key, computeTemplate := range spec.NovaComputeTemplates {
+	for computeName, computeTemplate := range spec.NovaComputeTemplates {
 		if computeTemplate.ContainerImage == "" {
-			computeTemplate.ContainerImage = novaCellDefaults.NovaIronicComputeContainerImageURL
+			computeTemplate.ContainerImage = novaCellDefaults.NovaComputeContainerImageURL
 		}
-		spec.NovaComputeTemplates[key] = computeTemplate
+		spec.NovaComputeTemplates[computeName] = computeTemplate
 	}
 }
 
@@ -127,16 +126,15 @@ func (r *NovaCellSpec) validate(basePath *field.Path) field.ErrorList {
 		)
 	}
 
-	if len(r.NovaComputeTemplates) > 0 {
-		for _, computeTemplate := range r.NovaComputeTemplates {
-			if computeTemplate.ComputeDriver == "ironic.IronicDriver" {
-				errors = append(
-					errors, computeTemplate.ValidateIronicDriverReplicas(
-						basePath.Child("novaComputeTemplates"))...,
-				)
-			}
+	for _, computeTemplate := range r.NovaComputeTemplates {
+		if computeTemplate.ComputeDriver == "ironic.IronicDriver" {
+			errors = append(
+				errors, computeTemplate.ValidateIronicDriverReplicas(
+					basePath.Child("novaComputeTemplates"))...,
+			)
 		}
 	}
+
 	errors = append(
 		errors, ValidateCellName(
 			basePath.Child("cellName"), r.CellName)...,

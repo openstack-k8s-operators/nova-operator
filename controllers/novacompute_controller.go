@@ -56,7 +56,6 @@ type NovaComputeReconciler struct {
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=novacomputes/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=novacomputes/finalizers,verbs=update
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch;delete;
-// +kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;
 // +kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete;
@@ -422,7 +421,7 @@ func (r *NovaComputeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&novav1.NovaCompute{}).
 		Owns(&v1.StatefulSet{}).
 		Owns(&corev1.Service{}).
-		Owns(&corev1.ConfigMap{}).
+		Owns(&corev1.Secret{}).
 		Owns(&routev1.Route{}).
 		Watches(&source.Kind{Type: &corev1.Secret{}},
 			handler.EnqueueRequestsFromMapFunc(r.GetSecretMapperFor(&novav1.NovaComputeList{}))).

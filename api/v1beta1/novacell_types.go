@@ -80,7 +80,7 @@ type NovaCellTemplate struct {
 	NoVNCProxyServiceTemplate NovaNoVNCProxyTemplate `json:"noVNCProxyServiceTemplate"`
 
 	// +kubebuilder:validation:Optional
-	// List of nova computes with selected drivers
+	// NovaComputeTemplates - map of nova computes with selected drivers
 	NovaComputeTemplates map[string]NovaComputeTemplate `json:"novaComputeTemplates,omitempty"`
 
 	// +kubebuilder:validation:Optional
@@ -88,7 +88,6 @@ type NovaCellTemplate struct {
 	// PasswordSelectors - Selectors to identify the DB passwords from the
 	// Secret
 	PasswordSelectors CellPasswordSelector `json:"passwordSelectors"`
-
 }
 
 // NovaCellSpec defines the desired state of NovaCell
@@ -166,7 +165,8 @@ type NovaCellSpec struct {
 	NoVNCProxyServiceTemplate NovaNoVNCProxyTemplate `json:"noVNCProxyServiceTemplate"`
 
 	// +kubebuilder:validation:Optional
-	// List of nova computes with selected drivers
+	// NovaComputeTemplates - map of nova computes template with selected drivers in format
+	//
 	NovaComputeTemplates map[string]NovaComputeTemplate `json:"novaComputeTemplates,omitempty"`
 
 	// +kubebuilder:validation:Required
@@ -195,6 +195,10 @@ type NovaCellStatus struct {
 	// NoVNCPRoxyServiceReadyCount defines the number of replicas ready from
 	// nova-novncproxy service in the cell
 	NoVNCPRoxyServiceReadyCount int32 `json:"noVNCProxyServiceReadyCount,omitempty"`
+
+	// NovaComputeReadyCount defines the number of replicas ready from
+	// nova-compute service in the cell
+	NovaComputeReadyCount int32 `json:"novaComputeReadyCount,omitempty"`
 }
 
 //+kubebuilder:object:root=true

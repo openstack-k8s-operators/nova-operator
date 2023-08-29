@@ -209,7 +209,7 @@ var _ = Describe("NovaCompute controller", func() {
 				Expect(container.Image).To(Equal(ContainerImage))
 
 				container = ss.Spec.Template.Spec.Containers[1]
-				Expect(container.VolumeMounts).To(HaveLen(2))
+				Expect(container.VolumeMounts).To(HaveLen(3))
 				Expect(container.Image).To(Equal(ContainerImage))
 
 			})
@@ -533,7 +533,7 @@ var _ = Describe("NovaCompute with ironic diver controller", func() {
 		})
 		It("has the expected container image default", func() {
 			novaComputeDefault := GetNovaCompute(novaNames.NovaComputeName)
-			Expect(novaComputeDefault.Spec.ContainerImage).To(Equal(util.GetEnvVar("NOVA_COMPUTE_IRONIC_IMAGE_URL_DEFAULT", novav1.NovaIronicComputeContainerImage)))
+			Expect(novaComputeDefault.Spec.ContainerImage).To(Equal(util.GetEnvVar("NOVA_COMPUTE_IMAGE_URL_DEFAULT", novav1.NovaComputeContainerImage)))
 		})
 	})
 })
