@@ -27,7 +27,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
@@ -67,7 +66,7 @@ type NovaConductorReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.2/pkg/reconcile
 func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, _err error) {
-	l := log.FromContext(ctx)
+	log := GetLog(ctx, "novaconductor")
 
 	// Fetch our instance that needs to be reconciled
 	instance := &novav1.NovaConductor{}
@@ -77,11 +76,11 @@ func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected.
 			// For additional cleanup logic use finalizers. Return and don't requeue.
-			l.Info("NovaConductor instance not found, probably deleted before reconciled. Nothing to do.")
+			log.Info("NovaConductor instance not found, probably deleted before reconciled. Nothing to do.")
 			return ctrl.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
-		l.Error(err, "Failed to read the NovaConductor instance.")
+		log.Error(err, "Failed to read the NovaConductor instance.")
 		return ctrl.Result{}, err
 	}
 
@@ -90,13 +89,13 @@ func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		r.Client,
 		r.Kclient,
 		r.Scheme,
-		r.Log,
+		log,
 	)
 	if err != nil {
-		l.Error(err, "Failed to create lib-common Helper")
+		log.Error(err, "Failed to create lib-common Helper")
 		return ctrl.Result{}, err
 	}
-	util.LogForObject(h, "Reconciling", instance)
+	log.Info("Reconciling",)
 
 	// initialize status fields
 	if err = r.initStatus(ctx, h, instance); err != nil {
@@ -186,7 +185,7 @@ func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return result, err
 	}
 
-	util.LogForObject(h, "Successfully reconciled", instance)
+	log.Info("Successfully reconciled")
 	return ctrl.Result{}, nil
 }
 
@@ -278,6 +277,8 @@ func (r *NovaConductorReconciler) generateConfigs(
 	hashes *map[string]env.Setter,
 	secret corev1.Secret,
 ) error {
+	log := GetLog(ctx, "novaconductor")
+
 	messageBusSecret := &corev1.Secret{}
 	secretName := types.NamespacedName{
 		Namespace: instance.Namespace,
@@ -285,9 +286,7 @@ func (r *NovaConductorReconciler) generateConfigs(
 	}
 	err := h.GetClient().Get(ctx, secretName, messageBusSecret)
 	if err != nil {
-		util.LogForObject(
-			h, "Failed reading Secret", instance,
-			"CellMessageBusSecretName", instance.Spec.CellMessageBusSecretName)
+		log.Info("Failed reading Secret","CellMessageBusSecretName", instance.Spec.CellMessageBusSecretName)
 		return err
 	}
 
@@ -364,7 +363,7 @@ func (r *NovaConductorReconciler) ensureCellDBSynced(
 	}
 	if dbSyncJob.HasChanged() {
 		instance.Status.Hash[DbSyncHash] = dbSyncJob.GetHash()
-		r.Log.Info(fmt.Sprintf("Job %s hash added - %s", jobDef.Name, instance.Status.Hash[DbSyncHash]))
+		log.Info("Job" , jobDef.Name, "hash added", instance.Status.Hash[DbSyncHash]))
 	}
 	instance.Status.Conditions.MarkTrue(condition.DBSyncReadyCondition, condition.DBSyncReadyMessage)
 
@@ -386,7 +385,7 @@ func (r *NovaConductorReconciler) ensureDeployment(
 	ss := statefulset.NewStatefulSet(novaconductor.StatefulSet(instance, inputHash, serviceLabels, annotations), r.RequeueTimeout)
 	ctrlResult, err := ss.CreateOrPatch(ctx, h)
 	if err != nil && !k8s_errors.IsNotFound(err) {
-		util.LogErrorForObject(h, err, "Deployment failed", instance)
+		log.Info(err, "Deployment failed","instance", instance)
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.DeploymentReadyCondition,
 			condition.ErrorReason,
@@ -395,7 +394,7 @@ func (r *NovaConductorReconciler) ensureDeployment(
 			err.Error()))
 		return ctrlResult, err
 	} else if (ctrlResult != ctrl.Result{} || k8s_errors.IsNotFound(err)) {
-		util.LogForObject(h, "Deployment in progress", instance)
+		log.Info("Deployment in progress","instance", instance)
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.DeploymentReadyCondition,
 			condition.RequestedReason,
@@ -434,13 +433,13 @@ func (r *NovaConductorReconciler) ensureDeployment(
 	}
 
 	if instance.Status.ReadyCount > 0 {
-		util.LogForObject(h, "Deployment is ready", instance)
+		log.Info("Deployment is ready","instance" ,instance)
 		instance.Status.Conditions.MarkTrue(condition.DeploymentReadyCondition, condition.DeploymentReadyMessage)
 	} else if *instance.Spec.Replicas == 0 {
-		util.LogForObject(h, "Deployment with 0 replicas is ready", instance)
+		log.Info("Deployment with 0 replicas is ready", "instance",instance)
 		instance.Status.Conditions.MarkTrue(condition.DeploymentReadyCondition, condition.DeploymentReadyMessage)
 	} else {
-		util.LogForObject(h, "Deployment is not ready", instance, "Status", ss.GetStatefulSet().Status)
+		log.Info("Deployment is not ready","instance", instance, "Status", ss.GetStatefulSet().Status)
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.DeploymentReadyCondition,
 			condition.RequestedReason,

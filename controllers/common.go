@@ -222,7 +222,6 @@ func ensureNetworkAttachments(
 type ReconcilerBase struct {
 	Client         client.Client
 	Kclient        kubernetes.Interface
-	Log            logr.Logger
 	Scheme         *runtime.Scheme
 	RequeueTimeout time.Duration
 }
