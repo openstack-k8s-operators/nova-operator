@@ -66,7 +66,7 @@ type NovaSchedulerReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.2/pkg/reconcile
 func (r *NovaSchedulerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, _err error) {
-	l := GetLog(ctx, "novascheduler")
+	log := GetLog(ctx, "novascheduler")
 
 	// Fetch the NovaScheduler instance that needs to be reconciled
 	instance := &novav1.NovaScheduler{}
@@ -76,11 +76,11 @@ func (r *NovaSchedulerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected.
 			// For additional cleanup logic use finalizers. Return and don't requeue.
-			l.Info("NovaScheduler instance not found, probably deleted before reconciled. Nothing to do.")
+			log.Info("NovaScheduler instance not found, probably deleted before reconciled. Nothing to do.")
 			return ctrl.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
-		l.Error(err, "Failed to read the NovaScheduler instance.")
+		log.Error(err, "Failed to read the NovaScheduler instance.")
 		return ctrl.Result{}, err
 	}
 
@@ -89,13 +89,13 @@ func (r *NovaSchedulerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		r.Client,
 		r.Kclient,
 		r.Scheme,
-		l,
+		log,
 	)
 	if err != nil {
-		l.Error(err, "Failed to create lib-common Helper")
+		log.Error(err, "Failed to create lib-common Helper")
 		return ctrl.Result{}, err
 	}
-	l.Info("Reconciling", "instance", instance)
+	log.Info("Reconciling", "instance", instance)
 
 	// initialize status fields
 	if err = r.initStatus(ctx, h, instance); err != nil {
@@ -281,7 +281,7 @@ func (r *NovaSchedulerReconciler) generateConfigs(
 	ctx context.Context, h *helper.Helper, instance *novav1.NovaScheduler, hashes *map[string]env.Setter,
 	secret corev1.Secret,
 ) error {
-	l := GetLog(ctx, "novascheduler")
+	log := GetLog(ctx, "novascheduler")
 
 	apiMessageBusSecret := &corev1.Secret{}
 	secretName := types.NamespacedName{
@@ -290,7 +290,7 @@ func (r *NovaSchedulerReconciler) generateConfigs(
 	}
 	err := h.GetClient().Get(ctx, secretName, apiMessageBusSecret)
 	if err != nil {
-		l.Info("Failed reading Secret", "instance", instance,
+		log.Info("Failed reading Secret", "instance", instance,
 			"APIMessageBusSecretName", instance.Spec.APIMessageBusSecretName)
 		return err
 	}
@@ -344,12 +344,12 @@ func (r *NovaSchedulerReconciler) ensureDeployment(
 	serviceLabels := map[string]string{
 		common.AppSelector: NovaSchedulerLabelPrefix,
 	}
-	l := GetLog(ctx, "novascheduler")
+	log := GetLog(ctx, "novascheduler")
 	ss := statefulset.NewStatefulSet(novascheduler.StatefulSet(instance, inputHash, serviceLabels, annotations), r.RequeueTimeout)
 
 	ctrlResult, err := ss.CreateOrPatch(ctx, h)
 	if err != nil && !k8s_errors.IsNotFound(err) {
-		l.Error(err, "Deployment failed", "instance", instance)
+		log.Error(err, "Deployment failed", "instance", instance)
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.DeploymentReadyCondition,
 			condition.ErrorReason,
@@ -358,7 +358,7 @@ func (r *NovaSchedulerReconciler) ensureDeployment(
 			err.Error()))
 		return ctrlResult, err
 	} else if (ctrlResult != ctrl.Result{} || k8s_errors.IsNotFound(err)) {
-		l.Info("in progress", "instance", instance)
+		log.Info("in progress", "instance", instance)
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.DeploymentReadyCondition,
 			condition.RequestedReason,
@@ -397,10 +397,10 @@ func (r *NovaSchedulerReconciler) ensureDeployment(
 	}
 
 	if instance.Status.ReadyCount > 0 {
-		l.Info("Deployment is ready", instance)
+		log.Info("Deployment is ready", instance)
 		instance.Status.Conditions.MarkTrue(condition.DeploymentReadyCondition, condition.DeploymentReadyMessage)
 	} else {
-		l.Info("Deployment is not ready", "instance", instance, "Status", ss.GetStatefulSet().Status)
+		log.Info("Deployment is not ready", "instance", instance, "Status", ss.GetStatefulSet().Status)
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.DeploymentReadyCondition,
 			condition.RequestedReason,

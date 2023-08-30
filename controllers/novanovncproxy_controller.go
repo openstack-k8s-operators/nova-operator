@@ -69,7 +69,7 @@ type NovaNoVNCProxyReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.2/pkg/reconcile
 func (r *NovaNoVNCProxyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, _err error) {
-	l := Getlog(ctx, "novanovncproxy")
+	log := GetLog(ctx, "novanovncproxy")
 
 	// Fetch the NovaNoVNCProxy instance that needs to be reconciled
 	instance := &novav1beta1.NovaNoVNCProxy{}
@@ -80,11 +80,11 @@ func (r *NovaNoVNCProxyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected.
 			// For additional cleanup logic use finalizers. Return and don't requeue.
-			l.Info("NovaNoVNCProxy instance not found, probably deleted before reconciled. Nothing to do.")
+			log.Info("NovaNoVNCProxy instance not found, probably deleted before reconciled. Nothing to do.")
 			return ctrl.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
-		l.Error(err, "Failed to read the NovaNoVNCProxy instance.")
+		log.Error(err, "Failed to read the NovaNoVNCProxy instance.")
 		return ctrl.Result{}, err
 	}
 
@@ -93,14 +93,14 @@ func (r *NovaNoVNCProxyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		r.Client,
 		r.Kclient,
 		r.Scheme,
-		l,
+		log,
 	)
 	if err != nil {
-		l.Error(err, "Failed to create lib-common Helper")
+		log.Error(err, "Failed to create lib-common Helper")
 		return ctrl.Result{}, err
 	}
 
-	l.Info("Reconciling", "instance", instance)
+	log.Info("Reconciling", "instance", instance)
 
 	// initialize status fields
 	if err = r.initStatus(ctx, h, instance); err != nil {
@@ -186,7 +186,7 @@ func (r *NovaNoVNCProxyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return result, err
 	}
 
-	l.Info("Successfully reconciled", "instance", instance)
+	log.Info("Successfully reconciled", "instance", instance)
 	return ctrl.Result{}, nil
 }
 
@@ -335,14 +335,14 @@ func (r *NovaNoVNCProxyReconciler) ensureDeployment(
 	inputHash string,
 	annotations map[string]string,
 ) (ctrl.Result, error) {
-	l := GetLog(ctx, "novanovncproxy")
+	log := GetLog(ctx, "novanovncproxy")
 
 	serviceLabels := getNoVNCProxyServiceLabels(instance.Spec.CellName)
 	ss := statefulset.NewStatefulSet(
 		novncproxy.StatefulSet(instance, inputHash, serviceLabels, annotations), r.RequeueTimeout)
 	ctrlResult, err := ss.CreateOrPatch(ctx, h)
 	if err != nil && !k8s_errors.IsNotFound(err) {
-		l.Info("Deployment failed", "instance", instance)
+		log.Info("Deployment failed", "instance", instance)
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.DeploymentReadyCondition,
 			condition.ErrorReason,
@@ -351,7 +351,7 @@ func (r *NovaNoVNCProxyReconciler) ensureDeployment(
 			err.Error()))
 		return ctrlResult, err
 	} else if (ctrlResult != ctrl.Result{} || k8s_errors.IsNotFound(err)) {
-		l.Info("Deployment in progress", "instance", instance)
+		log.Info("Deployment in progress", "instance", instance)
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.DeploymentReadyCondition,
 			condition.RequestedReason,
@@ -390,10 +390,10 @@ func (r *NovaNoVNCProxyReconciler) ensureDeployment(
 	}
 
 	if instance.Status.ReadyCount > 0 || *instance.Spec.Replicas == 0 {
-		l.Info("Deployment is ready", "instance", instance)
+		log.Info("Deployment is ready", "instance", instance)
 		instance.Status.Conditions.MarkTrue(condition.DeploymentReadyCondition, condition.DeploymentReadyMessage)
 	} else {
-		l.Info("Deployment is not ready", "instance", instance, "Status", ss.GetStatefulSet().Status)
+		log.Info("Deployment is not ready", "instance", instance, "Status", ss.GetStatefulSet().Status)
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.DeploymentReadyCondition,
 			condition.RequestedReason,
@@ -467,9 +467,9 @@ func (r *NovaNoVNCProxyReconciler) reconcileDelete(
 	h *helper.Helper,
 	instance *novav1beta1.NovaNoVNCProxy,
 ) error {
-	l.Info()"Reconciling delete","instance", instance)
+	log.Info()"Reconciling delete","instance", instance)
 	// TODO(ksambor): add cleanups
-	l.info("Reconciled delete successfully","instance", instance)
+	log.Info("Reconciled delete successfully","instance", instance)
 	return nil
 }
 

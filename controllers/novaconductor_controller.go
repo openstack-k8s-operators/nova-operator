@@ -66,7 +66,7 @@ type NovaConductorReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.2/pkg/reconcile
 func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, _err error) {
-	l := GetLog(ctx, "novaconductor")
+	log := GetLog(ctx, "novaconductor")
 
 	// Fetch our instance that needs to be reconciled
 	instance := &novav1.NovaConductor{}
@@ -76,11 +76,11 @@ func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected.
 			// For additional cleanup logic use finalizers. Return and don't requeue.
-			l.Info("NovaConductor instance not found, probably deleted before reconciled. Nothing to do.")
+			log.Info("NovaConductor instance not found, probably deleted before reconciled. Nothing to do.")
 			return ctrl.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
-		l.Error(err, "Failed to read the NovaConductor instance.")
+		log.Error(err, "Failed to read the NovaConductor instance.")
 		return ctrl.Result{}, err
 	}
 
@@ -89,13 +89,13 @@ func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		r.Client,
 		r.Kclient,
 		r.Scheme,
-		l,
+		log,
 	)
 	if err != nil {
-		l.Error(err, "Failed to create lib-common Helper")
+		log.Error(err, "Failed to create lib-common Helper")
 		return ctrl.Result{}, err
 	}
-	l.Info("Reconciling",)
+	log.Info("Reconciling",)
 
 	// initialize status fields
 	if err = r.initStatus(ctx, h, instance); err != nil {
@@ -185,7 +185,7 @@ func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return result, err
 	}
 
-	l.Info("Successfully reconciled")
+	log.Info("Successfully reconciled")
 	return ctrl.Result{}, nil
 }
 
@@ -277,7 +277,7 @@ func (r *NovaConductorReconciler) generateConfigs(
 	hashes *map[string]env.Setter,
 	secret corev1.Secret,
 ) error {
-	l := GetLog(ctx, "novaconductor")
+	log := GetLog(ctx, "novaconductor")
 
 	messageBusSecret := &corev1.Secret{}
 	secretName := types.NamespacedName{
@@ -286,7 +286,7 @@ func (r *NovaConductorReconciler) generateConfigs(
 	}
 	err := h.GetClient().Get(ctx, secretName, messageBusSecret)
 	if err != nil {
-		l.Info("Failed reading Secret","CellMessageBusSecretName", instance.Spec.CellMessageBusSecretName)
+		log.Info("Failed reading Secret","CellMessageBusSecretName", instance.Spec.CellMessageBusSecretName)
 		return err
 	}
 
@@ -363,7 +363,7 @@ func (r *NovaConductorReconciler) ensureCellDBSynced(
 	}
 	if dbSyncJob.HasChanged() {
 		instance.Status.Hash[DbSyncHash] = dbSyncJob.GetHash()
-		l.Info("Job" , jobDef.Name, "hash added", instance.Status.Hash[DbSyncHash]))
+		log.Info("Job" , jobDef.Name, "hash added", instance.Status.Hash[DbSyncHash]))
 	}
 	instance.Status.Conditions.MarkTrue(condition.DBSyncReadyCondition, condition.DBSyncReadyMessage)
 
@@ -385,7 +385,7 @@ func (r *NovaConductorReconciler) ensureDeployment(
 	ss := statefulset.NewStatefulSet(novaconductor.StatefulSet(instance, inputHash, serviceLabels, annotations), r.RequeueTimeout)
 	ctrlResult, err := ss.CreateOrPatch(ctx, h)
 	if err != nil && !k8s_errors.IsNotFound(err) {
-		l.Info(err, "Deployment failed","instance", instance)
+		log.Info(err, "Deployment failed","instance", instance)
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.DeploymentReadyCondition,
 			condition.ErrorReason,
@@ -394,7 +394,7 @@ func (r *NovaConductorReconciler) ensureDeployment(
 			err.Error()))
 		return ctrlResult, err
 	} else if (ctrlResult != ctrl.Result{} || k8s_errors.IsNotFound(err)) {
-		l.Info("Deployment in progress","instance", instance)
+		log.Info("Deployment in progress","instance", instance)
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.DeploymentReadyCondition,
 			condition.RequestedReason,
@@ -433,13 +433,13 @@ func (r *NovaConductorReconciler) ensureDeployment(
 	}
 
 	if instance.Status.ReadyCount > 0 {
-		l.Info("Deployment is ready","instance" ,instance)
+		log.Info("Deployment is ready","instance" ,instance)
 		instance.Status.Conditions.MarkTrue(condition.DeploymentReadyCondition, condition.DeploymentReadyMessage)
 	} else if *instance.Spec.Replicas == 0 {
-		l.Info("Deployment with 0 replicas is ready", "instance",instance)
+		log.Info("Deployment with 0 replicas is ready", "instance",instance)
 		instance.Status.Conditions.MarkTrue(condition.DeploymentReadyCondition, condition.DeploymentReadyMessage)
 	} else {
-		l.Info("Deployment is not ready","instance", instance, "Status", ss.GetStatefulSet().Status)
+		log.Info("Deployment is not ready","instance", instance, "Status", ss.GetStatefulSet().Status)
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.DeploymentReadyCondition,
 			condition.RequestedReason,
