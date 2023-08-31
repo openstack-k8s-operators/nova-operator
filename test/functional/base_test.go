@@ -136,23 +136,6 @@ func CreateNova(name types.NamespacedName, spec map[string]interface{}) client.O
 	return th.CreateUnstructured(raw)
 }
 
-func CreateNovaWithoutCell0(name types.NamespacedName) client.Object {
-	rawNova := map[string]interface{}{
-		"apiVersion": "nova.openstack.org/v1beta1",
-		"kind":       "Nova",
-		"metadata": map[string]interface{}{
-			"name":      name.Name,
-			"namespace": name.Namespace,
-		},
-		"spec": map[string]interface{}{
-			"secret":        SecretName,
-			"cellTemplates": map[string]interface{}{},
-		},
-	}
-
-	return th.CreateUnstructured(rawNova)
-}
-
 func CreateNovaWithCell0(name types.NamespacedName) client.Object {
 	rawNova := map[string]interface{}{
 		"apiVersion": "nova.openstack.org/v1beta1",
