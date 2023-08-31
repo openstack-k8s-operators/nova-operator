@@ -4,7 +4,6 @@ metadata:
   name: novametadata-sample
 spec:
   apiDatabaseHostname: openstack
-  apiMessageBusSecretName: rabbitmq-transport-url-nova-api-transport
   cellDatabaseHostname: openstack
   cellDatabaseUser: nova_cell0
   containerImage: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
