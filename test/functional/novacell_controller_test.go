@@ -69,11 +69,7 @@ var _ = Describe("NovaCell controller", func() {
 
 	When("A NovaCell/cell0 CR instance is created", func() {
 		BeforeEach(func() {
-			DeferCleanup(
-				k8sClient.Delete,
-				ctx,
-				CreateNovaConductorSecret(cell0.CellCRName.Namespace, cell0.InternalCellSecretName.Name),
-			)
+			DeferCleanup(k8sClient.Delete, ctx, CreateCellInternalSecret(cell0))
 			DeferCleanup(th.DeleteInstance, CreateNovaCell(cell0.CellCRName, GetDefaultNovaCellSpec(cell0)))
 		})
 
@@ -711,11 +707,7 @@ var _ = Describe("NovaCell controller", func() {
 	})
 	When("NovaCell/cell0 is reconfigured", func() {
 		BeforeEach(func() {
-			DeferCleanup(
-				k8sClient.Delete,
-				ctx,
-				CreateNovaConductorSecret(cell0.CellCRName.Namespace, cell0.InternalCellSecretName.Name),
-			)
+			DeferCleanup(k8sClient.Delete, ctx, CreateCellInternalSecret(cell0))
 			DeferCleanup(th.DeleteInstance, CreateNovaCell(cell0.CellCRName, GetDefaultNovaCellSpec(cell0)))
 			th.SimulateJobSuccess(cell0.DBSyncJobName)
 
@@ -900,8 +892,7 @@ var _ = Describe("NovaCell controller", func() {
 var _ = Describe("NovaCell controller webhook", func() {
 	It("name is too long", func() {
 		cell := GetCellNames(novaNames.NovaName, uuid.New().String())
-		DeferCleanup(
-			k8sClient.Delete, ctx, CreateNovaConductorSecret(cell.CellCRName.Namespace, cell.InternalCellSecretName.Name))
+		DeferCleanup(k8sClient.Delete, ctx, CreateCellInternalSecret(cell))
 
 		spec := GetDefaultNovaCellSpec(cell)
 		rawObj := map[string]interface{}{
