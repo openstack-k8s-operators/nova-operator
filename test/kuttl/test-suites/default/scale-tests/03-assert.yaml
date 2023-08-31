@@ -31,7 +31,6 @@ metadata:
 spec:
   apiDatabaseHostname: openstack
   apiDatabaseUser: nova_api
-  apiMessageBusSecretName: rabbitmq-transport-url-nova-kuttl-api-transport
   cell0DatabaseHostname: openstack
   cell0DatabaseUser: nova_cell0
   replicas: 1
@@ -46,7 +45,6 @@ metadata:
 spec:
   apiDatabaseHostname: openstack
   apiDatabaseUser: nova_api
-  apiMessageBusSecretName: rabbitmq-transport-url-nova-kuttl-api-transport
   cellDatabaseHostname: openstack
   cellDatabaseUser: nova_cell0
   replicas: 1
@@ -69,7 +67,6 @@ spec:
   apiDatabaseUser: nova_api
   cellDatabaseHostname: openstack
   cellDatabaseUser: nova_cell0
-  cellMessageBusSecretName: rabbitmq-transport-url-nova-kuttl-api-transport
   cellName: cell0
   containerImage: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
   replicas: 1
@@ -92,7 +89,6 @@ spec:
   apiDatabaseUser: nova_api
   cellDatabaseHostname: openstack-cell1
   cellDatabaseUser: nova_cell1
-  cellMessageBusSecretName: rabbitmq-transport-url-nova-kuttl-cell1-transport
   cellName: cell1
   containerImage: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
   replicas: 1

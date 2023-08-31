@@ -6,7 +6,6 @@ spec:
   # By having access to the API DB this cell has upcall support
   apiDatabaseHostname: openstack
   cellDatabaseHostname: openstack
-  cellMessageBusSecretName: rabbitmq-transport-url-cell1-transport
   cellName: cell1
   keystoneAuthURL: http://keystone-public-openstack.apps-crc.testing
   secret: osp-secret

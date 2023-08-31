@@ -5,7 +5,6 @@ metadata:
 spec:
   secret: osp-secret
   apiDatabaseHostname: openstack
-  apiMessageBusSecretName: rabbitmq-transport-url-nova-api-transport
   cell0DatabaseHostname: openstack
   containerImage: quay.io/podified-antelope-centos9/openstack-nova-scheduler:current-podified
   keystoneAuthURL: http://keystone-public-openstack.apps-crc.testing

@@ -3,7 +3,6 @@ kind: NovaConductor
 metadata:
   name: novaconductor-sample
 spec:
-  cellMessageBusSecretName: rabbitmq-transport-url-cell1-transport
   cellName: cell1
   containerImage: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
   keystoneAuthURL: http://keystone-public-openstack.apps-crc.testing
