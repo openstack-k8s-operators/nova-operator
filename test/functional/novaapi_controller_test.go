@@ -17,6 +17,7 @@ package functional_test
 
 import (
 	"encoding/json"
+	"fmt"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -35,10 +36,7 @@ import (
 var _ = Describe("NovaAPI controller", func() {
 	When("a NovaAPI CR is created pointing to a non existent Secret", func() {
 		BeforeEach(func() {
-			DeferCleanup(
-				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(novaNames.APIName.Namespace, MessageBusSecretName))
-
-			spec := GetDefaultNovaAPISpec()
+			spec := GetDefaultNovaAPISpec(novaNames)
 			spec["customServiceConfig"] = "foo=bar"
 			DeferCleanup(th.DeleteInstance, CreateNovaAPI(novaNames.APIName, spec))
 		})
@@ -68,7 +66,7 @@ var _ = Describe("NovaAPI controller", func() {
 				condition.InputReadyCondition,
 				corev1.ConditionFalse,
 				condition.RequestedReason,
-				"Input data resources missing: secret/test-secret",
+				fmt.Sprintf("Input data resources missing: secret/%s", novaNames.InternalTopLevelSecretName.Name),
 			)
 		})
 
@@ -100,7 +98,7 @@ var _ = Describe("NovaAPI controller", func() {
 					condition.InputReadyCondition,
 					corev1.ConditionFalse,
 					condition.RequestedReason,
-					"Input data resources missing: secret/test-secret",
+					fmt.Sprintf("Input data resources missing: secret/%s", novaNames.InternalTopLevelSecretName.Name),
 				)
 			})
 		})
@@ -109,8 +107,8 @@ var _ = Describe("NovaAPI controller", func() {
 			BeforeEach(func() {
 				secret := &corev1.Secret{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      SecretName,
-						Namespace: novaNames.APIName.Namespace,
+						Name:      novaNames.InternalTopLevelSecretName.Name,
+						Namespace: novaNames.InternalTopLevelSecretName.Namespace,
 					},
 					Data: map[string][]byte{
 						"ServicePassword": []byte("12345678"),
@@ -142,7 +140,7 @@ var _ = Describe("NovaAPI controller", func() {
 		When("the Secret is created with all the expected fields", func() {
 			BeforeEach(func() {
 				DeferCleanup(
-					k8sClient.Delete, ctx, CreateNovaAPISecret(novaNames.APIName.Namespace, SecretName))
+					k8sClient.Delete, ctx, CreateInternalTopLevelSecret(novaNames))
 			})
 
 			It("reports that input is ready", func() {
@@ -168,7 +166,7 @@ var _ = Describe("NovaAPI controller", func() {
 				Expect(configDataMap).ShouldNot(BeNil())
 				Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
 				configData := string(configDataMap.Data["01-nova.conf"])
-				Expect(configData).Should(ContainSubstring("transport_url=rabbit://rabbitmq-secret/fake"))
+				Expect(configData).Should(ContainSubstring("transport_url=rabbit://api/fake"))
 				// as of I3629b84d3255a8fe9d8a7cea8c6131d7c40899e8 nova now requires
 				// service_user configuration to work to address Bug: #2004555
 				Expect(configData).Should(ContainSubstring("[service_user]"))
@@ -193,13 +191,11 @@ var _ = Describe("NovaAPI controller", func() {
 	When("NovAPI is created with a proper Secret", func() {
 		BeforeEach(func() {
 			DeferCleanup(
-				k8sClient.Delete, ctx, CreateNovaAPISecret(novaNames.APIName.Namespace, SecretName))
-			DeferCleanup(
-				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(novaNames.APIName.Namespace, MessageBusSecretName))
-			DeferCleanup(th.DeleteInstance, CreateNovaAPI(novaNames.APIName, GetDefaultNovaAPISpec()))
+				k8sClient.Delete, ctx, CreateInternalTopLevelSecret(novaNames))
+			DeferCleanup(th.DeleteInstance, CreateNovaAPI(novaNames.APIName, GetDefaultNovaAPISpec(novaNames)))
 		})
 
-		It(" reports input ready", func() {
+		It("reports input ready", func() {
 			th.ExpectCondition(
 				novaNames.APIName,
 				ConditionGetterFunc(NovaAPIConditionGetter),
@@ -212,10 +208,8 @@ var _ = Describe("NovaAPI controller", func() {
 	When("NovAPI is created", func() {
 		BeforeEach(func() {
 			DeferCleanup(
-				k8sClient.Delete, ctx, CreateNovaAPISecret(novaNames.APIName.Namespace, SecretName))
-			DeferCleanup(
-				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(novaNames.APIName.Namespace, MessageBusSecretName))
-			DeferCleanup(th.DeleteInstance, CreateNovaAPI(novaNames.APIName, GetDefaultNovaAPISpec()))
+				k8sClient.Delete, ctx, CreateInternalTopLevelSecret(novaNames))
+			DeferCleanup(th.DeleteInstance, CreateNovaAPI(novaNames.APIName, GetDefaultNovaAPISpec(novaNames)))
 
 			th.ExpectCondition(
 				novaNames.APIName,
@@ -327,10 +321,8 @@ var _ = Describe("NovaAPI controller", func() {
 	When("NovaAPI CR instance is deleted", func() {
 		BeforeEach(func() {
 			DeferCleanup(
-				k8sClient.Delete, ctx, CreateNovaAPISecret(novaNames.APIName.Namespace, SecretName))
-			DeferCleanup(
-				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(novaNames.APIName.Namespace, MessageBusSecretName))
-			DeferCleanup(th.DeleteInstance, CreateNovaAPI(novaNames.APIName, GetDefaultNovaAPISpec()))
+				k8sClient.Delete, ctx, CreateInternalTopLevelSecret(novaNames))
+			DeferCleanup(th.DeleteInstance, CreateNovaAPI(novaNames.APIName, GetDefaultNovaAPISpec(novaNames)))
 		})
 
 		It("removes the finalizer from KeystoneEndpoint", func() {
@@ -354,17 +346,12 @@ var _ = Describe("NovaAPI controller", func() {
 })
 
 var _ = Describe("NovaAPI controller", func() {
-	BeforeEach(func() {
-		DeferCleanup(
-			k8sClient.Delete, ctx, CreateNovaMessageBusSecret(novaNames.APIName.Namespace, MessageBusSecretName))
-	})
-
 	When("NovaAPI is created with networkAttachments", func() {
 		BeforeEach(func() {
 			DeferCleanup(
-				k8sClient.Delete, ctx, CreateNovaAPISecret(novaNames.APIName.Namespace, SecretName))
+				k8sClient.Delete, ctx, CreateInternalTopLevelSecret(novaNames))
 
-			spec := GetDefaultNovaAPISpec()
+			spec := GetDefaultNovaAPISpec(novaNames)
 			spec["networkAttachments"] = []string{"internalapi"}
 			DeferCleanup(th.DeleteInstance, CreateNovaAPI(novaNames.APIName, spec))
 		})
@@ -488,7 +475,7 @@ var _ = Describe("NovaAPI controller", func() {
 
 	When("NovaAPI is created with externalEndpoints", func() {
 		BeforeEach(func() {
-			spec := GetDefaultNovaAPISpec()
+			spec := GetDefaultNovaAPISpec(novaNames)
 			// NOTE(gibi): We need to create the data as raw list of maps
 			// to allow defaulting to happen according to the kubebuilder
 			// definitions
@@ -503,7 +490,7 @@ var _ = Describe("NovaAPI controller", func() {
 			spec["externalEndpoints"] = externalEndpoints
 
 			DeferCleanup(
-				k8sClient.Delete, ctx, CreateNovaAPISecret(novaNames.APIName.Namespace, SecretName))
+				k8sClient.Delete, ctx, CreateInternalTopLevelSecret(novaNames))
 			DeferCleanup(th.DeleteInstance, CreateNovaAPI(novaNames.APIName, spec))
 		})
 
@@ -543,8 +530,8 @@ var _ = Describe("NovaAPI controller", func() {
 	When("NovAPI is reconfigured", func() {
 		BeforeEach(func() {
 			DeferCleanup(
-				k8sClient.Delete, ctx, CreateNovaAPISecret(novaNames.APIName.Namespace, SecretName))
-			DeferCleanup(th.DeleteInstance, CreateNovaAPI(novaNames.APIName, GetDefaultNovaAPISpec()))
+				k8sClient.Delete, ctx, CreateInternalTopLevelSecret(novaNames))
+			DeferCleanup(th.DeleteInstance, CreateNovaAPI(novaNames.APIName, GetDefaultNovaAPISpec(novaNames)))
 
 			th.ExpectCondition(
 				novaNames.APIName,
@@ -662,7 +649,7 @@ var _ = Describe("NovaAPI controller", func() {
 var _ = Describe("NovaAPI controller", func() {
 	When("NovaAPI CR is created without container image defined", func() {
 		BeforeEach(func() {
-			spec := GetDefaultNovaAPISpec()
+			spec := GetDefaultNovaAPISpec(novaNames)
 			spec["containerImage"] = ""
 			api := CreateNovaAPI(novaNames.APIName, spec)
 			DeferCleanup(th.DeleteInstance, api)

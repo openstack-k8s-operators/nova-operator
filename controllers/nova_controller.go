@@ -310,7 +310,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	// Create TransportURLs to access the message buses of each cell. Cell0
 	// message bus is always the same as the top level API message bus so
 	// we create API MQ separately first
-	apiMQSecretName, apiMQStatus, apiMQError := r.ensureMQ(
+	apiTransportURL, apiMQStatus, apiMQError := r.ensureMQ(
 		ctx, h, instance, instance.Name+"-api-transport", instance.Spec.APIMessageBusInstance)
 	switch apiMQStatus {
 	case nova.MQFailed:
@@ -339,18 +339,18 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	var failedMQs []string
 	var creatingMQs []string
 	for _, cellName := range orderedCellNames {
-		var cellMQ string
+		var cellTransportURL string
 		var status nova.MessageBusStatus
 		var err error
 		cellTemplate := instance.Spec.CellTemplates[cellName]
 		// cell0 does not need its own cell message bus it uses the
 		// API message bus instead
 		if cellName == novav1.Cell0Name {
-			cellMQ = apiMQSecretName
+			cellTransportURL = apiTransportURL
 			status = apiMQStatus
 			err = apiMQError
 		} else {
-			cellMQ, status, err = r.ensureMQ(
+			cellTransportURL, status, err = r.ensureMQ(
 				ctx, h, instance, instance.Name+"-"+cellName+"-transport", cellTemplate.CellMessageBusInstance)
 		}
 		switch status {
@@ -362,7 +362,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		default:
 			return ctrl.Result{}, fmt.Errorf("Invalid MessageBusStatus from ensureMQ: %d for cell %s", status, cellName)
 		}
-		cellMQs[cellName] = &nova.MessageBus{SecretName: cellMQ, Status: status}
+		cellMQs[cellName] = &nova.MessageBus{TransportURL: cellTransportURL, Status: status}
 	}
 	if len(failedMQs) > 0 {
 		instance.Status.Conditions.Set(condition.FalseCondition(
@@ -429,7 +429,8 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 
 		cell, status, err := r.ensureCell(
 			ctx, h, instance, cellName, cellTemplate,
-			cellDB.Database, apiDB, cellMQ.SecretName, keystoneAuthURL, secret,
+			cellDB.Database, apiDB, cellMQ.TransportURL,
+			keystoneAuthURL, secret,
 		)
 		cells[cellName] = cell
 		switch status {
@@ -489,14 +490,14 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		return ctrl.Result{}, nil
 	}
 
-	topLevelSecretName, err := r.ensureTopLevelSecret(ctx, h, instance, cell0Template, secret)
+	topLevelSecretName, err := r.ensureTopLevelSecret(ctx, h, instance, cell0Template, apiTransportURL, secret)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
 	result, err = r.ensureAPI(
 		ctx, h, instance, cell0Template,
-		cellDBs[novav1.Cell0Name].Database, apiDB, apiMQSecretName, keystoneAuthURL,
+		cellDBs[novav1.Cell0Name].Database, apiDB, keystoneAuthURL,
 		topLevelSecretName,
 	)
 	if err != nil {
@@ -505,7 +506,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 
 	result, err = r.ensureScheduler(
 		ctx, h, instance, cell0Template,
-		cellDBs[novav1.Cell0Name].Database, apiDB, apiMQSecretName, keystoneAuthURL,
+		cellDBs[novav1.Cell0Name].Database, apiDB, keystoneAuthURL,
 		topLevelSecretName,
 	)
 	if err != nil {
@@ -515,7 +516,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	if *instance.Spec.MetadataServiceTemplate.Enabled {
 		result, err = r.ensureMetadata(
 			ctx, h, instance, cell0Template,
-			cellDBs[novav1.Cell0Name].Database, apiDB, apiMQSecretName, keystoneAuthURL,
+			cellDBs[novav1.Cell0Name].Database, apiDB, keystoneAuthURL,
 			topLevelSecretName,
 		)
 		if err != nil {
@@ -726,12 +727,12 @@ func (r *NovaReconciler) ensureCell(
 	cellTemplate novav1.NovaCellTemplate,
 	cellDB *database.Database,
 	apiDB *database.Database,
-	cellMQSecretName string,
+	cellTransportURL string,
 	keystoneAuthURL string,
 	secret corev1.Secret,
 ) (*novav1.NovaCell, nova.CellDeploymentStatus, error) {
 
-	cellSecretName, err := r.ensureCellSecret(ctx, h, instance, cellName, cellTemplate, secret)
+	cellSecretName, err := r.ensureCellSecret(ctx, h, instance, cellName, cellTemplate, cellTransportURL, secret)
 	if err != nil {
 		return nil, nova.CellDeploying, err
 	}
@@ -741,7 +742,6 @@ func (r *NovaReconciler) ensureCell(
 		Secret:                    cellSecretName,
 		CellDatabaseHostname:      cellDB.GetDatabaseHostname(),
 		CellDatabaseUser:          cellTemplate.CellDatabaseUser,
-		CellMessageBusSecretName:  cellMQSecretName,
 		ConductorServiceTemplate:  cellTemplate.ConductorServiceTemplate,
 		MetadataServiceTemplate:   cellTemplate.MetadataServiceTemplate,
 		NoVNCProxyServiceTemplate: cellTemplate.NoVNCProxyServiceTemplate,
@@ -797,7 +797,9 @@ func (r *NovaReconciler) ensureCell(
 	// When the cell is ready we need to create a row in the
 	// nova_api.CellMapping table to make this cell accessible from the top
 	// level services.
-	status, err := r.ensureCellMapped(ctx, h, instance, cell, cellTemplate, apiDB.GetDatabaseHostname())
+	status, err := r.ensureCellMapped(
+		ctx, h, instance,
+		cell, cellTemplate, apiDB.GetDatabaseHostname(), cellTransportURL)
 	if status == nova.CellMappingReady {
 		// As mapping is the last step if that is ready then the cell is ready
 		status = nova.CellReady
@@ -813,20 +815,18 @@ func (r *NovaReconciler) ensureAPI(
 	cell0Template novav1.NovaCellTemplate,
 	cell0DB *database.Database,
 	apiDB *database.Database,
-	apiMQSecretName string,
 	keystoneAuthURL string,
 	secretName string,
 ) (ctrl.Result, error) {
 	// TODO(gibi): Pass down a narrowed secret that only hold
 	// specific information but also holds user names
 	apiSpec := novav1.NovaAPISpec{
-		Secret:                  secretName,
-		APIDatabaseHostname:     apiDB.GetDatabaseHostname(),
-		APIDatabaseUser:         instance.Spec.APIDatabaseUser,
-		Cell0DatabaseHostname:   cell0DB.GetDatabaseHostname(),
-		Cell0DatabaseUser:       cell0Template.CellDatabaseUser,
-		APIMessageBusSecretName: apiMQSecretName,
-		Debug:                   instance.Spec.Debug,
+		Secret:                secretName,
+		APIDatabaseHostname:   apiDB.GetDatabaseHostname(),
+		APIDatabaseUser:       instance.Spec.APIDatabaseUser,
+		Cell0DatabaseHostname: cell0DB.GetDatabaseHostname(),
+		Cell0DatabaseUser:     cell0Template.CellDatabaseUser,
+		Debug:                 instance.Spec.Debug,
 		NovaServiceBase: novav1.NovaServiceBase{
 			ContainerImage:         instance.Spec.APIServiceTemplate.ContainerImage,
 			Replicas:               instance.Spec.APIServiceTemplate.Replicas,
@@ -894,20 +894,18 @@ func (r *NovaReconciler) ensureScheduler(
 	cell0Template novav1.NovaCellTemplate,
 	cell0DB *database.Database,
 	apiDB *database.Database,
-	apiMQSecretName string,
 	keystoneAuthURL string,
 	secretName string,
 ) (ctrl.Result, error) {
 	// TODO(gibi): Pass down a narrowed secret that only hold
 	// specific information but also holds user names
 	spec := novav1.NovaSchedulerSpec{
-		Secret:                  secretName,
-		APIDatabaseHostname:     apiDB.GetDatabaseHostname(),
-		APIDatabaseUser:         instance.Spec.APIDatabaseUser,
-		APIMessageBusSecretName: apiMQSecretName,
-		Cell0DatabaseHostname:   cell0DB.GetDatabaseHostname(),
-		Cell0DatabaseUser:       cell0Template.CellDatabaseUser,
-		Debug:                   instance.Spec.Debug,
+		Secret:                secretName,
+		APIDatabaseHostname:   apiDB.GetDatabaseHostname(),
+		APIDatabaseUser:       instance.Spec.APIDatabaseUser,
+		Cell0DatabaseHostname: cell0DB.GetDatabaseHostname(),
+		Cell0DatabaseUser:     cell0Template.CellDatabaseUser,
+		Debug:                 instance.Spec.Debug,
 		// This is a coincidence that the NovaServiceBase
 		// has exactly the same fields as the SchedulerServiceTemplate so we
 		// can convert between them directly. As soon as these two structs
@@ -1162,7 +1160,23 @@ func (r *NovaReconciler) ensureMQ(
 		return "", nova.MQCreating, nil
 	}
 
-	return transportURL.Status.SecretName, nova.MQCompleted, nil
+	secretName := types.NamespacedName{Namespace: instance.Namespace, Name: transportURL.Status.SecretName}
+	secret := &corev1.Secret{}
+	err = h.GetClient().Get(ctx, secretName, secret)
+	if err != nil {
+		if k8s_errors.IsNotFound(err) {
+			return "", nova.MQCreating, nil
+		}
+		return "", nova.MQFailed, err
+	}
+
+	url, ok := secret.Data["transport_url"]
+	if !ok {
+		return "", nova.MQFailed, fmt.Errorf(
+			"the TransportURL secret %s does not have 'transport_url' field", transportURL.Status.SecretName)
+	}
+
+	return string(url), nova.MQCompleted, nil
 }
 
 func getNovaMetadataName(instance client.Object) types.NamespacedName {
@@ -1176,7 +1190,6 @@ func (r *NovaReconciler) ensureMetadata(
 	cell0Template novav1.NovaCellTemplate,
 	cell0DB *database.Database,
 	apiDB *database.Database,
-	apiMQSecretName string,
 	keystoneAuthURL string,
 	secretName string,
 ) (ctrl.Result, error) {
@@ -1222,13 +1235,12 @@ func (r *NovaReconciler) ensureMetadata(
 	// TODO(gibi): Pass down a narrowed secret that only hold
 	// specific information but also holds user names
 	apiSpec := novav1.NovaMetadataSpec{
-		Secret:                  secretName,
-		APIDatabaseHostname:     apiDB.GetDatabaseHostname(),
-		APIDatabaseUser:         instance.Spec.APIDatabaseUser,
-		CellDatabaseHostname:    cell0DB.GetDatabaseHostname(),
-		CellDatabaseUser:        cell0Template.CellDatabaseUser,
-		APIMessageBusSecretName: apiMQSecretName,
-		Debug:                   instance.Spec.Debug,
+		Secret:               secretName,
+		APIDatabaseHostname:  apiDB.GetDatabaseHostname(),
+		APIDatabaseUser:      instance.Spec.APIDatabaseUser,
+		CellDatabaseHostname: cell0DB.GetDatabaseHostname(),
+		CellDatabaseUser:     cell0Template.CellDatabaseUser,
+		Debug:                instance.Spec.Debug,
 		NovaServiceBase: novav1.NovaServiceBase{
 			ContainerImage:         instance.Spec.MetadataServiceTemplate.ContainerImage,
 			Replicas:               instance.Spec.MetadataServiceTemplate.Replicas,
@@ -1302,13 +1314,9 @@ func (r *NovaReconciler) ensureCellMapped(
 	cell *novav1.NovaCell,
 	cellTemplate novav1.NovaCellTemplate,
 	apiDBHostname string,
+	cellTransportURL string,
 ) (nova.CellDeploymentStatus, error) {
 	ospSecret, _, err := secret.GetSecret(ctx, h, instance.Spec.Secret, instance.Namespace)
-	if err != nil {
-		return nova.CellMappingFailed, err
-	}
-
-	mqSecret, _, err := secret.GetSecret(ctx, h, cell.Spec.CellMessageBusSecretName, instance.Namespace)
 	if err != nil {
 		return nova.CellMappingFailed, err
 	}
@@ -1357,7 +1365,7 @@ func (r *NovaReconciler) ensureCellMapped(
 	// we need to make sure that transport_url is only configured for the job
 	// if it is mapping other than cell0.
 	if cell.Spec.CellName != novav1.Cell0Name {
-		templateParameters["transport_url"] = string(mqSecret.Data["transport_url"])
+		templateParameters["transport_url"] = cellTransportURL
 	}
 
 	cms := []util.Template{
@@ -1443,6 +1451,7 @@ func (r *NovaReconciler) ensureCellSecret(
 	instance *novav1.Nova,
 	cellName string,
 	cellTemplate novav1.NovaCellTemplate,
+	cellTransportURL string,
 	externalSecret corev1.Secret,
 ) (string, error) {
 
@@ -1452,6 +1461,7 @@ func (r *NovaReconciler) ensureCellSecret(
 	data := map[string]string{
 		ServicePasswordSelector:      string(externalSecret.Data[instance.Spec.PasswordSelectors.Service]),
 		CellDatabasePasswordSelector: string(externalSecret.Data[cellTemplate.PasswordSelectors.Database]),
+		"transport_url":              cellTransportURL,
 	}
 
 	if cellTemplate.HasAPIAccess {
@@ -1494,17 +1504,18 @@ func (r *NovaReconciler) ensureTopLevelSecret(
 	h *helper.Helper,
 	instance *novav1.Nova,
 	cell0Template novav1.NovaCellTemplate,
+	apiTransportURL string,
 	externalSecret corev1.Secret,
 ) (string, error) {
 
 	// NOTE(gibi): We can move other sensitive data to the internal Secret from
 	// the subCR fields, possibly hostnames or usernames.
-	// XXX(gibi): Move the transport_url from from the MQ secret to the internal secret
 	data := map[string]string{
 		ServicePasswordSelector:      string(externalSecret.Data[instance.Spec.PasswordSelectors.Service]),
 		APIDatabasePasswordSelector:  string(externalSecret.Data[instance.Spec.PasswordSelectors.APIDatabase]),
 		CellDatabasePasswordSelector: string(externalSecret.Data[cell0Template.PasswordSelectors.Database]),
 		MetadataSecretSelector:       string(externalSecret.Data[instance.Spec.PasswordSelectors.MetadataSecret]),
+		"transport_url":              apiTransportURL,
 	}
 
 	// NOTE(gibi): When we switch to immutable secrets then we need to include

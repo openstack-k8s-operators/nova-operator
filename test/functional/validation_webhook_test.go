@@ -69,7 +69,7 @@ var _ = Describe("Nova validation", func() {
 		)
 	})
 	It("rejects NovaCell with metadata in cell0", func() {
-		spec := GetDefaultNovaCellSpec("cell0")
+		spec := GetDefaultNovaCellSpec(cell0)
 		spec["metadataServiceTemplate"] = map[string]interface{}{
 			"enabled": true,
 		}
@@ -77,7 +77,7 @@ var _ = Describe("Nova validation", func() {
 			"apiVersion": "nova.openstack.org/v1beta1",
 			"kind":       "NovaCell",
 			"metadata": map[string]interface{}{
-				"name":      cell0.CellName.Name,
+				"name":      cell0.CellCRName.Name,
 				"namespace": novaNames.Namespace,
 			},
 			"spec": spec,
@@ -135,7 +135,7 @@ var _ = Describe("Nova validation", func() {
 		)
 	})
 	It("rejects NovaCell with NoVNCProxy in cell0", func() {
-		spec := GetDefaultNovaCellSpec("cell0")
+		spec := GetDefaultNovaCellSpec(cell0)
 		spec["noVNCProxyServiceTemplate"] = map[string]interface{}{
 			"enabled": true,
 		}
@@ -143,7 +143,7 @@ var _ = Describe("Nova validation", func() {
 			"apiVersion": "nova.openstack.org/v1beta1",
 			"kind":       "NovaCell",
 			"metadata": map[string]interface{}{
-				"name":      cell0.CellName.Name,
+				"name":      cell0.CellCRName.Name,
 				"namespace": novaNames.Namespace,
 			},
 			"spec": spec,
@@ -197,12 +197,13 @@ var _ = Describe("Nova validation", func() {
 		)
 	})
 	It("rejects NovaCell with too long cell name", func() {
-		spec := GetDefaultNovaCellSpec("cell1" + strings.Repeat("x", 31))
+		cell := GetCellNames(novaNames.NovaName, "cell1"+strings.Repeat("x", 31))
+		spec := GetDefaultNovaCellSpec(cell)
 		raw := map[string]interface{}{
 			"apiVersion": "nova.openstack.org/v1beta1",
 			"kind":       "NovaCell",
 			"metadata": map[string]interface{}{
-				"name":      cell0.CellName.Name,
+				"name":      cell0.CellCRName.Name,
 				"namespace": novaNames.Namespace,
 			},
 			"spec": spec,

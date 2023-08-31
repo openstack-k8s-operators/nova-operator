@@ -166,6 +166,7 @@ func (r *NovaAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (re
 			APIDatabasePasswordSelector,
 			ServicePasswordSelector,
 			CellDatabasePasswordSelector,
+			"transport_url",
 		},
 		h.GetClient(),
 		&instance.Status.Conditions,
@@ -327,19 +328,6 @@ func (r *NovaAPIReconciler) generateConfigs(
 	ctx context.Context, h *helper.Helper, instance *novav1.NovaAPI, hashes *map[string]env.Setter, secret corev1.Secret,
 ) error {
 
-	apiMessageBusSecret := &corev1.Secret{}
-	secretName := types.NamespacedName{
-		Namespace: instance.Namespace,
-		Name:      instance.Spec.APIMessageBusSecretName,
-	}
-	err := h.GetClient().Get(ctx, secretName, apiMessageBusSecret)
-	if err != nil {
-		util.LogForObject(
-			h, "Failed reading Secret", instance,
-			"APIMessageBusSecretName", instance.Spec.APIMessageBusSecretName)
-		return err
-	}
-
 	templateParameters := map[string]interface{}{
 		"service_name":           "nova-api",
 		"keystone_internal_url":  instance.Spec.KeystoneAuthURL,
@@ -359,7 +347,7 @@ func (r *NovaAPIReconciler) generateConfigs(
 		"openstack_region_name":  "regionOne", // fixme
 		"default_project_domain": "Default",   // fixme
 		"default_user_domain":    "Default",   // fixme
-		"transport_url":          string(apiMessageBusSecret.Data["transport_url"]),
+		"transport_url":          string(secret.Data["transport_url"]),
 		"log_file":               "/var/log/nova/nova-api.log",
 	}
 	extraData := map[string]string{}
@@ -374,7 +362,7 @@ func (r *NovaAPIReconciler) generateConfigs(
 		instance, labels.GetGroupLabel(NovaAPILabelPrefix), map[string]string{},
 	)
 
-	err = r.GenerateConfigs(
+	err := r.GenerateConfigs(
 		ctx, h, instance, nova.GetServiceConfigSecretName(instance.GetName()),
 		hashes, templateParameters, extraData, cmLabels, map[string]string{},
 	)

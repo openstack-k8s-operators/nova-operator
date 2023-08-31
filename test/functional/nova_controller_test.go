@@ -41,11 +41,6 @@ var _ = Describe("Nova controller", func() {
 					},
 				))
 			DeferCleanup(
-				k8sClient.Delete,
-				ctx,
-				CreateNovaMessageBusSecret(novaNames.NovaName.Namespace, MessageBusSecretName),
-			)
-			DeferCleanup(
 				th.DeleteDBService,
 				th.CreateDBService(
 					novaNames.NovaName.Namespace,
@@ -84,10 +79,7 @@ var _ = Describe("Nova controller", func() {
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreateNovaSecret(novaNames.NovaName.Namespace, SecretName))
 			DeferCleanup(
-				k8sClient.Delete,
-				ctx,
-				CreateNovaMessageBusSecret(novaNames.NovaName.Namespace, MessageBusSecretName),
-			)
+				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(cell0))
 			DeferCleanup(
 				th.DeleteDBService,
 				th.CreateDBService(
@@ -224,13 +216,11 @@ var _ = Describe("Nova controller", func() {
 			th.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
 			th.SimulateTransportURLReady(cell0.TransportURLName)
 			// assert that cell related CRs are created
-			cell := GetNovaCell(cell0.CellName)
-			Expect(cell.Spec.CellMessageBusSecretName).To(Equal("rabbitmq-secret"))
+			cell := GetNovaCell(cell0.CellCRName)
 			Expect(cell.Spec.ServiceUser).To(Equal("nova"))
 			Expect(cell.Spec.ServiceAccount).To(Equal(novaNames.ServiceAccountName.Name))
 
-			conductor := GetNovaConductor(cell0.CellConductorName)
-			Expect(conductor.Spec.CellMessageBusSecretName).To(Equal("rabbitmq-secret"))
+			conductor := GetNovaConductor(cell0.ConductorName)
 			Expect(conductor.Spec.ServiceUser).To(Equal("nova"))
 			Expect(conductor.Spec.ServiceAccount).To(Equal(novaNames.ServiceAccountName.Name))
 
@@ -238,34 +228,36 @@ var _ = Describe("Nova controller", func() {
 			// proper content and the cell subCRs are configured to use the
 			// internal secret
 			internalCellSecret := th.GetSecret(cell0.InternalCellSecretName)
-			Expect(internalCellSecret.Data).To(HaveLen(3))
+			Expect(internalCellSecret.Data).To(HaveLen(4))
 			Expect(internalCellSecret.Data).To(
 				HaveKeyWithValue(controllers.APIDatabasePasswordSelector, []byte("api-database-password")))
 			Expect(internalCellSecret.Data).To(
 				HaveKeyWithValue(controllers.CellDatabasePasswordSelector, []byte("cell0-database-password")))
 			Expect(internalCellSecret.Data).To(
 				HaveKeyWithValue(controllers.ServicePasswordSelector, []byte("service-password")))
+			Expect(internalCellSecret.Data).To(
+				HaveKeyWithValue("transport_url", []byte("rabbit://cell0/fake")))
 
 			Expect(cell.Spec.Secret).To(Equal(cell0.InternalCellSecretName.Name))
 			Expect(conductor.Spec.Secret).To(Equal(cell0.InternalCellSecretName.Name))
 
 			th.ExpectCondition(
-				cell0.CellConductorName,
+				cell0.ConductorName,
 				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.DBSyncReadyCondition,
 				corev1.ConditionFalse,
 			)
 
-			th.SimulateJobSuccess(cell0.CellDBSyncJobName)
+			th.SimulateJobSuccess(cell0.DBSyncJobName)
 			th.ExpectCondition(
-				cell0.CellConductorName,
+				cell0.ConductorName,
 				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.DBSyncReadyCondition,
 				corev1.ConditionTrue,
 			)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 			th.ExpectCondition(
-				cell0.CellName,
+				cell0.CellCRName,
 				ConditionGetterFunc(NovaCellConditionGetter),
 				novav1.NovaConductorReadyCondition,
 				corev1.ConditionTrue,
@@ -276,8 +268,8 @@ var _ = Describe("Nova controller", func() {
 			// TODO(bogdando): move to CellNames.MappingJob*
 			mappingJobConfig := th.GetSecret(
 				types.NamespacedName{
-					Namespace: cell0.CellName.Namespace,
-					Name:      fmt.Sprintf("%s-config-data", cell0.CellName.Name+"-manage"),
+					Namespace: cell0.CellCRName.Namespace,
+					Name:      fmt.Sprintf("%s-config-data", cell0.CellCRName.Name+"-manage"),
 				},
 			)
 			Expect(mappingJobConfig.Data).Should(HaveKey("01-nova.conf"))
@@ -296,8 +288,8 @@ var _ = Describe("Nova controller", func() {
 
 			mappingJobScript := th.GetSecret(
 				types.NamespacedName{
-					Namespace: cell0.CellName.Namespace,
-					Name:      fmt.Sprintf("%s-scripts", cell0.CellName.Name+"-manage"),
+					Namespace: cell0.CellCRName.Namespace,
+					Name:      fmt.Sprintf("%s-scripts", cell0.CellCRName.Name+"-manage"),
 				},
 			)
 			Expect(mappingJobScript.Data).Should(HaveKey("ensure_cell_mapping.sh"))
@@ -308,7 +300,7 @@ var _ = Describe("Nova controller", func() {
 			Eventually(func(g Gomega) {
 				nova := GetNova(novaNames.NovaName)
 				g.Expect(nova.Status.RegisteredCells).To(
-					HaveKeyWithValue(cell0.CellName.Name, Not(BeEmpty())))
+					HaveKeyWithValue(cell0.CellCRName.Name, Not(BeEmpty())))
 			}, timeout, interval).Should(Succeed())
 
 			th.ExpectCondition(
@@ -324,7 +316,7 @@ var _ = Describe("Nova controller", func() {
 			th.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
 			th.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
 			th.SimulateTransportURLReady(cell0.TransportURLName)
-			th.SimulateJobSuccess(cell0.CellDBSyncJobName)
+			th.SimulateJobSuccess(cell0.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 			th.SimulateJobSuccess(cell0.CellMappingJobName)
 			th.SimulateStatefulSetReplicaReady(novaNames.SchedulerStatefulSetName)
@@ -333,7 +325,7 @@ var _ = Describe("Nova controller", func() {
 			// assert that a the top level internal internal secret is created
 			// with the proper data
 			internalTopLevelSecret := th.GetSecret(novaNames.InternalTopLevelSecretName)
-			Expect(internalTopLevelSecret.Data).To(HaveLen(4))
+			Expect(internalTopLevelSecret.Data).To(HaveLen(5))
 			Expect(internalTopLevelSecret.Data).To(
 				HaveKeyWithValue(controllers.APIDatabasePasswordSelector, []byte("api-database-password")))
 			Expect(internalTopLevelSecret.Data).To(
@@ -342,6 +334,8 @@ var _ = Describe("Nova controller", func() {
 				HaveKeyWithValue(controllers.ServicePasswordSelector, []byte("service-password")))
 			Expect(internalTopLevelSecret.Data).To(
 				HaveKeyWithValue(controllers.MetadataSecretSelector, []byte("metadata-secret")))
+			Expect(internalTopLevelSecret.Data).To(
+				HaveKeyWithValue("transport_url", []byte("rabbit://cell0/fake")))
 		})
 
 		It("creates NovaAPI", func() {
@@ -349,14 +343,13 @@ var _ = Describe("Nova controller", func() {
 			th.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
 			th.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
 			th.SimulateTransportURLReady(cell0.TransportURLName)
-			th.SimulateJobSuccess(cell0.CellDBSyncJobName)
+			th.SimulateJobSuccess(cell0.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 			th.SimulateJobSuccess(cell0.CellMappingJobName)
 			th.SimulateStatefulSetReplicaReady(novaNames.SchedulerStatefulSetName)
 			th.SimulateStatefulSetReplicaReady(novaNames.MetadataStatefulSetName)
 
 			api := GetNovaAPI(novaNames.APIName)
-			Expect(api.Spec.APIMessageBusSecretName).To(Equal("rabbitmq-secret"))
 			Expect(api.Spec.ServiceUser).To(Equal("nova"))
 			Expect(api.Spec.ServiceAccount).To(Equal(novaNames.ServiceAccountName.Name))
 			Expect(api.Spec.Secret).To(Equal(novaNames.InternalTopLevelSecretName.Name))
@@ -389,7 +382,7 @@ var _ = Describe("Nova controller", func() {
 			th.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
 			th.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
 			th.SimulateTransportURLReady(cell0.TransportURLName)
-			th.SimulateJobSuccess(cell0.CellDBSyncJobName)
+			th.SimulateJobSuccess(cell0.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 			th.SimulateJobSuccess(cell0.CellMappingJobName)
 			th.SimulateStatefulSetReplicaReady(novaNames.APIDeploymentName)
@@ -397,7 +390,6 @@ var _ = Describe("Nova controller", func() {
 			th.SimulateStatefulSetReplicaReady(novaNames.MetadataStatefulSetName)
 
 			scheduler := GetNovaScheduler(novaNames.SchedulerName)
-			Expect(scheduler.Spec.APIMessageBusSecretName).To(Equal("rabbitmq-secret"))
 			Expect(scheduler.Spec.ServiceAccount).To(Equal(novaNames.ServiceAccountName.Name))
 			Expect(scheduler.Spec.Secret).To(Equal(novaNames.InternalTopLevelSecretName.Name))
 
@@ -429,7 +421,7 @@ var _ = Describe("Nova controller", func() {
 			th.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
 			th.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
 			th.SimulateTransportURLReady(cell0.TransportURLName)
-			th.SimulateJobSuccess(cell0.CellDBSyncJobName)
+			th.SimulateJobSuccess(cell0.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 			th.SimulateJobSuccess(cell0.CellMappingJobName)
 			th.SimulateStatefulSetReplicaReady(novaNames.APIDeploymentName)
@@ -437,7 +429,6 @@ var _ = Describe("Nova controller", func() {
 			th.SimulateStatefulSetReplicaReady(novaNames.SchedulerStatefulSetName)
 
 			metadata := GetNovaMetadata(novaNames.MetadataName)
-			Expect(metadata.Spec.APIMessageBusSecretName).To(Equal("rabbitmq-secret"))
 			Expect(metadata.Spec.ServiceAccount).To(Equal(novaNames.ServiceAccountName.Name))
 			Expect(metadata.Spec.Secret).To(Equal(novaNames.InternalTopLevelSecretName.Name))
 
@@ -470,10 +461,7 @@ var _ = Describe("Nova controller", func() {
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreateNovaSecret(novaNames.NovaName.Namespace, SecretName))
 			DeferCleanup(
-				k8sClient.Delete,
-				ctx,
-				CreateNovaMessageBusSecret(novaNames.NovaName.Namespace, MessageBusSecretName),
-			)
+				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(cell0))
 			DeferCleanup(
 				th.DeleteDBService,
 				th.CreateDBService(
@@ -492,15 +480,15 @@ var _ = Describe("Nova controller", func() {
 			th.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
 			th.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
 			th.SimulateTransportURLReady(cell0.TransportURLName)
-			GetNovaCell(cell0.CellName)
-			GetNovaConductor(cell0.CellConductorName)
+			GetNovaCell(cell0.CellCRName)
+			GetNovaConductor(cell0.ConductorName)
 
-			th.SimulateJobFailure(cell0.CellDBSyncJobName)
+			th.SimulateJobFailure(cell0.DBSyncJobName)
 		})
 
 		It("does not set the cell db sync ready condtion to true", func() {
 			th.ExpectCondition(
-				cell0.CellConductorName,
+				cell0.ConductorName,
 				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.DBSyncReadyCondition,
 				corev1.ConditionFalse,
@@ -509,7 +497,7 @@ var _ = Describe("Nova controller", func() {
 
 		It("does not set the cell0 ready condition to true", func() {
 			th.ExpectCondition(
-				cell0.CellName,
+				cell0.CellCRName,
 				ConditionGetterFunc(NovaCellConditionGetter),
 				novav1.NovaConductorReadyCondition,
 				corev1.ConditionFalse,
@@ -539,10 +527,7 @@ var _ = Describe("Nova controller", func() {
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreateNovaSecret(novaNames.NovaName.Namespace, SecretName))
 			DeferCleanup(
-				k8sClient.Delete,
-				ctx,
-				CreateNovaMessageBusSecret(novaNames.NovaName.Namespace, MessageBusSecretName),
-			)
+				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(cell0))
 			DeferCleanup(
 				th.DeleteDBService,
 				th.CreateDBService(
@@ -561,7 +546,7 @@ var _ = Describe("Nova controller", func() {
 			th.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
 			th.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
 			th.SimulateTransportURLReady(cell0.TransportURLName)
-			th.SimulateJobSuccess(cell0.CellDBSyncJobName)
+			th.SimulateJobSuccess(cell0.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 
 			th.SimulateJobFailure(cell0.CellMappingJobName)
@@ -589,10 +574,7 @@ var _ = Describe("Nova controller", func() {
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreateNovaSecret(novaNames.NovaName.Namespace, SecretName))
 			DeferCleanup(
-				k8sClient.Delete,
-				ctx,
-				CreateNovaMessageBusSecret(novaNames.NovaName.Namespace, MessageBusSecretName),
-			)
+				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(cell0))
 
 			DeferCleanup(
 				th.DeleteDBService,
@@ -631,9 +613,9 @@ var _ = Describe("Nova controller", func() {
 			th.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
 			th.SimulateTransportURLReady(cell0.TransportURLName)
 
-			cell0DBSync := th.GetJob(cell0.CellDBSyncJobName)
+			cell0DBSync := th.GetJob(cell0.DBSyncJobName)
 			Expect(len(cell0DBSync.Spec.Template.Spec.InitContainers)).To(Equal(0))
-			configDataMap := th.GetSecret(cell0.CellConductorConfigDataName)
+			configDataMap := th.GetSecret(cell0.ConductorConfigDataName)
 			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
 			configData := string(configDataMap.Data["01-nova.conf"])
 			Expect(configData).To(
@@ -650,7 +632,7 @@ var _ = Describe("Nova controller", func() {
 			)
 			Expect(configData).To(ContainSubstring("password = service-password"))
 
-			th.SimulateJobSuccess(cell0.CellDBSyncJobName)
+			th.SimulateJobSuccess(cell0.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 			th.SimulateJobSuccess(cell0.CellMappingJobName)
 			th.SimulateStatefulSetReplicaReady(novaNames.SchedulerStatefulSetName)
@@ -694,13 +676,13 @@ var _ = Describe("Nova controller", func() {
 			th.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
 
 			th.ExpectCondition(
-				cell0.CellConductorName,
+				cell0.ConductorName,
 				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.DBSyncReadyCondition,
 				corev1.ConditionTrue,
 			)
 			th.ExpectCondition(
-				cell0.CellName,
+				cell0.CellCRName,
 				ConditionGetterFunc(NovaCellConditionGetter),
 				novav1.NovaConductorReadyCondition,
 				corev1.ConditionTrue,
@@ -737,10 +719,7 @@ var _ = Describe("Nova controller", func() {
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreateNovaSecret(novaNames.NovaName.Namespace, SecretName))
 			DeferCleanup(
-				k8sClient.Delete,
-				ctx,
-				CreateNovaMessageBusSecret(novaNames.NovaName.Namespace, MessageBusSecretName),
-			)
+				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(cell0))
 			DeferCleanup(
 				th.DeleteDBService,
 				th.CreateDBService(
@@ -795,10 +774,7 @@ var _ = Describe("Nova controller", func() {
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreateNovaSecret(novaNames.NovaName.Namespace, SecretName))
 			DeferCleanup(
-				k8sClient.Delete,
-				ctx,
-				CreateNovaMessageBusSecret(novaNames.NovaName.Namespace, MessageBusSecretName),
-			)
+				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(cell0))
 			DeferCleanup(
 				th.DeleteDBService,
 				th.CreateDBService(
@@ -823,7 +799,8 @@ var _ = Describe("Nova controller", func() {
 				},
 			)
 			rawSpec := map[string]interface{}{
-				"secret": SecretName,
+				"secret":                SecretName,
+				"apiMessageBusInstance": cell0.TransportURLName.Name,
 				"cellTemplates": map[string]interface{}{
 					"cell0": map[string]interface{}{
 						"cellDatabaseUser": "nova_cell0",
@@ -850,7 +827,7 @@ var _ = Describe("Nova controller", func() {
 			th.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
 			th.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
 			th.SimulateTransportURLReady(cell0.TransportURLName)
-			th.SimulateJobSuccess(cell0.CellDBSyncJobName)
+			th.SimulateJobSuccess(cell0.DBSyncJobName)
 		})
 
 		It("creates all the sub CRs and passes down the network parameters", func() {
@@ -883,7 +860,7 @@ var _ = Describe("Nova controller", func() {
 
 			nova := GetNova(novaNames.NovaName)
 
-			conductor := GetNovaConductor(cell0.CellConductorName)
+			conductor := GetNovaConductor(cell0.ConductorName)
 			Expect(conductor.Spec.NetworkAttachments).To(
 				Equal(nova.Spec.CellTemplates["cell0"].ConductorServiceTemplate.NetworkAttachments))
 

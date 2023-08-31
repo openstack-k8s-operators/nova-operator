@@ -99,6 +99,6 @@ type Database struct {
 
 // MessageBus -
 type MessageBus struct {
-	SecretName string
-	Status     MessageBusStatus
+	TransportURL string
+	Status       MessageBusStatus
 }

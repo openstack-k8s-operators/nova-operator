@@ -140,6 +140,7 @@ func (r *NovaSchedulerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			ServicePasswordSelector,
 			APIDatabasePasswordSelector,
 			CellDatabasePasswordSelector,
+			"transport_url",
 		},
 		h.GetClient(),
 		&instance.Status.Conditions,
@@ -283,19 +284,6 @@ func (r *NovaSchedulerReconciler) generateConfigs(
 	secret corev1.Secret,
 ) error {
 
-	apiMessageBusSecret := &corev1.Secret{}
-	secretName := types.NamespacedName{
-		Namespace: instance.Namespace,
-		Name:      instance.Spec.APIMessageBusSecretName,
-	}
-	err := h.GetClient().Get(ctx, secretName, apiMessageBusSecret)
-	if err != nil {
-		util.LogForObject(
-			h, "Failed reading Secret", instance,
-			"APIMessageBusSecretName", instance.Spec.APIMessageBusSecretName)
-		return err
-	}
-
 	templateParameters := map[string]interface{}{
 		"service_name":           "nova-scheduler",
 		"keystone_internal_url":  instance.Spec.KeystoneAuthURL,
@@ -315,7 +303,7 @@ func (r *NovaSchedulerReconciler) generateConfigs(
 		"openstack_region_name":  "regionOne", // fixme
 		"default_project_domain": "Default",   // fixme
 		"default_user_domain":    "Default",   // fixme
-		"transport_url":          string(apiMessageBusSecret.Data["transport_url"]),
+		"transport_url":          string(secret.Data["transport_url"]),
 	}
 	extraData := map[string]string{}
 	if instance.Spec.CustomServiceConfig != "" {

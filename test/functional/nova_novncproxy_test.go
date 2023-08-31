@@ -32,10 +32,7 @@ import (
 var _ = Describe("NovaNoVNCProxy controller", func() {
 	When("with standard spec without network interface", func() {
 		BeforeEach(func() {
-			DeferCleanup(
-				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(cell1.NoVNCProxyName.Namespace, MessageBusSecretName))
-
-			spec := GetDefaultNovaNoVNCProxySpec()
+			spec := GetDefaultNovaNoVNCProxySpec(cell1)
 			spec["customServiceConfig"] = "foo=bar"
 			DeferCleanup(th.DeleteInstance, CreateNovaNoVNCProxy(cell1.NoVNCProxyName, spec))
 		})
@@ -63,7 +60,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 					condition.InputReadyCondition,
 					corev1.ConditionFalse,
 					condition.RequestedReason,
-					"Input data resources missing: secret/test-secret",
+					fmt.Sprintf("Input data resources missing: secret/%s", cell1.CellCRName.Name),
 				)
 			})
 		})
@@ -101,8 +98,8 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 			BeforeEach(func() {
 				secret := &corev1.Secret{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      SecretName,
-						Namespace: cell1.NoVNCProxyName.Namespace,
+						Name:      cell1.InternalCellSecretName.Name,
+						Namespace: cell1.InternalCellSecretName.Namespace,
 					},
 					Data: map[string][]byte{
 						"data": []byte("12345678"),
@@ -128,17 +125,14 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 					condition.InputReadyCondition,
 					corev1.ConditionFalse,
 					condition.ErrorReason,
-					"Input data error occurred field 'ServicePassword' not found in secret/test-secret",
+					fmt.Sprintf("Input data error occurred field 'ServicePassword' not found in secret/%s", cell1.InternalCellSecretName.Name),
 				)
 			})
 		})
 		When("the Secret is created with all the expected fields", func() {
 			BeforeEach(func() {
 				DeferCleanup(
-					k8sClient.Delete,
-					ctx,
-					CreateNovaNoVNCProxySecret(cell1.NoVNCProxyName.Namespace, SecretName),
-				)
+					k8sClient.Delete, ctx, CreateCellInternalSecret(cell1))
 			})
 
 			It("reports that input is ready", func() {
@@ -149,7 +143,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 					corev1.ConditionTrue,
 				)
 			})
-			It("generated configs successfully t", func() {
+			It("generated configs successfully", func() {
 				th.ExpectCondition(
 					cell1.NoVNCProxyName,
 					ConditionGetterFunc(NoVNCProxyConditionGetter),
@@ -170,6 +164,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 				Expect(configData).Should(ContainSubstring("novncproxy_port = 6080"))
 				Expect(configData).Should(ContainSubstring("server_listen = \"::0\""))
 				Expect(configData).Should(ContainSubstring("password = service-password"))
+				Expect(configData).Should(ContainSubstring("transport_url=rabbit://cell1/fake"))
 				Expect(configDataMap.Data).Should(HaveKey("02-nova-override.conf"))
 				extraData := string(configDataMap.Data["02-nova-override.conf"])
 				Expect(extraData).To(Equal("foo=bar"))
@@ -186,7 +181,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 		When("NoVNCProxy is created with a proper Secret", func() {
 			BeforeEach(func() {
 				DeferCleanup(
-					k8sClient.Delete, ctx, CreateNovaNoVNCProxySecret(cell1.NoVNCProxyName.Namespace, SecretName))
+					k8sClient.Delete, ctx, CreateCellInternalSecret(cell1))
 			})
 
 			It(" reports input ready", func() {
@@ -281,7 +276,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 	})
 	When("NovaNoVNCProxy CR is created without container image defined", func() {
 		BeforeEach(func() {
-			spec := GetDefaultNovaNoVNCProxySpec()
+			spec := GetDefaultNovaNoVNCProxySpec(cell1)
 			spec["containerImage"] = ""
 			novncproxy := CreateNovaNoVNCProxy(cell1.NoVNCProxyName, spec)
 			DeferCleanup(th.DeleteInstance, novncproxy)
@@ -294,21 +289,13 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 })
 
 var _ = Describe("NovaNoVNCProxy controller", func() {
-	BeforeEach(func() {
-		DeferCleanup(
-			k8sClient.Delete, ctx, CreateNovaMessageBusSecret(cell1.NoVNCProxyName.Namespace, MessageBusSecretName))
-	})
-
 	When(" is created with networkAttachments", func() {
 		BeforeEach(func() {
-			spec := GetDefaultNovaNoVNCProxySpec()
+			spec := GetDefaultNovaNoVNCProxySpec(cell1)
 			spec["networkAttachments"] = []string{"internalapi"}
 			DeferCleanup(th.DeleteInstance, CreateNovaNoVNCProxy(cell1.NoVNCProxyName, spec))
 			DeferCleanup(
-				k8sClient.Delete,
-				ctx,
-				CreateNovaNoVNCProxySecret(cell1.NoVNCProxyName.Namespace, SecretName),
-			)
+				k8sClient.Delete, ctx, CreateCellInternalSecret(cell1))
 		})
 
 		It("reports that the definition is missing", func() {
@@ -432,9 +419,9 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 	When("NovaNoVNCProxy is created with externalEndpoints", func() {
 		BeforeEach(func() {
 			DeferCleanup(
-				k8sClient.Delete, ctx, CreateNovaNoVNCProxySecret(cell1.NoVNCProxyName.Namespace, SecretName))
+				k8sClient.Delete, ctx, CreateCellInternalSecret(cell1))
 
-			spec := GetDefaultNovaNoVNCProxySpec()
+			spec := GetDefaultNovaNoVNCProxySpec(cell1)
 			var externalEndpoints []interface{}
 			externalEndpoints = append(
 				externalEndpoints, map[string]interface{}{
@@ -474,9 +461,9 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 	When("NovaNoVNCProxy is reconfigured", func() {
 		BeforeEach(func() {
 			DeferCleanup(
-				k8sClient.Delete, ctx, CreateNovaNoVNCProxySecret(cell1.NoVNCProxyName.Namespace, SecretName))
+				k8sClient.Delete, ctx, CreateCellInternalSecret(cell1))
 
-			noVNCProxy := CreateNovaNoVNCProxy(cell1.NoVNCProxyName, GetDefaultNovaNoVNCProxySpec())
+			noVNCProxy := CreateNovaNoVNCProxy(cell1.NoVNCProxyName, GetDefaultNovaNoVNCProxySpec(cell1))
 			DeferCleanup(th.DeleteInstance, noVNCProxy)
 
 			th.ExpectCondition(
@@ -572,9 +559,9 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 	When("starts zero replicas", func() {
 		BeforeEach(func() {
 			DeferCleanup(
-				k8sClient.Delete, ctx, CreateNovaNoVNCProxySecret(cell1.NoVNCProxyName.Namespace, SecretName))
+				k8sClient.Delete, ctx, CreateCellInternalSecret(cell1))
 
-			spec := GetDefaultNovaNoVNCProxySpec()
+			spec := GetDefaultNovaNoVNCProxySpec(cell1)
 			spec["replicas"] = 0
 			noVNCProxy := CreateNovaNoVNCProxy(cell1.NoVNCProxyName, spec)
 			DeferCleanup(th.DeleteInstance, noVNCProxy)

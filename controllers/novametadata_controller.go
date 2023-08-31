@@ -139,6 +139,7 @@ func (r *NovaMetadataReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		ServicePasswordSelector,
 		CellDatabasePasswordSelector,
 		MetadataSecretSelector,
+		"transport_url",
 	}
 	if instance.Spec.CellName == "" {
 		expectedSelectors = append(expectedSelectors, APIDatabasePasswordSelector)
@@ -288,20 +289,6 @@ func (r *NovaMetadataReconciler) generateConfigs(
 	ctx context.Context, h *helper.Helper, instance *novav1.NovaMetadata, hashes *map[string]env.Setter,
 	secret corev1.Secret,
 ) error {
-
-	apiMessageBusSecret := &corev1.Secret{}
-	secretName := types.NamespacedName{
-		Namespace: instance.Namespace,
-		Name:      instance.Spec.APIMessageBusSecretName,
-	}
-	err := h.GetClient().Get(ctx, secretName, apiMessageBusSecret)
-	if err != nil {
-		util.LogForObject(
-			h, "Failed reading Secret", instance,
-			"APIMessageBusSecretName", instance.Spec.APIMessageBusSecretName)
-		return err
-	}
-
 	templateParameters := map[string]interface{}{
 		"service_name":           novametadata.ServiceName,
 		"keystone_internal_url":  instance.Spec.KeystoneAuthURL,
@@ -318,7 +305,7 @@ func (r *NovaMetadataReconciler) generateConfigs(
 		"default_user_domain":    "Default",   // fixme
 		"metadata_secret":        string(secret.Data[MetadataSecretSelector]),
 		"log_file":               "/var/log/nova/nova-metadata.log",
-		"transport_url":          string(apiMessageBusSecret.Data["transport_url"]),
+		"transport_url":          string(secret.Data["transport_url"]),
 	}
 
 	if instance.Spec.CellName == "" {
@@ -344,7 +331,7 @@ func (r *NovaMetadataReconciler) generateConfigs(
 		instance, labels.GetGroupLabel(NovaMetadataLabelPrefix), map[string]string{},
 	)
 
-	err = r.GenerateConfigs(
+	err := r.GenerateConfigs(
 		ctx, h, instance, nova.GetServiceConfigSecretName(instance.GetName()),
 		hashes, templateParameters, extraData, cmLabels, map[string]string{},
 	)

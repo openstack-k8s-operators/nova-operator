@@ -123,22 +123,6 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 		types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.Secret},
 		[]string{
 			ServicePasswordSelector,
-		},
-		h.GetClient(),
-		&instance.Status.Conditions,
-		r.RequeueTimeout,
-	)
-	if err != nil {
-		return result, err
-	}
-
-	_, result, messageBusSecret, err := ensureSecret(
-		ctx,
-		types.NamespacedName{
-			Namespace: instance.Namespace,
-			Name:      instance.Spec.CellMessageBusSecretName,
-		},
-		[]string{
 			"transport_url",
 		},
 		h.GetClient(),
@@ -213,7 +197,7 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 	}
 
 	if instance.Spec.CellName != novav1.Cell0Name {
-		result, err = r.ensureComputeConfig(ctx, h, instance, secret, messageBusSecret, vncHost)
+		result, err = r.ensureComputeConfig(ctx, h, instance, secret, vncHost)
 		if (err != nil || result != ctrl.Result{}) {
 			return result, err
 		}
@@ -562,11 +546,10 @@ func (r *NovaCellReconciler) ensureComputeConfig(
 	h *helper.Helper,
 	instance *novav1.NovaCell,
 	secret corev1.Secret,
-	messageBusSecret corev1.Secret,
 	vncHost *string,
 ) (ctrl.Result, error) {
 
-	err := r.generateComputeConfigs(ctx, h, instance, secret, messageBusSecret, vncHost)
+	err := r.generateComputeConfigs(ctx, h, instance, secret, vncHost)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			novav1.NovaComputeServiceConfigReady,
@@ -585,7 +568,7 @@ func (r *NovaCellReconciler) ensureComputeConfig(
 
 func (r *NovaCellReconciler) generateComputeConfigs(
 	ctx context.Context, h *helper.Helper, instance *novav1.NovaCell,
-	secret corev1.Secret, messageBusSecret corev1.Secret, vncHost *string,
+	secret corev1.Secret, vncHost *string,
 ) error {
 	templateParameters := map[string]interface{}{
 		"service_name":           "nova-compute",
@@ -596,7 +579,7 @@ func (r *NovaCellReconciler) generateComputeConfigs(
 		"openstack_region_name":  "regionOne", // fixme
 		"default_project_domain": "Default",   // fixme
 		"default_user_domain":    "Default",   // fixme
-		"transport_url":          string(messageBusSecret.Data["transport_url"]),
+		"transport_url":          string(secret.Data["transport_url"]),
 		"log_file":               "/var/log/containers/nova/nova-compute.log",
 	}
 	// vnc is optional so we only need to configure it for the compute

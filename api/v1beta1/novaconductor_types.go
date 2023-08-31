@@ -114,12 +114,6 @@ type NovaConductorSpec struct {
 	// CellDatabaseHostname - hostname to use when accessing the cell DB
 	CellDatabaseHostname string `json:"cellDatabaseHostname"`
 
-	// +kubebuilder:validation:Required
-	// CellMessageBusSecretName - the name of the Secret containing the
-	// transport URL information to use when accessing the Cell message
-	// bus.
-	CellMessageBusSecretName string `json:"cellMessageBusSecretName"`
-
 	// +kubebuilder:validation:Optional
 	// Debug - enable debug for different deploy stages. If an init container
 	// is used, it runs and the actual action pod gets started with sleep
@@ -191,18 +185,17 @@ func NewNovaConductorSpec(
 	novaCell NovaCellSpec,
 ) NovaConductorSpec {
 	conductorSpec := NovaConductorSpec{
-		CellName:                 novaCell.CellName,
-		Secret:                   novaCell.Secret,
-		CellDatabaseHostname:     novaCell.CellDatabaseHostname,
-		CellDatabaseUser:         novaCell.CellDatabaseUser,
-		APIDatabaseHostname:      novaCell.APIDatabaseHostname,
-		APIDatabaseUser:          novaCell.APIDatabaseUser,
-		CellMessageBusSecretName: novaCell.CellMessageBusSecretName,
-		Debug:                    novaCell.Debug,
-		NovaServiceBase:          NovaServiceBase(novaCell.ConductorServiceTemplate),
-		KeystoneAuthURL:          novaCell.KeystoneAuthURL,
-		ServiceUser:              novaCell.ServiceUser,
-		ServiceAccount:           novaCell.ServiceAccount,
+		CellName:             novaCell.CellName,
+		Secret:               novaCell.Secret,
+		CellDatabaseHostname: novaCell.CellDatabaseHostname,
+		CellDatabaseUser:     novaCell.CellDatabaseUser,
+		APIDatabaseHostname:  novaCell.APIDatabaseHostname,
+		APIDatabaseUser:      novaCell.APIDatabaseUser,
+		Debug:                novaCell.Debug,
+		NovaServiceBase:      NovaServiceBase(novaCell.ConductorServiceTemplate),
+		KeystoneAuthURL:      novaCell.KeystoneAuthURL,
+		ServiceUser:          novaCell.ServiceUser,
+		ServiceAccount:       novaCell.ServiceAccount,
 	}
 	return conductorSpec
 }

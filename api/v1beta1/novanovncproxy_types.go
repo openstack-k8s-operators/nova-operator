@@ -134,12 +134,6 @@ type NovaNoVNCProxySpec struct {
 	// +kubebuilder:validation:Required
 	// ServiceAccount - service account name used internally to provide Nova services the default SA name
 	ServiceAccount string `json:"serviceAccount"`
-
-	// +kubebuilder:validation:Required
-	// CellMessageBusSecretName - the name of the Secret containing the
-	// transport URL information to use when accessing the Cell message
-	// bus.
-	CellMessageBusSecretName string `json:"cellMessageBusSecretName"`
 }
 
 // NovaNoVNCProxyStatus defines the observed state of NovaNoVNCProxy
@@ -198,12 +192,11 @@ func NewNovaNoVNCProxySpec(
 	novaCell NovaCellSpec,
 ) NovaNoVNCProxySpec {
 	noVNCProxSpec := NovaNoVNCProxySpec{
-		CellName:                 novaCell.CellName,
-		Secret:                   novaCell.Secret,
-		CellDatabaseHostname:     novaCell.CellDatabaseHostname,
-		CellDatabaseUser:         novaCell.CellDatabaseUser,
-		Debug:                    novaCell.Debug,
-		CellMessageBusSecretName: novaCell.CellMessageBusSecretName,
+		CellName:             novaCell.CellName,
+		Secret:               novaCell.Secret,
+		CellDatabaseHostname: novaCell.CellDatabaseHostname,
+		CellDatabaseUser:     novaCell.CellDatabaseUser,
+		Debug:                novaCell.Debug,
 		NovaServiceBase: NovaServiceBase{
 			ContainerImage:         novaCell.NoVNCProxyServiceTemplate.ContainerImage,
 			Replicas:               novaCell.NoVNCProxyServiceTemplate.Replicas,

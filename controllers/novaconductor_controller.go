@@ -134,6 +134,7 @@ func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	required_secret_fields := []string{
 		ServicePasswordSelector,
 		CellDatabasePasswordSelector,
+		"transport_url",
 	}
 	if len(instance.Spec.APIDatabaseHostname) > 0 {
 		required_secret_fields = append(required_secret_fields, APIDatabasePasswordSelector)
@@ -278,19 +279,6 @@ func (r *NovaConductorReconciler) generateConfigs(
 	hashes *map[string]env.Setter,
 	secret corev1.Secret,
 ) error {
-	messageBusSecret := &corev1.Secret{}
-	secretName := types.NamespacedName{
-		Namespace: instance.Namespace,
-		Name:      instance.Spec.CellMessageBusSecretName,
-	}
-	err := h.GetClient().Get(ctx, secretName, messageBusSecret)
-	if err != nil {
-		util.LogForObject(
-			h, "Failed reading Secret", instance,
-			"CellMessageBusSecretName", instance.Spec.CellMessageBusSecretName)
-		return err
-	}
-
 	templateParameters := map[string]interface{}{
 		"service_name":           "nova-conductor",
 		"keystone_internal_url":  instance.Spec.KeystoneAuthURL,
@@ -305,7 +293,7 @@ func (r *NovaConductorReconciler) generateConfigs(
 		"openstack_region_name":  "regionOne", // fixme
 		"default_project_domain": "Default",   // fixme
 		"default_user_domain":    "Default",   // fixme
-		"transport_url":          string(messageBusSecret.Data["transport_url"]),
+		"transport_url":          string(secret.Data["transport_url"]),
 	}
 	if len(instance.Spec.APIDatabaseHostname) > 0 && len(instance.Spec.APIDatabaseUser) > 0 {
 		templateParameters["api_db_name"] = instance.Spec.APIDatabaseUser // fixme
