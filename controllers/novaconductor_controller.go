@@ -134,7 +134,7 @@ func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	required_secret_fields := []string{
 		ServicePasswordSelector,
 		CellDatabasePasswordSelector,
-		"transport_url",
+		TransportURLSelector,
 	}
 	if len(instance.Spec.APIDatabaseHostname) > 0 {
 		required_secret_fields = append(required_secret_fields, APIDatabasePasswordSelector)
@@ -293,7 +293,7 @@ func (r *NovaConductorReconciler) generateConfigs(
 		"openstack_region_name":  "regionOne", // fixme
 		"default_project_domain": "Default",   // fixme
 		"default_user_domain":    "Default",   // fixme
-		"transport_url":          string(secret.Data["transport_url"]),
+		"transport_url":          string(secret.Data[TransportURLSelector]),
 	}
 	if len(instance.Spec.APIDatabaseHostname) > 0 && len(instance.Spec.APIDatabaseUser) > 0 {
 		templateParameters["api_db_name"] = instance.Spec.APIDatabaseUser // fixme

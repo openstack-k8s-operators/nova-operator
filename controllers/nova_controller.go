@@ -1170,7 +1170,7 @@ func (r *NovaReconciler) ensureMQ(
 		return "", nova.MQFailed, err
 	}
 
-	url, ok := secret.Data["transport_url"]
+	url, ok := secret.Data[TransportURLSelector]
 	if !ok {
 		return "", nova.MQFailed, fmt.Errorf(
 			"the TransportURL secret %s does not have 'transport_url' field", transportURL.Status.SecretName)
@@ -1457,11 +1457,10 @@ func (r *NovaReconciler) ensureCellSecret(
 
 	// NOTE(gibi): We can move other sensitive data to the internal Secret from
 	// the NovaCellSpec fields, possibly hostnames or usernames.
-	// XXX(gibi): Move the transport_url from from the MQ secret to the internal secret
 	data := map[string]string{
 		ServicePasswordSelector:      string(externalSecret.Data[instance.Spec.PasswordSelectors.Service]),
 		CellDatabasePasswordSelector: string(externalSecret.Data[cellTemplate.PasswordSelectors.Database]),
-		"transport_url":              cellTransportURL,
+		TransportURLSelector:         cellTransportURL,
 	}
 
 	if cellTemplate.HasAPIAccess {
@@ -1515,7 +1514,7 @@ func (r *NovaReconciler) ensureTopLevelSecret(
 		APIDatabasePasswordSelector:  string(externalSecret.Data[instance.Spec.PasswordSelectors.APIDatabase]),
 		CellDatabasePasswordSelector: string(externalSecret.Data[cell0Template.PasswordSelectors.Database]),
 		MetadataSecretSelector:       string(externalSecret.Data[instance.Spec.PasswordSelectors.MetadataSecret]),
-		"transport_url":              apiTransportURL,
+		TransportURLSelector:         apiTransportURL,
 	}
 
 	// NOTE(gibi): When we switch to immutable secrets then we need to include
