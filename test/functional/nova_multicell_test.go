@@ -27,7 +27,6 @@ import (
 	"github.com/openstack-k8s-operators/nova-operator/controllers"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/ptr"
 )
 
 var _ = Describe("Nova multicell", func() {
@@ -35,21 +34,9 @@ var _ = Describe("Nova multicell", func() {
 		BeforeEach(func() {
 			// TODO(bogdando): deduplicate this into CreateNovaWith3CellsAndEnsureReady()
 			DeferCleanup(k8sClient.Delete, ctx, CreateNovaSecretFor3Cells(novaNames.NovaName.Namespace, SecretName))
-			DeferCleanup(
-				k8sClient.Delete,
-				ctx,
-				CreateNovaMessageBusSecret(cell0.CellName.Namespace, fmt.Sprintf("%s-secret", cell0.TransportURLName.Name)),
-			)
-			DeferCleanup(
-				k8sClient.Delete,
-				ctx,
-				CreateNovaMessageBusSecret(cell1.CellName.Namespace, fmt.Sprintf("%s-secret", cell1.TransportURLName.Name)),
-			)
-			DeferCleanup(
-				k8sClient.Delete,
-				ctx,
-				CreateNovaMessageBusSecret(cell2.CellName.Namespace, fmt.Sprintf("%s-secret", cell2.TransportURLName.Name)),
-			)
+			DeferCleanup(k8sClient.Delete, ctx, CreateNovaMessageBusSecret(cell0))
+			DeferCleanup(k8sClient.Delete, ctx, CreateNovaMessageBusSecret(cell1))
+			DeferCleanup(k8sClient.Delete, ctx, CreateNovaMessageBusSecret(cell2))
 
 			serviceSpec := corev1.ServiceSpec{Ports: []corev1.ServicePort{{Port: 3306}}}
 			DeferCleanup(th.DeleteDBService, th.CreateDBService(novaNames.APIMariaDBDatabaseName.Namespace, novaNames.APIMariaDBDatabaseName.Name, serviceSpec))
@@ -97,25 +84,17 @@ var _ = Describe("Nova multicell", func() {
 			th.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
 			th.SimulateTransportURLReady(cell0.TransportURLName)
 
-			// assert that cell related CRs are created pointing to the API MQ
-			cell := GetNovaCell(cell0.CellName)
-			Expect(cell.Spec.CellMessageBusSecretName).To(Equal(fmt.Sprintf("%s-secret", cell0.TransportURLName.Name)))
-			// and NoVNCProxy is defaulted to be disabled in cell0
-			Expect(cell.Spec.NoVNCProxyServiceTemplate.Enabled).To(Equal(ptr.To(false)))
-			conductor := GetNovaConductor(cell0.CellConductorName)
-			Expect(conductor.Spec.CellMessageBusSecretName).To(Equal(fmt.Sprintf("%s-secret", cell0.TransportURLName.Name)))
-
 			th.ExpectCondition(
-				cell0.CellConductorName,
+				cell0.ConductorName,
 				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.DBSyncReadyCondition,
 				corev1.ConditionFalse,
 			)
 			// assert that cell0 conductor is using the same DB as the API
-			dbSync := th.GetJob(cell0.CellDBSyncJobName)
+			dbSync := th.GetJob(cell0.DBSyncJobName)
 			Expect(dbSync.Spec.Template.Spec.InitContainers).To(HaveLen(0))
 
-			configDataMap := th.GetSecret(cell0.CellConductorConfigDataName)
+			configDataMap := th.GetSecret(cell0.ConductorConfigDataName)
 			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
 			configData := string(configDataMap.Data["01-nova.conf"])
 			Expect(configData).To(
@@ -130,10 +109,12 @@ var _ = Describe("Nova multicell", func() {
 						"[api_database]\nconnection = mysql+pymysql://nova_api:api-database-password@hostname-for-%s/nova_api",
 						novaNames.APIMariaDBDatabaseName.Name)),
 			)
+			// and that it is using the top level MQ
+			Expect(configData).To(ContainSubstring("transport_url=rabbit://cell0/fake"))
 
-			th.SimulateJobSuccess(cell0.CellDBSyncJobName)
+			th.SimulateJobSuccess(cell0.DBSyncJobName)
 			th.ExpectCondition(
-				cell0.CellConductorName,
+				cell0.ConductorName,
 				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.DBSyncReadyCondition,
 				corev1.ConditionTrue,
@@ -142,7 +123,7 @@ var _ = Describe("Nova multicell", func() {
 			th.SimulateJobSuccess(cell0.CellMappingJobName)
 
 			th.ExpectCondition(
-				cell0.CellName,
+				cell0.CellCRName,
 				ConditionGetterFunc(NovaCellConditionGetter),
 				novav1.NovaConductorReadyCondition,
 				corev1.ConditionTrue,
@@ -156,7 +137,7 @@ var _ = Describe("Nova multicell", func() {
 			Eventually(func(g Gomega) {
 				nova := GetNova(novaNames.NovaName)
 				g.Expect(nova.Status.RegisteredCells).To(
-					HaveKeyWithValue(cell0.CellName.Name, Not(BeEmpty())))
+					HaveKeyWithValue(cell0.CellCRName.Name, Not(BeEmpty())))
 			}, timeout, interval).Should(Succeed())
 		})
 
@@ -164,7 +145,7 @@ var _ = Describe("Nova multicell", func() {
 			th.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
 			th.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
 			th.SimulateTransportURLReady(cell0.TransportURLName)
-			th.SimulateJobSuccess(cell0.CellDBSyncJobName)
+			th.SimulateJobSuccess(cell0.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 			th.SimulateJobSuccess(cell0.CellMappingJobName)
 
@@ -173,7 +154,6 @@ var _ = Describe("Nova multicell", func() {
 			Expect(api.Spec.Replicas).Should(BeEquivalentTo(&one))
 			Expect(api.Spec.Cell0DatabaseHostname).To(Equal(fmt.Sprintf("hostname-for-%s", cell0.MariaDBDatabaseName.Name)))
 			Expect(api.Spec.APIDatabaseHostname).To(Equal(fmt.Sprintf("hostname-for-%s", novaNames.APIMariaDBDatabaseName.Name)))
-			Expect(api.Spec.APIMessageBusSecretName).To(Equal(fmt.Sprintf("%s-secret", cell0.TransportURLName.Name)))
 
 			configDataMap := th.GetSecret(novaNames.APIConfigDataName)
 			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
@@ -190,6 +170,7 @@ var _ = Describe("Nova multicell", func() {
 						"[api_database]\nconnection = mysql+pymysql://nova_api:api-database-password@hostname-for-%s/nova_api",
 						novaNames.APIMariaDBDatabaseName.Name)),
 			)
+			Expect(configData).To(ContainSubstring("transport_url=rabbit://cell0/fake"))
 
 			th.SimulateStatefulSetReplicaReady(novaNames.APIDeploymentName)
 
@@ -213,7 +194,7 @@ var _ = Describe("Nova multicell", func() {
 			th.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
 			th.SimulateTransportURLReady(cell0.TransportURLName)
 			th.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
-			th.SimulateJobSuccess(cell0.CellDBSyncJobName)
+			th.SimulateJobSuccess(cell0.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 			th.SimulateJobSuccess(cell0.CellMappingJobName)
 			th.SimulateStatefulSetReplicaReady(novaNames.APIDeploymentName)
@@ -259,7 +240,7 @@ var _ = Describe("Nova multicell", func() {
 			th.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
 			th.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
 			th.SimulateTransportURLReady(cell0.TransportURLName)
-			th.SimulateJobSuccess(cell0.CellDBSyncJobName)
+			th.SimulateJobSuccess(cell0.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 			th.SimulateJobSuccess(cell0.CellMappingJobName)
 			th.SimulateStatefulSetReplicaReady(novaNames.APIDeploymentName)
@@ -267,24 +248,16 @@ var _ = Describe("Nova multicell", func() {
 			th.SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
 			th.SimulateTransportURLReady(cell1.TransportURLName)
 
-			// assert that cell related CRs are created pointing to the cell1 MQ
-			c1 := GetNovaCell(cell1.CellName)
-			Expect(c1.Spec.CellMessageBusSecretName).To(Equal(fmt.Sprintf("%s-secret", cell1.TransportURLName.Name)))
-			// and NoVNCProxy default to be enabled
-			Expect(c1.Spec.NoVNCProxyServiceTemplate.Enabled).To(Equal(ptr.To(true)))
-			c1Conductor := GetNovaConductor(cell1.CellConductorName)
-			Expect(c1Conductor.Spec.CellMessageBusSecretName).To(Equal(fmt.Sprintf("%s-secret", cell1.TransportURLName.Name)))
-
 			th.ExpectCondition(
-				cell1.CellConductorName,
+				cell1.ConductorName,
 				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.DBSyncReadyCondition,
 				corev1.ConditionFalse,
 			)
 			// assert that cell1 using its own DB but has access to the API DB
-			dbSync := th.GetJob(cell1.CellDBSyncJobName)
+			dbSync := th.GetJob(cell1.DBSyncJobName)
 			Expect(dbSync.Spec.Template.Spec.InitContainers).To(HaveLen(0))
-			configDataMap := th.GetSecret(cell1.CellConductorConfigDataName)
+			configDataMap := th.GetSecret(cell1.ConductorConfigDataName)
 			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
 			configData := string(configDataMap.Data["01-nova.conf"])
 			Expect(configData).To(
@@ -299,11 +272,13 @@ var _ = Describe("Nova multicell", func() {
 						"[api_database]\nconnection = mysql+pymysql://nova_api:api-database-password@hostname-for-%s/nova_api",
 						novaNames.APIMariaDBDatabaseName.Name)),
 			)
+			Expect(configData).To(ContainSubstring("transport_url=rabbit://cell1/fake"))
+
 			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
 			SimulateNoVNCProxyRouteIngress("cell1", novaNames.Namespace)
-			th.SimulateJobSuccess(cell1.CellDBSyncJobName)
+			th.SimulateJobSuccess(cell1.DBSyncJobName)
 			th.ExpectCondition(
-				cell1.CellConductorName,
+				cell1.ConductorName,
 				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.DBSyncReadyCondition,
 				corev1.ConditionTrue,
@@ -311,7 +286,7 @@ var _ = Describe("Nova multicell", func() {
 			th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
 			th.SimulateJobSuccess(cell1.CellMappingJobName)
 			th.ExpectCondition(
-				cell1.CellName,
+				cell1.CellCRName,
 				ConditionGetterFunc(NovaCellConditionGetter),
 				novav1.NovaConductorReadyCondition,
 				corev1.ConditionTrue,
@@ -325,9 +300,9 @@ var _ = Describe("Nova multicell", func() {
 			Eventually(func(g Gomega) {
 				nova := GetNova(novaNames.NovaName)
 				g.Expect(nova.Status.RegisteredCells).To(
-					HaveKeyWithValue(cell0.CellName.Name, Not(BeEmpty())))
+					HaveKeyWithValue(cell0.CellCRName.Name, Not(BeEmpty())))
 				g.Expect(nova.Status.RegisteredCells).To(
-					HaveKeyWithValue(cell1.CellName.Name, Not(BeEmpty())))
+					HaveKeyWithValue(cell1.CellCRName.Name, Not(BeEmpty())))
 			}, timeout, interval).Should(Succeed())
 
 			// RegisteredCells are distributed
@@ -343,7 +318,7 @@ var _ = Describe("Nova multicell", func() {
 			th.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
 			th.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
 			th.SimulateTransportURLReady(cell0.TransportURLName)
-			th.SimulateJobSuccess(cell0.CellDBSyncJobName)
+			th.SimulateJobSuccess(cell0.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 			th.SimulateJobSuccess(cell0.CellMappingJobName)
 			th.SimulateStatefulSetReplicaReady(novaNames.APIDeploymentName)
@@ -354,28 +329,23 @@ var _ = Describe("Nova multicell", func() {
 			th.SimulateTransportURLReady(cell1.TransportURLName)
 			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
 			SimulateNoVNCProxyRouteIngress("cell1", novaNames.Namespace)
-			th.SimulateJobSuccess(cell1.CellDBSyncJobName)
+			th.SimulateJobSuccess(cell1.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
 			th.SimulateJobSuccess(cell1.CellMappingJobName)
 
 			th.SimulateMariaDBDatabaseCompleted(cell2.MariaDBDatabaseName)
 			th.SimulateTransportURLReady(cell2.TransportURLName)
 
-			// assert that cell related CRs are created pointing to the Cell 2 MQ
-			c2 := GetNovaCell(cell2.CellName)
-			Expect(c2.Spec.CellMessageBusSecretName).To(Equal(fmt.Sprintf("%s-secret", cell2.TransportURLName.Name)))
-			c2Conductor := GetNovaConductor(cell2.CellConductorName)
-			Expect(c2Conductor.Spec.CellMessageBusSecretName).To(Equal(fmt.Sprintf("%s-secret", cell2.TransportURLName.Name)))
 			th.ExpectCondition(
-				cell2.CellConductorName,
+				cell2.ConductorName,
 				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.DBSyncReadyCondition,
 				corev1.ConditionFalse,
 			)
 			// assert that cell2 using its own DB but has *no* access to the API DB
-			dbSync := th.GetJob(cell2.CellDBSyncJobName)
+			dbSync := th.GetJob(cell2.DBSyncJobName)
 			Expect(dbSync.Spec.Template.Spec.InitContainers).To(HaveLen(0))
-			configDataMap := th.GetSecret(cell2.CellConductorConfigDataName)
+			configDataMap := th.GetSecret(cell2.ConductorConfigDataName)
 			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
 			configData := string(configDataMap.Data["01-nova.conf"])
 			Expect(configData).To(
@@ -387,11 +357,14 @@ var _ = Describe("Nova multicell", func() {
 			Expect(configData).ToNot(
 				ContainSubstring("[api_database]"),
 			)
+			Expect(configData).To(
+				ContainSubstring("transport_url=rabbit://cell2/fake"),
+			)
 			th.SimulateStatefulSetReplicaReady(cell2.NoVNCProxyStatefulSetName)
 			SimulateNoVNCProxyRouteIngress("cell2", novaNames.Namespace)
-			th.SimulateJobSuccess(cell2.CellDBSyncJobName)
+			th.SimulateJobSuccess(cell2.DBSyncJobName)
 			th.ExpectCondition(
-				cell2.CellConductorName,
+				cell2.ConductorName,
 				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.DBSyncReadyCondition,
 				corev1.ConditionTrue,
@@ -403,8 +376,8 @@ var _ = Describe("Nova multicell", func() {
 			// API access so that it can register cell2 to the API DB.
 			mappingJobConfig := th.GetSecret(
 				types.NamespacedName{
-					Namespace: cell2.CellConductorName.Namespace,
-					Name:      fmt.Sprintf("%s-config-data", cell2.CellName.Name+"-manage"),
+					Namespace: cell2.ConductorName.Namespace,
+					Name:      fmt.Sprintf("%s-config-data", cell2.CellCRName.Name+"-manage"),
 				},
 			)
 			Expect(mappingJobConfig.Data).Should(HaveKey("01-nova.conf"))
@@ -423,7 +396,7 @@ var _ = Describe("Nova multicell", func() {
 			)
 
 			th.ExpectCondition(
-				cell2.CellName,
+				cell2.CellCRName,
 				ConditionGetterFunc(NovaCellConditionGetter),
 				novav1.NovaConductorReadyCondition,
 				corev1.ConditionTrue,
@@ -445,11 +418,11 @@ var _ = Describe("Nova multicell", func() {
 			Eventually(func(g Gomega) {
 				nova := GetNova(novaNames.NovaName)
 				g.Expect(nova.Status.RegisteredCells).To(
-					HaveKeyWithValue(cell0.CellName.Name, Not(BeEmpty())))
+					HaveKeyWithValue(cell0.CellCRName.Name, Not(BeEmpty())))
 				g.Expect(nova.Status.RegisteredCells).To(
-					HaveKeyWithValue(cell1.CellName.Name, Not(BeEmpty())))
+					HaveKeyWithValue(cell1.CellCRName.Name, Not(BeEmpty())))
 				g.Expect(nova.Status.RegisteredCells).To(
-					HaveKeyWithValue(cell2.CellName.Name, Not(BeEmpty())))
+					HaveKeyWithValue(cell2.CellCRName.Name, Not(BeEmpty())))
 			}, timeout, interval).Should(Succeed())
 
 			// RegisteredCells are distributed
@@ -468,27 +441,27 @@ var _ = Describe("Nova multicell", func() {
 			th.SimulateTransportURLReady(cell2.TransportURLName)
 
 			// assert that cell related CRs are created
-			GetNovaCell(cell2.CellName)
-			GetNovaConductor(cell2.CellConductorName)
+			GetNovaCell(cell2.CellCRName)
+			GetNovaConductor(cell2.ConductorName)
 
 			th.SimulateStatefulSetReplicaReady(cell2.NoVNCProxyStatefulSetName)
 			SimulateNoVNCProxyRouteIngress("cell2", novaNames.Namespace)
-			th.SimulateJobSuccess(cell2.CellDBSyncJobName)
+			th.SimulateJobSuccess(cell2.DBSyncJobName)
 			th.ExpectCondition(
-				cell2.CellConductorName,
+				cell2.ConductorName,
 				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.DBSyncReadyCondition,
 				corev1.ConditionTrue,
 			)
 			th.SimulateStatefulSetReplicaReady(cell2.ConductorStatefulSetName)
 			th.ExpectCondition(
-				cell2.CellName,
+				cell2.CellCRName,
 				ConditionGetterFunc(NovaCellConditionGetter),
 				novav1.NovaConductorReadyCondition,
 				corev1.ConditionTrue,
 			)
 			th.ExpectCondition(
-				cell2.CellName,
+				cell2.CellCRName,
 				ConditionGetterFunc(NovaCellConditionGetter),
 				condition.ReadyCondition,
 				corev1.ConditionTrue,
@@ -505,14 +478,14 @@ var _ = Describe("Nova multicell", func() {
 			th.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
 			th.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
 			th.SimulateTransportURLReady(cell0.TransportURLName)
-			th.SimulateJobSuccess(cell0.CellDBSyncJobName)
+			th.SimulateJobSuccess(cell0.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 
 			// Simulate that cell1 DB sync failed and do not simulate
 			// cell2 DB creation success so that will be in Creating state.
 			th.SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
 			th.SimulateTransportURLReady(cell1.TransportURLName)
-			th.SimulateJobFailure(cell1.CellDBSyncJobName)
+			th.SimulateJobFailure(cell1.DBSyncJobName)
 
 			// NovaAPI is still created
 			GetNovaAPI(novaNames.APIName)
@@ -538,9 +511,9 @@ var _ = Describe("Nova multicell", func() {
 			th.SimulateTransportURLReady(cell0.TransportURLName)
 			th.SimulateTransportURLReady(cell1.TransportURLName)
 
-			th.SimulateJobFailure(cell0.CellDBSyncJobName)
+			th.SimulateJobFailure(cell0.DBSyncJobName)
 
-			NovaCellNotExists(cell1.CellName)
+			NovaCellNotExists(cell1.CellCRName)
 		})
 	})
 
@@ -551,11 +524,7 @@ var _ = Describe("Nova multicell", func() {
 	When("Nova CR instance is created with collapsed cell deployment", func() {
 		BeforeEach(func() {
 			DeferCleanup(k8sClient.Delete, ctx, CreateNovaSecret(novaNames.NovaName.Namespace, SecretName))
-			DeferCleanup(
-				k8sClient.Delete,
-				ctx,
-				CreateNovaMessageBusSecret(cell0.CellName.Namespace, fmt.Sprintf("%s-secret", cell0.TransportURLName.Name)),
-			)
+			DeferCleanup(k8sClient.Delete, ctx, CreateNovaMessageBusSecret(cell0))
 
 			serviceSpec := corev1.ServiceSpec{Ports: []corev1.ServicePort{{Port: 3306}}}
 			DeferCleanup(
@@ -602,16 +571,16 @@ var _ = Describe("Nova multicell", func() {
 			// We requested 0 replicas from the cell0 conductor so the
 			// conductor is ready even if 0 replicas is running but all
 			// the necessary steps, i.e. db-sync is run successfully
-			th.SimulateJobSuccess(cell0.CellDBSyncJobName)
+			th.SimulateJobSuccess(cell0.DBSyncJobName)
 			th.ExpectCondition(
-				cell0.CellConductorName,
+				cell0.ConductorName,
 				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.ReadyCondition,
 				corev1.ConditionTrue,
 			)
 
 			th.ExpectCondition(
-				cell0.CellName,
+				cell0.CellCRName,
 				ConditionGetterFunc(NovaCellConditionGetter),
 				novav1.NovaConductorReadyCondition,
 				corev1.ConditionTrue,
@@ -625,12 +594,12 @@ var _ = Describe("Nova multicell", func() {
 			// As cell0 is ready cell1 is deployed
 			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
 			SimulateNoVNCProxyRouteIngress("cell1", novaNames.Namespace)
-			th.SimulateJobSuccess(cell1.CellDBSyncJobName)
+			th.SimulateJobSuccess(cell1.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
 			th.SimulateJobSuccess(cell1.CellMappingJobName)
 
 			th.ExpectCondition(
-				cell1.CellName,
+				cell1.CellCRName,
 				ConditionGetterFunc(NovaCellConditionGetter),
 				novav1.NovaConductorReadyCondition,
 				corev1.ConditionTrue,
@@ -668,11 +637,7 @@ var _ = Describe("Nova multicell", func() {
 	When("cell1 DB and MQ create finishes before cell0 DB create", func() {
 		BeforeEach(func() {
 			DeferCleanup(k8sClient.Delete, ctx, CreateNovaSecret(novaNames.Namespace, SecretName))
-			DeferCleanup(
-				k8sClient.Delete,
-				ctx,
-				CreateNovaMessageBusSecret(cell0.CellName.Namespace, fmt.Sprintf("%s-secret", cell0.TransportURLName.Name)),
-			)
+			DeferCleanup(k8sClient.Delete, ctx, CreateNovaMessageBusSecret(cell0))
 			serviceSpec := corev1.ServiceSpec{Ports: []corev1.ServicePort{{Port: 3306}}}
 			DeferCleanup(
 				th.DeleteDBService,
@@ -725,16 +690,8 @@ var _ = Describe("Nova multicell", func() {
 	When("Nova CR instance is created with metadata per cell", func() {
 		BeforeEach(func() {
 			DeferCleanup(k8sClient.Delete, ctx, CreateNovaSecret(novaNames.NovaName.Namespace, SecretName))
-			DeferCleanup(
-				k8sClient.Delete,
-				ctx,
-				CreateNovaMessageBusSecret(cell0.CellName.Namespace, fmt.Sprintf("%s-secret", cell0.TransportURLName.Name)),
-			)
-			DeferCleanup(
-				k8sClient.Delete,
-				ctx,
-				CreateNovaMessageBusSecret(cell1.CellName.Namespace, fmt.Sprintf("%s-secret", cell1.TransportURLName.Name)),
-			)
+			DeferCleanup(k8sClient.Delete, ctx, CreateNovaMessageBusSecret(cell0))
+			DeferCleanup(k8sClient.Delete, ctx, CreateNovaMessageBusSecret(cell1))
 
 			serviceSpec := corev1.ServiceSpec{Ports: []corev1.ServicePort{{Port: 3306}}}
 			DeferCleanup(th.DeleteDBService, th.CreateDBService(novaNames.APIMariaDBDatabaseName.Namespace, novaNames.APIMariaDBDatabaseName.Name, serviceSpec))
@@ -779,23 +736,23 @@ var _ = Describe("Nova multicell", func() {
 			th.SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
 			th.SimulateTransportURLReady(cell0.TransportURLName)
 			th.SimulateTransportURLReady(cell1.TransportURLName)
-			th.SimulateJobSuccess(cell0.CellDBSyncJobName)
+			th.SimulateJobSuccess(cell0.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 			th.SimulateJobSuccess(cell0.CellMappingJobName)
 
-			cell0cond := NovaCellConditionGetter(cell0.CellName)
+			cell0cond := NovaCellConditionGetter(cell0.CellCRName)
 			Expect(cell0cond.Get(novav1.NovaMetadataReadyCondition)).Should(BeNil())
 
 			// As cell0 is ready cell1 is deployed
 			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
-			SimulateNoVNCProxyRouteIngress("cell1", cell1.CellName.Namespace)
-			th.SimulateJobSuccess(cell1.CellDBSyncJobName)
+			SimulateNoVNCProxyRouteIngress("cell1", cell1.CellCRName.Namespace)
+			th.SimulateJobSuccess(cell1.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
 			th.SimulateStatefulSetReplicaReady(cell1.MetadataStatefulSetName)
 			th.SimulateJobSuccess(cell1.CellMappingJobName)
 
 			th.ExpectCondition(
-				cell1.CellName,
+				cell1.CellCRName,
 				ConditionGetterFunc(NovaCellConditionGetter),
 				novav1.NovaMetadataReadyCondition,
 				corev1.ConditionTrue,
@@ -808,7 +765,7 @@ var _ = Describe("Nova multicell", func() {
 			th.SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
 			th.SimulateTransportURLReady(cell0.TransportURLName)
 			th.SimulateTransportURLReady(cell1.TransportURLName)
-			th.SimulateJobSuccess(cell0.CellDBSyncJobName)
+			th.SimulateJobSuccess(cell0.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 			th.SimulateJobSuccess(cell0.CellMappingJobName)
 

@@ -58,12 +58,6 @@ spec:
                 description: APIDatabaseUser - username to use when accessing the
                   API DB
                 type: string
-              apiMessageBusSecretName:
-                description: 'APIMessageBusSecretName - the name of the Secret containing
-                  the transport URL information to use when accessing the API message
-                  bus. TODO(ksambor): add a validation webhook to enforce that it
-                  is required for the CellName == ""'
-                type: string
               cellDatabaseHostname:
                 description: 'CellDatabaseHostname - hostname to use when accessing
                   the cell DB This is unused if CellName is not provided. But if it

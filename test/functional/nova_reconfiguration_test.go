@@ -36,21 +36,9 @@ func CreateNovaWith3CellsAndEnsureReady(novaNames NovaNames) {
 	cell2 := novaNames.Cells["cell2"]
 
 	DeferCleanup(k8sClient.Delete, ctx, CreateNovaSecret(novaNames.NovaName.Namespace, SecretName))
-	DeferCleanup(
-		k8sClient.Delete,
-		ctx,
-		CreateNovaMessageBusSecret(cell0.CellName.Namespace, fmt.Sprintf("%s-secret", cell0.TransportURLName.Name)),
-	)
-	DeferCleanup(
-		k8sClient.Delete,
-		ctx,
-		CreateNovaMessageBusSecret(cell1.CellName.Namespace, fmt.Sprintf("%s-secret", cell1.TransportURLName.Name)),
-	)
-	DeferCleanup(
-		k8sClient.Delete,
-		ctx,
-		CreateNovaMessageBusSecret(cell2.CellName.Namespace, fmt.Sprintf("%s-secret", cell2.TransportURLName.Name)),
-	)
+	DeferCleanup(k8sClient.Delete, ctx, CreateNovaMessageBusSecret(cell0))
+	DeferCleanup(k8sClient.Delete, ctx, CreateNovaMessageBusSecret(cell1))
+	DeferCleanup(k8sClient.Delete, ctx, CreateNovaMessageBusSecret(cell2))
 
 	serviceSpec := corev1.ServiceSpec{Ports: []corev1.ServicePort{{Port: 3306}}}
 	DeferCleanup(
@@ -98,7 +86,7 @@ func CreateNovaWith3CellsAndEnsureReady(novaNames NovaNames) {
 	th.SimulateTransportURLReady(cell1.TransportURLName)
 	th.SimulateTransportURLReady(cell2.TransportURLName)
 
-	th.SimulateJobSuccess(cell0.CellDBSyncJobName)
+	th.SimulateJobSuccess(cell0.DBSyncJobName)
 	th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 	th.SimulateJobSuccess(cell0.CellMappingJobName)
 
@@ -107,13 +95,13 @@ func CreateNovaWith3CellsAndEnsureReady(novaNames NovaNames) {
 
 	th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
 	SimulateNoVNCProxyRouteIngress("cell1", novaNames.Namespace)
-	th.SimulateJobSuccess(cell1.CellDBSyncJobName)
+	th.SimulateJobSuccess(cell1.DBSyncJobName)
 	th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
 	th.SimulateJobSuccess(cell1.CellMappingJobName)
 
 	th.SimulateStatefulSetReplicaReady(cell2.NoVNCProxyStatefulSetName)
 	SimulateNoVNCProxyRouteIngress("cell2", novaNames.Namespace)
-	th.SimulateJobSuccess(cell2.CellDBSyncJobName)
+	th.SimulateJobSuccess(cell2.DBSyncJobName)
 	th.SimulateStatefulSetReplicaReady(cell2.ConductorStatefulSetName)
 	th.SimulateJobSuccess(cell2.CellMappingJobName)
 	th.SimulateStatefulSetReplicaReady(novaNames.SchedulerStatefulSetName)
@@ -184,7 +172,7 @@ var _ = Describe("Nova reconfiguration", func() {
 			}, timeout, interval).Should(Succeed())
 
 			th.ExpectConditionWithDetails(
-				cell1.CellConductorName,
+				cell1.ConductorName,
 				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.NetworkAttachmentsReadyCondition,
 				corev1.ConditionFalse,
@@ -192,7 +180,7 @@ var _ = Describe("Nova reconfiguration", func() {
 				"NetworkAttachment resources missing: internalapi",
 			)
 			th.ExpectConditionWithDetails(
-				cell1.CellConductorName,
+				cell1.ConductorName,
 				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.ReadyCondition,
 				corev1.ConditionFalse,
@@ -201,7 +189,7 @@ var _ = Describe("Nova reconfiguration", func() {
 			)
 
 			th.ExpectConditionWithDetails(
-				cell1.CellName,
+				cell1.CellCRName,
 				ConditionGetterFunc(NovaCellConditionGetter),
 				novav1.NovaConductorReadyCondition,
 				corev1.ConditionFalse,
@@ -209,7 +197,7 @@ var _ = Describe("Nova reconfiguration", func() {
 				"NetworkAttachment resources missing: internalapi",
 			)
 			th.ExpectConditionWithDetails(
-				cell1.CellName,
+				cell1.CellCRName,
 				ConditionGetterFunc(NovaCellConditionGetter),
 				condition.ReadyCondition,
 				corev1.ConditionFalse,
@@ -379,8 +367,8 @@ var _ = Describe("Nova reconfiguration", func() {
 			oldJobInputHash := GetEnvVarValue(
 				mappingJob.Spec.Template.Spec.Containers[0].Env, "INPUT_HASH", "")
 
-			oldCell1Hash := GetNova(novaNames.NovaName).Status.RegisteredCells[cell1.CellName.Name]
-			oldComputeConfigHash := GetNovaCell(cell1.CellName).Status.Hash[cell1.ComputeConfigSecretName.Name]
+			oldCell1Hash := GetNova(novaNames.NovaName).Status.RegisteredCells[cell1.CellCRName.Name]
+			oldComputeConfigHash := GetNovaCell(cell1.CellCRName).Status.Hash[cell1.ComputeConfigSecretName.Name]
 
 			Eventually(func(g Gomega) {
 				nova := GetNova(novaNames.NovaName)
@@ -394,11 +382,13 @@ var _ = Describe("Nova reconfiguration", func() {
 
 			// The new TransportURL will point to a new secret so we need to
 			// simulate that is created by the infra-operator.
-			DeferCleanup(
-				k8sClient.Delete,
-				ctx,
-				CreateNovaMessageBusSecret(cell1.CellName.Namespace, "alternate-mq-for-cell1-secret"),
+			s := th.CreateSecret(
+				types.NamespacedName{Namespace: cell1.CellCRName.Namespace, Name: "alternate-mq-for-cell1-secret"},
+				map[string][]byte{
+					"transport_url": []byte("rabbit://alternate-mq-for-cell1/fake"),
+				},
 			)
+			DeferCleanup(k8sClient.Delete, ctx, s)
 
 			// Expect that nova controller updates the TransportURL to point to
 			// the new rabbit cluster
@@ -411,11 +401,11 @@ var _ = Describe("Nova reconfiguration", func() {
 
 			// Expect that the NovaConductor config is updated with the new transport URL
 			Eventually(func(g Gomega) {
-				configDataMap := th.GetSecret(cell1.CellConductorConfigDataName)
+				configDataMap := th.GetSecret(cell1.ConductorConfigDataName)
 				g.Expect(configDataMap).ShouldNot(BeNil())
 				g.Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
 				configData := string(configDataMap.Data["01-nova.conf"])
-				g.Expect(configData).Should(ContainSubstring("transport_url=rabbit://alternate-mq-for-cell1-secret/fake"))
+				g.Expect(configData).Should(ContainSubstring("transport_url=rabbit://alternate-mq-for-cell1/fake"))
 			}, timeout, interval).Should(Succeed())
 
 			// Expect that nova controller updates the mapping Job to re-run that
@@ -431,7 +421,7 @@ var _ = Describe("Nova reconfiguration", func() {
 
 			// Expect that the new config results in a new cell1 hash
 			Eventually(func(g Gomega) {
-				newCell1Hash := GetNova(novaNames.NovaName).Status.RegisteredCells[cell1.CellName.Name]
+				newCell1Hash := GetNova(novaNames.NovaName).Status.RegisteredCells[cell1.CellCRName.Name]
 				g.Expect(newCell1Hash).NotTo(Equal(oldCell1Hash))
 			}, timeout, interval).Should(Succeed())
 
@@ -441,9 +431,9 @@ var _ = Describe("Nova reconfiguration", func() {
 				g.Expect(configDataMap).ShouldNot(BeNil())
 				g.Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
 				configData := string(configDataMap.Data["01-nova.conf"])
-				g.Expect(configData).Should(ContainSubstring("transport_url=rabbit://alternate-mq-for-cell1-secret/fake"))
+				g.Expect(configData).Should(ContainSubstring("transport_url=rabbit://alternate-mq-for-cell1/fake"))
 			}, timeout, interval).Should(Succeed())
-			Expect(GetNovaCell(cell1.CellName).Status.Hash[cell1.ComputeConfigSecretName.Name]).NotTo(Equal(oldComputeConfigHash))
+			Expect(GetNovaCell(cell1.CellCRName).Status.Hash[cell1.ComputeConfigSecretName.Name]).NotTo(Equal(oldComputeConfigHash))
 		})
 	})
 
@@ -454,11 +444,11 @@ var _ = Describe("Nova reconfiguration", func() {
 
 			// Expect that every service config is updated with the new service password
 			for _, cmName := range []types.NamespacedName{
-				cell0.CellConductorConfigDataName,
-				cell1.CellConductorConfigDataName,
+				cell0.ConductorConfigDataName,
+				cell1.ConductorConfigDataName,
 				cell1.CellNoVNCProxyNameConfigDataName,
 				cell1.ComputeConfigSecretName,
-				cell2.CellConductorConfigDataName,
+				cell2.ConductorConfigDataName,
 				cell2.CellNoVNCProxyNameConfigDataName,
 				cell2.ComputeConfigSecretName,
 				novaNames.APIConfigDataName,

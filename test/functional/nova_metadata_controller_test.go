@@ -35,10 +35,7 @@ import (
 var _ = Describe("NovaMetadata controller", func() {
 	When("with standard spec without network interface", func() {
 		BeforeEach(func() {
-			DeferCleanup(
-				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(novaNames.MetadataName.Namespace, MessageBusSecretName))
-
-			spec := GetDefaultNovaMetadataSpec()
+			spec := GetDefaultNovaMetadataSpec(novaNames.InternalTopLevelSecretName)
 			spec["customServiceConfig"] = "foo=bar"
 			DeferCleanup(th.DeleteInstance, CreateNovaMetadata(novaNames.MetadataName, spec))
 		})
@@ -105,8 +102,8 @@ var _ = Describe("NovaMetadata controller", func() {
 			BeforeEach(func() {
 				secret := &corev1.Secret{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      SecretName,
-						Namespace: novaNames.MetadataName.Namespace,
+						Name:      novaNames.InternalTopLevelSecretName.Name,
+						Namespace: novaNames.InternalTopLevelSecretName.Namespace,
 					},
 					Data: map[string][]byte{
 						"ServicePassword": []byte("12345678"),
@@ -140,7 +137,7 @@ var _ = Describe("NovaMetadata controller", func() {
 				DeferCleanup(
 					k8sClient.Delete,
 					ctx,
-					CreateNovaMetadataSecret(novaNames.MetadataName.Namespace, SecretName),
+					CreateInternalTopLevelSecret(novaNames),
 				)
 			})
 
@@ -164,7 +161,7 @@ var _ = Describe("NovaMetadata controller", func() {
 				Expect(configDataMap).ShouldNot(BeNil())
 				Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
 				configData := string(configDataMap.Data["01-nova.conf"])
-				Expect(configData).Should(ContainSubstring("transport_url=rabbit://rabbitmq-secret/fake"))
+				Expect(configData).Should(ContainSubstring("transport_url=rabbit://api/fake"))
 				Expect(configData).Should(ContainSubstring("password = service-password"))
 				Expect(configData).Should(ContainSubstring("metadata_proxy_shared_secret = metadata-secret"))
 				Expect(configData).Should(ContainSubstring("local_metadata_per_cell = false"))
@@ -190,7 +187,7 @@ var _ = Describe("NovaMetadata controller", func() {
 		When("NovaMetadata is created with a proper Secret", func() {
 			BeforeEach(func() {
 				DeferCleanup(
-					k8sClient.Delete, ctx, CreateNovaMetadataSecret(novaNames.MetadataName.Namespace, SecretName))
+					k8sClient.Delete, ctx, CreateInternalTopLevelSecret(novaNames))
 			})
 
 			It(" reports input ready", func() {
@@ -286,22 +283,14 @@ var _ = Describe("NovaMetadata controller", func() {
 })
 
 var _ = Describe("NovaMetadata controller", func() {
-	BeforeEach(func() {
-		DeferCleanup(
-			k8sClient.Delete, ctx, CreateNovaMessageBusSecret(novaNames.MetadataName.Namespace, MessageBusSecretName))
-	})
-
 	When("with configure cellname", func() {
 		BeforeEach(func() {
-			spec := GetDefaultNovaMetadataSpec()
-			spec["cellName"] = "some-cell-name"
+			spec := GetDefaultNovaMetadataSpec(cell1.InternalCellSecretName)
+			spec["cellName"] = cell1.CellName
 			metadata := CreateNovaMetadata(novaNames.MetadataName, spec)
 			DeferCleanup(th.DeleteInstance, metadata)
 			DeferCleanup(
-				k8sClient.Delete,
-				ctx,
-				CreateNovaMetadataSecret(novaNames.MetadataName.Namespace, SecretName),
-			)
+				k8sClient.Delete, ctx, CreateCellInternalSecret(cell1))
 		})
 		It("generated config with correct local_metadata_per_cell", func() {
 			th.ExpectCondition(
@@ -316,7 +305,7 @@ var _ = Describe("NovaMetadata controller", func() {
 			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
 			configData := string(configDataMap.Data["01-nova.conf"])
 			Expect(configData).Should(
-				ContainSubstring("transport_url=rabbit://rabbitmq-secret/fake"))
+				ContainSubstring("transport_url=rabbit://cell1/fake"))
 			Expect(configData).Should(
 				ContainSubstring("metadata_proxy_shared_secret = metadata-secret"))
 			Expect(configData).Should(
@@ -329,15 +318,15 @@ var _ = Describe("NovaMetadata controller", func() {
 				condition.ExposeServiceReadyCondition,
 				corev1.ConditionTrue,
 			)
-			service := th.GetService(types.NamespacedName{Namespace: novaNames.MetadataName.Namespace, Name: "nova-metadata-some-cell-name-internal"})
+			service := th.GetService(types.NamespacedName{Namespace: novaNames.MetadataName.Namespace, Name: "nova-metadata-cell1-internal"})
 			Expect(service.Labels["service"]).To(Equal("nova-metadata"))
-			Expect(service.Labels["cell"]).To(Equal("some-cell-name"))
+			Expect(service.Labels["cell"]).To(Equal("cell1"))
 
 			ss := th.GetStatefulSet(novaNames.MetadataStatefulSetName)
 			Expect(ss.Spec.Selector.MatchLabels).To(
 				Equal(map[string]string{
 					"service": "nova-metadata",
-					"cell":    "some-cell-name",
+					"cell":    "cell1",
 				}))
 		})
 	})
@@ -345,9 +334,9 @@ var _ = Describe("NovaMetadata controller", func() {
 	When("NovaMetadata is created with networkAttachments", func() {
 		BeforeEach(func() {
 			DeferCleanup(
-				k8sClient.Delete, ctx, CreateNovaMetadataSecret(novaNames.MetadataName.Namespace, SecretName))
+				k8sClient.Delete, ctx, CreateInternalTopLevelSecret(novaNames))
 
-			spec := GetDefaultNovaMetadataSpec()
+			spec := GetDefaultNovaMetadataSpec(novaNames.InternalTopLevelSecretName)
 			spec["networkAttachments"] = []string{"internalapi"}
 			DeferCleanup(th.DeleteInstance, CreateNovaMetadata(novaNames.MetadataName, spec))
 		})
@@ -472,9 +461,9 @@ var _ = Describe("NovaMetadata controller", func() {
 	When("NovaMetadata is created with externalEndpoints", func() {
 		BeforeEach(func() {
 			DeferCleanup(
-				k8sClient.Delete, ctx, CreateNovaMetadataSecret(novaNames.MetadataName.Namespace, SecretName))
+				k8sClient.Delete, ctx, CreateInternalTopLevelSecret(novaNames))
 
-			spec := GetDefaultNovaMetadataSpec()
+			spec := GetDefaultNovaMetadataSpec(novaNames.InternalTopLevelSecretName)
 			var externalEndpoints []interface{}
 			externalEndpoints = append(
 				externalEndpoints, map[string]interface{}{
@@ -514,9 +503,10 @@ var _ = Describe("NovaMetadata controller", func() {
 	When("NovaMetadata is reconfigured", func() {
 		BeforeEach(func() {
 			DeferCleanup(
-				k8sClient.Delete, ctx, CreateNovaMetadataSecret(novaNames.MetadataName.Namespace, SecretName))
+				k8sClient.Delete, ctx, CreateInternalTopLevelSecret(novaNames))
 
-			metadata := CreateNovaMetadata(novaNames.MetadataName, GetDefaultNovaMetadataSpec())
+			metadata := CreateNovaMetadata(
+				novaNames.MetadataName, GetDefaultNovaMetadataSpec(novaNames.InternalTopLevelSecretName))
 			DeferCleanup(th.DeleteInstance, metadata)
 
 			th.ExpectCondition(
@@ -632,9 +622,9 @@ var _ = Describe("NovaMetadata controller", func() {
 	When("starts zero replicas", func() {
 		BeforeEach(func() {
 			DeferCleanup(
-				k8sClient.Delete, ctx, CreateNovaMetadataSecret(novaNames.MetadataName.Namespace, SecretName))
+				k8sClient.Delete, ctx, CreateInternalTopLevelSecret(novaNames))
 
-			spec := GetDefaultNovaMetadataSpec()
+			spec := GetDefaultNovaMetadataSpec(novaNames.InternalTopLevelSecretName)
 			spec["replicas"] = 0
 			metadata := CreateNovaMetadata(novaNames.MetadataName, spec)
 			DeferCleanup(th.DeleteInstance, metadata)
@@ -654,7 +644,7 @@ var _ = Describe("NovaMetadata controller", func() {
 
 	When("NovaMetadata CR is created without container image defined", func() {
 		BeforeEach(func() {
-			spec := GetDefaultNovaMetadataSpec()
+			spec := GetDefaultNovaMetadataSpec(novaNames.InternalTopLevelSecretName)
 			spec["containerImage"] = ""
 			metadata := CreateNovaMetadata(novaNames.MetadataName, spec)
 			DeferCleanup(th.DeleteInstance, metadata)

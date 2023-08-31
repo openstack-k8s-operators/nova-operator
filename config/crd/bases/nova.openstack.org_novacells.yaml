@@ -55,11 +55,6 @@ spec:
                 description: CellDatabaseUser - username to use when accessing the
                   cell DB
                 type: string
-              cellMessageBusSecretName:
-                description: CellMessageBusSecretName - the name of the Secret containing
-                  the transport URL information to use when accessing the Cell message
-                  bus. For cell0 this should be the Secret for the API message bus.
-                type: string
               cellName:
                 description: CellName is the name of the Nova Cell. The value "cell0"
                   has a special meaning. The "cell0" Cell cannot have compute nodes
@@ -509,7 +504,6 @@ spec:
                 type: string
             required:
             - cellDatabaseHostname
-            - cellMessageBusSecretName
             - cellName
             - conductorServiceTemplate
             - keystoneAuthURL

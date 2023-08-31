@@ -138,14 +138,6 @@ type NovaMetadataSpec struct {
 	CellDatabaseHostname string `json:"cellDatabaseHostname"`
 
 	// +kubebuilder:validation:Optional
-	// APIMessageBusSecretName - the name of the Secret containing the
-	// transport URL information to use when accessing the API message
-	// bus.
-	// TODO(ksambor): add a validation webhook to enforce that it is required
-	// for the CellName == ""
-	APIMessageBusSecretName string `json:"apiMessageBusSecretName"`
-
-	// +kubebuilder:validation:Optional
 	// Debug - enable debug for different deploy stages. If an init container
 	// is used, it runs and the actual action pod gets started with sleep
 	// infinity
@@ -230,14 +222,13 @@ func NewNovaMetadataSpec(
 	novaCell NovaCellSpec,
 ) NovaMetadataSpec {
 	metadataSpec := NovaMetadataSpec{
-		CellName:                novaCell.CellName,
-		Secret:                  novaCell.Secret,
-		CellDatabaseHostname:    novaCell.CellDatabaseHostname,
-		CellDatabaseUser:        novaCell.CellDatabaseUser,
-		APIDatabaseHostname:     novaCell.APIDatabaseHostname,
-		APIDatabaseUser:         novaCell.APIDatabaseUser,
-		APIMessageBusSecretName: novaCell.CellMessageBusSecretName,
-		Debug:                   novaCell.Debug,
+		CellName:             novaCell.CellName,
+		Secret:               novaCell.Secret,
+		CellDatabaseHostname: novaCell.CellDatabaseHostname,
+		CellDatabaseUser:     novaCell.CellDatabaseUser,
+		APIDatabaseHostname:  novaCell.APIDatabaseHostname,
+		APIDatabaseUser:      novaCell.APIDatabaseUser,
+		Debug:                novaCell.Debug,
 		NovaServiceBase: NovaServiceBase{
 			ContainerImage:         novaCell.MetadataServiceTemplate.ContainerImage,
 			Replicas:               novaCell.MetadataServiceTemplate.Replicas,

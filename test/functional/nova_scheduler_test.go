@@ -33,10 +33,7 @@ var _ = Describe("NovaScheduler controller", func() {
 		// Uncomment this if you need the full output in the logs from gomega
 		// matchers
 		// format.MaxLength = 0
-		DeferCleanup(
-			k8sClient.Delete, ctx, CreateNovaMessageBusSecret(novaNames.SchedulerName.Namespace, MessageBusSecretName))
-
-		spec := GetDefaultNovaSchedulerSpec()
+		spec := GetDefaultNovaSchedulerSpec(novaNames)
 		spec["customServiceConfig"] = "foo=bar"
 		DeferCleanup(th.DeleteInstance, CreateNovaScheduler(novaNames.SchedulerName, spec))
 	})
@@ -107,8 +104,8 @@ var _ = Describe("NovaScheduler controller", func() {
 		BeforeEach(func() {
 			secret := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      SecretName,
-					Namespace: novaNames.SchedulerName.Namespace,
+					Name:      novaNames.InternalTopLevelSecretName.Name,
+					Namespace: novaNames.InternalTopLevelSecretName.Namespace,
 				},
 				Data: map[string][]byte{
 					"ServicePassword": []byte("12345678"),
@@ -140,7 +137,7 @@ var _ = Describe("NovaScheduler controller", func() {
 	When("the Secret is created with all the expected fields", func() {
 		BeforeEach(func() {
 			DeferCleanup(
-				k8sClient.Delete, ctx, CreateNovaAPISecret(novaNames.SchedulerName.Namespace, SecretName))
+				k8sClient.Delete, ctx, CreateInternalTopLevelSecret(novaNames))
 		})
 
 		It("reports that input is ready", func() {
@@ -166,7 +163,7 @@ var _ = Describe("NovaScheduler controller", func() {
 			Expect(configDataMap).ShouldNot(BeNil())
 			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
 			configData := string(configDataMap.Data["01-nova.conf"])
-			Expect(configData).To(ContainSubstring("transport_url=rabbit://rabbitmq-secret/fake"))
+			Expect(configData).To(ContainSubstring("transport_url=rabbit://api/fake"))
 			Expect(configData).To(ContainSubstring("password = service-password"))
 			Expect(configDataMap.Data).Should(HaveKey("02-nova-override.conf"))
 			extraConfigData := string(configDataMap.Data["02-nova-override.conf"])
@@ -186,7 +183,7 @@ var _ = Describe("NovaScheduler controller", func() {
 
 		BeforeEach(func() {
 			DeferCleanup(
-				k8sClient.Delete, ctx, CreateNovaAPISecret(novaNames.SchedulerName.Namespace, SecretName))
+				k8sClient.Delete, ctx, CreateInternalTopLevelSecret(novaNames))
 		})
 
 		It(" reports input ready", func() {
@@ -257,17 +254,12 @@ var _ = Describe("NovaScheduler controller", func() {
 })
 
 var _ = Describe("NovaScheduler controller", func() {
-	BeforeEach(func() {
-		DeferCleanup(
-			k8sClient.Delete, ctx, CreateNovaMessageBusSecret(novaNames.SchedulerName.Namespace, MessageBusSecretName))
-	})
-
 	When("NovaScheduler is created with networkAttachments", func() {
 		BeforeEach(func() {
 			DeferCleanup(
-				k8sClient.Delete, ctx, CreateNovaAPISecret(novaNames.SchedulerName.Namespace, SecretName))
+				k8sClient.Delete, ctx, CreateInternalTopLevelSecret(novaNames))
 
-			spec := GetDefaultNovaSchedulerSpec()
+			spec := GetDefaultNovaSchedulerSpec(novaNames)
 			spec["networkAttachments"] = []string{"internalapi"}
 			DeferCleanup(th.DeleteInstance, CreateNovaScheduler(novaNames.SchedulerName, spec))
 		})
@@ -388,8 +380,9 @@ var _ = Describe("NovaScheduler controller", func() {
 	When("NovaScheduler is reconfigured", func() {
 		BeforeEach(func() {
 			DeferCleanup(
-				k8sClient.Delete, ctx, CreateNovaAPISecret(novaNames.SchedulerName.Namespace, SecretName))
-			DeferCleanup(th.DeleteInstance, CreateNovaScheduler(novaNames.SchedulerName, GetDefaultNovaSchedulerSpec()))
+				k8sClient.Delete, ctx, CreateInternalTopLevelSecret(novaNames))
+			DeferCleanup(
+				th.DeleteInstance, CreateNovaScheduler(novaNames.SchedulerName, GetDefaultNovaSchedulerSpec(novaNames)))
 
 			th.ExpectCondition(
 				novaNames.SchedulerName,
@@ -505,7 +498,7 @@ var _ = Describe("NovaScheduler controller", func() {
 
 	When("NovaScheduler CR is created without container image defined", func() {
 		BeforeEach(func() {
-			spec := GetDefaultNovaSchedulerSpec()
+			spec := GetDefaultNovaSchedulerSpec(novaNames)
 			spec["containerImage"] = ""
 			scheduler := CreateNovaScheduler(novaNames.SchedulerName, spec)
 			DeferCleanup(th.DeleteInstance, scheduler)

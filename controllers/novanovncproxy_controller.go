@@ -142,6 +142,7 @@ func (r *NovaNoVNCProxyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		[]string{
 			ServicePasswordSelector,
 			CellDatabasePasswordSelector,
+			"transport_url",
 		},
 		h.GetClient(),
 		&instance.Status.Conditions,
@@ -278,19 +279,6 @@ func (r *NovaNoVNCProxyReconciler) generateConfigs(
 	secret corev1.Secret,
 ) error {
 
-	cellMessageBusSecretName := &corev1.Secret{}
-	secretName := types.NamespacedName{
-		Namespace: instance.Namespace,
-		Name:      instance.Spec.CellMessageBusSecretName,
-	}
-	err := h.GetClient().Get(ctx, secretName, cellMessageBusSecretName)
-	if err != nil {
-		util.LogForObject(
-			h, "Failed reading Secret", instance,
-			"CellMessageBusSecretName", instance.Spec.CellMessageBusSecretName)
-		return err
-	}
-
 	templateParameters := map[string]interface{}{
 		"service_name":           novncproxy.ServiceName,
 		"keystone_internal_url":  instance.Spec.KeystoneAuthURL,
@@ -303,7 +291,7 @@ func (r *NovaNoVNCProxyReconciler) generateConfigs(
 		"cell_db_port":           3306,
 		"api_interface_address":  "",     // fixme
 		"public_protocol":        "http", // fixme
-		"transport_url":          string(cellMessageBusSecretName.Data["transport_url"]),
+		"transport_url":          string(secret.Data["transport_url"]),
 		"openstack_cacert":       "",          // fixme
 		"openstack_region_name":  "regionOne", // fixme
 		"default_project_domain": "Default",   // fixme
@@ -322,7 +310,7 @@ func (r *NovaNoVNCProxyReconciler) generateConfigs(
 		instance, labels.GetGroupLabel(NovaNoVNCProxyLabelPrefix), map[string]string{},
 	)
 
-	err = r.GenerateConfigs(
+	err := r.GenerateConfigs(
 		ctx, h, instance, nova.GetServiceConfigSecretName(instance.GetName()),
 		hashes, templateParameters, extraData, cmLabels, map[string]string{},
 	)

@@ -32,10 +32,9 @@ import (
 )
 
 const (
-	SecretName           = "test-secret"
-	MessageBusSecretName = "rabbitmq-secret"
-	ContainerImage       = "test://nova"
-	timeout              = 10 * time.Second
+	SecretName     = "external-secret"
+	ContainerImage = "test://nova"
+	timeout        = 10 * time.Second
 	// have maximum 100 retries before the timeout hits
 	interval = timeout / 100
 	// consistencyTimeout is the amount of time we use to repeatedly check
@@ -44,16 +43,15 @@ const (
 	consistencyTimeout = timeout
 )
 
-func GetDefaultNovaAPISpec() map[string]interface{} {
+func GetDefaultNovaAPISpec(novaNames NovaNames) map[string]interface{} {
 	return map[string]interface{}{
-		"secret":                  SecretName,
-		"apiDatabaseHostname":     "nova-api-db-hostname",
-		"apiMessageBusSecretName": MessageBusSecretName,
-		"cell0DatabaseHostname":   "nova-cell0-db-hostname",
-		"keystoneAuthURL":         "keystone-auth-url",
-		"containerImage":          ContainerImage,
-		"serviceAccount":          "nova",
-		"registeredCells":         map[string]string{},
+		"secret":                novaNames.InternalTopLevelSecretName.Name,
+		"apiDatabaseHostname":   "nova-api-db-hostname",
+		"cell0DatabaseHostname": "nova-cell0-db-hostname",
+		"keystoneAuthURL":       "keystone-auth-url",
+		"containerImage":        ContainerImage,
+		"serviceAccount":        "nova",
+		"registeredCells":       map[string]string{},
 	}
 }
 
@@ -105,14 +103,16 @@ func CreateNovaAPISecret(namespace string, name string) *corev1.Secret {
 			"ServicePassword":      []byte("service-password"),
 			"APIDatabasePassword":  []byte("api-database-password"),
 			"CellDatabasePassword": []byte("cell-database-password"),
+			"transport_url":        []byte(fmt.Sprintf("rabbit://%s/fake", name)),
 		},
 	)
 }
 
 func GetDefaultNovaSpec() map[string]interface{} {
 	return map[string]interface{}{
-		"secret":        SecretName,
-		"cellTemplates": map[string]interface{}{},
+		"secret":                SecretName,
+		"cellTemplates":         map[string]interface{}{},
+		"apiMessageBusInstance": cell0.TransportURLName.Name,
 	}
 }
 
@@ -152,6 +152,7 @@ func CreateNovaWithCell0(name types.NamespacedName) client.Object {
 					"hasAPIAccess":     true,
 				},
 			},
+			"apiMessageBusInstance": cell0.TransportURLName.Name,
 		},
 	}
 
@@ -171,15 +172,14 @@ func NovaConditionGetter(name types.NamespacedName) condition.Conditions {
 	return instance.Status.Conditions
 }
 
-func GetDefaultNovaConductorSpec() map[string]interface{} {
+func GetDefaultNovaConductorSpec(cell CellNames) map[string]interface{} {
 	return map[string]interface{}{
-		"cellName":                 "cell0",
-		"secret":                   SecretName,
-		"cellMessageBusSecretName": MessageBusSecretName,
-		"containerImage":           ContainerImage,
-		"keystoneAuthURL":          "keystone-auth-url",
-		"serviceAccount":           "nova",
-		"customServiceConfig":      "foo=bar",
+		"cellName":            cell.CellName,
+		"secret":              cell.InternalCellSecretName.Name,
+		"containerImage":      ContainerImage,
+		"keystoneAuthURL":     "keystone-auth-url",
+		"serviceAccount":      "nova",
+		"customServiceConfig": "foo=bar",
 	}
 }
 
@@ -217,29 +217,29 @@ func CreateNovaConductorSecret(namespace string, name string) *corev1.Secret {
 		map[string][]byte{
 			"ServicePassword":      []byte("service-password"),
 			"CellDatabasePassword": []byte("cell-database-password"),
+			"transport_url":        []byte(fmt.Sprintf("rabbit://%s/fake", name)),
 		},
 	)
 }
 
-func CreateNovaMessageBusSecret(namespace string, name string) *corev1.Secret {
+func CreateNovaMessageBusSecret(cell CellNames) *corev1.Secret {
 	s := th.CreateSecret(
-		types.NamespacedName{Namespace: namespace, Name: name},
+		types.NamespacedName{Namespace: cell.CellCRName.Namespace, Name: fmt.Sprintf("%s-secret", cell.TransportURLName.Name)},
 		map[string][]byte{
-			"transport_url": []byte(fmt.Sprintf("rabbit://%s/fake", name)),
+			"transport_url": []byte(fmt.Sprintf("rabbit://%s/fake", cell.CellName)),
 		},
 	)
-	logger.Info("Secret created", "name", name)
+	logger.Info("Secret created", "name", s.Name)
 	return s
 }
 
-func GetDefaultNovaCellSpec(cellName string) map[string]interface{} {
+func GetDefaultNovaCellSpec(cell CellNames) map[string]interface{} {
 	return map[string]interface{}{
-		"cellName":                 cellName,
-		"secret":                   SecretName,
-		"cellDatabaseHostname":     "cell-database-hostname",
-		"cellMessageBusSecretName": MessageBusSecretName,
-		"keystoneAuthURL":          "keystone-auth-url",
-		"serviceAccount":           "nova",
+		"cellName":             cell.CellName,
+		"secret":               cell.InternalCellSecretName.Name,
+		"cellDatabaseHostname": "cell-database-hostname",
+		"keystoneAuthURL":      "keystone-auth-url",
+		"serviceAccount":       "nova",
 	}
 }
 
@@ -304,16 +304,15 @@ func CreateNovaSecretFor3Cells(namespace string, name string) *corev1.Secret {
 	)
 }
 
-func GetDefaultNovaSchedulerSpec() map[string]interface{} {
+func GetDefaultNovaSchedulerSpec(novaNames NovaNames) map[string]interface{} {
 	return map[string]interface{}{
-		"secret":                  SecretName,
-		"apiDatabaseHostname":     "nova-api-db-hostname",
-		"apiMessageBusSecretName": MessageBusSecretName,
-		"cell0DatabaseHostname":   "nova-cell0-db-hostname",
-		"keystoneAuthURL":         "keystone-auth-url",
-		"containerImage":          ContainerImage,
-		"serviceAccount":          "nova",
-		"registeredCells":         map[string]string{},
+		"secret":                novaNames.InternalTopLevelSecretName.Name,
+		"apiDatabaseHostname":   "nova-api-db-hostname",
+		"cell0DatabaseHostname": "nova-cell0-db-hostname",
+		"keystoneAuthURL":       "keystone-auth-url",
+		"containerImage":        ContainerImage,
+		"serviceAccount":        "nova",
+		"registeredCells":       map[string]string{},
 	}
 }
 
@@ -347,16 +346,18 @@ func NovaSchedulerNotExists(name types.NamespacedName) {
 }
 
 type CellNames struct {
-	CellName                         types.NamespacedName
+	CellName                         string
+	CellCRName                       types.NamespacedName
 	MariaDBDatabaseName              types.NamespacedName
-	CellConductorName                types.NamespacedName
-	CellDBSyncJobName                types.NamespacedName
+	ConductorName                    types.NamespacedName
+	DBSyncJobName                    types.NamespacedName
+	ConductorConfigDataName          types.NamespacedName
+	ConductorScriptDataName          types.NamespacedName
 	ConductorStatefulSetName         types.NamespacedName
 	TransportURLName                 types.NamespacedName
 	CellMappingJobName               types.NamespacedName
 	MetadataName                     types.NamespacedName
 	MetadataStatefulSetName          types.NamespacedName
-	CellConductorConfigDataName      types.NamespacedName
 	NoVNCProxyName                   types.NamespacedName
 	NoVNCProxyStatefulSetName        types.NamespacedName
 	CellNoVNCProxyNameConfigDataName types.NamespacedName
@@ -384,13 +385,14 @@ func GetCellNames(novaName types.NamespacedName, cell string) CellNames {
 	}
 
 	c := CellNames{
-		CellName: cellName,
+		CellName:   cell,
+		CellCRName: cellName,
 		MariaDBDatabaseName: types.NamespacedName{
 			Namespace: novaName.Namespace,
 			Name:      "nova-" + cell,
 		},
-		CellConductorName: cellConductor,
-		CellDBSyncJobName: types.NamespacedName{
+		ConductorName: cellConductor,
+		DBSyncJobName: types.NamespacedName{
 			Namespace: novaName.Namespace,
 			Name:      cellConductor.Name + "-db-sync",
 		},
@@ -403,9 +405,13 @@ func GetCellNames(novaName types.NamespacedName, cell string) CellNames {
 			Namespace: novaName.Namespace,
 			Name:      cellName.Name + "-cell-mapping",
 		},
-		CellConductorConfigDataName: types.NamespacedName{
+		ConductorConfigDataName: types.NamespacedName{
 			Namespace: novaName.Namespace,
 			Name:      cellConductor.Name + "-config-data",
+		},
+		ConductorScriptDataName: types.NamespacedName{
+			Namespace: novaName.Namespace,
+			Name:      cellConductor.Name + "-scripts",
 		},
 		MetadataName:              metadataName,
 		MetadataStatefulSetName:   metadataName,
@@ -456,11 +462,6 @@ type NovaNames struct {
 	SchedulerName                   types.NamespacedName
 	SchedulerStatefulSetName        types.NamespacedName
 	SchedulerConfigDataName         types.NamespacedName
-	ConductorName                   types.NamespacedName
-	ConductorDBSyncJobName          types.NamespacedName
-	ConductorStatefulSetName        types.NamespacedName
-	ConductorConfigDataName         types.NamespacedName
-	ConductorScriptDataName         types.NamespacedName
 	MetadataName                    types.NamespacedName
 	MetadataStatefulSetName         types.NamespacedName
 	ServiceAccountName              types.NamespacedName
@@ -485,10 +486,6 @@ func GetNovaNames(novaName types.NamespacedName, cellNames []string) NovaNames {
 	novaScheduler := types.NamespacedName{
 		Namespace: novaName.Namespace,
 		Name:      fmt.Sprintf("%s-scheduler", novaName.Name),
-	}
-	novaConductor := types.NamespacedName{
-		Namespace: novaName.Namespace,
-		Name:      fmt.Sprintf("%s-conductor", novaName.Name),
 	}
 	novaMetadata := types.NamespacedName{
 		Namespace: novaName.Namespace,
@@ -546,20 +543,6 @@ func GetNovaNames(novaName types.NamespacedName, cellNames []string) NovaNames {
 		SchedulerConfigDataName: types.NamespacedName{
 			Namespace: novaScheduler.Namespace,
 			Name:      novaScheduler.Name + "-config-data",
-		},
-		ConductorName: novaConductor,
-		ConductorDBSyncJobName: types.NamespacedName{
-			Namespace: novaConductor.Namespace,
-			Name:      novaConductor.Name + "-db-sync",
-		},
-		ConductorStatefulSetName: novaConductor,
-		ConductorConfigDataName: types.NamespacedName{
-			Namespace: novaConductor.Namespace,
-			Name:      novaConductor.Name + "-config-data",
-		},
-		ConductorScriptDataName: types.NamespacedName{
-			Namespace: novaConductor.Namespace,
-			Name:      novaConductor.Name + "-scripts",
 		},
 		MetadataName:            novaMetadata,
 		MetadataStatefulSetName: novaMetadata,
@@ -619,32 +602,32 @@ func NovaMetadataConditionGetter(name types.NamespacedName) condition.Conditions
 	return instance.Status.Conditions
 }
 
-func CreateNovaMetadataSecret(namespace string, name string) *corev1.Secret {
+func CreateInternalTopLevelSecret(novaNames NovaNames) *corev1.Secret {
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
+			Name:      novaNames.InternalTopLevelSecretName.Name,
+			Namespace: novaNames.InternalTopLevelSecretName.Namespace,
 		},
 		Data: map[string][]byte{
 			"ServicePassword":      []byte("service-password"),
 			"APIDatabasePassword":  []byte("api-database-password"),
 			"CellDatabasePassword": []byte("cell-database-password"),
 			"MetadataSecret":       []byte("metadata-secret"),
+			"transport_url":        []byte("rabbit://api/fake"),
 		},
 	}
 	Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
 	return secret
 }
 
-func GetDefaultNovaMetadataSpec() map[string]interface{} {
+func GetDefaultNovaMetadataSpec(secretName types.NamespacedName) map[string]interface{} {
 	return map[string]interface{}{
-		"secret":                  SecretName,
-		"apiDatabaseHostname":     "nova-api-db-hostname",
-		"apiMessageBusSecretName": MessageBusSecretName,
-		"cellDatabaseHostname":    "nova-cell-db-hostname",
-		"containerImage":          ContainerImage,
-		"keystoneAuthURL":         "keystone-auth-url",
-		"serviceAccount":          "nova",
+		"secret":               secretName.Name,
+		"apiDatabaseHostname":  "nova-api-db-hostname",
+		"cellDatabaseHostname": "nova-cell-db-hostname",
+		"containerImage":       ContainerImage,
+		"keystoneAuthURL":      "keystone-auth-url",
+		"serviceAccount":       "nova",
 	}
 }
 
@@ -682,15 +665,14 @@ func GetNovaNoVNCProxy(name types.NamespacedName) *novav1.NovaNoVNCProxy {
 	return instance
 }
 
-func GetDefaultNovaNoVNCProxySpec() map[string]interface{} {
+func GetDefaultNovaNoVNCProxySpec(cell CellNames) map[string]interface{} {
 	return map[string]interface{}{
-		"secret":                   SecretName,
-		"cellDatabaseHostname":     "nova-cell-db-hostname",
-		"containerImage":           ContainerImage,
-		"keystoneAuthURL":          "keystone-auth-url",
-		"cellMessageBusSecretName": MessageBusSecretName,
-		"serviceAccount":           "nova",
-		"cellName":                 "cell1",
+		"secret":               cell.InternalCellSecretName.Name,
+		"cellDatabaseHostname": "nova-cell-db-hostname",
+		"containerImage":       ContainerImage,
+		"keystoneAuthURL":      "keystone-auth-url",
+		"serviceAccount":       "nova",
+		"cellName":             cell.CellName,
 	}
 }
 
@@ -703,15 +685,18 @@ func UpdateSecret(secretName types.NamespacedName, key string, newValue []byte) 
 	logger.Info("Secret updated", "secret", secretName, "key", key)
 }
 
-func CreateNovaNoVNCProxySecret(namespace string, name string) *corev1.Secret {
+func CreateCellInternalSecret(cell CellNames) *corev1.Secret {
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
+			Name:      cell.InternalCellSecretName.Name,
+			Namespace: cell.InternalCellSecretName.Namespace,
 		},
 		Data: map[string][]byte{
 			"ServicePassword":      []byte("service-password"),
 			"CellDatabasePassword": []byte("cell-database-password"),
+			// TODO(gibi): we only need this for cells with metadata
+			"MetadataSecret": []byte("metadata-secret"),
+			"transport_url":  []byte(fmt.Sprintf("rabbit://%s/fake", cell.CellName)),
 		},
 	}
 	Expect(k8sClient.Create(ctx, secret)).Should(Succeed())

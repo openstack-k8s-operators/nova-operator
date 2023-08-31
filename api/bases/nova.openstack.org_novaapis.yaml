@@ -57,11 +57,6 @@ spec:
                 description: APIDatabaseUser - username to use when accessing the
                   API DB
                 type: string
-              apiMessageBusSecretName:
-                description: APIMessageBusSecretName - the name of the Secret conntaining
-                  the transport URL information to use when accessing the API message
-                  bus.
-                type: string
               cell0DatabaseHostname:
                 description: APIDatabaseHostname - hostname to use when accessing
                   the cell0 DB
@@ -254,7 +249,6 @@ spec:
                 type: string
             required:
             - apiDatabaseHostname
-            - apiMessageBusSecretName
             - cell0DatabaseHostname
             - keystoneAuthURL
             - registeredCells

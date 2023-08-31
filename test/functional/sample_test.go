@@ -102,31 +102,31 @@ var _ = Describe("Samples", func() {
 	})
 	When("nova_v1beta1_novacell0.yaml sample is applied", func() {
 		It("NovaCell is created", func() {
-			name := CreateNovaCellFromSample("nova_v1beta1_novacell0.yaml", cell0.CellName)
+			name := CreateNovaCellFromSample("nova_v1beta1_novacell0.yaml", cell0.CellCRName)
 			GetNovaCell(name)
 		})
 	})
 	When("nova_v1beta1_novacell1-upcall.yaml sample is applied", func() {
 		It("NovaCell is created", func() {
-			name := CreateNovaCellFromSample("nova_v1beta1_novacell1-upcall.yaml", cell1.CellName)
+			name := CreateNovaCellFromSample("nova_v1beta1_novacell1-upcall.yaml", cell1.CellCRName)
 			GetNovaCell(name)
 		})
 	})
 	When("nova_v1beta1_novacell2-without-upcall.yaml sample is applied", func() {
 		It("NovaCell is created", func() {
-			name := CreateNovaCellFromSample("nova_v1beta1_novacell2-without-upcall.yaml", cell2.CellName)
+			name := CreateNovaCellFromSample("nova_v1beta1_novacell2-without-upcall.yaml", cell2.CellCRName)
 			GetNovaCell(name)
 		})
 	})
 	When("nova_v1beta1_novaconductor-super.yaml sample is applied", func() {
 		It("NovaConductor is created", func() {
-			name := CreateNovaConductorFromSample("nova_v1beta1_novaconductor-super.yaml", novaNames.ConductorName)
+			name := CreateNovaConductorFromSample("nova_v1beta1_novaconductor-super.yaml", cell0.ConductorName)
 			GetNovaConductor(name)
 		})
 	})
 	When("nova_v1beta1_novaconductor-cell.yaml sample is applied", func() {
 		It("NovaConductor is created", func() {
-			name := CreateNovaConductorFromSample("nova_v1beta1_novaconductor-cell.yaml", novaNames.ConductorName)
+			name := CreateNovaConductorFromSample("nova_v1beta1_novaconductor-cell.yaml", cell1.ConductorName)
 			GetNovaConductor(name)
 		})
 	})
