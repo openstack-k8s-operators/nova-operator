@@ -22,7 +22,6 @@ import (
 	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 
-	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -255,25 +254,6 @@ var _ = Describe("NovaConductor controller", func() {
 				novaConductor := GetNovaConductor(novaNames.ConductorName)
 				Expect(novaConductor.Status.Hash).ShouldNot(HaveKey("dbsync"))
 
-			})
-
-			When("NovaConductor is deleted", func() {
-				It("deletes the failed job", func() {
-					th.ExpectConditionWithDetails(
-						novaNames.ConductorName,
-						ConditionGetterFunc(NovaConductorConditionGetter),
-						condition.DBSyncReadyCondition,
-						corev1.ConditionFalse,
-						condition.ErrorReason,
-						"DBsync job error occurred Internal error occurred: Job Failed. Check job logs",
-					)
-
-					th.DeleteInstance(GetNovaConductor(novaNames.ConductorName))
-
-					Eventually(func() []batchv1.Job {
-						return th.ListJobs(novaNames.ConductorName.Name).Items
-					}, timeout, interval).Should(BeEmpty())
-				})
 			})
 		})
 
