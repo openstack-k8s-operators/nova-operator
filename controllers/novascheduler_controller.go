@@ -140,7 +140,7 @@ func (r *NovaSchedulerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			ServicePasswordSelector,
 			APIDatabasePasswordSelector,
 			CellDatabasePasswordSelector,
-			"transport_url",
+			TransportURLSelector,
 		},
 		h.GetClient(),
 		&instance.Status.Conditions,
@@ -303,7 +303,7 @@ func (r *NovaSchedulerReconciler) generateConfigs(
 		"openstack_region_name":  "regionOne", // fixme
 		"default_project_domain": "Default",   // fixme
 		"default_user_domain":    "Default",   // fixme
-		"transport_url":          string(secret.Data["transport_url"]),
+		"transport_url":          string(secret.Data[TransportURLSelector]),
 	}
 	extraData := map[string]string{}
 	if instance.Spec.CustomServiceConfig != "" {

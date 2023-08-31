@@ -123,7 +123,7 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 		types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.Secret},
 		[]string{
 			ServicePasswordSelector,
-			"transport_url",
+			TransportURLSelector,
 		},
 		h.GetClient(),
 		&instance.Status.Conditions,
@@ -579,7 +579,7 @@ func (r *NovaCellReconciler) generateComputeConfigs(
 		"openstack_region_name":  "regionOne", // fixme
 		"default_project_domain": "Default",   // fixme
 		"default_user_domain":    "Default",   // fixme
-		"transport_url":          string(secret.Data["transport_url"]),
+		"transport_url":          string(secret.Data[TransportURLSelector]),
 		"log_file":               "/var/log/containers/nova/nova-compute.log",
 	}
 	// vnc is optional so we only need to configure it for the compute

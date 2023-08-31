@@ -142,7 +142,7 @@ func (r *NovaNoVNCProxyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		[]string{
 			ServicePasswordSelector,
 			CellDatabasePasswordSelector,
-			"transport_url",
+			TransportURLSelector,
 		},
 		h.GetClient(),
 		&instance.Status.Conditions,
@@ -291,7 +291,7 @@ func (r *NovaNoVNCProxyReconciler) generateConfigs(
 		"cell_db_port":           3306,
 		"api_interface_address":  "",     // fixme
 		"public_protocol":        "http", // fixme
-		"transport_url":          string(secret.Data["transport_url"]),
+		"transport_url":          string(secret.Data[TransportURLSelector]),
 		"openstack_cacert":       "",          // fixme
 		"openstack_region_name":  "regionOne", // fixme
 		"default_project_domain": "Default",   // fixme

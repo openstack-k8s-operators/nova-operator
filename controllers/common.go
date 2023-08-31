@@ -81,9 +81,12 @@ const (
 	// APIDatabasePasswordSelector is the name of key in the internal Secret
 	// for the API database
 	APIDatabasePasswordSelector = "APIDatabasePassword"
-	// APIDatabasePasswordSelector is the name of key in the internal cell
+	// CellDatabasePasswordSelector is the name of key in the internal cell
 	// Secret for the cell database of the given cell
 	CellDatabasePasswordSelector = "CellDatabasePassword"
+	// TransportURLSelector is the name of key in the internal cell
+	// Secret for the cell message bus transport URL
+	TransportURLSelector = "transport_url"
 )
 
 type conditionsGetter interface {

@@ -139,7 +139,7 @@ func (r *NovaMetadataReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		ServicePasswordSelector,
 		CellDatabasePasswordSelector,
 		MetadataSecretSelector,
-		"transport_url",
+		TransportURLSelector,
 	}
 	if instance.Spec.CellName == "" {
 		expectedSelectors = append(expectedSelectors, APIDatabasePasswordSelector)
@@ -305,7 +305,7 @@ func (r *NovaMetadataReconciler) generateConfigs(
 		"default_user_domain":    "Default",   // fixme
 		"metadata_secret":        string(secret.Data[MetadataSecretSelector]),
 		"log_file":               "/var/log/nova/nova-metadata.log",
-		"transport_url":          string(secret.Data["transport_url"]),
+		"transport_url":          string(secret.Data[TransportURLSelector]),
 	}
 
 	if instance.Spec.CellName == "" {
