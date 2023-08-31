@@ -23,7 +23,6 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -93,19 +92,6 @@ func NovaAPIConditionGetter(name types.NamespacedName) condition.Conditions {
 func NovaSchedulerConditionGetter(name types.NamespacedName) condition.Conditions {
 	instance := GetNovaScheduler(name)
 	return instance.Status.Conditions
-}
-
-// th.CreateSecret creates a secret that has all the information NovaAPI needs
-func CreateNovaAPISecret(namespace string, name string) *corev1.Secret {
-	return th.CreateSecret(
-		types.NamespacedName{Namespace: namespace, Name: name},
-		map[string][]byte{
-			"ServicePassword":      []byte("service-password"),
-			"APIDatabasePassword":  []byte("api-database-password"),
-			"CellDatabasePassword": []byte("cell-database-password"),
-			"transport_url":        []byte(fmt.Sprintf("rabbit://%s/fake", name)),
-		},
-	)
 }
 
 func GetDefaultNovaSpec() map[string]interface{} {
@@ -207,19 +193,6 @@ func GetNovaConductor(name types.NamespacedName) *novav1.NovaConductor {
 func NovaConductorConditionGetter(name types.NamespacedName) condition.Conditions {
 	instance := GetNovaConductor(name)
 	return instance.Status.Conditions
-}
-
-// CreateNovaConductorSecret creates a secret that has all the information
-// NovaConductor needs
-func CreateNovaConductorSecret(namespace string, name string) *corev1.Secret {
-	return th.CreateSecret(
-		types.NamespacedName{Namespace: namespace, Name: name},
-		map[string][]byte{
-			"ServicePassword":      []byte("service-password"),
-			"CellDatabasePassword": []byte("cell-database-password"),
-			"transport_url":        []byte(fmt.Sprintf("rabbit://%s/fake", name)),
-		},
-	)
 }
 
 func CreateNovaMessageBusSecret(cell CellNames) *corev1.Secret {
@@ -603,21 +576,16 @@ func NovaMetadataConditionGetter(name types.NamespacedName) condition.Conditions
 }
 
 func CreateInternalTopLevelSecret(novaNames NovaNames) *corev1.Secret {
-	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      novaNames.InternalTopLevelSecretName.Name,
-			Namespace: novaNames.InternalTopLevelSecretName.Namespace,
-		},
-		Data: map[string][]byte{
+	return th.CreateSecret(
+		novaNames.InternalTopLevelSecretName,
+		map[string][]byte{
 			"ServicePassword":      []byte("service-password"),
 			"APIDatabasePassword":  []byte("api-database-password"),
 			"CellDatabasePassword": []byte("cell-database-password"),
 			"MetadataSecret":       []byte("metadata-secret"),
 			"transport_url":        []byte("rabbit://api/fake"),
 		},
-	}
-	Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
-	return secret
+	)
 }
 
 func GetDefaultNovaMetadataSpec(secretName types.NamespacedName) map[string]interface{} {
@@ -686,21 +654,16 @@ func UpdateSecret(secretName types.NamespacedName, key string, newValue []byte) 
 }
 
 func CreateCellInternalSecret(cell CellNames) *corev1.Secret {
-	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      cell.InternalCellSecretName.Name,
-			Namespace: cell.InternalCellSecretName.Namespace,
-		},
-		Data: map[string][]byte{
+	return th.CreateSecret(
+		cell.InternalCellSecretName,
+		map[string][]byte{
 			"ServicePassword":      []byte("service-password"),
 			"CellDatabasePassword": []byte("cell-database-password"),
 			// TODO(gibi): we only need this for cells with metadata
 			"MetadataSecret": []byte("metadata-secret"),
 			"transport_url":  []byte(fmt.Sprintf("rabbit://%s/fake", cell.CellName)),
 		},
-	}
-	Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
-	return secret
+	)
 }
 
 func AssertNoVNCProxyDoesNotExist(name types.NamespacedName) {
