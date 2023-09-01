@@ -331,6 +331,8 @@ type CellNames struct {
 	CellMappingJobName               types.NamespacedName
 	MetadataName                     types.NamespacedName
 	MetadataStatefulSetName          types.NamespacedName
+	MetadataConfigDataName           types.NamespacedName
+	MetadataNeutronConfigDataName    types.NamespacedName
 	NoVNCProxyName                   types.NamespacedName
 	NoVNCProxyStatefulSetName        types.NamespacedName
 	CellNoVNCProxyNameConfigDataName types.NamespacedName
@@ -386,8 +388,16 @@ func GetCellNames(novaName types.NamespacedName, cell string) CellNames {
 			Namespace: novaName.Namespace,
 			Name:      cellConductor.Name + "-scripts",
 		},
-		MetadataName:              metadataName,
-		MetadataStatefulSetName:   metadataName,
+		MetadataName:            metadataName,
+		MetadataStatefulSetName: metadataName,
+		MetadataConfigDataName: types.NamespacedName{
+			Namespace: metadataName.Namespace,
+			Name:      metadataName.Name + "-config-data",
+		},
+		MetadataNeutronConfigDataName: types.NamespacedName{
+			Namespace: metadataName.Namespace,
+			Name:      metadataName.Name + "-neutron-config",
+		},
 		NoVNCProxyName:            novncproxyName,
 		NoVNCProxyStatefulSetName: novncproxyName,
 		CellNoVNCProxyNameConfigDataName: types.NamespacedName{
@@ -437,6 +447,7 @@ type NovaNames struct {
 	SchedulerConfigDataName         types.NamespacedName
 	MetadataName                    types.NamespacedName
 	MetadataStatefulSetName         types.NamespacedName
+	MetadataNeutronConfigDataName   types.NamespacedName
 	ServiceAccountName              types.NamespacedName
 	RoleName                        types.NamespacedName
 	RoleBindingName                 types.NamespacedName
@@ -534,6 +545,10 @@ func GetNovaNames(novaName types.NamespacedName, cellNames []string) NovaNames {
 		MetadataConfigDataName: types.NamespacedName{
 			Namespace: novaMetadata.Namespace,
 			Name:      novaMetadata.Name + "-config-data",
+		},
+		MetadataNeutronConfigDataName: types.NamespacedName{
+			Namespace: novaMetadata.Namespace,
+			Name:      novaMetadata.Name + "-neutron-config",
 		},
 		InternalNovaMetadataServiceName: types.NamespacedName{
 			Namespace: novaMetadata.Namespace,
