@@ -497,7 +497,7 @@ var _ = Describe("Nova reconfiguration", func() {
 						th.GetStatefulSet(ss).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
 					g.Expect(newHash).NotTo(BeEmpty())
 					g.Expect(newHash).NotTo(Equal(originalHashes[i]))
-				})
+				}, timeout, interval).Should(Succeed())
 			}
 		})
 	})
@@ -566,5 +566,45 @@ var _ = Describe("Nova reconfiguration", func() {
 		)
 		nova = GetNova(novaNames.NovaName)
 		Expect(nova.Status.MetadataServiceReadyCount).To(Equal(int32(1)))
+	})
+
+	It("reconfigures nova-metadata service if metadata shared secret is changed", func() {
+		originalHash := GetEnvVarValue(
+			th.GetStatefulSet(novaNames.MetadataStatefulSetName).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
+		Expect(originalHash).NotTo(BeEmpty())
+
+		originalComputeHash := GetNovaMetadata(
+			novaNames.MetadataName).Status.Hash[novaNames.MetadataNeutronConfigDataName.Name]
+		Expect(originalComputeHash).NotTo(BeEmpty())
+
+		secretName := types.NamespacedName{Namespace: novaNames.NovaName.Namespace, Name: SecretName}
+		UpdateSecret(secretName, "MetadataSecret", []byte("new-metadata-secret"))
+
+		Eventually(func(g Gomega) {
+			configDataMap := th.GetSecret(novaNames.MetadataConfigDataName)
+
+			g.Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
+			conf := string(configDataMap.Data["01-nova.conf"])
+			g.Expect(conf).Should(ContainSubstring(("metadata_proxy_shared_secret = new-metadata-secret")))
+		}, timeout, interval).Should(Succeed())
+
+		// Assert that the config hash is updated in each stateful set
+		Eventually(func(g Gomega) {
+			newHash := GetEnvVarValue(
+				th.GetStatefulSet(novaNames.MetadataStatefulSetName).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
+			g.Expect(newHash).NotTo(BeEmpty())
+			g.Expect(newHash).NotTo(Equal(originalHash))
+		}, timeout, interval).Should(Succeed())
+
+		//Assert that the compute config is updated too
+		computeConfigData := th.GetSecret(novaNames.MetadataNeutronConfigDataName)
+		Expect(computeConfigData).ShouldNot(BeNil())
+		Expect(computeConfigData.Data).Should(HaveKey("05-nova-metadata.conf"))
+		configData := string(computeConfigData.Data["05-nova-metadata.conf"])
+		Expect(configData).To(ContainSubstring("metadata_proxy_shared_secret = new-metadata-secret"))
+
+		newComputeHash := GetNovaMetadata(
+			novaNames.MetadataName).Status.Hash[novaNames.MetadataNeutronConfigDataName.Name]
+		Expect(originalComputeHash).NotTo(Equal(newComputeHash))
 	})
 })

@@ -17,6 +17,7 @@ package functional_test
 
 import (
 	"encoding/json"
+	"fmt"
 
 	networkv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	. "github.com/onsi/ginkgo/v2"
@@ -268,6 +269,34 @@ var _ = Describe("NovaMetadata controller", func() {
 				Expect(service.Labels).NotTo(HaveKey("cell"))
 			})
 
+			It("generates compute config", func() {
+				th.SimulateStatefulSetReplicaReady(novaNames.MetadataStatefulSetName)
+
+				th.ExpectCondition(
+					novaNames.MetadataName,
+					ConditionGetterFunc(NovaMetadataConditionGetter),
+					novav1.NovaComputeServiceConfigReady,
+					corev1.ConditionTrue,
+				)
+
+				computeConfigData := th.GetSecret(novaNames.MetadataNeutronConfigDataName)
+				Expect(computeConfigData).ShouldNot(BeNil())
+				Expect(computeConfigData.Data).Should(HaveKey("05-nova-metadata.conf"))
+				configData := string(computeConfigData.Data["05-nova-metadata.conf"])
+				Expect(configData).To(
+					ContainSubstring(
+						fmt.Sprintf(
+							"nova_metadata_host = http://nova-metadata-internal.%s.svc:8775",
+							novaNames.MetadataName.Namespace,
+						),
+					),
+				)
+				Expect(configData).To(ContainSubstring("metadata_proxy_shared_secret = metadata-secret"))
+
+				metadata := GetNovaMetadata(novaNames.MetadataName)
+				Expect(metadata.Status.Hash[novaNames.MetadataNeutronConfigDataName.Name]).NotTo(BeEmpty())
+			})
+
 			It("is Ready", func() {
 				th.SimulateStatefulSetReplicaReady(novaNames.MetadataStatefulSetName)
 
@@ -283,24 +312,24 @@ var _ = Describe("NovaMetadata controller", func() {
 })
 
 var _ = Describe("NovaMetadata controller", func() {
-	When("with configure cellname", func() {
+	When("configured with cell name", func() {
 		BeforeEach(func() {
 			spec := GetDefaultNovaMetadataSpec(cell1.InternalCellSecretName)
 			spec["cellName"] = cell1.CellName
-			metadata := CreateNovaMetadata(novaNames.MetadataName, spec)
+			metadata := CreateNovaMetadata(cell1.MetadataName, spec)
 			DeferCleanup(th.DeleteInstance, metadata)
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreateCellInternalSecret(cell1))
 		})
 		It("generated config with correct local_metadata_per_cell", func() {
 			th.ExpectCondition(
-				novaNames.MetadataName,
+				cell1.MetadataName,
 				ConditionGetterFunc(NovaMetadataConditionGetter),
 				condition.ServiceConfigReadyCondition,
 				corev1.ConditionTrue,
 			)
 
-			configDataMap := th.GetSecret(novaNames.MetadataConfigDataName)
+			configDataMap := th.GetSecret(cell1.MetadataConfigDataName)
 			Expect(configDataMap).ShouldNot(BeNil())
 			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
 			configData := string(configDataMap.Data["01-nova.conf"])
@@ -313,22 +342,51 @@ var _ = Describe("NovaMetadata controller", func() {
 			Expect(configData).Should(
 				ContainSubstring("local_metadata_per_cell = true"))
 			th.ExpectCondition(
-				novaNames.MetadataName,
+				cell1.MetadataName,
 				ConditionGetterFunc(NovaMetadataConditionGetter),
 				condition.ExposeServiceReadyCondition,
 				corev1.ConditionTrue,
 			)
-			service := th.GetService(types.NamespacedName{Namespace: novaNames.MetadataName.Namespace, Name: "nova-metadata-cell1-internal"})
+			service := th.GetService(types.NamespacedName{Namespace: cell1.MetadataName.Namespace, Name: "nova-metadata-cell1-internal"})
 			Expect(service.Labels["service"]).To(Equal("nova-metadata"))
 			Expect(service.Labels["cell"]).To(Equal("cell1"))
 
-			ss := th.GetStatefulSet(novaNames.MetadataStatefulSetName)
+			ss := th.GetStatefulSet(cell1.MetadataStatefulSetName)
 			Expect(ss.Spec.Selector.MatchLabels).To(
 				Equal(map[string]string{
 					"service": "nova-metadata",
 					"cell":    "cell1",
 				}))
 		})
+
+		It("generates compute config", func() {
+			th.SimulateStatefulSetReplicaReady(cell1.MetadataStatefulSetName)
+
+			th.ExpectCondition(
+				cell1.MetadataName,
+				ConditionGetterFunc(NovaMetadataConditionGetter),
+				novav1.NovaComputeServiceConfigReady,
+				corev1.ConditionTrue,
+			)
+
+			computeConfigData := th.GetSecret(cell1.MetadataNeutronConfigDataName)
+			Expect(computeConfigData).ShouldNot(BeNil())
+			Expect(computeConfigData.Data).Should(HaveKey("05-nova-metadata.conf"))
+			configData := string(computeConfigData.Data["05-nova-metadata.conf"])
+			Expect(configData).To(
+				ContainSubstring(
+					fmt.Sprintf(
+						"nova_metadata_host = http://nova-metadata-cell1-internal.%s.svc:8775",
+						cell1.MetadataName.Namespace,
+					),
+				),
+			)
+			Expect(configData).To(ContainSubstring("metadata_proxy_shared_secret = metadata-secret"))
+
+			metadata := GetNovaMetadata(cell1.MetadataName)
+			Expect(metadata.Status.Hash[cell1.MetadataNeutronConfigDataName.Name]).NotTo(BeEmpty())
+		})
+
 	})
 
 	When("NovaMetadata is created with networkAttachments", func() {

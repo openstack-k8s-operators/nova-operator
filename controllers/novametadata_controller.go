@@ -37,6 +37,7 @@ import (
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/labels"
 	nad "github.com/openstack-k8s-operators/lib-common/modules/common/networkattachment"
+	common_secret "github.com/openstack-k8s-operators/lib-common/modules/common/secret"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/statefulset"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
@@ -195,11 +196,26 @@ func (r *NovaMetadataReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return result, err
 	}
 
-	result, err = r.ensureServiceExposed(ctx, h, instance)
+	apiEndpoints, result, err := r.ensureServiceExposed(ctx, h, instance)
 	if (err != nil || result != ctrl.Result{}) {
 		// We can ignore RequeueAfter as we are watching the Service and Route resource
 		// but we have to return while waiting for the service to be exposed
 		return ctrl.Result{}, err
+	}
+
+	// We have to wait until our service is fully exposed so that we can
+	// generate the compute config containing the metadata host
+	if !instance.Status.Conditions.IsTrue(condition.ExposeServiceReadyCondition) {
+		util.LogForObject(
+			h, "Waiting for the service to be exposed before generating compute configuration", instance)
+		return ctrl.Result{}, nil
+	}
+
+	// TODO(gibi): fix lib-common endpoint.ExposeEndpoints return value to
+	// avoid the need for the cast
+	err = r.ensureNeutronConfig(ctx, h, instance, apiEndpoints[string(endpoint.EndpointInternal)], secret)
+	if err != nil {
+		return result, err
 	}
 
 	util.LogForObject(h, "Successfully reconciled", instance)
@@ -257,6 +273,11 @@ func (r *NovaMetadataReconciler) initConditions(
 				condition.NetworkAttachmentsReadyCondition,
 				condition.InitReason,
 				condition.NetworkAttachmentsReadyInitMessage,
+			),
+			condition.UnknownCondition(
+				novav1.NovaComputeServiceConfigReady,
+				condition.InitReason,
+				novav1.NovaComputeServiceConfigInitMessage,
 			),
 		)
 
@@ -416,7 +437,7 @@ func (r *NovaMetadataReconciler) ensureServiceExposed(
 	ctx context.Context,
 	h *helper.Helper,
 	instance *novav1.NovaMetadata,
-) (ctrl.Result, error) {
+) (map[string]string, ctrl.Result, error) {
 	var ports = map[endpoint.Endpoint]endpoint.Data{
 		endpoint.EndpointInternal: {Port: novametadata.APIServicePort},
 	}
@@ -453,22 +474,18 @@ func (r *NovaMetadataReconciler) ensureServiceExposed(
 			condition.SeverityWarning,
 			condition.ExposeServiceReadyErrorMessage,
 			err.Error()))
-		return ctrlResult, err
+		return apiEndpoints, ctrlResult, err
 	} else if (ctrlResult != ctrl.Result{}) {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.ExposeServiceReadyCondition,
 			condition.RequestedReason,
 			condition.SeverityInfo,
 			condition.ExposeServiceReadyRunningMessage))
-		return ctrlResult, err
+		return apiEndpoints, ctrlResult, err
 	}
 	instance.Status.Conditions.MarkTrue(condition.ExposeServiceReadyCondition, condition.ExposeServiceReadyMessage)
 
-	for k, v := range apiEndpoints {
-		apiEndpoints[k] = v
-	}
-
-	return ctrl.Result{}, nil
+	return apiEndpoints, ctrl.Result{}, nil
 }
 
 func (r *NovaMetadataReconciler) reconcileDelete(
@@ -493,6 +510,77 @@ func getMetadataServiceLabels(cell string) map[string]string {
 	return map[string]string{
 		common.AppSelector: NovaMetadataLabelPrefix,
 	}
+}
+
+// ensureNeutronConfig ensures the metadata config Secret exists and up to
+// date. The metadata config Secret then can be used to configure the neutron
+// metadata agent on the the EDPM side
+func (r *NovaMetadataReconciler) ensureNeutronConfig(
+	ctx context.Context, h *helper.Helper,
+	instance *novav1.NovaMetadata, endpoint string, secret corev1.Secret,
+) error {
+
+	err := r.generateNeutronConfigs(ctx, h, instance, endpoint, secret)
+	if err != nil {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			novav1.NovaComputeServiceConfigReady,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			novav1.NovaComputeServiceConfigErrorMessage,
+			err.Error()))
+		return err
+	}
+	instance.Status.Conditions.MarkTrue(
+		novav1.NovaComputeServiceConfigReady, condition.ServiceConfigReadyMessage,
+	)
+
+	return nil
+}
+
+func (r *NovaMetadataReconciler) generateNeutronConfigs(
+	ctx context.Context, h *helper.Helper,
+	instance *novav1.NovaMetadata, endpoint string, secret corev1.Secret,
+) error {
+	configName := instance.GetName() + "-neutron-config"
+
+	templates := map[string]string{
+		"05-nova-metadata.conf": "/neutron-metadata.conf",
+	}
+
+	// NOTE(gibi): We are generating this data in the nova-operator to:
+	// 1. avoid the work needed to teach cells to neutron
+	// 2. avoid the need to synchronize the shared secret between nova- and
+	//    neutron-operator externally
+	templateParameters := map[string]interface{}{
+		"nova_metadata_host":           endpoint,
+		"metadata_proxy_shared_secret": string(secret.Data[MetadataSecretSelector]),
+	}
+
+	labels := getMetadataServiceLabels(instance.Spec.CellName)
+	hashes := make(map[string]env.Setter)
+
+	cms := []util.Template{
+		{
+			Name:               configName,
+			Namespace:          instance.GetNamespace(),
+			Type:               util.TemplateTypeConfig,
+			InstanceType:       instance.GetObjectKind().GroupVersionKind().Kind,
+			ConfigOptions:      templateParameters,
+			Labels:             labels,
+			AdditionalTemplate: templates,
+		},
+	}
+
+	err := common_secret.EnsureSecrets(ctx, h, instance, cms, &hashes)
+	if err != nil {
+		return err
+	}
+
+	// TODO(gibi): can we make it simpler?
+	a := &corev1.EnvVar{}
+	hashes[configName](a)
+	instance.Status.Hash[configName] = a.Value
+	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
