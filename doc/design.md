@@ -55,3 +55,51 @@ oslo.config will apply the different config snippets. The nova-operator will
 generate the default configuration under the key `01-nova.conf` and copy the
 user defined snippet to the Secret to key `02-nova-override.conf`. So the user
 defined configuration always override the default config.
+
+### Config generation for the services running on the external data plane node
+
+#### nova-compute
+The main nova service running on the EDP node is nova-compute. However the
+nova-operator is not responsible to deploy or manage such service. It is
+managed by the dataplane-operator via the generic OpenStackDataPlaneService CR.
+The only responsibility of nova-operator in regards of nova-compute is to
+generate the basic control plane configuration needed for the nova-compute
+service to connect to the control plane properly. It is done by generating a
+Secret per NovaCell with the name of
+`<Nova CR name>-<NovaCell CR name>-compute-config` (e.g.
+`nova-cell1-compute-config`) The human operator needs to include this Secret
+in the Secrets field of the OpenStackDataPlaneService CR describing the
+nova-compute service.
+
+#### neutron-metadata-agent
+The nova-metadata service is deployed by the nova-operator. For the guest VMs
+to be able to access this metadata service the neutron-metadata-agent needs to
+be deployed on the EDPM side and it needs to be able to talk to the
+nova-metadata service running in k8s. The nova-operator generates the
+necessary neutron-metadata-agent config snippet that defines how the
+nova-metadata service can be accessed by the neutron-metadata-agent.
+
+There are two possible nova-metadata deployment modes and this also means that
+there are two possible configuration schemes for the neutron-metadata-agent.
+
+1. If a single nova-metadata service is deployed on the top level (i.e. when
+`Nova.Spec.MetadataServiceTemplate.Enabled` is true) then the name of the
+Secret is `<Nova/name>-metadata-compute-config` (i.e.
+`nova-metadata-compute-config`).
+
+2. If the nova-metadata service is deployed per cell
+(i.e. `Nova.Spec.CellTemplates[].MetadataServiceTemplate.Enabled` is true) then
+the name of the Secrets are `<Nova/name>-<cell name>-metadata-compute-config`
+(i.e in cell1 `nova-cell1-metadata-compute-config`)
+
+Then the human operator needs to include the appropriate Secret into the
+Secrets field of OpenStackDataPlaneService CR describing the
+neutron-metadata-agent.
+
+In both cases the Secret contains a single key `05-nova-metadata.conf` with a
+value of an oslo.config snippet that provides two pieces of information to
+the neutron-metadata-agent:
+1. The URL of the nova-metadata service
+2. A secret that is shared between the nova-metadata service and the
+neutron-metadata-agent so the former can authenticate the requests from the
+latter.
