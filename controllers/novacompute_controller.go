@@ -143,6 +143,7 @@ func (r *NovaComputeReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.Secret},
 		[]string{
 			ServicePasswordSelector,
+			TransportURLSelector,
 		},
 		h.GetClient(),
 		&instance.Status.Conditions,
@@ -263,19 +264,6 @@ func (r *NovaComputeReconciler) generateConfigs(
 	ctx context.Context, h *helper.Helper, instance *novav1.NovaCompute, hashes *map[string]env.Setter, secret corev1.Secret,
 ) error {
 
-	cellMessageBusSecretName := &corev1.Secret{}
-	secretName := types.NamespacedName{
-		Namespace: instance.Namespace,
-		Name:      instance.Spec.CellMessageBusSecretName,
-	}
-	err := h.GetClient().Get(ctx, secretName, cellMessageBusSecretName)
-	if err != nil {
-		util.LogForObject(
-			h, "Failed reading Secret", instance,
-			"CellMessageBusSecretNameMessageBusSecretName", instance.Spec.CellMessageBusSecretName)
-		return err
-	}
-
 	templateParameters := map[string]interface{}{
 		"service_name":           NovaComputeLabelPrefix,
 		"keystone_internal_url":  instance.Spec.KeystoneAuthURL,
@@ -290,7 +278,7 @@ func (r *NovaComputeReconciler) generateConfigs(
 		"openstack_region_name":  "regionOne", // fixme
 		"default_project_domain": "Default",   // fixme
 		"default_user_domain":    "Default",   // fixme
-		"transport_url":          string(cellMessageBusSecretName.Data["transport_url"]),
+		"transport_url":          string(secret.Data[TransportURLSelector]),
 		"log_file":               "/var/log/containers/nova/nova-compute.log",
 		"nova_compute_image":     instance.Spec.ContainerImage,
 		"compute_driver":         "ironic.IronicDriver",
@@ -310,7 +298,7 @@ func (r *NovaComputeReconciler) generateConfigs(
 	addtionalTemplates := map[string]string{
 		"nova-compute.json": "/novacompute/config/nova-compute.json",
 	}
-	err = r.GenerateConfigs(
+	err := r.GenerateConfigs(
 		ctx, h, instance, nova.GetServiceConfigSecretName(instance.GetName()), hashes, templateParameters, extraData, cmLabels, addtionalTemplates,
 	)
 	return err

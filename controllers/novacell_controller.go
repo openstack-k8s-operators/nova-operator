@@ -27,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -208,17 +209,33 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 		instance.Status.Conditions.Remove(novav1.NovaComputeServiceConfigReady)
 	}
 
-	if len(instance.Spec.NovaComputeTemplates) == 0 {
-		instance.Status.Conditions.Remove(novav1.NovaComputeReadyCondition)
-	} else {
-		for computeName, computeTemplate := range instance.Spec.NovaComputeTemplates {
-			if !isCell0 {
-				result, err = r.ensureNovaCompute(ctx, h, instance, computeTemplate, computeName)
-				if err != nil {
-					return result, err
-				}
+	for computeName, computeTemplate := range instance.Spec.NovaComputeTemplates {
+		if instance.Spec.CellName != novav1.Cell0Name {
+			result, err = r.ensureNovaCompute(ctx, h, instance, computeTemplate, computeName)
+			if err != nil {
+				return result, err
 			}
+			instance.Status.NovaComputesStatuses[computeName] = true
 		}
+	}
+
+	for computeName := range instance.Status.NovaComputesStatuses {
+		_, ok := instance.Spec.NovaComputeTemplates[computeName]
+		if !ok {
+			err = r.ensureNovaComputeDeleted(ctx, h, instance, computeName)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+			delete(instance.Status.NovaComputesStatuses, computeName)
+		}
+	}
+
+	if len(instance.Spec.NovaComputeTemplates) == 0 {
+		instance.Status.Conditions.Remove(novav1.NovaAllCompusteReadyCondition)
+	} else {
+		instance.Status.Conditions.MarkTrue(
+			novav1.NovaAllCompusteReadyCondition, condition.ServiceConfigReadyMessage,
+		)
 	}
 	util.LogForObject(h, "Successfully reconciled", instance)
 	return ctrl.Result{}, nil
@@ -232,6 +249,9 @@ func (r *NovaCellReconciler) initStatus(
 	}
 	if instance.Status.Hash == nil {
 		instance.Status.Hash = map[string]string{}
+	}
+	if instance.Status.NovaComputesStatuses == nil {
+		instance.Status.NovaComputesStatuses = map[string]bool{}
 	}
 
 	return nil
@@ -273,7 +293,7 @@ func (r *NovaCellReconciler) initConditions(
 				novav1.NovaComputeServiceConfigInitMessage,
 			),
 			condition.UnknownCondition(
-				novav1.NovaComputeReadyCondition,
+				novav1.NovaAllCompusteReadyCondition,
 				condition.InitReason,
 				novav1.NovaComputeReadyInitMessage,
 			),
@@ -585,6 +605,47 @@ func (r *NovaCellReconciler) ensureComputeConfig(
 	return ctrl.Result{}, nil
 }
 
+func getNovaComputeName(instance client.Object, computeName string) types.NamespacedName {
+	return types.NamespacedName{Namespace: instance.GetNamespace(), Name: instance.GetName() + "-" + computeName + "-compute"}
+}
+
+func (r *NovaCellReconciler) ensureNovaComputeDeleted(
+	ctx context.Context,
+	h *helper.Helper,
+	instance client.Object,
+	computeName string,
+) error {
+	fullComputeName := getNovaComputeName(instance, computeName)
+	compute := &novav1.NovaCompute{}
+	err := r.Client.Get(ctx, fullComputeName, compute)
+	if k8s_errors.IsNotFound(err) {
+		// Nothing to do as it does not exists
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	// If it is not created by us, we don't touch it
+	if !OwnedBy(compute, instance) {
+		util.LogForObject(
+			h, "NovaCompute is disabled, but there is a "+
+				"NovaCompute CR not owned by us. Not deleting it.",
+			instance, "NovaCompute", compute)
+		return nil
+	}
+
+	// OK this was created by us so we go and delete it
+	err = r.Client.Delete(ctx, compute)
+	if err != nil && k8s_errors.IsNotFound(err) {
+		return nil
+	}
+	util.LogForObject(
+		h, "NovaCompute is disabled, so deleted NovaCompute",
+		instance, "NovaCompute", compute)
+
+	return nil
+}
+
 func (r *NovaCellReconciler) ensureNovaCompute(
 	ctx context.Context,
 	h *helper.Helper,
@@ -592,10 +653,47 @@ func (r *NovaCellReconciler) ensureNovaCompute(
 	compute novav1.NovaComputeTemplate,
 	computeName string,
 ) (ctrl.Result, error) {
+	// There is a case when the user manually created a NovaCompute with selected name.
+	// One can think that this means the cell adopts the NovaCompute and
+	// starts managing it.
+	// However at least the label selector of the StatefulSet spec is
+	// immutable, so the controller cannot simply start adopting an existing
+	// NovaCompute. But instead the our CR will be in error state until the
+	// human deletes the manually created NovaCompute and then Nova will
+	// create its own NovaComputes.
+	// See https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#label-selector-updates
+
+	computeNovaName := getNovaComputeName(instance, computeName)
+	novacompute := &novav1.NovaCompute{}
+	err := r.Client.Get(ctx, computeNovaName, novacompute)
+	if err != nil && !k8s_errors.IsNotFound(err) {
+		return ctrl.Result{}, err
+	}
+
+	// If it is not created by us, we don't touch it
+	if !k8s_errors.IsNotFound(err) && !OwnedBy(novacompute, instance) {
+		err := fmt.Errorf(
+			"cannot update NovaCompute/%s as the cell is not owning it", novacompute.Name)
+		util.LogErrorForObject(
+			h, err,
+			"NovaCompute is enabled, but there is a "+
+				"NovaCompute CR not owned by us. We cannot update it. "+
+				"Please delete the NovaCompute.",
+			instance, "NovaCompute", computeNovaName)
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			novav1.NovaAllCompusteReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityError,
+			novav1.NovaComputeReadyErrorMessage,
+			err.Error()))
+
+		return ctrl.Result{}, err
+	}
+
 	novacomputeSpec := novav1.NewNovaComputeSpec(instance.Spec, compute, computeName)
-	novacompute := &novav1.NovaCompute{
+	novacompute = &novav1.NovaCompute{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      instance.Name + "-compute",
+			Name:      computeNovaName.Name,
 			Namespace: instance.Namespace,
 		},
 	}
@@ -615,7 +713,7 @@ func (r *NovaCellReconciler) ensureNovaCompute(
 
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
-			novav1.NovaComputeReadyCondition,
+			novav1.NovaAllCompusteReadyCondition,
 			condition.ErrorReason,
 			condition.SeverityError,
 			novav1.NovaComputeReadyErrorMessage,
@@ -625,14 +723,6 @@ func (r *NovaCellReconciler) ensureNovaCompute(
 
 	if op != controllerutil.OperationResultNone {
 		util.LogForObject(h, fmt.Sprintf("NovaCompute %s.", string(op)), instance, "NovaCompute.Name", novacompute.Name)
-	}
-
-	instance.Status.NovaComputeReadyCount = novacompute.Status.ReadyCount
-
-	c := novacompute.Status.Conditions.Mirror(novav1.NovaComputeReadyCondition)
-
-	if c != nil {
-		instance.Status.Conditions.Set(c)
 	}
 
 	return ctrl.Result{}, nil

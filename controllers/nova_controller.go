@@ -742,7 +742,6 @@ func (r *NovaReconciler) ensureCell(
 		Secret:                    cellSecretName,
 		CellDatabaseHostname:      cellDB.GetDatabaseHostname(),
 		CellDatabaseUser:          cellTemplate.CellDatabaseUser,
-		CellMessageBusSecretName:  cellMQSecretName,
 		ConductorServiceTemplate:  cellTemplate.ConductorServiceTemplate,
 		MetadataServiceTemplate:   cellTemplate.MetadataServiceTemplate,
 		NoVNCProxyServiceTemplate: cellTemplate.NoVNCProxyServiceTemplate,

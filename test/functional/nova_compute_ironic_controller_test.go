@@ -35,10 +35,7 @@ import (
 var _ = Describe("NovaCompute controller", func() {
 	When("with standard spec without network interface", func() {
 		BeforeEach(func() {
-			DeferCleanup(
-				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(novaNames.NovaComputeName.Namespace, MessageBusSecretName))
-
-			spec := GetDefaultNovaComputeSpec()
+			spec := GetDefaultNovaComputeSpec(cell1)
 			spec["customServiceConfig"] = "foo=bar"
 			DeferCleanup(th.DeleteInstance, CreateNovaCompute(novaNames.NovaComputeName, spec))
 		})
@@ -75,7 +72,7 @@ var _ = Describe("NovaCompute controller", func() {
 				secret := &corev1.Secret{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "not-relevant-secret",
-						Namespace: novaNames.NovaComputeName.Namespace,
+						Namespace: cell1.InternalCellSecretName.Namespace,
 					},
 				}
 				Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
@@ -105,8 +102,8 @@ var _ = Describe("NovaCompute controller", func() {
 			BeforeEach(func() {
 				secret := &corev1.Secret{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      SecretName,
-						Namespace: novaNames.NovaComputeName.Namespace,
+						Name:      cell1.InternalCellSecretName.Name,
+						Namespace: cell1.InternalCellSecretName.Namespace,
 					},
 					Data: map[string][]byte{
 						"ServicePassword": []byte("12345678"),
@@ -132,7 +129,7 @@ var _ = Describe("NovaCompute controller", func() {
 				DeferCleanup(
 					k8sClient.Delete,
 					ctx,
-					CreateNovaComputeSecret(novaNames.NovaComputeName.Namespace, SecretName),
+					CreateCellInternalSecret(cell1),
 				)
 			})
 
@@ -156,7 +153,8 @@ var _ = Describe("NovaCompute controller", func() {
 				Expect(configDataMap).ShouldNot(BeNil())
 				Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
 				configData := string(configDataMap.Data["01-nova.conf"])
-				Expect(configData).Should(ContainSubstring("transport_url=rabbit://rabbitmq-secret/fake"))
+				Expect(configData).Should(
+					ContainSubstring("transport_url=rabbit://cell1/fake"))
 				Expect(configData).Should(ContainSubstring("password = service-password"))
 				Expect(configData).Should(ContainSubstring("compute_driver = ironic.IronicDriver"))
 				Expect(configDataMap.Data).Should(HaveKey("02-nova-override.conf"))
@@ -176,7 +174,7 @@ var _ = Describe("NovaCompute controller", func() {
 		When("NovaCompute is created with a proper Secret", func() {
 			BeforeEach(func() {
 				DeferCleanup(
-					k8sClient.Delete, ctx, CreateNovaComputeSecret(novaNames.NovaComputeName.Namespace, SecretName))
+					k8sClient.Delete, ctx, CreateCellInternalSecret(cell1))
 			})
 
 			It(" reports input ready", func() {
@@ -256,21 +254,17 @@ var _ = Describe("NovaCompute controller", func() {
 })
 
 var _ = Describe("NovaCompute with ironic diver controller", func() {
-	BeforeEach(func() {
-		DeferCleanup(
-			k8sClient.Delete, ctx, CreateNovaMessageBusSecret(novaNames.NovaComputeName.Namespace, MessageBusSecretName))
-	})
 
 	When("with configure cellname", func() {
 		BeforeEach(func() {
-			spec := GetDefaultNovaComputeSpec()
+			spec := GetDefaultNovaComputeSpec(cell1)
 			spec["cellName"] = "some-cell-name"
 			novaCompute := CreateNovaCompute(novaNames.NovaComputeName, spec)
 			DeferCleanup(th.DeleteInstance, novaCompute)
 			DeferCleanup(
 				k8sClient.Delete,
 				ctx,
-				CreateNovaComputeSecret(novaNames.NovaComputeName.Namespace, SecretName),
+				CreateCellInternalSecret(cell1),
 			)
 		})
 	})
@@ -278,9 +272,9 @@ var _ = Describe("NovaCompute with ironic diver controller", func() {
 	When("NovaCompute is created with networkAttachments", func() {
 		BeforeEach(func() {
 			DeferCleanup(
-				k8sClient.Delete, ctx, CreateNovaComputeSecret(novaNames.NovaComputeName.Namespace, SecretName))
+				k8sClient.Delete, ctx, CreateCellInternalSecret(cell1))
 
-			spec := GetDefaultNovaComputeSpec()
+			spec := GetDefaultNovaComputeSpec(cell1)
 			spec["networkAttachments"] = []string{"internalapi"}
 			DeferCleanup(th.DeleteInstance, CreateNovaCompute(novaNames.NovaComputeName, spec))
 		})
@@ -406,9 +400,9 @@ var _ = Describe("NovaCompute with ironic diver controller", func() {
 	When("NovaCompute with ironic diver is reconfigured", func() {
 		BeforeEach(func() {
 			DeferCleanup(
-				k8sClient.Delete, ctx, CreateNovaComputeSecret(novaNames.NovaComputeName.Namespace, SecretName))
+				k8sClient.Delete, ctx, CreateCellInternalSecret(cell1))
 
-			novaCompute := CreateNovaCompute(novaNames.NovaComputeName, GetDefaultNovaComputeSpec())
+			novaCompute := CreateNovaCompute(novaNames.NovaComputeName, GetDefaultNovaComputeSpec(cell1))
 			DeferCleanup(th.DeleteInstance, novaCompute)
 
 			th.ExpectCondition(
@@ -504,9 +498,9 @@ var _ = Describe("NovaCompute with ironic diver controller", func() {
 	When("starts zero replicas", func() {
 		BeforeEach(func() {
 			DeferCleanup(
-				k8sClient.Delete, ctx, CreateNovaComputeSecret(novaNames.NovaComputeName.Namespace, SecretName))
+				k8sClient.Delete, ctx, CreateCellInternalSecret(cell1))
 
-			spec := GetDefaultNovaComputeSpec()
+			spec := GetDefaultNovaComputeSpec(cell1)
 			spec["replicas"] = 0
 			novaCompute := CreateNovaCompute(novaNames.NovaComputeName, spec)
 			DeferCleanup(th.DeleteInstance, novaCompute)
@@ -526,7 +520,7 @@ var _ = Describe("NovaCompute with ironic diver controller", func() {
 
 	When("NovaCompute CR with ironic diver is created without container image defined", func() {
 		BeforeEach(func() {
-			spec := GetDefaultNovaComputeSpec()
+			spec := GetDefaultNovaComputeSpec(cell1)
 			spec["containerImage"] = ""
 			novaCompute := CreateNovaCompute(novaNames.NovaComputeName, spec)
 			DeferCleanup(th.DeleteInstance, novaCompute)
