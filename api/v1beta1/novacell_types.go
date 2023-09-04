@@ -196,9 +196,9 @@ type NovaCellStatus struct {
 	// nova-novncproxy service in the cell
 	NoVNCPRoxyServiceReadyCount int32 `json:"noVNCProxyServiceReadyCount,omitempty"`
 
-	// NovaComputeReadyCount defines the number of replicas ready from
-	// nova-compute service in the cell
-	NovaComputeReadyCount int32 `json:"novaComputeReadyCount,omitempty"`
+	// NovaComputesStatuses is a map keyed by nova compute names that belong
+	// to selected cell with info about. This list also is used to delete novacompute
+	NovaComputesStatuses map[string]bool `json:"novaComputesStatuses,omitempty"`
 }
 
 //+kubebuilder:object:root=true

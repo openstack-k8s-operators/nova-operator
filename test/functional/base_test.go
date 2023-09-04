@@ -207,12 +207,11 @@ func CreateNovaMessageBusSecret(cell CellNames) *corev1.Secret {
 
 func GetDefaultNovaCellSpec(cell CellNames) map[string]interface{} {
 	return map[string]interface{}{
-		"cellName":                 cellName,
-		"secret":                   SecretName,
-		"cellDatabaseHostname":     "cell-database-hostname",
-		"cellMessageBusSecretName": MessageBusSecretName,
-		"keystoneAuthURL":          "keystone-auth-url",
-		"serviceAccount":           "nova",
+		"cellName":             cell.CellName,
+		"secret":               cell.InternalCellSecretName.Name,
+		"cellDatabaseHostname": "cell-database-hostname",
+		"keystoneAuthURL":      "keystone-auth-url",
+		"serviceAccount":       "nova",
 	}
 }
 
@@ -454,11 +453,6 @@ type NovaNames struct {
 	SchedulerName                   types.NamespacedName
 	SchedulerStatefulSetName        types.NamespacedName
 	SchedulerConfigDataName         types.NamespacedName
-	ConductorName                   types.NamespacedName
-	ConductorDBSyncJobName          types.NamespacedName
-	ConductorStatefulSetName        types.NamespacedName
-	ConductorConfigDataName         types.NamespacedName
-	ConductorScriptDataName         types.NamespacedName
 	MetadataName                    types.NamespacedName
 	MetadataStatefulSetName         types.NamespacedName
 	MetadataNeutronConfigDataName   types.NamespacedName
@@ -538,20 +532,6 @@ func GetNovaNames(novaName types.NamespacedName, cellNames []string) NovaNames {
 		SchedulerConfigDataName: types.NamespacedName{
 			Namespace: novaScheduler.Namespace,
 			Name:      novaScheduler.Name + "-config-data",
-		},
-		ConductorName: novaConductor,
-		ConductorDBSyncJobName: types.NamespacedName{
-			Namespace: novaConductor.Namespace,
-			Name:      novaConductor.Name + "-db-sync",
-		},
-		ConductorStatefulSetName: novaConductor,
-		ConductorConfigDataName: types.NamespacedName{
-			Namespace: novaConductor.Namespace,
-			Name:      novaConductor.Name + "-config-data",
-		},
-		ConductorScriptDataName: types.NamespacedName{
-			Namespace: novaConductor.Namespace,
-			Name:      novaConductor.Name + "-scripts",
 		},
 		MetadataName:               novaMetadata,
 		MetadataStatefulSetName:    novaMetadata,

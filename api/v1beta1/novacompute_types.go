@@ -109,12 +109,6 @@ type NovaComputeSpec struct {
 	// CellDatabaseHostname - hostname to use when accessing the cell DB
 	CellDatabaseHostname string `json:"cellDatabaseHostname"`
 
-	// +kubebuilder:validation:Required
-	// CellMessageBusSecretName - the name of the Secret conntaining the
-	// transport URL information to use when accessing the API message
-	// bus.
-	CellMessageBusSecretName string `json:"cellMessageBusSecretName"`
-
 	// +kubebuilder:validation:Optional
 	// Debug - enable debug for different deploy stages. If an init container
 	// is used, it runs and the actual action pod gets started with sleep
@@ -198,13 +192,12 @@ func NewNovaComputeSpec(
 	novaComputeName string,
 ) NovaComputeSpec {
 	novacomputeSpec := NovaComputeSpec{
-		CellName:                 novaCell.CellName,
-		ComputeName:              novaComputeName,
-		Secret:                   novaCell.Secret,
-		CellDatabaseHostname:     novaCell.CellDatabaseHostname,
-		CellDatabaseUser:         novaCell.CellDatabaseUser,
-		CellMessageBusSecretName: novaCell.CellMessageBusSecretName,
-		Debug:                    novaCell.Debug,
+		CellName:             novaCell.CellName,
+		ComputeName:          novaComputeName,
+		Secret:               novaCell.Secret,
+		CellDatabaseHostname: novaCell.CellDatabaseHostname,
+		CellDatabaseUser:     novaCell.CellDatabaseUser,
+		Debug:                novaCell.Debug,
 		NovaServiceBase: NovaServiceBase{
 			ContainerImage:         computeTemplate.ContainerImage,
 			Replicas:               computeTemplate.Replicas,

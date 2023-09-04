@@ -65,6 +65,7 @@ var _ = Describe("NovaCell controller", func() {
 			Expect(instance.Status.ConductorServiceReadyCount).To(Equal(int32(0)))
 			Expect(instance.Status.MetadataServiceReadyCount).To(Equal(int32(0)))
 			Expect(instance.Status.NoVNCPRoxyServiceReadyCount).To(Equal(int32(0)))
+			Expect(instance.Status.NovaComputesStatuses).To(HaveLen(int(0)))
 		})
 	})
 
@@ -148,6 +149,9 @@ var _ = Describe("NovaCell controller", func() {
 			spec := GetDefaultNovaCellSpec(cell1)
 			spec["metadataServiceTemplate"] = map[string]interface{}{
 				"enabled": true,
+			}
+			spec["novaComputeTemplates"] = map[string]interface{}{
+				"ironic-compute": GetDefaultNovaComputeTemplate(),
 			}
 			DeferCleanup(th.DeleteInstance, CreateNovaCell(cell1.CellCRName, spec))
 		})
