@@ -83,7 +83,7 @@ func (spec *NovaSpec) Default() {
 		spec.MetadataServiceTemplate.ContainerImage = novaDefaults.MetadataContainerImageURL
 	}
 
-	// NOTE(gibi): this cannot be expressed kubebuilder defaults as the
+	// NOTE(gibi): this cannot be expressed as kubebuilder defaults as the
 	// MetadataServiceTemplate is used both in the cellTemplate and in the
 	// NovaSpec but we need different defaults in the two places
 	if spec.MetadataServiceTemplate.Enabled == nil {
