@@ -15,8 +15,6 @@ spec:
           value: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
         - name: RELATED_IMAGE_NOVA_CONDUCTOR_IMAGE_URL_DEFAULT
           value: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
-        - name: RELATED_IMAGE_NOVA_METADATA_IMAGE_URL_DEFAULT
-          value: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
         - name: RELATED_IMAGE_NOVA_NOVNC_IMAGE_URL_DEFAULT
           value: quay.io/podified-antelope-centos9/openstack-nova-novncproxy:current-podified
         - name: RELATED_IMAGE_NOVA_SCHEDULER_IMAGE_URL_DEFAULT

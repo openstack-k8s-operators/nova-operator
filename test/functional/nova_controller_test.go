@@ -910,12 +910,12 @@ var _ = Describe("Nova controller", func() {
 			novaDefault := GetNova(novaNames.NovaName)
 
 			Expect(novaDefault.Spec.APIServiceTemplate.ContainerImage).To(Equal(util.GetEnvVar("RELATED_IMAGE_NOVA_API_IMAGE_URL_DEFAULT", novav1.NovaAPIContainerImage)))
-			Expect(novaDefault.Spec.MetadataServiceTemplate.ContainerImage).To(Equal(util.GetEnvVar("RELATED_IMAGE_NOVA_METADATA_IMAGE_URL_DEFAULT", novav1.NovaMetadataContainerImage)))
+			Expect(novaDefault.Spec.MetadataServiceTemplate.ContainerImage).To(Equal(util.GetEnvVar("RELATED_IMAGE_NOVA_API_IMAGE_URL_DEFAULT", novav1.NovaMetadataContainerImage)))
 			Expect(novaDefault.Spec.SchedulerServiceTemplate.ContainerImage).To(Equal(util.GetEnvVar("RELATED_IMAGE_NOVA_SCHEDULER_IMAGE_URL_DEFAULT", novav1.NovaSchedulerContainerImage)))
 
 			for _, cell := range novaDefault.Spec.CellTemplates {
 				Expect(cell.ConductorServiceTemplate.ContainerImage).To(Equal(util.GetEnvVar("RELATED_IMAGE_NOVA_CONDUCTOR_IMAGE_URL_DEFAULT", novav1.NovaConductorContainerImage)))
-				Expect(cell.MetadataServiceTemplate.ContainerImage).To(Equal(util.GetEnvVar("RELATED_IMAGE_NOVA_METADATA_IMAGE_URL_DEFAULT", novav1.NovaMetadataContainerImage)))
+				Expect(cell.MetadataServiceTemplate.ContainerImage).To(Equal(util.GetEnvVar("RELATED_IMAGE_NOVA_API_IMAGE_URL_DEFAULT", novav1.NovaMetadataContainerImage)))
 				Expect(cell.NoVNCProxyServiceTemplate.ContainerImage).To(Equal(util.GetEnvVar("RELATED_IMAGE_NOVA_NOVNC_IMAGE_URL_DEFAULT", novav1.NovaNoVNCContainerImage)))
 			}
 		})
