@@ -13,7 +13,7 @@ require (
 	github.com/openstack-k8s-operators/lib-common/modules/common v0.1.1-0.20230824094610-976b18ca2875
 	github.com/openstack-k8s-operators/lib-common/modules/database v0.1.1-0.20230824094610-976b18ca2875
 	github.com/openstack-k8s-operators/lib-common/modules/test v0.1.2-0.20230824094610-976b18ca2875
-	github.com/openstack-k8s-operators/mariadb-operator/api v0.1.1-0.20230823144333-b9363c5be8d2
+	github.com/openstack-k8s-operators/mariadb-operator/api v0.1.1-0.20230905141738-de0804f52e09
 	github.com/openstack-k8s-operators/placement-operator/api v0.0.0-20230602092913-53f380989946
 	go.uber.org/zap v1.25.0
 	k8s.io/api v0.26.8
@@ -25,7 +25,7 @@ require (
 require (
 	github.com/go-task/slim-sprig v0.0.0-20230315185526-52ccab3ef572 // indirect
 	github.com/google/pprof v0.0.0-20210720184732-4bb14d4b1be1 // indirect
-	github.com/openstack-k8s-operators/infra-operator/apis v0.1.1-0.20230829092744-a3dd5edba332 // indirect
+	github.com/openstack-k8s-operators/infra-operator/apis v0.1.1-0.20230905074428-c6aefc16dd01 // indirect
 	golang.org/x/exp v0.0.0-20230522175609-2e198f4a06a1 // indirect
 	golang.org/x/tools v0.12.0 // indirect
 )
