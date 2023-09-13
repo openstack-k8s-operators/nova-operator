@@ -84,13 +84,13 @@ there are two possible configuration schemes for the neutron-metadata-agent.
 
 1. If a single nova-metadata service is deployed on the top level (i.e. when
 `Nova.Spec.MetadataServiceTemplate.Enabled` is true) then the name of the
-Secret is `<Nova/name>-metadata-compute-config` (i.e.
-`nova-metadata-compute-config`).
+Secret is `<Nova/name>-metadata-neutron-config` (i.e.
+`nova-metadata-neutron-config`).
 
 2. If the nova-metadata service is deployed per cell
 (i.e. `Nova.Spec.CellTemplates[].MetadataServiceTemplate.Enabled` is true) then
-the name of the Secrets are `<Nova/name>-<cell name>-metadata-compute-config`
-(i.e in cell1 `nova-cell1-metadata-compute-config`)
+the name of the Secrets are `<Nova/name>-<cell name>-metadata-neutron-config`
+(i.e in cell1 `nova-cell1-metadata-neutron-config`)
 
 Then the human operator needs to include the appropriate Secret into the
 Secrets field of OpenStackDataPlaneService CR describing the
