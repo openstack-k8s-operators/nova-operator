@@ -202,8 +202,7 @@ var _ = BeforeEach(func() {
 
 	placementAPIName := types.NamespacedName{
 		Namespace: namespace,
-		// Name:      uuid.New().String()[:25],
-		Name: "placement",
+		Name:      uuid.New().String()[:25],
 	}
 
 	names = CreateNames(placementAPIName)

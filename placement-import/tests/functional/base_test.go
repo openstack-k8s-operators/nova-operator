@@ -50,12 +50,14 @@ func CreateNames(placementAPIName types.NamespacedName) Names {
 		ConfigMapName: types.NamespacedName{
 			Namespace: placementAPIName.Namespace,
 			Name:      placementAPIName.Name + "-config-data"},
+		// FIXME(gibi): the db sync job name should not be hardcoded
+		// but based on the name of the PlacementAPI CR
 		DBSyncJobName: types.NamespacedName{
 			Namespace: placementAPIName.Namespace,
-			Name:      placementAPIName.Name + "-db-sync"},
-		MariaDBDatabaseName: types.NamespacedName{
-			Namespace: placementAPIName.Namespace,
-			Name:      "placement"},
+			Name:      "placement-db-sync"},
+		MariaDBDatabaseName: placementAPIName,
+		// FIXME(gibi): the deployment name should not be hardcoded
+		// but based on the name of the PlacementAPI CR
 		DeploymentName: types.NamespacedName{
 			Namespace: placementAPIName.Namespace,
 			Name:      "placement"},

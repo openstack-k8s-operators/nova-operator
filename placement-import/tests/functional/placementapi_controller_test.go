@@ -248,7 +248,9 @@ var _ = Describe("PlacementAPI controller", func() {
 				th.CreateDBService(namespace, "openstack", serviceSpec),
 			)
 			db := th.GetMariaDBDatabase(names.MariaDBDatabaseName)
-			Expect(db.Spec.Name).To(Equal("placement"))
+			// FIXME(gibi): this should be hardcoded to "placement" as this is
+			// the name of the DB schema to be created
+			Expect(db.Spec.Name).To(Equal(names.PlacementAPIName.Name))
 			Expect(db.Spec.Secret).To(Equal(SecretName))
 
 			th.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
