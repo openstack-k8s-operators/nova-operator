@@ -127,6 +127,29 @@ var _ = Describe("PlacementAPI controller", func() {
 		})
 	})
 
+	When("a secret is provided with missing fields", func() {
+		BeforeEach(func() {
+			DeferCleanup(th.DeleteInstance, CreatePlacementAPI(placementApiName, GetDefaultPlacementAPISpec()))
+			DeferCleanup(
+				k8sClient.Delete, ctx,
+				th.CreateSecret(
+					types.NamespacedName{Namespace: namespace, Name: SecretName},
+					map[string][]byte{}),
+			)
+		})
+		It("reports that input is not ready", func() {
+			// FIXME(gibi): This is a bug as placement controller does not
+			// check the content of the Secret so eventually a dbsync job is
+			// created with incorrect config
+			th.ExpectCondition(
+				placementApiName,
+				ConditionGetterFunc(PlacementConditionGetter),
+				condition.InputReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
+	})
+
 	When("the proper secret is provided", func() {
 		BeforeEach(func() {
 			DeferCleanup(th.DeleteInstance, CreatePlacementAPI(placementApiName, GetDefaultPlacementAPISpec()))
