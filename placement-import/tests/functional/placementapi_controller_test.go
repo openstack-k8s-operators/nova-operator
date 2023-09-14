@@ -42,6 +42,9 @@ var _ = Describe("PlacementAPI controller", func() {
 	var internalServiceName types.NamespacedName
 	var keystoneServiceName types.NamespacedName
 	var keystoneEndpointName types.NamespacedName
+	var serviceAccountName types.NamespacedName
+	var roleName types.NamespacedName
+	var roleBindingName types.NamespacedName
 
 	BeforeEach(func() {
 		placementApiName = types.NamespacedName{
@@ -59,6 +62,9 @@ var _ = Describe("PlacementAPI controller", func() {
 		internalServiceName = types.NamespacedName{Namespace: namespace, Name: "placement-internal"}
 		keystoneServiceName = types.NamespacedName{Namespace: namespace, Name: "placement"}
 		keystoneEndpointName = types.NamespacedName{Namespace: namespace, Name: "placement"}
+		serviceAccountName = types.NamespacedName{Namespace: namespace, Name: "placement-placement"}
+		roleName = types.NamespacedName{Namespace: namespace, Name: "placement-placement-role"}
+		roleBindingName = types.NamespacedName{Namespace: namespace, Name: "placement-placement-rolebinding"}
 
 		// lib-common uses OPERATOR_TEMPLATES env var to locate the "templates"
 		// directory of the operator. We need to set them othervise lib-common
@@ -220,6 +226,38 @@ var _ = Describe("PlacementAPI controller", func() {
 				ContainSubstring("username = placement"))
 		})
 
+		It("creates service account, role and rolebindig", func() {
+			th.ExpectCondition(
+				placementApiName,
+				ConditionGetterFunc(PlacementConditionGetter),
+				condition.ServiceAccountReadyCondition,
+				corev1.ConditionTrue,
+			)
+			sa := th.GetServiceAccount(serviceAccountName)
+
+			th.ExpectCondition(
+				placementApiName,
+				ConditionGetterFunc(PlacementConditionGetter),
+				condition.RoleReadyCondition,
+				corev1.ConditionTrue,
+			)
+			role := th.GetRole(roleName)
+			Expect(role.Rules).To(HaveLen(2))
+			Expect(role.Rules[0].Resources).To(Equal([]string{"securitycontextconstraints"}))
+			Expect(role.Rules[1].Resources).To(Equal([]string{"pods"}))
+
+			th.ExpectCondition(
+				placementApiName,
+				ConditionGetterFunc(PlacementConditionGetter),
+				condition.RoleBindingReadyCondition,
+				corev1.ConditionTrue,
+			)
+			binding := th.GetRoleBinding(roleBindingName)
+			Expect(binding.RoleRef.Name).To(Equal(role.Name))
+			Expect(binding.Subjects).To(HaveLen(1))
+			Expect(binding.Subjects[0].Name).To(Equal(sa.Name))
+		})
+
 		It("creates MariaDB database", func() {
 			th.ExpectCondition(
 				placementApiName,
@@ -365,7 +403,7 @@ var _ = Describe("PlacementAPI controller", func() {
 			deployment := th.GetDeployment(deploymentName)
 			Expect(int(*deployment.Spec.Replicas)).To(Equal(1))
 			Expect(deployment.Spec.Selector.MatchLabels).To(Equal(map[string]string{"service": "placement"}))
-
+			Expect(deployment.Spec.Template.Spec.ServiceAccountName).To(Equal(serviceAccountName.Name))
 			th.SimulateDeploymentReplicaReady(deploymentName)
 
 			th.ExpectCondition(
