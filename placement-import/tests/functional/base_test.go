@@ -27,6 +27,62 @@ import (
 	placementv1 "github.com/openstack-k8s-operators/placement-operator/api/v1beta1"
 )
 
+type Names struct {
+	Namespace            string
+	PlacementAPIName     types.NamespacedName
+	ConfigMapName        types.NamespacedName
+	DBSyncJobName        types.NamespacedName
+	MariaDBDatabaseName  types.NamespacedName
+	DeploymentName       types.NamespacedName
+	PublicServiceName    types.NamespacedName
+	InternalServiceName  types.NamespacedName
+	KeystoneServiceName  types.NamespacedName
+	KeystoneEndpointName types.NamespacedName
+	ServiceAccountName   types.NamespacedName
+	RoleName             types.NamespacedName
+	RoleBindingName      types.NamespacedName
+}
+
+func CreateNames(placementAPIName types.NamespacedName) Names {
+	return Names{
+		Namespace:        placementAPIName.Namespace,
+		PlacementAPIName: placementAPIName,
+		ConfigMapName: types.NamespacedName{
+			Namespace: placementAPIName.Namespace,
+			Name:      placementAPIName.Name + "-config-data"},
+		DBSyncJobName: types.NamespacedName{
+			Namespace: placementAPIName.Namespace,
+			Name:      placementAPIName.Name + "-db-sync"},
+		MariaDBDatabaseName: types.NamespacedName{
+			Namespace: placementAPIName.Namespace,
+			Name:      "placement"},
+		DeploymentName: types.NamespacedName{
+			Namespace: placementAPIName.Namespace,
+			Name:      "placement"},
+		PublicServiceName: types.NamespacedName{
+			Namespace: placementAPIName.Namespace,
+			Name:      "placement-public"},
+		InternalServiceName: types.NamespacedName{
+			Namespace: placementAPIName.Namespace,
+			Name:      "placement-internal"},
+		KeystoneServiceName: types.NamespacedName{
+			Namespace: placementAPIName.Namespace,
+			Name:      "placement"},
+		KeystoneEndpointName: types.NamespacedName{
+			Namespace: placementAPIName.Namespace,
+			Name:      "placement"},
+		ServiceAccountName: types.NamespacedName{
+			Namespace: placementAPIName.Namespace,
+			Name:      "placement-" + placementAPIName.Name},
+		RoleName: types.NamespacedName{
+			Namespace: placementAPIName.Namespace,
+			Name:      "placement-" + placementAPIName.Name + "-role"},
+		RoleBindingName: types.NamespacedName{
+			Namespace: placementAPIName.Namespace,
+			Name:      "placement-" + placementAPIName.Name + "-rolebinding"},
+	}
+}
+
 func GetDefaultPlacementAPISpec() map[string]interface{} {
 	return map[string]interface{}{
 		"databaseInstance": "openstack",

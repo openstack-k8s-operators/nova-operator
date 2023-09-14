@@ -17,7 +17,6 @@ limitations under the License.
 package functional_test
 
 import (
-	"fmt"
 	"os"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -31,41 +30,7 @@ import (
 )
 
 var _ = Describe("PlacementAPI controller", func() {
-
-	var placementApiName types.NamespacedName
-	var placementApiConfigMapName types.NamespacedName
-	var keystoneAPI *keystonev1.KeystoneAPI
-	var dbSyncJobName types.NamespacedName
-	var mariaDBDatabaseName types.NamespacedName
-	var deploymentName types.NamespacedName
-	var publicServiceName types.NamespacedName
-	var internalServiceName types.NamespacedName
-	var keystoneServiceName types.NamespacedName
-	var keystoneEndpointName types.NamespacedName
-	var serviceAccountName types.NamespacedName
-	var roleName types.NamespacedName
-	var roleBindingName types.NamespacedName
-
 	BeforeEach(func() {
-		placementApiName = types.NamespacedName{
-			Name:      "placement",
-			Namespace: namespace,
-		}
-		placementApiConfigMapName = types.NamespacedName{
-			Namespace: namespace,
-			Name:      placementApiName.Name + "-config-data",
-		}
-		dbSyncJobName = types.NamespacedName{Namespace: namespace, Name: "placement-db-sync"}
-		mariaDBDatabaseName = types.NamespacedName{Namespace: namespace, Name: "placement"}
-		deploymentName = types.NamespacedName{Namespace: namespace, Name: "placement"}
-		publicServiceName = types.NamespacedName{Namespace: namespace, Name: "placement-public"}
-		internalServiceName = types.NamespacedName{Namespace: namespace, Name: "placement-internal"}
-		keystoneServiceName = types.NamespacedName{Namespace: namespace, Name: "placement"}
-		keystoneEndpointName = types.NamespacedName{Namespace: namespace, Name: "placement"}
-		serviceAccountName = types.NamespacedName{Namespace: namespace, Name: "placement-placement"}
-		roleName = types.NamespacedName{Namespace: namespace, Name: "placement-placement-role"}
-		roleBindingName = types.NamespacedName{Namespace: namespace, Name: "placement-placement-rolebinding"}
-
 		// lib-common uses OPERATOR_TEMPLATES env var to locate the "templates"
 		// directory of the operator. We need to set them othervise lib-common
 		// will fail to generate the ConfigMap as it does not find common.sh
@@ -75,11 +40,14 @@ var _ = Describe("PlacementAPI controller", func() {
 
 	When("A PlacementAPI instance is created", func() {
 		BeforeEach(func() {
-			DeferCleanup(th.DeleteInstance, CreatePlacementAPI(placementApiName, GetDefaultPlacementAPISpec()))
+			DeferCleanup(
+				th.DeleteInstance,
+				CreatePlacementAPI(names.PlacementAPIName, GetDefaultPlacementAPISpec()),
+			)
 		})
 
 		It("should have the Spec fields defaulted", func() {
-			Placement := GetPlacementAPI(placementApiName)
+			Placement := GetPlacementAPI(names.PlacementAPIName)
 			Expect(Placement.Spec.DatabaseInstance).Should(Equal("openstack"))
 			Expect(Placement.Spec.DatabaseUser).Should(Equal("placement"))
 			Expect(Placement.Spec.ServiceUser).Should(Equal("placement"))
@@ -87,7 +55,7 @@ var _ = Describe("PlacementAPI controller", func() {
 		})
 
 		It("should have the Status fields initialized", func() {
-			Placement := GetPlacementAPI(placementApiName)
+			Placement := GetPlacementAPI(names.PlacementAPIName)
 			Expect(Placement.Status.Hash).To(BeEmpty())
 			Expect(Placement.Status.DatabaseHostname).To(Equal(""))
 			Expect(Placement.Status.ReadyCount).To(Equal(int32(0)))
@@ -97,23 +65,23 @@ var _ = Describe("PlacementAPI controller", func() {
 			// the reconciler loop adds the finalizer so we have to wait for
 			// it to run
 			Eventually(func() []string {
-				return GetPlacementAPI(placementApiName).Finalizers
+				return GetPlacementAPI(names.PlacementAPIName).Finalizers
 			}, timeout, interval).Should(ContainElement("PlacementAPI"))
 		})
 
 		It("should not create a config map", func() {
-			th.AssertConfigMapDoesNotExist(placementApiConfigMapName)
+			th.AssertConfigMapDoesNotExist(names.ConfigMapName)
 		})
 
 		It("should have input not ready and unknown Conditions initialized", func() {
 			th.ExpectCondition(
-				placementApiName,
+				names.PlacementAPIName,
 				ConditionGetterFunc(PlacementConditionGetter),
 				condition.ReadyCondition,
 				corev1.ConditionFalse,
 			)
 			th.ExpectCondition(
-				placementApiName,
+				names.PlacementAPIName,
 				ConditionGetterFunc(PlacementConditionGetter),
 				condition.InputReadyCondition,
 				corev1.ConditionFalse,
@@ -132,13 +100,13 @@ var _ = Describe("PlacementAPI controller", func() {
 				condition.RoleBindingReadyCondition,
 			}
 
-			placement := GetPlacementAPI(placementApiName)
+			placement := GetPlacementAPI(names.PlacementAPIName)
 			// +2 as InputReady and Ready is False asserted above
 			Expect(placement.Status.Conditions).To(HaveLen(len(unknownConditions) + 2))
 
 			for _, cond := range unknownConditions {
 				th.ExpectCondition(
-					placementApiName,
+					names.PlacementAPIName,
 					ConditionGetterFunc(PlacementConditionGetter),
 					cond,
 					corev1.ConditionUnknown,
@@ -149,7 +117,10 @@ var _ = Describe("PlacementAPI controller", func() {
 
 	When("a secret is provided with missing fields", func() {
 		BeforeEach(func() {
-			DeferCleanup(th.DeleteInstance, CreatePlacementAPI(placementApiName, GetDefaultPlacementAPISpec()))
+			DeferCleanup(
+				th.DeleteInstance,
+				CreatePlacementAPI(names.PlacementAPIName, GetDefaultPlacementAPISpec()),
+			)
 			DeferCleanup(
 				k8sClient.Delete, ctx,
 				th.CreateSecret(
@@ -162,7 +133,7 @@ var _ = Describe("PlacementAPI controller", func() {
 			// check the content of the Secret so eventually a dbsync job is
 			// created with incorrect config
 			th.ExpectCondition(
-				placementApiName,
+				names.PlacementAPIName,
 				ConditionGetterFunc(PlacementConditionGetter),
 				condition.InputReadyCondition,
 				corev1.ConditionTrue,
@@ -172,20 +143,23 @@ var _ = Describe("PlacementAPI controller", func() {
 
 	When("the proper secret is provided", func() {
 		BeforeEach(func() {
-			DeferCleanup(th.DeleteInstance, CreatePlacementAPI(placementApiName, GetDefaultPlacementAPISpec()))
+			DeferCleanup(
+				th.DeleteInstance,
+				CreatePlacementAPI(names.PlacementAPIName, GetDefaultPlacementAPISpec()),
+			)
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreatePlacementAPISecret(namespace, SecretName))
 		})
 
 		It("should have input ready", func() {
 			th.ExpectCondition(
-				placementApiName,
+				names.PlacementAPIName,
 				ConditionGetterFunc(PlacementConditionGetter),
 				condition.InputReadyCondition,
 				corev1.ConditionTrue,
 			)
 			th.ExpectCondition(
-				placementApiName,
+				names.PlacementAPIName,
 				ConditionGetterFunc(PlacementConditionGetter),
 				condition.ServiceConfigReadyCondition,
 				corev1.ConditionFalse,
@@ -193,13 +167,15 @@ var _ = Describe("PlacementAPI controller", func() {
 		})
 
 		It("should not create a config map", func() {
-			th.AssertConfigMapDoesNotExist(placementApiConfigMapName)
+			th.AssertConfigMapDoesNotExist(names.ConfigMapName)
 		})
 	})
 
 	When("keystoneAPI instance is available", func() {
+		var keystoneAPI *keystonev1.KeystoneAPI
+
 		BeforeEach(func() {
-			DeferCleanup(th.DeleteInstance, CreatePlacementAPI(placementApiName, GetDefaultPlacementAPISpec()))
+			DeferCleanup(th.DeleteInstance, CreatePlacementAPI(names.PlacementAPIName, GetDefaultPlacementAPISpec()))
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreatePlacementAPISecret(namespace, SecretName))
 			keystoneAPIName := th.CreateKeystoneAPI(namespace)
@@ -209,14 +185,14 @@ var _ = Describe("PlacementAPI controller", func() {
 
 		It("should have config ready", func() {
 			th.ExpectCondition(
-				placementApiName,
+				names.PlacementAPIName,
 				ConditionGetterFunc(PlacementConditionGetter),
 				condition.ServiceConfigReadyCondition,
 				corev1.ConditionTrue,
 			)
 		})
 		It("should create a ConfigMap for placement.conf", func() {
-			cm := th.GetConfigMap(placementApiConfigMapName)
+			cm := th.GetConfigMap(names.ConfigMapName)
 
 			Expect(cm.Data["placement.conf"]).Should(
 				ContainSubstring("auth_url = %s", keystoneAPI.Status.APIEndpoints["internal"]))
@@ -228,31 +204,31 @@ var _ = Describe("PlacementAPI controller", func() {
 
 		It("creates service account, role and rolebindig", func() {
 			th.ExpectCondition(
-				placementApiName,
+				names.PlacementAPIName,
 				ConditionGetterFunc(PlacementConditionGetter),
 				condition.ServiceAccountReadyCondition,
 				corev1.ConditionTrue,
 			)
-			sa := th.GetServiceAccount(serviceAccountName)
+			sa := th.GetServiceAccount(names.ServiceAccountName)
 
 			th.ExpectCondition(
-				placementApiName,
+				names.PlacementAPIName,
 				ConditionGetterFunc(PlacementConditionGetter),
 				condition.RoleReadyCondition,
 				corev1.ConditionTrue,
 			)
-			role := th.GetRole(roleName)
+			role := th.GetRole(names.RoleName)
 			Expect(role.Rules).To(HaveLen(2))
 			Expect(role.Rules[0].Resources).To(Equal([]string{"securitycontextconstraints"}))
 			Expect(role.Rules[1].Resources).To(Equal([]string{"pods"}))
 
 			th.ExpectCondition(
-				placementApiName,
+				names.PlacementAPIName,
 				ConditionGetterFunc(PlacementConditionGetter),
 				condition.RoleBindingReadyCondition,
 				corev1.ConditionTrue,
 			)
-			binding := th.GetRoleBinding(roleBindingName)
+			binding := th.GetRoleBinding(names.RoleBindingName)
 			Expect(binding.RoleRef.Name).To(Equal(role.Name))
 			Expect(binding.Subjects).To(HaveLen(1))
 			Expect(binding.Subjects[0].Name).To(Equal(sa.Name))
@@ -260,7 +236,7 @@ var _ = Describe("PlacementAPI controller", func() {
 
 		It("creates MariaDB database", func() {
 			th.ExpectCondition(
-				placementApiName,
+				names.PlacementAPIName,
 				ConditionGetterFunc(PlacementConditionGetter),
 				condition.DBReadyCondition,
 				corev1.ConditionFalse,
@@ -271,14 +247,14 @@ var _ = Describe("PlacementAPI controller", func() {
 				th.DeleteDBService,
 				th.CreateDBService(namespace, "openstack", serviceSpec),
 			)
-			db := th.GetMariaDBDatabase(mariaDBDatabaseName)
+			db := th.GetMariaDBDatabase(names.MariaDBDatabaseName)
 			Expect(db.Spec.Name).To(Equal("placement"))
 			Expect(db.Spec.Secret).To(Equal(SecretName))
 
-			th.SimulateMariaDBDatabaseCompleted(mariaDBDatabaseName)
+			th.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
 
 			th.ExpectCondition(
-				placementApiName,
+				names.PlacementAPIName,
 				ConditionGetterFunc(PlacementConditionGetter),
 				condition.DBReadyCondition,
 				corev1.ConditionTrue,
@@ -286,7 +262,7 @@ var _ = Describe("PlacementAPI controller", func() {
 		})
 		It("creates keystone service", func() {
 			th.ExpectCondition(
-				placementApiName,
+				names.PlacementAPIName,
 				ConditionGetterFunc(PlacementConditionGetter),
 				condition.KeystoneServiceReadyCondition,
 				corev1.ConditionUnknown,
@@ -297,12 +273,12 @@ var _ = Describe("PlacementAPI controller", func() {
 				th.DeleteDBService,
 				th.CreateDBService(namespace, "openstack", serviceSpec),
 			)
-			th.SimulateMariaDBDatabaseCompleted(mariaDBDatabaseName)
+			th.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
 
-			th.SimulateKeystoneServiceReady(keystoneServiceName)
+			th.SimulateKeystoneServiceReady(names.KeystoneServiceName)
 
 			th.ExpectCondition(
-				placementApiName,
+				names.PlacementAPIName,
 				ConditionGetterFunc(PlacementConditionGetter),
 				condition.KeystoneServiceReadyCondition,
 				corev1.ConditionTrue,
@@ -310,7 +286,7 @@ var _ = Describe("PlacementAPI controller", func() {
 		})
 		It("creates keystone endpoint", func() {
 			th.ExpectCondition(
-				placementApiName,
+				names.PlacementAPIName,
 				ConditionGetterFunc(PlacementConditionGetter),
 				condition.KeystoneEndpointReadyCondition,
 				corev1.ConditionUnknown,
@@ -321,12 +297,12 @@ var _ = Describe("PlacementAPI controller", func() {
 				th.DeleteDBService,
 				th.CreateDBService(namespace, "openstack", serviceSpec),
 			)
-			th.SimulateMariaDBDatabaseCompleted(mariaDBDatabaseName)
+			th.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
 
-			th.SimulateKeystoneEndpointReady(keystoneEndpointName)
+			th.SimulateKeystoneEndpointReady(names.KeystoneEndpointName)
 
 			th.ExpectCondition(
-				placementApiName,
+				names.PlacementAPIName,
 				ConditionGetterFunc(PlacementConditionGetter),
 				condition.KeystoneEndpointReadyCondition,
 				corev1.ConditionTrue,
@@ -338,16 +314,16 @@ var _ = Describe("PlacementAPI controller", func() {
 				th.DeleteDBService,
 				th.CreateDBService(namespace, "openstack", serviceSpec),
 			)
-			th.SimulateMariaDBDatabaseCompleted(mariaDBDatabaseName)
+			th.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
 
 			th.ExpectCondition(
-				placementApiName,
+				names.PlacementAPIName,
 				ConditionGetterFunc(PlacementConditionGetter),
 				condition.DBSyncReadyCondition,
 				corev1.ConditionFalse,
 			)
 
-			job := th.GetJob(dbSyncJobName)
+			job := th.GetJob(names.DBSyncJobName)
 			Expect(job.Spec.Template.Spec.Volumes).To(HaveLen(3))
 			Expect(job.Spec.Template.Spec.InitContainers).To(HaveLen(1))
 			Expect(job.Spec.Template.Spec.Containers).To(HaveLen(1))
@@ -375,10 +351,10 @@ var _ = Describe("PlacementAPI controller", func() {
 			Expect(container.Args[1]).To(ContainSubstring("placement-manage db sync"))
 			Expect(container.Image).To(Equal("quay.io/podified-antelope-centos9/openstack-placement-api:current-podified"))
 
-			th.SimulateJobSuccess(dbSyncJobName)
+			th.SimulateJobSuccess(names.DBSyncJobName)
 
 			th.ExpectCondition(
-				placementApiName,
+				names.PlacementAPIName,
 				ConditionGetterFunc(PlacementConditionGetter),
 				condition.DBSyncReadyCondition,
 				corev1.ConditionTrue,
@@ -390,24 +366,24 @@ var _ = Describe("PlacementAPI controller", func() {
 				th.DeleteDBService,
 				th.CreateDBService(namespace, "openstack", serviceSpec),
 			)
-			th.SimulateMariaDBDatabaseCompleted(mariaDBDatabaseName)
-			th.SimulateJobSuccess(dbSyncJobName)
+			th.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
+			th.SimulateJobSuccess(names.DBSyncJobName)
 
 			th.ExpectCondition(
-				placementApiName,
+				names.PlacementAPIName,
 				ConditionGetterFunc(PlacementConditionGetter),
 				condition.DeploymentReadyCondition,
 				corev1.ConditionUnknown,
 			)
 
-			deployment := th.GetDeployment(deploymentName)
+			deployment := th.GetDeployment(names.DeploymentName)
 			Expect(int(*deployment.Spec.Replicas)).To(Equal(1))
 			Expect(deployment.Spec.Selector.MatchLabels).To(Equal(map[string]string{"service": "placement"}))
-			Expect(deployment.Spec.Template.Spec.ServiceAccountName).To(Equal(serviceAccountName.Name))
-			th.SimulateDeploymentReplicaReady(deploymentName)
+			Expect(deployment.Spec.Template.Spec.ServiceAccountName).To(Equal(names.ServiceAccountName.Name))
+			th.SimulateDeploymentReplicaReady(names.DeploymentName)
 
 			th.ExpectCondition(
-				placementApiName,
+				names.PlacementAPIName,
 				ConditionGetterFunc(PlacementConditionGetter),
 				condition.DeploymentReadyCondition,
 				corev1.ConditionTrue,
@@ -415,7 +391,7 @@ var _ = Describe("PlacementAPI controller", func() {
 		})
 		It("exposes the service", func() {
 			th.ExpectCondition(
-				placementApiName,
+				names.PlacementAPIName,
 				ConditionGetterFunc(PlacementConditionGetter),
 				condition.ExposeServiceReadyCondition,
 				corev1.ConditionUnknown,
@@ -426,17 +402,17 @@ var _ = Describe("PlacementAPI controller", func() {
 				th.DeleteDBService,
 				th.CreateDBService(namespace, "openstack", serviceSpec),
 			)
-			th.SimulateMariaDBDatabaseCompleted(mariaDBDatabaseName)
-			th.SimulateJobSuccess(dbSyncJobName)
-			th.SimulateDeploymentReplicaReady(deploymentName)
+			th.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
+			th.SimulateJobSuccess(names.DBSyncJobName)
+			th.SimulateDeploymentReplicaReady(names.DeploymentName)
 
-			public := th.GetService(publicServiceName)
+			public := th.GetService(names.PublicServiceName)
 			Expect(public.Labels["service"]).To(Equal("placement"))
-			internal := th.GetService(internalServiceName)
+			internal := th.GetService(names.InternalServiceName)
 			Expect(internal.Labels["service"]).To(Equal("placement"))
 
 			th.ExpectCondition(
-				placementApiName,
+				names.PlacementAPIName,
 				ConditionGetterFunc(PlacementConditionGetter),
 				condition.ExposeServiceReadyCondition,
 				corev1.ConditionTrue,
@@ -445,7 +421,7 @@ var _ = Describe("PlacementAPI controller", func() {
 
 		It("reports ready when successfully deployed", func() {
 			th.ExpectCondition(
-				placementApiName,
+				names.PlacementAPIName,
 				ConditionGetterFunc(PlacementConditionGetter),
 				condition.ReadyCondition,
 				corev1.ConditionFalse,
@@ -456,14 +432,14 @@ var _ = Describe("PlacementAPI controller", func() {
 				th.DeleteDBService,
 				th.CreateDBService(namespace, "openstack", serviceSpec),
 			)
-			th.SimulateMariaDBDatabaseCompleted(mariaDBDatabaseName)
-			th.SimulateKeystoneServiceReady(keystoneServiceName)
-			th.SimulateKeystoneEndpointReady(keystoneEndpointName)
-			th.SimulateJobSuccess(dbSyncJobName)
-			th.SimulateDeploymentReplicaReady(deploymentName)
+			th.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
+			th.SimulateKeystoneServiceReady(names.KeystoneServiceName)
+			th.SimulateKeystoneEndpointReady(names.KeystoneEndpointName)
+			th.SimulateJobSuccess(names.DBSyncJobName)
+			th.SimulateDeploymentReplicaReady(names.DeploymentName)
 
 			th.ExpectCondition(
-				placementApiName,
+				names.PlacementAPIName,
 				ConditionGetterFunc(PlacementConditionGetter),
 				condition.ReadyCondition,
 				corev1.ConditionTrue,
@@ -474,7 +450,7 @@ var _ = Describe("PlacementAPI controller", func() {
 	When("A PlacementAPI is created with service override", func() {
 		BeforeEach(func() {
 			DeferCleanup(k8sClient.Delete, ctx, CreatePlacementAPISecret(namespace, SecretName))
-			DeferCleanup(th.DeleteKeystoneAPI, th.CreateKeystoneAPI(placementApiName.Namespace))
+			DeferCleanup(th.DeleteKeystoneAPI, th.CreateKeystoneAPI(namespace))
 
 			spec := GetDefaultPlacementAPISpec()
 			serviceOverride := map[string]interface{}{}
@@ -500,37 +476,34 @@ var _ = Describe("PlacementAPI controller", func() {
 				"service": serviceOverride,
 			}
 
-			placementAPI := CreatePlacementAPI(placementApiName, spec)
+			placementAPI := CreatePlacementAPI(names.PlacementAPIName, spec)
 			DeferCleanup(
 				th.DeleteDBService,
 				th.CreateDBService(
-					placementApiName.Namespace,
-					GetPlacementAPI(placementApiName).Spec.DatabaseInstance,
+					namespace,
+					GetPlacementAPI(names.PlacementAPIName).Spec.DatabaseInstance,
 					corev1.ServiceSpec{
 						Ports: []corev1.ServicePort{{Port: 3306}},
 					},
 				),
 			)
 
-			th.SimulateMariaDBDatabaseCompleted(placementApiName)
-			th.SimulateJobSuccess(types.NamespacedName{
-				Namespace: placementApiName.Namespace,
-				Name:      fmt.Sprintf("%s-db-sync", placementApiName.Name),
-			})
-			th.SimulateDeploymentReplicaReady(placementApiName)
-			th.SimulateKeystoneServiceReady(placementApiName)
-			th.SimulateKeystoneEndpointReady(placementApiName)
+			th.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
+			th.SimulateJobSuccess(names.DBSyncJobName)
+			th.SimulateDeploymentReplicaReady(names.DeploymentName)
+			th.SimulateKeystoneServiceReady(names.KeystoneServiceName)
+			th.SimulateKeystoneEndpointReady(names.KeystoneEndpointName)
 			DeferCleanup(th.DeleteInstance, placementAPI)
 		})
 
 		It("creates KeystoneEndpoint", func() {
-			keystoneEndpoint := th.GetKeystoneEndpoint(placementApiName)
+			keystoneEndpoint := th.GetKeystoneEndpoint(names.KeystoneEndpointName)
 			endpoints := keystoneEndpoint.Spec.Endpoints
-			Expect(endpoints).To(HaveKeyWithValue("public", "http://placement-public."+placementApiName.Namespace+".svc:8778"))
-			Expect(endpoints).To(HaveKeyWithValue("internal", "http://placement-internal."+placementApiName.Namespace+".svc:8778"))
+			Expect(endpoints).To(HaveKeyWithValue("public", "http://placement-public."+namespace+".svc:8778"))
+			Expect(endpoints).To(HaveKeyWithValue("internal", "http://placement-internal."+namespace+".svc:8778"))
 
 			th.ExpectCondition(
-				placementApiName,
+				names.PlacementAPIName,
 				ConditionGetterFunc(PlacementConditionGetter),
 				condition.KeystoneEndpointReadyCondition,
 				corev1.ConditionTrue,
@@ -551,7 +524,7 @@ var _ = Describe("PlacementAPI controller", func() {
 				HaveKeyWithValue("metallb.universe.tf/loadBalancerIPs", "internal-lb-ip-1,internal-lb-ip-2"))
 
 			th.ExpectCondition(
-				placementApiName,
+				names.PlacementAPIName,
 				ConditionGetterFunc(PlacementConditionGetter),
 				condition.ReadyCondition,
 				corev1.ConditionTrue,
@@ -562,7 +535,7 @@ var _ = Describe("PlacementAPI controller", func() {
 	When("A PlacementAPI is created with service override endpointURL set", func() {
 		BeforeEach(func() {
 			DeferCleanup(k8sClient.Delete, ctx, CreatePlacementAPISecret(namespace, SecretName))
-			DeferCleanup(th.DeleteKeystoneAPI, th.CreateKeystoneAPI(placementApiName.Namespace))
+			DeferCleanup(th.DeleteKeystoneAPI, th.CreateKeystoneAPI(namespace))
 
 			spec := GetDefaultPlacementAPISpec()
 			serviceOverride := map[string]interface{}{}
@@ -574,37 +547,34 @@ var _ = Describe("PlacementAPI controller", func() {
 				"service": serviceOverride,
 			}
 
-			placementAPI := CreatePlacementAPI(placementApiName, spec)
+			placementAPI := CreatePlacementAPI(names.PlacementAPIName, spec)
 			DeferCleanup(
 				th.DeleteDBService,
 				th.CreateDBService(
-					placementApiName.Namespace,
-					GetPlacementAPI(placementApiName).Spec.DatabaseInstance,
+					namespace,
+					GetPlacementAPI(names.PlacementAPIName).Spec.DatabaseInstance,
 					corev1.ServiceSpec{
 						Ports: []corev1.ServicePort{{Port: 3306}},
 					},
 				),
 			)
 
-			th.SimulateMariaDBDatabaseCompleted(placementApiName)
-			th.SimulateJobSuccess(types.NamespacedName{
-				Namespace: placementApiName.Namespace,
-				Name:      fmt.Sprintf("%s-db-sync", placementApiName.Name),
-			})
-			th.SimulateDeploymentReplicaReady(placementApiName)
-			th.SimulateKeystoneServiceReady(placementApiName)
-			th.SimulateKeystoneEndpointReady(placementApiName)
+			th.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
+			th.SimulateJobSuccess(names.DBSyncJobName)
+			th.SimulateDeploymentReplicaReady(names.DeploymentName)
+			th.SimulateKeystoneServiceReady(names.KeystoneServiceName)
+			th.SimulateKeystoneEndpointReady(names.KeystoneEndpointName)
 			DeferCleanup(th.DeleteInstance, placementAPI)
 		})
 
 		It("creates KeystoneEndpoint", func() {
-			keystoneEndpoint := th.GetKeystoneEndpoint(placementApiName)
+			keystoneEndpoint := th.GetKeystoneEndpoint(names.KeystoneEndpointName)
 			endpoints := keystoneEndpoint.Spec.Endpoints
 			Expect(endpoints).To(HaveKeyWithValue("public", "http://placement-openstack.apps-crc.testing"))
-			Expect(endpoints).To(HaveKeyWithValue("internal", "http://placement-internal."+placementApiName.Namespace+".svc:8778"))
+			Expect(endpoints).To(HaveKeyWithValue("internal", "http://placement-internal."+namespace+".svc:8778"))
 
 			th.ExpectCondition(
-				placementApiName,
+				names.PlacementAPIName,
 				ConditionGetterFunc(PlacementConditionGetter),
 				condition.KeystoneEndpointReadyCondition,
 				corev1.ConditionTrue,

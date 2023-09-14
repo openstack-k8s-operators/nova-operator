@@ -29,6 +29,7 @@ import (
 	"github.com/google/uuid"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -60,6 +61,7 @@ var (
 	logger    logr.Logger
 	th        *TestHelper
 	namespace string
+	names     Names
 )
 
 const (
@@ -197,4 +199,12 @@ var _ = BeforeEach(func() {
 	// We still request the delete of the Namespace to properly cleanup if
 	// we run the test in an existing cluster.
 	DeferCleanup(th.DeleteNamespace, namespace)
+
+	placementAPIName := types.NamespacedName{
+		Namespace: namespace,
+		// Name:      uuid.New().String()[:25],
+		Name: "placement",
+	}
+
+	names = CreateNames(placementAPIName)
 })
