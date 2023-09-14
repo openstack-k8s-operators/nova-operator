@@ -32,6 +32,11 @@ const (
 	NovaComputeContainerImage   = "quay.io/podified-antelope-centos9/openstack-nova-compute:current-podified"
 )
 
+// Compute drivers names
+const (
+	IronicDriver = "ironic.IronicDriver"
+)
+
 // NovaServiceBase contains the fields that are needed for each nova service CRD
 type NovaServiceBase struct {
 	// +kubebuilder:validation:Optional
@@ -126,13 +131,12 @@ type CellPasswordSelector struct {
 func SetupDefaults() {
 	// Acquire environmental defaults and initialize Nova defaults with them
 	novaDefaults := NovaDefaults{
-
 		APIContainerImageURL:         util.GetEnvVar("RELATED_IMAGE_NOVA_API_IMAGE_URL_DEFAULT", NovaAPIContainerImage),
 		ConductorContainerImageURL:   util.GetEnvVar("RELATED_IMAGE_NOVA_CONDUCTOR_IMAGE_URL_DEFAULT", NovaConductorContainerImage),
 		MetadataContainerImageURL:    util.GetEnvVar("RELATED_IMAGE_NOVA_METADATA_IMAGE_URL_DEFAULT", NovaMetadataContainerImage),
 		NoVNCContainerImageURL:       util.GetEnvVar("RELATED_IMAGE_NOVA_NOVNC_IMAGE_URL_DEFAULT", NovaNoVNCContainerImage),
 		SchedulerContainerImageURL:   util.GetEnvVar("RELATED_IMAGE_NOVA_SCHEDULER_IMAGE_URL_DEFAULT", NovaSchedulerContainerImage),
-		NovaComputeContainerImageURL: util.GetEnvVar("NOVA_COMPUTE_IMAGE_URL_DEFAULT", NovaComputeContainerImage),
+		NovaComputeContainerImageURL: util.GetEnvVar("RELATED_IMAGE_NOVA_COMPUTE_IMAGE_URL_DEFAULT", NovaComputeContainerImage),
 	}
 
 	SetupNovaDefaults(novaDefaults)
@@ -149,7 +153,7 @@ func SetupDefaults() {
 		ConductorContainerImageURL:   util.GetEnvVar("RELATED_IMAGE_NOVA_CONDUCTOR_IMAGE_URL_DEFAULT", NovaConductorContainerImage),
 		MetadataContainerImageURL:    util.GetEnvVar("RELATED_IMAGE_NOVA_METADATA_IMAGE_URL_DEFAULT", NovaMetadataContainerImage),
 		NoVNCContainerImageURL:       util.GetEnvVar("RELATED_IMAGE_NOVA_NOVNC_IMAGE_URL_DEFAULT", NovaNoVNCContainerImage),
-		NovaComputeContainerImageURL: util.GetEnvVar("NOVA_COMPUTE_IMAGE_URL_DEFAULT", NovaComputeContainerImage),
+		NovaComputeContainerImageURL: util.GetEnvVar("RELATED_IMAGE_NOVA_COMPUTE_IMAGE_URL_DEFAULT", NovaComputeContainerImage),
 	}
 
 	SetupNovaCellDefaults(novaCellDefaults)
@@ -183,7 +187,7 @@ func SetupDefaults() {
 
 	// Acquire environmental defaults and initialize NovaCompute defaults with them
 	novaComputeDefaults := NovaComputeDefaults{
-		ContainerImageURL: util.GetEnvVar("NOVA_COMPUTE_IMAGE_URL_DEFAULT", NovaComputeContainerImage),
+		ContainerImageURL: util.GetEnvVar("RELATED_IMAGE_NOVA_COMPUTE_IMAGE_URL_DEFAULT", NovaComputeContainerImage),
 	}
 
 	SetupNovaComputeDefaults(novaComputeDefaults)

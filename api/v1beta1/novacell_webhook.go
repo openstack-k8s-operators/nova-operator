@@ -124,15 +124,23 @@ func (r *NovaCellSpec) validate(basePath *field.Path) field.ErrorList {
 			errors, r.NoVNCProxyServiceTemplate.ValidateCell0(
 				basePath.Child("noVNCProxyServiceTemplate"))...,
 		)
+		errors = append(
+			errors,
+			ValidateNovaComputeCell0(
+				basePath.Child("novaComputeTemplates"), len(r.NovaComputeTemplates))...)
 	}
 
-	for _, computeTemplate := range r.NovaComputeTemplates {
-		if computeTemplate.ComputeDriver == "ironic.IronicDriver" {
+	for computeName, computeTemplate := range r.NovaComputeTemplates {
+		if computeTemplate.ComputeDriver == IronicDriver {
 			errors = append(
 				errors, computeTemplate.ValidateIronicDriverReplicas(
 					basePath.Child("novaComputeTemplates"))...,
 			)
 		}
+		errors = append(
+			errors, ValidateNovaComputeName(
+				basePath.Child("novaComputeTemplates"), computeName)...,
+		)
 	}
 
 	errors = append(

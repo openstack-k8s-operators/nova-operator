@@ -134,7 +134,7 @@ func (r *NovaCompute) ValidateDelete() error {
 func (r *NovaComputeSpec) validate(basePath *field.Path) field.ErrorList {
 	var errors field.ErrorList
 
-	if r.ComputeDriver == "ironic.IronicDriver" && *r.NovaServiceBase.Replicas > 1 {
+	if r.ComputeDriver == IronicDriver && *r.NovaServiceBase.Replicas > 1 {
 		errors = append(
 			errors,
 			field.Invalid(
@@ -153,6 +153,34 @@ func (r *NovaComputeTemplate) ValidateIronicDriverReplicas(basePath *field.Path)
 			errors,
 			field.Invalid(
 				basePath.Child("replicas"), *r.Replicas, "should be max 1 for ironic.IronicDriver"),
+		)
+	}
+	return errors
+}
+
+// ValidateNovaComputeName validates the compute name. It is expected to be called
+// from various webhooks.
+func ValidateNovaComputeName(path *field.Path, computeName string) field.ErrorList {
+	var errors field.ErrorList
+	if len(computeName) > 20 {
+		errors = append(
+			errors,
+			field.Invalid(
+				path, computeName, "should be shorter than 20 characters"),
+		)
+	}
+	return errors
+}
+
+// ValidateNovaComputeCell0 validates cell0 NoVNCProxy template. This is expected to be
+// called by higher level validation webhooks
+func ValidateNovaComputeCell0(basePath *field.Path, mapLenght int) field.ErrorList {
+	var errors field.ErrorList
+	if mapLenght > 0 {
+		errors = append(
+			errors,
+			field.Invalid(
+				basePath, "novaComputeTemplates", "should have zero elements for cell0"),
 		)
 	}
 	return errors

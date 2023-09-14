@@ -1096,7 +1096,8 @@ spec:
                             type: object
                           replicas:
                             default: 1
-                            description: Replicas of the service to run
+                            description: Replicas of the service to run. For ironic.IronicDriver
+                              the max replica is 1
                             format: int32
                             maximum: 32
                             minimum: 0
@@ -1156,8 +1157,10 @@ spec:
                         required:
                         - computeDriver
                         type: object
-                      description: NovaComputeTemplates - map of nova computes with
-                        selected drivers
+                      description: 'NovaComputeTemplates - map of nova computes template
+                        with selected drivers in format compute_name: compute_template.
+                        Key from map is arbitrary name for the compute. because of
+                        that there is a limit of 20 signs'
                       type: object
                     passwordSelectors:
                       default:

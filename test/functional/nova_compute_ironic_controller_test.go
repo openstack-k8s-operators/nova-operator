@@ -199,16 +199,16 @@ var _ = Describe("NovaCompute controller", func() {
 				ss := th.GetStatefulSet(novaNames.NovaComputeStatefulSetName)
 				Expect(int(*ss.Spec.Replicas)).To(Equal(1))
 				Expect(ss.Spec.Template.Spec.Volumes).To(HaveLen(2))
-				Expect(ss.Spec.Template.Spec.Containers).To(HaveLen(2))
+				Expect(ss.Spec.Template.Spec.Containers).To(HaveLen(1))
 				Expect(ss.Spec.Selector.MatchLabels).To(Equal(map[string]string{"service": "nova-compute", "cell": "cell1"}))
 
 				container := ss.Spec.Template.Spec.Containers[0]
-				Expect(container.VolumeMounts).To(HaveLen(1))
 				Expect(container.Image).To(Equal(ContainerImage))
-
-				container = ss.Spec.Template.Spec.Containers[1]
+				Expect(container.LivenessProbe.Exec.Command).To(
+					Equal([]string{"/usr/bin/pgrep", "-r", "DRST", "nova-compute"}))
+				Expect(container.ReadinessProbe.Exec.Command).To(
+					Equal([]string{"/usr/bin/pgrep", "-r", "DRST", "nova-compute"}))
 				Expect(container.VolumeMounts).To(HaveLen(3))
-				Expect(container.Image).To(Equal(ContainerImage))
 
 			})
 
@@ -527,7 +527,7 @@ var _ = Describe("NovaCompute with ironic diver controller", func() {
 		})
 		It("has the expected container image default", func() {
 			novaComputeDefault := GetNovaCompute(novaNames.NovaComputeName)
-			Expect(novaComputeDefault.Spec.ContainerImage).To(Equal(util.GetEnvVar("NOVA_COMPUTE_IMAGE_URL_DEFAULT", novav1.NovaComputeContainerImage)))
+			Expect(novaComputeDefault.Spec.ContainerImage).To(Equal(util.GetEnvVar("RELATED_IMAGE_NOVA_COMPUTE_IMAGE_URL_DEFAULT", novav1.NovaComputeContainerImage)))
 		})
 	})
 })

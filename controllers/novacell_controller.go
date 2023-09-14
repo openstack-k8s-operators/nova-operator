@@ -177,6 +177,53 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 		instance.Status.Conditions.Remove(novav1.NovaNoVNCProxyReadyCondition)
 	}
 
+	for computeName, computeTemplate := range instance.Spec.NovaComputeTemplates {
+		novaComputeStatus := novav1.NovaComputeCellStatus{Deployed: false, Errors: false}
+		instance.Status.NovaComputesStatuses[computeName] = novaComputeStatus
+		result, err = r.ensureNovaCompute(ctx, h, instance, computeTemplate, computeName)
+	}
+
+	// We need to delete nova computes based on current templates and statuses from previous runs
+	for computeName := range instance.Status.NovaComputesStatuses {
+		_, ok := instance.Spec.NovaComputeTemplates[computeName]
+		if !ok {
+			err = r.ensureNovaComputeDeleted(ctx, h, instance, computeName)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+			delete(instance.Status.NovaComputesStatuses, computeName)
+		}
+
+	}
+
+	// We need to check if all computes are deployed
+	if len(instance.Spec.NovaComputeTemplates) == 0 {
+		instance.Status.Conditions.Remove(novav1.NovaAllComputesReadyCondition)
+	} else {
+		allComputesReady := false
+		failedComputes := []string{}
+		readyComputes := []string{}
+		for computeName, computeStatus := range instance.Status.NovaComputesStatuses {
+			if computeStatus.Deployed {
+				readyComputes = append(readyComputes, computeName)
+			}
+			if computeStatus.Errors {
+				failedComputes = append(failedComputes, computeName)
+			}
+		}
+		if len(instance.Spec.NovaComputeTemplates) == len(readyComputes) {
+			instance.Status.Conditions.MarkTrue(
+				novav1.NovaAllComputesReadyCondition, condition.ServiceConfigReadyMessage,
+			)
+		}
+
+		util.LogForObject(
+			h, "Nova compute statuses", instance,
+			"ready", readyComputes,
+			"failed", failedComputes,
+			"all computes ready", allComputesReady)
+	}
+
 	// We need to wait for the NovaNoVNCProxy to become Ready before we can try
 	// to generate the compute config secret as that needs the endpoint of the
 	// proxy to be included.
@@ -209,34 +256,6 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 		instance.Status.Conditions.Remove(novav1.NovaComputeServiceConfigReady)
 	}
 
-	for computeName, computeTemplate := range instance.Spec.NovaComputeTemplates {
-		if instance.Spec.CellName != novav1.Cell0Name {
-			result, err = r.ensureNovaCompute(ctx, h, instance, computeTemplate, computeName)
-			if err != nil {
-				return result, err
-			}
-			instance.Status.NovaComputesStatuses[computeName] = true
-		}
-	}
-
-	for computeName := range instance.Status.NovaComputesStatuses {
-		_, ok := instance.Spec.NovaComputeTemplates[computeName]
-		if !ok {
-			err = r.ensureNovaComputeDeleted(ctx, h, instance, computeName)
-			if err != nil {
-				return ctrl.Result{}, err
-			}
-			delete(instance.Status.NovaComputesStatuses, computeName)
-		}
-	}
-
-	if len(instance.Spec.NovaComputeTemplates) == 0 {
-		instance.Status.Conditions.Remove(novav1.NovaAllCompusteReadyCondition)
-	} else {
-		instance.Status.Conditions.MarkTrue(
-			novav1.NovaAllCompusteReadyCondition, condition.ServiceConfigReadyMessage,
-		)
-	}
 	util.LogForObject(h, "Successfully reconciled", instance)
 	return ctrl.Result{}, nil
 }
@@ -251,7 +270,7 @@ func (r *NovaCellReconciler) initStatus(
 		instance.Status.Hash = map[string]string{}
 	}
 	if instance.Status.NovaComputesStatuses == nil {
-		instance.Status.NovaComputesStatuses = map[string]bool{}
+		instance.Status.NovaComputesStatuses = map[string]novav1.NovaComputeCellStatus{}
 	}
 
 	return nil
@@ -293,7 +312,7 @@ func (r *NovaCellReconciler) initConditions(
 				novav1.NovaComputeServiceConfigInitMessage,
 			),
 			condition.UnknownCondition(
-				novav1.NovaAllCompusteReadyCondition,
+				novav1.NovaAllComputesReadyCondition,
 				condition.InitReason,
 				novav1.NovaComputeReadyInitMessage,
 			),
@@ -628,7 +647,7 @@ func (r *NovaCellReconciler) ensureNovaComputeDeleted(
 	// If it is not created by us, we don't touch it
 	if !OwnedBy(compute, instance) {
 		util.LogForObject(
-			h, "NovaCompute is disabled, but there is a "+
+			h, "NovaCompute isn't defined in the cell, but there is a  "+
 				"NovaCompute CR not owned by us. Not deleting it.",
 			instance, "NovaCompute", compute)
 		return nil
@@ -640,7 +659,7 @@ func (r *NovaCellReconciler) ensureNovaComputeDeleted(
 		return nil
 	}
 	util.LogForObject(
-		h, "NovaCompute is disabled, so deleted NovaCompute",
+		h, "NovaCompute isn't defined in the cell, so deleted NovaCompute",
 		instance, "NovaCompute", compute)
 
 	return nil
@@ -663,9 +682,15 @@ func (r *NovaCellReconciler) ensureNovaCompute(
 	// create its own NovaComputes.
 	// See https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#label-selector-updates
 
-	computeNovaName := getNovaComputeName(instance, computeName)
+	fullComputeName := getNovaComputeName(instance, computeName)
 	novacompute := &novav1.NovaCompute{}
-	err := r.Client.Get(ctx, computeNovaName, novacompute)
+	err := r.Client.Get(ctx, fullComputeName, novacompute)
+	var computeStatus novav1.NovaComputeCellStatus
+	if computeStatus, ok := instance.Status.NovaComputesStatuses[computeName]; ok {
+		computeStatus.Errors = false
+	} else {
+		computeStatus = novav1.NovaComputeCellStatus{Deployed: false, Errors: false}
+	}
 	if err != nil && !k8s_errors.IsNotFound(err) {
 		return ctrl.Result{}, err
 	}
@@ -676,16 +701,13 @@ func (r *NovaCellReconciler) ensureNovaCompute(
 			"cannot update NovaCompute/%s as the cell is not owning it", novacompute.Name)
 		util.LogErrorForObject(
 			h, err,
-			"NovaCompute is enabled, but there is a "+
+			"NovaCompute is defined in the cell, but there is a "+
 				"NovaCompute CR not owned by us. We cannot update it. "+
 				"Please delete the NovaCompute.",
-			instance, "NovaCompute", computeNovaName)
-		instance.Status.Conditions.Set(condition.FalseCondition(
-			novav1.NovaAllCompusteReadyCondition,
-			condition.ErrorReason,
-			condition.SeverityError,
-			novav1.NovaComputeReadyErrorMessage,
-			err.Error()))
+			instance, "NovaCompute", fullComputeName)
+
+		computeStatus.Errors = true
+		instance.Status.NovaComputesStatuses[computeName] = computeStatus
 
 		return ctrl.Result{}, err
 	}
@@ -693,7 +715,7 @@ func (r *NovaCellReconciler) ensureNovaCompute(
 	novacomputeSpec := novav1.NewNovaComputeSpec(instance.Spec, compute, computeName)
 	novacompute = &novav1.NovaCompute{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      computeNovaName.Name,
+			Name:      fullComputeName.Name,
 			Namespace: instance.Namespace,
 		},
 	}
@@ -712,12 +734,8 @@ func (r *NovaCellReconciler) ensureNovaCompute(
 	})
 
 	if err != nil {
-		instance.Status.Conditions.Set(condition.FalseCondition(
-			novav1.NovaAllCompusteReadyCondition,
-			condition.ErrorReason,
-			condition.SeverityError,
-			novav1.NovaComputeReadyErrorMessage,
-			err.Error()))
+		computeStatus.Errors = true
+		instance.Status.NovaComputesStatuses[computeName] = computeStatus
 		return ctrl.Result{}, err
 	}
 
@@ -725,6 +743,10 @@ func (r *NovaCellReconciler) ensureNovaCompute(
 		util.LogForObject(h, fmt.Sprintf("NovaCompute %s.", string(op)), instance, "NovaCompute.Name", novacompute.Name)
 	}
 
+	computeStatus.Errors = false
+	// TODO(ksambor) move seting deploy true to job that will run nova-manage cell_v2 discover_hosts
+	computeStatus.Deployed = true
+	instance.Status.NovaComputesStatuses[computeName] = computeStatus
 	return ctrl.Result{}, nil
 }
 
@@ -741,8 +763,9 @@ func (r *NovaCellReconciler) generateComputeConfigs(
 		"openstack_region_name":  "regionOne", // fixme
 		"default_project_domain": "Default",   // fixme
 		"default_user_domain":    "Default",   // fixme
+		"compute_driver":         "libvirt.LibvirtDriver",
 		"transport_url":          string(secret.Data[TransportURLSelector]),
-		"log_file":               "/var/log/containers/nova/nova-compute.log",
+		"log_file":               "/var/log/nova/nova-compute.log",
 	}
 	// vnc is optional so we only need to configure it for the compute
 	// if the proxy service is deployed in the cell

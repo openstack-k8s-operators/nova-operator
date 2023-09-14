@@ -29,8 +29,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	routev1 "github.com/openshift/api/route/v1"
-
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
@@ -269,19 +267,14 @@ func (r *NovaComputeReconciler) generateConfigs(
 		"keystone_internal_url":  instance.Spec.KeystoneAuthURL,
 		"nova_keystone_user":     instance.Spec.ServiceUser,
 		"nova_keystone_password": string(secret.Data[ServicePasswordSelector]),
-		"cell_db_name":           instance.Spec.CellDatabaseUser, // fixme
-		"cell_db_user":           instance.Spec.CellDatabaseUser,
-		"cell_db_password":       string(secret.Data[CellDatabasePasswordSelector]),
-		"cell_db_address":        instance.Spec.CellDatabaseHostname,
-		"cell_db_port":           3306,
 		"openstack_cacert":       "",          // fixme
 		"openstack_region_name":  "regionOne", // fixme
 		"default_project_domain": "Default",   // fixme
 		"default_user_domain":    "Default",   // fixme
 		"transport_url":          string(secret.Data[TransportURLSelector]),
-		"log_file":               "/var/log/containers/nova/nova-compute.log",
+		"log_file":               "/var/log/nova/nova-compute.log",
 		"nova_compute_image":     instance.Spec.ContainerImage,
-		"compute_driver":         "ironic.IronicDriver",
+		"compute_driver":         instance.Spec.ComputeDriver,
 	}
 	extraData := map[string]string{}
 	if instance.Spec.CustomServiceConfig != "" {
@@ -295,11 +288,8 @@ func (r *NovaComputeReconciler) generateConfigs(
 		instance, labels.GetGroupLabel(NovaComputeLabelPrefix), map[string]string{},
 	)
 
-	addtionalTemplates := map[string]string{
-		"nova-compute.json": "/novacompute/config/nova-compute.json",
-	}
 	err := r.GenerateConfigs(
-		ctx, h, instance, nova.GetServiceConfigSecretName(instance.GetName()), hashes, templateParameters, extraData, cmLabels, addtionalTemplates,
+		ctx, h, instance, nova.GetServiceConfigSecretName(instance.GetName()), hashes, templateParameters, extraData, cmLabels, map[string]string{},
 	)
 	return err
 }
@@ -408,9 +398,7 @@ func (r *NovaComputeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&novav1.NovaCompute{}).
 		Owns(&v1.StatefulSet{}).
-		Owns(&corev1.Service{}).
 		Owns(&corev1.Secret{}).
-		Owns(&routev1.Route{}).
 		Watches(&source.Kind{Type: &corev1.Secret{}},
 			handler.EnqueueRequestsFromMapFunc(r.GetSecretMapperFor(&novav1.NovaComputeList{}))).
 		Complete(r)
