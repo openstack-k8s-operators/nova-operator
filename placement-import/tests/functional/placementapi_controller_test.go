@@ -35,6 +35,13 @@ var _ = Describe("PlacementAPI controller", func() {
 	var placementApiName types.NamespacedName
 	var placementApiConfigMapName types.NamespacedName
 	var keystoneAPI *keystonev1.KeystoneAPI
+	var dbSyncJobName types.NamespacedName
+	var mariaDBDatabaseName types.NamespacedName
+	var deploymentName types.NamespacedName
+	var publicServiceName types.NamespacedName
+	var internalServiceName types.NamespacedName
+	var keystoneServiceName types.NamespacedName
+	var keystoneEndpointName types.NamespacedName
 
 	BeforeEach(func() {
 		placementApiName = types.NamespacedName{
@@ -45,6 +52,13 @@ var _ = Describe("PlacementAPI controller", func() {
 			Namespace: namespace,
 			Name:      placementApiName.Name + "-config-data",
 		}
+		dbSyncJobName = types.NamespacedName{Namespace: namespace, Name: "placement-db-sync"}
+		mariaDBDatabaseName = types.NamespacedName{Namespace: namespace, Name: "placement"}
+		deploymentName = types.NamespacedName{Namespace: namespace, Name: "placement"}
+		publicServiceName = types.NamespacedName{Namespace: namespace, Name: "placement-public"}
+		internalServiceName = types.NamespacedName{Namespace: namespace, Name: "placement-internal"}
+		keystoneServiceName = types.NamespacedName{Namespace: namespace, Name: "placement"}
+		keystoneEndpointName = types.NamespacedName{Namespace: namespace, Name: "placement"}
 
 		// lib-common uses OPERATOR_TEMPLATES env var to locate the "templates"
 		// directory of the operator. We need to set them othervise lib-common
@@ -187,7 +201,7 @@ var _ = Describe("PlacementAPI controller", func() {
 			DeferCleanup(th.DeleteKeystoneAPI, keystoneAPIName)
 		})
 
-		It("should have input ready", func() {
+		It("should have config ready", func() {
 			th.ExpectCondition(
 				placementApiName,
 				ConditionGetterFunc(PlacementConditionGetter),
@@ -202,6 +216,220 @@ var _ = Describe("PlacementAPI controller", func() {
 				ContainSubstring("auth_url = %s", keystoneAPI.Status.APIEndpoints["internal"]))
 			Expect(cm.Data["placement.conf"]).Should(
 				ContainSubstring("www_authenticate_uri = %s", keystoneAPI.Status.APIEndpoints["public"]))
+			Expect(cm.Data["placement.conf"]).Should(
+				ContainSubstring("username = placement"))
+		})
+
+		It("creates MariaDB database", func() {
+			th.ExpectCondition(
+				placementApiName,
+				ConditionGetterFunc(PlacementConditionGetter),
+				condition.DBReadyCondition,
+				corev1.ConditionFalse,
+			)
+
+			serviceSpec := corev1.ServiceSpec{Ports: []corev1.ServicePort{{Port: 3306}}}
+			DeferCleanup(
+				th.DeleteDBService,
+				th.CreateDBService(namespace, "openstack", serviceSpec),
+			)
+			db := th.GetMariaDBDatabase(mariaDBDatabaseName)
+			Expect(db.Spec.Name).To(Equal("placement"))
+			Expect(db.Spec.Secret).To(Equal(SecretName))
+
+			th.SimulateMariaDBDatabaseCompleted(mariaDBDatabaseName)
+
+			th.ExpectCondition(
+				placementApiName,
+				ConditionGetterFunc(PlacementConditionGetter),
+				condition.DBReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
+		It("creates keystone service", func() {
+			th.ExpectCondition(
+				placementApiName,
+				ConditionGetterFunc(PlacementConditionGetter),
+				condition.KeystoneServiceReadyCondition,
+				corev1.ConditionUnknown,
+			)
+
+			serviceSpec := corev1.ServiceSpec{Ports: []corev1.ServicePort{{Port: 3306}}}
+			DeferCleanup(
+				th.DeleteDBService,
+				th.CreateDBService(namespace, "openstack", serviceSpec),
+			)
+			th.SimulateMariaDBDatabaseCompleted(mariaDBDatabaseName)
+
+			th.SimulateKeystoneServiceReady(keystoneServiceName)
+
+			th.ExpectCondition(
+				placementApiName,
+				ConditionGetterFunc(PlacementConditionGetter),
+				condition.KeystoneServiceReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
+		It("creates keystone endpoint", func() {
+			th.ExpectCondition(
+				placementApiName,
+				ConditionGetterFunc(PlacementConditionGetter),
+				condition.KeystoneEndpointReadyCondition,
+				corev1.ConditionUnknown,
+			)
+
+			serviceSpec := corev1.ServiceSpec{Ports: []corev1.ServicePort{{Port: 3306}}}
+			DeferCleanup(
+				th.DeleteDBService,
+				th.CreateDBService(namespace, "openstack", serviceSpec),
+			)
+			th.SimulateMariaDBDatabaseCompleted(mariaDBDatabaseName)
+
+			th.SimulateKeystoneEndpointReady(keystoneEndpointName)
+
+			th.ExpectCondition(
+				placementApiName,
+				ConditionGetterFunc(PlacementConditionGetter),
+				condition.KeystoneEndpointReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
+		It("runs db sync", func() {
+			serviceSpec := corev1.ServiceSpec{Ports: []corev1.ServicePort{{Port: 3306}}}
+			DeferCleanup(
+				th.DeleteDBService,
+				th.CreateDBService(namespace, "openstack", serviceSpec),
+			)
+			th.SimulateMariaDBDatabaseCompleted(mariaDBDatabaseName)
+
+			th.ExpectCondition(
+				placementApiName,
+				ConditionGetterFunc(PlacementConditionGetter),
+				condition.DBSyncReadyCondition,
+				corev1.ConditionFalse,
+			)
+
+			job := th.GetJob(dbSyncJobName)
+			Expect(job.Spec.Template.Spec.Volumes).To(HaveLen(3))
+			Expect(job.Spec.Template.Spec.InitContainers).To(HaveLen(1))
+			Expect(job.Spec.Template.Spec.Containers).To(HaveLen(1))
+
+			init := job.Spec.Template.Spec.InitContainers[0]
+			Expect(init.VolumeMounts).To(HaveLen(3))
+			Expect(init.Args[1]).To(ContainSubstring("init.sh"))
+			Expect(init.Image).To(Equal("quay.io/podified-antelope-centos9/openstack-placement-api:current-podified"))
+			env := &corev1.EnvVar{}
+			Expect(init.Env).To(ContainElement(HaveField("Name", "DatabaseHost"), env))
+			Expect(env.Value).To(Equal("hostname-for-openstack"))
+			Expect(init.Env).To(ContainElement(HaveField("Name", "DatabaseUser"), env))
+			Expect(env.Value).To(Equal("placement"))
+			Expect(init.Env).To(ContainElement(HaveField("Name", "DatabaseName"), env))
+			Expect(env.Value).To(Equal("placement"))
+			Expect(init.Env).To(ContainElement(HaveField("Name", "DatabasePassword"), env))
+			Expect(env.ValueFrom.SecretKeyRef.LocalObjectReference.Name).To(Equal(SecretName))
+			Expect(env.ValueFrom.SecretKeyRef.Key).To(Equal("PlacementDatabasePassword"))
+			Expect(init.Env).To(ContainElement(HaveField("Name", "PlacementPassword"), env))
+			Expect(env.ValueFrom.SecretKeyRef.LocalObjectReference.Name).To(Equal(SecretName))
+			Expect(env.ValueFrom.SecretKeyRef.Key).To(Equal("PlacementPassword"))
+
+			container := job.Spec.Template.Spec.Containers[0]
+			Expect(container.VolumeMounts).To(HaveLen(3))
+			Expect(container.Args[1]).To(ContainSubstring("placement-manage db sync"))
+			Expect(container.Image).To(Equal("quay.io/podified-antelope-centos9/openstack-placement-api:current-podified"))
+
+			th.SimulateJobSuccess(dbSyncJobName)
+
+			th.ExpectCondition(
+				placementApiName,
+				ConditionGetterFunc(PlacementConditionGetter),
+				condition.DBSyncReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
+		It("creates deployment", func() {
+			serviceSpec := corev1.ServiceSpec{Ports: []corev1.ServicePort{{Port: 3306}}}
+			DeferCleanup(
+				th.DeleteDBService,
+				th.CreateDBService(namespace, "openstack", serviceSpec),
+			)
+			th.SimulateMariaDBDatabaseCompleted(mariaDBDatabaseName)
+			th.SimulateJobSuccess(dbSyncJobName)
+
+			th.ExpectCondition(
+				placementApiName,
+				ConditionGetterFunc(PlacementConditionGetter),
+				condition.DeploymentReadyCondition,
+				corev1.ConditionUnknown,
+			)
+
+			deployment := th.GetDeployment(deploymentName)
+			Expect(int(*deployment.Spec.Replicas)).To(Equal(1))
+			Expect(deployment.Spec.Selector.MatchLabels).To(Equal(map[string]string{"service": "placement"}))
+
+			th.SimulateDeploymentReplicaReady(deploymentName)
+
+			th.ExpectCondition(
+				placementApiName,
+				ConditionGetterFunc(PlacementConditionGetter),
+				condition.DeploymentReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
+		It("exposes the service", func() {
+			th.ExpectCondition(
+				placementApiName,
+				ConditionGetterFunc(PlacementConditionGetter),
+				condition.ExposeServiceReadyCondition,
+				corev1.ConditionUnknown,
+			)
+
+			serviceSpec := corev1.ServiceSpec{Ports: []corev1.ServicePort{{Port: 3306}}}
+			DeferCleanup(
+				th.DeleteDBService,
+				th.CreateDBService(namespace, "openstack", serviceSpec),
+			)
+			th.SimulateMariaDBDatabaseCompleted(mariaDBDatabaseName)
+			th.SimulateJobSuccess(dbSyncJobName)
+			th.SimulateDeploymentReplicaReady(deploymentName)
+
+			public := th.GetService(publicServiceName)
+			Expect(public.Labels["service"]).To(Equal("placement"))
+			internal := th.GetService(internalServiceName)
+			Expect(internal.Labels["service"]).To(Equal("placement"))
+
+			th.ExpectCondition(
+				placementApiName,
+				ConditionGetterFunc(PlacementConditionGetter),
+				condition.ExposeServiceReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
+
+		It("reports ready when successfully deployed", func() {
+			th.ExpectCondition(
+				placementApiName,
+				ConditionGetterFunc(PlacementConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+			)
+
+			serviceSpec := corev1.ServiceSpec{Ports: []corev1.ServicePort{{Port: 3306}}}
+			DeferCleanup(
+				th.DeleteDBService,
+				th.CreateDBService(namespace, "openstack", serviceSpec),
+			)
+			th.SimulateMariaDBDatabaseCompleted(mariaDBDatabaseName)
+			th.SimulateKeystoneServiceReady(keystoneServiceName)
+			th.SimulateKeystoneEndpointReady(keystoneEndpointName)
+			th.SimulateJobSuccess(dbSyncJobName)
+			th.SimulateDeploymentReplicaReady(deploymentName)
+
+			th.ExpectCondition(
+				placementApiName,
+				ConditionGetterFunc(PlacementConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
 		})
 	})
 
