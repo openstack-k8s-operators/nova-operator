@@ -107,8 +107,7 @@ vet: gowork ## Run go vet against code.
 
 .PHONY: test
 test: manifests generate gowork fmt vet envtest ginkgo ## Run tests.
-	# TODO(gibi): enable --randomize-all and fix test failures
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) -v debug --bin-dir $(LOCALBIN) use $(ENVTEST_K8S_VERSION) -p path)" $(GINKGO) --trace --cover --coverpkg=../../pkg/placement,../../controllers,../../api/v1beta1 --coverprofile cover.out --covermode=atomic ${PROC_CMD} $(GINKGO_ARGS) ./tests/...
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) -v debug --bin-dir $(LOCALBIN) use $(ENVTEST_K8S_VERSION) -p path)" $(GINKGO) --trace --cover --coverpkg=../../pkg/placement,../../controllers,../../api/v1beta1 --coverprofile cover.out --covermode=atomic --randomize-all $(GINKGO_ARGS) ./tests/...
 
 ##@ Build
 
