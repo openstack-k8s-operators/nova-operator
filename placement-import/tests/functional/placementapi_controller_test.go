@@ -98,15 +98,25 @@ var _ = Describe("PlacementAPI controller", func() {
 				condition.InputReadyCondition,
 				corev1.ConditionFalse,
 			)
-
-			for _, cond := range []condition.Type{
-				condition.ServiceConfigReadyCondition,
+			unknownConditions := []condition.Type{
 				condition.DBReadyCondition,
 				condition.DBSyncReadyCondition,
 				condition.ExposeServiceReadyCondition,
+				condition.ServiceConfigReadyCondition,
 				condition.DeploymentReadyCondition,
+				condition.KeystoneServiceReadyCondition,
+				condition.KeystoneEndpointReadyCondition,
 				condition.NetworkAttachmentsReadyCondition,
-			} {
+				condition.ServiceAccountReadyCondition,
+				condition.RoleReadyCondition,
+				condition.RoleBindingReadyCondition,
+			}
+
+			placement := GetPlacementAPI(placementApiName)
+			// +2 as InputReady and Ready is False asserted above
+			Expect(placement.Status.Conditions).To(HaveLen(len(unknownConditions) + 2))
+
+			for _, cond := range unknownConditions {
 				th.ExpectCondition(
 					placementApiName,
 					ConditionGetterFunc(PlacementConditionGetter),
