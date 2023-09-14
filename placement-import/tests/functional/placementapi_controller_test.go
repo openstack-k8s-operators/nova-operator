@@ -583,4 +583,51 @@ var _ = Describe("PlacementAPI controller", func() {
 			)
 		})
 	})
+
+	Context("PlacementAPI is fully deployed", func() {
+		BeforeEach(func() {
+			DeferCleanup(th.DeleteInstance, CreatePlacementAPI(names.PlacementAPIName, GetDefaultPlacementAPISpec()))
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreatePlacementAPISecret(namespace, SecretName))
+			DeferCleanup(th.DeleteKeystoneAPI, th.CreateKeystoneAPI(namespace))
+
+			serviceSpec := corev1.ServiceSpec{Ports: []corev1.ServicePort{{Port: 3306}}}
+			DeferCleanup(
+				th.DeleteDBService,
+				th.CreateDBService(namespace, "openstack", serviceSpec),
+			)
+			th.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
+			th.SimulateKeystoneServiceReady(names.KeystoneServiceName)
+			th.SimulateKeystoneEndpointReady(names.KeystoneEndpointName)
+			th.SimulateJobSuccess(names.DBSyncJobName)
+			th.SimulateDeploymentReplicaReady(names.DeploymentName)
+
+			th.ExpectCondition(
+				names.PlacementAPIName,
+				ConditionGetterFunc(PlacementConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
+
+		It("removes the finalizers when deleted", func() {
+			placement := GetPlacementAPI(names.PlacementAPIName)
+			Expect(placement.Finalizers).To(ContainElement("PlacementAPI"))
+			keystoneService := th.GetKeystoneService(names.KeystoneServiceName)
+			Expect(keystoneService.Finalizers).To(ContainElement("PlacementAPI"))
+			keystoneEndpoint := th.GetKeystoneService(names.KeystoneEndpointName)
+			Expect(keystoneEndpoint.Finalizers).To(ContainElement("PlacementAPI"))
+			db := th.GetMariaDBDatabase(names.MariaDBDatabaseName)
+			Expect(db.Finalizers).To(ContainElement("PlacementAPI"))
+
+			th.DeleteInstance(GetPlacementAPI(names.PlacementAPIName))
+
+			keystoneService = th.GetKeystoneService(names.KeystoneServiceName)
+			Expect(keystoneService.Finalizers).NotTo(ContainElement("PlacementAPI"))
+			keystoneEndpoint = th.GetKeystoneService(names.KeystoneEndpointName)
+			Expect(keystoneEndpoint.Finalizers).NotTo(ContainElement("PlacementAPI"))
+			db = th.GetMariaDBDatabase(names.MariaDBDatabaseName)
+			Expect(db.Finalizers).NotTo(ContainElement("PlacementAPI"))
+		})
+	})
 })
