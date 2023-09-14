@@ -1,5 +1,5 @@
 {
-    "command": "nova-compute",
+    "command": "/usr/bin/nova-compute",
     "config_files": [
         {
             "source": "/var/lib/openstack/config/nova-blank.conf",
@@ -23,7 +23,7 @@
     ],
     "permissions": [
         {
-            "path": "/var/log/containers/nova",
+            "path": "/var/log/nova",
             "owner": "nova:nova",
             "recurse": true
         }

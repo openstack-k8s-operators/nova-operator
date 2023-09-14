@@ -16,13 +16,14 @@ limitations under the License.
 package functional_test
 
 import (
+	"errors"
 	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	"k8s.io/apimachinery/pkg/api/errors"
+	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
@@ -59,8 +60,8 @@ var _ = Describe("Nova validation", func() {
 			ctx, k8sClient, unstructuredObj, func() error { return nil })
 
 		Expect(err).Should(HaveOccurred())
-		statusError, ok := err.(*errors.StatusError)
-		Expect(ok).To(BeTrue())
+		var statusError *k8s_errors.StatusError
+		Expect(errors.As(err, &statusError)).To(BeTrue())
 		Expect(statusError.ErrStatus.Details.Kind).To(Equal("Nova"))
 		Expect(statusError.ErrStatus.Message).To(
 			ContainSubstring(
@@ -88,8 +89,8 @@ var _ = Describe("Nova validation", func() {
 			ctx, k8sClient, unstructuredObj, func() error { return nil })
 
 		Expect(err).Should(HaveOccurred())
-		statusError, ok := err.(*errors.StatusError)
-		Expect(ok).To(BeTrue())
+		var statusError *k8s_errors.StatusError
+		Expect(errors.As(err, &statusError)).To(BeTrue())
 		Expect(statusError.ErrStatus.Details.Kind).To(Equal("NovaCell"))
 		Expect(statusError.ErrStatus.Message).To(
 			ContainSubstring(
@@ -125,8 +126,8 @@ var _ = Describe("Nova validation", func() {
 			ctx, k8sClient, unstructuredObj, func() error { return nil })
 
 		Expect(err).Should(HaveOccurred())
-		statusError, ok := err.(*errors.StatusError)
-		Expect(ok).To(BeTrue())
+		var statusError *k8s_errors.StatusError
+		Expect(errors.As(err, &statusError)).To(BeTrue())
 		Expect(statusError.ErrStatus.Details.Kind).To(Equal("Nova"))
 		Expect(statusError.ErrStatus.Message).To(
 			ContainSubstring(
@@ -154,8 +155,8 @@ var _ = Describe("Nova validation", func() {
 			ctx, k8sClient, unstructuredObj, func() error { return nil })
 
 		Expect(err).Should(HaveOccurred())
-		statusError, ok := err.(*errors.StatusError)
-		Expect(ok).To(BeTrue())
+		var statusError *k8s_errors.StatusError
+		Expect(errors.As(err, &statusError)).To(BeTrue())
 		Expect(statusError.ErrStatus.Details.Kind).To(Equal("NovaCell"))
 		Expect(statusError.ErrStatus.Message).To(
 			ContainSubstring(
@@ -186,8 +187,8 @@ var _ = Describe("Nova validation", func() {
 			ctx, k8sClient, unstructuredObj, func() error { return nil })
 
 		Expect(err).Should(HaveOccurred())
-		statusError, ok := err.(*errors.StatusError)
-		Expect(ok).To(BeTrue())
+		var statusError *k8s_errors.StatusError
+		Expect(errors.As(err, &statusError)).To(BeTrue())
 		Expect(statusError.ErrStatus.Details.Kind).To(Equal("Nova"))
 		Expect(statusError.ErrStatus.Message).To(
 			ContainSubstring(
@@ -213,8 +214,8 @@ var _ = Describe("Nova validation", func() {
 			ctx, k8sClient, unstructuredObj, func() error { return nil })
 
 		Expect(err).Should(HaveOccurred())
-		statusError, ok := err.(*errors.StatusError)
-		Expect(ok).To(BeTrue())
+		var statusError *k8s_errors.StatusError
+		Expect(errors.As(err, &statusError)).To(BeTrue())
 		Expect(statusError.ErrStatus.Details.Kind).To(Equal("NovaCell"))
 		Expect(statusError.ErrStatus.Message).To(
 			ContainSubstring(
@@ -254,8 +255,8 @@ var _ = Describe("Nova validation", func() {
 			ctx, k8sClient, unstructuredObj, func() error { return nil })
 
 		Expect(err).Should(HaveOccurred())
-		statusError, ok := err.(*errors.StatusError)
-		Expect(ok).To(BeTrue())
+		var statusError *k8s_errors.StatusError
+		Expect(errors.As(err, &statusError)).To(BeTrue())
 		Expect(statusError.ErrStatus.Details.Kind).To(Equal("Nova"))
 		Expect(statusError.ErrStatus.Details.Causes).To(HaveLen(2))
 		Expect(statusError.ErrStatus.Details.Causes).To(
@@ -298,13 +299,162 @@ var _ = Describe("Nova validation", func() {
 			ctx, k8sClient, unstructuredObj, func() error { return nil })
 
 		Expect(err).Should(HaveOccurred())
-		statusError, ok := err.(*errors.StatusError)
-		Expect(ok).To(BeTrue())
+		var statusError *k8s_errors.StatusError
+		Expect(errors.As(err, &statusError)).To(BeTrue())
 		Expect(statusError.ErrStatus.Details.Kind).To(Equal("Nova"))
 		Expect(statusError.ErrStatus.Message).To(
 			ContainSubstring(
 				"invalid: spec.cellTemplates: Required value: " +
 					"cell0 specification is missing, cell0 key is required in cellTemplates"),
+		)
+	})
+	It("rejects Nova if cell0 contains novacomputetemplates", func() {
+		spec := GetDefaultNovaSpec()
+		cell0 := GetDefaultNovaCellTemplate()
+		cell0["novaComputeTemplates"] = map[string]interface{}{
+			"ironic-compute": GetDefaultNovaComputeTemplate(),
+		}
+		spec["cellTemplates"] = map[string]interface{}{"cell0": cell0}
+		raw := map[string]interface{}{
+			"apiVersion": "nova.openstack.org/v1beta1",
+			"kind":       "Nova",
+			"metadata": map[string]interface{}{
+				"name":      novaNames.NovaName.Name,
+				"namespace": novaNames.Namespace,
+			},
+			"spec": spec,
+		}
+
+		unstructuredObj := &unstructured.Unstructured{Object: raw}
+		_, err := controllerutil.CreateOrPatch(
+			ctx, k8sClient, unstructuredObj, func() error { return nil })
+
+		Expect(err).Should(HaveOccurred())
+		var statusError *k8s_errors.StatusError
+		Expect(errors.As(err, &statusError)).To(BeTrue())
+		Expect(statusError.ErrStatus.Details.Kind).To(Equal("Nova"))
+		Expect(statusError.ErrStatus.Message).To(
+			ContainSubstring(
+				"invalid: spec.cellTemplates[cell0].novaComputeTemplates: " +
+					"Invalid value: \"novaComputeTemplates\": should have zero elements for cell0",
+			),
+		)
+	})
+	It("rejects Nova with too long compute name", func() {
+		spec := GetDefaultNovaSpec()
+		cell0 := GetDefaultNovaCellTemplate()
+		cell1 := GetDefaultNovaCellTemplate()
+		cell1["novaComputeTemplates"] = map[string]interface{}{
+			"ironic-compute" + strings.Repeat("x", 31): GetDefaultNovaComputeTemplate(),
+		}
+		spec["cellTemplates"] = map[string]interface{}{"cell0": cell0, "cell1": cell1}
+		raw := map[string]interface{}{
+			"apiVersion": "nova.openstack.org/v1beta1",
+			"kind":       "Nova",
+			"metadata": map[string]interface{}{
+				"name":      novaNames.NovaName.Name,
+				"namespace": novaNames.Namespace,
+			},
+			"spec": spec,
+		}
+		unstructuredObj := &unstructured.Unstructured{Object: raw}
+		_, err := controllerutil.CreateOrPatch(
+			ctx, k8sClient, unstructuredObj, func() error { return nil })
+
+		Expect(err).Should(HaveOccurred())
+		var statusError *k8s_errors.StatusError
+		Expect(errors.As(err, &statusError)).To(BeTrue())
+		Expect(statusError.ErrStatus.Details.Kind).To(Equal("Nova"))
+		Expect(statusError.ErrStatus.Message).To(
+			ContainSubstring(
+				"invalid: spec.novaComputeTemplates: " +
+					"Invalid value: \"ironic-computexxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\": " +
+					"should be shorter than 20 characters",
+			),
+		)
+	})
+	It("check NovaCompute validation with replicas = nil", func() {
+		spec := GetDefaultNovaSpec()
+		cell0 := GetDefaultNovaCellTemplate()
+		cell1 := GetDefaultNovaCellTemplate()
+		novaCompute := GetDefaultNovaComputeTemplate()
+		novaCompute["replicas"] = nil
+		cell1["novaComputeTemplates"] = map[string]interface{}{
+			"ironic-compute": novaCompute,
+		}
+		spec["cellTemplates"] = map[string]interface{}{"cell0": cell0, "cell1": cell1}
+		raw := map[string]interface{}{
+			"apiVersion": "nova.openstack.org/v1beta1",
+			"kind":       "Nova",
+			"metadata": map[string]interface{}{
+				"name":      novaNames.NovaName.Name,
+				"namespace": novaNames.Namespace,
+			},
+			"spec": spec,
+		}
+		unstructuredObj := &unstructured.Unstructured{Object: raw}
+		_, err := controllerutil.CreateOrPatch(
+			ctx, k8sClient, unstructuredObj, func() error { return nil })
+
+		Expect(err).Should(Succeed())
+	})
+	It("rejects NovaCell - cell0 contains novacomputetemplates", func() {
+		spec := GetDefaultNovaCellSpec(cell0)
+		spec["novaComputeTemplates"] = map[string]interface{}{
+			"ironic-compute": GetDefaultNovaComputeTemplate(),
+		}
+		raw := map[string]interface{}{
+			"apiVersion": "nova.openstack.org/v1beta1",
+			"kind":       "NovaCell",
+			"metadata": map[string]interface{}{
+				"name":      cell0.CellCRName.Name,
+				"namespace": novaNames.Namespace,
+			},
+			"spec": spec,
+		}
+		unstructuredObj := &unstructured.Unstructured{Object: raw}
+		_, err := controllerutil.CreateOrPatch(
+			ctx, k8sClient, unstructuredObj, func() error { return nil })
+
+		Expect(err).Should(HaveOccurred())
+		var statusError *k8s_errors.StatusError
+		Expect(errors.As(err, &statusError)).To(BeTrue())
+		Expect(statusError.ErrStatus.Details.Kind).To(Equal("NovaCell"))
+		Expect(statusError.ErrStatus.Message).To(
+			ContainSubstring(
+				"invalid: spec.novaComputeTemplates: " +
+					"Invalid value: \"novaComputeTemplates\": should have zero elements for cell0",
+			),
+		)
+	})
+	It("rejects NovaCell with too long compute name", func() {
+		spec := GetDefaultNovaCellSpec(cell1)
+		spec["novaComputeTemplates"] = map[string]interface{}{
+			"ironic-compute" + strings.Repeat("x", 31): GetDefaultNovaComputeTemplate(),
+		}
+		raw := map[string]interface{}{
+			"apiVersion": "nova.openstack.org/v1beta1",
+			"kind":       "NovaCell",
+			"metadata": map[string]interface{}{
+				"name":      cell1.CellCRName.Name,
+				"namespace": novaNames.Namespace,
+			},
+			"spec": spec,
+		}
+		unstructuredObj := &unstructured.Unstructured{Object: raw}
+		_, err := controllerutil.CreateOrPatch(
+			ctx, k8sClient, unstructuredObj, func() error { return nil })
+
+		Expect(err).Should(HaveOccurred())
+		var statusError *k8s_errors.StatusError
+		Expect(errors.As(err, &statusError)).To(BeTrue())
+		Expect(statusError.ErrStatus.Details.Kind).To(Equal("NovaCell"))
+		Expect(statusError.ErrStatus.Message).To(
+			ContainSubstring(
+				"invalid: spec.novaComputeTemplates: " +
+					"Invalid value: \"ironic-computexxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\": " +
+					"should be shorter than 20 characters",
+			),
 		)
 	})
 	It("rejects Nova with metadata both on top and in cells", func() {
@@ -337,8 +487,8 @@ var _ = Describe("Nova validation", func() {
 			ctx, k8sClient, unstructuredObj, func() error { return nil })
 
 		Expect(err).Should(HaveOccurred())
-		statusError, ok := err.(*errors.StatusError)
-		Expect(ok).To(BeTrue())
+		var statusError *k8s_errors.StatusError
+		Expect(errors.As(err, &statusError)).To(BeTrue())
 		Expect(statusError.ErrStatus.Details.Kind).To(Equal("Nova"))
 		Expect(statusError.ErrStatus.Message).To(
 			ContainSubstring(

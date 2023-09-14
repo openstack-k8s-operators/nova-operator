@@ -79,8 +79,9 @@ type NovaCellTemplate struct {
 	// defaulted to true in other cells.
 	NoVNCProxyServiceTemplate NovaNoVNCProxyTemplate `json:"noVNCProxyServiceTemplate"`
 
-	// +kubebuilder:validation:Optional
-	// NovaComputeTemplates - map of nova computes with selected drivers
+	// NovaComputeTemplates - map of nova computes template with selected drivers in format
+	// compute_name: compute_template. Key from map is arbitrary name for the compute.
+	// because of that there is a limit of 20 signs
 	NovaComputeTemplates map[string]NovaComputeTemplate `json:"novaComputeTemplates,omitempty"`
 
 	// +kubebuilder:validation:Optional
@@ -166,7 +167,8 @@ type NovaCellSpec struct {
 
 	// +kubebuilder:validation:Optional
 	// NovaComputeTemplates - map of nova computes template with selected drivers in format
-	//
+	// compute_name: compute_template. Key from map is arbitrary name for the compute.
+	// because of that there is a 20 character limit on the compute name.
 	NovaComputeTemplates map[string]NovaComputeTemplate `json:"novaComputeTemplates,omitempty"`
 
 	// +kubebuilder:validation:Required
@@ -196,9 +198,13 @@ type NovaCellStatus struct {
 	// nova-novncproxy service in the cell
 	NoVNCPRoxyServiceReadyCount int32 `json:"noVNCProxyServiceReadyCount,omitempty"`
 
-	// NovaComputesStatuses is a map keyed by nova compute names that belong
-	// to selected cell with info about. This list also is used to delete novacompute
-	NovaComputesStatuses map[string]bool `json:"novaComputesStatuses,omitempty"`
+	// NovaComputesStatuses is a map with format cell_name: bool
+	// where bool tell if compute with selected name deployed successfully
+	// and indicates if the compute is successfully mapped to the cell in
+	// the nova_api database.
+	// When a compute is removed from the Spec the operator will delete the
+	// related NovaCompute CR and then remove the compute from this Status field.
+	NovaComputesStatuses map[string]NovaComputeCellStatus `json:"novaComputesStatuses,omitempty"`
 }
 
 //+kubebuilder:object:root=true

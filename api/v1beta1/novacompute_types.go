@@ -37,7 +37,7 @@ type NovaComputeTemplate struct {
 	// +kubebuilder:default=1
 	// +kubebuilder:validation:Maximum=32
 	// +kubebuilder:validation:Minimum=0
-	// Replicas of the service to run
+	// Replicas of the service to run. For ironic.IronicDriver the max replica is 1
 	Replicas *int32 `json:"replicas"`
 
 	// +kubebuilder:validation:Optional
@@ -101,15 +101,6 @@ type NovaComputeSpec struct {
 	KeystoneAuthURL string `json:"keystoneAuthURL"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=nova
-	// CellDatabaseUser - username to use when accessing the cell DB
-	CellDatabaseUser string `json:"cellDatabaseUser"`
-
-	// +kubebuilder:validation:Required
-	// CellDatabaseHostname - hostname to use when accessing the cell DB
-	CellDatabaseHostname string `json:"cellDatabaseHostname"`
-
-	// +kubebuilder:validation:Optional
 	// Debug - enable debug for different deploy stages. If an init container
 	// is used, it runs and the actual action pod gets started with sleep
 	// infinity
@@ -145,6 +136,14 @@ type NovaComputeStatus struct {
 
 	// NetworkAttachments status of the deployment pods
 	NetworkAttachments map[string][]string `json:"networkAttachments,omitempty"`
+}
+
+// NovaComputeCellStatus defines state of NovaCompute in cell
+type NovaComputeCellStatus struct {
+	// Deployed
+	Deployed bool `json:"deployed,omitempty"`
+	// Errors
+	Errors bool `json:"errors,omitempty"`
 }
 
 //+kubebuilder:object:root=true
@@ -192,12 +191,10 @@ func NewNovaComputeSpec(
 	novaComputeName string,
 ) NovaComputeSpec {
 	novacomputeSpec := NovaComputeSpec{
-		CellName:             novaCell.CellName,
-		ComputeName:          novaComputeName,
-		Secret:               novaCell.Secret,
-		CellDatabaseHostname: novaCell.CellDatabaseHostname,
-		CellDatabaseUser:     novaCell.CellDatabaseUser,
-		Debug:                novaCell.Debug,
+		CellName:    novaCell.CellName,
+		ComputeName: novaComputeName,
+		Secret:      novaCell.Secret,
+		Debug:       novaCell.Debug,
 		NovaServiceBase: NovaServiceBase{
 			ContainerImage:         computeTemplate.ContainerImage,
 			Replicas:               computeTemplate.Replicas,

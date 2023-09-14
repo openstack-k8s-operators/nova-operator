@@ -785,7 +785,8 @@ spec:
                       type: object
                     replicas:
                       default: 1
-                      description: Replicas of the service to run
+                      description: Replicas of the service to run. For ironic.IronicDriver
+                        the max replica is 1
                       format: int32
                       maximum: 32
                       minimum: 0
@@ -843,8 +844,10 @@ spec:
                   required:
                   - computeDriver
                   type: object
-                description: NovaComputeTemplates - map of nova computes template
-                  with selected drivers in format
+                description: 'NovaComputeTemplates - map of nova computes template
+                  with selected drivers in format compute_name: compute_template.
+                  Key from map is arbitrary name for the compute. because of that
+                  there is a 20 character limit on the compute name.'
                 type: object
               secret:
                 description: Secret is the name of the Secret instance containing
@@ -940,10 +943,22 @@ spec:
                 type: integer
               novaComputesStatuses:
                 additionalProperties:
-                  type: boolean
-                description: NovaComputesStatuses is a map keyed by nova compute names
-                  that belong to selected cell with info about. This list also is
-                  used to delete novacompute
+                  description: NovaComputeCellStatus defines state of NovaCompute
+                    in cell
+                  properties:
+                    deployed:
+                      description: Deployed
+                      type: boolean
+                    errors:
+                      description: Errors
+                      type: boolean
+                  type: object
+                description: 'NovaComputesStatuses is a map with format cell_name:
+                  bool where bool tell if compute with selected name deployed successfully
+                  and indicates if the compute is successfully mapped to the cell
+                  in the nova_api database. When a compute is removed from the Spec
+                  the operator will delete the related NovaCompute CR and then remove
+                  the compute from this Status field.'
                 type: object
             type: object
         type: object

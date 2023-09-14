@@ -37,22 +37,16 @@ func StatefulSet(
 ) *appsv1.StatefulSet {
 	runAsUser := int64(0)
 
-	// This allows the pod to start up slowly. The pod will only be killed
-	// if it does not succeed a probe in 60 seconds.
-	startupProbe := &corev1.Probe{
-		FailureThreshold: 6,
-		PeriodSeconds:    10,
-	}
 	// After the first successful startupProbe, livenessProbe takes over
 	livenessProbe := &corev1.Probe{
 		// TODO might need tuning
-		TimeoutSeconds: 30,
-		PeriodSeconds:  30,
+		TimeoutSeconds: 10,
+		PeriodSeconds:  10,
 	}
 	readinessProbe := &corev1.Probe{
 		// TODO might need tuning
-		TimeoutSeconds: 30,
-		PeriodSeconds:  30,
+		TimeoutSeconds: 5,
+		PeriodSeconds:  5,
 	}
 
 	args := []string{"-c"}
@@ -69,27 +63,17 @@ func StatefulSet(
 				"/bin/true",
 			},
 		}
-		startupProbe.Exec = &corev1.ExecAction{
-			Command: []string{
-				"/bin/true",
-			},
-		}
 	} else {
 		args = append(args, nova.KollaServiceCommand)
 		livenessProbe.Exec = &corev1.ExecAction{
 			Command: []string{
-				"/bin/true",
+				"/usr/bin/pgrep", "-r", "DRST", "nova-compute",
 			},
 		}
 
 		readinessProbe.Exec = &corev1.ExecAction{
 			Command: []string{
-				"/bin/true",
-			},
-		}
-		startupProbe.Exec = &corev1.ExecAction{
-			Command: []string{
-				"/bin/true",
+				"/usr/bin/pgrep", "-r", "DRST", "nova-compute",
 			},
 		}
 	}
@@ -131,25 +115,6 @@ func StatefulSet(
 						nova.GetLogVolume(),
 					},
 					Containers: []corev1.Container{
-						// the first container in a pod is the default selected
-						// by oc log so define the log stream container first.
-						{
-							Name: instance.Name + "-log",
-							Command: []string{
-								"/bin/bash",
-							},
-							Args:  []string{"-c", "tail -n+1 -F /var/log/nova/nova-compute.log"},
-							Image: instance.Spec.ContainerImage,
-							SecurityContext: &corev1.SecurityContext{
-								RunAsUser: &runAsUser,
-							},
-							Env:            env,
-							VolumeMounts:   []corev1.VolumeMount{nova.GetLogVolumeMount()},
-							Resources:      instance.Spec.Resources,
-							StartupProbe:   startupProbe,
-							ReadinessProbe: readinessProbe,
-							LivenessProbe:  livenessProbe,
-						},
 						{
 							Name: instance.Name + "-compute",
 							Command: []string{
@@ -167,7 +132,6 @@ func StatefulSet(
 								nova.GetKollaConfigVolumeMount("nova-compute"),
 							},
 							Resources:      instance.Spec.Resources,
-							StartupProbe:   startupProbe,
 							ReadinessProbe: readinessProbe,
 							LivenessProbe:  livenessProbe,
 						},

@@ -48,15 +48,6 @@ spec:
           spec:
             description: NovaComputeSpec defines the desired state of NovaCompute
             properties:
-              cellDatabaseHostname:
-                description: CellDatabaseHostname - hostname to use when accessing
-                  the cell DB
-                type: string
-              cellDatabaseUser:
-                default: nova
-                description: CellDatabaseUser - username to use when accessing the
-                  cell DB
-                type: string
               cellName:
                 description: CellName is the name of the Nova Cell this NovaCompute
                   belongs to.
@@ -202,7 +193,6 @@ spec:
                   to register in keystone
                 type: string
             required:
-            - cellDatabaseHostname
             - cellName
             - computeDriver
             - computeName
