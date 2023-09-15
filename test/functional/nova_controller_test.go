@@ -263,6 +263,10 @@ var _ = Describe("Nova controller", func() {
 				corev1.ConditionTrue,
 			)
 
+			mappingJob := th.GetJob(cell0.CellMappingJobName)
+			Expect(mappingJob.Spec.Template.Spec.ServiceAccountName).To(
+				Equal(novaNames.ServiceAccountName.Name))
+
 			th.SimulateJobSuccess(cell0.CellMappingJobName)
 
 			// TODO(bogdando): move to CellNames.MappingJob*

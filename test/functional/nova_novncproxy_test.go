@@ -204,6 +204,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 				)
 
 				ss := th.GetStatefulSet(cell1.NoVNCProxyStatefulSetName)
+				Expect(ss.Spec.Template.Spec.ServiceAccountName).To(Equal("nova-sa"))
 				Expect(int(*ss.Spec.Replicas)).To(Equal(1))
 				Expect(ss.Spec.Template.Spec.Volumes).To(HaveLen(2))
 				Expect(ss.Spec.Template.Spec.Containers).To(HaveLen(2))

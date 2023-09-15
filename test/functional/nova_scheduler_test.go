@@ -206,6 +206,7 @@ var _ = Describe("NovaScheduler controller", func() {
 			)
 
 			ss := th.GetStatefulSet(novaNames.SchedulerStatefulSetName)
+			Expect(ss.Spec.Template.Spec.ServiceAccountName).To(Equal("nova-sa"))
 			Expect(int(*ss.Spec.Replicas)).To(Equal(1))
 			Expect(ss.Spec.Template.Spec.Volumes).To(HaveLen(1))
 			Expect(ss.Spec.Template.Spec.Containers).To(HaveLen(1))
