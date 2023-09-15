@@ -171,6 +171,12 @@ var _ = Describe("NovaAPI controller", func() {
 				// service_user configuration to work to address Bug: #2004555
 				Expect(configData).Should(ContainSubstring("[service_user]"))
 				Expect(configData).Should(ContainSubstring("password = service-password"))
+				// as part of additional hardening we now require service_token_roles_required
+				// to be set to true to ensure that the service token is not just a user token
+				// nova does not currently rely on the service token for enforcement of elevated
+				// privileges but this is a good practice to follow and might be required in the
+				// future
+				Expect(configData).Should(ContainSubstring("service_token_roles_required = true"))
 				Expect(configData).Should(ContainSubstring("enabled_apis=osapi_compute"))
 				Expect(configData).Should(ContainSubstring("osapi_compute_workers=1"))
 				Expect(configDataMap.Data).Should(HaveKey("02-nova-override.conf"))
