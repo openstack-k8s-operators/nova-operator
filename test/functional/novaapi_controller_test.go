@@ -230,6 +230,7 @@ var _ = Describe("NovaAPI controller", func() {
 			)
 
 			ss := th.GetStatefulSet(novaNames.APIStatefulSetName)
+			Expect(ss.Spec.Template.Spec.ServiceAccountName).To(Equal("nova-sa"))
 			Expect(int(*ss.Spec.Replicas)).To(Equal(1))
 			Expect(ss.Spec.Template.Spec.Volumes).To(HaveLen(2))
 			Expect(ss.Spec.Template.Spec.Containers).To(HaveLen(2))

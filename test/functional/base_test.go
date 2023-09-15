@@ -49,7 +49,7 @@ func GetDefaultNovaAPISpec(novaNames NovaNames) map[string]interface{} {
 		"cell0DatabaseHostname": "nova-cell0-db-hostname",
 		"keystoneAuthURL":       "keystone-auth-url",
 		"containerImage":        ContainerImage,
-		"serviceAccount":        "nova",
+		"serviceAccount":        "nova-sa",
 		"registeredCells":       map[string]string{},
 	}
 }
@@ -164,7 +164,7 @@ func GetDefaultNovaConductorSpec(cell CellNames) map[string]interface{} {
 		"secret":              cell.InternalCellSecretName.Name,
 		"containerImage":      ContainerImage,
 		"keystoneAuthURL":     "keystone-auth-url",
-		"serviceAccount":      "nova",
+		"serviceAccount":      "nova-sa",
 		"customServiceConfig": "foo=bar",
 	}
 }
@@ -284,7 +284,7 @@ func GetDefaultNovaSchedulerSpec(novaNames NovaNames) map[string]interface{} {
 		"cell0DatabaseHostname": "nova-cell0-db-hostname",
 		"keystoneAuthURL":       "keystone-auth-url",
 		"containerImage":        ContainerImage,
-		"serviceAccount":        "nova",
+		"serviceAccount":        "nova-sa",
 		"registeredCells":       map[string]string{},
 	}
 }
@@ -610,7 +610,7 @@ func GetDefaultNovaMetadataSpec(secretName types.NamespacedName) map[string]inte
 		"cellDatabaseHostname": "nova-cell-db-hostname",
 		"containerImage":       ContainerImage,
 		"keystoneAuthURL":      "keystone-auth-url",
-		"serviceAccount":       "nova",
+		"serviceAccount":       "nova-sa",
 	}
 }
 
@@ -654,7 +654,7 @@ func GetDefaultNovaNoVNCProxySpec(cell CellNames) map[string]interface{} {
 		"cellDatabaseHostname": "nova-cell-db-hostname",
 		"containerImage":       ContainerImage,
 		"keystoneAuthURL":      "keystone-auth-url",
-		"serviceAccount":       "nova",
+		"serviceAccount":       "nova-sa",
 		"cellName":             cell.CellName,
 	}
 }
