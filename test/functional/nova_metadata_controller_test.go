@@ -286,11 +286,13 @@ var _ = Describe("NovaMetadata controller", func() {
 				Expect(configData).To(
 					ContainSubstring(
 						fmt.Sprintf(
-							"nova_metadata_host = http://nova-metadata-internal.%s.svc:8775",
+							"nova_metadata_host = nova-metadata-internal.%s.svc",
 							novaNames.MetadataName.Namespace,
 						),
 					),
 				)
+				Expect(configData).To(ContainSubstring("nova_metadata_port = 8775"))
+				Expect(configData).To(ContainSubstring("nova_metadata_protocol = http"))
 				Expect(configData).To(ContainSubstring("metadata_proxy_shared_secret = metadata-secret"))
 
 				metadata := GetNovaMetadata(novaNames.MetadataName)
@@ -376,11 +378,13 @@ var _ = Describe("NovaMetadata controller", func() {
 			Expect(configData).To(
 				ContainSubstring(
 					fmt.Sprintf(
-						"nova_metadata_host = http://nova-metadata-cell1-internal.%s.svc:8775",
+						"nova_metadata_host = nova-metadata-cell1-internal.%s.svc",
 						cell1.MetadataName.Namespace,
 					),
 				),
 			)
+			Expect(configData).To(ContainSubstring("nova_metadata_port = 8775"))
+			Expect(configData).To(ContainSubstring("nova_metadata_protocol = http"))
 			Expect(configData).To(ContainSubstring("metadata_proxy_shared_secret = metadata-secret"))
 
 			metadata := GetNovaMetadata(cell1.MetadataName)
