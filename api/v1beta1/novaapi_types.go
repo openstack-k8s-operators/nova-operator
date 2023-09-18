@@ -100,7 +100,15 @@ type NovaAPISpec struct {
 	ServiceUser string `json:"serviceUser"`
 
 	// +kubebuilder:validation:Required
+	// KeystoneAuthURL configures the keystone API endpoint to be used
+	// by the service for authentication and authorization
 	KeystoneAuthURL string `json:"keystoneAuthURL"`
+
+	// +kubebuilder:validation:Required
+	// KeystonePublicAuthURL configures the public keystone API endpoint. This
+	// can be different from KeystoneAuthURL. The service uses this value
+	// to redirect unauthenticated users.
+	KeystonePublicAuthURL string `json:"keystonePublicAuthURL"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default="nova_api"
