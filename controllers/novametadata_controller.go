@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"net/url"
 
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -547,12 +548,19 @@ func (r *NovaMetadataReconciler) generateNeutronConfigs(
 		"05-nova-metadata.conf": "/neutron-metadata.conf",
 	}
 
+	endpointURL, err := url.Parse(endpoint)
+	if err != nil {
+		return err
+	}
+
 	// NOTE(gibi): We are generating this data in the nova-operator to:
 	// 1. avoid the work needed to teach cells to neutron
 	// 2. avoid the need to synchronize the shared secret between nova- and
 	//    neutron-operator externally
 	templateParameters := map[string]interface{}{
-		"nova_metadata_host":           endpoint,
+		"nova_metadata_host":           endpointURL.Hostname(),
+		"nova_metadata_port":           endpointURL.Port(),
+		"nova_metadata_protocol":       endpointURL.Scheme,
 		"metadata_proxy_shared_secret": string(secret.Data[MetadataSecretSelector]),
 	}
 
@@ -571,7 +579,7 @@ func (r *NovaMetadataReconciler) generateNeutronConfigs(
 		},
 	}
 
-	err := common_secret.EnsureSecrets(ctx, h, instance, cms, &hashes)
+	err = common_secret.EnsureSecrets(ctx, h, instance, cms, &hashes)
 	if err != nil {
 		return err
 	}
