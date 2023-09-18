@@ -113,6 +113,13 @@ spec:
                   in /etc/<service> .
                 type: object
               keystoneAuthURL:
+                description: KeystoneAuthURL configures the keystone API endpoint
+                  to be used by the service for authentication and authorization
+                type: string
+              keystonePublicAuthURL:
+                description: KeystonePublicAuthURL configures the public keystone
+                  API endpoint. This can be different from KeystoneAuthURL. The service
+                  uses this value to redirect unauthenticated users.
                 type: string
               networkAttachments:
                 description: NetworkAttachments is a list of NetworkAttachment resource
@@ -383,6 +390,7 @@ spec:
             - apiDatabaseHostname
             - cell0DatabaseHostname
             - keystoneAuthURL
+            - keystonePublicAuthURL
             - registeredCells
             - secret
             - serviceAccount

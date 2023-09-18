@@ -222,7 +222,8 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		return ctrl.Result{}, nil
 	}
 
-	keystoneAuthURL, err := r.getKeystoneAuthURL(ctx, h, instance)
+	keystoneInternalAuthURL, keystonePublicAuthURL, err := r.getKeystoneAuthURL(
+		ctx, h, instance)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -430,7 +431,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		cell, status, err := r.ensureCell(
 			ctx, h, instance, cellName, cellTemplate,
 			cellDB.Database, apiDB, cellMQ.TransportURL,
-			keystoneAuthURL, secret,
+			keystoneInternalAuthURL, secret,
 		)
 		cells[cellName] = cell
 		switch status {
@@ -497,7 +498,8 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 
 	result, err = r.ensureAPI(
 		ctx, h, instance, cell0Template,
-		cellDBs[novav1.Cell0Name].Database, apiDB, keystoneAuthURL,
+		cellDBs[novav1.Cell0Name].Database, apiDB,
+		keystoneInternalAuthURL, keystonePublicAuthURL,
 		topLevelSecretName,
 	)
 	if err != nil {
@@ -506,7 +508,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 
 	result, err = r.ensureScheduler(
 		ctx, h, instance, cell0Template,
-		cellDBs[novav1.Cell0Name].Database, apiDB, keystoneAuthURL,
+		cellDBs[novav1.Cell0Name].Database, apiDB, keystoneInternalAuthURL,
 		topLevelSecretName,
 	)
 	if err != nil {
@@ -516,7 +518,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	if *instance.Spec.MetadataServiceTemplate.Enabled {
 		result, err = r.ensureMetadata(
 			ctx, h, instance, cell0Template,
-			cellDBs[novav1.Cell0Name].Database, apiDB, keystoneAuthURL,
+			cellDBs[novav1.Cell0Name].Database, apiDB, keystoneInternalAuthURL,
 			topLevelSecretName,
 		)
 		if err != nil {
@@ -815,7 +817,8 @@ func (r *NovaReconciler) ensureAPI(
 	cell0Template novav1.NovaCellTemplate,
 	cell0DB *database.Database,
 	apiDB *database.Database,
-	keystoneAuthURL string,
+	keystoneInternalAuthURL string,
+	keystonePublicAuthURL string,
 	secretName string,
 ) (ctrl.Result, error) {
 	// TODO(gibi): Pass down a narrowed secret that only hold
@@ -836,11 +839,12 @@ func (r *NovaReconciler) ensureAPI(
 			Resources:              instance.Spec.APIServiceTemplate.Resources,
 			NetworkAttachments:     instance.Spec.APIServiceTemplate.NetworkAttachments,
 		},
-		Override:        instance.Spec.APIServiceTemplate.Override,
-		KeystoneAuthURL: keystoneAuthURL,
-		ServiceUser:     instance.Spec.ServiceUser,
-		ServiceAccount:  instance.RbacResourceName(),
-		RegisteredCells: instance.Status.RegisteredCells,
+		Override:              instance.Spec.APIServiceTemplate.Override,
+		KeystoneAuthURL:       keystoneInternalAuthURL,
+		KeystonePublicAuthURL: keystonePublicAuthURL,
+		ServiceUser:           instance.Spec.ServiceUser,
+		ServiceAccount:        instance.RbacResourceName(),
+		RegisteredCells:       instance.Status.RegisteredCells,
 	}
 	api := &novav1.NovaAPI{
 		ObjectMeta: metav1.ObjectMeta{
@@ -1067,22 +1071,29 @@ func (r *NovaReconciler) getKeystoneAuthURL(
 	ctx context.Context,
 	h *helper.Helper,
 	instance *novav1.Nova,
-) (string, error) {
+) (string, string, error) {
 	// TODO(gibi): change lib-common to take the name of the KeystoneAPI as
 	// parameter instead of labels. Then use instance.Spec.KeystoneInstance as
 	// the name.
 	keystoneAPI, err := keystonev1.GetKeystoneAPI(ctx, h, instance.Namespace, map[string]string{})
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	// NOTE(gibi): we use the internal endpoint as that is expected to be
 	// available on the external compute nodes as well and we want to keep
 	// thing consistent
-	authURL, err := keystoneAPI.GetEndpoint(endpoint.EndpointInternal)
+	internalAuthURL, err := keystoneAPI.GetEndpoint(endpoint.EndpointInternal)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
-	return authURL, nil
+	// NOTE(gibi): but there is one case the www_authenticate_uri of nova-api
+	// the we need to configure the public keystone endpoint
+	publicAuthURL, err := keystoneAPI.GetEndpoint(endpoint.EndpointInternal)
+	if err != nil {
+		return "", "", err
+	}
+
+	return internalAuthURL, publicAuthURL, nil
 }
 
 func (r *NovaReconciler) reconcileDelete(

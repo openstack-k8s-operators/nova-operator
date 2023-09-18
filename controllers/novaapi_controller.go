@@ -327,8 +327,11 @@ func (r *NovaAPIReconciler) generateConfigs(
 ) error {
 
 	templateParameters := map[string]interface{}{
-		"service_name":           "nova-api",
-		"keystone_internal_url":  instance.Spec.KeystoneAuthURL,
+		"service_name":          "nova-api",
+		"keystone_internal_url": instance.Spec.KeystoneAuthURL,
+		// NOTE(gibi): As per the definition of www_authenticate_uri this
+		// always needs to point to the public keystone endpoint.
+		"www_authenticate_uri":   instance.Spec.KeystonePublicAuthURL,
 		"nova_keystone_user":     instance.Spec.ServiceUser,
 		"nova_keystone_password": string(secret.Data[ServicePasswordSelector]),
 		"api_db_name":            instance.Spec.APIDatabaseUser, // fixme
