@@ -438,7 +438,7 @@ var _ = Describe("Nova reconfiguration", func() {
 	When("the service password in the osp secret is changed", func() {
 		It("reconfigures every nova service", func() {
 			secretName := types.NamespacedName{Namespace: novaNames.NovaName.Namespace, Name: SecretName}
-			UpdateSecret(secretName, "NovaPassword", []byte("new-service-password"))
+			th.UpdateSecret(secretName, "NovaPassword", []byte("new-service-password"))
 
 			// Expect that every service config is updated with the new service password
 			for _, cmName := range []types.NamespacedName{
@@ -486,7 +486,7 @@ var _ = Describe("Nova reconfiguration", func() {
 			}
 
 			secretName := types.NamespacedName{Namespace: novaNames.NovaName.Namespace, Name: SecretName}
-			UpdateSecret(secretName, "NovaPassword", []byte("new-service-password"))
+			th.UpdateSecret(secretName, "NovaPassword", []byte("new-service-password"))
 
 			// Assert that the config hash is updated in each stateful set
 			for i, ss := range ssNames {
@@ -576,7 +576,7 @@ var _ = Describe("Nova reconfiguration", func() {
 		Expect(originalComputeHash).NotTo(BeEmpty())
 
 		secretName := types.NamespacedName{Namespace: novaNames.NovaName.Namespace, Name: SecretName}
-		UpdateSecret(secretName, "MetadataSecret", []byte("new-metadata-secret"))
+		th.UpdateSecret(secretName, "MetadataSecret", []byte("new-metadata-secret"))
 
 		Eventually(func(g Gomega) {
 			configDataMap := th.GetSecret(novaNames.MetadataConfigDataName)

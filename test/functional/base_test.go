@@ -643,15 +643,6 @@ func GetDefaultNovaNoVNCProxySpec(cell CellNames) map[string]interface{} {
 	}
 }
 
-func UpdateSecret(secretName types.NamespacedName, key string, newValue []byte) {
-	Eventually(func(g Gomega) {
-		secret := th.GetSecret(secretName)
-		secret.Data[key] = newValue
-		g.Expect(k8sClient.Update(ctx, &secret)).Should(Succeed())
-	}, timeout, interval).Should(Succeed())
-	logger.Info("Secret updated", "secret", secretName, "key", key)
-}
-
 func CreateCellInternalSecret(cell CellNames) *corev1.Secret {
 	return th.CreateSecret(
 		cell.InternalCellSecretName,
