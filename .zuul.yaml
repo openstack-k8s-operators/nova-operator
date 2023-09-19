@@ -26,8 +26,9 @@
       deploy openstack and then test it. This job will fetch the job
       output directory so child jobs can just add additional logs to that
       in there post-playbooks.
-    parent: cifmw-base-crc-openstack
+    parent: cifmw-podified-multinode-edpm-base-crc
     abstract: true
+    attempts: 1
     dependencies: ["nova-operator-content-provider"]
     required-projects:
       - github.com/openstack-k8s-operators/ci-framework
@@ -37,7 +38,7 @@
     roles:
       - zuul: github.com/openstack-k8s-operators/ci-framework
     pre-run:
-      - ci/nova-operator-base/playbooks/pre.yaml
+      - ci/nova-operator-base/playbooks/pre-wrapper.yaml
     post-run:
       - ci/nova-operator-base/playbooks/collect-logs.yaml
 
@@ -73,8 +74,46 @@
       - ci/nova-operator-kuttl/playbooks/deploy-deps.yaml
     run:
       - ci/nova-operator-kuttl/playbooks/run-kuttl.yaml
+    nodeset:
+      nodes:
+        - name: controller
+          label: cloud-centos-9-stream-tripleo-vexxhost
+        - name: crc
+          label: coreos-crc-extracted-xxl
     vars:
       collection_namespace_override: "nova-kuttl-default"
+      zuul_log_collection: true
+    extra-vars:
+      crc_ci_bootstrap_networking:
+        networks:
+          default:
+            range: 192.168.122.0/24
+            mtu: 1500
+          internal-api:
+            vlan: 20
+            range: 172.17.0.0/24
+          storage:
+            vlan: 21
+            range: 172.18.0.0/24
+          tenant:
+            vlan: 22
+            range: 172.19.0.0/24
+        instances:
+          controller:
+            networks:
+              default:
+                ip: 192.168.122.11
+          crc:
+            networks:
+              default:
+                ip: 192.168.122.10
+              internal-api:
+                ip: 172.17.0.5
+              storage:
+                ip: 172.18.0.5
+              tenant:
+                ip: 172.19.0.5
+
 
 - project:
     name: openstack-k8s-operators/nova-operator

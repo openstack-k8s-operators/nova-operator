@@ -1,0 +1,33 @@
+- name: "Run ci/nova-operator-base/playbooks/pre.yml"
+  hosts: controller
+  gather_facts: true
+  vars:
+    nova_operator_basedir: "{{ ansible_user_dir }}/src/github.com/openstack-k8s-operators/nova-operator"
+    ansible_playbook_command: "ansible-playbook -vv"
+    ansible_playbook_command_suffix: >-
+      -e @scenarios/centos-9/base.yml
+      -e @{{nova_operator_basedir}}/ci/nova-operator-base/ci_fw_vars.yaml
+      {%- if cifmw_extras is defined %}
+      {%-   for extra_vars in cifmw_extras %}
+      -e "{{   extra_vars }}"
+      {%-   endfor %}
+      {%- endif %}
+      -e @scenarios/centos-9/zuul_inventory.yml
+    ci_framework_playbooks_path: "{{[ ansible_user_dir,
+              zuul.projects['github.com/openstack-k8s-operators/ci-framework'].src_dir,
+              'ci_framework','playbooks'] | ansible.builtin.path_join }}"
+    pre_playbook: "{{nova_operator_basedir}}/ci/nova-operator-base/playbooks/pre.yaml"
+    controller_logs_dir: "{{ ansible_user_dir }}/zuul-output/logs/controller"
+  tasks:
+    - name: Create log dir
+      ansible.builtin.file:
+        path: "{{ controller_logs_dir }}"
+        state: directory
+        mode: "0755"
+    - name: Run pre playbook
+      ansible.builtin.shell:
+        executable: /bin/bash
+        chdir: "{{ ansible_user_dir }}/src/github.com/openstack-k8s-operators/ci-framework"
+        cmd: >-
+          {{ansible_playbook_command}} {{ansible_playbook_command_suffix}} {{pre_playbook}}
+          2>&1 | tee {{ controller_logs_dir }}/nova-operator-base_pre.log

@@ -1,14 +1,4 @@
 ---
-- hosts: all
-  name: Create zuul-output log dir
-  gather_facts: false
-  tasks:
-    - name: Create log dir
-      ansible.builtin.file:
-        path: "{{ ansible_user_dir }}/zuul-output/logs"
-        state: directory
-        mode: "0755"
-
 - hosts: controller
   name: Collect logs on the controller
   gather_facts: false
@@ -20,8 +10,10 @@
         path: "{{ ansible_user_dir }}/zuul-output/logs/controller"
         state: directory
         mode: "0755"
-
     - name: Collect general openshift cr info
+      environment:
+        KUBECONFIG: "{{ cifmw_openshift_kubeconfig }}"
+        PATH: "{{ cifmw_path | default(ansible_env.PATH) }}"
       ansible.builtin.shell: |
         source ~/.bashrc
         collection_namespace_dir="{{ ansible_user_dir }}/zuul-output/logs/controller/{{collection_namespace}}"
