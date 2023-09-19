@@ -4,6 +4,9 @@
     nova_operator_basedir: "{{local_nova_operator_basedir | default(ansible_user_dir + '/src/github.com/openstack-k8s-operators/nova-operator')}}"
   tasks:
     - name: install kuttl test_suite dependencies
+      environment:
+        KUBECONFIG: "{{ cifmw_openshift_kubeconfig }}"
+        PATH: "{{ cifmw_path | default(ansible_env.PATH) }}"
       ansible.builtin.command:
         cmd: make kuttl-test-prep
         chdir: "{{nova_operator_basedir}}"

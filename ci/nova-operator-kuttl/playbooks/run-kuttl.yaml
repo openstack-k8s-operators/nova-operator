@@ -4,6 +4,9 @@
     kuttl_log_dir: "{{local_log_dir | default(ansible_user_dir + '/zuul-output/logs/controller')}}"
   tasks:
     - name: install kuttl test_suite dependencies
+      environment:
+        KUBECONFIG: "{{ cifmw_openshift_kubeconfig }}"
+        PATH: "{{ cifmw_path | default(ansible_env.PATH) }}"
       ansible.builtin.command:
         cmd: make kuttl-test-run
         chdir: "{{nova_operator_basedir}}"
