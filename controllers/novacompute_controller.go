@@ -273,7 +273,10 @@ func (r *NovaComputeReconciler) generateConfigs(
 		"transport_url":          string(secret.Data[TransportURLSelector]),
 		"log_file":               "/var/log/nova/nova-compute.log",
 		"compute_driver":         instance.Spec.ComputeDriver,
+		// Neither the ironic driver nor the fake driver support VNC
+		"vnc_enabled": false,
 	}
+
 	extraData := map[string]string{}
 	if instance.Spec.CustomServiceConfig != "" {
 		extraData["02-nova-override.conf"] = instance.Spec.CustomServiceConfig

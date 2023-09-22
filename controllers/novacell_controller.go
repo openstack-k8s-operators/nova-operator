@@ -770,7 +770,10 @@ func (r *NovaCellReconciler) generateComputeConfigs(
 	// vnc is optional so we only need to configure it for the compute
 	// if the proxy service is deployed in the cell
 	if vncProxyURL != nil {
+		templateParameters["vnc_enabled"] = true
 		templateParameters["novncproxy_base_url"] = *vncProxyURL
+	} else {
+		templateParameters["vnc_enabled"] = false
 	}
 
 	cmLabels := labels.GetLabels(
@@ -783,6 +786,10 @@ func (r *NovaCellReconciler) generateComputeConfigs(
 	err := r.GenerateConfigs(
 		ctx, h, instance, configName, &hashes, templateParameters, map[string]string{}, cmLabels, map[string]string{},
 	)
+	if err != nil {
+		return err
+	}
+
 	// TODO(gibi): can we make it simpler?
 	a := &corev1.EnvVar{}
 	hashes[configName](a)

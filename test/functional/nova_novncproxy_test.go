@@ -162,7 +162,6 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 				configData := string(configDataMap.Data["01-nova.conf"])
 				Expect(configData).Should(ContainSubstring("novncproxy_host = \"::0\""))
 				Expect(configData).Should(ContainSubstring("novncproxy_port = 6080"))
-				Expect(configData).Should(ContainSubstring("server_listen = \"::0\""))
 				Expect(configData).Should(ContainSubstring("password = service-password"))
 				Expect(configData).Should(ContainSubstring("transport_url=rabbit://cell1/fake"))
 				Expect(configDataMap.Data).Should(HaveKey("02-nova-override.conf"))

@@ -270,6 +270,7 @@ var _ = Describe("NovaCell controller", func() {
 			vncUrlConfig := fmt.Sprintf("novncproxy_base_url = http://%s/vnc_lite.html",
 				fmt.Sprintf("nova-novncproxy-%s-public.%s.svc:6080", cell1.CellName, cell1.CellCRName.Namespace))
 			Expect(configData).To(ContainSubstring(vncUrlConfig))
+			Expect(configData).To(ContainSubstring("[vnc]\nenabled = True"))
 
 			th.ExpectCondition(
 				cell1.CellCRName,
@@ -316,8 +317,9 @@ var _ = Describe("NovaCell controller", func() {
 			configData := string(computeConfigData.Data["01-nova.conf"])
 			Expect(configData).To(ContainSubstring("transport_url=rabbit://cell1/fake"))
 			Expect(configData).To(ContainSubstring("username = nova\npassword = service-password\n"))
-			vncUrlConfig := fmt.Sprintf("novncproxy_base_url = http://foo/vnc_lite.html")
+			vncUrlConfig := "novncproxy_base_url = http://foo/vnc_lite.html"
 			Expect(configData).To(ContainSubstring(vncUrlConfig))
+			Expect(configData).To(ContainSubstring("[vnc]\nenabled = True"))
 
 			th.ExpectCondition(
 				cell1.CellCRName,
@@ -376,6 +378,14 @@ var _ = Describe("NovaCell controller", func() {
 				condition.ReadyCondition,
 				corev1.ConditionTrue,
 			)
+
+			// updates the compute config and disables VNC there
+			computeConfigData := th.GetSecret(cell1.ComputeConfigSecretName)
+			Expect(computeConfigData).ShouldNot(BeNil())
+			Expect(computeConfigData.Data).Should(HaveKey("01-nova.conf"))
+			configData := string(computeConfigData.Data["01-nova.conf"])
+			Expect(configData).NotTo(ContainSubstring("novncproxy_base_url"))
+			Expect(configData).To(ContainSubstring("[vnc]\nenabled = False"))
 
 		})
 		It("deletes NovaMetadata if it is disabled later", func() {
@@ -438,8 +448,9 @@ var _ = Describe("NovaCell controller", func() {
 			Expect(configData).To(ContainSubstring("transport_url=rabbit://cell2/fake"))
 			Expect(configData).To(ContainSubstring("username = nova\npassword = service-password\n"))
 			// There is no VNCProxy created but we still get a compute config just
-			// without any vnc proxy url
-			Expect(configData).NotTo(ContainSubstring("novncproxy_base_url "))
+			// without any vnc proxy url and therefore vnc disabled
+			Expect(configData).NotTo(ContainSubstring("novncproxy_base_url"))
+			Expect(configData).To(ContainSubstring("[vnc]\nenabled = False"))
 
 			th.ExpectCondition(
 				cell2.CellCRName,
@@ -523,6 +534,7 @@ var _ = Describe("NovaCell controller", func() {
 			vncUrlConfig := fmt.Sprintf("novncproxy_base_url = http://%s/vnc_lite.html",
 				fmt.Sprintf("nova-novncproxy-%s-public.%s.svc:6080", cell2.CellName, cell2.CellCRName.Namespace))
 			Expect(configData).To(ContainSubstring(vncUrlConfig))
+			Expect(configData).To(ContainSubstring("[vnc]\nenabled = True"))
 
 			Expect(GetNovaCell(cell2.CellCRName).Status.Hash[cell2.ComputeConfigSecretName.Name]).NotTo(BeNil())
 			Expect(GetNovaCell(cell2.CellCRName).Status.Hash[cell2.ComputeConfigSecretName.Name]).NotTo(Equal(oldComputeConfigHash))
