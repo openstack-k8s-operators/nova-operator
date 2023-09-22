@@ -297,9 +297,9 @@ var _ = Describe("NovaAPI controller", func() {
 
 		It("creates KeystoneEndpoint", func() {
 			th.SimulateStatefulSetReplicaReady(novaNames.APIStatefulSetName)
-			th.SimulateKeystoneEndpointReady(types.NamespacedName{Namespace: novaNames.APIName.Namespace, Name: "nova"})
+			keystone.SimulateKeystoneEndpointReady(types.NamespacedName{Namespace: novaNames.APIName.Namespace, Name: "nova"})
 
-			keystoneEndpoint := th.GetKeystoneEndpoint(types.NamespacedName{Namespace: novaNames.APIName.Namespace, Name: "nova"})
+			keystoneEndpoint := keystone.GetKeystoneEndpoint(types.NamespacedName{Namespace: novaNames.APIName.Namespace, Name: "nova"})
 			endpoints := keystoneEndpoint.Spec.Endpoints
 			Expect(endpoints).To(HaveKeyWithValue("public", "http://nova-public."+novaNames.APIName.Namespace+".svc:8774/v2.1"))
 			Expect(endpoints).To(HaveKeyWithValue("internal", "http://nova-internal."+novaNames.APIName.Namespace+".svc:8774/v2.1"))
@@ -314,7 +314,7 @@ var _ = Describe("NovaAPI controller", func() {
 
 		It("is Ready", func() {
 			th.SimulateStatefulSetReplicaReady(novaNames.APIStatefulSetName)
-			th.SimulateKeystoneEndpointReady(types.NamespacedName{Namespace: novaNames.APIName.Namespace, Name: "nova"})
+			keystone.SimulateKeystoneEndpointReady(types.NamespacedName{Namespace: novaNames.APIName.Namespace, Name: "nova"})
 
 			th.ExpectCondition(
 				novaNames.APIName,
@@ -333,7 +333,7 @@ var _ = Describe("NovaAPI controller", func() {
 
 		It("removes the finalizer from KeystoneEndpoint", func() {
 			th.SimulateStatefulSetReplicaReady(novaNames.APIStatefulSetName)
-			th.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
+			keystone.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
 			th.ExpectCondition(
 				novaNames.APIName,
 				ConditionGetterFunc(NovaAPIConditionGetter),
@@ -341,11 +341,11 @@ var _ = Describe("NovaAPI controller", func() {
 				corev1.ConditionTrue,
 			)
 
-			endpoint := th.GetKeystoneEndpoint(novaNames.APIKeystoneEndpointName)
+			endpoint := keystone.GetKeystoneEndpoint(novaNames.APIKeystoneEndpointName)
 			Expect(endpoint.Finalizers).To(ContainElement("NovaAPI"))
 
 			th.DeleteInstance(GetNovaAPI(novaNames.APIName))
-			endpoint = th.GetKeystoneEndpoint(novaNames.APIKeystoneEndpointName)
+			endpoint = keystone.GetKeystoneEndpoint(novaNames.APIKeystoneEndpointName)
 			Expect(endpoint.Finalizers).NotTo(ContainElement("NovaAPI"))
 		})
 	})
@@ -468,7 +468,7 @@ var _ = Describe("NovaAPI controller", func() {
 
 			}, timeout, interval).Should(Succeed())
 
-			th.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
+			keystone.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
 
 			th.ExpectCondition(
 				novaNames.APIName,
@@ -521,7 +521,7 @@ var _ = Describe("NovaAPI controller", func() {
 		It("creates LoadBalancer services", func() {
 			th.SimulateStatefulSetReplicaReady(novaNames.APIStatefulSetName)
 
-			th.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
+			keystone.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
 
 			// As the internal endpoint has service override configured it
 			// gets a LoadBalancer Service with MetalLB annotations
@@ -548,11 +548,11 @@ var _ = Describe("NovaAPI controller", func() {
 			Expect(service.Spec.Type).To(Equal(corev1.ServiceTypeClusterIP))
 
 			th.SimulateStatefulSetReplicaReady(novaNames.APIStatefulSetName)
-			th.SimulateKeystoneEndpointReady(types.NamespacedName{Namespace: novaNames.APIName.Namespace, Name: "nova"})
+			keystone.SimulateKeystoneEndpointReady(types.NamespacedName{Namespace: novaNames.APIName.Namespace, Name: "nova"})
 
 			// it registers the endpointURL as the public endpoint and svc
 			// for the internal
-			keystoneEndpoint := th.GetKeystoneEndpoint(types.NamespacedName{Namespace: novaNames.APIName.Namespace, Name: "nova"})
+			keystoneEndpoint := keystone.GetKeystoneEndpoint(types.NamespacedName{Namespace: novaNames.APIName.Namespace, Name: "nova"})
 			endpoints := keystoneEndpoint.Spec.Endpoints
 			Expect(endpoints).To(HaveKeyWithValue("public", "http://nova-api-"+novaNames.APIName.Namespace+".apps-crc.testing/v2.1"))
 			Expect(endpoints).To(HaveKeyWithValue("internal", "http://nova-internal."+novaNames.APIName.Namespace+".svc:8774/v2.1"))
@@ -616,7 +616,7 @@ var _ = Describe("NovaAPI controller", func() {
 		It("creates LoadBalancer services", func() {
 			th.SimulateStatefulSetReplicaReady(novaNames.APIStatefulSetName)
 
-			th.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
+			keystone.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
 
 			// As the internal endpoint has service override configured it
 			// gets a LoadBalancer Service with MetalLB annotations
@@ -646,11 +646,11 @@ var _ = Describe("NovaAPI controller", func() {
 			Expect(service.Spec.Type).To(Equal(corev1.ServiceTypeLoadBalancer))
 
 			th.SimulateStatefulSetReplicaReady(novaNames.APIStatefulSetName)
-			th.SimulateKeystoneEndpointReady(types.NamespacedName{Namespace: novaNames.APIName.Namespace, Name: "nova"})
+			keystone.SimulateKeystoneEndpointReady(types.NamespacedName{Namespace: novaNames.APIName.Namespace, Name: "nova"})
 
 			// it registers the endpointURL as the public endpoint and svc
 			// for the internal
-			keystoneEndpoint := th.GetKeystoneEndpoint(types.NamespacedName{Namespace: novaNames.APIName.Namespace, Name: "nova"})
+			keystoneEndpoint := keystone.GetKeystoneEndpoint(types.NamespacedName{Namespace: novaNames.APIName.Namespace, Name: "nova"})
 			endpoints := keystoneEndpoint.Spec.Endpoints
 			Expect(endpoints).To(HaveKeyWithValue("public", "http://nova-public."+novaNames.APIName.Namespace+".svc:8774/v2.1"))
 			Expect(endpoints).To(HaveKeyWithValue("internal", "http://nova-internal."+novaNames.APIName.Namespace+".svc:8774/v2.1"))
@@ -678,7 +678,7 @@ var _ = Describe("NovaAPI controller", func() {
 			)
 
 			th.SimulateStatefulSetReplicaReady(novaNames.APIStatefulSetName)
-			th.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
+			keystone.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
 			th.ExpectCondition(
 				novaNames.APIName,
 				ConditionGetterFunc(NovaAPIConditionGetter),

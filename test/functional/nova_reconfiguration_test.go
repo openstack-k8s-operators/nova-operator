@@ -73,8 +73,8 @@ func CreateNovaWith3CellsAndEnsureReady(novaNames NovaNames) {
 	spec["apiMessageBusInstance"] = cell0.TransportURLName.Name
 
 	DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
-	DeferCleanup(th.DeleteKeystoneAPI, th.CreateKeystoneAPI(novaNames.NovaName.Namespace))
-	th.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
+	DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace))
+	keystone.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
 	// END of common logic with Nova multicell test
 
 	th.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
@@ -91,7 +91,7 @@ func CreateNovaWith3CellsAndEnsureReady(novaNames NovaNames) {
 	th.SimulateJobSuccess(cell0.CellMappingJobName)
 
 	th.SimulateStatefulSetReplicaReady(novaNames.APIDeploymentName)
-	th.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
+	keystone.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
 
 	th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
 	th.SimulateJobSuccess(cell1.DBSyncJobName)
