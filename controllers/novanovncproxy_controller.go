@@ -285,8 +285,6 @@ func (r *NovaNoVNCProxyReconciler) generateConfigs(
 		"cell_db_password":       string(secret.Data[CellDatabasePasswordSelector]),
 		"cell_db_address":        instance.Spec.CellDatabaseHostname,
 		"cell_db_port":           3306,
-		"api_interface_address":  "",     // fixme
-		"public_protocol":        "http", // fixme
 		"transport_url":          string(secret.Data[TransportURLSelector]),
 		"openstack_cacert":       "",          // fixme
 		"openstack_region_name":  "regionOne", // fixme
