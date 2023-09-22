@@ -178,9 +178,9 @@ var _ = Describe("PlacementAPI controller", func() {
 			DeferCleanup(th.DeleteInstance, CreatePlacementAPI(names.PlacementAPIName, GetDefaultPlacementAPISpec()))
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreatePlacementAPISecret(namespace, SecretName))
-			keystoneAPIName := th.CreateKeystoneAPI(namespace)
-			keystoneAPI = th.GetKeystoneAPI(keystoneAPIName)
-			DeferCleanup(th.DeleteKeystoneAPI, keystoneAPIName)
+			keystoneAPIName := keystone.CreateKeystoneAPI(namespace)
+			keystoneAPI = keystone.GetKeystoneAPI(keystoneAPIName)
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystoneAPIName)
 		})
 
 		It("should have config ready", func() {
@@ -277,7 +277,7 @@ var _ = Describe("PlacementAPI controller", func() {
 			)
 			th.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
 
-			th.SimulateKeystoneServiceReady(names.KeystoneServiceName)
+			keystone.SimulateKeystoneServiceReady(names.KeystoneServiceName)
 
 			th.ExpectCondition(
 				names.PlacementAPIName,
@@ -301,7 +301,7 @@ var _ = Describe("PlacementAPI controller", func() {
 			)
 			th.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
 
-			th.SimulateKeystoneEndpointReady(names.KeystoneEndpointName)
+			keystone.SimulateKeystoneEndpointReady(names.KeystoneEndpointName)
 
 			th.ExpectCondition(
 				names.PlacementAPIName,
@@ -435,8 +435,8 @@ var _ = Describe("PlacementAPI controller", func() {
 				th.CreateDBService(namespace, "openstack", serviceSpec),
 			)
 			th.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
-			th.SimulateKeystoneServiceReady(names.KeystoneServiceName)
-			th.SimulateKeystoneEndpointReady(names.KeystoneEndpointName)
+			keystone.SimulateKeystoneServiceReady(names.KeystoneServiceName)
+			keystone.SimulateKeystoneEndpointReady(names.KeystoneEndpointName)
 			th.SimulateJobSuccess(names.DBSyncJobName)
 			th.SimulateDeploymentReplicaReady(names.DeploymentName)
 
@@ -452,7 +452,7 @@ var _ = Describe("PlacementAPI controller", func() {
 	When("A PlacementAPI is created with service override", func() {
 		BeforeEach(func() {
 			DeferCleanup(k8sClient.Delete, ctx, CreatePlacementAPISecret(namespace, SecretName))
-			DeferCleanup(th.DeleteKeystoneAPI, th.CreateKeystoneAPI(namespace))
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(namespace))
 
 			spec := GetDefaultPlacementAPISpec()
 			serviceOverride := map[string]interface{}{}
@@ -493,13 +493,13 @@ var _ = Describe("PlacementAPI controller", func() {
 			th.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
 			th.SimulateJobSuccess(names.DBSyncJobName)
 			th.SimulateDeploymentReplicaReady(names.DeploymentName)
-			th.SimulateKeystoneServiceReady(names.KeystoneServiceName)
-			th.SimulateKeystoneEndpointReady(names.KeystoneEndpointName)
+			keystone.SimulateKeystoneServiceReady(names.KeystoneServiceName)
+			keystone.SimulateKeystoneEndpointReady(names.KeystoneEndpointName)
 			DeferCleanup(th.DeleteInstance, placementAPI)
 		})
 
 		It("creates KeystoneEndpoint", func() {
-			keystoneEndpoint := th.GetKeystoneEndpoint(names.KeystoneEndpointName)
+			keystoneEndpoint := keystone.GetKeystoneEndpoint(names.KeystoneEndpointName)
 			endpoints := keystoneEndpoint.Spec.Endpoints
 			Expect(endpoints).To(HaveKeyWithValue("public", "http://placement-public."+namespace+".svc:8778"))
 			Expect(endpoints).To(HaveKeyWithValue("internal", "http://placement-internal."+namespace+".svc:8778"))
@@ -537,7 +537,7 @@ var _ = Describe("PlacementAPI controller", func() {
 	When("A PlacementAPI is created with service override endpointURL set", func() {
 		BeforeEach(func() {
 			DeferCleanup(k8sClient.Delete, ctx, CreatePlacementAPISecret(namespace, SecretName))
-			DeferCleanup(th.DeleteKeystoneAPI, th.CreateKeystoneAPI(namespace))
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(namespace))
 
 			spec := GetDefaultPlacementAPISpec()
 			serviceOverride := map[string]interface{}{}
@@ -564,13 +564,13 @@ var _ = Describe("PlacementAPI controller", func() {
 			th.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
 			th.SimulateJobSuccess(names.DBSyncJobName)
 			th.SimulateDeploymentReplicaReady(names.DeploymentName)
-			th.SimulateKeystoneServiceReady(names.KeystoneServiceName)
-			th.SimulateKeystoneEndpointReady(names.KeystoneEndpointName)
+			keystone.SimulateKeystoneServiceReady(names.KeystoneServiceName)
+			keystone.SimulateKeystoneEndpointReady(names.KeystoneEndpointName)
 			DeferCleanup(th.DeleteInstance, placementAPI)
 		})
 
 		It("creates KeystoneEndpoint", func() {
-			keystoneEndpoint := th.GetKeystoneEndpoint(names.KeystoneEndpointName)
+			keystoneEndpoint := keystone.GetKeystoneEndpoint(names.KeystoneEndpointName)
 			endpoints := keystoneEndpoint.Spec.Endpoints
 			Expect(endpoints).To(HaveKeyWithValue("public", "http://placement-openstack.apps-crc.testing"))
 			Expect(endpoints).To(HaveKeyWithValue("internal", "http://placement-internal."+namespace+".svc:8778"))
@@ -589,7 +589,7 @@ var _ = Describe("PlacementAPI controller", func() {
 			DeferCleanup(th.DeleteInstance, CreatePlacementAPI(names.PlacementAPIName, GetDefaultPlacementAPISpec()))
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreatePlacementAPISecret(namespace, SecretName))
-			DeferCleanup(th.DeleteKeystoneAPI, th.CreateKeystoneAPI(namespace))
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(namespace))
 
 			serviceSpec := corev1.ServiceSpec{Ports: []corev1.ServicePort{{Port: 3306}}}
 			DeferCleanup(
@@ -597,8 +597,8 @@ var _ = Describe("PlacementAPI controller", func() {
 				th.CreateDBService(namespace, "openstack", serviceSpec),
 			)
 			th.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
-			th.SimulateKeystoneServiceReady(names.KeystoneServiceName)
-			th.SimulateKeystoneEndpointReady(names.KeystoneEndpointName)
+			keystone.SimulateKeystoneServiceReady(names.KeystoneServiceName)
+			keystone.SimulateKeystoneEndpointReady(names.KeystoneEndpointName)
 			th.SimulateJobSuccess(names.DBSyncJobName)
 			th.SimulateDeploymentReplicaReady(names.DeploymentName)
 
@@ -613,18 +613,18 @@ var _ = Describe("PlacementAPI controller", func() {
 		It("removes the finalizers when deleted", func() {
 			placement := GetPlacementAPI(names.PlacementAPIName)
 			Expect(placement.Finalizers).To(ContainElement("PlacementAPI"))
-			keystoneService := th.GetKeystoneService(names.KeystoneServiceName)
+			keystoneService := keystone.GetKeystoneService(names.KeystoneServiceName)
 			Expect(keystoneService.Finalizers).To(ContainElement("PlacementAPI"))
-			keystoneEndpoint := th.GetKeystoneService(names.KeystoneEndpointName)
+			keystoneEndpoint := keystone.GetKeystoneService(names.KeystoneEndpointName)
 			Expect(keystoneEndpoint.Finalizers).To(ContainElement("PlacementAPI"))
 			db := th.GetMariaDBDatabase(names.MariaDBDatabaseName)
 			Expect(db.Finalizers).To(ContainElement("PlacementAPI"))
 
 			th.DeleteInstance(GetPlacementAPI(names.PlacementAPIName))
 
-			keystoneService = th.GetKeystoneService(names.KeystoneServiceName)
+			keystoneService = keystone.GetKeystoneService(names.KeystoneServiceName)
 			Expect(keystoneService.Finalizers).NotTo(ContainElement("PlacementAPI"))
-			keystoneEndpoint = th.GetKeystoneService(names.KeystoneEndpointName)
+			keystoneEndpoint = keystone.GetKeystoneService(names.KeystoneEndpointName)
 			Expect(keystoneEndpoint.Finalizers).NotTo(ContainElement("PlacementAPI"))
 			db = th.GetMariaDBDatabase(names.MariaDBDatabaseName)
 			Expect(db.Finalizers).NotTo(ContainElement("PlacementAPI"))
