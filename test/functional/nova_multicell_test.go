@@ -75,8 +75,8 @@ var _ = Describe("Nova multicell", func() {
 			spec["apiMessageBusInstance"] = cell0.TransportURLName.Name
 
 			DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
-			DeferCleanup(th.DeleteKeystoneAPI, th.CreateKeystoneAPI(novaNames.NovaName.Namespace))
-			th.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace))
+			keystone.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
 		})
 
 		It("creates cell0 NovaCell", func() {
@@ -181,7 +181,7 @@ var _ = Describe("Nova multicell", func() {
 				corev1.ConditionTrue,
 			)
 
-			th.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
+			keystone.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
 			th.ExpectCondition(
 				novaNames.NovaName,
 				ConditionGetterFunc(NovaConditionGetter),
@@ -198,7 +198,7 @@ var _ = Describe("Nova multicell", func() {
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 			th.SimulateJobSuccess(cell0.CellMappingJobName)
 			th.SimulateStatefulSetReplicaReady(novaNames.APIDeploymentName)
-			th.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
+			keystone.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
 
 			th.SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
 			th.ExpectCondition(
@@ -244,7 +244,7 @@ var _ = Describe("Nova multicell", func() {
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 			th.SimulateJobSuccess(cell0.CellMappingJobName)
 			th.SimulateStatefulSetReplicaReady(novaNames.APIDeploymentName)
-			th.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
+			keystone.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
 			th.SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
 			th.SimulateTransportURLReady(cell1.TransportURLName)
 
@@ -321,7 +321,7 @@ var _ = Describe("Nova multicell", func() {
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 			th.SimulateJobSuccess(cell0.CellMappingJobName)
 			th.SimulateStatefulSetReplicaReady(novaNames.APIDeploymentName)
-			th.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
+			keystone.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
 			th.SimulateStatefulSetReplicaReady(novaNames.SchedulerStatefulSetName)
 			th.SimulateStatefulSetReplicaReady(novaNames.MetadataStatefulSetName)
 			th.SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
@@ -486,7 +486,7 @@ var _ = Describe("Nova multicell", func() {
 			// NovaAPI is still created
 			GetNovaAPI(novaNames.APIName)
 			th.SimulateStatefulSetReplicaReady(novaNames.APIDeploymentName)
-			th.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
+			keystone.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
 			th.ExpectCondition(
 				novaNames.NovaName,
 				ConditionGetterFunc(NovaConditionGetter),
@@ -554,8 +554,8 @@ var _ = Describe("Nova multicell", func() {
 			spec["apiMessageBusInstance"] = cell0.TransportURLName.Name
 
 			DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
-			DeferCleanup(th.DeleteKeystoneAPI, th.CreateKeystoneAPI(novaNames.NovaName.Namespace))
-			th.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace))
+			keystone.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
 		})
 		It("cell0 becomes ready with 0 conductor replicas and the rest of nova is deployed", func() {
 			th.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
@@ -603,7 +603,7 @@ var _ = Describe("Nova multicell", func() {
 			th.SimulateStatefulSetReplicaReady(novaNames.MetadataStatefulSetName)
 			// As cell0 is ready API is deployed
 			th.SimulateStatefulSetReplicaReady(novaNames.APIDeploymentName)
-			th.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
+			keystone.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
 			th.ExpectCondition(
 				novaNames.NovaName,
 				ConditionGetterFunc(NovaConditionGetter),
@@ -665,8 +665,8 @@ var _ = Describe("Nova multicell", func() {
 			spec["apiMessageBusInstance"] = cell0.TransportURLName.Name
 
 			DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
-			DeferCleanup(th.DeleteKeystoneAPI, th.CreateKeystoneAPI(novaNames.Namespace))
-			th.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(novaNames.Namespace))
+			keystone.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
 		})
 
 		It("waits for cell0 DB to be created", func(ctx SpecContext) {
@@ -717,13 +717,13 @@ var _ = Describe("Nova multicell", func() {
 			spec["apiMessageBusInstance"] = cell0.TransportURLName.Name
 
 			DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
-			keystoneAPIName := th.CreateKeystoneAPI(novaNames.NovaName.Namespace)
-			DeferCleanup(th.DeleteKeystoneAPI, keystoneAPIName)
-			keystoneAPI := th.GetKeystoneAPI(keystoneAPIName)
+			keystoneAPIName := keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace)
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystoneAPIName)
+			keystoneAPI := keystone.GetKeystoneAPI(keystoneAPIName)
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Status().Update(ctx, keystoneAPI.DeepCopy())).Should(Succeed())
 			}, timeout, interval).Should(Succeed())
-			th.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
+			keystone.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
 		})
 		It("cell0 becomes ready without metadata and the rest of nova is deployed", func() {
 			th.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
