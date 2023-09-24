@@ -141,9 +141,9 @@ type NovaComputeStatus struct {
 // NovaComputeCellStatus defines state of NovaCompute in cell
 type NovaComputeCellStatus struct {
 	// Deployed
-	Deployed bool `json:"deployed,omitempty"`
+	Deployed bool `json:"deployed"`
 	// Errors
-	Errors bool `json:"errors,omitempty"`
+	Errors bool `json:"errors"`
 }
 
 //+kubebuilder:object:root=true
@@ -182,6 +182,11 @@ func (s NovaComputeStatus) GetConditions() condition.Conditions {
 // GetSecret returns the value of the NovaCompute.Spec.Secret
 func (n NovaCompute) GetSecret() string {
 	return n.Spec.Secret
+}
+
+// IsReady returns true if the Cell reconciled successfully
+func (instance NovaCompute) IsReady() bool {
+	return instance.Status.Conditions.IsTrue(condition.ReadyCondition)
 }
 
 // NewNovaComputeSpec constructs a NewNovaComputeSpec
