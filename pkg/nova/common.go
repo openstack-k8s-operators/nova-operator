@@ -69,6 +69,7 @@ const (
 )
 
 type CellDeploymentStatus int
+type NovaComputeStatus int
 
 // CellDeploymentStatus -
 const (
@@ -89,6 +90,15 @@ const (
 	CellReady CellDeploymentStatus = iota
 	// CellFailed indicates that the NovaCell deployment failed.
 	CellFailed CellDeploymentStatus = iota
+	// ComputeDiscovering indicates that NovaCompute reached the Ready status and it is
+	// being discover
+	ComputeDiscovering NovaComputeStatus = iota
+	// ComputeDiscoverFailed indicates that NovaCompute reached the Ready status but
+	// discover it failed
+	ComputeDiscoverFailed NovaComputeStatus = iota
+	// ComputeDiscoverReady indicates that NovaCompute reached the Ready status and
+	// it is discovered
+	ComputeDiscoverReady NovaComputeStatus = iota
 )
 
 // Database -

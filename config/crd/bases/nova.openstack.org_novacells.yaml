@@ -952,6 +952,9 @@ spec:
                     errors:
                       description: Errors
                       type: boolean
+                  required:
+                  - deployed
+                  - errors
                   type: object
                 description: 'NovaComputesStatuses is a map with format cell_name:
                   bool where bool tell if compute with selected name deployed successfully

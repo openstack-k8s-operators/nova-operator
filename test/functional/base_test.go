@@ -39,6 +39,7 @@ const (
 	// that a condition is still valid. This is intended to be used in
 	// asserts using `Consistently`.
 	consistencyTimeout = timeout
+	ironicComputeName  = "ironic-compute"
 )
 
 func GetDefaultNovaAPISpec(novaNames NovaNames) map[string]interface{} {
@@ -328,6 +329,7 @@ type CellNames struct {
 	ConductorStatefulSetName         types.NamespacedName
 	TransportURLName                 types.NamespacedName
 	CellMappingJobName               types.NamespacedName
+	HostDiscoveryJobName             types.NamespacedName
 	MetadataName                     types.NamespacedName
 	MetadataStatefulSetName          types.NamespacedName
 	MetadataConfigDataName           types.NamespacedName
@@ -362,7 +364,7 @@ func GetCellNames(novaName types.NamespacedName, cell string) CellNames {
 	}
 	novaCompute := types.NamespacedName{
 		Namespace: novaName.Namespace,
-		Name:      cellName.Name + "-compute",
+		Name:      cellName.Name + "-" + ironicComputeName + "-compute",
 	}
 
 	c := CellNames{
@@ -385,6 +387,10 @@ func GetCellNames(novaName types.NamespacedName, cell string) CellNames {
 		CellMappingJobName: types.NamespacedName{
 			Namespace: novaName.Namespace,
 			Name:      cellName.Name + "-cell-mapping",
+		},
+		HostDiscoveryJobName: types.NamespacedName{
+			Namespace: novaName.Namespace,
+			Name:      cellName.Name + "-host-discover",
 		},
 		ConductorConfigDataName: types.NamespacedName{
 			Namespace: novaName.Namespace,
@@ -485,7 +491,7 @@ func GetNovaNames(novaName types.NamespacedName, cellNames []string) NovaNames {
 
 	novaCompute := types.NamespacedName{
 		Namespace: novaName.Namespace,
-		Name:      fmt.Sprintf("%s-compute", novaName.Name),
+		Name:      fmt.Sprintf("%s-%s-compute", novaName.Name, ironicComputeName),
 	}
 
 	cells := map[string]CellNames{}
