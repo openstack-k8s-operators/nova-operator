@@ -13,7 +13,8 @@
         - name: "openstack-operator"
           src: "~/src/github.com/{{ cifmw_operator_build_org }}/openstack-operator"
           image_base: nova
-
+    irrelevant-files:
+      - ^test/functional/.*$
 
 - job:
     name: nova-operator-base
@@ -41,6 +42,8 @@
       - ci/nova-operator-base/playbooks/pre-wrapper.yaml
     post-run:
       - ci/nova-operator-base/playbooks/collect-logs.yaml
+    irrelevant-files:
+      - ^test/functional/.*$
 
 - job:
     name: nova-operator-compute-kit
@@ -80,6 +83,8 @@
           label: cloud-centos-9-stream-tripleo-vexxhost
         - name: crc
           label: coreos-crc-extracted-xxl
+    irrelevant-files:
+      - ^test/functional/.*$
     vars:
       collection_namespace_override: "nova-kuttl-default"
       zuul_log_collection: true
