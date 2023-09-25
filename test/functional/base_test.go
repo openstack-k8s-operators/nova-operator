@@ -39,6 +39,8 @@ const (
 	// that a condition is still valid. This is intended to be used in
 	// asserts using `Consistently`.
 	consistencyTimeout = timeout
+
+	Foo = "foo"
 )
 
 func GetDefaultNovaAPISpec(novaNames NovaNames) map[string]interface{} {
