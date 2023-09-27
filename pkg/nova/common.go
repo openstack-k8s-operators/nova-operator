@@ -90,6 +90,10 @@ const (
 	CellReady CellDeploymentStatus = iota
 	// CellFailed indicates that the NovaCell deployment failed.
 	CellFailed CellDeploymentStatus = iota
+)
+
+// NovaComputeStatus -
+const (
 	// ComputeDiscovering indicates that NovaCompute reached the Ready status and it is
 	// being discover
 	ComputeDiscovering NovaComputeStatus = iota

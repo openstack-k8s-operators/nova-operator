@@ -27,6 +27,8 @@ import (
 const (
 	// Cell0Name is the name of Cell0 cell that is mandatory in every deployment
 	Cell0Name = "cell0"
+	// ComputeDiscoverHashKey is the key to hash of compute discovery job based on compute templates for cell
+	ComputeDiscoverHashKey = "nova-compute-discovery"
 )
 
 // NovaCellTemplate defines the input parameters specified by the user to
@@ -80,8 +82,8 @@ type NovaCellTemplate struct {
 	NoVNCProxyServiceTemplate NovaNoVNCProxyTemplate `json:"noVNCProxyServiceTemplate"`
 
 	// NovaComputeTemplates - map of nova computes template with selected drivers in format
-	// compute_name: compute_template. Key from map is arbitrary name for the compute.
-	// because of that there is a limit of 20 signs
+	// compute_name: compute_template.Key from map is arbitrary name for the compute with
+	// a limit of 20 characters.
 	NovaComputeTemplates map[string]NovaComputeTemplate `json:"novaComputeTemplates,omitempty"`
 
 	// +kubebuilder:validation:Optional
@@ -198,13 +200,13 @@ type NovaCellStatus struct {
 	// nova-novncproxy service in the cell
 	NoVNCPRoxyServiceReadyCount int32 `json:"noVNCProxyServiceReadyCount,omitempty"`
 
-	// NovaComputesStatuses is a map with format cell_name: bool
-	// where bool tell if compute with selected name deployed successfully
+	// NovaComputesStatus is a map with format cell_name: NovaComputeCellStatus
+	// where NovaComputeCellStatus tell if compute with selected name deployed successfully
 	// and indicates if the compute is successfully mapped to the cell in
 	// the nova_api database.
 	// When a compute is removed from the Spec the operator will delete the
 	// related NovaCompute CR and then remove the compute from this Status field.
-	NovaComputesStatuses map[string]NovaComputeCellStatus `json:"novaComputesStatuses,omitempty"`
+	NovaComputesStatus map[string]NovaComputeCellStatus `json:"novaComputesStatus,omitempty"`
 }
 
 //+kubebuilder:object:root=true

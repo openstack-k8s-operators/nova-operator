@@ -51,7 +51,7 @@ const (
 	// is ready for the given NovaCell
 	NovaComputeServiceConfigReady condition.Type = "NovaComputeServiceConfigReady"
 	// NovaAllComputesReadyCondition indicates that every defined NovaCompute is ready
-	NovaAllComputesReadyCondition condition.Type = "NovaAllComputesRead"
+	NovaAllComputesReadyCondition condition.Type = "NovaAllComputesReady"
 )
 
 // Common Messages used by API objects.

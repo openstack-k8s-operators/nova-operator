@@ -127,10 +127,7 @@ var _ = Describe("NovaCompute controller", func() {
 		When("the Secret is created with all the expected fields", func() {
 			BeforeEach(func() {
 				DeferCleanup(
-					k8sClient.Delete,
-					ctx,
-					CreateCellInternalSecret(cell1),
-				)
+					k8sClient.Delete, ctx, CreateCellInternalSecret(cell1))
 			})
 
 			It("reports that input is ready", func() {

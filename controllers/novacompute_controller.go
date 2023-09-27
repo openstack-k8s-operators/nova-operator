@@ -24,7 +24,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
@@ -273,7 +272,6 @@ func (r *NovaComputeReconciler) generateConfigs(
 		"default_user_domain":    "Default",   // fixme
 		"transport_url":          string(secret.Data[TransportURLSelector]),
 		"log_file":               "/var/log/nova/nova-compute.log",
-		"nova_compute_image":     instance.Spec.ContainerImage,
 		"compute_driver":         instance.Spec.ComputeDriver,
 	}
 	extraData := map[string]string{}
@@ -374,14 +372,6 @@ func (r *NovaComputeReconciler) reconcileDelete(
 	instance *novav1.NovaCompute,
 ) error {
 	util.LogForObject(h, "Reconciling delete", instance)
-
-	// Successfully cleaned up everything. So as the final step let's remove the
-	// finalizer from ourselves to allow the deletion of NovaAPI CR itself
-	updated := controllerutil.RemoveFinalizer(instance, h.GetFinalizer())
-	if updated {
-		util.LogForObject(h, "Removed finalizer from ourselves", instance)
-	}
-
 	util.LogForObject(h, "Reconciled delete successfully", instance)
 	return nil
 }

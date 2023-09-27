@@ -434,8 +434,8 @@ func (in *NovaCellStatus) DeepCopyInto(out *NovaCellStatus) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
-	if in.NovaComputesStatuses != nil {
-		in, out := &in.NovaComputesStatuses, &out.NovaComputesStatuses
+	if in.NovaComputesStatus != nil {
+		in, out := &in.NovaComputesStatus, &out.NovaComputesStatus
 		*out = make(map[string]NovaComputeCellStatus, len(*in))
 		for key, val := range *in {
 			(*out)[key] = val

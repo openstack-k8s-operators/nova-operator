@@ -329,7 +329,6 @@ type CellNames struct {
 	ConductorStatefulSetName         types.NamespacedName
 	TransportURLName                 types.NamespacedName
 	CellMappingJobName               types.NamespacedName
-	HostDiscoveryJobName             types.NamespacedName
 	MetadataName                     types.NamespacedName
 	MetadataStatefulSetName          types.NamespacedName
 	MetadataConfigDataName           types.NamespacedName
@@ -388,10 +387,6 @@ func GetCellNames(novaName types.NamespacedName, cell string) CellNames {
 			Namespace: novaName.Namespace,
 			Name:      cellName.Name + "-cell-mapping",
 		},
-		HostDiscoveryJobName: types.NamespacedName{
-			Namespace: novaName.Namespace,
-			Name:      cellName.Name + "-host-discover",
-		},
 		ConductorConfigDataName: types.NamespacedName{
 			Namespace: novaName.Namespace,
 			Name:      cellConductor.Name + "-config-data",
@@ -416,6 +411,8 @@ func GetCellNames(novaName types.NamespacedName, cell string) CellNames {
 			Namespace: novaName.Namespace,
 			Name:      cellName.Name + "-novncproxy" + "-config-data",
 		},
+		NovaComputeName:            novaCompute,
+		NovaComputeStatefulSetName: novaCompute,
 		NovaComputeConfigDataName: types.NamespacedName{
 			Namespace: novaCompute.Namespace,
 			Name:      cellName.Name + "-compute" + "-config-data",
@@ -462,6 +459,9 @@ type NovaNames struct {
 	MetadataName                    types.NamespacedName
 	MetadataStatefulSetName         types.NamespacedName
 	MetadataNeutronConfigDataName   types.NamespacedName
+	NovaComputeName                 types.NamespacedName
+	NovaComputeStatefulSetName      types.NamespacedName
+	NovaComputeConfigDataName       types.NamespacedName
 	ServiceAccountName              types.NamespacedName
 	RoleName                        types.NamespacedName
 	RoleBindingName                 types.NamespacedName
@@ -554,6 +554,10 @@ func GetNovaNames(novaName types.NamespacedName, cellNames []string) NovaNames {
 		RoleBindingName: types.NamespacedName{
 			Namespace: novaName.Namespace,
 			Name:      "nova-" + novaName.Name + "-rolebinding",
+		},
+		NovaComputeConfigDataName: types.NamespacedName{
+			Namespace: novaCompute.Namespace,
+			Name:      novaCompute.Name + "-config-data",
 		},
 		MetadataConfigDataName: types.NamespacedName{
 			Namespace: novaMetadata.Namespace,
@@ -687,4 +691,50 @@ func AssertNoVNCProxyDoesNotExist(name types.NamespacedName) {
 		err := k8sClient.Get(ctx, name, instance)
 		g.Expect(k8s_errors.IsNotFound(err)).To(BeTrue())
 	}, timeout, interval).Should(Succeed())
+}
+
+func CreateNovaCompute(name types.NamespacedName, spec map[string]interface{}) client.Object {
+	raw := map[string]interface{}{
+		"apiVersion": "nova.openstack.org/v1beta1",
+		"kind":       "NovaCompute",
+		"metadata": map[string]interface{}{
+			"name":      name.Name,
+			"namespace": name.Namespace,
+		},
+		"spec": spec,
+	}
+	return th.CreateUnstructured(raw)
+}
+
+func GetNovaCompute(name types.NamespacedName) *novav1.NovaCompute {
+	instance := &novav1.NovaCompute{}
+	Eventually(func(g Gomega) {
+		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
+	}, timeout, interval).Should(Succeed())
+	return instance
+}
+
+func NovaComputeConditionGetter(name types.NamespacedName) condition.Conditions {
+	instance := GetNovaCompute(name)
+	return instance.Status.Conditions
+}
+
+func GetDefaultNovaComputeTemplate() map[string]interface{} {
+	return map[string]interface{}{
+		"computeDriver": novav1.IronicDriver,
+		"name":          ironicComputeName,
+	}
+}
+
+func GetDefaultNovaComputeSpec(cell CellNames) map[string]interface{} {
+	return map[string]interface{}{
+		"secret":               cell.InternalCellSecretName.Name,
+		"computeName":          "compute1",
+		"cellDatabaseHostname": "nova-cell-db-hostname",
+		"containerImage":       ContainerImage,
+		"keystoneAuthURL":      "keystone-auth-url",
+		"serviceAccount":       "nova",
+		"cellName":             cell.CellName,
+		"computeDriver":        novav1.IronicDriver,
+	}
 }
