@@ -140,9 +140,9 @@ type NovaComputeStatus struct {
 
 // NovaComputeCellStatus defines state of NovaCompute in cell
 type NovaComputeCellStatus struct {
-	// Deployed
+	// Deployed value: true means that the compute is deployed but can still be undiscovered
 	Deployed bool `json:"deployed"`
-	// Errors
+	// Errors value True means that during deployment, errors appear, and the user needs to check the compute for problems
 	Errors bool `json:"errors"`
 }
 

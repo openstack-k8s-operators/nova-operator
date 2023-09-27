@@ -1158,9 +1158,9 @@ spec:
                         - computeDriver
                         type: object
                       description: 'NovaComputeTemplates - map of nova computes template
-                        with selected drivers in format compute_name: compute_template.
-                        Key from map is arbitrary name for the compute. because of
-                        that there is a limit of 20 signs'
+                        with selected drivers in format compute_name: compute_template.Key
+                        from map is arbitrary name for the compute with a limit of
+                        20 characters.'
                       type: object
                     passwordSelectors:
                       default:
