@@ -32,6 +32,7 @@ import (
 const (
 	SecretName     = "external-secret"
 	ContainerImage = "test://nova"
+	Hello          = 'bar'
 	timeout        = 10 * time.Second
 	// have maximum 100 retries before the timeout hits
 	interval = timeout / 100
