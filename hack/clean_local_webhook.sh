@@ -15,3 +15,5 @@ oc delete validatingwebhookconfiguration/vnovanovncproxy.kb.io --ignore-not-foun
 oc delete mutatingwebhookconfiguration/mnovanovncproxy.kb.io --ignore-not-found
 oc delete validatingwebhookconfiguration/vnovascheduler.kb.io --ignore-not-found
 oc delete mutatingwebhookconfiguration/mnovascheduler.kb.io --ignore-not-found
+oc delete validatingwebhookconfiguration/vnovacompute.kb.io --ignore-not-found
+oc delete mutatingwebhookconfiguration/mnovacompute.kb.io --ignore-not-found
