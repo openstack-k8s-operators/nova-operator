@@ -415,7 +415,7 @@ func GetCellNames(novaName types.NamespacedName, cell string) CellNames {
 		NovaComputeStatefulSetName: novaCompute,
 		NovaComputeConfigDataName: types.NamespacedName{
 			Namespace: novaCompute.Namespace,
-			Name:      cellName.Name + "-compute" + "-config-data",
+			Name:      cellName.Name + "-" + ironicComputeName + "-compute" + "-config-data",
 		},
 		InternalCellSecretName: cellName,
 		InternalAPINetworkNADName: types.NamespacedName{
@@ -459,9 +459,6 @@ type NovaNames struct {
 	MetadataName                    types.NamespacedName
 	MetadataStatefulSetName         types.NamespacedName
 	MetadataNeutronConfigDataName   types.NamespacedName
-	NovaComputeName                 types.NamespacedName
-	NovaComputeStatefulSetName      types.NamespacedName
-	NovaComputeConfigDataName       types.NamespacedName
 	ServiceAccountName              types.NamespacedName
 	RoleName                        types.NamespacedName
 	RoleBindingName                 types.NamespacedName
@@ -487,11 +484,6 @@ func GetNovaNames(novaName types.NamespacedName, cellNames []string) NovaNames {
 	novaMetadata := types.NamespacedName{
 		Namespace: novaName.Namespace,
 		Name:      fmt.Sprintf("%s-metadata", novaName.Name),
-	}
-
-	novaCompute := types.NamespacedName{
-		Namespace: novaName.Namespace,
-		Name:      fmt.Sprintf("%s-%s-compute", novaName.Name, ironicComputeName),
 	}
 
 	cells := map[string]CellNames{}
@@ -539,10 +531,8 @@ func GetNovaNames(novaName types.NamespacedName, cellNames []string) NovaNames {
 			Namespace: novaScheduler.Namespace,
 			Name:      novaScheduler.Name + "-config-data",
 		},
-		MetadataName:               novaMetadata,
-		MetadataStatefulSetName:    novaMetadata,
-		NovaComputeName:            novaCompute,
-		NovaComputeStatefulSetName: novaCompute,
+		MetadataName:            novaMetadata,
+		MetadataStatefulSetName: novaMetadata,
 		ServiceAccountName: types.NamespacedName{
 			Namespace: novaName.Namespace,
 			Name:      "nova-" + novaName.Name,
@@ -554,10 +544,6 @@ func GetNovaNames(novaName types.NamespacedName, cellNames []string) NovaNames {
 		RoleBindingName: types.NamespacedName{
 			Namespace: novaName.Namespace,
 			Name:      "nova-" + novaName.Name + "-rolebinding",
-		},
-		NovaComputeConfigDataName: types.NamespacedName{
-			Namespace: novaCompute.Namespace,
-			Name:      novaCompute.Name + "-config-data",
 		},
 		MetadataConfigDataName: types.NamespacedName{
 			Namespace: novaMetadata.Namespace,

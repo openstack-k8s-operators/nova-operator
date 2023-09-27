@@ -151,7 +151,7 @@ var _ = Describe("NovaCell controller", func() {
 				"enabled": true,
 			}
 			spec["novaComputeTemplates"] = map[string]interface{}{
-				"ironic-compute": GetDefaultNovaComputeTemplate(),
+				ironicComputeName: GetDefaultNovaComputeTemplate(),
 			}
 			DeferCleanup(th.DeleteInstance, CreateNovaCell(cell1.CellCRName, spec))
 		})
@@ -343,7 +343,7 @@ var _ = Describe("NovaCell controller", func() {
 				corev1.ConditionTrue,
 			)
 
-			Expect(cell.Status.NovaComputesStatus).To(HaveKey("ironic-compute"))
+			Expect(cell.Status.NovaComputesStatus).To(HaveKey(ironicComputeName))
 		})
 
 		It("deletes NoVNCProxy if it is disabled later", func() {
