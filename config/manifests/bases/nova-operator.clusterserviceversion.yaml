@@ -38,6 +38,11 @@ spec:
       kind: NovaNoVNCProxy
       name: novanovncproxies.nova.openstack.org
       version: v1beta1
+    - description: NovaCompute is the Schema for the novacomputes API
+      displayName: Nova Compute
+      kind: NovaCompute
+      name: novacomputes.nova.openstack.org
+      version: v1beta1
     - description: Nova is the Schema for the nova API
       displayName: Nova
       kind: Nova

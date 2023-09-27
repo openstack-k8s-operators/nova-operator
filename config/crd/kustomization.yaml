@@ -9,6 +9,7 @@ resources:
 - bases/nova.openstack.org_novanovncproxies.yaml
 - bases/nova.openstack.org_novacells.yaml
 - bases/nova.openstack.org_nova.yaml
+- bases/nova.openstack.org_novacomputes.yaml
 #+kubebuilder:scaffold:crdkustomizeresource
 
 patchesStrategicMerge:
