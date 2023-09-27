@@ -92,19 +92,6 @@ const (
 	CellFailed CellDeploymentStatus = iota
 )
 
-// NovaComputeStatus -
-const (
-	// ComputeDiscovering indicates that NovaCompute reached the Ready status and it is
-	// being discover
-	ComputeDiscovering NovaComputeStatus = iota
-	// ComputeDiscoverFailed indicates that NovaCompute reached the Ready status but
-	// discover it failed
-	ComputeDiscoverFailed NovaComputeStatus = iota
-	// ComputeDiscoverReady indicates that NovaCompute reached the Ready status and
-	// it is discovered
-	ComputeDiscoverReady NovaComputeStatus = iota
-)
-
 // Database -
 type Database struct {
 	Database *database.Database

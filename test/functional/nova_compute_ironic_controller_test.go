@@ -37,20 +37,20 @@ var _ = Describe("NovaCompute controller", func() {
 		BeforeEach(func() {
 			spec := GetDefaultNovaComputeSpec(cell1)
 			spec["customServiceConfig"] = "foo=bar"
-			DeferCleanup(th.DeleteInstance, CreateNovaCompute(novaNames.NovaComputeName, spec))
+			DeferCleanup(th.DeleteInstance, CreateNovaCompute(cell1.NovaComputeName, spec))
 		})
 		When("a NovaCompute CR is created pointing to a non existent Secret", func() {
 
 			It("is not Ready", func() {
 				th.ExpectCondition(
-					novaNames.NovaComputeName,
+					cell1.NovaComputeName,
 					ConditionGetterFunc(NovaComputeConditionGetter),
 					condition.ReadyCondition, corev1.ConditionFalse,
 				)
 			})
 
 			It("has empty Status fields", func() {
-				instance := GetNovaCompute(novaNames.NovaComputeName)
+				instance := GetNovaCompute(cell1.NovaComputeName)
 				// NOTE(gibi): Hash has `omitempty` tags so while
 				// they are initialized to an empty map that value is omitted from
 				// the output when sent to the client. So we see nils here.
@@ -59,7 +59,7 @@ var _ = Describe("NovaCompute controller", func() {
 			})
 			It("is missing the secret", func() {
 				th.ExpectCondition(
-					novaNames.NovaComputeName,
+					cell1.NovaComputeName,
 					ConditionGetterFunc(NovaComputeConditionGetter),
 					condition.InputReadyCondition,
 					corev1.ConditionFalse,
@@ -81,7 +81,7 @@ var _ = Describe("NovaCompute controller", func() {
 
 			It("is not Ready", func() {
 				th.ExpectCondition(
-					novaNames.NovaComputeName,
+					cell1.NovaComputeName,
 					ConditionGetterFunc(NovaComputeConditionGetter),
 					condition.ReadyCondition,
 					corev1.ConditionFalse,
@@ -90,7 +90,7 @@ var _ = Describe("NovaCompute controller", func() {
 
 			It("is missing the secret", func() {
 				th.ExpectCondition(
-					novaNames.NovaComputeName,
+					cell1.NovaComputeName,
 					ConditionGetterFunc(NovaComputeConditionGetter),
 					condition.InputReadyCondition,
 					corev1.ConditionFalse,
@@ -115,7 +115,7 @@ var _ = Describe("NovaCompute controller", func() {
 
 			It("is not Ready", func() {
 				th.ExpectCondition(
-					novaNames.NovaComputeName,
+					cell1.NovaComputeName,
 					ConditionGetterFunc(NovaComputeConditionGetter),
 					condition.ReadyCondition,
 					corev1.ConditionFalse,
@@ -132,7 +132,7 @@ var _ = Describe("NovaCompute controller", func() {
 
 			It("reports that input is ready", func() {
 				th.ExpectCondition(
-					novaNames.NovaComputeName,
+					cell1.NovaComputeName,
 					ConditionGetterFunc(NovaComputeConditionGetter),
 					condition.InputReadyCondition,
 					corev1.ConditionTrue,
@@ -140,13 +140,13 @@ var _ = Describe("NovaCompute controller", func() {
 			})
 			It("generated configs successfully", func() {
 				th.ExpectCondition(
-					novaNames.NovaComputeName,
+					cell1.NovaComputeName,
 					ConditionGetterFunc(NovaComputeConditionGetter),
 					condition.ServiceConfigReadyCondition,
 					corev1.ConditionTrue,
 				)
 
-				configDataMap := th.GetSecret(novaNames.NovaComputeConfigDataName)
+				configDataMap := th.GetSecret(cell1.NovaComputeConfigDataName)
 				Expect(configDataMap).ShouldNot(BeNil())
 				Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
 				configData := string(configDataMap.Data["01-nova.conf"])
@@ -161,7 +161,7 @@ var _ = Describe("NovaCompute controller", func() {
 
 			It("stored the input hash in the Status", func() {
 				Eventually(func(g Gomega) {
-					novaCompute := GetNovaCompute(novaNames.NovaComputeName)
+					novaCompute := GetNovaCompute(cell1.NovaComputeName)
 					g.Expect(novaCompute.Status.Hash).Should(HaveKeyWithValue("input", Not(BeEmpty())))
 				}, timeout, interval).Should(Succeed())
 
@@ -176,7 +176,7 @@ var _ = Describe("NovaCompute controller", func() {
 
 			It(" reports input ready", func() {
 				th.ExpectCondition(
-					novaNames.NovaComputeName,
+					cell1.NovaComputeName,
 					ConditionGetterFunc(NovaComputeConditionGetter),
 					condition.InputReadyCondition,
 					corev1.ConditionTrue,
@@ -185,7 +185,7 @@ var _ = Describe("NovaCompute controller", func() {
 
 			It("creates a StatefulSet for the nova-compute service", func() {
 				th.ExpectConditionWithDetails(
-					novaNames.NovaComputeName,
+					cell1.NovaComputeName,
 					ConditionGetterFunc(NovaComputeConditionGetter),
 					condition.DeploymentReadyCondition,
 					corev1.ConditionFalse,
@@ -193,7 +193,7 @@ var _ = Describe("NovaCompute controller", func() {
 					condition.DeploymentReadyRunningMessage,
 				)
 
-				ss := th.GetStatefulSet(novaNames.NovaComputeStatefulSetName)
+				ss := th.GetStatefulSet(cell1.NovaComputeStatefulSetName)
 				Expect(int(*ss.Spec.Replicas)).To(Equal(1))
 				Expect(ss.Spec.Template.Spec.Volumes).To(HaveLen(2))
 				Expect(ss.Spec.Template.Spec.Containers).To(HaveLen(1))
@@ -212,35 +212,35 @@ var _ = Describe("NovaCompute controller", func() {
 			When("the StatefulSet has at least one Replica ready", func() {
 				BeforeEach(func() {
 					th.ExpectConditionWithDetails(
-						novaNames.NovaComputeName,
+						cell1.NovaComputeName,
 						ConditionGetterFunc(NovaComputeConditionGetter),
 						condition.DeploymentReadyCondition,
 						corev1.ConditionFalse,
 						condition.RequestedReason,
 						condition.DeploymentReadyRunningMessage,
 					)
-					th.SimulateStatefulSetReplicaReady(novaNames.NovaComputeStatefulSetName)
+					th.SimulateStatefulSetReplicaReady(cell1.NovaComputeStatefulSetName)
 				})
 
 				It("reports that the StatefulSet is ready", func() {
-					th.GetStatefulSet(novaNames.NovaComputeStatefulSetName)
+					th.GetStatefulSet(cell1.NovaComputeStatefulSetName)
 					th.ExpectCondition(
-						novaNames.NovaComputeName,
+						cell1.NovaComputeName,
 						ConditionGetterFunc(NovaComputeConditionGetter),
 						condition.DeploymentReadyCondition,
 						corev1.ConditionTrue,
 					)
 
-					novaCompute := GetNovaCompute(novaNames.NovaComputeName)
+					novaCompute := GetNovaCompute(cell1.NovaComputeName)
 					Expect(novaCompute.Status.ReadyCount).To(BeNumerically(">", 0))
 				})
 			})
 
 			It("is Ready", func() {
-				th.SimulateStatefulSetReplicaReady(novaNames.NovaComputeStatefulSetName)
+				th.SimulateStatefulSetReplicaReady(cell1.NovaComputeStatefulSetName)
 
 				th.ExpectCondition(
-					novaNames.NovaComputeName,
+					cell1.NovaComputeName,
 					ConditionGetterFunc(NovaComputeConditionGetter),
 					condition.ReadyCondition,
 					corev1.ConditionTrue,
@@ -255,8 +255,7 @@ var _ = Describe("NovaCompute with ironic diver controller", func() {
 	When("with configure cellname", func() {
 		BeforeEach(func() {
 			spec := GetDefaultNovaComputeSpec(cell1)
-			spec["cellName"] = "some-cell-name"
-			novaCompute := CreateNovaCompute(novaNames.NovaComputeName, spec)
+			novaCompute := CreateNovaCompute(cell1.NovaComputeName, spec)
 			DeferCleanup(th.DeleteInstance, novaCompute)
 			DeferCleanup(
 				k8sClient.Delete,
@@ -273,12 +272,12 @@ var _ = Describe("NovaCompute with ironic diver controller", func() {
 
 			spec := GetDefaultNovaComputeSpec(cell1)
 			spec["networkAttachments"] = []string{"internalapi"}
-			DeferCleanup(th.DeleteInstance, CreateNovaCompute(novaNames.NovaComputeName, spec))
+			DeferCleanup(th.DeleteInstance, CreateNovaCompute(cell1.NovaComputeName, spec))
 		})
 
 		It("reports that the definition is missing", func() {
 			th.ExpectConditionWithDetails(
-				novaNames.NovaComputeName,
+				cell1.NovaComputeName,
 				ConditionGetterFunc(NovaComputeConditionGetter),
 				condition.NetworkAttachmentsReadyCondition,
 				corev1.ConditionFalse,
@@ -286,24 +285,24 @@ var _ = Describe("NovaCompute with ironic diver controller", func() {
 				"NetworkAttachment resources missing: internalapi",
 			)
 			th.ExpectCondition(
-				novaNames.NovaComputeName,
+				cell1.NovaComputeName,
 				ConditionGetterFunc(NovaComputeConditionGetter),
 				condition.ReadyCondition,
 				corev1.ConditionFalse,
 			)
 		})
 		It("reports that network attachment is missing", func() {
-			internalNovaComputeName := types.NamespacedName{Namespace: novaNames.NovaComputeName.Namespace, Name: "internalapi"}
+			internalNovaComputeName := types.NamespacedName{Namespace: cell1.NovaComputeName.Namespace, Name: "internalapi"}
 			nad := th.CreateNetworkAttachmentDefinition(internalNovaComputeName)
 			DeferCleanup(th.DeleteInstance, nad)
 
-			ss := th.GetStatefulSet(novaNames.NovaComputeStatefulSetName)
+			ss := th.GetStatefulSet(cell1.NovaComputeStatefulSetName)
 
 			expectedAnnotation, err := json.Marshal(
 				[]networkv1.NetworkSelectionElement{
 					{
 						Name:             "internalapi",
-						Namespace:        novaNames.NovaComputeName.Namespace,
+						Namespace:        cell1.NovaComputeName.Namespace,
 						InterfaceRequest: "internalapi",
 					}})
 			Expect(err).ShouldNot(HaveOccurred())
@@ -313,10 +312,10 @@ var _ = Describe("NovaCompute with ironic diver controller", func() {
 
 			// We don't add network attachment status annotations to the Pods
 			// to simulate that the network attachments are missing.
-			th.SimulateStatefulSetReplicaReadyWithPods(novaNames.NovaComputeStatefulSetName, map[string][]string{})
+			th.SimulateStatefulSetReplicaReadyWithPods(cell1.NovaComputeStatefulSetName, map[string][]string{})
 
 			th.ExpectConditionWithDetails(
-				novaNames.NovaComputeName,
+				cell1.NovaComputeName,
 				ConditionGetterFunc(NovaComputeConditionGetter),
 				condition.NetworkAttachmentsReadyCondition,
 				corev1.ConditionFalse,
@@ -326,17 +325,17 @@ var _ = Describe("NovaCompute with ironic diver controller", func() {
 			)
 		})
 		It("reports that an IP is missing", func() {
-			internalNovaComputeName := types.NamespacedName{Namespace: novaNames.NovaComputeName.Namespace, Name: "internalapi"}
+			internalNovaComputeName := types.NamespacedName{Namespace: cell1.NovaComputeName.Namespace, Name: "internalapi"}
 			nad := th.CreateNetworkAttachmentDefinition(internalNovaComputeName)
 			DeferCleanup(th.DeleteInstance, nad)
 
-			ss := th.GetStatefulSet(novaNames.NovaComputeStatefulSetName)
+			ss := th.GetStatefulSet(cell1.NovaComputeStatefulSetName)
 
 			expectedAnnotation, err := json.Marshal(
 				[]networkv1.NetworkSelectionElement{
 					{
 						Name:             "internalapi",
-						Namespace:        novaNames.NovaComputeName.Namespace,
+						Namespace:        cell1.NovaComputeName.Namespace,
 						InterfaceRequest: "internalapi",
 					}})
 			Expect(err).ShouldNot(HaveOccurred())
@@ -347,12 +346,12 @@ var _ = Describe("NovaCompute with ironic diver controller", func() {
 			// We simulate that there is no IP associated with the internalapi
 			// network attachment
 			th.SimulateStatefulSetReplicaReadyWithPods(
-				novaNames.NovaComputeStatefulSetName,
-				map[string][]string{novaNames.NovaComputeName.Namespace + "/internalapi": {}},
+				cell1.NovaComputeStatefulSetName,
+				map[string][]string{cell1.NovaComputeName.Namespace + "/internalapi": {}},
 			)
 
 			th.ExpectConditionWithDetails(
-				novaNames.NovaComputeName,
+				cell1.NovaComputeName,
 				ConditionGetterFunc(NovaComputeConditionGetter),
 				condition.NetworkAttachmentsReadyCondition,
 				corev1.ConditionFalse,
@@ -362,31 +361,31 @@ var _ = Describe("NovaCompute with ironic diver controller", func() {
 			)
 		})
 		It("reports NetworkAttachmentsReady if the Pods got the proper annotations", func() {
-			internalNovaComputeName := types.NamespacedName{Namespace: novaNames.NovaComputeName.Namespace, Name: "internalapi"}
+			internalNovaComputeName := types.NamespacedName{Namespace: cell1.NovaComputeName.Namespace, Name: "internalapi"}
 			nad := th.CreateNetworkAttachmentDefinition(internalNovaComputeName)
 			DeferCleanup(th.DeleteInstance, nad)
 
 			th.SimulateStatefulSetReplicaReadyWithPods(
-				novaNames.NovaComputeStatefulSetName,
-				map[string][]string{novaNames.NovaComputeName.Namespace + "/internalapi": {"10.0.0.1"}},
+				cell1.NovaComputeStatefulSetName,
+				map[string][]string{cell1.NovaComputeName.Namespace + "/internalapi": {"10.0.0.1"}},
 			)
 
 			th.ExpectCondition(
-				novaNames.NovaComputeName,
+				cell1.NovaComputeName,
 				ConditionGetterFunc(NovaComputeConditionGetter),
 				condition.NetworkAttachmentsReadyCondition,
 				corev1.ConditionTrue,
 			)
 
 			Eventually(func(g Gomega) {
-				instance := GetNovaCompute(novaNames.NovaComputeName)
+				instance := GetNovaCompute(cell1.NovaComputeName)
 				g.Expect(instance.Status.NetworkAttachments).To(
-					Equal(map[string][]string{novaNames.NovaComputeName.Namespace + "/internalapi": {"10.0.0.1"}}))
+					Equal(map[string][]string{cell1.NovaComputeName.Namespace + "/internalapi": {"10.0.0.1"}}))
 
 			}, timeout, interval).Should(Succeed())
 
 			th.ExpectCondition(
-				novaNames.NovaComputeName,
+				cell1.NovaComputeName,
 				ConditionGetterFunc(NovaComputeConditionGetter),
 				condition.ReadyCondition,
 				corev1.ConditionTrue,
@@ -399,19 +398,19 @@ var _ = Describe("NovaCompute with ironic diver controller", func() {
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreateCellInternalSecret(cell1))
 
-			novaCompute := CreateNovaCompute(novaNames.NovaComputeName, GetDefaultNovaComputeSpec(cell1))
+			novaCompute := CreateNovaCompute(cell1.NovaComputeName, GetDefaultNovaComputeSpec(cell1))
 			DeferCleanup(th.DeleteInstance, novaCompute)
 
 			th.ExpectCondition(
-				novaNames.NovaComputeName,
+				cell1.NovaComputeName,
 				ConditionGetterFunc(NovaComputeConditionGetter),
 				condition.ServiceConfigReadyCondition,
 				corev1.ConditionTrue,
 			)
 
-			th.SimulateStatefulSetReplicaReady(novaNames.NovaComputeStatefulSetName)
+			th.SimulateStatefulSetReplicaReady(cell1.NovaComputeStatefulSetName)
 			th.ExpectCondition(
-				novaNames.NovaComputeName,
+				cell1.NovaComputeName,
 				ConditionGetterFunc(NovaComputeConditionGetter),
 				condition.ReadyCondition,
 				corev1.ConditionTrue,
@@ -420,14 +419,14 @@ var _ = Describe("NovaCompute with ironic diver controller", func() {
 
 		It("applies new NetworkAttachments configuration", func() {
 			Eventually(func(g Gomega) {
-				novaCompute := GetNovaCompute(novaNames.NovaComputeName)
+				novaCompute := GetNovaCompute(cell1.NovaComputeName)
 				novaCompute.Spec.NetworkAttachments = append(novaCompute.Spec.NetworkAttachments, "internalapi")
 
 				g.Expect(k8sClient.Update(ctx, novaCompute)).To(Succeed())
 			}, timeout, interval).Should(Succeed())
 
 			th.ExpectConditionWithDetails(
-				novaNames.NovaComputeName,
+				cell1.NovaComputeName,
 				ConditionGetterFunc(NovaComputeConditionGetter),
 				condition.NetworkAttachmentsReadyCondition,
 				corev1.ConditionFalse,
@@ -435,7 +434,7 @@ var _ = Describe("NovaCompute with ironic diver controller", func() {
 				"NetworkAttachment resources missing: internalapi",
 			)
 			th.ExpectConditionWithDetails(
-				novaNames.NovaComputeName,
+				cell1.NovaComputeName,
 				ConditionGetterFunc(NovaComputeConditionGetter),
 				condition.ReadyCondition,
 				corev1.ConditionFalse,
@@ -443,10 +442,10 @@ var _ = Describe("NovaCompute with ironic diver controller", func() {
 				"NetworkAttachment resources missing: internalapi",
 			)
 
-			DeferCleanup(th.DeleteInstance, th.CreateNetworkAttachmentDefinition(novaNames.InternalAPINetworkNADName))
+			DeferCleanup(th.DeleteInstance, th.CreateNetworkAttachmentDefinition(cell1.InternalAPINetworkNADName))
 
 			th.ExpectConditionWithDetails(
-				novaNames.NovaComputeName,
+				cell1.NovaComputeName,
 				ConditionGetterFunc(NovaComputeConditionGetter),
 				condition.NetworkAttachmentsReadyCondition,
 				corev1.ConditionFalse,
@@ -455,7 +454,7 @@ var _ = Describe("NovaCompute with ironic diver controller", func() {
 					"not all pods have interfaces with ips as configured in NetworkAttachments: [internalapi]",
 			)
 			th.ExpectConditionWithDetails(
-				novaNames.NovaComputeName,
+				cell1.NovaComputeName,
 				ConditionGetterFunc(NovaComputeConditionGetter),
 				condition.ReadyCondition,
 				corev1.ConditionFalse,
@@ -465,26 +464,26 @@ var _ = Describe("NovaCompute with ironic diver controller", func() {
 			)
 
 			th.SimulateStatefulSetReplicaReadyWithPods(
-				novaNames.NovaComputeStatefulSetName,
-				map[string][]string{novaNames.NovaComputeName.Namespace + "/internalapi": {"10.0.0.1"}},
+				cell1.NovaComputeStatefulSetName,
+				map[string][]string{cell1.NovaComputeName.Namespace + "/internalapi": {"10.0.0.1"}},
 			)
 
 			th.ExpectCondition(
-				novaNames.NovaComputeName,
+				cell1.NovaComputeName,
 				ConditionGetterFunc(NovaComputeConditionGetter),
 				condition.NetworkAttachmentsReadyCondition,
 				corev1.ConditionTrue,
 			)
 
 			Eventually(func(g Gomega) {
-				novaCompute := GetNovaCompute(novaNames.NovaComputeName)
+				novaCompute := GetNovaCompute(cell1.NovaComputeName)
 				g.Expect(novaCompute.Status.NetworkAttachments).To(
-					Equal(map[string][]string{novaNames.NovaComputeName.Namespace + "/internalapi": {"10.0.0.1"}}))
+					Equal(map[string][]string{cell1.NovaComputeName.Namespace + "/internalapi": {"10.0.0.1"}}))
 
 			}, timeout, interval).Should(Succeed())
 
 			th.ExpectCondition(
-				novaNames.NovaComputeName,
+				cell1.NovaComputeName,
 				ConditionGetterFunc(NovaComputeConditionGetter),
 				condition.ReadyCondition,
 				corev1.ConditionTrue,
@@ -499,14 +498,14 @@ var _ = Describe("NovaCompute with ironic diver controller", func() {
 
 			spec := GetDefaultNovaComputeSpec(cell1)
 			spec["replicas"] = 0
-			novaCompute := CreateNovaCompute(novaNames.NovaComputeName, spec)
+			novaCompute := CreateNovaCompute(cell1.NovaComputeName, spec)
 			DeferCleanup(th.DeleteInstance, novaCompute)
 		})
 		It("and deployment is Ready", func() {
-			ss := th.GetStatefulSet(novaNames.NovaComputeStatefulSetName)
+			ss := th.GetStatefulSet(cell1.NovaComputeStatefulSetName)
 			Expect(int(*ss.Spec.Replicas)).To(Equal(0))
 			th.ExpectCondition(
-				novaNames.NovaComputeName,
+				cell1.NovaComputeName,
 				ConditionGetterFunc(NovaComputeConditionGetter),
 				condition.DeploymentReadyCondition,
 				corev1.ConditionTrue,
@@ -519,11 +518,11 @@ var _ = Describe("NovaCompute with ironic diver controller", func() {
 		BeforeEach(func() {
 			spec := GetDefaultNovaComputeSpec(cell1)
 			spec["containerImage"] = ""
-			novaCompute := CreateNovaCompute(novaNames.NovaComputeName, spec)
+			novaCompute := CreateNovaCompute(cell1.NovaComputeName, spec)
 			DeferCleanup(th.DeleteInstance, novaCompute)
 		})
 		It("has the expected container image default", func() {
-			novaComputeDefault := GetNovaCompute(novaNames.NovaComputeName)
+			novaComputeDefault := GetNovaCompute(cell1.NovaComputeName)
 			Expect(novaComputeDefault.Spec.ContainerImage).To(Equal(util.GetEnvVar("RELATED_IMAGE_NOVA_COMPUTE_IMAGE_URL_DEFAULT", novav1.NovaComputeContainerImage)))
 		})
 	})

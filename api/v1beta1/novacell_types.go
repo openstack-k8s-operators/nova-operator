@@ -27,8 +27,6 @@ import (
 const (
 	// Cell0Name is the name of Cell0 cell that is mandatory in every deployment
 	Cell0Name = "cell0"
-	// ComputeDiscoverHashKey is the key to hash of compute discovery job based on compute templates for cell
-	ComputeDiscoverHashKey = "nova-compute-discovery"
 )
 
 // NovaCellTemplate defines the input parameters specified by the user to

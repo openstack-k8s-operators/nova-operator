@@ -312,7 +312,7 @@ var _ = Describe("Nova validation", func() {
 		spec := GetDefaultNovaSpec()
 		cell0 := GetDefaultNovaCellTemplate()
 		cell0["novaComputeTemplates"] = map[string]interface{}{
-			"ironic-compute": GetDefaultNovaComputeTemplate(),
+			ironicComputeName: GetDefaultNovaComputeTemplate(),
 		}
 		spec["cellTemplates"] = map[string]interface{}{"cell0": cell0}
 		raw := map[string]interface{}{
@@ -345,7 +345,7 @@ var _ = Describe("Nova validation", func() {
 		cell0 := GetDefaultNovaCellTemplate()
 		cell1 := GetDefaultNovaCellTemplate()
 		cell1["novaComputeTemplates"] = map[string]interface{}{
-			"ironic-compute" + strings.Repeat("x", 31): GetDefaultNovaComputeTemplate(),
+			ironicComputeName + strings.Repeat("x", 31): GetDefaultNovaComputeTemplate(),
 		}
 		spec["cellTemplates"] = map[string]interface{}{"cell0": cell0, "cell1": cell1}
 		raw := map[string]interface{}{
@@ -380,7 +380,7 @@ var _ = Describe("Nova validation", func() {
 		novaCompute := GetDefaultNovaComputeTemplate()
 		novaCompute["replicas"] = nil
 		cell1["novaComputeTemplates"] = map[string]interface{}{
-			"ironic-compute": novaCompute,
+			ironicComputeName: novaCompute,
 		}
 		spec["cellTemplates"] = map[string]interface{}{"cell0": cell0, "cell1": cell1}
 		raw := map[string]interface{}{
@@ -401,7 +401,7 @@ var _ = Describe("Nova validation", func() {
 	It("rejects NovaCell - cell0 contains novacomputetemplates", func() {
 		spec := GetDefaultNovaCellSpec(cell0)
 		spec["novaComputeTemplates"] = map[string]interface{}{
-			"ironic-compute": GetDefaultNovaComputeTemplate(),
+			ironicComputeName: GetDefaultNovaComputeTemplate(),
 		}
 		raw := map[string]interface{}{
 			"apiVersion": "nova.openstack.org/v1beta1",
@@ -430,7 +430,7 @@ var _ = Describe("Nova validation", func() {
 	It("rejects NovaCell with too long compute name", func() {
 		spec := GetDefaultNovaCellSpec(cell1)
 		spec["novaComputeTemplates"] = map[string]interface{}{
-			"ironic-compute" + strings.Repeat("x", 31): GetDefaultNovaComputeTemplate(),
+			ironicComputeName + strings.Repeat("x", 31): GetDefaultNovaComputeTemplate(),
 		}
 		raw := map[string]interface{}{
 			"apiVersion": "nova.openstack.org/v1beta1",
