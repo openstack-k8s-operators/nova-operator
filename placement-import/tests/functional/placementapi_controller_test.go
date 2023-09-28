@@ -244,16 +244,16 @@ var _ = Describe("PlacementAPI controller", func() {
 
 			serviceSpec := corev1.ServiceSpec{Ports: []corev1.ServicePort{{Port: 3306}}}
 			DeferCleanup(
-				th.DeleteDBService,
-				th.CreateDBService(namespace, "openstack", serviceSpec),
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(namespace, "openstack", serviceSpec),
 			)
-			db := th.GetMariaDBDatabase(names.MariaDBDatabaseName)
+			db := mariadb.GetMariaDBDatabase(names.MariaDBDatabaseName)
 			// FIXME(gibi): this should be hardcoded to "placement" as this is
 			// the name of the DB schema to be created
 			Expect(db.Spec.Name).To(Equal(names.PlacementAPIName.Name))
 			Expect(db.Spec.Secret).To(Equal(SecretName))
 
-			th.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
 
 			th.ExpectCondition(
 				names.PlacementAPIName,
@@ -272,10 +272,10 @@ var _ = Describe("PlacementAPI controller", func() {
 
 			serviceSpec := corev1.ServiceSpec{Ports: []corev1.ServicePort{{Port: 3306}}}
 			DeferCleanup(
-				th.DeleteDBService,
-				th.CreateDBService(namespace, "openstack", serviceSpec),
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(namespace, "openstack", serviceSpec),
 			)
-			th.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
 
 			keystone.SimulateKeystoneServiceReady(names.KeystoneServiceName)
 
@@ -296,10 +296,10 @@ var _ = Describe("PlacementAPI controller", func() {
 
 			serviceSpec := corev1.ServiceSpec{Ports: []corev1.ServicePort{{Port: 3306}}}
 			DeferCleanup(
-				th.DeleteDBService,
-				th.CreateDBService(namespace, "openstack", serviceSpec),
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(namespace, "openstack", serviceSpec),
 			)
-			th.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
 
 			keystone.SimulateKeystoneEndpointReady(names.KeystoneEndpointName)
 
@@ -313,10 +313,10 @@ var _ = Describe("PlacementAPI controller", func() {
 		It("runs db sync", func() {
 			serviceSpec := corev1.ServiceSpec{Ports: []corev1.ServicePort{{Port: 3306}}}
 			DeferCleanup(
-				th.DeleteDBService,
-				th.CreateDBService(namespace, "openstack", serviceSpec),
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(namespace, "openstack", serviceSpec),
 			)
-			th.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
 
 			th.ExpectCondition(
 				names.PlacementAPIName,
@@ -365,10 +365,10 @@ var _ = Describe("PlacementAPI controller", func() {
 		It("creates deployment", func() {
 			serviceSpec := corev1.ServiceSpec{Ports: []corev1.ServicePort{{Port: 3306}}}
 			DeferCleanup(
-				th.DeleteDBService,
-				th.CreateDBService(namespace, "openstack", serviceSpec),
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(namespace, "openstack", serviceSpec),
 			)
-			th.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
 			th.SimulateJobSuccess(names.DBSyncJobName)
 
 			th.ExpectCondition(
@@ -401,10 +401,10 @@ var _ = Describe("PlacementAPI controller", func() {
 
 			serviceSpec := corev1.ServiceSpec{Ports: []corev1.ServicePort{{Port: 3306}}}
 			DeferCleanup(
-				th.DeleteDBService,
-				th.CreateDBService(namespace, "openstack", serviceSpec),
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(namespace, "openstack", serviceSpec),
 			)
-			th.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
 			th.SimulateJobSuccess(names.DBSyncJobName)
 			th.SimulateDeploymentReplicaReady(names.DeploymentName)
 
@@ -431,10 +431,10 @@ var _ = Describe("PlacementAPI controller", func() {
 
 			serviceSpec := corev1.ServiceSpec{Ports: []corev1.ServicePort{{Port: 3306}}}
 			DeferCleanup(
-				th.DeleteDBService,
-				th.CreateDBService(namespace, "openstack", serviceSpec),
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(namespace, "openstack", serviceSpec),
 			)
-			th.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
 			keystone.SimulateKeystoneServiceReady(names.KeystoneServiceName)
 			keystone.SimulateKeystoneEndpointReady(names.KeystoneEndpointName)
 			th.SimulateJobSuccess(names.DBSyncJobName)
@@ -480,8 +480,8 @@ var _ = Describe("PlacementAPI controller", func() {
 
 			placementAPI := CreatePlacementAPI(names.PlacementAPIName, spec)
 			DeferCleanup(
-				th.DeleteDBService,
-				th.CreateDBService(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
 					namespace,
 					GetPlacementAPI(names.PlacementAPIName).Spec.DatabaseInstance,
 					corev1.ServiceSpec{
@@ -490,7 +490,7 @@ var _ = Describe("PlacementAPI controller", func() {
 				),
 			)
 
-			th.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
 			th.SimulateJobSuccess(names.DBSyncJobName)
 			th.SimulateDeploymentReplicaReady(names.DeploymentName)
 			keystone.SimulateKeystoneServiceReady(names.KeystoneServiceName)
@@ -551,8 +551,8 @@ var _ = Describe("PlacementAPI controller", func() {
 
 			placementAPI := CreatePlacementAPI(names.PlacementAPIName, spec)
 			DeferCleanup(
-				th.DeleteDBService,
-				th.CreateDBService(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
 					namespace,
 					GetPlacementAPI(names.PlacementAPIName).Spec.DatabaseInstance,
 					corev1.ServiceSpec{
@@ -561,7 +561,7 @@ var _ = Describe("PlacementAPI controller", func() {
 				),
 			)
 
-			th.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
 			th.SimulateJobSuccess(names.DBSyncJobName)
 			th.SimulateDeploymentReplicaReady(names.DeploymentName)
 			keystone.SimulateKeystoneServiceReady(names.KeystoneServiceName)
@@ -593,10 +593,10 @@ var _ = Describe("PlacementAPI controller", func() {
 
 			serviceSpec := corev1.ServiceSpec{Ports: []corev1.ServicePort{{Port: 3306}}}
 			DeferCleanup(
-				th.DeleteDBService,
-				th.CreateDBService(namespace, "openstack", serviceSpec),
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(namespace, "openstack", serviceSpec),
 			)
-			th.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
 			keystone.SimulateKeystoneServiceReady(names.KeystoneServiceName)
 			keystone.SimulateKeystoneEndpointReady(names.KeystoneEndpointName)
 			th.SimulateJobSuccess(names.DBSyncJobName)
@@ -617,7 +617,7 @@ var _ = Describe("PlacementAPI controller", func() {
 			Expect(keystoneService.Finalizers).To(ContainElement("PlacementAPI"))
 			keystoneEndpoint := keystone.GetKeystoneService(names.KeystoneEndpointName)
 			Expect(keystoneEndpoint.Finalizers).To(ContainElement("PlacementAPI"))
-			db := th.GetMariaDBDatabase(names.MariaDBDatabaseName)
+			db := mariadb.GetMariaDBDatabase(names.MariaDBDatabaseName)
 			Expect(db.Finalizers).To(ContainElement("PlacementAPI"))
 
 			th.DeleteInstance(GetPlacementAPI(names.PlacementAPIName))
@@ -626,7 +626,7 @@ var _ = Describe("PlacementAPI controller", func() {
 			Expect(keystoneService.Finalizers).NotTo(ContainElement("PlacementAPI"))
 			keystoneEndpoint = keystone.GetKeystoneService(names.KeystoneEndpointName)
 			Expect(keystoneEndpoint.Finalizers).NotTo(ContainElement("PlacementAPI"))
-			db = th.GetMariaDBDatabase(names.MariaDBDatabaseName)
+			db = mariadb.GetMariaDBDatabase(names.MariaDBDatabaseName)
 			Expect(db.Finalizers).NotTo(ContainElement("PlacementAPI"))
 		})
 
