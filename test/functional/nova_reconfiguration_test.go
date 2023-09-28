@@ -42,11 +42,11 @@ func CreateNovaWith3CellsAndEnsureReady(novaNames NovaNames) {
 
 	serviceSpec := corev1.ServiceSpec{Ports: []corev1.ServicePort{{Port: 3306}}}
 	DeferCleanup(
-		th.DeleteDBService,
-		th.CreateDBService(novaNames.APIMariaDBDatabaseName.Namespace, novaNames.APIMariaDBDatabaseName.Name, serviceSpec))
-	DeferCleanup(th.DeleteDBService, th.CreateDBService(cell0.MariaDBDatabaseName.Namespace, cell0.MariaDBDatabaseName.Name, serviceSpec))
-	DeferCleanup(th.DeleteDBService, th.CreateDBService(cell1.MariaDBDatabaseName.Namespace, cell1.MariaDBDatabaseName.Name, serviceSpec))
-	DeferCleanup(th.DeleteDBService, th.CreateDBService(cell2.MariaDBDatabaseName.Namespace, cell2.MariaDBDatabaseName.Name, serviceSpec))
+		mariadb.DeleteDBService,
+		mariadb.CreateDBService(novaNames.APIMariaDBDatabaseName.Namespace, novaNames.APIMariaDBDatabaseName.Name, serviceSpec))
+	DeferCleanup(mariadb.DeleteDBService, mariadb.CreateDBService(cell0.MariaDBDatabaseName.Namespace, cell0.MariaDBDatabaseName.Name, serviceSpec))
+	DeferCleanup(mariadb.DeleteDBService, mariadb.CreateDBService(cell1.MariaDBDatabaseName.Namespace, cell1.MariaDBDatabaseName.Name, serviceSpec))
+	DeferCleanup(mariadb.DeleteDBService, mariadb.CreateDBService(cell2.MariaDBDatabaseName.Namespace, cell2.MariaDBDatabaseName.Name, serviceSpec))
 
 	spec := GetDefaultNovaSpec()
 	cell0Template := GetDefaultNovaCellTemplate()
@@ -77,10 +77,10 @@ func CreateNovaWith3CellsAndEnsureReady(novaNames NovaNames) {
 	keystone.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
 	// END of common logic with Nova multicell test
 
-	th.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
-	th.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
-	th.SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
-	th.SimulateMariaDBDatabaseCompleted(cell2.MariaDBDatabaseName)
+	mariadb.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
+	mariadb.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
+	mariadb.SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
+	mariadb.SimulateMariaDBDatabaseCompleted(cell2.MariaDBDatabaseName)
 
 	th.SimulateTransportURLReady(cell0.TransportURLName)
 	th.SimulateTransportURLReady(cell1.TransportURLName)
