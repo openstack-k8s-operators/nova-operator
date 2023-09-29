@@ -82,9 +82,9 @@ func CreateNovaWith3CellsAndEnsureReady(novaNames NovaNames) {
 	mariadb.SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
 	mariadb.SimulateMariaDBDatabaseCompleted(cell2.MariaDBDatabaseName)
 
-	th.SimulateTransportURLReady(cell0.TransportURLName)
-	th.SimulateTransportURLReady(cell1.TransportURLName)
-	th.SimulateTransportURLReady(cell2.TransportURLName)
+	infra.SimulateTransportURLReady(cell0.TransportURLName)
+	infra.SimulateTransportURLReady(cell1.TransportURLName)
+	infra.SimulateTransportURLReady(cell2.TransportURLName)
 
 	th.SimulateJobSuccess(cell0.DBSyncJobName)
 	th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
@@ -391,11 +391,11 @@ var _ = Describe("Nova reconfiguration", func() {
 			// Expect that nova controller updates the TransportURL to point to
 			// the new rabbit cluster
 			Eventually(func(g Gomega) {
-				transport := th.GetTransportURL(cell1.TransportURLName)
+				transport := infra.GetTransportURL(cell1.TransportURLName)
 				g.Expect(transport.Spec.RabbitmqClusterName).To(Equal("alternate-mq-for-cell1"))
 			}, timeout, interval).Should(Succeed())
 
-			th.SimulateTransportURLReady(cell1.TransportURLName)
+			infra.SimulateTransportURLReady(cell1.TransportURLName)
 
 			// Expect that the NovaConductor config is updated with the new transport URL
 			Eventually(func(g Gomega) {

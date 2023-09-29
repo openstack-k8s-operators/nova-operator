@@ -54,6 +54,7 @@ import (
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/nova-operator/controllers"
 
+	infra_test "github.com/openstack-k8s-operators/infra-operator/apis/test/helpers"
 	keystone_test "github.com/openstack-k8s-operators/keystone-operator/api/test/helpers"
 	common_test "github.com/openstack-k8s-operators/lib-common/modules/test/helpers"
 	mariadb_test "github.com/openstack-k8s-operators/mariadb-operator/api/test/helpers"
@@ -73,6 +74,7 @@ var (
 	th        *common_test.TestHelper
 	keystone  *keystone_test.TestHelper
 	mariadb   *mariadb_test.TestHelper
+	infra     *infra_test.TestHelper
 	novaNames NovaNames
 	cell0     CellNames
 	cell1     CellNames
@@ -175,6 +177,8 @@ var _ = BeforeSuite(func() {
 	Expect(keystone).NotTo(BeNil())
 	mariadb = mariadb_test.NewTestHelper(ctx, k8sClient, timeout, interval, logger)
 	Expect(mariadb).NotTo(BeNil())
+	infra = infra_test.NewTestHelper(ctx, k8sClient, timeout, interval, logger)
+	Expect(infra).NotTo(BeNil())
 
 	// Start the controller-manager in a goroutine
 	webhookInstallOptions := &testEnv.WebhookInstallOptions
