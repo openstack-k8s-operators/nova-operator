@@ -82,7 +82,7 @@ var _ = Describe("Nova multicell", func() {
 		It("creates cell0 NovaCell", func() {
 			mariadb.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
 			mariadb.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
-			th.SimulateTransportURLReady(cell0.TransportURLName)
+			infra.SimulateTransportURLReady(cell0.TransportURLName)
 
 			th.ExpectCondition(
 				cell0.ConductorName,
@@ -144,7 +144,7 @@ var _ = Describe("Nova multicell", func() {
 		It("creates NovaAPI", func() {
 			mariadb.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
 			mariadb.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
-			th.SimulateTransportURLReady(cell0.TransportURLName)
+			infra.SimulateTransportURLReady(cell0.TransportURLName)
 			th.SimulateJobSuccess(cell0.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 			th.SimulateJobSuccess(cell0.CellMappingJobName)
@@ -192,7 +192,7 @@ var _ = Describe("Nova multicell", func() {
 
 		It("creates all cell DBs", func() {
 			mariadb.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
-			th.SimulateTransportURLReady(cell0.TransportURLName)
+			infra.SimulateTransportURLReady(cell0.TransportURLName)
 			mariadb.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
 			th.SimulateJobSuccess(cell0.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
@@ -218,15 +218,15 @@ var _ = Describe("Nova multicell", func() {
 		})
 
 		It("creates all cell MQs", func() {
-			th.SimulateTransportURLReady(cell0.TransportURLName)
-			th.SimulateTransportURLReady(cell1.TransportURLName)
+			infra.SimulateTransportURLReady(cell0.TransportURLName)
+			infra.SimulateTransportURLReady(cell1.TransportURLName)
 			th.ExpectCondition(
 				novaNames.NovaName,
 				ConditionGetterFunc(NovaConditionGetter),
 				novav1.NovaAllCellsMQReadyCondition,
 				corev1.ConditionFalse,
 			)
-			th.SimulateTransportURLReady(cell2.TransportURLName)
+			infra.SimulateTransportURLReady(cell2.TransportURLName)
 			th.ExpectCondition(
 				novaNames.NovaName,
 				ConditionGetterFunc(NovaConditionGetter),
@@ -239,14 +239,14 @@ var _ = Describe("Nova multicell", func() {
 		It("creates cell1 NovaCell", func() {
 			mariadb.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
 			mariadb.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
-			th.SimulateTransportURLReady(cell0.TransportURLName)
+			infra.SimulateTransportURLReady(cell0.TransportURLName)
 			th.SimulateJobSuccess(cell0.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 			th.SimulateJobSuccess(cell0.CellMappingJobName)
 			th.SimulateStatefulSetReplicaReady(novaNames.APIDeploymentName)
 			keystone.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
 			mariadb.SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
-			th.SimulateTransportURLReady(cell1.TransportURLName)
+			infra.SimulateTransportURLReady(cell1.TransportURLName)
 
 			th.ExpectCondition(
 				cell1.ConductorName,
@@ -316,7 +316,7 @@ var _ = Describe("Nova multicell", func() {
 		It("creates cell2 NovaCell", func() {
 			mariadb.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
 			mariadb.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
-			th.SimulateTransportURLReady(cell0.TransportURLName)
+			infra.SimulateTransportURLReady(cell0.TransportURLName)
 			th.SimulateJobSuccess(cell0.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 			th.SimulateJobSuccess(cell0.CellMappingJobName)
@@ -325,14 +325,14 @@ var _ = Describe("Nova multicell", func() {
 			th.SimulateStatefulSetReplicaReady(novaNames.SchedulerStatefulSetName)
 			th.SimulateStatefulSetReplicaReady(novaNames.MetadataStatefulSetName)
 			mariadb.SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
-			th.SimulateTransportURLReady(cell1.TransportURLName)
+			infra.SimulateTransportURLReady(cell1.TransportURLName)
 			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
 			th.SimulateJobSuccess(cell1.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
 			th.SimulateJobSuccess(cell1.CellMappingJobName)
 
 			mariadb.SimulateMariaDBDatabaseCompleted(cell2.MariaDBDatabaseName)
-			th.SimulateTransportURLReady(cell2.TransportURLName)
+			infra.SimulateTransportURLReady(cell2.TransportURLName)
 
 			th.ExpectCondition(
 				cell2.ConductorName,
@@ -435,7 +435,7 @@ var _ = Describe("Nova multicell", func() {
 			// Don't simulate any success for any other DBs MQs or Cells
 			// just for cell2
 			mariadb.SimulateMariaDBDatabaseCompleted(cell2.MariaDBDatabaseName)
-			th.SimulateTransportURLReady(cell2.TransportURLName)
+			infra.SimulateTransportURLReady(cell2.TransportURLName)
 
 			// assert that cell related CRs are created
 			GetNovaCell(cell2.CellCRName)
@@ -473,14 +473,14 @@ var _ = Describe("Nova multicell", func() {
 		It("creates Nova API even if cell1 and cell2 fails", func() {
 			mariadb.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
 			mariadb.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
-			th.SimulateTransportURLReady(cell0.TransportURLName)
+			infra.SimulateTransportURLReady(cell0.TransportURLName)
 			th.SimulateJobSuccess(cell0.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 
 			// Simulate that cell1 DB sync failed and do not simulate
 			// cell2 DB creation success so that will be in Creating state.
 			mariadb.SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
-			th.SimulateTransportURLReady(cell1.TransportURLName)
+			infra.SimulateTransportURLReady(cell1.TransportURLName)
 			th.SimulateJobFailure(cell1.DBSyncJobName)
 
 			// NovaAPI is still created
@@ -504,8 +504,8 @@ var _ = Describe("Nova multicell", func() {
 			mariadb.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
 			mariadb.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
 			mariadb.SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
-			th.SimulateTransportURLReady(cell0.TransportURLName)
-			th.SimulateTransportURLReady(cell1.TransportURLName)
+			infra.SimulateTransportURLReady(cell0.TransportURLName)
+			infra.SimulateTransportURLReady(cell1.TransportURLName)
 
 			th.SimulateJobFailure(cell0.DBSyncJobName)
 
@@ -561,8 +561,8 @@ var _ = Describe("Nova multicell", func() {
 			mariadb.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
 			mariadb.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
 			mariadb.SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
-			th.SimulateTransportURLReady(cell0.TransportURLName)
-			th.SimulateTransportURLReady(cell1.TransportURLName)
+			infra.SimulateTransportURLReady(cell0.TransportURLName)
+			infra.SimulateTransportURLReady(cell1.TransportURLName)
 
 			// We requested 0 replicas from the cell0 conductor so the
 			// conductor is ready even if 0 replicas is running but all
@@ -671,7 +671,7 @@ var _ = Describe("Nova multicell", func() {
 
 		It("waits for cell0 DB to be created", func(ctx SpecContext) {
 			mariadb.SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
-			th.SimulateTransportURLReady(cell1.TransportURLName)
+			infra.SimulateTransportURLReady(cell1.TransportURLName)
 			// NOTE(gibi): before the fix https://github.com/openstack-k8s-operators/nova-operator/pull/356
 			// nova-controller panic at this point and test would hang
 			th.ExpectCondition(
@@ -729,8 +729,8 @@ var _ = Describe("Nova multicell", func() {
 			mariadb.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
 			mariadb.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
 			mariadb.SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
-			th.SimulateTransportURLReady(cell0.TransportURLName)
-			th.SimulateTransportURLReady(cell1.TransportURLName)
+			infra.SimulateTransportURLReady(cell0.TransportURLName)
+			infra.SimulateTransportURLReady(cell1.TransportURLName)
 			th.SimulateJobSuccess(cell0.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 			th.SimulateJobSuccess(cell0.CellMappingJobName)
@@ -757,8 +757,8 @@ var _ = Describe("Nova multicell", func() {
 			mariadb.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
 			mariadb.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
 			mariadb.SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
-			th.SimulateTransportURLReady(cell0.TransportURLName)
-			th.SimulateTransportURLReady(cell1.TransportURLName)
+			infra.SimulateTransportURLReady(cell0.TransportURLName)
+			infra.SimulateTransportURLReady(cell1.TransportURLName)
 			th.SimulateJobSuccess(cell0.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 			th.SimulateJobSuccess(cell0.CellMappingJobName)

@@ -180,9 +180,9 @@ var _ = Describe("Nova controller", func() {
 				novav1.NovaAPIMQReadyCondition,
 				corev1.ConditionFalse,
 			)
-			th.GetTransportURL(cell0.TransportURLName)
+			infra.GetTransportURL(cell0.TransportURLName)
 
-			th.SimulateTransportURLReady(cell0.TransportURLName)
+			infra.SimulateTransportURLReady(cell0.TransportURLName)
 			th.ExpectCondition(
 				novaNames.NovaName,
 				ConditionGetterFunc(NovaConditionGetter),
@@ -214,7 +214,7 @@ var _ = Describe("Nova controller", func() {
 			keystone.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
 			mariadb.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
 			mariadb.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
-			th.SimulateTransportURLReady(cell0.TransportURLName)
+			infra.SimulateTransportURLReady(cell0.TransportURLName)
 			// assert that cell related CRs are created
 			cell := GetNovaCell(cell0.CellCRName)
 			Expect(cell.Spec.ServiceUser).To(Equal("nova"))
@@ -319,7 +319,7 @@ var _ = Describe("Nova controller", func() {
 			keystone.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
 			mariadb.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
 			mariadb.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
-			th.SimulateTransportURLReady(cell0.TransportURLName)
+			infra.SimulateTransportURLReady(cell0.TransportURLName)
 			th.SimulateJobSuccess(cell0.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 			th.SimulateJobSuccess(cell0.CellMappingJobName)
@@ -346,7 +346,7 @@ var _ = Describe("Nova controller", func() {
 			keystone.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
 			mariadb.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
 			mariadb.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
-			th.SimulateTransportURLReady(cell0.TransportURLName)
+			infra.SimulateTransportURLReady(cell0.TransportURLName)
 			th.SimulateJobSuccess(cell0.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 			th.SimulateJobSuccess(cell0.CellMappingJobName)
@@ -385,7 +385,7 @@ var _ = Describe("Nova controller", func() {
 			keystone.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
 			mariadb.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
 			mariadb.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
-			th.SimulateTransportURLReady(cell0.TransportURLName)
+			infra.SimulateTransportURLReady(cell0.TransportURLName)
 			th.SimulateJobSuccess(cell0.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 			th.SimulateJobSuccess(cell0.CellMappingJobName)
@@ -424,7 +424,7 @@ var _ = Describe("Nova controller", func() {
 			keystone.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
 			mariadb.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
 			mariadb.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
-			th.SimulateTransportURLReady(cell0.TransportURLName)
+			infra.SimulateTransportURLReady(cell0.TransportURLName)
 			th.SimulateJobSuccess(cell0.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 			th.SimulateJobSuccess(cell0.CellMappingJobName)
@@ -483,7 +483,7 @@ var _ = Describe("Nova controller", func() {
 			keystone.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
 			mariadb.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
 			mariadb.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
-			th.SimulateTransportURLReady(cell0.TransportURLName)
+			infra.SimulateTransportURLReady(cell0.TransportURLName)
 			GetNovaCell(cell0.CellCRName)
 			GetNovaConductor(cell0.ConductorName)
 
@@ -549,7 +549,7 @@ var _ = Describe("Nova controller", func() {
 			keystone.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
 			mariadb.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
 			mariadb.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
-			th.SimulateTransportURLReady(cell0.TransportURLName)
+			infra.SimulateTransportURLReady(cell0.TransportURLName)
 			th.SimulateJobSuccess(cell0.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 
@@ -615,7 +615,7 @@ var _ = Describe("Nova controller", func() {
 			keystone.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
 			mariadb.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
 			mariadb.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
-			th.SimulateTransportURLReady(cell0.TransportURLName)
+			infra.SimulateTransportURLReady(cell0.TransportURLName)
 
 			cell0DBSync := th.GetJob(cell0.DBSyncJobName)
 			Expect(len(cell0DBSync.Spec.Template.Spec.InitContainers)).To(Equal(0))
@@ -830,7 +830,7 @@ var _ = Describe("Nova controller", func() {
 			keystone.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
 			mariadb.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
 			mariadb.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
-			th.SimulateTransportURLReady(cell0.TransportURLName)
+			infra.SimulateTransportURLReady(cell0.TransportURLName)
 			th.SimulateJobSuccess(cell0.DBSyncJobName)
 		})
 
