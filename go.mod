@@ -7,7 +7,7 @@ require (
 	github.com/google/uuid v1.3.1
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.4.0
 	github.com/onsi/ginkgo/v2 v2.12.1
-	github.com/onsi/gomega v1.27.10
+	github.com/onsi/gomega v1.28.0
 	github.com/openstack-k8s-operators/infra-operator/apis v0.1.1-0.20230927145535-98de8aa29c2e
 	github.com/openstack-k8s-operators/keystone-operator/api v0.1.1-0.20230929120644-e4816d49308b
 	github.com/openstack-k8s-operators/lib-common/modules/common v0.1.1-0.20230929092523-c4c70829d4ef
