@@ -19,7 +19,7 @@ package nova
 import (
 	"fmt"
 
-	"github.com/openstack-k8s-operators/lib-common/modules/database"
+	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 )
 
 const (
@@ -94,7 +94,7 @@ const (
 
 // Database -
 type Database struct {
-	Database *database.Database
+	Database *mariadbv1.Database
 	Status   DatabaseStatus
 }
 

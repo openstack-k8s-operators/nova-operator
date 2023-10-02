@@ -44,7 +44,6 @@ import (
 	common_rbac "github.com/openstack-k8s-operators/lib-common/modules/common/rbac"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/secret"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
-	database "github.com/openstack-k8s-operators/lib-common/modules/database"
 
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/nova-operator/pkg/nova"
@@ -639,7 +638,7 @@ func (r *NovaReconciler) ensureDB(
 	ctx context.Context,
 	h *helper.Helper,
 	instance *novav1.Nova,
-	db *database.Database,
+	db *mariadbv1.Database,
 	databaseServiceName string,
 	targetCondition condition.Type,
 ) (nova.DatabaseStatus, error) {
@@ -671,8 +670,8 @@ func (r *NovaReconciler) ensureAPIDB(
 	ctx context.Context,
 	h *helper.Helper,
 	instance *novav1.Nova,
-) (*database.Database, nova.DatabaseStatus, error) {
-	apiDB := database.NewDatabaseWithNamespace(
+) (*mariadbv1.Database, nova.DatabaseStatus, error) {
+	apiDB := mariadbv1.NewDatabaseWithNamespace(
 		nova.NovaAPIDatabaseName,
 		instance.Spec.APIDatabaseUser,
 		instance.Spec.Secret,
@@ -699,8 +698,8 @@ func (r *NovaReconciler) ensureCellDB(
 	instance *novav1.Nova,
 	cellName string,
 	cellTemplate novav1.NovaCellTemplate,
-) (*database.Database, nova.DatabaseStatus, error) {
-	cellDB := database.NewDatabaseWithNamespace(
+) (*mariadbv1.Database, nova.DatabaseStatus, error) {
+	cellDB := mariadbv1.NewDatabaseWithNamespace(
 		"nova_"+cellName,
 		cellTemplate.CellDatabaseUser,
 		instance.Spec.Secret,
@@ -727,8 +726,8 @@ func (r *NovaReconciler) ensureCell(
 	instance *novav1.Nova,
 	cellName string,
 	cellTemplate novav1.NovaCellTemplate,
-	cellDB *database.Database,
-	apiDB *database.Database,
+	cellDB *mariadbv1.Database,
+	apiDB *mariadbv1.Database,
 	cellTransportURL string,
 	keystoneAuthURL string,
 	secret corev1.Secret,
@@ -816,8 +815,8 @@ func (r *NovaReconciler) ensureAPI(
 	h *helper.Helper,
 	instance *novav1.Nova,
 	cell0Template novav1.NovaCellTemplate,
-	cell0DB *database.Database,
-	apiDB *database.Database,
+	cell0DB *mariadbv1.Database,
+	apiDB *mariadbv1.Database,
 	keystoneInternalAuthURL string,
 	keystonePublicAuthURL string,
 	secretName string,
@@ -897,8 +896,8 @@ func (r *NovaReconciler) ensureScheduler(
 	h *helper.Helper,
 	instance *novav1.Nova,
 	cell0Template novav1.NovaCellTemplate,
-	cell0DB *database.Database,
-	apiDB *database.Database,
+	cell0DB *mariadbv1.Database,
+	apiDB *mariadbv1.Database,
 	keystoneAuthURL string,
 	secretName string,
 ) (ctrl.Result, error) {
@@ -1021,7 +1020,7 @@ func (r *NovaReconciler) ensureDBDeletion(
 	}
 	// iterate over novaDbs and remove finalizers
 	for _, dbName := range novaDbs {
-		db, err := database.GetDatabaseByName(ctx, h, dbName)
+		db, err := mariadbv1.GetDatabaseByName(ctx, h, dbName)
 		if err != nil && !k8s_errors.IsNotFound(err) {
 			return err
 		}
@@ -1200,8 +1199,8 @@ func (r *NovaReconciler) ensureMetadata(
 	h *helper.Helper,
 	instance *novav1.Nova,
 	cell0Template novav1.NovaCellTemplate,
-	cell0DB *database.Database,
-	apiDB *database.Database,
+	cell0DB *mariadbv1.Database,
+	apiDB *mariadbv1.Database,
 	keystoneAuthURL string,
 	secretName string,
 ) (ctrl.Result, error) {
