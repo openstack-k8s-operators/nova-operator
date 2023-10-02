@@ -242,14 +242,12 @@ github.com/openstack-k8s-operators/keystone-operator/api v0.1.1-0.20231002064359
 github.com/openstack-k8s-operators/keystone-operator/api v0.1.1-0.20231002064359-5fc1bb3e3299/go.mod h1:5v0ngxNmFp8QsINo2bufx1/COJc0q6jm3FMhP3xIAWE=
 github.com/openstack-k8s-operators/lib-common/modules/common v0.1.1-0.20231002090319-8c85a5806ffb h1:jgbzzrCprRSJJO9K0GbfX1DuFQysVygLKFDkk0liqcM=
 github.com/openstack-k8s-operators/lib-common/modules/common v0.1.1-0.20231002090319-8c85a5806ffb/go.mod h1:Ozg6SxfwOtMkiH553c0XQBWuygZQq4jDQCpR4hZqlxM=
-github.com/openstack-k8s-operators/lib-common/modules/database v0.1.1-0.20231002090319-8c85a5806ffb h1:GZIEP4q+7lLzrxIAloglg61EMGzh+TQ7h99E0/D0Uu0=
-github.com/openstack-k8s-operators/lib-common/modules/database v0.1.1-0.20231002090319-8c85a5806ffb/go.mod h1:RroLfB6Wstc+z7JVJY9o+6YPu+wBIzTAAfMpwhv7pDI=
 github.com/openstack-k8s-operators/lib-common/modules/openstack v0.1.1-0.20231002090319-8c85a5806ffb h1:AfMP5iucttYsiY1Jwo6PlrgmJ14dDyZ/qAukkZ7NBSk=
 github.com/openstack-k8s-operators/lib-common/modules/openstack v0.1.1-0.20231002090319-8c85a5806ffb/go.mod h1:LOXXvTQCwhOBNd+0FTlgllpa3wqlkI6Vf3Q5QVRVPlw=
 github.com/openstack-k8s-operators/lib-common/modules/test v0.1.2-0.20231002090319-8c85a5806ffb h1:O24il+OZEi9dIVMZT8m+Y/ttkk9BZ+UPYuA4gYre/tw=
 github.com/openstack-k8s-operators/lib-common/modules/test v0.1.2-0.20231002090319-8c85a5806ffb/go.mod h1:j2CcjMoznTNJWx0hZtHqXbemfm5657oT/7ItEWgUOw0=
-github.com/openstack-k8s-operators/mariadb-operator/api v0.1.1-0.20230928152002-65395552e015 h1:1G37nuB9C8QPp7tScEpwbR7eQj+2e6l089MNzj5cChk=
-github.com/openstack-k8s-operators/mariadb-operator/api v0.1.1-0.20230928152002-65395552e015/go.mod h1:xhiz5wFdKWwVM7BF/VYon4TT3NuUPXp/Pyn2hWcp0CE=
+github.com/openstack-k8s-operators/mariadb-operator/api v0.3.0 h1:FB0xB6whYM6W4XIncYo2mPiOJWkFsIOWtCT+UOtvOaQ=
+github.com/openstack-k8s-operators/mariadb-operator/api v0.3.0/go.mod h1:xhiz5wFdKWwVM7BF/VYon4TT3NuUPXp/Pyn2hWcp0CE=
 github.com/pkg/errors v0.8.0/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pkg/errors v0.8.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
