@@ -343,6 +343,7 @@ type CellNames struct {
 	NovaComputeName                  types.NamespacedName
 	NovaComputeStatefulSetName       types.NamespacedName
 	NovaComputeConfigDataName        types.NamespacedName
+	HostDiscoveryJobName             types.NamespacedName
 }
 
 func GetCellNames(novaName types.NamespacedName, cell string) CellNames {
@@ -417,6 +418,10 @@ func GetCellNames(novaName types.NamespacedName, cell string) CellNames {
 		NovaComputeConfigDataName: types.NamespacedName{
 			Namespace: novaCompute.Namespace,
 			Name:      cellName.Name + "-" + ironicComputeName + "-compute" + "-config-data",
+		},
+		HostDiscoveryJobName: types.NamespacedName{
+			Namespace: novaName.Namespace,
+			Name:      cellName.Name + "-host-discover",
 		},
 		InternalCellSecretName: cellName,
 		InternalAPINetworkNADName: types.NamespacedName{

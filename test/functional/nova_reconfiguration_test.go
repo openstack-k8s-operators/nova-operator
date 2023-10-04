@@ -57,6 +57,9 @@ func CreateNovaWith3CellsAndEnsureReady(novaNames NovaNames) {
 	cell1Template["cellDatabaseInstance"] = cell1.MariaDBDatabaseName.Name
 	cell1Template["cellDatabaseUser"] = "nova_cell1"
 	cell1Template["cellMessageBusInstance"] = cell1.TransportURLName.Name
+	cell1Template["novaComputeTemplates"] = map[string]interface{}{
+		ironicComputeName: GetDefaultNovaComputeTemplate(),
+	}
 
 	cell2Template := GetDefaultNovaCellTemplate()
 	cell2Template["cellDatabaseInstance"] = cell2.MariaDBDatabaseName.Name
@@ -96,7 +99,9 @@ func CreateNovaWith3CellsAndEnsureReady(novaNames NovaNames) {
 	th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
 	th.SimulateJobSuccess(cell1.DBSyncJobName)
 	th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
+	th.SimulateStatefulSetReplicaReady(cell1.NovaComputeStatefulSetName)
 	th.SimulateJobSuccess(cell1.CellMappingJobName)
+	th.SimulateJobSuccess(cell1.HostDiscoveryJobName)
 
 	th.SimulateStatefulSetReplicaReady(cell2.NoVNCProxyStatefulSetName)
 	th.SimulateJobSuccess(cell2.DBSyncJobName)
@@ -432,6 +437,35 @@ var _ = Describe("Nova reconfiguration", func() {
 				g.Expect(configData).Should(ContainSubstring("transport_url=rabbit://alternate-mq-for-cell1/fake"))
 			}, timeout, interval).Should(Succeed())
 			Expect(GetNovaCell(cell1.CellCRName).Status.Hash[cell1.ComputeConfigSecretName.Name]).NotTo(Equal(oldComputeConfigHash))
+		})
+	})
+
+	When("computeReplica is reconfigured for a cell", func() {
+		It("updates the cell, re-runs the cell discover job", func() {
+			discoverJob := th.GetJob(cell1.HostDiscoveryJobName)
+			oldJobInputHash := GetEnvVarValue(
+				discoverJob.Spec.Template.Spec.Containers[0].Env, "INPUT_HASH", "")
+
+			Eventually(func(g Gomega) {
+				nova := GetNova(novaNames.NovaName)
+				zero := int32(0)
+				cell1 := nova.Spec.CellTemplates["cell1"]
+				ironicTemplate := cell1.NovaComputeTemplates[ironicComputeName]
+				ironicTemplate.Replicas = &zero
+				cell1.NovaComputeTemplates[ironicComputeName] = ironicTemplate
+				nova.Spec.CellTemplates["cell1"] = cell1
+
+				g.Expect(k8sClient.Update(ctx, nova)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			// Expect that nova controller updates the mapping Job to re-run that
+			// to update the CellMapping table in the nova_api DB.
+			Eventually(func(g Gomega) {
+				discoverJob := th.GetJob(cell1.HostDiscoveryJobName)
+				newJobInputHash := GetEnvVarValue(
+					discoverJob.Spec.Template.Spec.Containers[0].Env, "INPUT_HASH", "")
+				g.Expect(newJobInputHash).NotTo(Equal(oldJobInputHash))
+			}, timeout, interval).Should(Succeed())
 		})
 	})
 

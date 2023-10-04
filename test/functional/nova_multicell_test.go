@@ -56,6 +56,9 @@ var _ = Describe("Nova multicell", func() {
 			cell1Template["passwordSelectors"] = map[string]interface{}{
 				"database": "NovaCell1DatabasePassword",
 			}
+			cell1Template["novaComputeTemplates"] = map[string]interface{}{
+				ironicComputeName: GetDefaultNovaComputeTemplate(),
+			}
 
 			cell2Template := GetDefaultNovaCellTemplate()
 			cell2Template["cellDatabaseInstance"] = cell2.MariaDBDatabaseName.Name
@@ -282,12 +285,20 @@ var _ = Describe("Nova multicell", func() {
 				condition.DBSyncReadyCondition,
 				corev1.ConditionTrue,
 			)
+
+			th.SimulateStatefulSetReplicaReady(cell1.NovaComputeStatefulSetName)
 			th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
 			th.SimulateJobSuccess(cell1.CellMappingJobName)
 			th.ExpectCondition(
 				cell1.CellCRName,
 				ConditionGetterFunc(NovaCellConditionGetter),
 				novav1.NovaConductorReadyCondition,
+				corev1.ConditionTrue,
+			)
+			th.ExpectCondition(
+				cell1.CellCRName,
+				ConditionGetterFunc(NovaCellConditionGetter),
+				novav1.NovaAllComputesReadyCondition,
 				corev1.ConditionTrue,
 			)
 			th.ExpectCondition(
@@ -326,10 +337,12 @@ var _ = Describe("Nova multicell", func() {
 			th.SimulateStatefulSetReplicaReady(novaNames.MetadataStatefulSetName)
 			mariadb.SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
 			infra.SimulateTransportURLReady(cell1.TransportURLName)
+			th.SimulateStatefulSetReplicaReady(cell1.NovaComputeStatefulSetName)
 			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
 			th.SimulateJobSuccess(cell1.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
 			th.SimulateJobSuccess(cell1.CellMappingJobName)
+			th.SimulateJobSuccess(cell1.HostDiscoveryJobName)
 
 			mariadb.SimulateMariaDBDatabaseCompleted(cell2.MariaDBDatabaseName)
 			infra.SimulateTransportURLReady(cell2.TransportURLName)
