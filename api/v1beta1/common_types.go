@@ -37,6 +37,11 @@ const (
 	IronicDriver = "ironic.IronicDriver"
 )
 
+const (
+	// ComputeDiscoverHashKey is the key to hash of compute discovery job based on compute templates for cell
+	ComputeDiscoverHashKey = "nova-compute-discovery"
+)
+
 // NovaServiceBase contains the fields that are needed for each nova service CRD
 type NovaServiceBase struct {
 	// +kubebuilder:validation:Optional

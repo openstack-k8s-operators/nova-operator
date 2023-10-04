@@ -389,6 +389,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	failedCells := []string{}
 	deployingCells := []string{}
 	mappingCells := []string{}
+	discoveringCells := []string{}
 	skippedCells := []string{}
 	readyCells := []string{}
 	cells := map[string]*novav1.NovaCell{}
@@ -438,7 +439,9 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 			deployingCells = append(deployingCells, cellName)
 		case nova.CellMapping:
 			mappingCells = append(mappingCells, cellName)
-		case nova.CellFailed, nova.CellMappingFailed:
+		case nova.CellComputeDiscovering:
+			discoveringCells = append(discoveringCells, cellName)
+		case nova.CellFailed, nova.CellMappingFailed, nova.CellComputeDiscoveryFailed:
 			failedCells = append(failedCells, fmt.Sprintf("%s(%v)", cellName, err.Error()))
 		case nova.CellReady:
 			readyCells = append(readyCells, cellName)
@@ -450,6 +453,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		"waiting", skippedCells,
 		"deploying", deployingCells,
 		"mapping", mappingCells,
+		"discovering", discoveringCells,
 		"ready", readyCells,
 		"failed", failedCells,
 		"all cells ready", allCellsReady)
@@ -461,7 +465,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 			novav1.NovaAllCellsReadyErrorMessage,
 			strings.Join(failedCells, ","),
 		))
-	} else if len(deployingCells)+len(mappingCells) > 0 {
+	} else if len(deployingCells)+len(mappingCells)+len(discoveringCells) > 0 {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			novav1.NovaAllCellsReadyCondition,
 			condition.RequestedReason,
@@ -478,6 +482,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 			strings.Join(skippedCells, ","),
 		))
 	}
+
 	if allCellsReady {
 		instance.Status.Conditions.MarkTrue(novav1.NovaAllCellsReadyCondition, novav1.NovaAllCellsReadyMessage)
 	}
@@ -547,6 +552,9 @@ func (r *NovaReconciler) initStatus(
 
 	if instance.Status.RegisteredCells == nil {
 		instance.Status.RegisteredCells = map[string]string{}
+	}
+	if instance.Status.DiscoveredCells == nil {
+		instance.Status.DiscoveredCells = map[string]string{}
 	}
 
 	return nil
@@ -632,6 +640,94 @@ func (r *NovaReconciler) initConditions(
 		instance.Status.Conditions.Init(&cl)
 	}
 	return nil
+}
+
+func (r *NovaReconciler) ensureNovaJobsSecret(
+	ctx context.Context, h *helper.Helper, instance *novav1.Nova,
+	cell *novav1.NovaCell,
+	cellTemplate novav1.NovaCellTemplate,
+	apiDBHostname string,
+	cellTransportURL string,
+) (map[string]env.Setter, string, string, error) {
+	scriptName := ""
+	configName := ""
+	ospSecret, _, err := secret.GetSecret(ctx, h, instance.Spec.Secret, instance.Namespace)
+	if err != nil {
+		return nil, scriptName, configName, err
+	}
+
+	configName = fmt.Sprintf("%s-config-data", cell.Name+"-manage")
+	scriptName = fmt.Sprintf("%s-scripts", cell.Name+"-manage")
+
+	cmLabels := labels.GetLabels(
+		instance, labels.GetGroupLabel(NovaLabelPrefix), map[string]string{},
+	)
+
+	extraTemplates := map[string]string{
+		"01-nova.conf":    "/nova.conf",
+		"nova-blank.conf": "/nova-blank.conf",
+	}
+
+	// We configure the Job like it runs in the env of the conductor of the given cell
+	// but we ensure that the config always has [api_database] section configure
+	// even if the cell has no API access at all.
+	templateParameters := map[string]interface{}{
+		"service_name":           "nova-conductor",
+		"keystone_internal_url":  cell.Spec.KeystoneAuthURL,
+		"nova_keystone_user":     cell.Spec.ServiceUser,
+		"nova_keystone_password": string(ospSecret.Data[instance.Spec.PasswordSelectors.Service]),
+		// cell.Spec.APIDatabaseUser is empty for cells without APIDB access
+		"api_db_name":     instance.Spec.APIDatabaseUser, // fixme
+		"api_db_user":     instance.Spec.APIDatabaseUser,
+		"api_db_password": string(ospSecret.Data[instance.Spec.PasswordSelectors.APIDatabase]),
+		// cell.Spec.APIDatabaseHostname is empty for cells without APIDB access
+		"api_db_address":         apiDBHostname,
+		"api_db_port":            3306,
+		"cell_db_name":           cell.Spec.CellDatabaseUser, // fixme
+		"cell_db_user":           cell.Spec.CellDatabaseUser,
+		"cell_db_password":       string(ospSecret.Data[cellTemplate.PasswordSelectors.Database]),
+		"cell_db_address":        cell.Spec.CellDatabaseHostname,
+		"cell_db_port":           3306,
+		"openstack_cacert":       "",          // fixme
+		"openstack_region_name":  "regionOne", // fixme
+		"default_project_domain": "Default",   // fixme
+		"default_user_domain":    "Default",   // fixme
+	}
+
+	// NOTE(gibi): cell mapping for cell0 should not have transport_url
+	// configured. As the nova-manage command used to create the mapping
+	// uses the transport_url from the nova.conf provided to the job
+	// we need to make sure that transport_url is only configured for the job
+	// if it is mapping other than cell0.
+	if cell.Spec.CellName != novav1.Cell0Name {
+		templateParameters["transport_url"] = cellTransportURL
+	}
+
+	cms := []util.Template{
+		{
+			Name:         scriptName,
+			Namespace:    instance.Namespace,
+			Type:         util.TemplateTypeScripts,
+			InstanceType: "nova-manage",
+			Labels:       cmLabels,
+		},
+		{
+			Name:               configName,
+			Namespace:          instance.Namespace,
+			Type:               util.TemplateTypeConfig,
+			InstanceType:       "nova-manage",
+			ConfigOptions:      templateParameters,
+			Labels:             cmLabels,
+			CustomData:         map[string]string{},
+			Annotations:        map[string]string{},
+			AdditionalTemplate: extraTemplates,
+		},
+	}
+
+	configHash := make(map[string]env.Setter)
+	err = secret.EnsureSecrets(ctx, h, instance, cms, &configHash)
+
+	return configHash, scriptName, configName, err
 }
 
 func (r *NovaReconciler) ensureDB(
@@ -795,19 +891,85 @@ func (r *NovaReconciler) ensureCell(
 		// nova_api DB.
 		return cell, nova.CellDeploying, err
 	}
+	configHash, scriptName, configName, err := r.ensureNovaJobsSecret(ctx, h, instance,
+		cell, cellTemplate, apiDB.GetDatabaseHostname(), cellTransportURL)
 
+	if err != nil {
+		return cell, nova.CellFailed, err
+	}
 	// When the cell is ready we need to create a row in the
 	// nova_api.CellMapping table to make this cell accessible from the top
 	// level services.
 	status, err := r.ensureCellMapped(
 		ctx, h, instance,
-		cell, cellTemplate, apiDB.GetDatabaseHostname(), cellTransportURL)
-	if status == nova.CellMappingReady {
-		// As mapping is the last step if that is ready then the cell is ready
+		cell, configHash, scriptName, configName)
+
+	if err != nil {
+		return cell, status, err
+	}
+
+	// We need to discover computes when cell have computetemplates and mapping is done
+	status, err = r.ensureNovaComputeDiscover(
+		ctx, h, instance, cell, secret, cellTemplate, configHash, scriptName, configName)
+
+	if status == nova.CellComputeDiscoveryReady {
 		status = nova.CellReady
 	}
 
+	if err != nil {
+		return cell, status, err
+	}
+
 	return cell, status, err
+}
+
+func (r *NovaReconciler) ensureNovaComputeDiscover(
+	ctx context.Context,
+	h *helper.Helper,
+	novainstance *novav1.Nova,
+	cell *novav1.NovaCell,
+	novaSecret corev1.Secret,
+	cellTemplate novav1.NovaCellTemplate,
+	configHash map[string]env.Setter,
+	scriptName string,
+	configName string,
+) (nova.CellDeploymentStatus, error) {
+	if len(cellTemplate.NovaComputeTemplates) == 0 {
+		return nova.CellComputeDiscoveryReady, nil
+	}
+	if !cell.Status.Conditions.IsTrue(novav1.NovaAllComputesReadyCondition) {
+		return nova.CellComputeDiscovering, nil
+	}
+
+	labels := map[string]string{
+		common.AppSelector: NovaLabelPrefix,
+	}
+	jobDef := nova.HostDiscoveryJob(cell, configName, scriptName, cell.Status.Hash[novav1.ComputeDiscoverHashKey], labels)
+
+	job := job.NewJob(
+		jobDef, cell.Name+"-host-discover",
+		cell.Spec.Debug.PreserveJobs, r.RequeueTimeout, novainstance.Status.DiscoveredCells[cell.Name])
+
+	result, err := job.DoJob(ctx, h)
+	if err != nil {
+		return nova.CellComputeDiscoveryFailed, err
+	}
+
+	if (result != ctrl.Result{}) {
+		// Job is still running. We can simply return as we will be reconciled
+		// when the Job status changes
+		return nova.CellComputeDiscovering, nil
+	}
+
+	if !job.HasChanged() {
+		// there was no need to run a new job as nothing changed
+		return nova.CellComputeDiscoveryReady, nil
+	}
+
+	novainstance.Status.DiscoveredCells[cell.Name] = job.GetHash()
+	r.Log.Info(fmt.Sprintf("Job %s hash added - %s", jobDef.Name, cell.Name))
+
+	return nova.CellComputeDiscoveryReady, nil
 }
 
 func (r *NovaReconciler) ensureAPI(
@@ -1323,89 +1485,10 @@ func (r *NovaReconciler) ensureCellMapped(
 	h *helper.Helper,
 	instance *novav1.Nova,
 	cell *novav1.NovaCell,
-	cellTemplate novav1.NovaCellTemplate,
-	apiDBHostname string,
-	cellTransportURL string,
+	configHash map[string]env.Setter,
+	scriptName string,
+	configName string,
 ) (nova.CellDeploymentStatus, error) {
-	ospSecret, _, err := secret.GetSecret(ctx, h, instance.Spec.Secret, instance.Namespace)
-	if err != nil {
-		return nova.CellMappingFailed, err
-	}
-
-	configName := fmt.Sprintf("%s-config-data", cell.Name+"-manage")
-	scriptName := fmt.Sprintf("%s-scripts", cell.Name+"-manage")
-
-	cmLabels := labels.GetLabels(
-		instance, labels.GetGroupLabel(NovaLabelPrefix), map[string]string{},
-	)
-
-	extraTemplates := map[string]string{
-		"01-nova.conf":    "/nova.conf",
-		"nova-blank.conf": "/nova-blank.conf",
-	}
-
-	// We configure the Job like it runs in the env of the conductor of the given cell
-	// but we ensure that the config always has [api_database] section configure
-	// even if the cell has no API access at all.
-	templateParameters := map[string]interface{}{
-		"service_name":           "nova-conductor",
-		"keystone_internal_url":  cell.Spec.KeystoneAuthURL,
-		"nova_keystone_user":     cell.Spec.ServiceUser,
-		"nova_keystone_password": string(ospSecret.Data[instance.Spec.PasswordSelectors.Service]),
-		// cell.Spec.APIDatabaseUser is empty for cells without APIDB access
-		"api_db_name":     instance.Spec.APIDatabaseUser, // fixme
-		"api_db_user":     instance.Spec.APIDatabaseUser,
-		"api_db_password": string(ospSecret.Data[instance.Spec.PasswordSelectors.APIDatabase]),
-		// cell.Spec.APIDatabaseHostname is empty for cells without APIDB access
-		"api_db_address":         apiDBHostname,
-		"api_db_port":            3306,
-		"cell_db_name":           cell.Spec.CellDatabaseUser, // fixme
-		"cell_db_user":           cell.Spec.CellDatabaseUser,
-		"cell_db_password":       string(ospSecret.Data[cellTemplate.PasswordSelectors.Database]),
-		"cell_db_address":        cell.Spec.CellDatabaseHostname,
-		"cell_db_port":           3306,
-		"openstack_cacert":       "",          // fixme
-		"openstack_region_name":  "regionOne", // fixme
-		"default_project_domain": "Default",   // fixme
-		"default_user_domain":    "Default",   // fixme
-	}
-
-	// NOTE(gibi): cell mapping for cell0 should not have transport_url
-	// configured. As the nova-manage command used to create the mapping
-	// uses the transport_url from the nova.conf provided to the job
-	// we need to make sure that transport_url is only configured for the job
-	// if it is mapping other than cell0.
-	if cell.Spec.CellName != novav1.Cell0Name {
-		templateParameters["transport_url"] = cellTransportURL
-	}
-
-	cms := []util.Template{
-		{
-			Name:         scriptName,
-			Namespace:    instance.Namespace,
-			Type:         util.TemplateTypeScripts,
-			InstanceType: "nova-manage",
-			Labels:       cmLabels,
-		},
-		{
-			Name:               configName,
-			Namespace:          instance.Namespace,
-			Type:               util.TemplateTypeConfig,
-			InstanceType:       "nova-manage",
-			ConfigOptions:      templateParameters,
-			Labels:             cmLabels,
-			CustomData:         map[string]string{},
-			Annotations:        map[string]string{},
-			AdditionalTemplate: extraTemplates,
-		},
-	}
-
-	configHash := make(map[string]env.Setter)
-	err = secret.EnsureSecrets(ctx, h, instance, cms, &configHash)
-
-	if err != nil {
-		return nova.CellMappingFailed, err
-	}
 
 	// This defines those input parameters that can trigger the re-run of the
 	// job and therefore an update on the cell mapping row of this cell in the

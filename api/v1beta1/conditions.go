@@ -50,7 +50,7 @@ const (
 	// NovaComputeServiceConfigReady indicates when the compute service config
 	// is ready for the given NovaCell
 	NovaComputeServiceConfigReady condition.Type = "NovaComputeServiceConfigReady"
-	// NovaAllComputesReadyCondition indicates that every defined NovaCompute is ready
+	// NovaAllComputesReadyCondition indicates that every defined NovaCompute is ready but undiscovered
 	NovaAllComputesReadyCondition condition.Type = "NovaAllComputesReady"
 )
 
@@ -166,4 +166,10 @@ const (
 
 	//NovaComputeReadyErrorMessage
 	NovaComputeReadyErrorMessage = "NovaCompute error occurred %s"
+
+	//CellHostDiscoverInitMessage
+	CellHostDiscoverInitMessage = "Not all host discovered in cell"
+
+	//CellHostDiscoverErrorMessage
+	CellHostDiscoverErrorMessage = "CellHostDiscover error occurred %s"
 )

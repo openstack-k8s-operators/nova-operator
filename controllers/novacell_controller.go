@@ -161,9 +161,16 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 
 	}
 
+	// manage nova-computes with selected driver based on created template
+	// we need to keep statuses for deleting and discover action and also create map with hashes
+	// to run discover job only when all computes are deployed and never discovered
+	computeTemplatesHashMap := make(map[string]string)
 	for computeName, computeTemplate := range instance.Spec.NovaComputeTemplates {
 		computeStatus := r.ensureNovaCompute(ctx, h, instance, computeTemplate, computeName, secret)
 		instance.Status.NovaComputesStatus[computeName] = computeStatus
+		// We hash the entire compute template to keep track of changes in the number of replicas,
+		// allowing us to discover nodes accordingly
+		computeTemplatesHashMap[computeName], _ = util.ObjectHash(computeTemplate)
 	}
 
 	// We need to delete nova computes based on current templates and statuses from previous runs
@@ -206,6 +213,12 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 			"failed", failedComputes,
 		)
 	}
+
+	computeTemplatesHash, err := hashOfStringMap(computeTemplatesHashMap)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	instance.Status.Hash[novav1.ComputeDiscoverHashKey] = computeTemplatesHash
 
 	cellHasVNCService := (*instance.Spec.NoVNCProxyServiceTemplate.Enabled)
 	if cellHasVNCService {
