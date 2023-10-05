@@ -46,7 +46,6 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 
-	database "github.com/openstack-k8s-operators/lib-common/modules/database"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 
 	placementv1 "github.com/openstack-k8s-operators/placement-operator/api/v1beta1"
@@ -211,7 +210,7 @@ func (r *PlacementAPIReconciler) reconcileDelete(ctx context.Context, instance *
 	util.LogForObject(helper, "Reconciling Service delete", instance)
 
 	// remove db finalizer before the placement one
-	db, err := database.GetDatabaseByName(ctx, helper, instance.Name)
+	db, err := mariadbv1.GetDatabaseByName(ctx, helper, instance.Name)
 	if err != nil && !k8s_errors.IsNotFound(err) {
 		return ctrl.Result{}, err
 	}
@@ -294,7 +293,7 @@ func (r *PlacementAPIReconciler) reconcileInit(
 	//
 	// create service DB instance
 	//
-	db := database.NewDatabase(
+	db := mariadbv1.NewDatabase(
 		instance.Name,
 		instance.Spec.DatabaseUser,
 		instance.Spec.Secret,
