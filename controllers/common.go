@@ -31,6 +31,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
@@ -306,12 +307,10 @@ type Reconciler interface {
 func NewReconcilerBase(
 	name string, mgr ctrl.Manager, kclient kubernetes.Interface,
 ) ReconcilerBase {
-	log := ctrl.Log.WithName("controllers").WithName(name)
 	return ReconcilerBase{
 		Client:         mgr.GetClient(),
 		Scheme:         mgr.GetScheme(),
 		Kclient:        kclient,
-		Log:            log,
 		RequeueTimeout: time.Duration(5) * time.Second,
 	}
 }
@@ -474,6 +473,11 @@ type GetSecret interface {
 	client.Object
 }
 
+// getlogger returns a logger object with a prefix of "conroller.name" and aditional controller context fields
+func (r *ReconcilerBase) GetLogger(ctx context.Context) logr.Logger {
+	return log.FromContext(ctx).WithName("Controllers").WithName("ReconcilerBase")
+}
+
 // GetSecretMapperFor returns a function that creates reconcile.Request for each
 // NovaXXX CR where the value of Spec.Secret matches to the name of the given
 // Secret. The specific CRD to match against is defined by the type of the crs
@@ -487,8 +491,8 @@ type GetSecret interface {
 //    controller) and expose a "generation" field that the central component
 //    can bump to trigger a reconcile if the secret content changed.
 
-func (r *ReconcilerBase) GetSecretMapperFor(crs client.ObjectList) func(client.Object) []reconcile.Request {
-
+func (r *ReconcilerBase) GetSecretMapperFor(crs client.ObjectList, ctx context.Context) func(client.Object) []reconcile.Request {
+	Log := r.GetLogger(ctx)
 	mapper := func(secret client.Object) []reconcile.Request {
 		var namespace string = secret.GetNamespace()
 		var secretName string = secret.GetName()
@@ -498,7 +502,7 @@ func (r *ReconcilerBase) GetSecretMapperFor(crs client.ObjectList) func(client.O
 			client.InNamespace(namespace),
 		}
 		if err := r.Client.List(context.TODO(), crs, listOpts...); err != nil {
-			r.Log.Error(err, "Unable to retrieve the list of CRs")
+			Log.Error(err, "Unable to retrieve the list of CRs")
 			panic(err)
 		}
 
@@ -511,7 +515,7 @@ func (r *ReconcilerBase) GetSecretMapperFor(crs client.ObjectList) func(client.O
 					Namespace: namespace,
 					Name:      cr.GetName(),
 				}
-				r.Log.Info(
+				Log.Info(
 					"Requesting reconcile due to secret change",
 					"Secret", secretName, "CR", name.Name,
 				)
@@ -521,7 +525,7 @@ func (r *ReconcilerBase) GetSecretMapperFor(crs client.ObjectList) func(client.O
 		})
 
 		if err != nil {
-			r.Log.Error(err, "Unable to iterate the list of CRs")
+			Log.Error(err, "Unable to iterate the list of CRs")
 			panic(err)
 		}
 
