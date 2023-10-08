@@ -60,9 +60,9 @@ type NovaReconciler struct {
 	ReconcilerBase
 }
 
-// getlog returns a logger object with a prefix of "conroller.name" and aditional controller context fields
-func GetLog(ctx context.Context, controller string) logr.Logger {
-	return log.FromContext(ctx).WithName("Controllers").WithName(controller)
+// getlogger returns a logger object with a prefix of "conroller.name" and aditional controller context fields
+func (r *NovaReconciler) GetLogger(ctx context.Context) logr.Logger {
+	return log.FromContext(ctx).WithName("Controllers").WithName("Nova")
 }
 
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=nova,verbs=get;list;watch;create;update;patch;delete
@@ -93,7 +93,7 @@ func GetLog(ctx context.Context, controller string) logr.Logger {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.2/pkg/reconcile
 func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, _err error) {
-	log := GetLog(ctx, "nova")
+	Log := r.GetLogger(ctx)
 
 	// Fetch the NovaAPI instance that needs to be reconciled
 	instance := &novav1.Nova{}
@@ -103,11 +103,11 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected.
 			// For additional cleanup logic use finalizers. Return and don't requeue.
-			log.Info("Nova instance not found, probably deleted before reconciled. Nothing to do.")
+			Log.Info("Nova instance not found, probably deleted before reconciled. Nothing to do.")
 			return ctrl.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
-		log.Error(err, "Failed to read the Nova instance.")
+		Log.Error(err, "Failed to read the Nova instance.")
 		return ctrl.Result{}, err
 	}
 
@@ -116,10 +116,10 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		r.Client,
 		r.Kclient,
 		r.Scheme,
-		log,
+		Log,
 	)
 	if err != nil {
-		log.Error(err, "Failed to create lib-common Helper")
+		Log.Error(err, "Failed to create lib-common Helper")
 		return ctrl.Result{}, err
 	}
 	util.LogForObject(h, "Reconciling", instance)
@@ -1262,7 +1262,7 @@ func (r *NovaReconciler) ensureCellMapped(
 	cellTemplate novav1.NovaCellTemplate,
 	apiDBHostname string,
 ) (nova.CellDeploymentStatus, error) {
-	log := GetLog(ctx, "nova")
+	Log := r.GetLogger(ctx)
 
 	ospSecret, _, err := secret.GetSecret(ctx, h, instance.Spec.Secret, instance.Namespace)
 	if err != nil {
@@ -1391,7 +1391,7 @@ func (r *NovaReconciler) ensureCellMapped(
 	// information to the top level services so that each service can restart
 	// their Pods if a new cell is registered or an existing cell is updated.
 	instance.Status.RegisteredCells[cell.Name] = job.GetHash()
-	log.Info("Job hash added ", "job", jobDef.Name, "hash", instance.Status.RegisteredCells[cell.Name])
+	Log.Info("Job hash added ", "job", jobDef.Name, "hash", instance.Status.RegisteredCells[cell.Name])
 
 	return nova.CellMappingReady, nil
 }

@@ -26,8 +26,10 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	"github.com/go-logr/logr"
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
@@ -45,6 +47,11 @@ import (
 // NovaSchedulerReconciler reconciles a NovaScheduler object
 type NovaSchedulerReconciler struct {
 	ReconcilerBase
+}
+
+// getlogger returns a logger object with a prefix of "conroller.name" and aditional controller context fields
+func (r *NovaSchedulerReconciler) GetLogger(ctx context.Context) logr.Logger {
+	return log.FromContext(ctx).WithName("Controllers").WithName("NovaScheduler")
 }
 
 // +kubebuilder:rbac:groups=nova.openstack.org,resources=novaschedulers,verbs=get;list;watch;create;update;patch;delete
@@ -66,7 +73,7 @@ type NovaSchedulerReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.2/pkg/reconcile
 func (r *NovaSchedulerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, _err error) {
-	log := GetLog(ctx, "novascheduler")
+	Log := r.GetLogger(ctx)
 
 	// Fetch the NovaScheduler instance that needs to be reconciled
 	instance := &novav1.NovaScheduler{}
@@ -76,11 +83,11 @@ func (r *NovaSchedulerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected.
 			// For additional cleanup logic use finalizers. Return and don't requeue.
-			log.Info("NovaScheduler instance not found, probably deleted before reconciled. Nothing to do.")
+			Log.Info("NovaScheduler instance not found, probably deleted before reconciled. Nothing to do.")
 			return ctrl.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
-		log.Error(err, "Failed to read the NovaScheduler instance.")
+		Log.Error(err, "Failed to read the NovaScheduler instance.")
 		return ctrl.Result{}, err
 	}
 
@@ -89,13 +96,13 @@ func (r *NovaSchedulerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		r.Client,
 		r.Kclient,
 		r.Scheme,
-		log,
+		Log,
 	)
 	if err != nil {
-		log.Error(err, "Failed to create lib-common Helper")
+		Log.Error(err, "Failed to create lib-common Helper")
 		return ctrl.Result{}, err
 	}
-	log.Info("Reconciling", "instance", instance)
+	Log.Info("Reconciling", "instance", instance)
 
 	// initialize status fields
 	if err = r.initStatus(ctx, h, instance); err != nil {
@@ -281,7 +288,7 @@ func (r *NovaSchedulerReconciler) generateConfigs(
 	ctx context.Context, h *helper.Helper, instance *novav1.NovaScheduler, hashes *map[string]env.Setter,
 	secret corev1.Secret,
 ) error {
-	log := GetLog(ctx, "novascheduler")
+	Log := r.GetLogger(ctx)
 
 	apiMessageBusSecret := &corev1.Secret{}
 	secretName := types.NamespacedName{
@@ -290,7 +297,7 @@ func (r *NovaSchedulerReconciler) generateConfigs(
 	}
 	err := h.GetClient().Get(ctx, secretName, apiMessageBusSecret)
 	if err != nil {
-		log.Info("Failed reading Secret", "instance", instance,
+		Log.Info("Failed reading Secret", "instance", instance,
 			"APIMessageBusSecretName", instance.Spec.APIMessageBusSecretName)
 		return err
 	}
@@ -344,12 +351,12 @@ func (r *NovaSchedulerReconciler) ensureDeployment(
 	serviceLabels := map[string]string{
 		common.AppSelector: NovaSchedulerLabelPrefix,
 	}
-	log := GetLog(ctx, "novascheduler")
+	Log := r.GetLogger(ctx)
 	ss := statefulset.NewStatefulSet(novascheduler.StatefulSet(instance, inputHash, serviceLabels, annotations), r.RequeueTimeout)
 
 	ctrlResult, err := ss.CreateOrPatch(ctx, h)
 	if err != nil && !k8s_errors.IsNotFound(err) {
-		log.Error(err, "Deployment failed", "instance", instance)
+		Log.Error(err, "Deployment failed", "instance", instance)
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.DeploymentReadyCondition,
 			condition.ErrorReason,
@@ -358,7 +365,7 @@ func (r *NovaSchedulerReconciler) ensureDeployment(
 			err.Error()))
 		return ctrlResult, err
 	} else if (ctrlResult != ctrl.Result{} || k8s_errors.IsNotFound(err)) {
-		log.Info("in progress", "instance", instance)
+		Log.Info("in progress", "instance", instance)
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.DeploymentReadyCondition,
 			condition.RequestedReason,
@@ -397,10 +404,10 @@ func (r *NovaSchedulerReconciler) ensureDeployment(
 	}
 
 	if instance.Status.ReadyCount > 0 {
-		log.Info("Deployment is ready", instance)
+		Log.Info("Deployment is ready", instance)
 		instance.Status.Conditions.MarkTrue(condition.DeploymentReadyCondition, condition.DeploymentReadyMessage)
 	} else {
-		log.Info("Deployment is not ready", "instance", instance, "Status", ss.GetStatefulSet().Status)
+		Log.Info("Deployment is not ready", "instance", instance, "Status", ss.GetStatefulSet().Status)
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.DeploymentReadyCondition,
 			condition.RequestedReason,

@@ -27,8 +27,10 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	"github.com/go-logr/logr"
 	routev1 "github.com/openshift/api/route/v1"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
@@ -41,6 +43,11 @@ import (
 // NovaCellReconciler reconciles a NovaCell object
 type NovaCellReconciler struct {
 	ReconcilerBase
+}
+
+// getlogger returns a logger object with a prefix of "conroller.name" and aditional controller context fields
+func (r *NovaCellReconciler) GetLogger(ctx context.Context) logr.Logger {
+	return log.FromContext(ctx).WithName("Controllers").WithName("NovaCell")
 }
 
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=novacells,verbs=get;list;watch;create;update;patch;delete
@@ -57,7 +64,7 @@ type NovaCellReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.2/pkg/reconcile
 func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, _err error) {
-	log := GetLog(ctx, "novacell")
+	Log := r.GetLogger(ctx)
 
 	// Fetch the NovaAPI instance that needs to be reconciled
 	instance := &novav1.NovaCell{}
@@ -67,11 +74,11 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected.
 			// For additional cleanup logic use finalizers. Return and don't requeue.
-			log.Info("NovaCell instance not found, probably deleted before reconciled. Nothing to do.")
+			Log.Info("NovaCell instance not found, probably deleted before reconciled. Nothing to do.")
 			return ctrl.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
-		log.Error(err, "Failed to read the NovaCell instance.")
+		Log.Error(err, "Failed to read the NovaCell instance.")
 		return ctrl.Result{}, err
 	}
 
@@ -80,13 +87,13 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 		r.Client,
 		r.Kclient,
 		r.Scheme,
-		log,
+		Log,
 	)
 	if err != nil {
-		log.Error(err, "Failed to create lib-common Helper")
+		Log.Error(err, "Failed to create lib-common Helper")
 		return ctrl.Result{}, err
 	}
-	log.Info("Reconciling")
+	Log.Info("Reconciling")
 
 	// initialize status fields
 	if err = r.initStatus(ctx, h, instance); err != nil {
@@ -181,7 +188,7 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 	// However NovaNoVNCProxy is never deployed in cell0, and optional in other
 	// cells too.
 	if cellHasVNCService && !instance.Status.Conditions.IsTrue(novav1.NovaNoVNCProxyReadyCondition) {
-		log.Info("Waiting for the NovaNoVNCProxyService to become Ready before generating the compute config")
+		Log.Info("Waiting for the NovaNoVNCProxyService to become Ready before generating the compute config")
 		return ctrl.Result{}, nil
 	}
 
@@ -203,7 +210,7 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 		instance.Status.Conditions.Remove(novav1.NovaComputeServiceConfigReady)
 	}
 
-	log.Info("Successfully reconciled")
+	Log.Info("Successfully reconciled")
 	return ctrl.Result{}, nil
 }
 
@@ -266,7 +273,7 @@ func (r *NovaCellReconciler) ensureConductor(
 	h *helper.Helper,
 	instance *novav1.NovaCell,
 ) (ctrl.Result, error) {
-	log := GetLog(ctx, "novacell")
+	Log := r.GetLogger(ctx)
 
 	conductorSpec := novav1.NewNovaConductorSpec(instance.Spec)
 	conductor := &novav1.NovaConductor{
@@ -301,7 +308,7 @@ func (r *NovaCellReconciler) ensureConductor(
 	}
 
 	if op != controllerutil.OperationResultNone {
-		log.Info(fmt.Sprintf("NovaConductor %s.", string(op)))
+		Log.Info(fmt.Sprintf("NovaConductor %s.", string(op)))
 	}
 
 	instance.Status.ConductorServiceReadyCount = conductor.Status.ReadyCount
@@ -321,7 +328,7 @@ func (r *NovaCellReconciler) ensureNoVNCProxy(
 	h *helper.Helper,
 	instance *novav1.NovaCell,
 ) (ctrl.Result, error) {
-	log := GetLog(ctx, "novacell")
+	Log := r.GetLogger(ctx)
 
 	novncproxySpec := novav1.NewNovaNoVNCProxySpec(instance.Spec)
 	novncproxy := &novav1.NovaNoVNCProxy{
@@ -356,7 +363,7 @@ func (r *NovaCellReconciler) ensureNoVNCProxy(
 	}
 
 	if op != controllerutil.OperationResultNone {
-		log.Info(fmt.Sprintf("NovaNoVNCProxy %s.", string(op)))
+		Log.Info(fmt.Sprintf("NovaNoVNCProxy %s.", string(op)))
 	}
 
 	instance.Status.NoVNCPRoxyServiceReadyCount = novncproxy.Status.ReadyCount
@@ -375,7 +382,7 @@ func (r *NovaCellReconciler) ensureMetadata(
 	h *helper.Helper,
 	instance *novav1.NovaCell,
 ) (ctrl.Result, error) {
-	log := GetLog(ctx, "novacell")
+	Log := r.GetLogger(ctx)
 
 	metadataSpec := novav1.NewNovaMetadataSpec(instance.Spec)
 	metadata := &novav1.NovaMetadata{
@@ -410,7 +417,7 @@ func (r *NovaCellReconciler) ensureMetadata(
 	}
 
 	if op != controllerutil.OperationResultNone {
-		log.Info(fmt.Sprintf("NovaMetadata %s.", string(op)))
+		Log.Info(fmt.Sprintf("NovaMetadata %s.", string(op)))
 	}
 
 	instance.Status.MetadataServiceReadyCount = metadata.Status.ReadyCount

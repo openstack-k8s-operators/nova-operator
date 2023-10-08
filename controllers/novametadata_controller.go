@@ -28,6 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/cloudflare/cfssl/log"
+	"github.com/go-logr/logr"
 	routev1 "github.com/openshift/api/route/v1"
 
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
@@ -51,6 +52,11 @@ type NovaMetadataReconciler struct {
 	ReconcilerBase
 }
 
+// getlogger returns a logger object with a prefix of "conroller.name" and aditional controller context fields
+func (r *NovaMetadataReconciler) GetLogger(ctx context.Context) logr.Logger {
+	return log.FromContext(ctx).WithName("Controllers").WithName("NovaMetadata")
+}
+
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=novametadata,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=novametadata/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=novametadata/finalizers,verbs=update
@@ -71,7 +77,7 @@ type NovaMetadataReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.2/pkg/reconcile
 func (r *NovaMetadataReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, _err error) {
-	log := GetLog(ctx, "novametadata")
+	Log := r.GetLogger(ctx)
 
 	// Fetch the NovaMetadata instance that needs to be reconciled
 	instance := &novav1beta1.NovaMetadata{}
@@ -82,11 +88,11 @@ func (r *NovaMetadataReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected.
 			// For additional cleanup logic use finalizers. Return and don't requeue.
-			log.Info("NovaMetadata instance not found, probably deleted before reconciled. Nothing to do.")
+			Log.Info("NovaMetadata instance not found, probably deleted before reconciled. Nothing to do.")
 			return ctrl.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
-		log.Error(err, "Failed to read the NovaMetadata instance.")
+		Log.Error(err, "Failed to read the NovaMetadata instance.")
 		return ctrl.Result{}, err
 	}
 
@@ -95,13 +101,13 @@ func (r *NovaMetadataReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		r.Client,
 		r.Kclient,
 		r.Scheme,
-		log,
+		Log,
 	)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	log.Info("Reconciling", "instance", instance)
+	Log.Info("Reconciling", "instance", instance)
 
 	// initialize status fields
 	if err = r.initStatus(ctx, h, instance); err != nil {
@@ -199,7 +205,7 @@ func (r *NovaMetadataReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, err
 	}
 
-	log.Info("Successfully reconciled", "instance", instance)
+	Log.Info("Successfully reconciled", "instance", instance)
 	return ctrl.Result{}, nil
 }
 
@@ -286,6 +292,7 @@ func (r *NovaMetadataReconciler) generateConfigs(
 	ctx context.Context, h *helper.Helper, instance *novav1beta1.NovaMetadata, hashes *map[string]env.Setter,
 	secret corev1.Secret,
 ) error {
+	Log := r.GetLogger(ctx)
 
 	apiMessageBusSecret := &corev1.Secret{}
 	secretName := types.NamespacedName{
@@ -294,7 +301,7 @@ func (r *NovaMetadataReconciler) generateConfigs(
 	}
 	err := h.GetClient().Get(ctx, secretName, apiMessageBusSecret)
 	if err != nil {
-		log.Info("Failed reading Secret", "instance", instance,
+		Log.Info("Failed reading Secret", "instance", instance,
 			"APIMessageBusSecretName", instance.Spec.APIMessageBusSecretName)
 		return err
 	}
@@ -349,13 +356,13 @@ func (r *NovaMetadataReconciler) ensureDeployment(
 	inputHash string,
 	annotations map[string]string,
 ) (ctrl.Result, error) {
-	log := GetLog(ctx, "novametadata")
+	Log := r.GetLogger(ctx)
 
 	serviceLabels := getMetadataServiceLabels(instance.Spec.CellName)
 	ss := statefulset.NewStatefulSet(novametadata.StatefulSet(instance, inputHash, serviceLabels, annotations), r.RequeueTimeout)
 	ctrlResult, err := ss.CreateOrPatch(ctx, h)
 	if err != nil && !k8s_errors.IsNotFound(err) {
-		log.Error(err, "Deployment failed", "instance", instance)
+		Log.Error(err, "Deployment failed", "instance", instance)
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.DeploymentReadyCondition,
 			condition.ErrorReason,
@@ -364,7 +371,7 @@ func (r *NovaMetadataReconciler) ensureDeployment(
 			err.Error()))
 		return ctrlResult, err
 	} else if (ctrlResult != ctrl.Result{} || k8s_errors.IsNotFound(err)) {
-		log.Info("Deployment in progress", "instance", instance)
+		Log.Info("Deployment in progress", "instance", instance)
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.DeploymentReadyCondition,
 			condition.RequestedReason,
@@ -403,10 +410,10 @@ func (r *NovaMetadataReconciler) ensureDeployment(
 	}
 
 	if instance.Status.ReadyCount > 0 || *instance.Spec.Replicas == 0 {
-		log.Info("Deployment is ready", "instance", instance)
+		Log.Info("Deployment is ready", "instance", instance)
 		instance.Status.Conditions.MarkTrue(condition.DeploymentReadyCondition, condition.DeploymentReadyMessage)
 	} else {
-		log.Info("Deployment is not ready", "instance", instance, "Status", ss.GetStatefulSet().Status)
+		Log.Info("Deployment is not ready", "instance", instance, "Status", ss.GetStatefulSet().Status)
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.DeploymentReadyCondition,
 			condition.RequestedReason,
@@ -482,12 +489,11 @@ func (r *NovaMetadataReconciler) reconcileDelete(
 	h *helper.Helper,
 	instance *novav1beta1.NovaMetadata,
 ) error {
-	log := GetLog(ctx, "galera")
-
-	log.Info("Reconciling delete", "instance", instance)
+	Log := r.GetLogger(ctx)
+	Log.Info("Reconciling delete", "instance", instance)
 	// TODO(ksambor): add cleanup for the service rows in the nova DB
 	// when the service is scaled in or deleted
-	log.Info("Reconciled delete successfully", "instance", instance)
+	Log.Info("Reconciled delete successfully", "instance", instance)
 	return nil
 }
 
