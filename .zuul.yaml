@@ -114,10 +114,16 @@
               tenant:
                 ip: 172.19.0.5
 
+- job:
+    name: nova-operator-cifmw-kuttl
+    parent: cifmw-base-kuttl
+    vars:
+      cifmw_kuttl_tests_operator_list:
+        - nova-operator
 
 - project:
     name: openstack-k8s-operators/nova-operator
     github-check:
       jobs:
         - nova-operator-content-provider
-        - nova-operator-kuttl
+        - nova-operator-cifmw-kuttl
