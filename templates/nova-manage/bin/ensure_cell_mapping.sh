@@ -19,7 +19,10 @@ export CELL_NAME=${CELL_NAME:?"Please specify a CELL_NAME variable."}
 
 # NOTE(gibi): nova-manage should be enhanced upstream to get rid of this
 # uglyness
-cell_uuid=$(nova-manage cell_v2 list_cells | tr ' ' '|' | tr --squeeze-repeats '|' | grep "$CELL_NAME" | cut -d '|' -f 3)
+# Note the "|" around the CELL_NAME, that is needed as a single line from
+# nova-manage cell_v2 cell_list can match to multiple cells if the cell name
+# is part of the line, e.g. as the user name of the DB URL
+cell_uuid=$(nova-manage cell_v2 list_cells | tr ' ' '|' | tr --squeeze-repeats '|' | grep -e "^|$CELL_NAME|" | cut -d '|' -f 3)
 
 if [ -z "${cell_uuid}" ]; then
     if [ "${CELL_NAME}" = "cell0" ]; then
