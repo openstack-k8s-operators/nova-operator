@@ -76,23 +76,22 @@ type NovaServiceBase struct {
 }
 
 // Debug allows enabling different debug option for the operator
+// QUESTION(gibi): Not all CR will run a service, dbsync, or cells mappings
+// jobs.  Should we have per CR Debug struct, or keep this generic one and
+// ignore fields in the controller that are not applicable?
 type Debug struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=false
-	// StopDBSync allows stopping the init container before running db sync
-	// to apply the DB schema
-	// QUESTION(gibi): Not all CR will run dbsync, should we have per CR
-	// Debug struct or keep this generic one and ignore fields in the
-	// controller that are not applicable
-	StopDBSync bool `json:"stopDBSync"`
+	// StopService allows stopping the service container before staring the
+	// openstack service binary. If the CR does not start any service, then the
+	// value of the field is ignored.
+	StopService bool `json:"stopService"`
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=false
-	// StopService allows stopping the service container before staring
-	// the openstack service binary
-	// QUESTION(gibi): Not all CR will run a service, should we have per CR
-	// Debug struct or keep this generic one and ignore fields in the
-	// controller that are not applicable
-	StopService bool `json:"stopService"`
+	// StopJob allows stopping the jobs containers, like mapping cells, or
+	// dbsync, before executing the script of the job. If the CR does not start
+	// any Jobs, then the value of the field is ignored.
+	StopJob bool `json:"stopJob"`
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=false
 	// PreserveJobs - do not delete jobs after they finished e.g. to check logs

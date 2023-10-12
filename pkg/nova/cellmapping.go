@@ -5,8 +5,13 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
+)
+
+const (
+	cellMappingCommand      = "/usr/local/bin/kolla_set_configs && /var/lib/openstack/bin/ensure_cell_mapping.sh"
 )
 
 func CellMappingJob(
@@ -19,9 +24,11 @@ func CellMappingJob(
 ) *batchv1.Job {
 	runAsUser := int64(0)
 
-	args := []string{
-		"-c",
-		"/usr/local/bin/kolla_set_configs && /var/lib/openstack/bin/ensure_cell_mapping.sh",
+	args := []string{"-c"}
+	if cell.Spec.Debug.StopJob {
+		args = append(args, common.DebugCommand)
+	} else {
+		args = append(args, cellMappingCommand)
 	}
 
 	envVars := map[string]env.Setter{}
