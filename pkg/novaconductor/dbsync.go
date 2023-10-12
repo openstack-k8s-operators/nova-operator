@@ -42,7 +42,7 @@ func CellDBSyncJob(
 	runAsUser := int64(0)
 
 	args := []string{"-c"}
-	if instance.Spec.Debug.StopDBSync {
+	if instance.Spec.Debug.StopJob {
 		args = append(args, common.DebugCommand)
 	} else {
 		args = append(args, cellDBSyncCommand)
