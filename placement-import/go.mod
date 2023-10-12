@@ -8,9 +8,9 @@ require (
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.4.0
 	github.com/onsi/ginkgo/v2 v2.13.0
 	github.com/onsi/gomega v1.28.0
-	github.com/openstack-k8s-operators/keystone-operator/api v0.3.1-0.20231005132119-e75019792469
+	github.com/openstack-k8s-operators/keystone-operator/api v0.3.1-0.20231012072957-8aa64de690a9
 	github.com/openstack-k8s-operators/lib-common/modules/common v0.3.1-0.20231011150636-e8a0540a3c32
-	github.com/openstack-k8s-operators/lib-common/modules/test v0.3.1-0.20231009135225-e0907a2df5d8
+	github.com/openstack-k8s-operators/lib-common/modules/test v0.3.1-0.20231011150636-e8a0540a3c32
 	github.com/openstack-k8s-operators/mariadb-operator/api v0.3.0
 	github.com/openstack-k8s-operators/placement-operator/api v0.0.0-20230602092913-53f380989946
 	go.uber.org/zap v1.26.0
@@ -54,7 +54,7 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/openshift/api v3.9.0+incompatible // indirect
-	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.3.1-0.20231009135225-e0907a2df5d8 //indirect
+	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.3.1-0.20231011150636-e8a0540a3c32 //indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_golang v1.14.0 // indirect
 	github.com/prometheus/client_model v0.3.0 // indirect
