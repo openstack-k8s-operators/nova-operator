@@ -46,7 +46,7 @@ import (
 	"github.com/openstack-k8s-operators/placement-operator/controllers"
 
 	keystone_test "github.com/openstack-k8s-operators/keystone-operator/api/test/helpers"
-	common_test "github.com/openstack-k8s-operators/lib-common/modules/test/helpers"
+	common_test "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
 	mariadb_test "github.com/openstack-k8s-operators/mariadb-operator/api/test/helpers"
 	//+kubebuilder:scaffold:imports
 )
