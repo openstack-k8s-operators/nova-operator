@@ -1,0 +1,22 @@
+apiVersion: nova.openstack.org/v1beta1
+kind: Nova
+metadata:
+  name: nova
+spec:
+  secret: osp-secret
+  cellTemplates:
+    cell0:
+      cellDatabaseUser: nova_cell0
+      hasAPIAccess: true
+    cell1:
+      novaComputeTemplates:
+        computeFake1:
+          customServiceConfig: ""
+          replicas: 1
+          resources: {}
+          computeDriver: fake.FakeDriver
+        computeFake2:
+          customServiceConfig: ""
+          replicas: 1
+          resources: {}
+          computeDriver: fake.FakeDriver
