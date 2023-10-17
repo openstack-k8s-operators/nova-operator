@@ -273,6 +273,9 @@ var _ = Describe("NovaCell controller", func() {
 			Expect(configData).To(ContainSubstring("[vnc]\nenabled = True"))
 			Expect(configData).Should(
 				ContainSubstring("[upgrade_levels]\ncompute = auto"))
+			Expect(configData).To(
+				ContainSubstring(
+					"live_migration_uri = qemu+ssh://nova@%s/system?keyfile=/var/lib/nova/.ssh/ssh-privatekey"))
 
 			th.ExpectCondition(
 				cell1.CellCRName,
