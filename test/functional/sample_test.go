@@ -94,6 +94,18 @@ var _ = Describe("Samples", func() {
 			GetNova(name)
 		})
 	})
+	When("nova_v1beta1_nova-compute-ironic.yaml sample is applied", func() {
+		It("Nova is created", func() {
+			name := CreateNovaFromSample("nova_v1beta1_nova-compute-ironic.yaml", novaNames.NovaName)
+			GetNova(name)
+		})
+	})
+	When("nova_v1beta1_nova-compute-fake.yaml sample is applied", func() {
+		It("Nova is created", func() {
+			name := CreateNovaFromSample("nova_v1beta1_nova-compute-fake.yaml", novaNames.NovaName)
+			GetNova(name)
+		})
+	})
 	When("nova_v1beta1_novaapi.yaml sample is applied", func() {
 		It("NovaAPI is created", func() {
 			name := CreateNovaAPIFromSample("nova_v1beta1_novaapi.yaml", novaNames.APIName)

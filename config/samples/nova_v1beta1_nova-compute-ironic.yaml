@@ -1,0 +1,19 @@
+apiVersion: nova.openstack.org/v1beta1
+kind: Nova
+metadata:
+  name: nova
+spec:
+  secret: osp-secret
+  cellTemplates:
+    cell0:
+      cellDatabaseUser: nova_cell0
+      hasAPIAccess: true
+    cell1:
+      novaComputeTemplates:
+        computeIronic:
+          customServiceConfig: ""
+          replicas: 1
+          resources: {}
+          computeDriver: ironic.IronicDriver
+          networkAttachments:
+              - internalapi
