@@ -149,10 +149,12 @@ build: generate fmt vet ## Build manager binary.
 	go build -o bin/manager main.go
 
 .PHONY: run
+run: export METRICS_PORT?=24600
+run: export HEALTH_PORT?=24601
 run: export ENABLE_WEBHOOKS?=false
 run: manifests generate fmt vet ## Run a controller from your host.
 	/bin/bash hack/clean_local_webhook.sh
-	go run ./main.go
+	go run ./main.go -metrics-bind-address ":$(METRICS_PORT)" -health-probe-bind-address ":$(HEALTH_PORT)"
 
 .PHONY: docker-build
 docker-build: ## Build docker image with the manager.
@@ -350,10 +352,12 @@ update-nova-csv:
 # Used for webhook testing
 SKIP_CERT ?=false
 .PHONY: run-with-webhook
+run-with-webhook: export METRICS_PORT?=24600
+run-with-webhook: export HEALTH_PORT?=24601
 run-with-webhook: manifests generate fmt vet update-nova-csv ## Run a controller from your host.
 	/bin/bash hack/clean_local_webhook.sh
 	/bin/bash hack/configure_local_webhook.sh
-	go run ./main.go
+	go run ./main.go -metrics-bind-address ":$(METRICS_PORT)" -health-probe-bind-address ":$(HEALTH_PORT)"
 
 KUTTL_SUITE ?= default
 KUTTL_NAMESPACE ?= nova-kuttl-$(KUTTL_SUITE)
