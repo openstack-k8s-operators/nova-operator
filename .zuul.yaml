@@ -188,6 +188,8 @@
         - test_volume_snapshot_create_get_list_delete
         - tempest.api.compute.servers.test_server_rescue.ServerBootFromVolumeStableRescueTest
         - test_stable_device_rescue_disk_virtio_with_volume_attached
+        - test_resize_volume_backed_server_confirm
+        - test_resize_server_revert_with_volume_attached
       # Need to check
         - tempest.api.compute.admin.test_auto_allocate_network.AutoAllocateNetworkTest.test_server_multi_create_auto_allocate
         - tempest.api.object_storage.test_container_sync_middleware
@@ -196,15 +198,7 @@
         - tempest.api.network.admin.test_dhcp_agent_scheduler
       # Migration does not work yet
         - tempest.api.compute.admin.test_live_migration
-        - tempest.api.compute.admin.test_migrations
-        - test_delete_server_while_in_verify_resize_state
-        - test_resize_server_from_auto_to_manual
-        - test_resize_server_from_manual_to_auto
-        - test_resize_server
-        - test_resize_volume_backed_server_confirm
-        - test_server_connectivity_cold_migration
         - test_server_connectivity_live_migration
-        - test_server_connectivity_resize
       # Swift test failing with unauthorized errors
         - tempest.api.object_storage
         - tempest.scenario.test_object_storage
