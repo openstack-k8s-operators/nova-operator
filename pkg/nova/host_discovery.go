@@ -15,12 +15,17 @@ limitations under the License.
 package nova
 
 import (
+	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	env "github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+const (
+	discoverCommand = "/usr/local/bin/kolla_set_configs && /var/lib/openstack/bin/host_discover.sh"
 )
 
 func HostDiscoveryJob(
@@ -32,9 +37,11 @@ func HostDiscoveryJob(
 ) *batchv1.Job {
 	runAsUser := int64(0)
 
-	args := []string{
-		"-c",
-		"/usr/local/bin/kolla_set_configs && /var/lib/openstack/bin/host_discover.sh",
+	args := []string{"-c"}
+	if instance.Spec.Debug.StopJob {
+		args = append(args, common.DebugCommand)
+	} else {
+		args = append(args, discoverCommand)
 	}
 
 	envVars := map[string]env.Setter{}

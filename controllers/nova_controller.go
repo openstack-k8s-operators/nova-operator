@@ -642,22 +642,16 @@ func (r *NovaReconciler) initConditions(
 	return nil
 }
 
-func (r *NovaReconciler) ensureNovaJobsSecret(
+func (r *NovaReconciler) ensureNovaManageJobSecret(
 	ctx context.Context, h *helper.Helper, instance *novav1.Nova,
 	cell *novav1.NovaCell,
+	ospSecret corev1.Secret,
 	cellTemplate novav1.NovaCellTemplate,
 	apiDBHostname string,
 	cellTransportURL string,
 ) (map[string]env.Setter, string, string, error) {
-	scriptName := ""
-	configName := ""
-	ospSecret, _, err := secret.GetSecret(ctx, h, instance.Spec.Secret, instance.Namespace)
-	if err != nil {
-		return nil, scriptName, configName, err
-	}
-
-	configName = fmt.Sprintf("%s-config-data", cell.Name+"-manage")
-	scriptName = fmt.Sprintf("%s-scripts", cell.Name+"-manage")
+	configName := fmt.Sprintf("%s-config-data", cell.Name+"-manage")
+	scriptName := fmt.Sprintf("%s-scripts", cell.Name+"-manage")
 
 	cmLabels := labels.GetLabels(
 		instance, labels.GetGroupLabel(NovaLabelPrefix), map[string]string{},
@@ -725,7 +719,7 @@ func (r *NovaReconciler) ensureNovaJobsSecret(
 	}
 
 	configHash := make(map[string]env.Setter)
-	err = secret.EnsureSecrets(ctx, h, instance, cms, &configHash)
+	err := secret.EnsureSecrets(ctx, h, instance, cms, &configHash)
 
 	return configHash, scriptName, configName, err
 }
@@ -891,8 +885,8 @@ func (r *NovaReconciler) ensureCell(
 		// nova_api DB.
 		return cell, nova.CellDeploying, err
 	}
-	configHash, scriptName, configName, err := r.ensureNovaJobsSecret(ctx, h, instance,
-		cell, cellTemplate, apiDB.GetDatabaseHostname(), cellTransportURL)
+	configHash, scriptName, configName, err := r.ensureNovaManageJobSecret(ctx, h, instance,
+		cell, secret, cellTemplate, apiDB.GetDatabaseHostname(), cellTransportURL)
 
 	if err != nil {
 		return cell, nova.CellFailed, err
