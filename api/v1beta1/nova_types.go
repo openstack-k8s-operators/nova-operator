@@ -134,8 +134,8 @@ type NovaStatus struct {
 	// configuration.
 	RegisteredCells map[string]string `json:"registeredCells,omitempty"`
 
-	// DiscoveredCells is a map keyed by cell names that have discovered all computes in cell
-	// value is a hash of config from all computes in cell
+	// DiscoveredCells is a map keyed by cell names that have discovered all kubernetes managed
+	// computes in cell value is a hash of config from all kubernetes managed computes in cell
 	DiscoveredCells map[string]string `json:"discoveredCells,omitempty"`
 }
 

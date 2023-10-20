@@ -448,10 +448,11 @@ var _ = Describe("Nova reconfiguration", func() {
 
 			Eventually(func(g Gomega) {
 				nova := GetNova(novaNames.NovaName)
-				zero := int32(0)
 				cell1 := nova.Spec.CellTemplates["cell1"]
 				ironicTemplate := cell1.NovaComputeTemplates[ironicComputeName]
-				ironicTemplate.Replicas = &zero
+				// we change replicas to rerun job.In that case replica can be only set to 0
+				// because ironicDriver can't have more than 1 replica
+				ironicTemplate.Replicas = ptr.To(int32(0))
 				cell1.NovaComputeTemplates[ironicComputeName] = ironicTemplate
 				nova.Spec.CellTemplates["cell1"] = cell1
 
