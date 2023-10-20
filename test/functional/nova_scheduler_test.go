@@ -165,6 +165,8 @@ var _ = Describe("NovaScheduler controller", func() {
 			configData := string(configDataMap.Data["01-nova.conf"])
 			Expect(configData).To(ContainSubstring("transport_url=rabbit://api/fake"))
 			Expect(configData).To(ContainSubstring("password = service-password"))
+			Expect(configData).Should(
+				ContainSubstring("[upgrade_levels]\ncompute = auto"))
 			Expect(configDataMap.Data).Should(HaveKey("02-nova-override.conf"))
 			extraConfigData := string(configDataMap.Data["02-nova-override.conf"])
 			Expect(extraConfigData).To(Equal("foo=bar"))

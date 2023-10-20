@@ -271,6 +271,8 @@ var _ = Describe("NovaCell controller", func() {
 				fmt.Sprintf("nova-novncproxy-%s-public.%s.svc:6080", cell1.CellName, cell1.CellCRName.Namespace))
 			Expect(configData).To(ContainSubstring(vncUrlConfig))
 			Expect(configData).To(ContainSubstring("[vnc]\nenabled = True"))
+			Expect(configData).Should(
+				ContainSubstring("[upgrade_levels]\ncompute = auto"))
 
 			th.ExpectCondition(
 				cell1.CellCRName,

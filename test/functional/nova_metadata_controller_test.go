@@ -171,6 +171,8 @@ var _ = Describe("NovaMetadata controller", func() {
 				Expect(configData).Should(
 					ContainSubstring(
 						"connection = mysql+pymysql://nova_api:api-database-password@nova-api-db-hostname/nova_api"))
+				Expect(configData).Should(
+					ContainSubstring("[upgrade_levels]\ncompute = auto"))
 				Expect(configDataMap.Data).Should(HaveKey("02-nova-override.conf"))
 				extraData := string(configDataMap.Data["02-nova-override.conf"])
 				Expect(extraData).To(Equal("foo=bar"))
