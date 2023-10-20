@@ -164,6 +164,8 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 				Expect(configData).Should(ContainSubstring("novncproxy_port = 6080"))
 				Expect(configData).Should(ContainSubstring("password = service-password"))
 				Expect(configData).Should(ContainSubstring("transport_url=rabbit://cell1/fake"))
+				Expect(configData).Should(
+					ContainSubstring("[upgrade_levels]\ncompute = auto"))
 				Expect(configDataMap.Data).Should(HaveKey("02-nova-override.conf"))
 				extraData := string(configDataMap.Data["02-nova-override.conf"])
 				Expect(extraData).To(Equal("foo=bar"))

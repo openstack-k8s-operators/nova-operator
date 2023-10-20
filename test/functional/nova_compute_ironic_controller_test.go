@@ -152,6 +152,8 @@ var _ = Describe("NovaCompute controller", func() {
 				configData := string(configDataMap.Data["01-nova.conf"])
 				Expect(configData).Should(
 					ContainSubstring("transport_url=rabbit://cell1/fake"))
+				Expect(configData).Should(
+					ContainSubstring("[upgrade_levels]\ncompute = auto"))
 				Expect(configData).Should(ContainSubstring("password = service-password"))
 				Expect(configData).Should(ContainSubstring("compute_driver = ironic.IronicDriver"))
 				Expect(configDataMap.Data).Should(HaveKey("02-nova-override.conf"))

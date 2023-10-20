@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	cellMappingCommand      = "/usr/local/bin/kolla_set_configs && /var/lib/openstack/bin/ensure_cell_mapping.sh"
+	cellMappingCommand = "/usr/local/bin/kolla_set_configs && /var/lib/openstack/bin/ensure_cell_mapping.sh"
 )
 
 func CellMappingJob(
