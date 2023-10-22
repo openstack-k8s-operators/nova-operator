@@ -751,7 +751,7 @@ func (r *NovaCellReconciler) ensureNovaCompute(
 	}
 
 	if op != controllerutil.OperationResultNone {
-		Log.Info(fmt.Sprintf("NovaCompute %s.", string(op)), "NovaCompute.Name", novacompute.Name)
+		Log.Info(fmt.Sprintf("NovaCompute %s, NovaCompute.Name %s .", string(op), novacompute.Name))
 	}
 
 	if novacompute.IsReady() {
