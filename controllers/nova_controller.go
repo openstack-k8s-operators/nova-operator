@@ -1036,7 +1036,7 @@ func (r *NovaReconciler) ensureAPI(
 	}
 
 	if op != controllerutil.OperationResultNone {
-		Log.Info(fmt.Sprintf("NovaAPI %s , NovaAPI.Name %s.", string(op)), api.Name)
+		Log.Info(fmt.Sprintf("NovaAPI %s , NovaAPI.Name %s.", string(op), api.Name))
 	}
 
 	c := api.Status.Conditions.Mirror(novav1.NovaAPIReadyCondition)
@@ -1315,7 +1315,7 @@ func (r *NovaReconciler) ensureMQ(
 	}
 
 	if op != controllerutil.OperationResultNone {
-		Log.Info(fmt.Sprintf("TransportURL object %s created or patched %s", transportName, transportURL))
+		Log.Info(fmt.Sprintf("TransportURL object %s created or patched %+v", transportName, transportURL))
 		return "", nova.MQCreating, nil
 	}
 
