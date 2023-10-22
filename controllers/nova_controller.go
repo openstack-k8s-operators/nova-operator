@@ -879,7 +879,7 @@ func (r *NovaReconciler) ensureCell(
 	}
 
 	if op != controllerutil.OperationResultNone {
-		Log.Info(fmt.Sprintf("NovaCell %s.", string(op)), "NovaCell.Name", cell.Name)
+		Log.Info(fmt.Sprintf("NovaCell %s , NovaCell.Name %s", string(op), cell.Name))
 	}
 
 	if !cell.IsReady() {
@@ -1036,7 +1036,7 @@ func (r *NovaReconciler) ensureAPI(
 	}
 
 	if op != controllerutil.OperationResultNone {
-		Log.Info(fmt.Sprintf("NovaAPI %s.", string(op)), "NovaAPI.Name", api.Name)
+		Log.Info(fmt.Sprintf("NovaAPI %s , NovaAPI.Name %s.", string(op)), api.Name)
 	}
 
 	c := api.Status.Conditions.Mirror(novav1.NovaAPIReadyCondition)
@@ -1110,9 +1110,8 @@ func (r *NovaReconciler) ensureScheduler(
 	}
 
 	if op != controllerutil.OperationResultNone {
-		Log.Info(fmt.Sprintf("NovaScheduler %s.", string(op)),
-			"NovaScheduler.Name", scheduler.Name,
-		)
+		Log.Info(fmt.Sprintf("NovaScheduler %s. NovaScheduler.Name %s", string(op),
+			scheduler.Name))
 	}
 
 	c := scheduler.Status.Conditions.Mirror(novav1.NovaSchedulerReadyCondition)
@@ -1316,7 +1315,7 @@ func (r *NovaReconciler) ensureMQ(
 	}
 
 	if op != controllerutil.OperationResultNone {
-		Log.Info(fmt.Sprintf("TransportURL object %s created or patched", transportName), transportURL)
+		Log.Info(fmt.Sprintf("TransportURL object %s created or patched %s", transportName, transportURL))
 		return "", nova.MQCreating, nil
 	}
 
@@ -1460,7 +1459,7 @@ func (r *NovaReconciler) ensureMetadata(
 	}
 
 	if op != controllerutil.OperationResultNone {
-		Log.Info(fmt.Sprintf("NovaMetadata %s.", string(op)), "NovaMetadata.Name", metadata.Name)
+		Log.Info(fmt.Sprintf("NovaMetadata %s, NovaMetadata.Name %s", string(op), metadata.Name))
 	}
 
 	c := metadata.Status.Conditions.Mirror(novav1.NovaMetadataReadyCondition)
