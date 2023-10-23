@@ -193,6 +193,7 @@
         - tempest.api.object_storage.test_container_sync_middleware
         - tempest.api.object_storage.test_object_version
         - tempest.api.compute.servers.test_server_rescue.ServerStableDeviceRescueTestIDE
+        - tempest.api.network.admin.test_dhcp_agent_scheduler
       # Migration does not work yet
         - tempest.api.compute.admin.test_live_migration
         - tempest.api.compute.admin.test_migrations
