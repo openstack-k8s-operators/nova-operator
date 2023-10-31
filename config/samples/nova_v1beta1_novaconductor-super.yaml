@@ -5,7 +5,6 @@ metadata:
 spec:
   apiDatabaseHostname: openstack
   cellName: cell0
-  containerImage: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
   keystoneAuthURL: http://keystone-public-openstack.apps-crc.testing
   secret: osp-secret
   serviceAccount: nova

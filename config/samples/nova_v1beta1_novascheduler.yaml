@@ -6,7 +6,6 @@ spec:
   secret: osp-secret
   apiDatabaseHostname: openstack
   cell0DatabaseHostname: openstack
-  containerImage: quay.io/podified-antelope-centos9/openstack-nova-scheduler:current-podified
   keystoneAuthURL: http://keystone-public-openstack.apps-crc.testing
   customServiceConfig: |
     [DEFAULT]
