@@ -4,6 +4,7 @@ metadata:
   annotations:
     alm-examples: '[]'
     capabilities: Basic Install
+    features.operators.openshift.io/disconnected: "true"
     operatorframework.io/suggested-namespace: openstack
     operators.openshift.io/infrastructure-features: '["disconnected"]'
     operators.operatorframework.io/operator-type: non-standalone
@@ -23,6 +24,11 @@ spec:
       kind: NovaCell
       name: novacells.nova.openstack.org
       version: v1beta1
+    - description: NovaCompute is the Schema for the NovaCompute
+      displayName: Nova Compute
+      kind: NovaCompute
+      name: novacomputes.nova.openstack.org
+      version: v1beta1
     - description: NovaConductor is the Schema for the novaconductors API
       displayName: Nova Conductor
       kind: NovaConductor
@@ -37,11 +43,6 @@ spec:
       displayName: Nova No VNCProxy
       kind: NovaNoVNCProxy
       name: novanovncproxies.nova.openstack.org
-      version: v1beta1
-    - description: NovaCompute is the Schema for the novacomputes API
-      displayName: Nova Compute
-      kind: NovaCompute
-      name: novacomputes.nova.openstack.org
       version: v1beta1
     - description: Nova is the Schema for the nova API
       displayName: Nova
