@@ -33,6 +33,9 @@ var _ = Describe("NovaScheduler controller", func() {
 		// Uncomment this if you need the full output in the logs from gomega
 		// matchers
 		// format.MaxLength = 0
+		DeferCleanup(
+			k8sClient.Delete, ctx, CreateNovaSecret(novaNames.NovaName.Namespace, SecretName))
+		DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace))
 		spec := GetDefaultNovaSchedulerSpec(novaNames)
 		spec["customServiceConfig"] = "foo=bar"
 		DeferCleanup(th.DeleteInstance, CreateNovaScheduler(novaNames.SchedulerName, spec))
