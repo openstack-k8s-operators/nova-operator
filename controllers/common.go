@@ -18,7 +18,10 @@ package controllers
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
+	"net/http"
 	"sort"
 	"time"
 
@@ -33,15 +36,20 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/nova-operator/pkg/nova"
 
+	gophercloud "github.com/gophercloud/gophercloud"
+	gophercloud_openstack "github.com/gophercloud/gophercloud/openstack"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/endpoint"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 	nad "github.com/openstack-k8s-operators/lib-common/modules/common/networkattachment"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/secret"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
+	"github.com/openstack-k8s-operators/lib-common/modules/openstack"
 )
 
 const (
@@ -90,6 +98,9 @@ const (
 	// TransportURLSelector is the name of key in the internal cell
 	// Secret for the cell message bus transport URL
 	TransportURLSelector = "transport_url"
+
+	// defaultRequestTimeout is the default timeout duration for requests
+	defaultRequestTimeout = 10 * time.Second
 )
 
 type conditionsGetter interface {
@@ -523,4 +534,106 @@ func (r *ReconcilerBase) ensureMetadataDeleted(
 		instance, "NovaMetadata", metadata)
 
 	return nil
+}
+
+func getNovaClient(ctx context.Context,
+	h *helper.Helper,
+	keystoneAPI *keystonev1.KeystoneAPI) (*gophercloud.ServiceClient, ctrl.Result, error) {
+
+	// get public endpoint as authurl from keystone instance
+	authURL, err := keystoneAPI.GetEndpoint(endpoint.EndpointInternal)
+	if err != nil {
+		return nil, ctrl.Result{}, err
+	}
+
+	// get the password of the admin user from Spec.Secret
+	// using PasswordSelectors.Admin
+	authPassword, _, err := secret.GetDataFromSecret(
+		ctx,
+		h,
+		keystoneAPI.Spec.Secret,
+		10*time.Second,
+		keystoneAPI.Spec.PasswordSelectors.Admin)
+	if err != nil {
+		return nil, ctrl.Result{}, err
+	}
+
+	cfg := openstack.AuthOpts{
+		AuthURL:    authURL,
+		Username:   keystoneAPI.Spec.AdminUser,
+		Password:   authPassword,
+		TenantName: keystoneAPI.Spec.AdminProject,
+		DomainName: "Default",
+		Region:     keystoneAPI.Spec.Region,
+	}
+	opts := gophercloud.AuthOptions{
+		IdentityEndpoint: cfg.AuthURL,
+		Username:         cfg.Username,
+		Password:         cfg.Password,
+		TenantName:       cfg.TenantName,
+		DomainName:       cfg.DomainName,
+	}
+	if cfg.Scope != nil {
+		opts.Scope = cfg.Scope
+	}
+
+	// define http client for setting timeout, proxy and tls settings
+	httpClient := http.Client{
+		Transport: &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+		},
+		Timeout: defaultRequestTimeout,
+	}
+
+	// create tls config
+	tlsConfig := &tls.Config{}
+	if cfg.TLS != nil {
+		if len(cfg.TLS.CACerts) > 0 {
+			caCertPool := x509.NewCertPool()
+			for _, caCert := range cfg.TLS.CACerts {
+				caCertPool.AppendCertsFromPEM([]byte(caCert))
+			}
+			tlsConfig.RootCAs = caCertPool
+		}
+		if cfg.TLS.Insecure {
+			tlsConfig.InsecureSkipVerify = true
+		}
+
+		if cfg.TLS.ClientCert != "" && cfg.TLS.ClientKey != "" {
+			cert, err := tls.LoadX509KeyPair(cfg.TLS.ClientCert, cfg.TLS.ClientKey)
+			if err != nil {
+				return nil, ctrl.Result{}, err
+			}
+
+			tlsConfig.Certificates = []tls.Certificate{cert}
+		}
+	}
+
+	transport := &http.Transport{Proxy: http.ProxyFromEnvironment, TLSClientConfig: tlsConfig}
+
+	// create provider client and add inject customized http client
+	providerClient, err := gophercloud_openstack.NewClient(opts.IdentityEndpoint)
+	if err != nil {
+		return nil, ctrl.Result{}, err
+	}
+
+	providerClient.HTTPClient = httpClient
+	providerClient.HTTPClient.Transport = transport
+
+	// authenticate the client
+	err = gophercloud_openstack.Authenticate(providerClient, opts)
+	if err != nil {
+		return nil, ctrl.Result{}, err
+	}
+
+	// create the identity client using previous providerClient
+	endpointOpts := gophercloud.EndpointOpts{
+		Region: cfg.Region,
+	}
+	computeClient, err := gophercloud_openstack.NewComputeV2(providerClient, endpointOpts)
+	if err != nil {
+		return nil, ctrl.Result{}, err
+	}
+
+	return computeClient, ctrl.Result{}, nil
 }
