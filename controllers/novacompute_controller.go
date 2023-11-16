@@ -271,7 +271,6 @@ func (r *NovaComputeReconciler) generateConfigs(
 		"default_project_domain": "Default",   // fixme
 		"default_user_domain":    "Default",   // fixme
 		"transport_url":          string(secret.Data[TransportURLSelector]),
-		"log_file":               "/var/log/nova/nova-compute.log",
 		"compute_driver":         instance.Spec.ComputeDriver,
 		// Neither the ironic driver nor the fake driver support VNC
 		"vnc_enabled": false,
