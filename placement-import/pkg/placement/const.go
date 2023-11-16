@@ -25,4 +25,10 @@ const (
 	PlacementPublicPort int32 = 8778
 	// PlacementInternalPort -
 	PlacementInternalPort int32 = 8778
+
+	KollaServiceCommand = "/usr/local/bin/kolla_start"
+
+	// PlacementUserID is the linux user ID used by Kolla for the placement
+	// user in the service containers
+	PlacementUserID int64 = 42482
 )

@@ -79,7 +79,7 @@ func getInitVolumeMounts() []corev1.VolumeMount {
 }
 
 // getVolumeMounts - general VolumeMounts
-func getVolumeMounts() []corev1.VolumeMount {
+func getVolumeMounts(serviceName string) []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		{
 			Name:      "scripts",
@@ -94,7 +94,7 @@ func getVolumeMounts() []corev1.VolumeMount {
 		{
 			Name:      "config-data-merged",
 			MountPath: "/var/lib/kolla/config_files/config.json",
-			SubPath:   "placement-api-config.json",
+			SubPath:   "placement-" + serviceName + "-config.json",
 			ReadOnly:  true,
 		},
 	}

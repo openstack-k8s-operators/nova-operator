@@ -16,20 +16,25 @@
         {
             "source": "/var/lib/config-data/merged/httpd.conf",
             "dest": "/etc/httpd/conf/httpd.conf",
-            "owner": "root",
+            "owner": "apache",
             "perm": "0644"
         },
         {
             "source": "/var/lib/config-data/merged/logging.conf",
             "dest": "/etc/placement/logging.conf",
-            "owner": "root",
-            "perm": "0644"
+            "owner": "placement",
+            "perm": "0600"
         }
     ],
     "permissions": [
         {
             "path": "/var/log/placement",
-            "owner": "placement:placement",
+            "owner": "placement:apache",
+            "recurse": true
+        },
+        {
+            "path": "/etc/httpd/run/",
+            "owner": "placement:apache",
             "recurse": true
         }
     ]

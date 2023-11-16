@@ -26,11 +26,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-)
-
-const (
-	// ServiceCommand -
-	ServiceCommand = "/usr/local/bin/kolla_set_configs && /usr/local/bin/kolla_start"
+	"k8s.io/utils/ptr"
 )
 
 // Deployment func
@@ -40,8 +36,6 @@ func Deployment(
 	labels map[string]string,
 	annotations map[string]string,
 ) *appsv1.Deployment {
-	runAsUser := int64(0)
-
 	livenessProbe := &corev1.Probe{
 		// TODO might need tuning
 		TimeoutSeconds:      5,
@@ -70,7 +64,7 @@ func Deployment(
 			},
 		}
 	} else {
-		args = append(args, ServiceCommand)
+		args = append(args, KollaServiceCommand)
 		//
 		// https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
 		//
@@ -112,10 +106,10 @@ func Deployment(
 							Args:  args,
 							Image: instance.Spec.ContainerImage,
 							SecurityContext: &corev1.SecurityContext{
-								RunAsUser: &runAsUser,
+								RunAsUser: ptr.To(PlacementUserID),
 							},
 							Env:            env.MergeEnvs([]corev1.EnvVar{}, envVars),
-							VolumeMounts:   getVolumeMounts(),
+							VolumeMounts:   getVolumeMounts("api"),
 							Resources:      instance.Spec.Resources,
 							ReadinessProbe: readinessProbe,
 							LivenessProbe:  livenessProbe,

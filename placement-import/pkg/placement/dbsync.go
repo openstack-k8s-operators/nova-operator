@@ -24,11 +24,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-)
-
-const (
-	// DBSyncCommand -
-	DBSyncCommand = "/usr/local/bin/kolla_set_configs && su -s /bin/sh -c \"placement-manage db sync\" placement"
+	"k8s.io/utils/ptr"
 )
 
 // DbSyncJob func
@@ -37,13 +33,11 @@ func DbSyncJob(
 	labels map[string]string,
 	annotations map[string]string,
 ) *batchv1.Job {
-	runAsUser := int64(0)
-
 	args := []string{"-c"}
 	if instance.Spec.Debug.DBSync {
 		args = append(args, common.DebugCommand)
 	} else {
-		args = append(args, DBSyncCommand)
+		args = append(args, KollaServiceCommand)
 	}
 
 	envVars := map[string]env.Setter{}
@@ -73,10 +67,10 @@ func DbSyncJob(
 							Args:  args,
 							Image: instance.Spec.ContainerImage,
 							SecurityContext: &corev1.SecurityContext{
-								RunAsUser: &runAsUser,
+								RunAsUser: ptr.To(PlacementUserID),
 							},
 							Env:          env.MergeEnvs([]corev1.EnvVar{}, envVars),
-							VolumeMounts: getVolumeMounts(),
+							VolumeMounts: getVolumeMounts("dbsync"),
 						},
 					},
 				},

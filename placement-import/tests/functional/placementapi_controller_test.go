@@ -350,7 +350,6 @@ var _ = Describe("PlacementAPI controller", func() {
 
 			container := job.Spec.Template.Spec.Containers[0]
 			Expect(container.VolumeMounts).To(HaveLen(3))
-			Expect(container.Args[1]).To(ContainSubstring("placement-manage db sync"))
 			Expect(container.Image).To(Equal("quay.io/podified-antelope-centos9/openstack-placement-api:current-podified"))
 
 			th.SimulateJobSuccess(names.DBSyncJobName)
