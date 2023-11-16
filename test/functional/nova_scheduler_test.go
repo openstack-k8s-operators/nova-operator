@@ -15,12 +15,17 @@ package functional_test
 
 import (
 	"encoding/json"
+	"fmt"
+	"net/http"
 
 	networkv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	keystone_helper "github.com/openstack-k8s-operators/keystone-operator/api/test/helpers"
+	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
+	api "github.com/openstack-k8s-operators/lib-common/modules/test/apis"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -33,9 +38,38 @@ var _ = Describe("NovaScheduler controller", func() {
 		// Uncomment this if you need the full output in the logs from gomega
 		// matchers
 		// format.MaxLength = 0
+		novaAPIServer := NewNovaAPIFixtureWithServer(logger)
+		novaAPIServer.Setup()
+		DeferCleanup(novaAPIServer.Cleanup)
+		f := keystone_helper.NewKeystoneAPIFixtureWithServer(logger)
+		text := ResponseHandleToken(f.Endpoint(), novaAPIServer.Endpoint())
+		f.Setup(
+			api.Handler{Pattern: "/", Func: f.HandleVersion},
+			api.Handler{Pattern: "/v3/users", Func: f.HandleUsers},
+			api.Handler{Pattern: "/v3/domains", Func: f.HandleDomains},
+			api.Handler{Pattern: "/v3/auth/tokens", Func: func(w http.ResponseWriter, r *http.Request) {
+				switch r.Method {
+				case "POST":
+					w.Header().Add("Content-Type", "application/json")
+					w.WriteHeader(202)
+					fmt.Fprint(w, text)
+				}
+			}})
+		DeferCleanup(f.Cleanup)
+		keystone_name := keystone.CreateKeystoneAPIWithFixture(novaNames.NovaName.Namespace, f)
+		keystone_instance := keystone.GetKeystoneAPI(keystone_name)
+		keystone_instance.Status = keystonev1.KeystoneAPIStatus{
+			APIEndpoints: map[string]string{
+				"public":   f.Endpoint(),
+				"internal": f.Endpoint(),
+			},
+		}
+		Expect(th.K8sClient.Status().Update(th.Ctx, keystone_instance.DeepCopy())).Should(Succeed())
+
+		DeferCleanup(keystone.DeleteKeystoneAPI, keystone_name)
 		DeferCleanup(
 			k8sClient.Delete, ctx, CreateNovaSecret(novaNames.NovaName.Namespace, SecretName))
-		DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace))
+
 		spec := GetDefaultNovaSchedulerSpec(novaNames)
 		spec["customServiceConfig"] = "foo=bar"
 		DeferCleanup(th.DeleteInstance, CreateNovaScheduler(novaNames.SchedulerName, spec))
@@ -512,6 +546,50 @@ var _ = Describe("NovaScheduler controller", func() {
 		It("has the expected container image default", func() {
 			novaSchedulerDefault := GetNovaScheduler(novaNames.SchedulerName)
 			Expect(novaSchedulerDefault.Spec.ContainerImage).To(Equal(util.GetEnvVar("RELATED_IMAGE_NOVA_SCHEDULER_IMAGE_URL_DEFAULT", novav1.NovaSchedulerContainerImage)))
+		})
+	})
+})
+
+var _ = Describe("NovaScheduler controller cleaning", func() {
+	var novaAPIServer *NovaAPIFixture
+	BeforeEach(func() {
+		DeferCleanup(
+			k8sClient.Delete, ctx, CreateNovaSecret(novaNames.NovaName.Namespace, SecretName))
+		novaAPIServer = NewNovaAPIFixtureWithServer(logger)
+		novaAPIServer.Setup()
+		f := keystone_helper.NewKeystoneAPIFixtureWithServer(logger)
+		text := ResponseHandleToken(f.Endpoint(), novaAPIServer.Endpoint())
+		f.Setup(
+			api.Handler{Pattern: "/", Func: f.HandleVersion},
+			api.Handler{Pattern: "/v3/users", Func: f.HandleUsers},
+			api.Handler{Pattern: "/v3/domains", Func: f.HandleDomains},
+			api.Handler{Pattern: "/v3/auth/tokens", Func: func(w http.ResponseWriter, r *http.Request) {
+				switch r.Method {
+				case "POST":
+					w.Header().Add("Content-Type", "application/json")
+					w.WriteHeader(202)
+					fmt.Fprintf(w, text)
+				}
+			}})
+		DeferCleanup(f.Cleanup)
+		DeferCleanup(
+			k8sClient.Delete, ctx, CreateInternalTopLevelSecret(novaNames))
+		spec := GetDefaultNovaSchedulerSpec(novaNames)
+		spec["keystoneAuthURL"] = f.Endpoint()
+		DeferCleanup(
+			th.DeleteInstance, CreateNovaScheduler(novaNames.SchedulerName, spec))
+		DeferCleanup(novaAPIServer.Cleanup)
+	})
+	When("NovaScheduler down service is removed from api", func() {
+		It("during reconciling", func() {
+			th.SimulateStatefulSetReplicaReady(novaNames.SchedulerStatefulSetName)
+			th.ExpectCondition(
+				novaNames.SchedulerName,
+				ConditionGetterFunc(NovaSchedulerConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+			Expect(novaAPIServer.FindRequest("DELETE", "/compute/os-services/3")).To(BeTrue())
 		})
 	})
 })

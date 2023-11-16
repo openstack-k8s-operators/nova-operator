@@ -36,14 +36,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/nova-operator/pkg/nova"
 
 	gophercloud "github.com/gophercloud/gophercloud"
 	gophercloud_openstack "github.com/gophercloud/gophercloud/openstack"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
-	"github.com/openstack-k8s-operators/lib-common/modules/common/endpoint"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 	nad "github.com/openstack-k8s-operators/lib-common/modules/common/networkattachment"
@@ -537,40 +535,19 @@ func (r *ReconcilerBase) ensureMetadataDeleted(
 }
 
 func getNovaClient(ctx context.Context,
-	h *helper.Helper,
-	keystoneAPI *keystonev1.KeystoneAPI) (*gophercloud.ServiceClient, ctrl.Result, error) {
-
-	// get public endpoint as authurl from keystone instance
-	authURL, err := keystoneAPI.GetEndpoint(endpoint.EndpointInternal)
-	if err != nil {
-		return nil, ctrl.Result{}, err
-	}
-
-	// get the password of the admin user from Spec.Secret
-	// using PasswordSelectors.Admin
-	authPassword, _, err := secret.GetDataFromSecret(
-		ctx,
-		h,
-		keystoneAPI.Spec.Secret,
-		10*time.Second,
-		keystoneAPI.Spec.PasswordSelectors.Admin)
-	if err != nil {
-		return nil, ctrl.Result{}, err
-	}
+	h *helper.Helper, authURL string, adminUser string, authPassword string) (*gophercloud.ServiceClient, ctrl.Result, error) {
 
 	cfg := openstack.AuthOpts{
 		AuthURL:    authURL,
-		Username:   keystoneAPI.Spec.AdminUser,
+		Username:   adminUser,
 		Password:   authPassword,
-		TenantName: keystoneAPI.Spec.AdminProject,
-		DomainName: "Default",
-		Region:     keystoneAPI.Spec.Region,
+		DomainName: "Default",   // fixme",
+		Region:     "regionOne", // fixme",
 	}
 	opts := gophercloud.AuthOptions{
 		IdentityEndpoint: cfg.AuthURL,
 		Username:         cfg.Username,
 		Password:         cfg.Password,
-		TenantName:       cfg.TenantName,
 		DomainName:       cfg.DomainName,
 	}
 	if cfg.Scope != nil {
