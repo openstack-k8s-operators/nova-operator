@@ -425,13 +425,8 @@ func (r *NovaSchedulerReconciler) cleanServiceFromNovaDb(
 	l logr.Logger,
 ) error {
 
-	keystoneAPI, err := keystonev1.GetKeystoneAPI(ctx, h, instance.Namespace, map[string]string{})
-
-	if err != nil {
-		return err
-	}
-
-	computeClient, _, err := getNovaClient(ctx, h, keystoneAPI)
+	authPassword := string(secret.Data[ServicePasswordSelector])
+	computeClient, _, err := getNovaClient(ctx, h, instance.Spec.KeystoneAuthURL, instance.Spec.ServiceUser, authPassword)
 	if err != nil {
 		return err
 	}
