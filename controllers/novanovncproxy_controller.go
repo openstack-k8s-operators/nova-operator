@@ -290,7 +290,6 @@ func (r *NovaNoVNCProxyReconciler) generateConfigs(
 		"openstack_region_name":  "regionOne", // fixme
 		"default_project_domain": "Default",   // fixme
 		"default_user_domain":    "Default",   // fixme
-		"log_file":               "/var/log/nova/nova-novncproxy.log",
 	}
 	extraData := map[string]string{}
 	if instance.Spec.CustomServiceConfig != "" {

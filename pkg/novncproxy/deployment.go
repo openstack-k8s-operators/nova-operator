@@ -125,31 +125,8 @@ func StatefulSet(
 					ServiceAccountName: instance.Spec.ServiceAccount,
 					Volumes: []corev1.Volume{
 						nova.GetConfigVolume(nova.GetServiceConfigSecretName(instance.Name)),
-						nova.GetLogVolume(),
 					},
 					Containers: []corev1.Container{
-						// the first container in a pod is the default selected
-						// by oc log so define the log stream container first.
-						{
-							Name: instance.Name + "-log",
-							Command: []string{
-								"/bin/bash",
-							},
-							Args:  []string{"-c", "tail -n+1 -F /var/log/nova/nova-novncproxy.log"},
-							Image: instance.Spec.ContainerImage,
-							SecurityContext: &corev1.SecurityContext{
-								RunAsUser: &runAsUser,
-							},
-							Env: env,
-							VolumeMounts: []corev1.VolumeMount{
-								nova.GetConfigVolumeMount(),
-								nova.GetLogVolumeMount(),
-							},
-							Resources:      instance.Spec.Resources,
-							StartupProbe:   startupProbe,
-							ReadinessProbe: readinessProbe,
-							LivenessProbe:  livenessProbe,
-						},
 						{
 							Name: instance.Name + "-novncproxy",
 							Command: []string{
@@ -163,7 +140,6 @@ func StatefulSet(
 							Env: env,
 							VolumeMounts: []corev1.VolumeMount{
 								nova.GetConfigVolumeMount(),
-								nova.GetLogVolumeMount(),
 								nova.GetKollaConfigVolumeMount("nova-novncproxy"),
 							},
 							Resources:      instance.Spec.Resources,
