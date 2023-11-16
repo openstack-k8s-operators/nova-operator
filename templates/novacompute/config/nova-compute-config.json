@@ -20,12 +20,5 @@
             "perm": "0600",
             "optional": true
         }
-    ],
-    "permissions": [
-        {
-            "path": "/var/log/nova",
-            "owner": "nova:nova",
-            "recurse": true
-        }
     ]
 }

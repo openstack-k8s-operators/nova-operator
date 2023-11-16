@@ -112,7 +112,6 @@ func StatefulSet(
 					ServiceAccountName: instance.Spec.ServiceAccount,
 					Volumes: []corev1.Volume{
 						nova.GetConfigVolume(nova.GetServiceConfigSecretName(instance.Name)),
-						nova.GetLogVolume(),
 					},
 					Containers: []corev1.Container{
 						{
@@ -128,7 +127,6 @@ func StatefulSet(
 							Env: env,
 							VolumeMounts: []corev1.VolumeMount{
 								nova.GetConfigVolumeMount(),
-								nova.GetLogVolumeMount(),
 								nova.GetKollaConfigVolumeMount("nova-compute"),
 							},
 							Resources:      instance.Spec.Resources,
