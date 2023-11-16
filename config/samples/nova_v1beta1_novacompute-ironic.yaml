@@ -1,0 +1,13 @@
+apiVersion: nova.openstack.org/v1beta1
+kind: NovaCompute
+metadata:
+  name: nova-compute-ironic
+spec:
+  novaComputeTemplates:
+    computeIronic:
+      customServiceConfig: ""
+      replicas: 1
+      resources: {}
+      computeDriver: ironic.IronicDriver
+      networkAttachments:
+          - internalapi
