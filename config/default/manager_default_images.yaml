@@ -21,3 +21,5 @@ spec:
           value: quay.io/podified-antelope-centos9/openstack-nova-scheduler:current-podified
         - name: RELATED_IMAGE_NOVA_COMPUTE_IMAGE_URL_DEFAULT
           value: quay.io/podified-antelope-centos9/openstack-nova-compute:current-podified
+        - name: RELATED_IMAGE_NOVA_METADATA_IMAGE_URL_DEFAULT
+          value: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified

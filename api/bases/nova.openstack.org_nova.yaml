@@ -350,8 +350,6 @@ spec:
                         unused.
                       type: string
                     conductorServiceTemplate:
-                      default:
-                        containerImage: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
                       description: ConductorServiceTemplate - defines the cell conductor
                         deployment for the cell.
                       properties:
