@@ -226,7 +226,6 @@ var _ = Describe("NovaConductor controller", func() {
 			Expect(job.Spec.Template.Spec.Containers).To(HaveLen(1))
 			container := job.Spec.Template.Spec.Containers[0]
 			Expect(container.VolumeMounts).To(HaveLen(3))
-			Expect(container.Args[1]).To(ContainSubstring("dbsync.sh"))
 			Expect(container.Image).To(Equal(ContainerImage))
 		})
 

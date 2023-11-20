@@ -24,12 +24,15 @@ import (
 
 const (
 	// KollaServiceCommand - the command to start the service binary in the kolla container
-	KollaServiceCommand = "/usr/local/bin/kolla_set_configs && /usr/local/bin/kolla_start"
+	KollaServiceCommand = "/usr/local/bin/kolla_start"
 	// NovaAPIDatabaseName - the name of the DB to store tha API schema
 	NovaAPIDatabaseName = "nova_api"
 	// NovaCell0DatabaseName - the name of the DB to store the cell schema for
 	// cell0
 	NovaCell0DatabaseName = "nova_cell0"
+	// NovaUserID is the linux user ID used by Kolla for the nova user
+	// in the service containers
+	NovaUserID int64 = 42436
 )
 
 // GetScriptSecretName returns the name of the Secret used for the

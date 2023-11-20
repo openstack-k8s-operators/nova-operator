@@ -1,5 +1,5 @@
 {
-    "command": "",
+    "command": "/var/lib/openstack/bin/host_discover.sh",
     "config_files": [
         {
             "source": "/var/lib/openstack/config/nova-blank.conf",
@@ -19,6 +19,12 @@
             "owner": "nova",
             "perm": "0600",
             "optional": true
+        },
+        {
+            "source": "/var/lib/openstack/bin/host_discover.sh",
+            "dest": "/bin/",
+            "owner": "nova",
+            "perm": "0700"
         }
     ]
 }

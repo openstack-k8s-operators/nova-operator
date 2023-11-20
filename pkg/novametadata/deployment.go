@@ -27,6 +27,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 )
 
 // StatefulSet - returns the StatefulSet definition for the nova-metadata service
@@ -36,8 +37,6 @@ func StatefulSet(
 	labels map[string]string,
 	annotations map[string]string,
 ) *appsv1.StatefulSet {
-	runAsUser := int64(0)
-
 	// This allows the pod to start up slowly. The pod will only be killed
 	// if it does not succeed a probe in 60 seconds.
 	startupProbe := &corev1.Probe{
@@ -135,7 +134,7 @@ func StatefulSet(
 							Args:  []string{"-c", "tail -n+1 -F /var/log/nova/nova-metadata.log"},
 							Image: instance.Spec.ContainerImage,
 							SecurityContext: &corev1.SecurityContext{
-								RunAsUser: &runAsUser,
+								RunAsUser: ptr.To(nova.NovaUserID),
 							},
 							Env: env,
 							VolumeMounts: []corev1.VolumeMount{
@@ -154,7 +153,7 @@ func StatefulSet(
 							Args:  args,
 							Image: instance.Spec.ContainerImage,
 							SecurityContext: &corev1.SecurityContext{
-								RunAsUser: &runAsUser,
+								RunAsUser: ptr.To(nova.NovaUserID),
 							},
 							Env: env,
 							VolumeMounts: []corev1.VolumeMount{

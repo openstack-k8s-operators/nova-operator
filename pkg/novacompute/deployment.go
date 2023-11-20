@@ -26,6 +26,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 )
 
 // StatefulSet - returns the StatefulSet definition for the nova-compute service
@@ -35,8 +36,6 @@ func StatefulSet(
 	labels map[string]string,
 	annotations map[string]string,
 ) *appsv1.StatefulSet {
-	runAsUser := int64(0)
-
 	// After the first successful startupProbe, livenessProbe takes over
 	livenessProbe := &corev1.Probe{
 		// TODO might need tuning
@@ -122,7 +121,7 @@ func StatefulSet(
 							Args:  args,
 							Image: instance.Spec.ContainerImage,
 							SecurityContext: &corev1.SecurityContext{
-								RunAsUser: &runAsUser,
+								RunAsUser: ptr.To(nova.NovaUserID),
 							},
 							Env: env,
 							VolumeMounts: []corev1.VolumeMount{
