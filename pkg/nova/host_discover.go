@@ -22,10 +22,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-)
-
-const (
-	discoverCommand = "/usr/local/bin/kolla_set_configs && /var/lib/openstack/bin/host_discover.sh"
+	"k8s.io/utils/ptr"
 )
 
 func HostDiscoveryJob(
@@ -35,13 +32,11 @@ func HostDiscoveryJob(
 	inputHash string,
 	labels map[string]string,
 ) *batchv1.Job {
-	runAsUser := int64(0)
-
 	args := []string{"-c"}
 	if instance.Spec.Debug.StopJob {
 		args = append(args, common.DebugCommand)
 	} else {
-		args = append(args, discoverCommand)
+		args = append(args, KollaServiceCommand)
 	}
 
 	envVars := map[string]env.Setter{}
@@ -81,13 +76,13 @@ func HostDiscoveryJob(
 							Args:  args,
 							Image: instance.Spec.ConductorServiceTemplate.ContainerImage,
 							SecurityContext: &corev1.SecurityContext{
-								RunAsUser: &runAsUser,
+								RunAsUser: ptr.To(NovaUserID),
 							},
 							Env: env,
 							VolumeMounts: []corev1.VolumeMount{
 								GetConfigVolumeMount(),
 								GetScriptVolumeMount(),
-								GetKollaConfigVolumeMount("nova-manage"),
+								GetKollaConfigVolumeMount("host-discover"),
 							},
 						},
 					},

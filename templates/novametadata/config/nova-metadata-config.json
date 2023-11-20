@@ -32,6 +32,11 @@
       "path": "/var/log/nova",
       "owner": "nova:apache",
       "recurse": true
+    },
+    {
+      "path": "/etc/httpd/run/",
+      "owner": "nova:apache",
+      "recurse": true
     }
   ]
 }

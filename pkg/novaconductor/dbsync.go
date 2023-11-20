@@ -26,11 +26,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-)
-
-const (
-	// cellDBSyncCommand - the command to be used to run db sync for the cell DB
-	cellDBSyncCommand = "/usr/local/bin/kolla_set_configs && /bin/sh -c /var/lib/openstack/bin/dbsync.sh"
+	"k8s.io/utils/ptr"
 )
 
 // CellDBSyncJob - define a batchv1.Job to be run to apply the cel DB schema
@@ -39,13 +35,11 @@ func CellDBSyncJob(
 	labels map[string]string,
 	annotations map[string]string,
 ) *batchv1.Job {
-	runAsUser := int64(0)
-
 	args := []string{"-c"}
 	if instance.Spec.Debug.StopJob {
 		args = append(args, common.DebugCommand)
 	} else {
-		args = append(args, cellDBSyncCommand)
+		args = append(args, nova.KollaServiceCommand)
 	}
 
 	envVars := map[string]env.Setter{}
@@ -81,13 +75,13 @@ func CellDBSyncJob(
 							Args:  args,
 							Image: instance.Spec.ContainerImage,
 							SecurityContext: &corev1.SecurityContext{
-								RunAsUser: &runAsUser,
+								RunAsUser: ptr.To(nova.NovaUserID),
 							},
 							Env: env,
 							VolumeMounts: []corev1.VolumeMount{
 								nova.GetConfigVolumeMount(),
 								nova.GetScriptVolumeMount(),
-								nova.GetKollaConfigVolumeMount("nova-conductor"),
+								nova.GetKollaConfigVolumeMount("nova-conductor-dbsync"),
 							},
 						},
 					},

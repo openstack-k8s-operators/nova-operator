@@ -4,14 +4,11 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
-)
-
-const (
-	cellMappingCommand = "/usr/local/bin/kolla_set_configs && /var/lib/openstack/bin/ensure_cell_mapping.sh"
 )
 
 func CellMappingJob(
@@ -22,13 +19,11 @@ func CellMappingJob(
 	inputHash string,
 	labels map[string]string,
 ) *batchv1.Job {
-	runAsUser := int64(0)
-
 	args := []string{"-c"}
 	if cell.Spec.Debug.StopJob {
 		args = append(args, common.DebugCommand)
 	} else {
-		args = append(args, cellMappingCommand)
+		args = append(args, KollaServiceCommand)
 	}
 
 	envVars := map[string]env.Setter{}
@@ -69,13 +64,13 @@ func CellMappingJob(
 							Args:  args,
 							Image: cell.Spec.ConductorServiceTemplate.ContainerImage,
 							SecurityContext: &corev1.SecurityContext{
-								RunAsUser: &runAsUser,
+								RunAsUser: ptr.To(NovaUserID),
 							},
 							Env: env,
 							VolumeMounts: []corev1.VolumeMount{
 								GetConfigVolumeMount(),
 								GetScriptVolumeMount(),
-								GetKollaConfigVolumeMount("nova-manage"),
+								GetKollaConfigVolumeMount("cell-mapping"),
 							},
 						},
 					},

@@ -1,5 +1,5 @@
 {
-    "command": "/usr/sbin/httpd -DFOREGROUND",
+    "command": "/bin/dbsync.sh",
     "config_files": [
         {
             "source": "/var/lib/openstack/config/nova-blank.conf",
@@ -21,21 +21,16 @@
             "optional": true
         },
         {
-            "source": "/var/lib/openstack/config/httpd.conf",
-            "dest": "/etc/httpd/conf/httpd.conf",
-            "owner": "apache",
-            "perm": "0644"
+            "source": "/var/lib/openstack/bin/dbsync.sh",
+            "dest": "/bin/",
+            "owner": "nova",
+            "perm": "0700"
         }
     ],
     "permissions": [
         {
             "path": "/var/log/nova",
-            "owner": "nova:apache",
-            "recurse": true
-        },
-        {
-            "path": "/etc/httpd/run/",
-            "owner": "nova:apache",
+            "owner": "nova:nova",
             "recurse": true
         }
     ]
