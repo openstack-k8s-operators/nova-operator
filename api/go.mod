@@ -6,7 +6,7 @@ require (
 	github.com/openstack-k8s-operators/lib-common/modules/common v0.3.1-0.20231120113323-c4568fd5642d
 	k8s.io/api v0.26.11
 	k8s.io/apimachinery v0.26.11
-	k8s.io/utils v0.0.0-20230726121419-3b25d923346b
+	k8s.io/utils v0.0.0-20231121161247-cf03d44ff3cf
 	sigs.k8s.io/controller-runtime v0.14.7
 )
 
