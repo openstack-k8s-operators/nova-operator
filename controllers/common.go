@@ -535,7 +535,7 @@ func (r *ReconcilerBase) ensureMetadataDeleted(
 }
 
 func getNovaClient(ctx context.Context,
-	h *helper.Helper, authURL string, adminUser string, authPassword string) (*gophercloud.ServiceClient, ctrl.Result, error) {
+	h *helper.Helper, authURL string, adminUser string, authPassword string, timeout time.Duration) (*gophercloud.ServiceClient, ctrl.Result, error) {
 
 	cfg := openstack.AuthOpts{
 		AuthURL:    authURL,
@@ -559,7 +559,7 @@ func getNovaClient(ctx context.Context,
 		Transport: &http.Transport{
 			Proxy: http.ProxyFromEnvironment,
 		},
-		Timeout: defaultRequestTimeout,
+		Timeout: timeout,
 	}
 
 	// create tls config
@@ -603,7 +603,7 @@ func getNovaClient(ctx context.Context,
 		return nil, ctrl.Result{}, err
 	}
 
-	// create the identity client using previous providerClient
+	// create the compute client using previous providerClient
 	endpointOpts := gophercloud.EndpointOpts{
 		Region: cfg.Region,
 	}
