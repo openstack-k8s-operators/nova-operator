@@ -31,7 +31,6 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/services"
-	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
@@ -57,9 +56,6 @@ type NovaSchedulerReconciler struct {
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;
-// +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneapis,verbs=get;list;watch;
-// +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneservices,verbs=get;list;watch;create;update;patch;delete;
-// +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneendpoints,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=k8s.cni.cncf.io,resources=network-attachment-definitions,verbs=get;list;watch
 
@@ -131,10 +127,6 @@ func (r *NovaSchedulerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		}
 	}()
 
-	if !instance.DeletionTimestamp.IsZero() {
-		return ctrl.Result{}, r.reconcileDelete(ctx, h, instance, l)
-	}
-
 	// TODO(gibi): Can we use a simple map[string][string] for hashes?
 	// Collect hashes of all the input we depend on so that we can easily
 	// detect if something is changed.
@@ -199,6 +191,8 @@ func (r *NovaSchedulerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return result, err
 	}
 
+	// clean up nova services from nova db should be always a last step in reconcile
+	// to make sure that
 	err = r.cleanServiceFromNovaDb(ctx, h, instance, secret, l)
 	if err != nil {
 		l.Error(err, "Failed cleaning services from nova db")
@@ -212,7 +206,6 @@ func (r *NovaSchedulerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&novav1.NovaScheduler{}).
 		Owns(&v1.StatefulSet{}).
-		Owns(&keystonev1.KeystoneService{}).
 		Owns(&corev1.Secret{}).
 		Watches(&source.Kind{Type: &corev1.Secret{}},
 			handler.EnqueueRequestsFromMapFunc(r.GetSecretMapperFor(&novav1.NovaSchedulerList{}))).
@@ -426,7 +419,7 @@ func (r *NovaSchedulerReconciler) cleanServiceFromNovaDb(
 ) error {
 
 	authPassword := string(secret.Data[ServicePasswordSelector])
-	computeClient, _, err := getNovaClient(ctx, h, instance.Spec.KeystoneAuthURL, instance.Spec.ServiceUser, authPassword)
+	computeClient, _, err := getNovaClient(ctx, h, instance.Spec.KeystoneAuthURL, instance.Spec.ServiceUser, authPassword, defaultRequestTimeout)
 	if err != nil {
 		return err
 	}
@@ -450,42 +443,4 @@ func (r *NovaSchedulerReconciler) cleanServiceFromNovaDb(
 	}
 
 	return err
-}
-
-func (r *NovaSchedulerReconciler) reconcileDelete(
-	ctx context.Context,
-	h *helper.Helper,
-	instance *novav1.NovaScheduler,
-	l logr.Logger,
-) error {
-	util.LogForObject(h, "Reconciling delete", instance)
-
-	_, _, secret, err := ensureSecret(
-		ctx,
-		types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.Secret},
-		// TODO(gibi): add keystoneAuthURL here is that is also passed via
-		// the Secret. Also add DB and MQ user name here too if those are
-		// passed via the Secret
-		[]string{
-			ServicePasswordSelector,
-			APIDatabasePasswordSelector,
-			CellDatabasePasswordSelector,
-			TransportURLSelector,
-		},
-		h.GetClient(),
-		&instance.Status.Conditions,
-		r.RequeueTimeout,
-	)
-	if err != nil {
-		l.Error(err, "Failed geting secret")
-		return nil
-	}
-
-	err = r.cleanServiceFromNovaDb(ctx, h, instance, secret, l)
-	if err != nil {
-		l.Error(err, "Failed cleaning services from nova db")
-	}
-
-	util.LogForObject(h, "Reconciled delete successfully", instance)
-	return nil
 }
