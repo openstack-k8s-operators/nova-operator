@@ -59,6 +59,12 @@ func CellDBSyncJob(
 		},
 		Spec: batchv1.JobSpec{
 			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"io.openshift.builder":            "true",
+						"io.kubernetes.cri-o.userns-mode": "auto:size=65536;map-to-root=false",
+					},
+				},
 				Spec: corev1.PodSpec{
 					RestartPolicy:      corev1.RestartPolicyOnFailure,
 					ServiceAccountName: instance.Spec.ServiceAccount,
@@ -75,7 +81,12 @@ func CellDBSyncJob(
 							Args:  args,
 							Image: instance.Spec.ContainerImage,
 							SecurityContext: &corev1.SecurityContext{
-								RunAsUser: ptr.To(nova.NovaUserID),
+								RunAsUser:    ptr.To(nova.NovaUserID),
+								RunAsGroup:   ptr.To(nova.NovaUserID),
+								RunAsNonRoot: ptr.To(true),
+								SeccompProfile: &corev1.SeccompProfile{
+									Type: corev1.SeccompProfileTypeRuntimeDefault,
+								},
 							},
 							Env: env,
 							VolumeMounts: []corev1.VolumeMount{
