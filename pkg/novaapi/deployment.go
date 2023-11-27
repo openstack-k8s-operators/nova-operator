@@ -129,9 +129,16 @@ func StatefulSet(
 						{
 							Name: instance.Name + "-log",
 							Command: []string{
-								"/bin/bash",
+								"/usr/bin/dumb-init",
 							},
-							Args:  []string{"-c", "tail -n+1 -F /var/log/nova/nova-api.log"},
+							Args: []string{
+								"--single-child",
+								"--",
+								"/usr/bin/tail",
+								"-n+1",
+								"-F",
+								"/var/log/nova/nova-api.log",
+							},
 							Image: instance.Spec.ContainerImage,
 							SecurityContext: &corev1.SecurityContext{
 								RunAsUser: ptr.To(nova.NovaUserID),
