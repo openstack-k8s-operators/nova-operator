@@ -357,7 +357,7 @@ run-with-webhook: export HEALTH_PORT?=24601
 run-with-webhook: manifests generate fmt vet update-nova-csv ## Run a controller from your host.
 	/bin/bash hack/clean_local_webhook.sh
 	/bin/bash hack/configure_local_webhook.sh
-	go run ./main.go -metrics-bind-address ":$(METRICS_PORT)" -health-probe-bind-address ":$(HEALTH_PORT)"
+	/bin/bash hack/run_with_kubefwd.sh
 
 KUTTL_SUITE ?= default
 KUTTL_NAMESPACE ?= nova-kuttl-$(KUTTL_SUITE)
