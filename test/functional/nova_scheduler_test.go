@@ -551,14 +551,14 @@ var _ = Describe("NovaScheduler controller", func() {
 })
 
 var _ = Describe("NovaScheduler controller cleaning", func() {
-	var novaAPIServer *NovaAPIFixture
+	var novaAPIFixture *NovaAPIFixture
 	BeforeEach(func() {
 		DeferCleanup(
 			k8sClient.Delete, ctx, CreateNovaSecret(novaNames.NovaName.Namespace, SecretName))
-		novaAPIServer = NewNovaAPIFixtureWithServer(logger)
-		novaAPIServer.Setup()
+		novaAPIFixture = NewNovaAPIFixtureWithServer(logger)
+		novaAPIFixture.Setup()
 		f := keystone_helper.NewKeystoneAPIFixtureWithServer(logger)
-		text := ResponseHandleToken(f.Endpoint(), novaAPIServer.Endpoint())
+		text := ResponseHandleToken(f.Endpoint(), novaAPIFixture.Endpoint())
 		f.Setup(
 			api.Handler{Pattern: "/", Func: f.HandleVersion},
 			api.Handler{Pattern: "/v3/users", Func: f.HandleUsers},
@@ -568,7 +568,7 @@ var _ = Describe("NovaScheduler controller cleaning", func() {
 				case "POST":
 					w.Header().Add("Content-Type", "application/json")
 					w.WriteHeader(202)
-					fmt.Fprintf(w, text)
+					fmt.Fprint(w, text)
 				}
 			}})
 		DeferCleanup(f.Cleanup)
@@ -578,10 +578,14 @@ var _ = Describe("NovaScheduler controller cleaning", func() {
 		spec["keystoneAuthURL"] = f.Endpoint()
 		DeferCleanup(
 			th.DeleteInstance, CreateNovaScheduler(novaNames.SchedulerName, spec))
-		DeferCleanup(novaAPIServer.Cleanup)
+		DeferCleanup(novaAPIFixture.Cleanup)
 	})
 	When("NovaScheduler down service is removed from api", func() {
 		It("during reconciling", func() {
+			// We can assert the service cleanup behavior or the reconciler as the cleanup is triggered
+			// unconditionally at the end of every successful reconciliation. So we don't actually need
+			// to trigger a scaledown to see the down services are deleted. The novaAPIFixture is
+			// set up in a way that it always respond with a list of services in down state.
 			th.SimulateStatefulSetReplicaReady(novaNames.SchedulerStatefulSetName)
 			th.ExpectCondition(
 				novaNames.SchedulerName,
@@ -589,7 +593,7 @@ var _ = Describe("NovaScheduler controller cleaning", func() {
 				condition.ReadyCondition,
 				corev1.ConditionTrue,
 			)
-			Expect(novaAPIServer.FindRequest("DELETE", "/compute/os-services/3")).To(BeTrue())
+			Expect(novaAPIFixture.FindRequest("DELETE", "/compute/os-services/3", "")).To(BeTrue())
 		})
 	})
 })

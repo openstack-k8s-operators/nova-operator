@@ -77,17 +77,16 @@ func (f *NovaAPIFixture) RecordRequest(r *http.Request) {
 	f.APIRequests = append(f.APIRequests, map[string]string{
 		"method": r.Method,
 		"path":   r.URL.Path,
+		"query":  r.URL.RawQuery,
 	})
 }
 
-func (f *NovaAPIFixture) GetRequests() []map[string]string {
-	return f.APIRequests
-}
-
-func (f *NovaAPIFixture) FindRequest(method string, path string) bool {
+func (f *NovaAPIFixture) FindRequest(method string, path string, query string) bool {
 	for _, request := range f.APIRequests {
 		if request["method"] == method && request["path"] == path {
-			return true
+			if request["query"] == query || query == "" {
+				return true
+			}
 		}
 	}
 	return false
@@ -115,7 +114,6 @@ func (f *NovaAPIFixture) registerNormalHandlers() {
 	f.registerHandler(api.Handler{Pattern: "/os-services/", Func: f.ServicesList})
 }
 
-// ServicesList responds with a valid keystone token
 func (f *NovaAPIFixture) ServicesList(w http.ResponseWriter, r *http.Request) {
 	f.LogRequest(r)
 	f.RecordRequest(r)
@@ -183,7 +181,7 @@ func (f *NovaAPIFixture) ServicesList(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// HandleToken responds with a valid keystone token
+// ResponseHandleToken responds with a valid keystone token and the computeURL in the catalog
 func ResponseHandleToken(keystoneURL string, computeURL string) string {
 	return fmt.Sprintf(
 		`

@@ -421,9 +421,8 @@ func (r *NovaSchedulerReconciler) cleanServiceFromNovaDb(
 	secret corev1.Secret,
 	l logr.Logger,
 ) error {
-
 	authPassword := string(secret.Data[ServicePasswordSelector])
-	computeClient, _, err := getNovaClient(ctx, h, instance.Spec.KeystoneAuthURL, instance.Spec.ServiceUser, authPassword, defaultRequestTimeout)
+	computeClient, _, err := getNovaClient(ctx, h, instance.Spec.KeystoneAuthURL, instance.Spec.ServiceUser, authPassword, defaultRequestTimeout, l)
 	if err != nil {
 		return err
 	}

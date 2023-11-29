@@ -18,10 +18,7 @@ package controllers
 
 import (
 	"context"
-	"crypto/tls"
-	"crypto/x509"
 	"fmt"
-	"net/http"
 	"sort"
 	"time"
 
@@ -41,7 +38,6 @@ import (
 	"github.com/openstack-k8s-operators/nova-operator/pkg/nova"
 
 	gophercloud "github.com/gophercloud/gophercloud"
-	gophercloud_openstack "github.com/gophercloud/gophercloud/openstack"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
@@ -537,7 +533,7 @@ func (r *ReconcilerBase) ensureMetadataDeleted(
 }
 
 func getNovaClient(ctx context.Context,
-	h *helper.Helper, authURL string, adminUser string, authPassword string, timeout time.Duration) (*gophercloud.ServiceClient, ctrl.Result, error) {
+	h *helper.Helper, authURL string, adminUser string, authPassword string, timeout time.Duration, l logr.Logger) (*gophercloud.ServiceClient, ctrl.Result, error) {
 
 	cfg := openstack.AuthOpts{
 		AuthURL:    authURL,
@@ -545,74 +541,16 @@ func getNovaClient(ctx context.Context,
 		Password:   authPassword,
 		DomainName: "Default",   // fixme",
 		Region:     "regionOne", // fixme",
+		TenantName: "service",   // fixme",
 	}
-	opts := gophercloud.AuthOptions{
-		IdentityEndpoint: cfg.AuthURL,
-		Username:         cfg.Username,
-		Password:         cfg.Password,
-		DomainName:       cfg.DomainName,
-	}
-	if cfg.Scope != nil {
-		opts.Scope = cfg.Scope
-	}
-
-	// define http client for setting timeout, proxy and tls settings
-	httpClient := http.Client{
-		Transport: &http.Transport{
-			Proxy: http.ProxyFromEnvironment,
-		},
-		Timeout: timeout,
-	}
-
-	// create tls config
-	tlsConfig := &tls.Config{}
-	if cfg.TLS != nil {
-		if len(cfg.TLS.CACerts) > 0 {
-			caCertPool := x509.NewCertPool()
-			for _, caCert := range cfg.TLS.CACerts {
-				caCertPool.AppendCertsFromPEM([]byte(caCert))
-			}
-			tlsConfig.RootCAs = caCertPool
-		}
-		if cfg.TLS.Insecure {
-			tlsConfig.InsecureSkipVerify = true
-		}
-
-		if cfg.TLS.ClientCert != "" && cfg.TLS.ClientKey != "" {
-			cert, err := tls.LoadX509KeyPair(cfg.TLS.ClientCert, cfg.TLS.ClientKey)
-			if err != nil {
-				return nil, ctrl.Result{}, err
-			}
-
-			tlsConfig.Certificates = []tls.Certificate{cert}
-		}
-	}
-
-	transport := &http.Transport{Proxy: http.ProxyFromEnvironment, TLSClientConfig: tlsConfig}
-
-	// create provider client and add inject customized http client
-	providerClient, err := gophercloud_openstack.NewClient(opts.IdentityEndpoint)
-	if err != nil {
-		return nil, ctrl.Result{}, err
-	}
-
-	providerClient.HTTPClient = httpClient
-	providerClient.HTTPClient.Transport = transport
-
-	// authenticate the client
-	err = gophercloud_openstack.Authenticate(providerClient, opts)
-	if err != nil {
-		return nil, ctrl.Result{}, err
-	}
-
 	// create the compute client using previous providerClient
 	endpointOpts := gophercloud.EndpointOpts{
-		Region: cfg.Region,
+		Region:       cfg.Region,
+		Availability: gophercloud.AvailabilityInternal,
 	}
-	computeClient, err := gophercloud_openstack.NewComputeV2(providerClient, endpointOpts)
+	computeClient, err := openstack.GetNovaOpenStackClient(l, cfg, endpointOpts)
 	if err != nil {
 		return nil, ctrl.Result{}, err
 	}
-
-	return computeClient, ctrl.Result{}, nil
+	return computeClient.GetOSClient(), ctrl.Result{}, nil
 }
