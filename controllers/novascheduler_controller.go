@@ -198,9 +198,9 @@ func (r *NovaSchedulerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	// clean up nova services from nova db should be always a last step in reconcile
 	// to make sure that
-	err = r.cleanServiceFromNovaDb(ctx, h, instance, secret, l)
+	err = r.cleanServiceFromNovaDb(ctx, h, instance, secret, Log)
 	if err != nil {
-		l.Error(err, "Failed cleaning services from nova db")
+		Log.Error(err, "Failed cleaning services from nova db")
 	}
 
 	return ctrl.Result{}, nil
