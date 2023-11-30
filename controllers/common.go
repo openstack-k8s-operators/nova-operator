@@ -22,6 +22,7 @@ import (
 	"crypto/x509"
 	"fmt"
 	"net/http"
+	"net/url"
 	"sort"
 	"time"
 
@@ -537,12 +538,24 @@ func (r *ReconcilerBase) ensureMetadataDeleted(
 func getNovaClient(ctx context.Context,
 	h *helper.Helper, authURL string, adminUser string, authPassword string, timeout time.Duration) (*gophercloud.ServiceClient, ctrl.Result, error) {
 
+	parsedAuthURL, err := url.Parse(authURL)
+	if err != nil {
+		return nil, ctrl.Result{}, err
+	}
+
+	tlscfg := &openstack.TLSConfig{}
+	if parsedAuthURL.Scheme == "https" {
+		// TODO: (ksambor) for now just set to insecure, when keystone got
+		// enabled for internal tls, get the CA secret name from the keystoneAPI
+		tlscfg.Insecure = true
+	}
 	cfg := openstack.AuthOpts{
 		AuthURL:    authURL,
 		Username:   adminUser,
 		Password:   authPassword,
 		DomainName: "Default",   // fixme",
 		Region:     "regionOne", // fixme",
+		TLS:        tlscfg,
 	}
 	opts := gophercloud.AuthOptions{
 		IdentityEndpoint: cfg.AuthURL,
