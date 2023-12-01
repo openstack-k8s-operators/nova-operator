@@ -1,21 +1,5 @@
 ---
 - job:
-    name: nova-operator-content-provider
-    parent: content-provider-base
-    description: |
-      This job builds the nova-operator and provides it to child jobs
-      It also rebuilds the openstack-operator using the updated nova operator.
-    provides:
-      - "nova-operator-content"
-    vars:
-      cifmw_operator_build_org: openstack-k8s-operators
-      cifmw_operator_build_operators:
-        - name: "openstack-operator"
-          src: "~/src/github.com/{{ cifmw_operator_build_org }}/openstack-operator"
-          image_base: nova
-
-
-- job:
     name: nova-operator-base
     description: |
       This is the base job for all nova-operator tests that will deploy
@@ -29,12 +13,10 @@
     parent: cifmw-podified-multinode-edpm-base-crc
     abstract: true
     attempts: 1
-    dependencies: ["nova-operator-content-provider"]
+    dependencies: ["openstack-k8s-operators-content-provider"]
     required-projects:
       - github.com/openstack-k8s-operators/ci-framework
       - github.com/openstack-k8s-operators/install_yamls
-    requires:
-      - "nova-operator-content"
     roles:
       - zuul: github.com/openstack-k8s-operators/ci-framework
     pre-run:
@@ -45,15 +27,13 @@
 - job:
     name: nova-operator-compute-kit
     parent:  nova-operator-base
-    dependencies: ["nova-operator-content-provider"]
+    dependencies: ["openstack-k8s-operators-content-provider"]
     roles:
       - zuul: github.com/openstack-k8s-operators/ci-framework
     description: |
       This job deploy a basic "Compute Starter Kit" topology
       https://www.openstack.org/software/sample-configs#compute-starter-kit
       that is the minium set of openstack services required to boot a vm.
-    requires:
-      - "nova-operator-content"
     run:
       - ci/nova-operator-compute-kit/playbooks/deploy-openstack.yaml
       - ci/nova-operator-compute-kit/playbooks/tempest.yaml
@@ -61,15 +41,13 @@
 - job:
     name: nova-operator-kuttl
     parent:  nova-operator-base
-    dependencies: ["nova-operator-content-provider"]
+    dependencies: ["openstack-k8s-operators-content-provider"]
     roles:
       - zuul: github.com/openstack-k8s-operators/ci-framework
     description: |
       This job deploy a basic "Compute Starter Kit" topology
       https://www.openstack.org/software/sample-configs#compute-starter-kit
       that is the minium set of openstack services required to boot a vm.
-    requires:
-      - "nova-operator-content"
     pre-run:
       - ci/nova-operator-kuttl/playbooks/deploy-deps.yaml
     run:
@@ -116,7 +94,7 @@
 - job:
     name: nova-operator-tempest-multinode
     parent: podified-multinode-edpm-deployment-crc-3comp
-    dependencies: ["nova-operator-content-provider"]
+    dependencies: ["openstack-k8s-operators-content-provider"]
     vars:
       cifmw_tempest_tempestconf_profile:
           overrides:
@@ -209,6 +187,6 @@
     name: openstack-k8s-operators/nova-operator
     github-check:
       jobs:
-        - nova-operator-content-provider
+        - openstack-k8s-operators-content-provider
         - nova-operator-kuttl
         - nova-operator-tempest-multinode
