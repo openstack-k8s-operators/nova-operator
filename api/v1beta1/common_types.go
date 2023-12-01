@@ -133,7 +133,7 @@ func SetupDefaults() {
 	novaDefaults := NovaDefaults{
 		APIContainerImageURL:         util.GetEnvVar("RELATED_IMAGE_NOVA_API_IMAGE_URL_DEFAULT", NovaAPIContainerImage),
 		ConductorContainerImageURL:   util.GetEnvVar("RELATED_IMAGE_NOVA_CONDUCTOR_IMAGE_URL_DEFAULT", NovaConductorContainerImage),
-		MetadataContainerImageURL:    util.GetEnvVar("RELATED_IMAGE_NOVA_METADATA_IMAGE_URL_DEFAULT", NovaMetadataContainerImage),
+		MetadataContainerImageURL:    util.GetEnvVar("RELATED_IMAGE_NOVA_API_IMAGE_URL_DEFAULT", NovaMetadataContainerImage),
 		NoVNCContainerImageURL:       util.GetEnvVar("RELATED_IMAGE_NOVA_NOVNC_IMAGE_URL_DEFAULT", NovaNoVNCContainerImage),
 		SchedulerContainerImageURL:   util.GetEnvVar("RELATED_IMAGE_NOVA_SCHEDULER_IMAGE_URL_DEFAULT", NovaSchedulerContainerImage),
 		NovaComputeContainerImageURL: util.GetEnvVar("RELATED_IMAGE_NOVA_COMPUTE_IMAGE_URL_DEFAULT", NovaComputeContainerImage),
@@ -151,7 +151,7 @@ func SetupDefaults() {
 	// Acquire environmental defaults and initialize NovaCell defaults with them
 	novaCellDefaults := NovaCellDefaults{
 		ConductorContainerImageURL:   util.GetEnvVar("RELATED_IMAGE_NOVA_CONDUCTOR_IMAGE_URL_DEFAULT", NovaConductorContainerImage),
-		MetadataContainerImageURL:    util.GetEnvVar("RELATED_IMAGE_NOVA_METADATA_IMAGE_URL_DEFAULT", NovaMetadataContainerImage),
+		MetadataContainerImageURL:    util.GetEnvVar("RELATED_IMAGE_NOVA_API_IMAGE_URL_DEFAULT", NovaMetadataContainerImage),
 		NoVNCContainerImageURL:       util.GetEnvVar("RELATED_IMAGE_NOVA_NOVNC_IMAGE_URL_DEFAULT", NovaNoVNCContainerImage),
 		NovaComputeContainerImageURL: util.GetEnvVar("RELATED_IMAGE_NOVA_COMPUTE_IMAGE_URL_DEFAULT", NovaComputeContainerImage),
 	}
@@ -167,7 +167,7 @@ func SetupDefaults() {
 
 	// Acquire environmental defaults and initialize NovaMetadata defaults with them
 	novaMetadataDefaults := NovaMetadataDefaults{
-		ContainerImageURL: util.GetEnvVar("RELATED_IMAGE_NOVA_METADATA_IMAGE_URL_DEFAULT", NovaMetadataContainerImage),
+		ContainerImageURL: util.GetEnvVar("RELATED_IMAGE_NOVA_API_IMAGE_URL_DEFAULT", NovaMetadataContainerImage),
 	}
 
 	SetupNovaMetadataDefaults(novaMetadataDefaults)
