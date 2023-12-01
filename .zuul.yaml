@@ -132,6 +132,9 @@
       cifmw_tempest_tests_allowed:
         - tempest.
       cifmw_tempest_tests_skipped:
+      # TODO(samborka): remove this once we have a running barbican
+        - barbican_tempest_plugin.
+        - tempest.scenario.test_encrypted_cinder_volumes.TestEncryptedCinderVolumes
       # We don't have a running cinder-volume
         - cinder_tempest_plugin.
         - ServersTestBootFromVolume
