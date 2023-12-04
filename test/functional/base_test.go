@@ -168,6 +168,17 @@ func (f *NovaAPIFixture) ServicesList(w http.ResponseWriter, r *http.Request) {
 						"updated_at": "2012-09-18T08:03:38.000000",
 						"forced_down": false,
 						"zone": "nova"
+					},
+					{
+						"id": 4,
+						"binary": "nova-conductor",
+						"disabled_reason": "test4",
+						"host": "host2",
+						"state": "down",
+						"status": "disabled",
+						"updated_at": "2012-09-18T08:03:38.000000",
+						"forced_down": false,
+						"zone": "nova"
 					}
 				]
 			}

@@ -31,6 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/go-logr/logr"
+	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/services"
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
@@ -191,6 +192,12 @@ func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	result, err = r.ensureDeployment(ctx, h, instance, inputHash, serviceAnnotations)
 	if (err != nil || result != ctrl.Result{}) {
 		return result, err
+	}
+
+	// clean up nova services from nova db should be always a last step in reconcile
+	err = r.cleanServiceFromNovaDb(ctx, h, instance, secret, Log)
+	if err != nil {
+		Log.Error(err, "Failed cleaning services from nova db")
 	}
 
 	Log.Info("Successfully reconciled")
@@ -444,6 +451,41 @@ func (r *NovaConductorReconciler) ensureDeployment(
 		return ctrl.Result{}, nil
 	}
 	return ctrl.Result{}, nil
+}
+
+func (r *NovaConductorReconciler) cleanServiceFromNovaDb(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *novav1.NovaConductor,
+	secret corev1.Secret,
+	l logr.Logger,
+) error {
+
+	authPassword := string(secret.Data[ServicePasswordSelector])
+	computeClient, _, err := getNovaClient(ctx, h, instance.Spec.KeystoneAuthURL, instance.Spec.ServiceUser, authPassword, defaultRequestTimeout, l)
+	if err != nil {
+		return err
+	}
+	opts := services.ListOpts{
+		Binary: "nova-conductor",
+	}
+
+	allPages, err := services.List(computeClient, opts).AllPages()
+	if err != nil {
+		return err
+	}
+
+	allServices, err := services.ExtractServices(allPages)
+	if err != nil {
+		return err
+	}
+	for _, service := range allServices {
+		if service.State == "down" {
+			services.Delete(computeClient, service.ID)
+		}
+	}
+
+	return err
 }
 
 // SetupWithManager sets up the controller with the Manager.
