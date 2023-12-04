@@ -15,11 +15,15 @@ package functional_test
 
 import (
 	"encoding/json"
+	"fmt"
+	"net/http"
 
 	networkv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	keystone_helper "github.com/openstack-k8s-operators/keystone-operator/api/test/helpers"
 	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
+	api "github.com/openstack-k8s-operators/lib-common/modules/test/apis"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 
 	corev1 "k8s.io/api/core/v1"
@@ -634,6 +638,49 @@ var _ = Describe("NovaConductor controller", func() {
 		It("has the expected container image default", func() {
 			novaConductorDefault := GetNovaConductor(cell0.ConductorName)
 			Expect(novaConductorDefault.Spec.ContainerImage).To(Equal(util.GetEnvVar("RELATED_IMAGE_NOVA_CONDUCTOR_IMAGE_URL_DEFAULT", novav1.NovaConductorContainerImage)))
+		})
+	})
+})
+
+var _ = Describe("NovaConductorcontroller cleaning", func() {
+	var novaAPIServer *NovaAPIFixture
+	BeforeEach(func() {
+		novaAPIServer = NewNovaAPIFixtureWithServer(logger)
+		novaAPIServer.Setup()
+		f := keystone_helper.NewKeystoneAPIFixtureWithServer(logger)
+		text := ResponseHandleToken(f.Endpoint(), novaAPIServer.Endpoint())
+		f.Setup(
+			api.Handler{Pattern: "/", Func: f.HandleVersion},
+			api.Handler{Pattern: "/v3/users", Func: f.HandleUsers},
+			api.Handler{Pattern: "/v3/domains", Func: f.HandleDomains},
+			api.Handler{Pattern: "/v3/auth/tokens", Func: func(w http.ResponseWriter, r *http.Request) {
+				switch r.Method {
+				case "POST":
+					w.Header().Add("Content-Type", "application/json")
+					w.WriteHeader(202)
+					fmt.Fprint(w, text)
+				}
+			}})
+		DeferCleanup(f.Cleanup)
+
+		spec := GetDefaultNovaConductorSpec(cell0)
+		spec["keystoneAuthURL"] = f.Endpoint()
+		DeferCleanup(th.DeleteInstance, CreateNovaConductor(cell0.ConductorName, spec))
+		DeferCleanup(
+			k8sClient.Delete, ctx, CreateCellInternalSecret(cell0))
+		th.SimulateJobSuccess(cell0.DBSyncJobName)
+		th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
+	})
+	When("NovaScheduler down service is removed from api", func() {
+		It("during reconciling", func() {
+			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
+			th.ExpectCondition(
+				cell0.ConductorName,
+				ConditionGetterFunc(NovaConductorConditionGetter),
+				condition.DeploymentReadyCondition,
+				corev1.ConditionTrue,
+			)
+			Expect(novaAPIServer.FindRequest("DELETE", "/compute/os-services/3", "")).To(BeTrue())
 		})
 	})
 })
