@@ -5,15 +5,15 @@ go 1.19
 require (
 	github.com/go-logr/logr v1.3.0
 	github.com/google/uuid v1.4.0
-	github.com/gophercloud/gophercloud v1.7.0
+	github.com/gophercloud/gophercloud v1.8.0
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.4.0
-	github.com/onsi/ginkgo/v2 v2.13.1
+	github.com/onsi/ginkgo/v2 v2.13.2
 	github.com/onsi/gomega v1.30.0
 	github.com/openstack-k8s-operators/infra-operator/apis v0.3.1-0.20231122104142-3b449040167e
-	github.com/openstack-k8s-operators/keystone-operator/api v0.3.1-0.20231121110947-d38363cf0f05
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.3.1-0.20231128092723-979bf6255128
-	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.3.1-0.20231128092723-979bf6255128
-	github.com/openstack-k8s-operators/lib-common/modules/test v0.3.1-0.20231128092723-979bf6255128
+	github.com/openstack-k8s-operators/keystone-operator/api v0.3.1-0.20231128185906-0b4579c3dadf
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.3.1-0.20231204114424-a857120974fc
+	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.3.1-0.20231204114424-a857120974fc
+	github.com/openstack-k8s-operators/lib-common/modules/test v0.3.1-0.20231204114424-a857120974fc
 	github.com/openstack-k8s-operators/mariadb-operator/api v0.3.0
 	github.com/openstack-k8s-operators/nova-operator/api v0.0.0-20221209164002-f9e6b9363961
 	go.uber.org/zap v1.26.0
