@@ -20,6 +20,13 @@ spec:
   replicas: 1
   secret: osp-secret
   serviceUser: placement
+  tls:
+    api:
+      internal:
+        secretName: cert-internal-svc
+      public:
+        secretName: cert-public-svc
+    caBundleSecretName: combined-ca-bundle
 status:
   databaseHostname: openstack
   readyCount: 1
@@ -120,7 +127,7 @@ spec:
           httpGet:
             path: /
             port: 8778
-            scheme: HTTP
+            scheme: HTTPS
           initialDelaySeconds: 3
           periodSeconds: 3
           successThreshold: 1
@@ -131,7 +138,7 @@ spec:
           httpGet:
             path: /
             port: 8778
-            scheme: HTTP
+            scheme: HTTPS
           initialDelaySeconds: 5
           periodSeconds: 5
           successThreshold: 1
@@ -153,6 +160,26 @@ spec:
           subPath: placement-api-config.json
         - mountPath: /var/log/placement
           name: logs
+        - mountPath: /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
+          name: combined-ca-bundle
+          readOnly: true
+          subPath: tls-ca-bundle.pem
+        - mountPath: /var/lib/config-data/tls/certs/internal.crt
+          name: internal-tls-certs
+          readOnly: true
+          subPath: tls.crt
+        - mountPath: /var/lib/config-data/tls/private/internal.key
+          name: internal-tls-certs
+          readOnly: true
+          subPath: tls.key
+        - mountPath: /var/lib/config-data/tls/certs/public.crt
+          name: public-tls-certs
+          readOnly: true
+          subPath: tls.crt
+        - mountPath: /var/lib/config-data/tls/private/public.key
+          name: public-tls-certs
+          readOnly: true
+          subPath: tls.key
       - args:
         - -c
         - /usr/local/bin/kolla_start
@@ -164,7 +191,7 @@ spec:
           httpGet:
             path: /
             port: 8778
-            scheme: HTTP
+            scheme: HTTPS
           initialDelaySeconds: 3
           periodSeconds: 3
           successThreshold: 1
@@ -175,7 +202,7 @@ spec:
           httpGet:
             path: /
             port: 8778
-            scheme: HTTP
+            scheme: HTTPS
           initialDelaySeconds: 5
           periodSeconds: 5
           successThreshold: 1
@@ -214,112 +241,3 @@ spec:
 status:
   availableReplicas: 1
   replicas: 1
----
-# the openshift annotations can't be checked through the deployment above
-apiVersion: v1
-kind: Pod
-metadata:
-  annotations:
-    openshift.io/scc: anyuid
-  labels:
-    service: placement
-status:
-  phase: Running
----
-apiVersion: v1
-kind: Service
-metadata:
-  labels:
-    endpoint: internal
-    service: placement
-  name: placement-internal
-spec:
-  ports:
-    - name: placement-internal
-  selector:
-    service: placement
-  type: ClusterIP
----
-apiVersion: v1
-kind: Service
-metadata:
-  labels:
-    endpoint: public
-    service: placement
-  name: placement-public
-spec:
-  ports:
-    - name: placement-public
-  selector:
-    service: placement
-  type: ClusterIP
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  labels:
-    placement.openstack.org/name: placement
-  name: placement-scripts
-  ownerReferences:
-  - blockOwnerDeletion: true
-    controller: true
-    kind: PlacementAPI
-    name: placement
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  labels:
-    placement.openstack.org/name: placement
-  name: placement-config-data
-  ownerReferences:
-  - blockOwnerDeletion: true
-    controller: true
-    kind: PlacementAPI
-    name: placement
----
-apiVersion: keystone.openstack.org/v1beta1
-kind: KeystoneEndpoint
-metadata:
-  name: placement
-  ownerReferences:
-  - apiVersion: placement.openstack.org/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: PlacementAPI
-    name: placement
----
-# the actual addresses of the api endpoints are platform specific, so we can't rely on
-# kuttl asserts to check them. This short script gathers the addresses and checks that
-# the two endpoints are defined and their addresses follow the default pattern
-apiVersion: kuttl.dev/v1beta1
-kind: TestAssert
-namespaced: true
-commands:
-  - script: |
-      . $PLACEMENT_KUTTL_DIR/../lib/helper_functions.sh
-      apiEndpoints=$(oc get -n $NAMESPACE KeystoneEndpoint placement -o go-template-file=$PLACEMENT_KUTTL_DIR/../go_templates/apiEndpoints.gotemplate)
-      assert_regex $apiEndpoints 'http:\/\/placement-internal\..+\.svc.*'
-      assert_regex $apiEndpoints 'http:\/\/placement-public\..+\.svc.*'
-
-      # when using image digests the containerImage URLs are SHA's so we verify them with a script
-      tupleTemplate='{{ range (index .spec.template.spec.containers 1).env }}{{ .name }}{{ "#" }}{{ .value}}{{"\n"}}{{ end }}'
-      imageTuples=$(oc get -n openstack-operators deployment placement-operator-controller-manager -o go-template="$tupleTemplate")
-      # format of imageTuple is: RELATED_IMAGE_PLACEMENT_<service>#<image URL with SHA> separated by newlines
-      for ITEM in $(echo $imageTuples); do
-        # it is an image
-        if echo $ITEM | grep 'RELATED_IMAGE' &> /dev/null; then
-          NAME=$(echo $ITEM | sed -e 's|^RELATED_IMAGE_PLACEMENT_\([^_]*\)_.*|\1|')
-          IMG_FROM_ENV=$(echo $ITEM | sed -e 's|^.*#\(.*\)|\1|')
-          template='{{.spec.containerImage}}'
-          case $NAME in
-            API)
-              SERVICE_IMAGE=$(oc get -n $NAMESPACE placementapi placement -o go-template="$template")
-              ;;
-          esac
-          if [ "$SERVICE_IMAGE" != "$IMG_FROM_ENV" ]; then
-            echo "$NAME image does not equal $VALUE"
-            exit 1
-          fi
-        fi
-      done

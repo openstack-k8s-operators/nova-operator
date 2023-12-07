@@ -44,6 +44,16 @@ func DbSyncJob(
 	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
 	envVars["KOLLA_BOOTSTRAP"] = env.SetValue("true")
 
+	// create Volume and VolumeMounts
+	volumes := getVolumes(instance.Name)
+	volumeMounts := getVolumeMounts("dbsync")
+
+	// add CA cert if defined
+	if instance.Spec.TLS.CaBundleSecretName != "" {
+		volumes = append(volumes, instance.Spec.TLS.CreateVolume())
+		volumeMounts = append(volumeMounts, instance.Spec.TLS.CreateVolumeMounts(nil)...)
+	}
+
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      instance.Name + "-db-sync",
@@ -70,15 +80,14 @@ func DbSyncJob(
 								RunAsUser: ptr.To(PlacementUserID),
 							},
 							Env:          env.MergeEnvs([]corev1.EnvVar{}, envVars),
-							VolumeMounts: getVolumeMounts("dbsync"),
+							VolumeMounts: volumeMounts,
 						},
 					},
+					Volumes: volumes,
 				},
 			},
 		},
 	}
-
-	job.Spec.Template.Spec.Volumes = getVolumes(ServiceName)
 
 	initContainerDetails := APIDetails{
 		ContainerImage:       instance.Spec.ContainerImage,
@@ -88,7 +97,6 @@ func DbSyncJob(
 		OSPSecret:            instance.Spec.Secret,
 		DBPasswordSelector:   instance.Spec.PasswordSelectors.Database,
 		UserPasswordSelector: instance.Spec.PasswordSelectors.Service,
-		VolumeMounts:         getInitVolumeMounts(),
 	}
 	job.Spec.Template.Spec.InitContainers = initContainer(initContainerDetails)
 

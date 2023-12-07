@@ -31,6 +31,7 @@ import (
 )
 
 var _ = Describe("PlacementAPI controller", func() {
+
 	BeforeEach(func() {
 		// lib-common uses OPERATOR_TEMPLATES env var to locate the "templates"
 		// directory of the operator. We need to set them othervise lib-common
@@ -99,6 +100,7 @@ var _ = Describe("PlacementAPI controller", func() {
 				condition.ServiceAccountReadyCondition,
 				condition.RoleReadyCondition,
 				condition.RoleBindingReadyCondition,
+				condition.TLSInputReadyCondition,
 			}
 
 			placement := GetPlacementAPI(names.PlacementAPIName)
@@ -413,7 +415,7 @@ var _ = Describe("PlacementAPI controller", func() {
 
 			deployment := th.GetDeployment(names.DeploymentName)
 			Expect(int(*deployment.Spec.Replicas)).To(Equal(1))
-			Expect(deployment.Spec.Selector.MatchLabels).To(Equal(map[string]string{"service": "placement"}))
+			Expect(deployment.Spec.Selector.MatchLabels).To(Equal(map[string]string{"service": "placement", "owner": names.PlacementAPIName.Name}))
 			Expect(deployment.Spec.Template.Spec.ServiceAccountName).To(Equal(names.ServiceAccountName.Name))
 			Expect(len(deployment.Spec.Template.Spec.Containers)).To(Equal(2))
 
@@ -707,6 +709,124 @@ var _ = Describe("PlacementAPI controller", func() {
 				g.Expect(newConfigHash).NotTo(Equal(oldConfigHash))
 				// TODO(gibi): once the password is in the generated config
 				// assert it there
+			}, timeout, interval).Should(Succeed())
+		})
+
+	})
+
+	When("A PlacementAPI is created with TLS", func() {
+		BeforeEach(func() {
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCABundleSecret(names.CaBundleSecretName))
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(names.InternalCertSecretName))
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(names.PublicCertSecretName))
+
+			spec := GetTLSPlacementAPISpec(names)
+			placement := CreatePlacementAPI(names.PlacementAPIName, spec)
+			DeferCleanup(th.DeleteInstance, placement)
+
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(namespace))
+			DeferCleanup(k8sClient.Delete, ctx, CreatePlacementAPISecret(namespace, SecretName))
+
+			serviceSpec := corev1.ServiceSpec{Ports: []corev1.ServicePort{{Port: 3306}}}
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(namespace, "openstack", serviceSpec),
+			)
+			mariadb.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
+			keystone.SimulateKeystoneServiceReady(names.KeystoneServiceName)
+			keystone.SimulateKeystoneEndpointReady(names.KeystoneEndpointName)
+			th.SimulateJobSuccess(names.DBSyncJobName)
+			DeferCleanup(th.DeleteInstance, placement)
+		})
+
+		It("it creates deployment with CA and service certs mounted", func() {
+			j := th.GetDeployment(names.DeploymentName)
+
+			container := j.Spec.Template.Spec.Containers[0]
+
+			// CA bundle
+			th.AssertVolumeExists(names.CaBundleSecretName.Name, j.Spec.Template.Spec.Volumes)
+			th.AssertVolumeMountExists(names.CaBundleSecretName.Name, "tls-ca-bundle.pem", j.Spec.Template.Spec.Containers[0].VolumeMounts)
+
+			// service certs
+			th.AssertVolumeExists(names.InternalCertSecretName.Name, j.Spec.Template.Spec.Volumes)
+			th.AssertVolumeExists(names.PublicCertSecretName.Name, j.Spec.Template.Spec.Volumes)
+			th.AssertVolumeMountExists(names.PublicCertSecretName.Name, "tls.key", j.Spec.Template.Spec.Containers[0].VolumeMounts)
+			th.AssertVolumeMountExists(names.PublicCertSecretName.Name, "tls.crt", j.Spec.Template.Spec.Containers[0].VolumeMounts)
+			th.AssertVolumeMountExists(names.InternalCertSecretName.Name, "tls.key", j.Spec.Template.Spec.Containers[0].VolumeMounts)
+			th.AssertVolumeMountExists(names.InternalCertSecretName.Name, "tls.crt", j.Spec.Template.Spec.Containers[0].VolumeMounts)
+
+			Expect(container.ReadinessProbe.HTTPGet.Scheme).To(Equal(corev1.URISchemeHTTPS))
+			Expect(container.LivenessProbe.HTTPGet.Scheme).To(Equal(corev1.URISchemeHTTPS))
+
+			configDataMap := th.GetConfigMap(names.ConfigMapName)
+			Expect(configDataMap).ShouldNot(BeNil())
+			Expect(configDataMap.Data).Should(HaveKey("httpd.conf"))
+			Expect(configDataMap.Data).Should(HaveKey("ssl.conf"))
+			configData := string(configDataMap.Data["httpd.conf"])
+			Expect(configData).Should(ContainSubstring("SSLEngine on"))
+			Expect(configData).Should(ContainSubstring("SSLCertificateFile      \"/etc/pki/tls/certs/internal.crt\""))
+			Expect(configData).Should(ContainSubstring("SSLCertificateKeyFile   \"/etc/pki/tls/private/internal.key\""))
+			Expect(configData).Should(ContainSubstring("SSLCertificateFile      \"/etc/pki/tls/certs/public.crt\""))
+			Expect(configData).Should(ContainSubstring("SSLCertificateKeyFile   \"/etc/pki/tls/private/public.key\""))
+		})
+	})
+})
+
+var _ = Describe("PlacementAPI reconfiguration", func() {
+	BeforeEach(func() {
+		err := os.Setenv("OPERATOR_TEMPLATES", "../../templates")
+		Expect(err).NotTo(HaveOccurred())
+	})
+
+	When("TLS certs are reconfigured", func() {
+		BeforeEach(func() {
+
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCABundleSecret(names.CaBundleSecretName))
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(names.InternalCertSecretName))
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(names.PublicCertSecretName))
+			DeferCleanup(th.DeleteInstance, CreatePlacementAPI(names.PlacementAPIName, GetTLSPlacementAPISpec(names)))
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(namespace))
+			DeferCleanup(k8sClient.Delete, ctx, CreatePlacementAPISecret(namespace, SecretName))
+
+			spec := GetTLSPlacementAPISpec(names)
+			placement := CreatePlacementAPI(names.PlacementAPIName, spec)
+
+			serviceSpec := corev1.ServiceSpec{Ports: []corev1.ServicePort{{Port: 3306}}}
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(namespace, "openstack", serviceSpec),
+			)
+			mariadb.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
+			keystone.SimulateKeystoneServiceReady(names.KeystoneServiceName)
+			keystone.SimulateKeystoneEndpointReady(names.KeystoneEndpointName)
+			th.SimulateJobSuccess(names.DBSyncJobName)
+			DeferCleanup(th.DeleteInstance, placement)
+			th.SimulateDeploymentReplicaReady(names.DeploymentName)
+
+			th.ExpectCondition(
+				names.PlacementAPIName,
+				ConditionGetterFunc(PlacementConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
+
+		It("reconfigures the API pod", func() {
+			// Grab the current config hash
+			originalHash := GetEnvVarValue(
+				th.GetDeployment(names.DeploymentName).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
+			Expect(originalHash).NotTo(BeEmpty())
+
+			// Change the content of the CA secret
+			th.UpdateSecret(names.CaBundleSecretName, "tls-ca-bundle.pem", []byte("DifferentCAData"))
+
+			// Assert that the deployment is updated
+			Eventually(func(g Gomega) {
+				newHash := GetEnvVarValue(
+					th.GetDeployment(names.DeploymentName).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
+				g.Expect(newHash).NotTo(BeEmpty())
+				g.Expect(newHash).NotTo(Equal(originalHash))
 			}, timeout, interval).Should(Succeed())
 		})
 

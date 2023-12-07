@@ -73,6 +73,12 @@ const (
 
 	SecretName = "test-osp-secret"
 
+	PublicCertSecretName = "public-tls-certs"
+
+	InternalCertSecretName = "internal-tls-certs"
+
+	CABundleSecretName = "combined-ca-bundle"
+
 	interval = time.Millisecond * 200
 )
 

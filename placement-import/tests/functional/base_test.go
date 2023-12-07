@@ -28,19 +28,22 @@ import (
 )
 
 type Names struct {
-	Namespace            string
-	PlacementAPIName     types.NamespacedName
-	ConfigMapName        types.NamespacedName
-	DBSyncJobName        types.NamespacedName
-	MariaDBDatabaseName  types.NamespacedName
-	DeploymentName       types.NamespacedName
-	PublicServiceName    types.NamespacedName
-	InternalServiceName  types.NamespacedName
-	KeystoneServiceName  types.NamespacedName
-	KeystoneEndpointName types.NamespacedName
-	ServiceAccountName   types.NamespacedName
-	RoleName             types.NamespacedName
-	RoleBindingName      types.NamespacedName
+	Namespace              string
+	PlacementAPIName       types.NamespacedName
+	ConfigMapName          types.NamespacedName
+	DBSyncJobName          types.NamespacedName
+	MariaDBDatabaseName    types.NamespacedName
+	DeploymentName         types.NamespacedName
+	PublicServiceName      types.NamespacedName
+	InternalServiceName    types.NamespacedName
+	KeystoneServiceName    types.NamespacedName
+	KeystoneEndpointName   types.NamespacedName
+	ServiceAccountName     types.NamespacedName
+	RoleName               types.NamespacedName
+	RoleBindingName        types.NamespacedName
+	CaBundleSecretName     types.NamespacedName
+	InternalCertSecretName types.NamespacedName
+	PublicCertSecretName   types.NamespacedName
 }
 
 func CreateNames(placementAPIName types.NamespacedName) Names {
@@ -82,6 +85,15 @@ func CreateNames(placementAPIName types.NamespacedName) Names {
 		RoleBindingName: types.NamespacedName{
 			Namespace: placementAPIName.Namespace,
 			Name:      "placement-" + placementAPIName.Name + "-rolebinding"},
+		CaBundleSecretName: types.NamespacedName{
+			Namespace: placementAPIName.Namespace,
+			Name:      CABundleSecretName},
+		InternalCertSecretName: types.NamespacedName{
+			Namespace: placementAPIName.Namespace,
+			Name:      InternalCertSecretName},
+		PublicCertSecretName: types.NamespacedName{
+			Namespace: placementAPIName.Namespace,
+			Name:      PublicCertSecretName},
 	}
 }
 
@@ -89,6 +101,25 @@ func GetDefaultPlacementAPISpec() map[string]interface{} {
 	return map[string]interface{}{
 		"databaseInstance": "openstack",
 		"secret":           SecretName,
+	}
+}
+
+func GetTLSPlacementAPISpec(names Names) map[string]interface{} {
+	return map[string]interface{}{
+		"databaseInstance": "openstack",
+		"replicas":         1,
+		"secret":           SecretName,
+		"tls": map[string]interface{}{
+			"api": map[string]interface{}{
+				"internal": map[string]interface{}{
+					"secretName": names.InternalCertSecretName.Name,
+				},
+				"public": map[string]interface{}{
+					"secretName": names.PublicCertSecretName.Name,
+				},
+			},
+			"caBundleSecretName": names.CaBundleSecretName.Name,
+		},
 	}
 }
 
