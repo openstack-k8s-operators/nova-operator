@@ -124,6 +124,8 @@
             compute-feature-enabled.vnc_console: true
             compute-feature-enabled.stable_rescue: true
             compute-feature-enabled.hostname_fqdn_sanitization: true
+            compute-feature-enabled.live_migration: true
+            compute-feature-enabled.block_migration_for_live_migration: true
             validation.run_validation: true
             # NOTE(gibi): This is a WA to force the publicURL as otherwise
             # tempest gets configured with adminURL and that causes test
@@ -164,14 +166,24 @@
         - test_stable_device_rescue_disk_virtio_with_volume_attached
         - test_resize_volume_backed_server_confirm
         - test_resize_server_revert_with_volume_attached
+      # We don't have shared local storage
+        - tempest.api.compute.admin.test_live_migration.LiveMigrationTest.test_live_migration_with_trunk
+        - tempest.scenario.test_network_advanced_server_ops.TestNetworkAdvancedServerOps.test_server_connectivity_live_migration
+      # Libvirt refuses to live-migrate a paused VM with post-copy enabled
+      # See https://bugs.launchpad.net/nova/+bug/1946752
+        - test_live_block_migration_paused
       # Need to check
         - tempest.api.compute.admin.test_auto_allocate_network.AutoAllocateNetworkTest.test_server_multi_create_auto_allocate
         - tempest.api.compute.servers.test_server_rescue.ServerStableDeviceRescueTestIDE
-      # Migration does not work yet
-        - tempest.api.compute.admin.test_live_migration
-        - test_server_connectivity_live_migration
       # Swift test failing with unauthorized errors
         - tempest.scenario.test_object_storage
+      # We need to use a custom cpu model to allow live migrating between
+      # slightly different computes coming from the node pool
+      cifmw_edpm_deploy_nova_compute_extra_config: |
+        [libvirt]
+        cpu_mode = custom
+        cpu_models = Nehalem
+
 - project:
     name: openstack-k8s-operators/nova-operator
     github-check:
