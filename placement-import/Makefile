@@ -316,18 +316,12 @@ operator-lint: gowork ## Runs operator-lint
 	GOBIN=$(LOCALBIN) go install github.com/gibizer/operator-lint@v0.3.0
 	go vet -vettool=$(LOCALBIN)/operator-lint ./... ./api/...
 
-# Used for webhook testing
-# Please ensure the placement-controller-manager deployment and
-# webhook definitions are removed from the csv before running
-# this. Also, cleanup the webhook configuration for local testing
-# before deplying with olm again.
-# $oc delete -n openstack validatingwebhookconfiguration/vplacementapi.kb.io
-# $oc delete -n openstack mutatingwebhookconfiguration/mplacementapi.kb.io
 SKIP_CERT ?=false
 .PHONY: run-with-webhook
 run-with-webhook: export METRICS_PORT?=8080
 run-with-webhook: export HEALTH_PORT?=8081
-run-with-webhook: manifests generate fmt vet ## Run a controller from your host.
+run-with-webhook: manifests generate fmt vet scale-down-placement-controller-csv ## Run a controller from your host.
+	/bin/bash hack/clean_local_webhook.sh
 	/bin/bash hack/configure_local_webhook.sh
 	go run ./main.go -metrics-bind-address ":$(METRICS_PORT)" -health-probe-bind-address ":$(HEALTH_PORT)"
 
@@ -335,3 +329,14 @@ run-with-webhook: manifests generate fmt vet ## Run a controller from your host.
 tidy: ## Run go mod tidy on every mod file in the repo
 	go mod tidy
 	cd ./api && go mod tidy
+
+OPERATOR_NAMESPACE ?= openstack-operators
+
+scale-down-placement-controller-csv:
+	@echo "Scaling placement-controller-manager to 0 in CSV"
+	oc patch csv -n $(OPERATOR_NAMESPACE) placement-operator.v0.0.1 --type json -p='[{"op": "replace", "path": "/spec/install/spec/deployments/0/spec/replicas", "value": 0}]'
+	@echo "Removing olm installed webhooks from CSV"
+	$(eval has_webhooks=$(shell oc get -o json csv placement-operator.v0.0.1  | jq ".spec.webhookdefinitions"))
+	if [ "$(has_webhooks)" != "null" ]; then \
+	    oc patch csv -n $(OPERATOR_NAMESPACE) placement-operator.v0.0.1 --type json -p='[{"op": "remove", "path": "/spec/webhookdefinitions"}]'; \
+	fi
