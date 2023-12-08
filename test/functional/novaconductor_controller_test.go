@@ -642,7 +642,7 @@ var _ = Describe("NovaConductor controller", func() {
 	})
 })
 
-var _ = Describe("NovaConductorcontroller cleaning", func() {
+var _ = Describe("NovaConductor controller cleaning", func() {
 	var novaAPIServer *NovaAPIFixture
 	BeforeEach(func() {
 		novaAPIServer = NewNovaAPIFixtureWithServer(logger)
@@ -671,7 +671,7 @@ var _ = Describe("NovaConductorcontroller cleaning", func() {
 		th.SimulateJobSuccess(cell0.DBSyncJobName)
 		th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 	})
-	When("NovaScheduler down service is removed from api", func() {
+	When("NovaConductor down service is removed from api", func() {
 		It("during reconciling", func() {
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 			th.ExpectCondition(
@@ -680,6 +680,7 @@ var _ = Describe("NovaConductorcontroller cleaning", func() {
 				condition.DeploymentReadyCondition,
 				corev1.ConditionTrue,
 			)
+			Expect(novaAPIServer.FindRequest("GET", "/compute/os-services/", "binary=nova-conductor")).To(BeTrue())
 			Expect(novaAPIServer.FindRequest("DELETE", "/compute/os-services/3", "")).To(BeTrue())
 		})
 	})
