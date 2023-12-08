@@ -94,22 +94,17 @@ const (
 	// TransportURLSelector is the name of key in the internal cell
 	// Secret for the cell message bus transport URL
 	TransportURLSelector = "transport_url"
-
-	// defaultRequestTimeout is the default timeout duration for requests
-	defaultRequestTimeout = 10 * time.Second
 )
 
 type conditionsGetter interface {
 	GetConditions() condition.Conditions
 }
 
-func cleanNovaServiceFromNovaDb(ctx context.Context,
-	h *helper.Helper, authURL string, adminUser string,
-	authPassword string, timeout time.Duration, l logr.Logger, serviceName string) error {
-	computeClient, _, err := getNovaClient(ctx, h, authURL, adminUser, authPassword, defaultRequestTimeout, l)
-	if err != nil {
-		return err
-	}
+func cleanNovaServiceFromNovaDb(
+	ctx context.Context,
+	computeClient *gophercloud.ServiceClient,
+	serviceName string,
+) error {
 	opts := services.ListOpts{
 		Binary: serviceName,
 	}
@@ -562,25 +557,32 @@ func (r *ReconcilerBase) ensureMetadataDeleted(
 	return nil
 }
 
-func getNovaClient(ctx context.Context,
-	h *helper.Helper, authURL string, adminUser string, authPassword string, timeout time.Duration, l logr.Logger) (*gophercloud.ServiceClient, ctrl.Result, error) {
+type keystoneAuth interface {
+	GetKeystoneAuthURL() string
+	GetKeystoneUser() string
+}
+
+func getNovaClient(
+	ctx context.Context, h *helper.Helper,
+	keystoneAuth keystoneAuth, password string,
+	l logr.Logger,
+) (*gophercloud.ServiceClient, error) {
 
 	cfg := openstack.AuthOpts{
-		AuthURL:    authURL,
-		Username:   adminUser,
-		Password:   authPassword,
+		AuthURL:    keystoneAuth.GetKeystoneAuthURL(),
+		Username:   keystoneAuth.GetKeystoneUser(),
+		Password:   password,
 		DomainName: "Default",   // fixme",
 		Region:     "regionOne", // fixme",
 		TenantName: "service",   // fixme",
 	}
-	// create the compute client using previous providerClient
 	endpointOpts := gophercloud.EndpointOpts{
 		Region:       cfg.Region,
 		Availability: gophercloud.AvailabilityInternal,
 	}
 	computeClient, err := openstack.GetNovaOpenStackClient(l, cfg, endpointOpts)
 	if err != nil {
-		return nil, ctrl.Result{}, err
+		return nil, err
 	}
-	return computeClient.GetOSClient(), ctrl.Result{}, nil
+	return computeClient.GetOSClient(), nil
 }

@@ -204,3 +204,13 @@ func NewNovaConductorSpec(
 func (n NovaConductor) GetSecret() string {
 	return n.Spec.Secret
 }
+
+// GetKeystoneAuthURL returns the KeystoneAuthURL from the Spec
+func (n NovaConductor) GetKeystoneAuthURL() string {
+	return n.Spec.KeystoneAuthURL
+}
+
+// GetServiceUser returns the Service user from the Spec
+func (n NovaConductor) GetKeystoneUser() string {
+	return n.Spec.ServiceUser
+}
