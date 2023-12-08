@@ -17,6 +17,7 @@ package functional_test
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -197,6 +198,41 @@ var _ = Describe("Nova validation", func() {
 					"should be shorter than 36 characters"),
 		)
 	})
+	DescribeTable("rejects Nova with wrong cell name format", func(cellName string) {
+		spec := GetDefaultNovaSpec()
+		cell0Template := GetDefaultNovaCellTemplate()
+		spec["cellTemplates"] = map[string]interface{}{
+			"cell0": cell0Template,
+			// the limit is 35 chars, this is 5 + 31
+			cellName: cell0Template,
+		}
+		raw := map[string]interface{}{
+			"apiVersion": "nova.openstack.org/v1beta1",
+			"kind":       "Nova",
+			"metadata": map[string]interface{}{
+				"name":      novaNames.NovaName.Name,
+				"namespace": novaNames.Namespace,
+			},
+			"spec": spec,
+		}
+
+		unstructuredObj := &unstructured.Unstructured{Object: raw}
+		_, err := controllerutil.CreateOrPatch(
+			ctx, k8sClient, unstructuredObj, func() error { return nil })
+
+		Expect(err).Should(HaveOccurred())
+		var statusError *k8s_errors.StatusError
+		Expect(errors.As(err, &statusError)).To(BeTrue())
+		Expect(statusError.ErrStatus.Details.Kind).To(Equal("Nova"))
+		Expect(statusError.ErrStatus.Message).To(
+			ContainSubstring(
+				fmt.Sprintf("invalid: spec.cellTemplates[%s]: Invalid value: \"%s\": should contain only alphanumeric characters, '-', and '.', start with a lowercase letter", cellName, cellName),
+			),
+		)
+	},
+		Entry("cell name starts with a capital letter", "Cell1xx"),
+		Entry("cell name contain wrong signs", "cell1$xx__"),
+	)
 	It("rejects NovaCell with too long cell name", func() {
 		cell := GetCellNames(novaNames.NovaName, "cell1"+strings.Repeat("x", 31))
 		spec := GetDefaultNovaCellSpec(cell)
@@ -457,6 +493,37 @@ var _ = Describe("Nova validation", func() {
 			),
 		)
 	})
+	DescribeTable("rejects NovaCell with wrong compute name", func(computName string) {
+		spec := GetDefaultNovaCellSpec(cell1)
+		spec["novaComputeTemplates"] = map[string]interface{}{
+			computName: GetDefaultNovaComputeTemplate(),
+		}
+		raw := map[string]interface{}{
+			"apiVersion": "nova.openstack.org/v1beta1",
+			"kind":       "NovaCell",
+			"metadata": map[string]interface{}{
+				"name":      cell1.CellCRName.Name,
+				"namespace": novaNames.Namespace,
+			},
+			"spec": spec,
+		}
+		unstructuredObj := &unstructured.Unstructured{Object: raw}
+		_, err := controllerutil.CreateOrPatch(
+			ctx, k8sClient, unstructuredObj, func() error { return nil })
+
+		Expect(err).Should(HaveOccurred())
+		var statusError *k8s_errors.StatusError
+		Expect(errors.As(err, &statusError)).To(BeTrue())
+		Expect(statusError.ErrStatus.Details.Kind).To(Equal("NovaCell"))
+		Expect(statusError.ErrStatus.Message).To(
+			ContainSubstring(
+				fmt.Sprintf("invalid: spec.novaComputeTemplates: Invalid value: \"%s\": should contain only alphanumeric characters, '-', and '.', start with a lowercase letter", computName),
+			),
+		)
+	},
+		Entry("compute name starts with a capital letter", "Compute1xx"),
+		Entry("compute name contain wrong signs", "compute1-xx__"),
+	)
 	It("rejects Nova with metadata both on top and in cells", func() {
 		spec := GetDefaultNovaSpec()
 		spec["metadataServiceTemplate"] = map[string]interface{}{

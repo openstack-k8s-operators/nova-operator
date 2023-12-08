@@ -24,6 +24,7 @@ package v1beta1
 
 import (
 	"fmt"
+	"regexp"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -202,6 +203,7 @@ func (r *NovaCell) ValidateDelete() error {
 
 // ValidateCellName validates the cell name. It is expected to be called
 // from various webhooks.
+
 func ValidateCellName(path *field.Path, cellName string) field.ErrorList {
 	var errors field.ErrorList
 	if len(cellName) > 35 {
@@ -209,6 +211,14 @@ func ValidateCellName(path *field.Path, cellName string) field.ErrorList {
 			errors,
 			field.Invalid(
 				path, cellName, "should be shorter than 36 characters"),
+		)
+	}
+	match, _ := regexp.MatchString("^[a-z][a-zA-Z0-9.-]*$", cellName)
+	if !match {
+		errors = append(
+			errors,
+			field.Invalid(
+				path, cellName, "should contain only alphanumeric characters, '-', and '.', start with a lowercase letter"),
 		)
 	}
 	return errors

@@ -24,6 +24,7 @@ package v1beta1
 
 import (
 	"fmt"
+	"regexp"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -167,6 +168,14 @@ func ValidateNovaComputeName(path *field.Path, computeName string) field.ErrorLi
 			errors,
 			field.Invalid(
 				path, computeName, "should be shorter than 20 characters"),
+		)
+	}
+	match, _ := regexp.MatchString("^[a-z][a-zA-Z0-9.-]*$", computeName)
+	if !match {
+		errors = append(
+			errors,
+			field.Invalid(
+				path, computeName, "should contain only alphanumeric characters, '-', and '.', start with a lowercase letter"),
 		)
 	}
 	return errors
