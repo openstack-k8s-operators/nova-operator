@@ -461,10 +461,12 @@ func (r *NovaConductorReconciler) cleanServiceFromNovaDb(
 ) error {
 
 	authPassword := string(secret.Data[ServicePasswordSelector])
-	err := cleanNovaServiceFromNovaDb(ctx, h, instance.Spec.KeystoneAuthURL,
-		instance.Spec.ServiceUser, authPassword, defaultRequestTimeout, l, "nova-conductor")
+	computeClient, err := getNovaClient(ctx, h, instance, authPassword, l)
+	if err != nil {
+		return err
+	}
 
-	return err
+	return cleanNovaServiceFromNovaDb(ctx, computeClient, "nova-conductor")
 }
 
 // SetupWithManager sets up the controller with the Manager.
