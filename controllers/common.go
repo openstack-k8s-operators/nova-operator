@@ -38,6 +38,7 @@ import (
 	"github.com/openstack-k8s-operators/nova-operator/pkg/nova"
 
 	gophercloud "github.com/gophercloud/gophercloud"
+	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/services"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
@@ -100,6 +101,35 @@ const (
 
 type conditionsGetter interface {
 	GetConditions() condition.Conditions
+}
+
+func cleanNovaServiceFromNovaDb(ctx context.Context,
+	h *helper.Helper, authURL string, adminUser string,
+	authPassword string, timeout time.Duration, l logr.Logger, serviceName string) error {
+	computeClient, _, err := getNovaClient(ctx, h, authURL, adminUser, authPassword, defaultRequestTimeout, l)
+	if err != nil {
+		return err
+	}
+	opts := services.ListOpts{
+		Binary: serviceName,
+	}
+
+	allPages, err := services.List(computeClient, opts).AllPages()
+	if err != nil {
+		return err
+	}
+
+	allServices, err := services.ExtractServices(allPages)
+	if err != nil {
+		return err
+	}
+	for _, service := range allServices {
+		if service.State == "down" {
+			services.Delete(computeClient, service.ID)
+		}
+	}
+
+	return err
 }
 
 func allSubConditionIsTrue(conditionsGetter conditionsGetter) bool {
