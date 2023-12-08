@@ -183,3 +183,13 @@ func (s NovaSchedulerStatus) GetConditions() condition.Conditions {
 func (n NovaScheduler) GetSecret() string {
 	return n.Spec.Secret
 }
+
+// GetKeystoneAuthURL returns the KeystoneAuthURL from the Spec
+func (n NovaScheduler) GetKeystoneAuthURL() string {
+	return n.Spec.KeystoneAuthURL
+}
+
+// GetServiceUser returns the Service user from the Spec
+func (n NovaScheduler) GetKeystoneUser() string {
+	return n.Spec.ServiceUser
+}
