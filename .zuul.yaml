@@ -123,32 +123,21 @@
             compute.min_compute_nodes: 3
             compute-feature-enabled.vnc_console: true
             compute-feature-enabled.stable_rescue: true
-            compute_feature_enabled.hostname_fqdn_sanitization: true
+            compute-feature-enabled.hostname_fqdn_sanitization: true
             validation.run_validation: true
             # NOTE(gibi): This is a WA to force the publicURL as otherwise
             # tempest gets configured with adminURL and that causes test
             # instability.
             identity.v3_endpoint_type: public
       cifmw_tempest_tests_allowed:
-        - tempest.
+        - tempest.api.compute
+        - tempest.scenario
       cifmw_tempest_tests_skipped:
       # TODO(samborka): remove this once we have a running barbican
-        - barbican_tempest_plugin.
         - tempest.scenario.test_encrypted_cinder_volumes.TestEncryptedCinderVolumes
       # We don't have a running cinder-volume
-        - cinder_tempest_plugin.
         - ServersTestBootFromVolume
         - tempest.api.compute.volumes.test_volumes_list
-        - tempest.api.volume.admin
-        - tempest.api.volume.test_image_metadata
-        - tempest.api.volume.test_snapshot_metadata
-        - tempest.api.volume.test_volume_absolute_limits
-        - tempest.api.volume.test_volume_metadata
-        - tempest.api.volume.test_volumes_actions
-        - tempest.api.volume.test_volumes_list
-        - tempest.api.volume.test_volumes_negative
-        - tempest.api.volume.test_volumes_snapshots
-        - tempest.api.volume.test_volumes_snapshots_list
         - tempest.api.compute.admin.test_volume.AttachSCSIVolumeTestJSON
         - tempest.api.compute.admin.test_volumes_negative.VolumesAdminNegativeTest
         - test_delete_server_while_in_attached_volume
@@ -165,24 +154,6 @@
         - test_attach_attached_volume
         - test_delete_attached_volume
         - tempest.api.compute.volumes.test_volumes_get
-        - tempest.api.volume.admin.test_backends_capabilities
-        - tempest.api.volume.admin.test_group_snapshots
-        - tempest.api.volume.admin.test_groups
-        - tempest.api.volume.admin.test_volume_hosts
-        - tempest.api.volume.admin.test_volume_pools
-        - tempest.api.volume.admin.test_volume_quotas
-        - tempest.api.volume.admin.test_volume_retype
-        - tempest.api.volume.admin.test_volume_services.VolumesServicesTestJSON.test_get_service_by_volume_host_name
-        - tempest.api.volume.admin.test_volume_type_access
-        - tempest.api.volume.admin.test_volume_types.VolumeTypesTest.test_volume_crud_with_volume_type_and_extra_specs
-        - tempest.api.volume.admin.test_volumes_actions
-        - tempest.api.volume.test_availability_zone
-        - tempest.api.volume.test_volume_delete_cascade
-        - tempest.api.volume.test_volume_transfers
-        - tempest.api.volume.test_volumes_clone
-        - tempest.api.volume.test_volumes_extend
-        - tempest.api.volume.test_volumes_get
-        - tempest.api.volume.test_volumes_snapshots_negative.VolumesSnapshotNegativeTestJSON.test_volume_from_snapshot_decreasing_size
         - test_minimum_basic_instance_hard_reboot_after_vol_snap_deletion
         - tempest.scenario.test_minimum_basic.TestMinimumBasicScenario.test_minimum_basic_scenario
         - test_shelve_volume_backed_instance
@@ -195,15 +166,11 @@
         - test_resize_server_revert_with_volume_attached
       # Need to check
         - tempest.api.compute.admin.test_auto_allocate_network.AutoAllocateNetworkTest.test_server_multi_create_auto_allocate
-        - tempest.api.object_storage.test_container_sync_middleware
-        - tempest.api.object_storage.test_object_version
         - tempest.api.compute.servers.test_server_rescue.ServerStableDeviceRescueTestIDE
-        - tempest.api.network.admin.test_dhcp_agent_scheduler
       # Migration does not work yet
         - tempest.api.compute.admin.test_live_migration
         - test_server_connectivity_live_migration
       # Swift test failing with unauthorized errors
-        - tempest.api.object_storage
         - tempest.scenario.test_object_storage
 - project:
     name: openstack-k8s-operators/nova-operator
