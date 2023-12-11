@@ -183,6 +183,9 @@ var _ = Describe("NovaAPI controller", func() {
 				Expect(configData).Should(ContainSubstring("www_authenticate_uri = keystone-public-auth-url"))
 				Expect(configData).Should(
 					ContainSubstring("[upgrade_levels]\ncompute = auto"))
+				Expect(configData).Should(ContainSubstring("enforce_new_defaults=true"))
+				Expect(configData).Should(ContainSubstring("enforce_scope=true"))
+				// test config override
 				Expect(configDataMap.Data).Should(HaveKey("02-nova-override.conf"))
 				extraData := string(configDataMap.Data["02-nova-override.conf"])
 				Expect(extraData).To(Equal("foo=bar"))
