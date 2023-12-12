@@ -102,6 +102,54 @@ spec:
             weight: 1
       containers:
       - args:
+        - --single-child
+        - --
+        - /usr/bin/tail
+        - -n+1
+        - -F
+        - /var/log/placement/placement-api.log
+        command:
+        - /usr/bin/dumb-init
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /
+            port: 8778
+            scheme: HTTP
+          initialDelaySeconds: 3
+          periodSeconds: 3
+          successThreshold: 1
+          timeoutSeconds: 5
+        name: placement-log
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /
+            port: 8778
+            scheme: HTTP
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          successThreshold: 1
+          timeoutSeconds: 5
+        resources: {}
+        securityContext:
+          runAsUser: 42482
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /usr/local/bin/container-scripts
+          name: scripts
+          readOnly: true
+        - mountPath: /var/lib/config-data/merged
+          name: config-data-merged
+        - mountPath: /var/lib/kolla/config_files/config.json
+          name: config-data-merged
+          readOnly: true
+          subPath: placement-api-config.json
+        - mountPath: /var/log/placement
+          name: logs
+      - args:
         - -c
         - /usr/local/bin/kolla_start
         command:

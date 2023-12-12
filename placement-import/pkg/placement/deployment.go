@@ -99,6 +99,29 @@ func Deployment(
 					ServiceAccountName: instance.RbacResourceName(),
 					Containers: []corev1.Container{
 						{
+							Name: ServiceName + "-log",
+							Command: []string{
+								"/usr/bin/dumb-init",
+							},
+							Args: []string{
+								"--single-child",
+								"--",
+								"/usr/bin/tail",
+								"-n+1",
+								"-F",
+								"/var/log/placement/placement-api.log",
+							},
+							Image: instance.Spec.ContainerImage,
+							SecurityContext: &corev1.SecurityContext{
+								RunAsUser: ptr.To(PlacementUserID),
+							},
+							Env:            env.MergeEnvs([]corev1.EnvVar{}, envVars),
+							VolumeMounts:   getVolumeMounts("api"),
+							Resources:      instance.Spec.Resources,
+							ReadinessProbe: readinessProbe,
+							LivenessProbe:  livenessProbe,
+						},
+						{
 							Name: ServiceName + "-api",
 							Command: []string{
 								"/bin/bash",

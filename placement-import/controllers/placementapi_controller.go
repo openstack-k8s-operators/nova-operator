@@ -792,7 +792,7 @@ func (r *PlacementAPIReconciler) generateServiceConfigMaps(
 
 	// customData hold any customization for the service.
 	// custom.conf is going to /etc/<service>/<service>.conf.d
-	// all other files get placed into /etc/<service> to allow overwrite of e.g. logging.conf or policy.json
+	// all other files get placed into /etc/<service> to allow overwrite of e.g. policy.json
 	// TODO: make sure custom.conf can not be overwritten
 	customData := map[string]string{common.CustomServiceConfigFileName: instance.Spec.CustomServiceConfig}
 	for key, data := range instance.Spec.DefaultConfigOverwrite {
@@ -811,10 +811,12 @@ func (r *PlacementAPIReconciler) generateServiceConfigMaps(
 	if err != nil {
 		return err
 	}
-	templateParameters := make(map[string]interface{})
-	templateParameters["ServiceUser"] = instance.Spec.ServiceUser
-	templateParameters["KeystoneInternalURL"] = keystoneInternalURL
-	templateParameters["KeystonePublicURL"] = keystonePublicURL
+	templateParameters := map[string]interface{}{
+		"ServiceUser":         instance.Spec.ServiceUser,
+		"KeystoneInternalURL": keystoneInternalURL,
+		"KeystonePublicURL":   keystonePublicURL,
+		"log_file":            "/var/log/placement/placement-api.log",
+	}
 
 	cms := []util.Template{
 		// ScriptsConfigMap

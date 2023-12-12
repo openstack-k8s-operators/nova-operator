@@ -53,6 +53,12 @@ func getVolumes(name string) []corev1.Volume {
 				EmptyDir: &corev1.EmptyDirVolumeSource{Medium: ""},
 			},
 		},
+		{
+			Name: "logs",
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{Medium: ""},
+			},
+		},
 	}
 
 }
@@ -73,6 +79,11 @@ func getInitVolumeMounts() []corev1.VolumeMount {
 		{
 			Name:      "config-data-merged",
 			MountPath: "/var/lib/config-data/merged",
+			ReadOnly:  false,
+		},
+		{
+			Name:      "logs",
+			MountPath: "/var/log/placement",
 			ReadOnly:  false,
 		},
 	}
@@ -96,6 +107,11 @@ func getVolumeMounts(serviceName string) []corev1.VolumeMount {
 			MountPath: "/var/lib/kolla/config_files/config.json",
 			SubPath:   "placement-" + serviceName + "-config.json",
 			ReadOnly:  true,
+		},
+		{
+			Name:      "logs",
+			MountPath: "/var/log/placement",
+			ReadOnly:  false,
 		},
 	}
 }

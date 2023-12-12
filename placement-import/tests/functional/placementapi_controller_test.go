@@ -326,12 +326,12 @@ var _ = Describe("PlacementAPI controller", func() {
 			)
 
 			job := th.GetJob(names.DBSyncJobName)
-			Expect(job.Spec.Template.Spec.Volumes).To(HaveLen(3))
+			Expect(job.Spec.Template.Spec.Volumes).To(HaveLen(4))
 			Expect(job.Spec.Template.Spec.InitContainers).To(HaveLen(1))
 			Expect(job.Spec.Template.Spec.Containers).To(HaveLen(1))
 
 			init := job.Spec.Template.Spec.InitContainers[0]
-			Expect(init.VolumeMounts).To(HaveLen(3))
+			Expect(init.VolumeMounts).To(HaveLen(4))
 			Expect(init.Args[1]).To(ContainSubstring("init.sh"))
 			Expect(init.Image).To(Equal("quay.io/podified-antelope-centos9/openstack-placement-api:current-podified"))
 			env := &corev1.EnvVar{}
@@ -349,7 +349,7 @@ var _ = Describe("PlacementAPI controller", func() {
 			Expect(env.ValueFrom.SecretKeyRef.Key).To(Equal("PlacementPassword"))
 
 			container := job.Spec.Template.Spec.Containers[0]
-			Expect(container.VolumeMounts).To(HaveLen(3))
+			Expect(container.VolumeMounts).To(HaveLen(4))
 			Expect(container.Image).To(Equal("quay.io/podified-antelope-centos9/openstack-placement-api:current-podified"))
 
 			th.SimulateJobSuccess(names.DBSyncJobName)
@@ -381,6 +381,8 @@ var _ = Describe("PlacementAPI controller", func() {
 			Expect(int(*deployment.Spec.Replicas)).To(Equal(1))
 			Expect(deployment.Spec.Selector.MatchLabels).To(Equal(map[string]string{"service": "placement"}))
 			Expect(deployment.Spec.Template.Spec.ServiceAccountName).To(Equal(names.ServiceAccountName.Name))
+			Expect(len(deployment.Spec.Template.Spec.Containers)).To(Equal(2))
+
 			th.SimulateDeploymentReplicaReady(names.DeploymentName)
 
 			th.ExpectCondition(

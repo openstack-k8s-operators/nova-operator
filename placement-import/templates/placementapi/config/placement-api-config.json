@@ -18,12 +18,6 @@
             "dest": "/etc/httpd/conf/httpd.conf",
             "owner": "apache",
             "perm": "0644"
-        },
-        {
-            "source": "/var/lib/config-data/merged/logging.conf",
-            "dest": "/etc/placement/logging.conf",
-            "owner": "placement",
-            "perm": "0600"
         }
     ],
     "permissions": [
