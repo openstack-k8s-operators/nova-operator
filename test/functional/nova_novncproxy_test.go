@@ -27,6 +27,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 )
 
 var _ = Describe("NovaNoVNCProxy controller", func() {
@@ -640,6 +641,100 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 				corev1.ConditionTrue,
 			)
 
+		})
+	})
+})
+
+var _ = Describe("NovaNoVNCProxy controller", func() {
+	When("NovaNoVNCProxy is created with TLS CA cert secret", func() {
+		BeforeEach(func() {
+			spec := GetDefaultNovaNoVNCProxySpec(cell1)
+			spec["tls"] = map[string]interface{}{
+				"secretName":         ptr.To(novaNames.InternalCertSecretName.Name),
+				"caBundleSecretName": novaNames.CaBundleSecretName.Name,
+			}
+			DeferCleanup(th.DeleteInstance, CreateNovaNoVNCProxy(cell1.NoVNCProxyName, spec))
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateCellInternalSecret(cell1))
+		})
+
+		It("reports that the CA secret is missing", func() {
+			th.ExpectConditionWithDetails(
+				cell1.NoVNCProxyName,
+				ConditionGetterFunc(NoVNCProxyConditionGetter),
+				condition.TLSInputReadyCondition,
+				corev1.ConditionFalse,
+				condition.ErrorReason,
+				fmt.Sprintf("TLSInput error occured in TLS sources Secret %s/combined-ca-bundle not found", novaNames.Namespace),
+			)
+			th.ExpectCondition(
+				cell1.NoVNCProxyName,
+				ConditionGetterFunc(NoVNCProxyConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+			)
+		})
+
+		It("reports that the service cert secret is missing", func() {
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCABundleSecret(novaNames.CaBundleSecretName))
+
+			th.ExpectConditionWithDetails(
+				cell1.NoVNCProxyName,
+				ConditionGetterFunc(NoVNCProxyConditionGetter),
+				condition.TLSInputReadyCondition,
+				corev1.ConditionFalse,
+				condition.ErrorReason,
+				fmt.Sprintf("TLSInput error occured in TLS sources Secret %s/internal-tls-certs not found", novaNames.Namespace),
+			)
+			th.ExpectCondition(
+				cell1.NoVNCProxyName,
+				ConditionGetterFunc(NoVNCProxyConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+			)
+		})
+
+		It("creates a StatefulSet for nova-metadata service with TLS CA cert attached", func() {
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCABundleSecret(novaNames.CaBundleSecretName))
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(novaNames.InternalCertSecretName))
+			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
+
+			ss := th.GetStatefulSet(cell1.NoVNCProxyStatefulSetName)
+
+			// Check the resulting deployment fields
+			Expect(int(*ss.Spec.Replicas)).To(Equal(1))
+			Expect(ss.Spec.Template.Spec.Volumes).To(HaveLen(3))
+			Expect(ss.Spec.Template.Spec.Containers).To(HaveLen(1))
+
+			// cert deployment volumes
+			th.AssertVolumeExists(novaNames.CaBundleSecretName.Name, ss.Spec.Template.Spec.Volumes)
+			th.AssertVolumeExists("nova-novncproxy-tls-certs", ss.Spec.Template.Spec.Volumes)
+
+			// CA container certs
+			apiContainer := ss.Spec.Template.Spec.Containers[0]
+			th.AssertVolumeMountExists(novaNames.CaBundleSecretName.Name, "tls-ca-bundle.pem", apiContainer.VolumeMounts)
+			th.AssertVolumeMountExists("nova-novncproxy-tls-certs", "tls.key", apiContainer.VolumeMounts)
+			th.AssertVolumeMountExists("nova-novncproxy-tls-certs", "tls.crt", apiContainer.VolumeMounts)
+
+			th.ExpectCondition(
+				cell1.NoVNCProxyName,
+				ConditionGetterFunc(NoVNCProxyConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			configDataMap := th.GetSecret(
+				types.NamespacedName{
+					Namespace: cell1.NoVNCProxyName.Namespace,
+					Name:      fmt.Sprintf("%s-config-data", cell1.NoVNCProxyName.Name),
+				},
+			)
+			Expect(configDataMap).ShouldNot(BeNil())
+			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
+			configData := string(configDataMap.Data["01-nova.conf"])
+			Expect(configData).Should(ContainSubstring("ssl_only=true"))
+			Expect(configData).Should(ContainSubstring("cert=/etc/pki/tls/certs/nova-novncproxy.crt"))
+			Expect(configData).Should(ContainSubstring("key=/etc/pki/tls/private/nova-novncproxy.key"))
 		})
 	})
 })

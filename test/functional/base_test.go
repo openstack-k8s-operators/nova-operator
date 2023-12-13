@@ -43,6 +43,9 @@ const (
 	// asserts using `Consistently`.
 	consistencyTimeout = timeout
 	ironicComputeName  = "ironic-compute"
+	//PublicCertSecretName   = "public-tls-certs"
+	//InternalCertSecretName = "internal-tls-certs"
+	//CABundleSecretName     = "combined-ca-bundle"
 )
 
 type NovaAPIFixture struct {
@@ -657,6 +660,9 @@ type NovaNames struct {
 	APIKeystoneEndpointName types.NamespacedName
 	APIStatefulSetName      types.NamespacedName
 	APIConfigDataName       types.NamespacedName
+	InternalCertSecretName  types.NamespacedName
+	PublicCertSecretName    types.NamespacedName
+	CaBundleSecretName      types.NamespacedName
 	// refers internal API network for all Nova services (not just nova API)
 	InternalAPINetworkNADName       types.NamespacedName
 	SchedulerName                   types.NamespacedName
@@ -727,6 +733,16 @@ func GetNovaNames(novaName types.NamespacedName, cellNames []string) NovaNames {
 			Namespace: novaAPI.Namespace,
 			Name:      novaAPI.Name + "-config-data",
 		},
+		InternalCertSecretName: types.NamespacedName{
+			Namespace: novaAPI.Namespace,
+			Name:      "internal-tls-certs"},
+		PublicCertSecretName: types.NamespacedName{
+			Namespace: novaAPI.Namespace,
+			Name:      "public-tls-certs"},
+		CaBundleSecretName: types.NamespacedName{
+			Namespace: novaName.Namespace,
+			Name:      "combined-ca-bundle"},
+
 		InternalAPINetworkNADName: types.NamespacedName{
 			Namespace: novaName.Namespace,
 			Name:      "internalapi",

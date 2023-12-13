@@ -18,6 +18,7 @@ package v1beta1
 
 import (
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -127,6 +128,11 @@ type NovaConductorSpec struct {
 	// +kubebuilder:validation:Required
 	// ServiceAccount - service account name used internally to provide Nova services the default SA name
 	ServiceAccount string `json:"serviceAccount"`
+
+	// +kubebuilder:validation:Optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	// TLS - Parameters related to the TLS
+	TLS tls.Ca `json:"tls,omitempty"`
 }
 
 // NovaConductorStatus defines the observed state of NovaConductor
@@ -196,6 +202,7 @@ func NewNovaConductorSpec(
 		KeystoneAuthURL:      novaCell.KeystoneAuthURL,
 		ServiceUser:          novaCell.ServiceUser,
 		ServiceAccount:       novaCell.ServiceAccount,
+		TLS:                  novaCell.TLS,
 	}
 	return conductorSpec
 }

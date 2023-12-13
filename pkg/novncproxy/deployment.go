@@ -36,7 +36,7 @@ func StatefulSet(
 	configHash string,
 	labels map[string]string,
 	annotations map[string]string,
-) *appsv1.StatefulSet {
+) (*appsv1.StatefulSet, error) {
 	// This allows the pod to start up slowly. The pod will only be killed
 	// if it does not succeed a probe in 60 seconds.
 	startupProbe := &corev1.Probe{
@@ -88,6 +88,12 @@ func StatefulSet(
 			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(NoVNCProxyPort)},
 			Path: "/vnc_lite.html",
 		}
+
+		if instance.Spec.TLS.GenericService.Enabled() {
+			livenessProbe.HTTPGet.Scheme = corev1.URISchemeHTTPS
+			readinessProbe.HTTPGet.Scheme = corev1.URISchemeHTTPS
+			startupProbe.HTTPGet.Scheme = corev1.URISchemeHTTPS
+		}
 	}
 
 	nodeSelector := map[string]string{}
@@ -103,6 +109,30 @@ func StatefulSet(
 	// the env changes.
 	envVars["CONFIG_HASH"] = env.SetValue(configHash)
 	env := env.MergeEnvs([]corev1.EnvVar{}, envVars)
+
+	// create Volume and VolumeMounts
+	volumes := []corev1.Volume{
+		nova.GetConfigVolume(nova.GetServiceConfigSecretName(instance.Name)),
+	}
+	volumeMounts := []corev1.VolumeMount{
+		nova.GetConfigVolumeMount(),
+		nova.GetKollaConfigVolumeMount("nova-novncproxy"),
+	}
+
+	// add CA cert if defined
+	if instance.Spec.TLS.CaBundleSecretName != "" {
+		volumes = append(volumes, instance.Spec.TLS.CreateVolume())
+		volumeMounts = append(volumeMounts, instance.Spec.TLS.CreateVolumeMounts(nil)...)
+	}
+
+	if instance.Spec.TLS.GenericService.Enabled() {
+		svc, err := instance.Spec.TLS.GenericService.ToService()
+		if err != nil {
+			return nil, err
+		}
+		volumes = append(volumes, svc.CreateVolume(ServiceName))
+		volumeMounts = append(volumeMounts, svc.CreateVolumeMounts(ServiceName)...)
+	}
 
 	statefulset := &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
@@ -122,9 +152,7 @@ func StatefulSet(
 				},
 				Spec: corev1.PodSpec{
 					ServiceAccountName: instance.Spec.ServiceAccount,
-					Volumes: []corev1.Volume{
-						nova.GetConfigVolume(nova.GetServiceConfigSecretName(instance.Name)),
-					},
+					Volumes:            volumes,
 					Containers: []corev1.Container{
 						{
 							Name: instance.Name + "-novncproxy",
@@ -136,11 +164,8 @@ func StatefulSet(
 							SecurityContext: &corev1.SecurityContext{
 								RunAsUser: ptr.To(nova.NovaUserID),
 							},
-							Env: env,
-							VolumeMounts: []corev1.VolumeMount{
-								nova.GetConfigVolumeMount(),
-								nova.GetKollaConfigVolumeMount("nova-novncproxy"),
-							},
+							Env:            env,
+							VolumeMounts:   volumeMounts,
 							Resources:      instance.Spec.Resources,
 							StartupProbe:   startupProbe,
 							ReadinessProbe: readinessProbe,
@@ -163,5 +188,5 @@ func StatefulSet(
 		},
 	}
 
-	return statefulset
+	return statefulset, nil
 }

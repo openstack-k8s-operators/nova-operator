@@ -52,6 +52,22 @@ func HostDiscoveryJob(
 
 	jobName := instance.Name + "-host-discover"
 
+	volumes := []corev1.Volume{
+		GetConfigVolume(configName),
+		GetScriptVolume(scriptName),
+	}
+	volumeMounts := []corev1.VolumeMount{
+		GetConfigVolumeMount(),
+		GetScriptVolumeMount(),
+		GetKollaConfigVolumeMount("host-discover"),
+	}
+
+	// add CA cert if defined
+	if instance.Spec.TLS.CaBundleSecretName != "" {
+		volumes = append(volumes, instance.Spec.TLS.CreateVolume())
+		volumeMounts = append(volumeMounts, instance.Spec.TLS.CreateVolumeMounts(nil)...)
+	}
+
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      jobName,
@@ -63,10 +79,7 @@ func HostDiscoveryJob(
 				Spec: corev1.PodSpec{
 					RestartPolicy:      corev1.RestartPolicyOnFailure,
 					ServiceAccountName: instance.Spec.ServiceAccount,
-					Volumes: []corev1.Volume{
-						GetConfigVolume(configName),
-						GetScriptVolume(scriptName),
-					},
+					Volumes:            volumes,
 					Containers: []corev1.Container{
 						{
 							Name: "nova-manage",
@@ -78,12 +91,8 @@ func HostDiscoveryJob(
 							SecurityContext: &corev1.SecurityContext{
 								RunAsUser: ptr.To(NovaUserID),
 							},
-							Env: env,
-							VolumeMounts: []corev1.VolumeMount{
-								GetConfigVolumeMount(),
-								GetScriptVolumeMount(),
-								GetKollaConfigVolumeMount("host-discover"),
-							},
+							Env:          env,
+							VolumeMounts: volumeMounts,
 						},
 					},
 				},

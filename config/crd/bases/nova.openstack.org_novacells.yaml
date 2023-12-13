@@ -455,6 +455,17 @@ spec:
                           to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
                         type: object
                     type: object
+                  tls:
+                    description: TLS - Parameters related to the TLS
+                    properties:
+                      caBundleSecretName:
+                        description: CaBundleSecretName - holding the CA certs in
+                          a pre-created bundle file
+                        type: string
+                      secretName:
+                        description: SecretName - holding the cert, key for the service
+                        type: string
+                    type: object
                 type: object
               noVNCProxyServiceTemplate:
                 description: NoVNCProxyServiceTemplate - defines the novvncproxy service
@@ -729,6 +740,17 @@ spec:
                           to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
                         type: object
                     type: object
+                  tls:
+                    description: TLS - Parameters related to the TLS
+                    properties:
+                      caBundleSecretName:
+                        description: CaBundleSecretName - holding the CA certs in
+                          a pre-created bundle file
+                        type: string
+                      secretName:
+                        description: SecretName - holding the cert, key for the service
+                        type: string
+                    type: object
                 type: object
               nodeSelector:
                 additionalProperties:
@@ -861,6 +883,14 @@ spec:
                 description: ServiceUser - optional username used for this service
                   to register in keystone
                 type: string
+              tls:
+                description: TLS - Parameters related to the TLS
+                properties:
+                  caBundleSecretName:
+                    description: CaBundleSecretName - holding the CA certs in a pre-created
+                      bundle file
+                    type: string
+                type: object
             required:
             - cellDatabaseHostname
             - cellName

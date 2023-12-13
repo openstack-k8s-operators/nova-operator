@@ -50,6 +50,23 @@ func CellDBSyncJob(
 
 	env := env.MergeEnvs([]corev1.EnvVar{}, envVars)
 
+	// create Volume and VolumeMounts
+	volumes := []corev1.Volume{
+		nova.GetConfigVolume(nova.GetServiceConfigSecretName(instance.Name)),
+		nova.GetScriptVolume(nova.GetScriptSecretName(instance.Name)),
+	}
+	volumeMounts := []corev1.VolumeMount{
+		nova.GetConfigVolumeMount(),
+		nova.GetScriptVolumeMount(),
+		nova.GetKollaConfigVolumeMount("nova-conductor-dbsync"),
+	}
+
+	// add CA cert if defined
+	if instance.Spec.TLS.CaBundleSecretName != "" {
+		volumes = append(volumes, instance.Spec.TLS.CreateVolume())
+		volumeMounts = append(volumeMounts, instance.Spec.TLS.CreateVolumeMounts(nil)...)
+	}
+
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        instance.Name + "-db-sync",
@@ -62,10 +79,7 @@ func CellDBSyncJob(
 				Spec: corev1.PodSpec{
 					RestartPolicy:      corev1.RestartPolicyOnFailure,
 					ServiceAccountName: instance.Spec.ServiceAccount,
-					Volumes: []corev1.Volume{
-						nova.GetConfigVolume(nova.GetServiceConfigSecretName(instance.Name)),
-						nova.GetScriptVolume(nova.GetScriptSecretName(instance.Name)),
-					},
+					Volumes:            volumes,
 					Containers: []corev1.Container{
 						{
 							Name: instance.Name + "-db-sync",
@@ -77,12 +91,8 @@ func CellDBSyncJob(
 							SecurityContext: &corev1.SecurityContext{
 								RunAsUser: ptr.To(nova.NovaUserID),
 							},
-							Env: env,
-							VolumeMounts: []corev1.VolumeMount{
-								nova.GetConfigVolumeMount(),
-								nova.GetScriptVolumeMount(),
-								nova.GetKollaConfigVolumeMount("nova-conductor-dbsync"),
-							},
+							Env:          env,
+							VolumeMounts: volumeMounts,
 						},
 					},
 				},
