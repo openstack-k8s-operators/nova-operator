@@ -845,6 +845,9 @@ func (r *NovaReconciler) ensureCell(
 		ServiceUser:     instance.Spec.ServiceUser,
 		KeystoneAuthURL: keystoneAuthURL,
 		ServiceAccount:  instance.RbacResourceName(),
+		// The assumtpion is that the CA bundle for ironic compute in the cell
+		// and the conductor in the cell always the same as the NovaAPI
+		TLS: instance.Spec.APIServiceTemplate.TLS.Ca,
 	}
 	if cellTemplate.HasAPIAccess {
 		cellSpec.APIDatabaseHostname = apiDB.GetDatabaseHostname()
@@ -1005,6 +1008,7 @@ func (r *NovaReconciler) ensureAPI(
 		ServiceUser:           instance.Spec.ServiceUser,
 		ServiceAccount:        instance.RbacResourceName(),
 		RegisteredCells:       instance.Status.RegisteredCells,
+		TLS:                   instance.Spec.APIServiceTemplate.TLS,
 	}
 	api := &novav1.NovaAPI{
 		ObjectMeta: metav1.ObjectMeta{
@@ -1080,6 +1084,8 @@ func (r *NovaReconciler) ensureScheduler(
 		ServiceUser:     instance.Spec.ServiceUser,
 		ServiceAccount:  instance.RbacResourceName(),
 		RegisteredCells: instance.Status.RegisteredCells,
+		// The assumption is that the CA bundle for the NovaScheduler is the same as the NovaAPI
+		TLS: instance.Spec.APIServiceTemplate.TLS.Ca,
 	}
 	scheduler := &novav1.NovaScheduler{
 		ObjectMeta: metav1.ObjectMeta{
@@ -1427,6 +1433,7 @@ func (r *NovaReconciler) ensureMetadata(
 		KeystoneAuthURL: keystoneAuthURL,
 		ServiceAccount:  instance.RbacResourceName(),
 		RegisteredCells: instance.Status.RegisteredCells,
+		TLS:             instance.Spec.MetadataServiceTemplate.TLS,
 	}
 	metadata = &novav1.NovaMetadata{
 		ObjectMeta: metav1.ObjectMeta{

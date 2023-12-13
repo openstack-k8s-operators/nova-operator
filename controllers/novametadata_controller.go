@@ -23,11 +23,16 @@ import (
 
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/go-logr/logr"
@@ -40,6 +45,7 @@ import (
 	common_secret "github.com/openstack-k8s-operators/lib-common/modules/common/secret"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/statefulset"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/nova-operator/pkg/nova"
@@ -167,6 +173,55 @@ func (r *NovaMetadataReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	// all our input checks out so report InputReady
 	instance.Status.Conditions.MarkTrue(condition.InputReadyCondition, condition.InputReadyMessage)
 
+	//
+	// TLS input validation
+	//
+	// Validate the CA cert secret if provided
+	if instance.Spec.TLS.CaBundleSecretName != "" {
+		hash, ctrlResult, err := tls.ValidateCACertSecret(
+			ctx,
+			h.GetClient(),
+			types.NamespacedName{
+				Name:      instance.Spec.TLS.CaBundleSecretName,
+				Namespace: instance.Namespace,
+			},
+		)
+		if err != nil {
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				condition.TLSInputReadyCondition,
+				condition.ErrorReason,
+				condition.SeverityWarning,
+				condition.TLSInputErrorMessage,
+				err.Error()))
+			return ctrlResult, err
+		} else if (ctrlResult != ctrl.Result{}) {
+			return ctrlResult, nil
+		}
+
+		if hash != "" {
+			hashes[tls.CABundleKey] = env.SetValue(hash)
+		}
+	}
+
+	// Validate metadata service cert secret
+	if instance.Spec.TLS.Enabled() {
+		hash, ctrlResult, err := instance.Spec.TLS.ValidateCertSecret(ctx, h, instance.Namespace)
+		if err != nil {
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				condition.TLSInputReadyCondition,
+				condition.ErrorReason,
+				condition.SeverityWarning,
+				condition.TLSInputErrorMessage,
+				err.Error()))
+			return ctrl.Result{}, err
+		} else if (ctrlResult != ctrl.Result{}) {
+			return ctrlResult, nil
+		}
+		hashes[tls.TLSHashName] = env.SetValue(hash)
+	}
+	// all cert input checks out so report InputReady
+	instance.Status.Conditions.MarkTrue(condition.TLSInputReadyCondition, condition.InputReadyMessage)
+
 	err = r.ensureConfigs(ctx, h, instance, &hashes, secret)
 	if err != nil {
 		return ctrl.Result{}, err
@@ -283,6 +338,11 @@ func (r *NovaMetadataReconciler) initConditions(
 				condition.InitReason,
 				novav1.NovaComputeServiceConfigInitMessage,
 			),
+			condition.UnknownCondition(
+				condition.TLSInputReadyCondition,
+				condition.InitReason,
+				condition.InputReadyInitMessage,
+			),
 		)
 
 		instance.Status.Conditions.Init(&cl)
@@ -331,6 +391,8 @@ func (r *NovaMetadataReconciler) generateConfigs(
 		"metadata_secret":        string(secret.Data[MetadataSecretSelector]),
 		"log_file":               "/var/log/nova/nova-metadata.log",
 		"transport_url":          string(secret.Data[TransportURLSelector]),
+		"tls":                    false,
+		"ServerName":             fmt.Sprintf("%s.%s.svc", novametadata.ServiceName, instance.Namespace),
 	}
 
 	if instance.Spec.CellName == "" {
@@ -342,6 +404,13 @@ func (r *NovaMetadataReconciler) generateConfigs(
 		templateParameters["local_metadata_per_cell"] = false
 	} else {
 		templateParameters["local_metadata_per_cell"] = true
+	}
+
+	// create httpd tls template parameters
+	if instance.Spec.TLS.GenericService.Enabled() {
+		templateParameters["tls"] = true
+		templateParameters["SSLCertificateFile"] = fmt.Sprintf("/etc/pki/tls/certs/%s.crt", novametadata.ServiceName)
+		templateParameters["SSLCertificateKeyFile"] = fmt.Sprintf("/etc/pki/tls/private/%s.key", novametadata.ServiceName)
 	}
 
 	extraData := map[string]string{}
@@ -373,7 +442,18 @@ func (r *NovaMetadataReconciler) ensureDeployment(
 	Log := r.GetLogger(ctx)
 
 	serviceLabels := getMetadataServiceLabels(instance.Spec.CellName)
-	ss := statefulset.NewStatefulSet(novametadata.StatefulSet(instance, inputHash, serviceLabels, annotations), r.RequeueTimeout)
+	ssSpec, err := novametadata.StatefulSet(instance, inputHash, serviceLabels, annotations)
+	if err != nil {
+		Log.Error(err, "Deployment failed")
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.DeploymentReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.DeploymentReadyErrorMessage,
+			err.Error()))
+		return ctrl.Result{}, err
+	}
+	ss := statefulset.NewStatefulSet(ssSpec, r.RequeueTimeout)
 	ctrlResult, err := ss.CreateOrPatch(ctx, h)
 	if err != nil && !k8s_errors.IsNotFound(err) {
 		Log.Error(err, "Deployment failed")
@@ -517,9 +597,14 @@ func (r *NovaMetadataReconciler) ensureServiceExposed(
 	}
 	// create service - end
 
-	// TODO: TLS, pass in https as protocol
+	// if TLS is enabled
+	proto := ptr.To(service.ProtocolHTTP)
+	if instance.Spec.TLS.Enabled() {
+		// set endpoint protocol to https
+		proto = ptr.To(service.ProtocolHTTPS)
+	}
 	apiEndpoint, err := svc.GetAPIEndpoint(
-		nil, ptr.To(service.ProtocolHTTP), "")
+		nil, proto, "")
 	if err != nil {
 		return "", ctrl.Result{}, err
 	}
@@ -632,8 +717,77 @@ func (r *NovaMetadataReconciler) generateNeutronConfigs(
 	return nil
 }
 
+func (r *NovaMetadataReconciler) findObjectsForSrc(src client.Object) []reconcile.Request {
+	requests := []reconcile.Request{}
+
+	l := log.FromContext(context.Background()).WithName("Controllers").WithName("NovaMetadata")
+
+	for _, field := range metaWatchFields {
+		crList := &novav1.NovaMetadataList{}
+		listOps := &client.ListOptions{
+			FieldSelector: fields.OneTermEqualSelector(field, src.GetName()),
+			Namespace:     src.GetNamespace(),
+		}
+		err := r.Client.List(context.TODO(), crList, listOps)
+		if err != nil {
+			return []reconcile.Request{}
+		}
+
+		for _, item := range crList.Items {
+			l.Info(fmt.Sprintf("input source %s changed, reconcile: %s - %s", src.GetName(), item.GetName(), item.GetNamespace()))
+
+			requests = append(requests,
+				reconcile.Request{
+					NamespacedName: types.NamespacedName{
+						Name:      item.GetName(),
+						Namespace: item.GetNamespace(),
+					},
+				},
+			)
+		}
+	}
+
+	return requests
+}
+
+// fields to index to reconcile when change
+const (
+	tlsMetadataField = ".spec.tls.secretName"
+)
+
+var (
+	metaWatchFields = []string{
+		caBundleSecretNameField,
+		tlsMetadataField,
+	}
+)
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *NovaMetadataReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	// index caBundleSecretNameField
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &novav1.NovaMetadata{}, caBundleSecretNameField, func(rawObj client.Object) []string {
+		// Extract the secret name from the spec, if one is provided
+		cr := rawObj.(*novav1.NovaMetadata)
+		if cr.Spec.TLS.CaBundleSecretName == "" {
+			return nil
+		}
+		return []string{cr.Spec.TLS.CaBundleSecretName}
+	}); err != nil {
+		return err
+	}
+
+	// index tlsMetadataField
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &novav1.NovaMetadata{}, tlsMetadataField, func(rawObj client.Object) []string {
+		// Extract the secret name from the spec, if one is provided
+		cr := rawObj.(*novav1.NovaMetadata)
+		if cr.Spec.TLS.SecretName == nil {
+			return nil
+		}
+		return []string{*cr.Spec.TLS.SecretName}
+	}); err != nil {
+		return err
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&novav1.NovaMetadata{}).
 		Owns(&v1.StatefulSet{}).
@@ -641,5 +795,10 @@ func (r *NovaMetadataReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.Secret{}).
 		Watches(&source.Kind{Type: &corev1.Secret{}},
 			handler.EnqueueRequestsFromMapFunc(r.GetSecretMapperFor(&novav1.NovaMetadataList{}, context.TODO()))).
+		Watches(
+			&source.Kind{Type: &corev1.Secret{}},
+			handler.EnqueueRequestsFromMapFunc(r.findObjectsForSrc),
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+		).
 		Complete(r)
 }

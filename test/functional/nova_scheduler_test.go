@@ -597,3 +597,60 @@ var _ = Describe("NovaScheduler controller cleaning", func() {
 		})
 	})
 })
+
+var _ = Describe("NovaScheduler controller", func() {
+	When("NovaScheduler is created with TLS CA cert secret", func() {
+		BeforeEach(func() {
+			spec := GetDefaultNovaSchedulerSpec(novaNames)
+			spec["tls"] = map[string]interface{}{
+				"caBundleSecretName": novaNames.CaBundleSecretName.Name,
+			}
+
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateInternalTopLevelSecret(novaNames))
+			DeferCleanup(th.DeleteInstance, CreateNovaScheduler(novaNames.SchedulerName, spec))
+		})
+
+		It("reports that the CA secret is missing", func() {
+			th.ExpectConditionWithDetails(
+				novaNames.SchedulerName,
+				ConditionGetterFunc(NovaSchedulerConditionGetter),
+				condition.TLSInputReadyCondition,
+				corev1.ConditionFalse,
+				condition.ErrorReason,
+				fmt.Sprintf("TLSInput error occured in TLS sources Secret %s/combined-ca-bundle not found", novaNames.Namespace),
+			)
+			th.ExpectCondition(
+				novaNames.SchedulerName,
+				ConditionGetterFunc(NovaSchedulerConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+			)
+		})
+
+		It("creates a StatefulSet for nova-scheduler service with TLS CA cert attached", func() {
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCABundleSecret(novaNames.CaBundleSecretName))
+			th.SimulateStatefulSetReplicaReady(novaNames.SchedulerStatefulSetName)
+
+			ss := th.GetStatefulSet(novaNames.SchedulerStatefulSetName)
+			// Check the resulting deployment fields
+			Expect(int(*ss.Spec.Replicas)).To(Equal(1))
+			Expect(ss.Spec.Template.Spec.Volumes).To(HaveLen(2))
+			Expect(ss.Spec.Template.Spec.Containers).To(HaveLen(1))
+
+			// cert deployment volumes
+			th.AssertVolumeExists(novaNames.CaBundleSecretName.Name, ss.Spec.Template.Spec.Volumes)
+
+			// CA container certs
+			apiContainer := ss.Spec.Template.Spec.Containers[0]
+			th.AssertVolumeMountExists(novaNames.CaBundleSecretName.Name, "tls-ca-bundle.pem", apiContainer.VolumeMounts)
+
+			th.ExpectCondition(
+				novaNames.SchedulerName,
+				ConditionGetterFunc(NovaSchedulerConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
+	})
+})

@@ -17,6 +17,7 @@ package functional_test
 
 import (
 	"encoding/json"
+	"fmt"
 
 	networkv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	. "github.com/onsi/ginkgo/v2"
@@ -526,6 +527,67 @@ var _ = Describe("NovaCompute with ironic diver controller", func() {
 		It("has the expected container image default", func() {
 			novaComputeDefault := GetNovaCompute(cell1.NovaComputeName)
 			Expect(novaComputeDefault.Spec.ContainerImage).To(Equal(util.GetEnvVar("RELATED_IMAGE_NOVA_COMPUTE_IMAGE_URL_DEFAULT", novav1.NovaComputeContainerImage)))
+		})
+	})
+})
+
+var _ = Describe("NovaCompute with ironic diver controller", func() {
+	When("NovaCompute is created with TLS CA cert secret", func() {
+		BeforeEach(func() {
+			spec := GetDefaultNovaComputeSpec(cell1)
+			spec["tls"] = map[string]interface{}{
+				"caBundleSecretName": novaNames.CaBundleSecretName.Name,
+			}
+			novaCompute := CreateNovaCompute(cell1.NovaComputeName, spec)
+			DeferCleanup(th.DeleteInstance, novaCompute)
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateCellInternalSecret(cell1),
+			)
+		})
+
+		It("reports that the CA secret is missing", func() {
+			th.ExpectConditionWithDetails(
+				cell1.NovaComputeName,
+				ConditionGetterFunc(NovaComputeConditionGetter),
+				condition.TLSInputReadyCondition,
+				corev1.ConditionFalse,
+				condition.ErrorReason,
+				fmt.Sprintf("TLSInput error occured in TLS sources Secret %s/combined-ca-bundle not found", novaNames.Namespace),
+			)
+			th.ExpectCondition(
+				cell1.NovaComputeName,
+				ConditionGetterFunc(NovaComputeConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+			)
+		})
+
+		It("creates a StatefulSet for nova-compute service with TLS CA cert attached", func() {
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCABundleSecret(novaNames.CaBundleSecretName))
+			th.SimulateStatefulSetReplicaReady(cell1.NovaComputeStatefulSetName)
+
+			ss := th.GetStatefulSet(cell1.NovaComputeStatefulSetName)
+
+			// Check the resulting deployment fields
+			Expect(int(*ss.Spec.Replicas)).To(Equal(1))
+			Expect(ss.Spec.Template.Spec.Volumes).To(HaveLen(2))
+			Expect(ss.Spec.Template.Spec.Containers).To(HaveLen(1))
+
+			// cert deployment volumes
+			th.AssertVolumeExists(novaNames.CaBundleSecretName.Name, ss.Spec.Template.Spec.Volumes)
+
+			// CA container certs
+			apiContainer := ss.Spec.Template.Spec.Containers[0]
+			th.AssertVolumeMountExists(novaNames.CaBundleSecretName.Name, "tls-ca-bundle.pem", apiContainer.VolumeMounts)
+
+			th.ExpectCondition(
+				cell1.NovaComputeName,
+				ConditionGetterFunc(NovaComputeConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
 		})
 	})
 })

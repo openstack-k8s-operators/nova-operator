@@ -804,3 +804,144 @@ var _ = Describe("NovaAPI controller", func() {
 		})
 	})
 })
+
+var _ = Describe("NovaAPI controller", func() {
+	When("NovaAPI is created with TLS cert secrets", func() {
+		BeforeEach(func() {
+			spec := GetDefaultNovaAPISpec(novaNames)
+			spec["tls"] = map[string]interface{}{
+				"api": map[string]interface{}{
+					"internal": map[string]interface{}{
+						"secretName": novaNames.InternalCertSecretName.Name,
+					},
+					"public": map[string]interface{}{
+						"secretName": novaNames.PublicCertSecretName.Name,
+					},
+				},
+				"caBundleSecretName": novaNames.CaBundleSecretName.Name,
+			}
+
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateInternalTopLevelSecret(novaNames))
+			DeferCleanup(th.DeleteInstance, CreateNovaAPI(novaNames.APIName, spec))
+		})
+
+		It("reports that the CA secret is missing", func() {
+			th.ExpectConditionWithDetails(
+				novaNames.APIName,
+				ConditionGetterFunc(NovaAPIConditionGetter),
+				condition.TLSInputReadyCondition,
+				corev1.ConditionFalse,
+				condition.ErrorReason,
+				fmt.Sprintf("TLSInput error occured in TLS sources Secret %s/combined-ca-bundle not found", novaNames.Namespace),
+			)
+			th.ExpectCondition(
+				novaNames.APIName,
+				ConditionGetterFunc(NovaAPIConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+			)
+		})
+
+		It("reports that the internal cert secret is missing", func() {
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCABundleSecret(novaNames.CaBundleSecretName))
+
+			th.ExpectConditionWithDetails(
+				novaNames.APIName,
+				ConditionGetterFunc(NovaAPIConditionGetter),
+				condition.TLSInputReadyCondition,
+				corev1.ConditionFalse,
+				condition.ErrorReason,
+				fmt.Sprintf("TLSInput error occured in TLS sources Secret %s/internal-tls-certs not found", novaNames.Namespace),
+			)
+			th.ExpectCondition(
+				novaNames.APIName,
+				ConditionGetterFunc(NovaAPIConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+			)
+		})
+
+		It("reports that the public cert secret is missing", func() {
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCABundleSecret(novaNames.CaBundleSecretName))
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(novaNames.InternalCertSecretName))
+
+			th.ExpectConditionWithDetails(
+				novaNames.APIName,
+				ConditionGetterFunc(NovaAPIConditionGetter),
+				condition.TLSInputReadyCondition,
+				corev1.ConditionFalse,
+				condition.ErrorReason,
+				fmt.Sprintf("TLSInput error occured in TLS sources Secret %s/public-tls-certs not found", novaNames.Namespace),
+			)
+			th.ExpectCondition(
+				novaNames.APIName,
+				ConditionGetterFunc(NovaAPIConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+			)
+		})
+
+		It("creates a StatefulSet for nova-api service with TLS certs attached", func() {
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCABundleSecret(novaNames.CaBundleSecretName))
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(novaNames.InternalCertSecretName))
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(novaNames.PublicCertSecretName))
+			th.SimulateStatefulSetReplicaReady(novaNames.APIStatefulSetName)
+			keystone.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
+
+			ss := th.GetStatefulSet(novaNames.APIStatefulSetName)
+			// Check the resulting deployment fields
+			Expect(int(*ss.Spec.Replicas)).To(Equal(1))
+			Expect(ss.Spec.Template.Spec.Volumes).To(HaveLen(5))
+			Expect(ss.Spec.Template.Spec.Containers).To(HaveLen(2))
+
+			// cert deployment volumes
+			th.AssertVolumeExists(novaNames.CaBundleSecretName.Name, ss.Spec.Template.Spec.Volumes)
+			th.AssertVolumeExists(novaNames.InternalCertSecretName.Name, ss.Spec.Template.Spec.Volumes)
+			th.AssertVolumeExists(novaNames.PublicCertSecretName.Name, ss.Spec.Template.Spec.Volumes)
+
+			// httpd container certs
+			apiContainer := ss.Spec.Template.Spec.Containers[1]
+			th.AssertVolumeMountExists(novaNames.InternalCertSecretName.Name, "tls.key", apiContainer.VolumeMounts)
+			th.AssertVolumeMountExists(novaNames.InternalCertSecretName.Name, "tls.crt", apiContainer.VolumeMounts)
+			th.AssertVolumeMountExists(novaNames.PublicCertSecretName.Name, "tls.key", apiContainer.VolumeMounts)
+			th.AssertVolumeMountExists(novaNames.PublicCertSecretName.Name, "tls.crt", apiContainer.VolumeMounts)
+			th.AssertVolumeMountExists(novaNames.CaBundleSecretName.Name, "tls-ca-bundle.pem", apiContainer.VolumeMounts)
+
+			Expect(apiContainer.ReadinessProbe.HTTPGet.Scheme).To(Equal(corev1.URISchemeHTTPS))
+			Expect(apiContainer.LivenessProbe.HTTPGet.Scheme).To(Equal(corev1.URISchemeHTTPS))
+			Expect(apiContainer.StartupProbe.HTTPGet.Scheme).To(Equal(corev1.URISchemeHTTPS))
+
+			configDataMap := th.GetSecret(novaNames.APIConfigDataName)
+			Expect(configDataMap).ShouldNot(BeNil())
+			Expect(configDataMap.Data).Should(HaveKey("httpd.conf"))
+			Expect(configDataMap.Data).Should(HaveKey("ssl.conf"))
+			configData := string(configDataMap.Data["httpd.conf"])
+			Expect(configData).Should(ContainSubstring("SSLEngine on"))
+			Expect(configData).Should(ContainSubstring("SSLCertificateFile      \"/etc/pki/tls/certs/internal.crt\""))
+			Expect(configData).Should(ContainSubstring("SSLCertificateKeyFile   \"/etc/pki/tls/private/internal.key\""))
+			Expect(configData).Should(ContainSubstring("SSLCertificateFile      \"/etc/pki/tls/certs/public.crt\""))
+			Expect(configData).Should(ContainSubstring("SSLCertificateKeyFile   \"/etc/pki/tls/private/public.key\""))
+		})
+
+		It("TLS Endpoints are created", func() {
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCABundleSecret(novaNames.CaBundleSecretName))
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(novaNames.InternalCertSecretName))
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(novaNames.PublicCertSecretName))
+			th.SimulateStatefulSetReplicaReady(novaNames.APIStatefulSetName)
+			keystone.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
+
+			keystoneEndpoint := keystone.GetKeystoneEndpoint(types.NamespacedName{Namespace: novaNames.APIName.Namespace, Name: "nova"})
+			endpoints := keystoneEndpoint.Spec.Endpoints
+			Expect(endpoints).To(HaveKeyWithValue("public", string("https://nova-public."+novaNames.APIName.Namespace+".svc:8774/v2.1")))
+			Expect(endpoints).To(HaveKeyWithValue("internal", "https://nova-internal."+novaNames.APIName.Namespace+".svc:8774/v2.1"))
+
+			th.ExpectCondition(
+				novaNames.APIName,
+				ConditionGetterFunc(NovaAPIConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
+	})
+})

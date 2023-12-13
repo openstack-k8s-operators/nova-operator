@@ -1,0 +1,40 @@
+apiVersion: nova.openstack.org/v1beta1
+kind: Nova
+metadata:
+  name: nova
+spec:
+  secret: osp-secret
+  apiServiceTemplate:
+    tls:
+      api:
+        # secret holding tls.crt and tls.key for the APIs internal k8s service
+        internal:
+          secretName: cert-nova-internal-svc
+        # secret holding tls.crt and tls.key for the APIs public k8s service
+        public:
+          secretName: cert-nova-public-svc
+      # secret holding the tls-ca-bundle.pem to be used as a deploymend env CA bundle
+      caBundleSecretName: combined-ca-bundle
+  metadataServiceTemplate:
+    tls:
+      # secret holding the tls-ca-bundle.pem to be used as a deploymend env CA bundle
+      caBundleSecretName: combined-ca-bundle
+      # secret holding tls.crt and tls.key for the metadata k8s service
+      secretName: cert-nova-metadata-internal-svc
+  cellTemplates:
+    cell0:
+      cellDatabaseUser: nova_cell0
+      hasAPIAccess: true
+    cell1:
+      cellDatabaseUser: nova_cell1
+      conductorServiceTemplate:
+        replicas: 1
+      hasAPIAccess: true
+      noVNCProxyServiceTemplate:
+        enabled: true
+        replicas: 1
+        tls:
+          # secret holding the tls-ca-bundle.pem to be used as a deploymend env CA bundle
+          caBundleSecretName: combined-ca-bundle
+          # secret holding tls.crt and tls.key for the novncproxy k8s service
+          secretName: cert-nova-novncproxy-cell1-public-svc

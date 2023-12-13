@@ -40,6 +40,22 @@ func CellMappingJob(
 
 	jobName := instance.Name + "-" + cell.Spec.CellName + "-cell-mapping"
 
+	volumes := []corev1.Volume{
+		GetConfigVolume(configName),
+		GetScriptVolume(scriptName),
+	}
+	volumeMounts := []corev1.VolumeMount{
+		GetConfigVolumeMount(),
+		GetScriptVolumeMount(),
+		GetKollaConfigVolumeMount("cell-mapping"),
+	}
+
+	// add CA cert if defined
+	if instance.Spec.APIServiceTemplate.TLS.CaBundleSecretName != "" {
+		volumes = append(volumes, instance.Spec.APIServiceTemplate.TLS.CreateVolume())
+		volumeMounts = append(volumeMounts, instance.Spec.APIServiceTemplate.TLS.CreateVolumeMounts(nil)...)
+	}
+
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      jobName,
@@ -51,10 +67,7 @@ func CellMappingJob(
 				Spec: corev1.PodSpec{
 					RestartPolicy:      corev1.RestartPolicyOnFailure,
 					ServiceAccountName: instance.RbacResourceName(),
-					Volumes: []corev1.Volume{
-						GetConfigVolume(configName),
-						GetScriptVolume(scriptName),
-					},
+					Volumes:            volumes,
 					Containers: []corev1.Container{
 						{
 							Name: "nova-manage",
@@ -66,12 +79,8 @@ func CellMappingJob(
 							SecurityContext: &corev1.SecurityContext{
 								RunAsUser: ptr.To(NovaUserID),
 							},
-							Env: env,
-							VolumeMounts: []corev1.VolumeMount{
-								GetConfigVolumeMount(),
-								GetScriptVolumeMount(),
-								GetKollaConfigVolumeMount("cell-mapping"),
-							},
+							Env:          env,
+							VolumeMounts: volumeMounts,
 						},
 					},
 				},

@@ -19,6 +19,7 @@ package v1beta1
 import (
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	service "github.com/openstack-k8s-operators/lib-common/modules/common/service"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -72,6 +73,11 @@ type NovaAPITemplate struct {
 	// +kubebuilder:validation:Optional
 	// Override, provides the ability to override the generated manifest of several child resources.
 	Override APIOverrideSpec `json:"override,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	// TLS - Parameters related to the TLS
+	TLS tls.API `json:"tls,omitempty"`
 }
 
 // APIOverrideSpec to override the generated manifest of several child resources.
@@ -153,6 +159,11 @@ type NovaAPISpec struct {
 	// reconfigured to trigger refresh of the in memory cell caches of the
 	// service.
 	RegisteredCells map[string]string `json:"registeredCells"`
+
+	// +kubebuilder:validation:Optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	// TLS - Parameters related to the TLS
+	TLS tls.API `json:"tls,omitempty"`
 }
 
 // NovaAPIStatus defines the observed state of NovaAPI

@@ -22,10 +22,15 @@ import (
 
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/go-logr/logr"
@@ -37,6 +42,7 @@ import (
 	nad "github.com/openstack-k8s-operators/lib-common/modules/common/networkattachment"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/statefulset"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/nova-operator/pkg/nova"
@@ -161,6 +167,56 @@ func (r *NovaNoVNCProxyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	// all our input checks out so report InputReady
 	instance.Status.Conditions.MarkTrue(condition.InputReadyCondition, condition.InputReadyMessage)
 
+	//
+	// TLS input validation
+	//
+	// Validate the CA cert secret if provided
+	if instance.Spec.TLS.CaBundleSecretName != "" {
+		hash, ctrlResult, err := tls.ValidateCACertSecret(
+			ctx,
+			h.GetClient(),
+			types.NamespacedName{
+				Name:      instance.Spec.TLS.CaBundleSecretName,
+				Namespace: instance.Namespace,
+			},
+		)
+		if err != nil {
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				condition.TLSInputReadyCondition,
+				condition.ErrorReason,
+				condition.SeverityWarning,
+				condition.TLSInputErrorMessage,
+				err.Error()))
+			return ctrlResult, err
+		} else if (ctrlResult != ctrl.Result{}) {
+			return ctrlResult, nil
+		}
+
+		if hash != "" {
+			hashes[tls.CABundleKey] = env.SetValue(hash)
+		}
+	}
+
+	// Validate metadata service cert secret
+	if instance.Spec.TLS.Enabled() {
+		hash, ctrlResult, err := instance.Spec.TLS.ValidateCertSecret(ctx, h, instance.Namespace)
+		if err != nil {
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				condition.TLSInputReadyCondition,
+				condition.ErrorReason,
+				condition.SeverityWarning,
+				condition.TLSInputErrorMessage,
+				err.Error()))
+			return ctrl.Result{}, err
+		} else if (ctrlResult != ctrl.Result{}) {
+			return ctrlResult, nil
+		}
+		hashes[tls.TLSHashName] = env.SetValue(hash)
+	}
+
+	// all cert input checks out so report InputReady
+	instance.Status.Conditions.MarkTrue(condition.TLSInputReadyCondition, condition.InputReadyMessage)
+
 	result, err = r.ensureServiceExposed(ctx, h, instance)
 	if (err != nil || result != ctrl.Result{}) {
 		// We can ignore RequeueAfter as we are watching the Service resource
@@ -269,6 +325,11 @@ func (r *NovaNoVNCProxyReconciler) initConditions(
 				condition.InitReason,
 				condition.NetworkAttachmentsReadyInitMessage,
 			),
+			condition.UnknownCondition(
+				condition.TLSInputReadyCondition,
+				condition.InitReason,
+				condition.InputReadyInitMessage,
+			),
 		)
 
 		instance.Status.Conditions.Init(&cl)
@@ -292,10 +353,13 @@ func (r *NovaNoVNCProxyReconciler) generateConfigs(
 		"cell_db_address":        instance.Spec.CellDatabaseHostname,
 		"cell_db_port":           3306,
 		"transport_url":          string(secret.Data[TransportURLSelector]),
-		"openstack_cacert":       "",          // fixme
 		"openstack_region_name":  "regionOne", // fixme
 		"default_project_domain": "Default",   // fixme
 		"default_user_domain":    "Default",   // fixme
+	}
+	if instance.Spec.TLS.GenericService.Enabled() {
+		templateParameters["SSLCertificateFile"] = fmt.Sprintf("/etc/pki/tls/certs/%s.crt", novncproxy.ServiceName)
+		templateParameters["SSLCertificateKeyFile"] = fmt.Sprintf("/etc/pki/tls/private/%s.key", novncproxy.ServiceName)
 	}
 	extraData := map[string]string{}
 	if instance.Spec.CustomServiceConfig != "" {
@@ -326,8 +390,18 @@ func (r *NovaNoVNCProxyReconciler) ensureDeployment(
 	Log := r.GetLogger(ctx)
 
 	serviceLabels := getNoVNCProxyServiceLabels(instance.Spec.CellName)
-	ss := statefulset.NewStatefulSet(
-		novncproxy.StatefulSet(instance, inputHash, serviceLabels, annotations), r.RequeueTimeout)
+	ssSpec, err := novncproxy.StatefulSet(instance, inputHash, serviceLabels, annotations)
+	if err != nil {
+		Log.Info("Deployment failed")
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.DeploymentReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.DeploymentReadyErrorMessage,
+			err.Error()))
+		return ctrl.Result{}, err
+	}
+	ss := statefulset.NewStatefulSet(ssSpec, r.RequeueTimeout)
 	ctrlResult, err := ss.CreateOrPatch(ctx, h)
 	if err != nil && !k8s_errors.IsNotFound(err) {
 		Log.Info("Deployment failed")
@@ -506,8 +580,77 @@ func getNoVNCProxyServiceLabels(cell string) map[string]string {
 	}
 }
 
+func (r *NovaNoVNCProxyReconciler) findObjectsForSrc(src client.Object) []reconcile.Request {
+	requests := []reconcile.Request{}
+
+	l := log.FromContext(context.Background()).WithName("Controllers").WithName("NovaNoVNCProxy")
+
+	for _, field := range noVNCProxyWatchFields {
+		crList := &novav1.NovaNoVNCProxyList{}
+		listOps := &client.ListOptions{
+			FieldSelector: fields.OneTermEqualSelector(field, src.GetName()),
+			Namespace:     src.GetNamespace(),
+		}
+		err := r.Client.List(context.TODO(), crList, listOps)
+		if err != nil {
+			return []reconcile.Request{}
+		}
+
+		for _, item := range crList.Items {
+			l.Info(fmt.Sprintf("input source %s changed, reconcile: %s - %s", src.GetName(), item.GetName(), item.GetNamespace()))
+
+			requests = append(requests,
+				reconcile.Request{
+					NamespacedName: types.NamespacedName{
+						Name:      item.GetName(),
+						Namespace: item.GetNamespace(),
+					},
+				},
+			)
+		}
+	}
+
+	return requests
+}
+
+// fields to index to reconcile when change
+const (
+	tlsNoVNCProxyField = ".spec.tls.secretName"
+)
+
+var (
+	noVNCProxyWatchFields = []string{
+		caBundleSecretNameField,
+		tlsNoVNCProxyField,
+	}
+)
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *NovaNoVNCProxyReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	// index caBundleSecretNameField
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &novav1.NovaNoVNCProxy{}, caBundleSecretNameField, func(rawObj client.Object) []string {
+		// Extract the secret name from the spec, if one is provided
+		cr := rawObj.(*novav1.NovaNoVNCProxy)
+		if cr.Spec.TLS.CaBundleSecretName == "" {
+			return nil
+		}
+		return []string{cr.Spec.TLS.CaBundleSecretName}
+	}); err != nil {
+		return err
+	}
+
+	// index tlsNoVNCProxyField
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &novav1.NovaNoVNCProxy{}, tlsNoVNCProxyField, func(rawObj client.Object) []string {
+		// Extract the secret name from the spec, if one is provided
+		cr := rawObj.(*novav1.NovaNoVNCProxy)
+		if cr.Spec.TLS.SecretName == nil {
+			return nil
+		}
+		return []string{*cr.Spec.TLS.SecretName}
+	}); err != nil {
+		return err
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&novav1.NovaNoVNCProxy{}).
 		Owns(&v1.StatefulSet{}).
@@ -515,5 +658,10 @@ func (r *NovaNoVNCProxyReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.Secret{}).
 		Watches(&source.Kind{Type: &corev1.Secret{}},
 			handler.EnqueueRequestsFromMapFunc(r.GetSecretMapperFor(&novav1.NovaNoVNCProxyList{}, context.TODO()))).
+		Watches(
+			&source.Kind{Type: &corev1.Secret{}},
+			handler.EnqueueRequestsFromMapFunc(r.findObjectsForSrc),
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+		).
 		Complete(r)
 }

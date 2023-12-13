@@ -6,25 +6,47 @@
       "dest": "/etc/nova/nova.conf",
       "owner": "nova",
       "perm": "0600"
-  },
-  {
+    },
+    {
       "source": "/var/lib/openstack/config/01-nova.conf",
       "dest": "/etc/nova/nova.conf.d/01-nova.conf",
       "owner": "nova",
       "perm": "0600"
-  },
-  {
+    },
+    {
       "source": "/var/lib/openstack/config/02-nova-override.conf",
       "dest": "/etc/nova/nova.conf.d/02-nova-override.conf",
       "owner": "nova",
       "perm": "0600",
       "optional": true
-  },
+    },
     {
       "source": "/var/lib/openstack/config/httpd.conf",
       "dest": "/etc/httpd/conf/httpd.conf",
       "owner": "apache",
       "perm": "0644"
+    },
+    {
+      "source": "/var/lib/openstack/config/ssl.conf",
+      "dest": "/etc/httpd/conf.d/ssl.conf",
+      "owner": "root",
+      "perm": "0644"
+    },
+    {
+      "source": "/var/lib/config-data/tls/certs/*",
+      "dest": "/etc/pki/tls/certs/",
+      "owner": "nova",
+      "perm": "0640",
+      "optional": true,
+      "merge": true
+    },
+    {
+      "source": "/var/lib/config-data/tls/private/*",
+      "dest": "/etc/pki/tls/private/",
+      "owner": "nova",
+      "perm": "0600",
+      "optional": true,
+      "merge": true
     }
   ],
   "permissions": [

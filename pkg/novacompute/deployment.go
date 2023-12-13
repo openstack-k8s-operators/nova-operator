@@ -91,6 +91,21 @@ func StatefulSet(
 	envVars["CONFIG_HASH"] = env.SetValue(configHash)
 	env := env.MergeEnvs([]corev1.EnvVar{}, envVars)
 
+	// create Volume and VolumeMounts
+	volumes := []corev1.Volume{
+		nova.GetConfigVolume(nova.GetServiceConfigSecretName(instance.Name)),
+	}
+	volumeMounts := []corev1.VolumeMount{
+		nova.GetConfigVolumeMount(),
+		nova.GetKollaConfigVolumeMount("nova-compute"),
+	}
+
+	// add CA cert if defined
+	if instance.Spec.TLS.CaBundleSecretName != "" {
+		volumes = append(volumes, instance.Spec.TLS.CreateVolume())
+		volumeMounts = append(volumeMounts, instance.Spec.TLS.CreateVolumeMounts(nil)...)
+	}
+
 	statefulset := &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      instance.Name,
@@ -109,9 +124,7 @@ func StatefulSet(
 				},
 				Spec: corev1.PodSpec{
 					ServiceAccountName: instance.Spec.ServiceAccount,
-					Volumes: []corev1.Volume{
-						nova.GetConfigVolume(nova.GetServiceConfigSecretName(instance.Name)),
-					},
+					Volumes:            volumes,
 					Containers: []corev1.Container{
 						{
 							Name: instance.Name + "-compute",
@@ -123,11 +136,8 @@ func StatefulSet(
 							SecurityContext: &corev1.SecurityContext{
 								RunAsUser: ptr.To(nova.NovaUserID),
 							},
-							Env: env,
-							VolumeMounts: []corev1.VolumeMount{
-								nova.GetConfigVolumeMount(),
-								nova.GetKollaConfigVolumeMount("nova-compute"),
-							},
+							Env:            env,
+							VolumeMounts:   volumeMounts,
 							Resources:      instance.Spec.Resources,
 							ReadinessProbe: readinessProbe,
 							LivenessProbe:  livenessProbe,
