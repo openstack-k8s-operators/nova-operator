@@ -612,7 +612,7 @@ func (r *NovaMetadataReconciler) generateNeutronConfigs(
 		{
 			Name:               configName,
 			Namespace:          instance.GetNamespace(),
-			Type:               util.TemplateTypeConfig,
+			Type:               util.TemplateTypeNone,
 			InstanceType:       instance.GetObjectKind().GroupVersionKind().Kind,
 			ConfigOptions:      templateParameters,
 			Labels:             labels,
