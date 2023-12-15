@@ -284,6 +284,7 @@ var _ = Describe("NovaMetadata controller", func() {
 
 				computeConfigData := th.GetSecret(novaNames.MetadataNeutronConfigDataName)
 				Expect(computeConfigData).ShouldNot(BeNil())
+				Expect(computeConfigData.Data).To(HaveLen(1))
 				Expect(computeConfigData.Data).Should(HaveKey("05-nova-metadata.conf"))
 				configData := string(computeConfigData.Data["05-nova-metadata.conf"])
 				Expect(configData).To(
