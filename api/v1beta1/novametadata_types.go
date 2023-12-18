@@ -247,6 +247,7 @@ func NewNovaMetadataSpec(
 		},
 		KeystoneAuthURL: novaCell.KeystoneAuthURL,
 		ServiceUser:     novaCell.ServiceUser,
+		ServiceAccount:  novaCell.ServiceAccount,
 		Override:        novaCell.MetadataServiceTemplate.Override,
 	}
 	return metadataSpec
