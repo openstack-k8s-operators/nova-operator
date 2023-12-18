@@ -4,13 +4,13 @@ go 1.19
 
 require (
 	github.com/go-logr/logr v1.3.0
-	github.com/google/uuid v1.4.0
+	github.com/google/uuid v1.5.0
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.4.0
 	github.com/onsi/ginkgo/v2 v2.13.2
 	github.com/onsi/gomega v1.30.0
 	github.com/openstack-k8s-operators/keystone-operator/api v0.3.1-0.20231208104910-f8433c1c9399
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.3.1-0.20231209173030-f7a552f208e7
-	github.com/openstack-k8s-operators/lib-common/modules/test v0.3.1-0.20231209173030-f7a552f208e7
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.3.1-0.20231218151156-f8b6875112d7
+	github.com/openstack-k8s-operators/lib-common/modules/test v0.3.1-0.20231218151156-f8b6875112d7
 	github.com/openstack-k8s-operators/mariadb-operator/api v0.3.0
 	github.com/openstack-k8s-operators/placement-operator/api v0.0.0-20230602092913-53f380989946
 	go.uber.org/zap v1.26.0
@@ -24,7 +24,7 @@ require (
 require (
 	github.com/go-task/slim-sprig v0.0.0-20230315185526-52ccab3ef572 // indirect
 	github.com/google/pprof v0.0.0-20210720184732-4bb14d4b1be1 // indirect
-	golang.org/x/exp v0.0.0-20231206192017-f3f8817b8deb // indirect
+	golang.org/x/exp v0.0.0-20231214170342-aacd6d4b4611 // indirect
 	golang.org/x/tools v0.16.0 // indirect
 )
 
@@ -55,7 +55,7 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/openshift/api v3.9.0+incompatible // indirect
-	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.3.1-0.20231209173030-f7a552f208e7 //indirect
+	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.3.1-0.20231218151156-f8b6875112d7 //indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_golang v1.14.0 // indirect
 	github.com/prometheus/client_model v0.3.0 // indirect
