@@ -219,7 +219,7 @@ var _ = Describe("NovaCell controller", func() {
 		})
 
 		It("creates the NovaMetadata and tracks its readiness", func() {
-			GetNovaMetadata(cell1.MetadataName)
+			metadata := GetNovaMetadata(cell1.MetadataName)
 			th.ExpectCondition(
 				cell1.CellCRName,
 				ConditionGetterFunc(NovaCellConditionGetter),
@@ -228,6 +228,7 @@ var _ = Describe("NovaCell controller", func() {
 			)
 			novaCell := GetNovaCell(cell1.CellCRName)
 			Expect(novaCell.Status.MetadataServiceReadyCount).To(Equal(int32(0)))
+			Expect(metadata.Spec.ServiceAccount).To(Equal(novaCell.Spec.ServiceAccount))
 
 			// make metadata ready
 			th.SimulateStatefulSetReplicaReady(cell1.MetadataStatefulSetName)
