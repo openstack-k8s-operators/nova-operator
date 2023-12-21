@@ -79,8 +79,9 @@ type NovaCellTemplate struct {
 	// defaulted to true in other cells.
 	NoVNCProxyServiceTemplate NovaNoVNCProxyTemplate `json:"noVNCProxyServiceTemplate"`
 
+	// +kubebuilder:validation:Optional
 	// NovaComputeTemplates - map of nova computes template with selected drivers in format
-	// compute_name: compute_template.Key from map is arbitrary name for the compute with
+	// compute_name: compute_template. Key from map is arbitrary name for the compute with
 	// a limit of 20 characters.
 	NovaComputeTemplates map[string]NovaComputeTemplate `json:"novaComputeTemplates,omitempty"`
 

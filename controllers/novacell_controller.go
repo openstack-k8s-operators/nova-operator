@@ -198,8 +198,8 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 
 	// We need to check if all computes are deployed
 	if len(instance.Spec.NovaComputeTemplates) == 0 {
-		Log.Info("No compute nodes in cell")
-		instance.Status.Conditions.Remove(novav1.NovaAllComputesReadyCondition)
+		Log.Info("No nova compute ironic/fake driver service definition in cell")
+		instance.Status.Conditions.Remove(novav1.NovaAllControlPlaneComputesReadyCondition)
 	} else {
 		failedComputes := []string{}
 		readyComputes := []string{}
@@ -213,11 +213,11 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 		}
 		if len(instance.Spec.NovaComputeTemplates) == len(readyComputes) {
 			instance.Status.Conditions.MarkTrue(
-				novav1.NovaAllComputesReadyCondition, condition.ServiceConfigReadyMessage,
+				novav1.NovaAllControlPlaneComputesReadyCondition, condition.ServiceConfigReadyMessage,
 			)
 		}
 
-		Log.Info("Nova compute statuses",
+		Log.Info("Nova compute ironic/fake driver control plane service statuses",
 			"ready", readyComputes,
 			"failed", failedComputes,
 		)
@@ -329,7 +329,7 @@ func (r *NovaCellReconciler) initConditions(
 				novav1.NovaComputeServiceConfigInitMessage,
 			),
 			condition.UnknownCondition(
-				novav1.NovaAllComputesReadyCondition,
+				novav1.NovaAllControlPlaneComputesReadyCondition,
 				condition.InitReason,
 				novav1.NovaComputeReadyInitMessage,
 			),

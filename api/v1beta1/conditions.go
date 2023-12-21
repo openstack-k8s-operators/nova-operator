@@ -50,8 +50,8 @@ const (
 	// NovaComputeServiceConfigReady indicates when the compute service config
 	// is ready for the given NovaCell
 	NovaComputeServiceConfigReady condition.Type = "NovaComputeServiceConfigReady"
-	// NovaAllComputesReadyCondition indicates that every defined NovaCompute is ready but undiscovered
-	NovaAllComputesReadyCondition condition.Type = "NovaAllComputesReady"
+	// NovaAllControlPlaneComputesReadyCondition indicates that every defined NovaCompute is ready but undiscovered
+	NovaAllControlPlaneComputesReadyCondition condition.Type = "NovaAllControlPlaneComputesReady"
 )
 
 // Common Messages used by API objects.
