@@ -941,7 +941,7 @@ func (r *NovaReconciler) ensureNovaComputeDiscover(
 	if len(cellTemplate.NovaComputeTemplates) == 0 {
 		return nova.CellComputeDiscoveryReady, nil
 	}
-	if !cell.Status.Conditions.IsTrue(novav1.NovaAllComputesReadyCondition) {
+	if !cell.Status.Conditions.IsTrue(novav1.NovaAllControlPlaneComputesReadyCondition) {
 		return nova.CellComputeDiscovering, nil
 	}
 

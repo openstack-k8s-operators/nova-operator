@@ -298,7 +298,7 @@ var _ = Describe("Nova multicell", func() {
 			th.ExpectCondition(
 				cell1.CellCRName,
 				ConditionGetterFunc(NovaCellConditionGetter),
-				novav1.NovaAllComputesReadyCondition,
+				novav1.NovaAllControlPlaneComputesReadyCondition,
 				corev1.ConditionTrue,
 			)
 			th.ExpectCondition(
