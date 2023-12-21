@@ -3,7 +3,7 @@
   ansible.builtin.import_playbook: >-
       {{[ ansible_user_dir,
       zuul.projects["github.com/openstack-k8s-operators/ci-framework"].src_dir,
-      "ci_framework/playbooks/01-bootstrap.yml"] | ansible.builtin.path_join}}
+      "playbooks/01-bootstrap.yml"] | ansible.builtin.path_join}}
 
 - hosts: "{{ cifmw_target_host | default('localhost') }}"
   name: install dev tools
@@ -17,7 +17,7 @@
   ansible.builtin.import_playbook: >-
       {{[ ansible_user_dir,
       zuul.projects["github.com/openstack-k8s-operators/ci-framework"].src_dir,
-      "ci_framework/playbooks/02-infra.yml"] | ansible.builtin.path_join}}
+      "playbooks/02-infra.yml"] | ansible.builtin.path_join}}
 
 - name: Build dataset hook
   hosts: localhost
