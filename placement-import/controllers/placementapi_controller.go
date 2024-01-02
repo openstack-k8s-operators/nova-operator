@@ -764,9 +764,19 @@ func (r *PlacementAPIReconciler) reconcileNormal(ctx context.Context, instance *
 		return ctrl.Result{}, err
 	}
 
-	if instance.Status.ReadyCount > 0 {
+	if instance.Status.ReadyCount > 0 || *instance.Spec.Replicas == 0 {
 		instance.Status.Conditions.MarkTrue(condition.DeploymentReadyCondition, condition.DeploymentReadyMessage)
+	} else {
+		Log.Info("Deployment is not ready")
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.DeploymentReadyCondition,
+			condition.RequestedReason,
+			condition.SeverityInfo,
+			condition.DeploymentReadyRunningMessage))
+		// It is OK to return success as we are watching for StatefulSet changes
+		return ctrl.Result{}, nil
 	}
+
 	// create Deployment - end
 
 	Log.Info("Reconciled Service successfully")

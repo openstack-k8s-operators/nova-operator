@@ -116,6 +116,39 @@ var _ = Describe("PlacementAPI controller", func() {
 		})
 	})
 
+	When("starts zero replicas", func() {
+		BeforeEach(func() {
+			spec := GetDefaultPlacementAPISpec()
+			spec["replicas"] = 0
+			DeferCleanup(
+				th.DeleteInstance,
+				CreatePlacementAPI(names.PlacementAPIName, spec),
+			)
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreatePlacementAPISecret(namespace, SecretName))
+			keystoneAPIName := keystone.CreateKeystoneAPI(namespace)
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystoneAPIName)
+
+		})
+		It("and deployment is Ready", func() {
+			serviceSpec := corev1.ServiceSpec{Ports: []corev1.ServicePort{{Port: 3306}}}
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(namespace, "openstack", serviceSpec),
+			)
+			mariadb.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
+			th.SimulateJobSuccess(names.DBSyncJobName)
+			placement := GetPlacementAPI(names.PlacementAPIName)
+			Expect(*(placement.Spec.Replicas)).Should(Equal(int32(0)))
+			th.ExpectCondition(
+				names.PlacementAPIName,
+				ConditionGetterFunc(PlacementConditionGetter),
+				condition.DeploymentReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
+	})
+
 	When("a secret is provided with missing fields", func() {
 		BeforeEach(func() {
 			DeferCleanup(
