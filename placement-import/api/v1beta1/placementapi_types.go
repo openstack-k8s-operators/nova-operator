@@ -222,3 +222,8 @@ func SetupDefaults() {
 
 	SetupPlacementAPIDefaults(placementDefaults)
 }
+
+// GetSecret returns the value of the Nova.Spec.Secret
+func (instance PlacementAPI) GetSecret() string {
+	return instance.Spec.Secret
+}

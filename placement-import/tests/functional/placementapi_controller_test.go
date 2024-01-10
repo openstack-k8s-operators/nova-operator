@@ -170,7 +170,7 @@ var _ = Describe("PlacementAPI controller", func() {
 				names.PlacementAPIName,
 				ConditionGetterFunc(PlacementConditionGetter),
 				condition.InputReadyCondition,
-				corev1.ConditionTrue,
+				corev1.ConditionFalse,
 			)
 		})
 	})
@@ -704,14 +704,7 @@ var _ = Describe("PlacementAPI controller", func() {
 			Eventually(func(g Gomega) {
 				deployment := th.GetDeployment(names.DeploymentName)
 				newConfigHash := GetEnvVarValue(deployment.Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
-				g.Expect(newConfigHash).NotTo(Equal(""))
-				// FIXME(gibi): The placement-operator does not watch the input
-				// secret so it does not detect that any input is changed.
-				// Also the password values are not calculated into the input
-				// hash as they are only applied in the init container
-				// This should pass when this is fixed
-				// g.Expect(newConfigHash).NotTo(Equal(oldConfigHash))
-				g.Expect(newConfigHash).To(Equal(oldConfigHash))
+				g.Expect(newConfigHash).NotTo(Equal(oldConfigHash))
 				// TODO(gibi): once the password is in the generated config
 				// assert it there
 			}, timeout, interval).Should(Succeed())

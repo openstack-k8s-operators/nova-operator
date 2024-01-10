@@ -21,12 +21,17 @@ import (
 	"fmt"
 	"time"
 
+	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/go-logr/logr"
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
@@ -42,7 +47,6 @@ import (
 	labels "github.com/openstack-k8s-operators/lib-common/modules/common/labels"
 	nad "github.com/openstack-k8s-operators/lib-common/modules/common/networkattachment"
 	common_rbac "github.com/openstack-k8s-operators/lib-common/modules/common/rbac"
-	oko_secret "github.com/openstack-k8s-operators/lib-common/modules/common/secret"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 
@@ -58,9 +62,131 @@ import (
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 )
 
+type conditionUpdater interface {
+	Set(c *condition.Condition)
+	MarkTrue(t condition.Type, messageFormat string, messageArgs ...interface{})
+}
+
+type GetSecret interface {
+	GetSecret() string
+	client.Object
+}
+
+// ensureSecret - ensures that the Secret object exists and the expected fields
+// are in the Secret. It returns a hash of the values of the expected fields.
+func ensureSecret(
+	ctx context.Context,
+	secretName types.NamespacedName,
+	expectedFields []string,
+	reader client.Reader,
+	conditionUpdater conditionUpdater,
+) (string, ctrl.Result, corev1.Secret, error) {
+	secret := &corev1.Secret{}
+	err := reader.Get(ctx, secretName, secret)
+	if err != nil {
+		if k8s_errors.IsNotFound(err) {
+			conditionUpdater.Set(condition.FalseCondition(
+				condition.InputReadyCondition,
+				condition.RequestedReason,
+				condition.SeverityInfo,
+				fmt.Sprintf("Input data resources missing: %s", "secret/"+secretName.Name)))
+			return "",
+				ctrl.Result{},
+				*secret,
+				fmt.Errorf("Secret %s not found", secretName)
+		}
+		conditionUpdater.Set(condition.FalseCondition(
+			condition.InputReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.InputReadyErrorMessage,
+			err.Error()))
+		return "", ctrl.Result{}, *secret, err
+	}
+
+	// collect the secret values the caller expects to exist
+	values := [][]byte{}
+	for _, field := range expectedFields {
+		val, ok := secret.Data[field]
+		if !ok {
+			err := fmt.Errorf("field '%s' not found in secret/%s", field, secretName.Name)
+			conditionUpdater.Set(condition.FalseCondition(
+				condition.InputReadyCondition,
+				condition.ErrorReason,
+				condition.SeverityWarning,
+				condition.InputReadyErrorMessage,
+				err.Error()))
+			return "", ctrl.Result{}, *secret, err
+		}
+		values = append(values, val)
+	}
+
+	// TODO(gibi): Do we need to watch the Secret for changes?
+
+	hash, err := util.ObjectHash(values)
+	if err != nil {
+		conditionUpdater.Set(condition.FalseCondition(
+			condition.InputReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.InputReadyErrorMessage,
+			err.Error()))
+		return "", ctrl.Result{}, *secret, err
+	}
+
+	return hash, ctrl.Result{}, *secret, nil
+}
+
 // GetLog returns a logger object with a prefix of "controller.name" and additional controller context fields
 func (r *PlacementAPIReconciler) GetLogger(ctx context.Context) logr.Logger {
 	return log.FromContext(ctx).WithName("Controllers").WithName("PlacementAPI")
+}
+
+func (r *PlacementAPIReconciler) GetSecretMapperFor(crs client.ObjectList, ctx context.Context) func(client.Object) []reconcile.Request {
+	Log := r.GetLogger(ctx)
+	mapper := func(secret client.Object) []reconcile.Request {
+		var namespace string = secret.GetNamespace()
+		var secretName string = secret.GetName()
+		result := []reconcile.Request{}
+
+		listOpts := []client.ListOption{
+			client.InNamespace(namespace),
+		}
+		if err := r.Client.List(ctx, crs, listOpts...); err != nil {
+			Log.Error(err, "Unable to retrieve the list of CRs")
+			panic(err)
+		}
+
+		err := apimeta.EachListItem(crs, func(o runtime.Object) error {
+			// NOTE(gibi): intentionally let the failed cast panic to catch
+			// this implementation error as soon as possible.
+			cr := o.(GetSecret)
+			if cr.GetSecret() == secretName {
+				name := client.ObjectKey{
+					Namespace: namespace,
+					Name:      cr.GetName(),
+				}
+				Log.Info(
+					"Requesting reconcile due to secret change",
+					"Secret", secretName, "CR", name.Name,
+				)
+				result = append(result, reconcile.Request{NamespacedName: name})
+			}
+			return nil
+		})
+
+		if err != nil {
+			Log.Error(err, "Unable to iterate the list of CRs")
+			panic(err)
+		}
+
+		if len(result) > 0 {
+			return result
+		}
+		return nil
+	}
+
+	return mapper
 }
 
 // PlacementAPIReconciler reconciles a PlacementAPI object
@@ -207,6 +333,8 @@ func (r *PlacementAPIReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.ServiceAccount{}).
 		Owns(&rbacv1.Role{}).
 		Owns(&rbacv1.RoleBinding{}).
+		Watches(&source.Kind{Type: &corev1.Secret{}},
+			handler.EnqueueRequestsFromMapFunc(r.GetSecretMapperFor(&placementv1.PlacementAPIList{}, context.TODO()))).
 		Complete(r)
 }
 
@@ -591,7 +719,14 @@ func (r *PlacementAPIReconciler) reconcileNormal(ctx context.Context, instance *
 	//
 	// check for required OpenStack secret holding passwords for service/admin user and add hash to the vars map
 	//
-	ospSecret, hash, err := oko_secret.GetSecret(ctx, helper, instance.Spec.Secret, instance.Namespace)
+	hash, result, ospSecret, err := ensureSecret(
+		ctx,
+		types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.Secret},
+		[]string{
+			instance.Spec.PasswordSelectors.Service,
+		},
+		helper.GetClient(),
+		&instance.Status.Conditions)
 	if err != nil {
 		if k8s_errors.IsNotFound(err) {
 			instance.Status.Conditions.Set(condition.FalseCondition(
@@ -607,7 +742,7 @@ func (r *PlacementAPIReconciler) reconcileNormal(ctx context.Context, instance *
 			condition.SeverityWarning,
 			condition.InputReadyErrorMessage,
 			err.Error()))
-		return ctrl.Result{}, err
+		return result, err
 	}
 	configMapVars[ospSecret.Name] = env.SetValue(hash)
 	instance.Status.Conditions.MarkTrue(condition.InputReadyCondition, condition.InputReadyMessage)
