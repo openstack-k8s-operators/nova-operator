@@ -15,7 +15,7 @@ You can use [openshift-local](https://developers.redhat.com/products/openshift-l
 
 ### golang
 
-this repo currently uses go 1.18
+This repo currently uses go 1.19+
 
 ### pre-commit
 
