@@ -54,13 +54,13 @@ func CreateNames(placementAPIName types.NamespacedName) Names {
 		// but based on the name of the PlacementAPI CR
 		DBSyncJobName: types.NamespacedName{
 			Namespace: placementAPIName.Namespace,
-			Name:      "placement-db-sync"},
+			Name:      placementAPIName.Name + "-db-sync"},
 		MariaDBDatabaseName: placementAPIName,
 		// FIXME(gibi): the deployment name should not be hardcoded
 		// but based on the name of the PlacementAPI CR
 		DeploymentName: types.NamespacedName{
 			Namespace: placementAPIName.Namespace,
-			Name:      "placement"},
+			Name:      placementAPIName.Name},
 		PublicServiceName: types.NamespacedName{
 			Namespace: placementAPIName.Namespace,
 			Name:      "placement-public"},

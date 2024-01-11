@@ -82,7 +82,7 @@ func Deployment(
 
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      ServiceName,
+			Name:      instance.Name,
 			Namespace: instance.Namespace,
 		},
 		Spec: appsv1.DeploymentSpec{
@@ -99,7 +99,7 @@ func Deployment(
 					ServiceAccountName: instance.RbacResourceName(),
 					Containers: []corev1.Container{
 						{
-							Name: ServiceName + "-log",
+							Name: instance.Name + "-log",
 							Command: []string{
 								"/usr/bin/dumb-init",
 							},
@@ -122,7 +122,7 @@ func Deployment(
 							LivenessProbe:  livenessProbe,
 						},
 						{
-							Name: ServiceName + "-api",
+							Name: instance.Name + "-api",
 							Command: []string{
 								"/bin/bash",
 							},
