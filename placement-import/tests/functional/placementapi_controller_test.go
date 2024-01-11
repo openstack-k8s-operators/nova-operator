@@ -22,6 +22,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
+	placement "github.com/openstack-k8s-operators/placement-operator/pkg/placement"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -250,7 +251,7 @@ var _ = Describe("PlacementAPI controller", func() {
 			db := mariadb.GetMariaDBDatabase(names.MariaDBDatabaseName)
 			// FIXME(gibi): this should be hardcoded to "placement" as this is
 			// the name of the DB schema to be created
-			Expect(db.Spec.Name).To(Equal(names.PlacementAPIName.Name))
+			Expect(db.Spec.Name).To(Equal(placement.DatabaseName))
 			Expect(db.Spec.Secret).To(Equal(SecretName))
 
 			mariadb.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)

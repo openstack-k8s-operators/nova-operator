@@ -299,7 +299,7 @@ func (r *PlacementAPIReconciler) reconcileInit(
 	// create service DB instance
 	//
 	db := mariadbv1.NewDatabase(
-		instance.Name,
+		placement.DatabaseName,
 		instance.Spec.DatabaseUser,
 		instance.Spec.Secret,
 		map[string]string{
