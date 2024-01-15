@@ -253,6 +253,11 @@ func (r *PlacementAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, err
 	}
 
+	// initialize status fields
+	if err = r.initStatus(ctx, h, instance); err != nil {
+		return ctrl.Result{}, err
+	}
+
 	// Always patch the instance status when exiting this function so we can persist any changes.
 	defer func() {
 		// update the Ready condition based on the sub conditions
@@ -275,39 +280,55 @@ func (r *PlacementAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}()
 
 	// If we're not deleting this and the service object doesn't have our finalizer, add it.
-	if instance.DeletionTimestamp.IsZero() && controllerutil.AddFinalizer(instance, helper.GetFinalizer()) {
+	if instance.DeletionTimestamp.IsZero() {
+		return ctrl.Result{}, r.reconcileDelete(ctx, h, instance)
+	}
+	// We create a KeystoneEndpoint CR later and that will automatically get the
+	// Nova finalizer. So we need a finalizer on the ourselves too so that
+	// during NovaAPI CR delete we can have a chance to remove the finalizer from
+	// the our KeystoneEndpoint so that is also deleted.
+	updated := controllerutil.AddFinalizer(instance, h.GetFinalizer())
+	if updated {
+		Log.Info("Added finalizer to ourselves")
+		// we intentionally return immediately to force the deferred function
+		// to persist the Instance with the finalizer. We need to have our own
+		// finalizer persisted before we try to create the KeystoneEndpoint with
+		// our finalizer to avoid orphaning the KeystoneEndpoint.
 		return ctrl.Result{}, nil
 	}
 
 	//
-	// initialize status
+	// check for required OpenStack secret holding passwords for service/admin user and add hash to the vars map
 	//
-	if instance.Status.Conditions == nil {
-		instance.Status.Conditions = condition.Conditions{}
-		// initialize conditions used later as Status=Unknown
-		cl := condition.CreateList(
-			condition.UnknownCondition(condition.DBReadyCondition, condition.InitReason, condition.DBReadyInitMessage),
-			condition.UnknownCondition(condition.DBSyncReadyCondition, condition.InitReason, condition.DBSyncReadyInitMessage),
-			condition.UnknownCondition(condition.ExposeServiceReadyCondition, condition.InitReason, condition.ExposeServiceReadyInitMessage),
-			condition.UnknownCondition(condition.InputReadyCondition, condition.InitReason, condition.InputReadyInitMessage),
-			condition.UnknownCondition(condition.ServiceConfigReadyCondition, condition.InitReason, condition.ServiceConfigReadyInitMessage),
-			condition.UnknownCondition(condition.DeploymentReadyCondition, condition.InitReason, condition.DeploymentReadyInitMessage),
-			// right now we have no dedicated KeystoneServiceReadyInitMessage and KeystoneEndpointReadyInitMessage
-			condition.UnknownCondition(condition.KeystoneServiceReadyCondition, condition.InitReason, ""),
-			condition.UnknownCondition(condition.KeystoneEndpointReadyCondition, condition.InitReason, ""),
-			condition.UnknownCondition(condition.NetworkAttachmentsReadyCondition, condition.InitReason, condition.NetworkAttachmentsReadyInitMessage),
-			condition.UnknownCondition(condition.TLSInputReadyCondition, condition.InitReason, condition.InputReadyInitMessage),
-			// service account, role, rolebinding conditions
-			condition.UnknownCondition(condition.ServiceAccountReadyCondition, condition.InitReason, condition.ServiceAccountReadyInitMessage),
-			condition.UnknownCondition(condition.RoleReadyCondition, condition.InitReason, condition.RoleReadyInitMessage),
-			condition.UnknownCondition(condition.RoleBindingReadyCondition, condition.InitReason, condition.RoleBindingReadyInitMessage),
-		)
-
-		instance.Status.Conditions.Init(&cl)
-
-		// Register overall status immediately to have an early feedback e.g. in the cli
-		return ctrl.Result{}, nil
+	hash, result, ospSecret, err := ensureSecret(
+		ctx,
+		types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.Secret},
+		[]string{
+			instance.Spec.PasswordSelectors.Service,
+			instance.Spec.PasswordSelectors.Database,
+		},
+		helper.GetClient(),
+		&instance.Status.Conditions)
+	if (err != nil || result != ctrl.Result{}) {
+		return result, err
 	}
+	configMapVars[ospSecret.Name] = env.SetValue(hash)
+	// all our input checks out so report InputReady
+	instance.Status.Conditions.MarkTrue(condition.InputReadyCondition, condition.InputReadyMessage)
+
+	// Handle non-deleted clusters
+	return r.reconcileNormal(ctx, instance, helper)
+}
+
+func (r *PlacementAPIReconciler) initStatus(
+	ctx context.Context, h *helper.Helper, instance *placementv1.PlacementAPI,
+) error {
+	if err := r.initConditions(ctx, h, instance); err != nil {
+		return err
+	}
+
+	// NOTE(gibi): initialize the rest of the status fields here
+	// so that the reconcile loop later can assume they are not nil.
 	if instance.Status.Hash == nil {
 		instance.Status.Hash = map[string]string{}
 	}
@@ -315,13 +336,82 @@ func (r *PlacementAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		instance.Status.NetworkAttachments = map[string][]string{}
 	}
 
-	// Handle service delete
-	if !instance.DeletionTimestamp.IsZero() {
-		return r.reconcileDelete(ctx, instance, helper)
-	}
+	return nil
+}
 
-	// Handle non-deleted clusters
-	return r.reconcileNormal(ctx, instance, helper)
+func (r *PlacementAPIReconciler) initConditions(
+	ctx context.Context, h *helper.Helper, instance *placementv1.PlacementAPI,
+) error {
+	if instance.Status.Conditions == nil {
+		instance.Status.Conditions = condition.Conditions{}
+		// initialize conditions used later as Status=Unknown
+		cl := condition.CreateList(
+			condition.UnknownCondition(
+				condition.DBReadyCondition,
+				condition.InitReason,
+				condition.DBReadyInitMessage
+			),
+			condition.UnknownCondition(
+				condition.DBSyncReadyCondition,
+				condition.InitReason,
+				condition.DBSyncReadyInitMessage
+			),
+			condition.UnknownCondition(
+				condition.ExposeServiceReadyCondition,
+				condition.InitReason,
+				condition.ExposeServiceReadyInitMessage
+			),
+			condition.UnknownCondition(
+				condition.InputReadyCondition,
+				condition.InitReason,
+				condition.InputReadyInitMessage
+			),
+			condition.UnknownCondition(
+				condition.ServiceConfigReadyCondition,
+				condition.InitReason,
+				condition.ServiceConfigReadyInitMessage
+			),
+			condition.UnknownCondition(
+				condition.DeploymentReadyCondition,
+				condition.InitReason,
+				condition.DeploymentReadyInitMessage
+			),
+			// right now we have no dedicated KeystoneServiceReadyInitMessage and KeystoneEndpointReadyInitMessage
+			condition.UnknownCondition(
+				condition.KeystoneServiceReadyCondition,
+				condition.InitReason,
+				"Service registration not started",
+			),
+			condition.UnknownCondition(
+				condition.KeystoneEndpointReadyCondition,
+				condition.InitReason,
+				"KeystoneEndpoint not created",
+			),
+			condition.UnknownCondition(
+				condition.NetworkAttachmentsReadyCondition,
+				condition.InitReason,
+				condition.NetworkAttachmentsReadyInitMessage
+			),
+			// service account, role, rolebinding conditions
+			condition.UnknownCondition(
+				condition.ServiceAccountReadyCondition,
+				condition.InitReason,
+				condition.ServiceAccountReadyInitMessage
+			),
+			condition.UnknownCondition(
+				condition.RoleReadyCondition,
+				condition.InitReason,
+				condition.RoleReadyInitMessage
+			),
+			condition.UnknownCondition(
+				condition.RoleBindingReadyCondition,
+				condition.InitReason,
+				condition.RoleBindingReadyInitMessage),
+		)
+
+		instance.Status.Conditions.Init(&cl)
+	}
+	return nil
 }
 
 // fields to index to reconcile when change
@@ -827,39 +917,6 @@ func (r *PlacementAPIReconciler) reconcileNormal(ctx context.Context, instance *
 	Log.Info("Reconciling Service")
 	// ConfigMap
 	configMapVars := make(map[string]env.Setter)
-
-	//
-	// check for required OpenStack secret holding passwords for service/admin user and add hash to the vars map
-	//
-	hash, result, ospSecret, err := ensureSecret(
-		ctx,
-		types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.Secret},
-		[]string{
-			instance.Spec.PasswordSelectors.Service,
-			instance.Spec.PasswordSelectors.Database,
-		},
-		helper.GetClient(),
-		&instance.Status.Conditions)
-	if err != nil {
-		if k8s_errors.IsNotFound(err) {
-			instance.Status.Conditions.Set(condition.FalseCondition(
-				condition.InputReadyCondition,
-				condition.RequestedReason,
-				condition.SeverityInfo,
-				condition.InputReadyWaitingMessage))
-			return ctrl.Result{RequeueAfter: time.Second * 10}, fmt.Errorf("OpenStack secret %s not found", instance.Spec.Secret)
-		}
-		instance.Status.Conditions.Set(condition.FalseCondition(
-			condition.InputReadyCondition,
-			condition.ErrorReason,
-			condition.SeverityWarning,
-			condition.InputReadyErrorMessage,
-			err.Error()))
-		return result, err
-	}
-	configMapVars[ospSecret.Name] = env.SetValue(hash)
-	instance.Status.Conditions.MarkTrue(condition.InputReadyCondition, condition.InputReadyMessage)
-	// run check OpenStack secret - end
 
 	//
 	// Create ConfigMaps and Secrets required as input for the Service and calculate an overall hash of hashes
