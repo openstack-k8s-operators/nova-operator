@@ -724,6 +724,7 @@ func (r *PlacementAPIReconciler) reconcileNormal(ctx context.Context, instance *
 		types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.Secret},
 		[]string{
 			instance.Spec.PasswordSelectors.Service,
+			instance.Spec.PasswordSelectors.Database,
 		},
 		helper.GetClient(),
 		&instance.Status.Conditions)
