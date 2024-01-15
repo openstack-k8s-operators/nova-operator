@@ -3,7 +3,7 @@ module github.com/openstack-k8s-operators/placement-operator/api
 go 1.19
 
 require (
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.3.1-0.20231230095328-700482794743
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.3.1-0.20240115104107-5b2be2642dcf
 	k8s.io/api v0.26.12
 	k8s.io/apimachinery v0.26.12
 	sigs.k8s.io/controller-runtime v0.14.7
@@ -41,10 +41,10 @@ require (
 	github.com/prometheus/common v0.37.0 // indirect
 	github.com/prometheus/procfs v0.8.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	golang.org/x/net v0.19.0 // indirect
+	golang.org/x/net v0.20.0 // indirect
 	golang.org/x/oauth2 v0.7.0 // indirect
-	golang.org/x/sys v0.15.0 // indirect
-	golang.org/x/term v0.15.0 // indirect
+	golang.org/x/sys v0.16.0 // indirect
+	golang.org/x/term v0.16.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.2.0 // indirect
@@ -58,7 +58,7 @@ require (
 	k8s.io/component-base v0.26.12 //indirect
 	k8s.io/klog/v2 v2.100.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20230308215209-15aac26d736a //indirect
-	k8s.io/utils v0.0.0-20231127182322-b307cd553661 //indirect
+	k8s.io/utils v0.0.0-20240102154912-e7106e64919e //indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd //indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.3 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
