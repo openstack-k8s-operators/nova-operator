@@ -151,13 +151,28 @@ func (r *NovaSpec) ValidateCellTemplates(basePath *field.Path) field.ErrorList {
 		)
 	}
 
+	cellMessageBusNames := make(map[string]string)
+
 	for name, cell := range r.CellTemplates {
 		cellPath := basePath.Child("cellTemplates").Key(name)
 		errors = append(
 			errors,
 			ValidateCellName(cellPath, name)...,
 		)
+		if name != Cell0Name {
+			if dupName, ok := cellMessageBusNames[cell.CellMessageBusInstance]; ok {
+				errors = append(errors, field.Invalid(
+					cellPath.Child("cellMessageBusInstance"),
+					cell.CellMessageBusInstance,
+					fmt.Sprintf(
+						"RabbitMqCluster CR need to be uniq per cell. It's duplicated with cell: %s",
+						dupName),
+				),
+				)
+			}
 
+			cellMessageBusNames[cell.CellMessageBusInstance] = name
+		}
 		if *cell.MetadataServiceTemplate.Enabled && *r.MetadataServiceTemplate.Enabled {
 			errors = append(
 				errors,
