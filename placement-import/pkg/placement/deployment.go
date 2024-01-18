@@ -183,17 +183,5 @@ func Deployment(
 		deployment.Spec.Template.Spec.NodeSelector = instance.Spec.NodeSelector
 	}
 
-	initContainerDetails := APIDetails{
-		ContainerImage:       instance.Spec.ContainerImage,
-		DatabaseHost:         instance.Status.DatabaseHostname,
-		DatabaseUser:         instance.Spec.DatabaseUser,
-		DatabaseName:         DatabaseName,
-		OSPSecret:            instance.Spec.Secret,
-		DBPasswordSelector:   instance.Spec.PasswordSelectors.Database,
-		UserPasswordSelector: instance.Spec.PasswordSelectors.Service,
-		VolumeMounts:         getInitVolumeMounts(),
-	}
-	deployment.Spec.Template.Spec.InitContainers = initContainer(initContainerDetails)
-
-	return deployment, nil
+	return deployment
 }

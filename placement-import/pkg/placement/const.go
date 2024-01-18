@@ -21,6 +21,9 @@ const (
 	// DatabaseName -
 	DatabaseName = "placement"
 
+	//config secret name
+	ConfigSecretName = "placement-config-data"
+
 	// PlacementPublicPort -
 	PlacementPublicPort int32 = 8778
 	// PlacementInternalPort -

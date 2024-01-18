@@ -88,6 +88,24 @@ var _ = Describe("PlacementAPI controller", func() {
 				condition.InputReadyCondition,
 				corev1.ConditionFalse,
 			)
+			th.ExpectCondition(
+				names.PlacementAPIName,
+				ConditionGetterFunc(PlacementConditionGetter),
+				condition.RoleBindingReadyCondition,
+				corev1.ConditionTrue,
+			)
+			th.ExpectCondition(
+				names.PlacementAPIName,
+				ConditionGetterFunc(PlacementConditionGetter),
+				condition.RoleReadyCondition,
+				corev1.ConditionTrue,
+			)
+			th.ExpectCondition(
+				names.PlacementAPIName,
+				ConditionGetterFunc(PlacementConditionGetter),
+				condition.ServiceAccountReadyCondition,
+				corev1.ConditionTrue,
+			)
 			unknownConditions := []condition.Type{
 				condition.DBReadyCondition,
 				condition.DBSyncReadyCondition,
@@ -97,15 +115,12 @@ var _ = Describe("PlacementAPI controller", func() {
 				condition.KeystoneServiceReadyCondition,
 				condition.KeystoneEndpointReadyCondition,
 				condition.NetworkAttachmentsReadyCondition,
-				condition.ServiceAccountReadyCondition,
-				condition.RoleReadyCondition,
-				condition.RoleBindingReadyCondition,
 				condition.TLSInputReadyCondition,
 			}
 
 			placement := GetPlacementAPI(names.PlacementAPIName)
-			// +2 as InputReady and Ready is False asserted above
-			Expect(placement.Status.Conditions).To(HaveLen(len(unknownConditions) + 2))
+			// +5 as InputReady, Ready, Service and Role are ready is False asserted above
+			Expect(placement.Status.Conditions).To(HaveLen(len(unknownConditions) + 5))
 
 			for _, cond := range unknownConditions {
 				th.ExpectCondition(
@@ -228,7 +243,7 @@ var _ = Describe("PlacementAPI controller", func() {
 			)
 		})
 		It("should create a ConfigMap for placement.conf", func() {
-			cm := th.GetConfigMap(names.ConfigMapName)
+			cm := th.GetSecret(names.ConfigMapName)
 
 			Expect(cm.Data["placement.conf"]).Should(
 				ContainSubstring("auth_url = %s", keystoneAPI.Status.APIEndpoints["internal"]))
@@ -236,6 +251,8 @@ var _ = Describe("PlacementAPI controller", func() {
 				ContainSubstring("www_authenticate_uri = %s", keystoneAPI.Status.APIEndpoints["public"]))
 			Expect(cm.Data["placement.conf"]).Should(
 				ContainSubstring("username = placement"))
+			Expect(cm.Data["placement.conf"]).Should(
+				ContainSubstring("connection = mysql+pymysql://placement:PlacementDatabasePassword@/placement"))
 		})
 
 		It("creates service account, role and rolebindig", func() {
@@ -362,27 +379,8 @@ var _ = Describe("PlacementAPI controller", func() {
 			)
 
 			job := th.GetJob(names.DBSyncJobName)
-			Expect(job.Spec.Template.Spec.Volumes).To(HaveLen(4))
-			Expect(job.Spec.Template.Spec.InitContainers).To(HaveLen(1))
+			Expect(job.Spec.Template.Spec.Volumes).To(HaveLen(3))
 			Expect(job.Spec.Template.Spec.Containers).To(HaveLen(1))
-
-			init := job.Spec.Template.Spec.InitContainers[0]
-			Expect(init.VolumeMounts).To(HaveLen(4))
-			Expect(init.Args[1]).To(ContainSubstring("init.sh"))
-			Expect(init.Image).To(Equal("quay.io/podified-antelope-centos9/openstack-placement-api:current-podified"))
-			env := &corev1.EnvVar{}
-			Expect(init.Env).To(ContainElement(HaveField("Name", "DatabaseHost"), env))
-			Expect(env.Value).To(Equal("hostname-for-openstack"))
-			Expect(init.Env).To(ContainElement(HaveField("Name", "DatabaseUser"), env))
-			Expect(env.Value).To(Equal("placement"))
-			Expect(init.Env).To(ContainElement(HaveField("Name", "DatabaseName"), env))
-			Expect(env.Value).To(Equal("placement"))
-			Expect(init.Env).To(ContainElement(HaveField("Name", "DatabasePassword"), env))
-			Expect(env.ValueFrom.SecretKeyRef.LocalObjectReference.Name).To(Equal(SecretName))
-			Expect(env.ValueFrom.SecretKeyRef.Key).To(Equal("PlacementDatabasePassword"))
-			Expect(init.Env).To(ContainElement(HaveField("Name", "PlacementPassword"), env))
-			Expect(env.ValueFrom.SecretKeyRef.LocalObjectReference.Name).To(Equal(SecretName))
-			Expect(env.ValueFrom.SecretKeyRef.Key).To(Equal("PlacementPassword"))
 
 			container := job.Spec.Template.Spec.Containers[0]
 			Expect(container.VolumeMounts).To(HaveLen(4))
@@ -671,7 +669,7 @@ var _ = Describe("PlacementAPI controller", func() {
 			deployment := th.GetDeployment(names.DeploymentName)
 			oldConfigHash := GetEnvVarValue(deployment.Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
 			Expect(oldConfigHash).NotTo(Equal(""))
-			cm := th.GetConfigMap(names.ConfigMapName)
+			cm := th.GetSecret(names.ConfigMapName)
 			Expect(cm.Data["custom.conf"]).ShouldNot(ContainSubstring("debug"))
 
 			Eventually(func(g Gomega) {
@@ -687,7 +685,7 @@ var _ = Describe("PlacementAPI controller", func() {
 				g.Expect(newConfigHash).NotTo(Equal(""))
 				g.Expect(newConfigHash).NotTo(Equal(oldConfigHash))
 
-				cm := th.GetConfigMap(names.ConfigMapName)
+				cm := th.GetSecret(names.ConfigMapName)
 				g.Expect(cm.Data["custom.conf"]).Should(ContainSubstring("debug = true"))
 			}, timeout, interval).Should(Succeed())
 		})

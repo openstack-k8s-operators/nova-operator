@@ -178,32 +178,6 @@ spec:
           successThreshold: 1
           timeoutSeconds: 5
         resources: {}
-      initContainers:
-      - args:
-        - -c
-        - /usr/local/bin/container-scripts/init.sh
-        command:
-        - /bin/bash
-        env:
-        - name: DatabasePassword
-          valueFrom:
-            secretKeyRef:
-              key: PlacementDatabasePassword
-              name: osp-secret
-        - name: PlacementPassword
-          valueFrom:
-            secretKeyRef:
-              key: PlacementPassword
-              name: osp-secret
-        - name: DatabaseHost
-          value: openstack
-        - name: DatabaseName
-          value: placement
-        - name: DatabaseUser
-          value: placement
-        imagePullPolicy: IfNotPresent
-        name: init
-        resources: {}
       restartPolicy: Always
       securityContext: {}
       serviceAccount: placement-placement
