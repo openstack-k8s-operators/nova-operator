@@ -567,4 +567,36 @@ var _ = Describe("Nova validation", func() {
 			),
 		)
 	})
+	It("check Cell validation with duplicate cellMessageBusInstance", func() {
+		spec := GetDefaultNovaSpec()
+		cell0 := GetDefaultNovaCellTemplate()
+		cell1 := GetDefaultNovaCellTemplate()
+		cell2 := GetDefaultNovaCellTemplate()
+		cell1["cellMessageBusInstance"] = "rabbitmq-of-caerbannog"
+		cell2["cellMessageBusInstance"] = "rabbitmq-of-caerbannog"
+		spec["cellTemplates"] = map[string]interface{}{"cell0": cell0, "cell1": cell1, "cell2": cell2}
+		raw := map[string]interface{}{
+			"apiVersion": "nova.openstack.org/v1beta1",
+			"kind":       "Nova",
+			"metadata": map[string]interface{}{
+				"name":      novaNames.NovaName.Name,
+				"namespace": novaNames.Namespace,
+			},
+			"spec": spec,
+		}
+		unstructuredObj := &unstructured.Unstructured{Object: raw}
+		_, err := controllerutil.CreateOrPatch(
+			ctx, k8sClient, unstructuredObj, func() error { return nil })
+
+		Expect(err).Should(HaveOccurred())
+		var statusError *k8s_errors.StatusError
+		Expect(errors.As(err, &statusError)).To(BeTrue())
+		Expect(statusError.ErrStatus.Message).To(
+			ContainSubstring(
+				"invalid: spec.cellTemplates[cell2].cellMessageBusInstance: " +
+					"Invalid value: \"rabbitmq-of-caerbannog\": RabbitMqCluster " +
+					"CR need to be uniq per cell. It's duplicated with cell: cell1",
+			),
+		)
+	})
 })
