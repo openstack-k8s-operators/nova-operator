@@ -751,12 +751,9 @@ func (r *NovaMetadataReconciler) findObjectsForSrc(src client.Object) []reconcil
 }
 
 // fields to index to reconcile when change
-const (
-	tlsMetadataField = ".spec.tls.secretName"
-)
-
 var (
 	metaWatchFields = []string{
+		passwordSecretField,
 		caBundleSecretNameField,
 		tlsMetadataField,
 	}
@@ -764,6 +761,19 @@ var (
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *NovaMetadataReconciler) SetupWithManager(mgr ctrl.Manager) error {
+
+	// index passwordSecretField
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &novav1.NovaMetadata{}, passwordSecretField, func(rawObj client.Object) []string {
+		// Extract the secret name from the spec, if one is provided
+		cr := rawObj.(*novav1.NovaMetadata)
+		if cr.Spec.Secret == "" {
+			return nil
+		}
+		return []string{cr.Spec.Secret}
+	}); err != nil {
+		return err
+	}
+
 	// index caBundleSecretNameField
 	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &novav1.NovaMetadata{}, caBundleSecretNameField, func(rawObj client.Object) []string {
 		// Extract the secret name from the spec, if one is provided
@@ -793,8 +803,7 @@ func (r *NovaMetadataReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&v1.StatefulSet{}).
 		Owns(&corev1.Service{}).
 		Owns(&corev1.Secret{}).
-		Watches(&source.Kind{Type: &corev1.Secret{}},
-			handler.EnqueueRequestsFromMapFunc(r.GetSecretMapperFor(&novav1.NovaMetadataList{}, context.TODO()))).
+		// watch the input secrets
 		Watches(
 			&source.Kind{Type: &corev1.Secret{}},
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForSrc),

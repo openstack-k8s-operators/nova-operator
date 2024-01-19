@@ -789,14 +789,9 @@ func (r *NovaAPIReconciler) findObjectsForSrc(src client.Object) []reconcile.Req
 }
 
 // fields to index to reconcile when change
-const (
-	caBundleSecretNameField = ".spec.tls.caBundleSecretName"
-	tlsAPIInternalField     = ".spec.tls.api.internal.secretName"
-	tlsAPIPublicField       = ".spec.tls.api.public.secretName"
-)
-
 var (
 	apiWatchFields = []string{
+		passwordSecretField,
 		caBundleSecretNameField,
 		tlsAPIInternalField,
 		tlsAPIPublicField,
@@ -805,6 +800,18 @@ var (
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *NovaAPIReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	// index passwordSecretField
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &novav1.NovaAPI{}, passwordSecretField, func(rawObj client.Object) []string {
+		// Extract the secret name from the spec, if one is provided
+		cr := rawObj.(*novav1.NovaAPI)
+		if cr.Spec.Secret == "" {
+			return nil
+		}
+		return []string{cr.Spec.Secret}
+	}); err != nil {
+		return err
+	}
+
 	// index caBundleSecretNameField
 	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &novav1.NovaAPI{}, caBundleSecretNameField, func(rawObj client.Object) []string {
 		// Extract the secret name from the spec, if one is provided
@@ -847,8 +854,7 @@ func (r *NovaAPIReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.Service{}).
 		Owns(&keystonev1.KeystoneEndpoint{}).
 		Owns(&corev1.Secret{}).
-		Watches(&source.Kind{Type: &corev1.Secret{}},
-			handler.EnqueueRequestsFromMapFunc(r.GetSecretMapperFor(&novav1.NovaAPIList{}, context.TODO()))).
+		// watch the input secrets
 		Watches(
 			&source.Kind{Type: &corev1.Secret{}},
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForSrc),

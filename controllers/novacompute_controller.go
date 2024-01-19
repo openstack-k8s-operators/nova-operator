@@ -473,12 +473,25 @@ func (r *NovaComputeReconciler) findObjectsForSrc(src client.Object) []reconcile
 // fields to index to reconcile when change
 var (
 	cmpWatchFields = []string{
+		passwordSecretField,
 		caBundleSecretNameField,
 	}
 )
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *NovaComputeReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	// index passwordSecretField
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &novav1.NovaCompute{}, passwordSecretField, func(rawObj client.Object) []string {
+		// Extract the secret name from the spec, if one is provided
+		cr := rawObj.(*novav1.NovaCompute)
+		if cr.Spec.Secret == "" {
+			return nil
+		}
+		return []string{cr.Spec.Secret}
+	}); err != nil {
+		return err
+	}
+
 	// index caBundleSecretNameField
 	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &novav1.NovaCompute{}, caBundleSecretNameField, func(rawObj client.Object) []string {
 		// Extract the secret name from the spec, if one is provided
@@ -495,8 +508,7 @@ func (r *NovaComputeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&novav1.NovaCompute{}).
 		Owns(&v1.StatefulSet{}).
 		Owns(&corev1.Secret{}).
-		Watches(&source.Kind{Type: &corev1.Secret{}},
-			handler.EnqueueRequestsFromMapFunc(r.GetSecretMapperFor(&novav1.NovaComputeList{}, context.TODO()))).
+		// watch the input secrets
 		Watches(
 			&source.Kind{Type: &corev1.Secret{}},
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForSrc),
