@@ -18,9 +18,9 @@ require (
 	github.com/openstack-k8s-operators/nova-operator/api v0.0.0-20221209164002-f9e6b9363961
 	go.uber.org/zap v1.26.0
 	gopkg.in/yaml.v3 v3.0.1
-	k8s.io/api v0.26.12
-	k8s.io/apimachinery v0.26.12
-	k8s.io/client-go v0.26.12
+	k8s.io/api v0.26.13
+	k8s.io/apimachinery v0.26.13
+	k8s.io/client-go v0.26.13
 	k8s.io/utils v0.0.0-20240102154912-e7106e64919e
 	sigs.k8s.io/controller-runtime v0.14.7
 )
@@ -74,8 +74,8 @@ require (
 	google.golang.org/protobuf v1.31.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	k8s.io/apiextensions-apiserver v0.26.12 // indirect
-	k8s.io/component-base v0.26.12 // indirect
+	k8s.io/apiextensions-apiserver v0.26.13 // indirect
+	k8s.io/component-base v0.26.13 // indirect
 	k8s.io/klog/v2 v2.100.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20230308215209-15aac26d736a // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
