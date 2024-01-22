@@ -169,9 +169,6 @@
       # We don't have shared local storage
         - tempest.api.compute.admin.test_live_migration.LiveMigrationTest.test_live_migration_with_trunk
         - tempest.scenario.test_network_advanced_server_ops.TestNetworkAdvancedServerOps.test_server_connectivity_live_migration
-      # Libvirt refuses to live-migrate a paused VM with post-copy enabled
-      # See https://bugs.launchpad.net/nova/+bug/1946752
-        - test_live_block_migration_paused
       # Need to check
         - tempest.api.compute.admin.test_auto_allocate_network.AutoAllocateNetworkTest.test_server_multi_create_auto_allocate
         - tempest.api.compute.servers.test_server_rescue.ServerStableDeviceRescueTestIDE
