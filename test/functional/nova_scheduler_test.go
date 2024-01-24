@@ -652,5 +652,33 @@ var _ = Describe("NovaScheduler controller", func() {
 				corev1.ConditionTrue,
 			)
 		})
+
+		It("reconfigures the NovaScheduler pod when CA changes", func() {
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCABundleSecret(novaNames.CaBundleSecretName))
+			th.SimulateStatefulSetReplicaReady(novaNames.SchedulerStatefulSetName)
+
+			ss := th.GetStatefulSet(novaNames.SchedulerStatefulSetName)
+
+			// Check the resulting deployment fields
+			Expect(int(*ss.Spec.Replicas)).To(Equal(1))
+			Expect(ss.Spec.Template.Spec.Volumes).To(HaveLen(2))
+			Expect(ss.Spec.Template.Spec.Containers).To(HaveLen(1))
+
+			// Grab the current config hash
+			originalHash := GetEnvVarValue(
+				th.GetStatefulSet(novaNames.SchedulerStatefulSetName).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
+			Expect(originalHash).NotTo(BeEmpty())
+
+			// Change the content of the CA secret
+			th.UpdateSecret(novaNames.CaBundleSecretName, "tls-ca-bundle.pem", []byte("DifferentCAData"))
+
+			// Assert that the deployment is updated
+			Eventually(func(g Gomega) {
+				newHash := GetEnvVarValue(
+					th.GetStatefulSet(novaNames.SchedulerStatefulSetName).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
+				g.Expect(newHash).NotTo(BeEmpty())
+				g.Expect(newHash).NotTo(Equal(originalHash))
+			}, timeout, interval).Should(Succeed())
+		})
 	})
 })
