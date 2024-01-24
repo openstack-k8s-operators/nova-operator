@@ -43,9 +43,6 @@ const (
 	// asserts using `Consistently`.
 	consistencyTimeout = timeout
 	ironicComputeName  = "ironic-compute"
-	//PublicCertSecretName   = "public-tls-certs"
-	//InternalCertSecretName = "internal-tls-certs"
-	//CABundleSecretName     = "combined-ca-bundle"
 )
 
 type NovaAPIFixture struct {

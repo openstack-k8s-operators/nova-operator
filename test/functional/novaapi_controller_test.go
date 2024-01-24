@@ -943,5 +943,35 @@ var _ = Describe("NovaAPI controller", func() {
 				corev1.ConditionTrue,
 			)
 		})
+
+		It("reconfigures the API pod when CA changes", func() {
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCABundleSecret(novaNames.CaBundleSecretName))
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(novaNames.InternalCertSecretName))
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(novaNames.PublicCertSecretName))
+			th.SimulateStatefulSetReplicaReady(novaNames.APIStatefulSetName)
+			keystone.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
+
+			ss := th.GetStatefulSet(novaNames.APIStatefulSetName)
+			// Check the resulting deployment fields
+			Expect(int(*ss.Spec.Replicas)).To(Equal(1))
+			Expect(ss.Spec.Template.Spec.Volumes).To(HaveLen(5))
+			Expect(ss.Spec.Template.Spec.Containers).To(HaveLen(2))
+
+			// Grab the current config hash
+			originalHash := GetEnvVarValue(
+				th.GetStatefulSet(novaNames.APIStatefulSetName).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
+			Expect(originalHash).NotTo(BeEmpty())
+
+			// Change the content of the CA secret
+			th.UpdateSecret(novaNames.CaBundleSecretName, "tls-ca-bundle.pem", []byte("DifferentCAData"))
+
+			// Assert that the deployment is updated
+			Eventually(func(g Gomega) {
+				newHash := GetEnvVarValue(
+					th.GetStatefulSet(novaNames.APIStatefulSetName).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
+				g.Expect(newHash).NotTo(BeEmpty())
+				g.Expect(newHash).NotTo(Equal(originalHash))
+			}, timeout, interval).Should(Succeed())
+		})
 	})
 })

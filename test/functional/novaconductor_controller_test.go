@@ -742,5 +742,34 @@ var _ = Describe("NovaConductor controller", func() {
 				corev1.ConditionTrue,
 			)
 		})
+
+		It("reconfigures the NovaConductor pod when CA changes", func() {
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCABundleSecret(novaNames.CaBundleSecretName))
+			th.SimulateJobSuccess(cell0.DBSyncJobName)
+			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
+
+			ss := th.GetStatefulSet(cell0.ConductorStatefulSetName)
+
+			// Check the resulting deployment fields
+			Expect(int(*ss.Spec.Replicas)).To(Equal(1))
+			Expect(ss.Spec.Template.Spec.Volumes).To(HaveLen(2))
+			Expect(ss.Spec.Template.Spec.Containers).To(HaveLen(1))
+
+			// Grab the current config hash
+			originalHash := GetEnvVarValue(
+				th.GetStatefulSet(cell0.ConductorStatefulSetName).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
+			Expect(originalHash).NotTo(BeEmpty())
+
+			// Change the content of the CA secret
+			th.UpdateSecret(novaNames.CaBundleSecretName, "tls-ca-bundle.pem", []byte("DifferentCAData"))
+
+			// Assert that the deployment is updated
+			Eventually(func(g Gomega) {
+				newHash := GetEnvVarValue(
+					th.GetStatefulSet(cell0.ConductorStatefulSetName).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
+				g.Expect(newHash).NotTo(BeEmpty())
+				g.Expect(newHash).NotTo(Equal(originalHash))
+			}, timeout, interval).Should(Succeed())
+		})
 	})
 })

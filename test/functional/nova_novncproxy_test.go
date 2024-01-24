@@ -736,5 +736,34 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 			Expect(configData).Should(ContainSubstring("cert=/etc/pki/tls/certs/nova-novncproxy.crt"))
 			Expect(configData).Should(ContainSubstring("key=/etc/pki/tls/private/nova-novncproxy.key"))
 		})
+
+		It("reconfigures the NovaNoVNCProxy pod when CA changes", func() {
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCABundleSecret(novaNames.CaBundleSecretName))
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(novaNames.InternalCertSecretName))
+			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
+
+			ss := th.GetStatefulSet(cell1.NoVNCProxyStatefulSetName)
+
+			// Check the resulting deployment fields
+			Expect(int(*ss.Spec.Replicas)).To(Equal(1))
+			Expect(ss.Spec.Template.Spec.Volumes).To(HaveLen(3))
+			Expect(ss.Spec.Template.Spec.Containers).To(HaveLen(1))
+
+			// Grab the current config hash
+			originalHash := GetEnvVarValue(
+				th.GetStatefulSet(cell1.NoVNCProxyStatefulSetName).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
+			Expect(originalHash).NotTo(BeEmpty())
+
+			// Change the content of the CA secret
+			th.UpdateSecret(novaNames.CaBundleSecretName, "tls-ca-bundle.pem", []byte("DifferentCAData"))
+
+			// Assert that the deployment is updated
+			Eventually(func(g Gomega) {
+				newHash := GetEnvVarValue(
+					th.GetStatefulSet(cell1.NoVNCProxyStatefulSetName).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
+				g.Expect(newHash).NotTo(BeEmpty())
+				g.Expect(newHash).NotTo(Equal(originalHash))
+			}, timeout, interval).Should(Succeed())
+		})
 	})
 })
