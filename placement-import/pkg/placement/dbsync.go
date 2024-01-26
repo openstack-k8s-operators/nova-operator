@@ -83,7 +83,5 @@ func DbSyncJob(
 		},
 	}
 
-	job.Spec.Template.Spec.Volumes = getVolumes(instance.Name)
-
 	return job
 }

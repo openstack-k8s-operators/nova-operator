@@ -183,5 +183,5 @@ func Deployment(
 		deployment.Spec.Template.Spec.NodeSelector = instance.Spec.NodeSelector
 	}
 
-	return deployment
+	return deployment, nil
 }

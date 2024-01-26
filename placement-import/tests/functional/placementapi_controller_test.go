@@ -252,7 +252,9 @@ var _ = Describe("PlacementAPI controller", func() {
 			Expect(cm.Data["placement.conf"]).Should(
 				ContainSubstring("username = placement"))
 			Expect(cm.Data["placement.conf"]).Should(
-				ContainSubstring("connection = mysql+pymysql://placement:PlacementDatabasePassword@/placement"))
+				ContainSubstring("password = 12345678"))
+			Expect(cm.Data["placement.conf"]).Should(
+				ContainSubstring("connection = mysql+pymysql://placement:12345678@/placement"))
 		})
 
 		It("creates service account, role and rolebindig", func() {
@@ -757,7 +759,7 @@ var _ = Describe("PlacementAPI controller", func() {
 			Expect(container.ReadinessProbe.HTTPGet.Scheme).To(Equal(corev1.URISchemeHTTPS))
 			Expect(container.LivenessProbe.HTTPGet.Scheme).To(Equal(corev1.URISchemeHTTPS))
 
-			configDataMap := th.GetConfigMap(names.ConfigMapName)
+			configDataMap := th.GetSecret(names.ConfigMapName)
 			Expect(configDataMap).ShouldNot(BeNil())
 			Expect(configDataMap.Data).Should(HaveKey("httpd.conf"))
 			Expect(configDataMap.Data).Should(HaveKey("ssl.conf"))

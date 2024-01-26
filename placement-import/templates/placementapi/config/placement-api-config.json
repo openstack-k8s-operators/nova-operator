@@ -20,7 +20,7 @@
             "perm": "0600"
         },
         {
-            "source": "/var/lib/config-data/merged/ssl.conf",
+            "source": "/var/lib/config-data/ssl.conf",
             "dest": "/etc/httpd/conf.d/ssl.conf",
             "owner": "apache",
             "perm": "0644"

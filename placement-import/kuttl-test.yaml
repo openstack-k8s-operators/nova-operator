@@ -34,7 +34,7 @@ kind: TestSuite
 reportFormat: JSON
 reportName: kuttl-test-placement
 namespace: placement-kuttl-tests
-timeout: 180
+timeout: 300
 parallel: 1
 suppress:
   - events

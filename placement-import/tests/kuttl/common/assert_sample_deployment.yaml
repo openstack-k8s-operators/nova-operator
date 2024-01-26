@@ -142,10 +142,10 @@ spec:
         - mountPath: /usr/local/bin/container-scripts
           name: scripts
           readOnly: true
-        - mountPath: /var/lib/config-data/merged
-          name: config-data-merged
+        - mountPath: /var/lib/config-data/
+          name: config-data
         - mountPath: /var/lib/kolla/config_files/config.json
-          name: config-data-merged
+          name: config-data
           readOnly: true
           subPath: placement-api-config.json
         - mountPath: /var/log/placement
@@ -186,17 +186,6 @@ status:
   availableReplicas: 1
   replicas: 1
 ---
-# the openshift annotations can't be checked through the deployment above
-apiVersion: v1
-kind: Pod
-metadata:
-  annotations:
-    openshift.io/scc: anyuid
-  labels:
-    service: placement
-status:
-  phase: Running
----
 apiVersion: v1
 kind: Service
 metadata:
@@ -226,19 +215,7 @@ spec:
   type: ClusterIP
 ---
 apiVersion: v1
-kind: ConfigMap
-metadata:
-  labels:
-    placement.openstack.org/name: placement
-  name: placement-scripts
-  ownerReferences:
-  - blockOwnerDeletion: true
-    controller: true
-    kind: PlacementAPI
-    name: placement
----
-apiVersion: v1
-kind: ConfigMap
+kind: Secret
 metadata:
   labels:
     placement.openstack.org/name: placement

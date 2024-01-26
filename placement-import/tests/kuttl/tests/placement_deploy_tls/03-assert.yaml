@@ -149,10 +149,10 @@ spec:
         - mountPath: /usr/local/bin/container-scripts
           name: scripts
           readOnly: true
-        - mountPath: /var/lib/config-data/merged
-          name: config-data-merged
+        - mountPath: /var/lib/config-data
+          name: config-data
         - mountPath: /var/lib/kolla/config_files/config.json
-          name: config-data-merged
+          name: config-data
           readOnly: true
           subPath: placement-api-config.json
         - mountPath: /var/log/placement
@@ -204,32 +204,6 @@ spec:
           periodSeconds: 5
           successThreshold: 1
           timeoutSeconds: 5
-        resources: {}
-      initContainers:
-      - args:
-        - -c
-        - /usr/local/bin/container-scripts/init.sh
-        command:
-        - /bin/bash
-        env:
-        - name: DatabasePassword
-          valueFrom:
-            secretKeyRef:
-              key: PlacementDatabasePassword
-              name: osp-secret
-        - name: PlacementPassword
-          valueFrom:
-            secretKeyRef:
-              key: PlacementPassword
-              name: osp-secret
-        - name: DatabaseHost
-          value: openstack
-        - name: DatabaseName
-          value: placement
-        - name: DatabaseUser
-          value: placement
-        imagePullPolicy: IfNotPresent
-        name: init
         resources: {}
       restartPolicy: Always
       securityContext: {}
