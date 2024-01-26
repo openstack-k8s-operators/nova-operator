@@ -340,7 +340,7 @@ func (r *NovaConductorReconciler) generateConfigs(
 		"keystone_internal_url":  instance.Spec.KeystoneAuthURL,
 		"nova_keystone_user":     instance.Spec.ServiceUser,
 		"nova_keystone_password": string(secret.Data[ServicePasswordSelector]),
-		"cell_db_name":           instance.Spec.CellDatabaseUser, // fixme
+		"cell_db_name":           getCellDatabaseName(instance.Spec.CellName),
 		"cell_db_user":           instance.Spec.CellDatabaseUser,
 		"cell_db_password":       string(secret.Data[CellDatabasePasswordSelector]),
 		"cell_db_address":        instance.Spec.CellDatabaseHostname,
@@ -352,7 +352,7 @@ func (r *NovaConductorReconciler) generateConfigs(
 		"transport_url":          string(secret.Data[TransportURLSelector]),
 	}
 	if len(instance.Spec.APIDatabaseHostname) > 0 && len(instance.Spec.APIDatabaseUser) > 0 {
-		templateParameters["api_db_name"] = instance.Spec.APIDatabaseUser // fixme
+		templateParameters["api_db_name"] = NovaAPIDatabaseName
 		templateParameters["api_db_user"] = instance.Spec.APIDatabaseUser
 		templateParameters["api_db_password"] = string(secret.Data[APIDatabasePasswordSelector])
 		templateParameters["api_db_address"] = instance.Spec.APIDatabaseHostname

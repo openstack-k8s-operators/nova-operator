@@ -347,7 +347,7 @@ func (r *NovaNoVNCProxyReconciler) generateConfigs(
 		"keystone_internal_url":  instance.Spec.KeystoneAuthURL,
 		"nova_keystone_user":     instance.Spec.ServiceUser,
 		"nova_keystone_password": string(secret.Data[ServicePasswordSelector]),
-		"cell_db_name":           instance.Spec.CellDatabaseUser, // fixme
+		"cell_db_name":           getCellDatabaseName(instance.Spec.CellName),
 		"cell_db_user":           instance.Spec.CellDatabaseUser,
 		"cell_db_password":       string(secret.Data[CellDatabasePasswordSelector]),
 		"cell_db_address":        instance.Spec.CellDatabaseHostname,

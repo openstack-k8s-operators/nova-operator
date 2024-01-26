@@ -100,6 +100,13 @@ const (
 	tlsAPIPublicField       = ".spec.tls.api.public.secretName"
 	tlsMetadataField        = ".spec.tls.secretName"
 	tlsNoVNCProxyField      = ".spec.tls.secretName"
+
+	// NovaAPIDatabaseName is the name of the DB schema created for the
+	// top level nova DB
+	NovaAPIDatabaseName = "nova_api"
+	// NovaCell0DatabaseName - the name of the DB to store the cell schema for
+	// cell0
+	NovaCell0DatabaseName = "nova_cell0"
 )
 
 type conditionsGetter interface {
@@ -531,4 +538,8 @@ func getNovaClient(
 		return nil, err
 	}
 	return computeClient.GetOSClient(), nil
+}
+
+func getCellDatabaseName(cellName string) string {
+	return "nova_" + cellName
 }

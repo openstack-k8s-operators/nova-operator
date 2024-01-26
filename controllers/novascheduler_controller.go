@@ -414,12 +414,12 @@ func (r *NovaSchedulerReconciler) generateConfigs(
 		"keystone_internal_url":  instance.Spec.KeystoneAuthURL,
 		"nova_keystone_user":     instance.Spec.ServiceUser,
 		"nova_keystone_password": string(secret.Data[ServicePasswordSelector]),
-		"api_db_name":            instance.Spec.APIDatabaseUser, // fixme
+		"api_db_name":            NovaAPIDatabaseName,
 		"api_db_user":            instance.Spec.APIDatabaseUser,
 		"api_db_password":        string(secret.Data[APIDatabasePasswordSelector]),
 		"api_db_address":         instance.Spec.APIDatabaseHostname,
 		"api_db_port":            3306,
-		"cell_db_name":           instance.Spec.Cell0DatabaseUser, // fixme
+		"cell_db_name":           NovaCell0DatabaseName,
 		"cell_db_user":           instance.Spec.Cell0DatabaseUser,
 		"cell_db_password":       string(secret.Data[CellDatabasePasswordSelector]),
 		"cell_db_address":        instance.Spec.Cell0DatabaseHostname,
