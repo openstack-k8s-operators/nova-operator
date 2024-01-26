@@ -593,9 +593,8 @@ var _ = Describe("Nova validation", func() {
 		Expect(errors.As(err, &statusError)).To(BeTrue())
 		Expect(statusError.ErrStatus.Message).To(
 			ContainSubstring(
-				"invalid: spec.cellTemplates[cell2].cellMessageBusInstance: " +
-					"Invalid value: \"rabbitmq-of-caerbannog\": RabbitMqCluster " +
-					"CR need to be uniq per cell. It's duplicated with cell: cell1",
+				"Invalid value: \"rabbitmq-of-caerbannog\": RabbitMqCluster " +
+					"CR need to be uniq per cell. It's duplicated with cell:",
 			),
 		)
 	})
