@@ -18,41 +18,88 @@ spec:
       displayName: Nova API
       kind: NovaAPI
       name: novaapis.nova.openstack.org
+      specDescriptors:
+      - description: TLS - Parameters related to the TLS
+        displayName: TLS
+        path: tls
       version: v1beta1
     - description: NovaCell is the Schema for the novacells API
       displayName: Nova Cell
       kind: NovaCell
       name: novacells.nova.openstack.org
+      specDescriptors:
+      - description: TLS - Parameters related to the TLS
+        displayName: TLS
+        path: metadataServiceTemplate.tls
+      - description: TLS - Parameters related to the TLS
+        displayName: TLS
+        path: noVNCProxyServiceTemplate.tls
+      - description: TLS - Parameters related to the TLS
+        displayName: TLS
+        path: tls
       version: v1beta1
     - description: NovaCompute is the Schema for the NovaCompute
       displayName: Nova Compute
       kind: NovaCompute
       name: novacomputes.nova.openstack.org
+      specDescriptors:
+      - description: TLS - Parameters related to the TLS
+        displayName: TLS
+        path: tls
       version: v1beta1
     - description: NovaConductor is the Schema for the novaconductors API
       displayName: Nova Conductor
       kind: NovaConductor
       name: novaconductors.nova.openstack.org
+      specDescriptors:
+      - description: TLS - Parameters related to the TLS
+        displayName: TLS
+        path: tls
       version: v1beta1
     - description: NovaMetadata is the Schema for the novametadata API
       displayName: Nova Metadata
       kind: NovaMetadata
       name: novametadata.nova.openstack.org
+      specDescriptors:
+      - description: TLS - Parameters related to the TLS
+        displayName: TLS
+        path: tls
       version: v1beta1
     - description: NovaNoVNCProxy is the Schema for the novanovncproxies API
       displayName: Nova No VNCProxy
       kind: NovaNoVNCProxy
       name: novanovncproxies.nova.openstack.org
+      specDescriptors:
+      - description: TLS - Parameters related to the TLS
+        displayName: TLS
+        path: tls
       version: v1beta1
     - description: Nova is the Schema for the nova API
       displayName: Nova
       kind: Nova
       name: novas.nova.openstack.org
+      specDescriptors:
+      - description: TLS - Parameters related to the TLS
+        displayName: TLS
+        path: apiServiceTemplate.tls
+      - description: TLS - Parameters related to the TLS
+        displayName: TLS
+        path: cellTemplates.metadataServiceTemplate.tls
+      - description: TLS - Parameters related to the TLS
+        displayName: TLS
+        path: cellTemplates.noVNCProxyServiceTemplate.tls
+      - description: TLS - Parameters related to the TLS
+        displayName: TLS
+        path: metadataServiceTemplate.tls
       version: v1beta1
     - description: NovaScheduler is the Schema for the novaschedulers API
       displayName: Nova Scheduler
       kind: NovaScheduler
       name: novaschedulers.nova.openstack.org
+      specDescriptors:
+      - description: TLS - Parameters related to the TLS
+        displayName: TLS
+        path: tls
       version: v1beta1
   description: Nova Operator
   displayName: Nova Operator

@@ -29,9 +29,9 @@ metadata:
   name: nova-kuttl-scheduler
   namespace: nova-kuttl-default
 spec:
-  apiDatabaseHostname: openstack
+  apiDatabaseHostname: openstack.nova-kuttl-default.svc
   apiDatabaseUser: nova_api
-  cell0DatabaseHostname: openstack
+  cell0DatabaseHostname: openstack.nova-kuttl-default.svc
   cell0DatabaseUser: nova_cell0
   replicas: 1
 status:
@@ -43,9 +43,9 @@ metadata:
   name: nova-kuttl-metadata
   namespace: nova-kuttl-default
 spec:
-  apiDatabaseHostname: openstack
+  apiDatabaseHostname: openstack.nova-kuttl-default.svc
   apiDatabaseUser: nova_api
-  cellDatabaseHostname: openstack
+  cellDatabaseHostname: openstack.nova-kuttl-default.svc
   cellDatabaseUser: nova_cell0
   replicas: 1
 status:
@@ -63,9 +63,9 @@ metadata:
     kind: NovaCell
     name: nova-kuttl-cell0
 spec:
-  apiDatabaseHostname: openstack
+  apiDatabaseHostname: openstack.nova-kuttl-default.svc
   apiDatabaseUser: nova_api
-  cellDatabaseHostname: openstack
+  cellDatabaseHostname: openstack.nova-kuttl-default.svc
   cellDatabaseUser: nova_cell0
   cellName: cell0
   containerImage: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
@@ -85,9 +85,9 @@ metadata:
     kind: NovaCell
     name: nova-kuttl-cell1
 spec:
-  apiDatabaseHostname: openstack
+  apiDatabaseHostname: openstack.nova-kuttl-default.svc
   apiDatabaseUser: nova_api
-  cellDatabaseHostname: openstack-cell1
+  cellDatabaseHostname: openstack-cell1.nova-kuttl-default.svc
   cellDatabaseUser: nova_cell1
   cellName: cell1
   containerImage: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified

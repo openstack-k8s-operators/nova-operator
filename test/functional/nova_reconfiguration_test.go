@@ -81,9 +81,13 @@ func CreateNovaWith3CellsAndEnsureReady(novaNames NovaNames) {
 	// END of common logic with Nova multicell test
 
 	mariadb.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
+	mariadb.SimulateMariaDBAccountCompleted(novaNames.APIMariaDBDatabaseName)
 	mariadb.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
+	mariadb.SimulateMariaDBAccountCompleted(cell0.MariaDBDatabaseName)
 	mariadb.SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
+	mariadb.SimulateMariaDBAccountCompleted(cell1.MariaDBDatabaseName)
 	mariadb.SimulateMariaDBDatabaseCompleted(cell2.MariaDBDatabaseName)
+	mariadb.SimulateMariaDBAccountCompleted(cell2.MariaDBDatabaseName)
 
 	infra.SimulateTransportURLReady(cell0.TransportURLName)
 	infra.SimulateTransportURLReady(cell1.TransportURLName)

@@ -84,7 +84,9 @@ var _ = Describe("Nova multicell", func() {
 
 		It("creates cell0 NovaCell", func() {
 			mariadb.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(novaNames.APIMariaDBDatabaseName)
 			mariadb.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(cell0.MariaDBDatabaseName)
 			infra.SimulateTransportURLReady(cell0.TransportURLName)
 
 			th.ExpectCondition(
@@ -100,17 +102,18 @@ var _ = Describe("Nova multicell", func() {
 			configDataMap := th.GetSecret(cell0.ConductorConfigDataName)
 			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
 			configData := string(configDataMap.Data["01-nova.conf"])
+
 			Expect(configData).To(
 				ContainSubstring(
 					fmt.Sprintf(
-						"[database]\nconnection = mysql+pymysql://nova_cell0:cell0-database-password@hostname-for-%s/nova_cell0",
-						cell0.MariaDBDatabaseName.Name)),
+						"[database]\nconnection = mysql+pymysql://nova_cell0:cell0-database-password@hostname-for-%s.%s.svc/nova_cell0",
+						cell0.MariaDBDatabaseName.Name, novaNames.Namespace)),
 			)
 			Expect(configData).To(
 				ContainSubstring(
 					fmt.Sprintf(
-						"[api_database]\nconnection = mysql+pymysql://nova_api:api-database-password@hostname-for-%s/nova_api",
-						novaNames.APIMariaDBDatabaseName.Name)),
+						"[api_database]\nconnection = mysql+pymysql://nova_api:api-database-password@hostname-for-%s.%s.svc/nova_api",
+						novaNames.APIMariaDBDatabaseName.Name, novaNames.Namespace)),
 			)
 			// and that it is using the top level MQ
 			Expect(configData).To(ContainSubstring("transport_url=rabbit://cell0/fake"))
@@ -146,7 +149,9 @@ var _ = Describe("Nova multicell", func() {
 
 		It("creates NovaAPI", func() {
 			mariadb.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(novaNames.APIMariaDBDatabaseName)
 			mariadb.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(cell0.MariaDBDatabaseName)
 			infra.SimulateTransportURLReady(cell0.TransportURLName)
 			th.SimulateJobSuccess(cell0.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
@@ -155,8 +160,8 @@ var _ = Describe("Nova multicell", func() {
 			api := GetNovaAPI(novaNames.APIName)
 			one := int32(1)
 			Expect(api.Spec.Replicas).Should(BeEquivalentTo(&one))
-			Expect(api.Spec.Cell0DatabaseHostname).To(Equal(fmt.Sprintf("hostname-for-%s", cell0.MariaDBDatabaseName.Name)))
-			Expect(api.Spec.APIDatabaseHostname).To(Equal(fmt.Sprintf("hostname-for-%s", novaNames.APIMariaDBDatabaseName.Name)))
+			Expect(api.Spec.Cell0DatabaseHostname).To(Equal(fmt.Sprintf("hostname-for-%s.%s.svc", cell0.MariaDBDatabaseName.Name, novaNames.Namespace)))
+			Expect(api.Spec.APIDatabaseHostname).To(Equal(fmt.Sprintf("hostname-for-%s.%s.svc", novaNames.APIMariaDBDatabaseName.Name, novaNames.Namespace)))
 
 			configDataMap := th.GetSecret(novaNames.APIConfigDataName)
 			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
@@ -164,14 +169,14 @@ var _ = Describe("Nova multicell", func() {
 			Expect(configData).To(
 				ContainSubstring(
 					fmt.Sprintf(
-						"[database]\nconnection = mysql+pymysql://nova_cell0:cell0-database-password@hostname-for-%s/nova_cell0",
-						cell0.MariaDBDatabaseName.Name)),
+						"[database]\nconnection = mysql+pymysql://nova_cell0:cell0-database-password@hostname-for-%s.%s.svc/nova_cell0",
+						cell0.MariaDBDatabaseName.Name, novaNames.Namespace)),
 			)
 			Expect(configData).To(
 				ContainSubstring(
 					fmt.Sprintf(
-						"[api_database]\nconnection = mysql+pymysql://nova_api:api-database-password@hostname-for-%s/nova_api",
-						novaNames.APIMariaDBDatabaseName.Name)),
+						"[api_database]\nconnection = mysql+pymysql://nova_api:api-database-password@hostname-for-%s.%s.svc/nova_api",
+						novaNames.APIMariaDBDatabaseName.Name, novaNames.Namespace)),
 			)
 			Expect(configData).To(ContainSubstring("transport_url=rabbit://cell0/fake"))
 
@@ -195,8 +200,10 @@ var _ = Describe("Nova multicell", func() {
 
 		It("creates all cell DBs", func() {
 			mariadb.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(novaNames.APIMariaDBDatabaseName)
 			infra.SimulateTransportURLReady(cell0.TransportURLName)
 			mariadb.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(cell0.MariaDBDatabaseName)
 			th.SimulateJobSuccess(cell0.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 			th.SimulateJobSuccess(cell0.CellMappingJobName)
@@ -204,6 +211,7 @@ var _ = Describe("Nova multicell", func() {
 			keystone.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
 
 			mariadb.SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(cell1.MariaDBDatabaseName)
 			th.ExpectCondition(
 				novaNames.NovaName,
 				ConditionGetterFunc(NovaConditionGetter),
@@ -211,6 +219,7 @@ var _ = Describe("Nova multicell", func() {
 				corev1.ConditionFalse,
 			)
 			mariadb.SimulateMariaDBDatabaseCompleted(cell2.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(cell2.MariaDBDatabaseName)
 			th.ExpectCondition(
 				novaNames.NovaName,
 				ConditionGetterFunc(NovaConditionGetter),
@@ -241,7 +250,9 @@ var _ = Describe("Nova multicell", func() {
 
 		It("creates cell1 NovaCell", func() {
 			mariadb.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(novaNames.APIMariaDBDatabaseName)
 			mariadb.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(cell0.MariaDBDatabaseName)
 			infra.SimulateTransportURLReady(cell0.TransportURLName)
 			th.SimulateJobSuccess(cell0.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
@@ -249,6 +260,7 @@ var _ = Describe("Nova multicell", func() {
 			th.SimulateStatefulSetReplicaReady(novaNames.APIDeploymentName)
 			keystone.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
 			mariadb.SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(cell1.MariaDBDatabaseName)
 			infra.SimulateTransportURLReady(cell1.TransportURLName)
 
 			th.ExpectCondition(
@@ -266,14 +278,14 @@ var _ = Describe("Nova multicell", func() {
 			Expect(configData).To(
 				ContainSubstring(
 					fmt.Sprintf(
-						"[database]\nconnection = mysql+pymysql://nova_cell1:cell1-database-password@hostname-for-%s/nova_cell1",
-						cell1.MariaDBDatabaseName.Name)),
+						"[database]\nconnection = mysql+pymysql://nova_cell1:cell1-database-password@hostname-for-%s.%s.svc/nova_cell1",
+						cell1.MariaDBDatabaseName.Name, novaNames.Namespace)),
 			)
 			Expect(configData).To(
 				ContainSubstring(
 					fmt.Sprintf(
-						"[api_database]\nconnection = mysql+pymysql://nova_api:api-database-password@hostname-for-%s/nova_api",
-						novaNames.APIMariaDBDatabaseName.Name)),
+						"[api_database]\nconnection = mysql+pymysql://nova_api:api-database-password@hostname-for-%s.%s.svc/nova_api",
+						novaNames.APIMariaDBDatabaseName.Name, novaNames.Namespace)),
 			)
 			Expect(configData).To(ContainSubstring("transport_url=rabbit://cell1/fake"))
 
@@ -326,7 +338,9 @@ var _ = Describe("Nova multicell", func() {
 		})
 		It("creates cell2 NovaCell", func() {
 			mariadb.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(novaNames.APIMariaDBDatabaseName)
 			mariadb.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(cell0.MariaDBDatabaseName)
 			infra.SimulateTransportURLReady(cell0.TransportURLName)
 			th.SimulateJobSuccess(cell0.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
@@ -336,6 +350,7 @@ var _ = Describe("Nova multicell", func() {
 			th.SimulateStatefulSetReplicaReady(novaNames.SchedulerStatefulSetName)
 			th.SimulateStatefulSetReplicaReady(novaNames.MetadataStatefulSetName)
 			mariadb.SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(cell1.MariaDBDatabaseName)
 			infra.SimulateTransportURLReady(cell1.TransportURLName)
 			th.SimulateStatefulSetReplicaReady(cell1.NovaComputeStatefulSetName)
 			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
@@ -345,6 +360,7 @@ var _ = Describe("Nova multicell", func() {
 			th.SimulateJobSuccess(cell1.HostDiscoveryJobName)
 
 			mariadb.SimulateMariaDBDatabaseCompleted(cell2.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(cell2.MariaDBDatabaseName)
 			infra.SimulateTransportURLReady(cell2.TransportURLName)
 
 			th.ExpectCondition(
@@ -362,8 +378,8 @@ var _ = Describe("Nova multicell", func() {
 			Expect(configData).To(
 				ContainSubstring(
 					fmt.Sprintf(
-						"[database]\nconnection = mysql+pymysql://nova_cell2:cell2-database-password@hostname-for-%s/nova_cell2",
-						cell2.MariaDBDatabaseName.Name)),
+						"[database]\nconnection = mysql+pymysql://nova_cell2:cell2-database-password@hostname-for-%s.%s.svc/nova_cell2",
+						cell2.MariaDBDatabaseName.Name, novaNames.Namespace)),
 			)
 			Expect(configData).ToNot(
 				ContainSubstring("[api_database]"),
@@ -395,14 +411,14 @@ var _ = Describe("Nova multicell", func() {
 			Expect(configData).To(
 				ContainSubstring(
 					fmt.Sprintf(
-						"[database]\nconnection = mysql+pymysql://nova_cell2:cell2-database-password@hostname-for-%s/nova_cell2",
-						cell2.MariaDBDatabaseName.Name)),
+						"[database]\nconnection = mysql+pymysql://nova_cell2:cell2-database-password@hostname-for-%s.%s.svc/nova_cell2",
+						cell2.MariaDBDatabaseName.Name, novaNames.Namespace)),
 			)
 			Expect(configData).To(
 				ContainSubstring(
 					fmt.Sprintf(
-						"[api_database]\nconnection = mysql+pymysql://nova_api:api-database-password@hostname-for-%s/nova_api",
-						novaNames.APIMariaDBDatabaseName.Name)),
+						"[api_database]\nconnection = mysql+pymysql://nova_api:api-database-password@hostname-for-%s.%s.svc/nova_api",
+						novaNames.APIMariaDBDatabaseName.Name, novaNames.Namespace)),
 			)
 
 			th.ExpectCondition(
@@ -448,6 +464,7 @@ var _ = Describe("Nova multicell", func() {
 			// Don't simulate any success for any other DBs MQs or Cells
 			// just for cell2
 			mariadb.SimulateMariaDBDatabaseCompleted(cell2.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(cell2.MariaDBDatabaseName)
 			infra.SimulateTransportURLReady(cell2.TransportURLName)
 
 			// assert that cell related CRs are created
@@ -485,7 +502,9 @@ var _ = Describe("Nova multicell", func() {
 		})
 		It("creates Nova API even if cell1 and cell2 fails", func() {
 			mariadb.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(novaNames.APIMariaDBDatabaseName)
 			mariadb.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(cell0.MariaDBDatabaseName)
 			infra.SimulateTransportURLReady(cell0.TransportURLName)
 			th.SimulateJobSuccess(cell0.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
@@ -493,6 +512,7 @@ var _ = Describe("Nova multicell", func() {
 			// Simulate that cell1 DB sync failed and do not simulate
 			// cell2 DB creation success so that will be in Creating state.
 			mariadb.SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(cell1.MariaDBDatabaseName)
 			infra.SimulateTransportURLReady(cell1.TransportURLName)
 			th.SimulateJobFailure(cell1.DBSyncJobName)
 
@@ -515,8 +535,11 @@ var _ = Describe("Nova multicell", func() {
 		})
 		It("does not create cell1 if cell0 fails as cell1 needs API access", func() {
 			mariadb.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(novaNames.APIMariaDBDatabaseName)
 			mariadb.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(cell0.MariaDBDatabaseName)
 			mariadb.SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(cell1.MariaDBDatabaseName)
 			infra.SimulateTransportURLReady(cell0.TransportURLName)
 			infra.SimulateTransportURLReady(cell1.TransportURLName)
 
@@ -572,8 +595,11 @@ var _ = Describe("Nova multicell", func() {
 		})
 		It("cell0 becomes ready with 0 conductor replicas and the rest of nova is deployed", func() {
 			mariadb.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(novaNames.APIMariaDBDatabaseName)
 			mariadb.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(cell0.MariaDBDatabaseName)
 			mariadb.SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(cell1.MariaDBDatabaseName)
 			infra.SimulateTransportURLReady(cell0.TransportURLName)
 			infra.SimulateTransportURLReady(cell1.TransportURLName)
 
@@ -684,6 +710,7 @@ var _ = Describe("Nova multicell", func() {
 
 		It("waits for cell0 DB to be created", func(ctx SpecContext) {
 			mariadb.SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(cell1.MariaDBDatabaseName)
 			infra.SimulateTransportURLReady(cell1.TransportURLName)
 			// NOTE(gibi): before the fix https://github.com/openstack-k8s-operators/nova-operator/pull/356
 			// nova-controller panic at this point and test would hang
@@ -740,8 +767,11 @@ var _ = Describe("Nova multicell", func() {
 		})
 		It("cell0 becomes ready without metadata and the rest of nova is deployed", func() {
 			mariadb.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(novaNames.APIMariaDBDatabaseName)
 			mariadb.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(cell0.MariaDBDatabaseName)
 			mariadb.SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(cell1.MariaDBDatabaseName)
 			infra.SimulateTransportURLReady(cell0.TransportURLName)
 			infra.SimulateTransportURLReady(cell1.TransportURLName)
 			th.SimulateJobSuccess(cell0.DBSyncJobName)
@@ -768,8 +798,11 @@ var _ = Describe("Nova multicell", func() {
 		})
 		It("puts the metadata secret to cell1 secret but not to cell0 secret", func() {
 			mariadb.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(novaNames.APIMariaDBDatabaseName)
 			mariadb.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(cell0.MariaDBDatabaseName)
 			mariadb.SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(cell1.MariaDBDatabaseName)
 			infra.SimulateTransportURLReady(cell0.TransportURLName)
 			infra.SimulateTransportURLReady(cell1.TransportURLName)
 			th.SimulateJobSuccess(cell0.DBSyncJobName)

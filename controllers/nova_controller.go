@@ -69,10 +69,11 @@ func (r *NovaReconciler) GetLogger(ctx context.Context) logr.Logger {
 	return log.FromContext(ctx).WithName("Controllers").WithName("Nova")
 }
 
-//+kubebuilder:rbac:groups=nova.openstack.org,resources=nova,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=nova.openstack.org,resources=nova/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=nova.openstack.org,resources=nova/finalizers,verbs=update
-//+kubebuilder:rbac:groups=mariadb.openstack.org,resources=mariadbdatabases,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=nova.openstack.org,resources=nova,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=nova.openstack.org,resources=nova/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=nova.openstack.org,resources=nova/finalizers,verbs=update
+// +kubebuilder:rbac:groups=mariadb.openstack.org,resources=mariadbdatabases,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=mariadb.openstack.org,resources=mariadbaccounts,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneapis,verbs=get;list;watch;
 // +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneservices,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneendpoints,verbs=get;list;watch;create;update;patch;delete;
@@ -676,13 +677,13 @@ func (r *NovaReconciler) ensureNovaManageJobSecret(
 		"nova_keystone_user":     cell.Spec.ServiceUser,
 		"nova_keystone_password": string(ospSecret.Data[instance.Spec.PasswordSelectors.Service]),
 		// cell.Spec.APIDatabaseUser is empty for cells without APIDB access
-		"api_db_name":     instance.Spec.APIDatabaseUser, // fixme
+		"api_db_name":     NovaAPIDatabaseName,
 		"api_db_user":     instance.Spec.APIDatabaseUser,
 		"api_db_password": string(ospSecret.Data[instance.Spec.PasswordSelectors.APIDatabase]),
 		// cell.Spec.APIDatabaseHostname is empty for cells without APIDB access
 		"api_db_address":         apiDBHostname,
 		"api_db_port":            3306,
-		"cell_db_name":           cell.Spec.CellDatabaseUser, // fixme
+		"cell_db_name":           getCellDatabaseName(cell.Spec.CellName),
 		"cell_db_user":           cell.Spec.CellDatabaseUser,
 		"cell_db_password":       string(ospSecret.Data[cellTemplate.PasswordSelectors.Database]),
 		"cell_db_address":        cell.Spec.CellDatabaseHostname,
@@ -767,7 +768,7 @@ func (r *NovaReconciler) ensureAPIDB(
 	instance *novav1.Nova,
 ) (*mariadbv1.Database, nova.DatabaseStatus, error) {
 	apiDB := mariadbv1.NewDatabaseWithNamespace(
-		nova.NovaAPIDatabaseName,
+		NovaAPIDatabaseName,
 		instance.Spec.APIDatabaseUser,
 		instance.Spec.Secret,
 		map[string]string{
@@ -1699,6 +1700,7 @@ func (r *NovaReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&novav1.Nova{}).
 		Owns(&mariadbv1.MariaDBDatabase{}).
+		Owns(&mariadbv1.MariaDBAccount{}).
 		Owns(&keystonev1.KeystoneService{}).
 		Owns(&novav1.NovaAPI{}).
 		Owns(&novav1.NovaScheduler{}).

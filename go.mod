@@ -14,7 +14,7 @@ require (
 	github.com/openstack-k8s-operators/lib-common/modules/common v0.3.1-0.20240122121228-01dfaafeef46
 	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.3.1-0.20240122121228-01dfaafeef46
 	github.com/openstack-k8s-operators/lib-common/modules/test v0.3.1-0.20240122121228-01dfaafeef46
-	github.com/openstack-k8s-operators/mariadb-operator/api v0.3.0
+	github.com/openstack-k8s-operators/mariadb-operator/api v0.3.1-0.20240201121152-3dcb5d5b24f7
 	github.com/openstack-k8s-operators/nova-operator/api v0.0.0-20221209164002-f9e6b9363961
 	go.uber.org/zap v1.26.0
 	gopkg.in/yaml.v3 v3.0.1

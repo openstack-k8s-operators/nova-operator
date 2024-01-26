@@ -125,6 +125,18 @@ rules:
 - apiGroups:
   - mariadb.openstack.org
   resources:
+  - mariadbaccounts
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - mariadb.openstack.org
+  resources:
   - mariadbdatabases
   verbs:
   - create
