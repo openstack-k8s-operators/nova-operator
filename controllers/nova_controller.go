@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -54,6 +55,7 @@ import (
 	"github.com/openstack-k8s-operators/nova-operator/pkg/nova"
 	"github.com/openstack-k8s-operators/nova-operator/pkg/novaapi"
 
+	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
 	rabbitmqv1 "github.com/openstack-k8s-operators/infra-operator/apis/rabbitmq/v1beta1"
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
@@ -222,6 +224,25 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		return result, err
 	}
 	instance.Status.Conditions.MarkTrue(condition.InputReadyCondition, condition.InputReadyMessage)
+
+	memcached, err := r.getNovaMemcached(ctx, helper, instance)
+	if err != nil {
+		if k8s_errors.IsNotFound(err) {
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				condition.MemcachedReadyCondition,
+				condition.RequestedReason,
+				condition.SeverityInfo,
+				condition.MemcachedReadyWaitingMessage))
+			return ctrl.Result{RequeueAfter: time.Duration(10) * time.Second}, fmt.Errorf("memcached %s not found", instance.Spec.MemcachedInstance)
+		}
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.MemcachedReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.MemcachedReadyErrorMessage,
+			err.Error()))
+		return ctrl.Result{}, err
+	}
 
 	err = r.ensureKeystoneServiceUser(ctx, h, instance)
 	if err != nil {
@@ -1678,6 +1699,26 @@ func (r *NovaReconciler) findObjectsForSrc(ctx context.Context, src client.Objec
 	return requests
 }
 
+// getNovaMemcached - gets the Memcached instance used for nova cache backend
+func (r *NovaReconciler) getNovaMemcached(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *novav1.Nova,
+) (*memcachedv1.Memcached, error) {
+	memcached := &memcachedv1.Memcached{}
+	err := h.GetClient().Get(
+		ctx,
+		types.NamespacedName{
+			Name:      instance.Spec.MemcachedInstance,
+			Namespace: instance.Namespace,
+		},
+		memcached)
+	if err != nil {
+		return nil, err
+	}
+	return memcached, err
+}
+
 // fields to index to reconcile when change
 var (
 	novaWatchFields = []string{
@@ -1719,6 +1760,10 @@ func (r *NovaReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			&corev1.Secret{},
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForSrc),
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+		).
+		Watches(
+			&source.Kind{Type: &memcachedv1.Memcached{}},
+			handler.EnqueueRequestsFromMapFunc(r.memcachedNamespaceMapFunc(ctx, crs)),
 		).
 		Complete(r)
 }

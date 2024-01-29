@@ -469,6 +469,10 @@ spec:
                       description: HasAPIAccess defines if this Cell is configured
                         to have access to the API DB and message bus.
                       type: boolean
+                    memcachedInstance:
+                      description: Cell Memcached instance if it's not defined global
+                        one will apply.
+                      type: string
                     metadataServiceTemplate:
                       description: MetadataServiceTemplate - defines the metadata
                         service dedicated for the cell. Note that for cell0 metadata
@@ -1230,6 +1234,10 @@ spec:
                 description: KeystoneInstance to name of the KeystoneAPI CR to select
                   the Service instance used by the Nova services to authenticate.
                 type: string
+              memcachedInstance:
+                default: memcached
+                description: Global memcached instance name.
+                type: string
               metadataServiceTemplate:
                 default:
                   enabled: true
@@ -1650,6 +1658,7 @@ spec:
                   to register in keystone
                 type: string
             required:
+            - memcachedInstance
             - secret
             type: object
           status:
