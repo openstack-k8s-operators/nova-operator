@@ -90,6 +90,10 @@ type NovaCellTemplate struct {
 	// PasswordSelectors - Selectors to identify the DB passwords from the
 	// Secret
 	PasswordSelectors CellPasswordSelector `json:"passwordSelectors"`
+
+	// +kubebuilder:validation:Optional
+	// Cell Memcached instance if it's not defined global one will apply.
+	MemcachedInstance string `json:"memcachedInstance"`
 }
 
 // NovaCellSpec defines the desired state of NovaCell

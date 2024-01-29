@@ -105,6 +105,11 @@ type NovaSpec struct {
 	// deploy metadata per cell then the metadata service should be disabled
 	// here and enabled in the cellTemplates instead.
 	MetadataServiceTemplate NovaMetadataTemplate `json:"metadataServiceTemplate"`
+
+	// +kubebuilder:validation:Required
+	// +kubebuilder:default=memcached
+	// Global memcached instance name.
+	MemcachedInstance string `json:"memcachedInstance"`
 }
 
 // NovaStatus defines the observed state of Nova
