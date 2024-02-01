@@ -20,7 +20,6 @@ import (
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/nova-operator/pkg/nova"
 
-	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	env "github.com/openstack-k8s-operators/lib-common/modules/common/env"
 
 	batchv1 "k8s.io/api/batch/v1"
@@ -35,12 +34,7 @@ func CellDBSyncJob(
 	labels map[string]string,
 	annotations map[string]string,
 ) *batchv1.Job {
-	args := []string{"-c"}
-	if instance.Spec.Debug.StopJob {
-		args = append(args, common.DebugCommand)
-	} else {
-		args = append(args, nova.KollaServiceCommand)
-	}
+	args := []string{"-c", nova.KollaServiceCommand}
 
 	envVars := map[string]env.Setter{}
 	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")

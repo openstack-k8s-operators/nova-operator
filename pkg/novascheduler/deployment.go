@@ -54,42 +54,21 @@ func StatefulSet(
 		PeriodSeconds:  5,
 	}
 
-	args := []string{"-c"}
-	if instance.Spec.Debug.StopService {
-		args = append(args, common.DebugCommand)
-		livenessProbe.Exec = &corev1.ExecAction{
-			Command: []string{
-				"/bin/true",
-			},
-		}
-
-		readinessProbe.Exec = &corev1.ExecAction{
-			Command: []string{
-				"/bin/true",
-			},
-		}
-		startupProbe.Exec = &corev1.ExecAction{
-			Command: []string{
-				"/bin/true",
-			},
-		}
-	} else {
-		args = append(args, nova.KollaServiceCommand)
-		livenessProbe.Exec = &corev1.ExecAction{
-			Command: []string{
-				"/usr/bin/pgrep", "-r", "DRST", "nova-scheduler",
-			},
-		}
-		readinessProbe.Exec = &corev1.ExecAction{
-			Command: []string{
-				"/usr/bin/pgrep", "-r", "DRST", "nova-scheduler",
-			},
-		}
-		startupProbe.Exec = &corev1.ExecAction{
-			Command: []string{
-				"/usr/bin/pgrep", "-r", "DRST", "nova-scheduler",
-			},
-		}
+	args := []string{"-c", nova.KollaServiceCommand}
+	livenessProbe.Exec = &corev1.ExecAction{
+		Command: []string{
+			"/usr/bin/pgrep", "-r", "DRST", "nova-scheduler",
+		},
+	}
+	readinessProbe.Exec = &corev1.ExecAction{
+		Command: []string{
+			"/usr/bin/pgrep", "-r", "DRST", "nova-scheduler",
+		},
+	}
+	startupProbe.Exec = &corev1.ExecAction{
+		Command: []string{
+			"/usr/bin/pgrep", "-r", "DRST", "nova-scheduler",
+		},
 	}
 
 	nodeSelector := map[string]string{}

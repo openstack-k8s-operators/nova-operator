@@ -49,38 +49,22 @@ func StatefulSet(
 		InitialDelaySeconds: 5,
 	}
 
-	args := []string{"-c"}
+	args := []string{"-c", nova.KollaServiceCommand}
 
-	if instance.Spec.Debug.StopService {
-		args = append(args, common.DebugCommand)
-		livenessProbe.Exec = &corev1.ExecAction{
-			Command: []string{
-				"/usr/bin/true",
-			},
-		}
+	// TODO(gibi): replace this with a proper health check once
+	// https://review.opendev.org/q/topic:per-process-healthchecks merges.
+	// NOTE(gibi): -r DRST means we consider nova-conductor processes
+	// healthy if they are not in zombie state.
+	livenessProbe.Exec = &corev1.ExecAction{
+		Command: []string{
+			"/usr/bin/pgrep", "-r", "DRST", "nova-conductor",
+		},
+	}
 
-		readinessProbe.Exec = &corev1.ExecAction{
-			Command: []string{
-				"/usr/bin/true",
-			},
-		}
-	} else {
-		args = append(args, nova.KollaServiceCommand)
-		// TODO(gibi): replace this with a proper health check once
-		// https://review.opendev.org/q/topic:per-process-healthchecks merges.
-		// NOTE(gibi): -r DRST means we consider nova-conductor processes
-		// healthy if they are not in zombie state.
-		livenessProbe.Exec = &corev1.ExecAction{
-			Command: []string{
-				"/usr/bin/pgrep", "-r", "DRST", "nova-conductor",
-			},
-		}
-
-		readinessProbe.Exec = &corev1.ExecAction{
-			Command: []string{
-				"/usr/bin/pgrep", "-r", "DRST", "nova-conductor",
-			},
-		}
+	readinessProbe.Exec = &corev1.ExecAction{
+		Command: []string{
+			"/usr/bin/pgrep", "-r", "DRST", "nova-conductor",
+		},
 	}
 
 	nodeSelector := map[string]string{}

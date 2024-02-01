@@ -387,7 +387,7 @@ func (r *NovaConductorReconciler) ensureCellDBSynced(
 	Log := r.GetLogger(ctx)
 	dbSyncHash := instance.Status.Hash[DbSyncHash]
 	jobDef := novaconductor.CellDBSyncJob(instance, serviceLabels, annotations)
-	dbSyncJob := job.NewJob(jobDef, "dbsync", instance.Spec.Debug.PreserveJobs, r.RequeueTimeout, dbSyncHash)
+	dbSyncJob := job.NewJob(jobDef, "dbsync", instance.Spec.PreserveJobs, r.RequeueTimeout, dbSyncHash)
 	ctrlResult, err := dbSyncJob.DoJob(ctx, h)
 	if (ctrlResult != ctrl.Result{}) {
 		instance.Status.Conditions.Set(condition.FalseCondition(

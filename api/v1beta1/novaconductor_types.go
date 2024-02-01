@@ -116,10 +116,9 @@ type NovaConductorSpec struct {
 	CellDatabaseHostname string `json:"cellDatabaseHostname"`
 
 	// +kubebuilder:validation:Optional
-	// Debug - enable debug for different deploy stages. If an init container
-	// is used, it runs and the actual action pod gets started with sleep
-	// infinity
-	Debug Debug `json:"debug,omitempty"`
+	// +kubebuilder:default=false
+	// PreserveJobs - do not delete jobs after they finished e.g. to check logs
+	PreserveJobs bool `json:"preserveJobs"`
 
 	// +kubebuilder:validation:Required
 	// NovaServiceBase specifies the generic fields of the service
@@ -197,12 +196,12 @@ func NewNovaConductorSpec(
 		CellDatabaseUser:     novaCell.CellDatabaseUser,
 		APIDatabaseHostname:  novaCell.APIDatabaseHostname,
 		APIDatabaseUser:      novaCell.APIDatabaseUser,
-		Debug:                novaCell.Debug,
 		NovaServiceBase:      NovaServiceBase(novaCell.ConductorServiceTemplate),
 		KeystoneAuthURL:      novaCell.KeystoneAuthURL,
 		ServiceUser:          novaCell.ServiceUser,
 		ServiceAccount:       novaCell.ServiceAccount,
 		TLS:                  novaCell.TLS,
+		PreserveJobs:         novaCell.PreserveJobs,
 	}
 	return conductorSpec
 }

@@ -15,7 +15,6 @@ limitations under the License.
 package nova
 
 import (
-	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	env "github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 
@@ -32,12 +31,7 @@ func HostDiscoveryJob(
 	inputHash string,
 	labels map[string]string,
 ) *batchv1.Job {
-	args := []string{"-c"}
-	if instance.Spec.Debug.StopJob {
-		args = append(args, common.DebugCommand)
-	} else {
-		args = append(args, KollaServiceCommand)
-	}
+	args := []string{"-c", KollaServiceCommand}
 
 	envVars := map[string]env.Setter{}
 	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")

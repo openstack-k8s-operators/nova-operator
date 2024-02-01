@@ -147,10 +147,9 @@ type NovaCellSpec struct {
 	CellDatabaseHostname string `json:"cellDatabaseHostname"`
 
 	// +kubebuilder:validation:Optional
-	// Debug - enable debug for different deploy stages. If an init container
-	// is used, it runs and the actual action pod gets started with sleep
-	// infinity
-	Debug Debug `json:"debug,omitempty"`
+	// +kubebuilder:default=false
+	// PreserveJobs - do not delete jobs after they finished e.g. to check logs
+	PreserveJobs bool `json:"preserveJobs"`
 
 	// +kubebuilder:validation:Required
 	// ConductorServiceTemplate - defines the cell conductor deployment for the cell

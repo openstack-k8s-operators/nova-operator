@@ -101,12 +101,6 @@ type NovaComputeSpec struct {
 	// +kubebuilder:validation:Required
 	KeystoneAuthURL string `json:"keystoneAuthURL"`
 
-	// +kubebuilder:validation:Optional
-	// Debug - enable debug for different deploy stages. If an init container
-	// is used, it runs and the actual action pod gets started with sleep
-	// infinity
-	Debug Debug `json:"debug,omitempty"`
-
 	// +kubebuilder:validation:Required
 	// NovaServiceBase specifies the generic fields of the service
 	NovaServiceBase `json:",inline"`
@@ -205,7 +199,6 @@ func NewNovaComputeSpec(
 		CellName:    novaCell.CellName,
 		ComputeName: novaComputeName,
 		Secret:      novaCell.Secret,
-		Debug:       novaCell.Debug,
 		NovaServiceBase: NovaServiceBase{
 			ContainerImage:         computeTemplate.ContainerImage,
 			Replicas:               computeTemplate.Replicas,
