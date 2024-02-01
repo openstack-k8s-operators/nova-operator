@@ -844,14 +844,14 @@ func (r *NovaReconciler) ensureCell(
 		NoVNCProxyServiceTemplate: cellTemplate.NoVNCProxyServiceTemplate,
 		NovaComputeTemplates:      cellTemplate.NovaComputeTemplates,
 		NodeSelector:              cellTemplate.NodeSelector,
-		Debug:                     instance.Spec.Debug,
 		// TODO(gibi): this should be part of the secret
 		ServiceUser:     instance.Spec.ServiceUser,
 		KeystoneAuthURL: keystoneAuthURL,
 		ServiceAccount:  instance.RbacResourceName(),
 		// The assumtpion is that the CA bundle for ironic compute in the cell
 		// and the conductor in the cell always the same as the NovaAPI
-		TLS: instance.Spec.APIServiceTemplate.TLS.Ca,
+		TLS:          instance.Spec.APIServiceTemplate.TLS.Ca,
+		PreserveJobs: instance.Spec.PreserveJobs,
 	}
 	if cellTemplate.HasAPIAccess {
 		cellSpec.APIDatabaseHostname = apiDB.GetDatabaseHostname()
@@ -952,7 +952,7 @@ func (r *NovaReconciler) ensureNovaComputeDiscover(
 
 	job := job.NewJob(
 		jobDef, cell.Name+"-host-discover",
-		cell.Spec.Debug.PreserveJobs, r.RequeueTimeout, novainstance.Status.DiscoveredCells[cell.Name])
+		cell.Spec.PreserveJobs, r.RequeueTimeout, novainstance.Status.DiscoveredCells[cell.Name])
 
 	result, err := job.DoJob(ctx, h)
 	if err != nil {
@@ -996,7 +996,6 @@ func (r *NovaReconciler) ensureAPI(
 		APIDatabaseUser:       instance.Spec.APIDatabaseUser,
 		Cell0DatabaseHostname: cell0DB.GetDatabaseHostname(),
 		Cell0DatabaseUser:     cell0Template.CellDatabaseUser,
-		Debug:                 instance.Spec.Debug,
 		NovaServiceBase: novav1.NovaServiceBase{
 			ContainerImage:         instance.Spec.APIServiceTemplate.ContainerImage,
 			Replicas:               instance.Spec.APIServiceTemplate.Replicas,
@@ -1078,7 +1077,6 @@ func (r *NovaReconciler) ensureScheduler(
 		APIDatabaseUser:       instance.Spec.APIDatabaseUser,
 		Cell0DatabaseHostname: cell0DB.GetDatabaseHostname(),
 		Cell0DatabaseUser:     cell0Template.CellDatabaseUser,
-		Debug:                 instance.Spec.Debug,
 		// This is a coincidence that the NovaServiceBase
 		// has exactly the same fields as the SchedulerServiceTemplate so we
 		// can convert between them directly. As soon as these two structs
@@ -1422,7 +1420,6 @@ func (r *NovaReconciler) ensureMetadata(
 		APIDatabaseUser:      instance.Spec.APIDatabaseUser,
 		CellDatabaseHostname: cell0DB.GetDatabaseHostname(),
 		CellDatabaseUser:     cell0Template.CellDatabaseUser,
-		Debug:                instance.Spec.Debug,
 		NovaServiceBase: novav1.NovaServiceBase{
 			ContainerImage:         instance.Spec.MetadataServiceTemplate.ContainerImage,
 			Replicas:               instance.Spec.MetadataServiceTemplate.Replicas,
@@ -1518,7 +1515,7 @@ func (r *NovaReconciler) ensureCellMapped(
 
 	job := job.NewJob(
 		jobDef, cell.Name+"-cell-mapping",
-		instance.Spec.Debug.PreserveJobs, r.RequeueTimeout,
+		instance.Spec.PreserveJobs, r.RequeueTimeout,
 		instance.Status.RegisteredCells[cell.Name])
 
 	result, err := job.DoJob(ctx, h)

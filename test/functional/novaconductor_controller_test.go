@@ -323,9 +323,7 @@ var _ = Describe("NovaConductor controller", func() {
 				k8sClient.Delete, ctx, CreateCellInternalSecret(cell0))
 
 			spec := GetDefaultNovaConductorSpec(cell0)
-			spec["debug"] = map[string]interface{}{
-				"preserveJobs": true,
-			}
+			spec["preserveJobs"] = true
 			DeferCleanup(th.DeleteInstance, CreateNovaConductor(cell0.ConductorName, spec))
 
 			th.ExpectCondition(
@@ -369,9 +367,7 @@ var _ = Describe("NovaConductor controller", func() {
 				k8sClient.Delete, ctx, CreateCellInternalSecret(cell0))
 
 			spec := GetDefaultNovaConductorSpec(cell0)
-			spec["debug"] = map[string]interface{}{
-				"preserveJobs": true,
-			}
+			spec["preserveJobs"] = true
 			DeferCleanup(th.DeleteInstance, CreateNovaConductor(cell0.ConductorName, spec))
 
 			th.SimulateJobSuccess(cell0.DBSyncJobName)
@@ -388,7 +384,7 @@ var _ = Describe("NovaConductor controller", func() {
 			// Eventually is needed here to retry if the update returns conflict
 			Eventually(func(g Gomega) {
 				conductor := GetNovaConductor(cell0.ConductorName)
-				conductor.Spec.Debug.PreserveJobs = false
+				conductor.Spec.PreserveJobs = false
 				g.Expect(k8sClient.Update(ctx, conductor)).Should(Succeed())
 			}, timeout, interval).Should(Succeed())
 		})

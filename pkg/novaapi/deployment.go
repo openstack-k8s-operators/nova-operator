@@ -57,42 +57,21 @@ func StatefulSet(
 		PeriodSeconds:  30,
 	}
 
-	args := []string{"-c"}
-	if instance.Spec.Debug.StopService {
-		args = append(args, common.DebugCommand)
-		livenessProbe.Exec = &corev1.ExecAction{
-			Command: []string{
-				"/bin/true",
-			},
-		}
+	args := []string{"-c", nova.KollaServiceCommand}
+	livenessProbe.HTTPGet = &corev1.HTTPGetAction{
+		Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(APIServicePort)},
+	}
+	readinessProbe.HTTPGet = &corev1.HTTPGetAction{
+		Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(APIServicePort)},
+	}
+	startupProbe.HTTPGet = &corev1.HTTPGetAction{
+		Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(APIServicePort)},
+	}
 
-		readinessProbe.Exec = &corev1.ExecAction{
-			Command: []string{
-				"/bin/true",
-			},
-		}
-		startupProbe.Exec = &corev1.ExecAction{
-			Command: []string{
-				"/bin/true",
-			},
-		}
-	} else {
-		args = append(args, nova.KollaServiceCommand)
-		livenessProbe.HTTPGet = &corev1.HTTPGetAction{
-			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(APIServicePort)},
-		}
-		readinessProbe.HTTPGet = &corev1.HTTPGetAction{
-			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(APIServicePort)},
-		}
-		startupProbe.HTTPGet = &corev1.HTTPGetAction{
-			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(APIServicePort)},
-		}
-
-		if instance.Spec.TLS.API.Enabled(service.EndpointPublic) {
-			livenessProbe.HTTPGet.Scheme = corev1.URISchemeHTTPS
-			readinessProbe.HTTPGet.Scheme = corev1.URISchemeHTTPS
-			startupProbe.HTTPGet.Scheme = corev1.URISchemeHTTPS
-		}
+	if instance.Spec.TLS.API.Enabled(service.EndpointPublic) {
+		livenessProbe.HTTPGet.Scheme = corev1.URISchemeHTTPS
+		readinessProbe.HTTPGet.Scheme = corev1.URISchemeHTTPS
+		startupProbe.HTTPGet.Scheme = corev1.URISchemeHTTPS
 	}
 
 	nodeSelector := map[string]string{}

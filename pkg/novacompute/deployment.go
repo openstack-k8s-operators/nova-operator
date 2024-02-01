@@ -48,33 +48,17 @@ func StatefulSet(
 		PeriodSeconds:  5,
 	}
 
-	args := []string{"-c"}
-	if instance.Spec.Debug.StopService {
-		args = append(args, common.DebugCommand)
-		livenessProbe.Exec = &corev1.ExecAction{
-			Command: []string{
-				"/bin/true",
-			},
-		}
+	args := []string{"-c", nova.KollaServiceCommand}
+	livenessProbe.Exec = &corev1.ExecAction{
+		Command: []string{
+			"/usr/bin/pgrep", "-r", "DRST", "nova-compute",
+		},
+	}
 
-		readinessProbe.Exec = &corev1.ExecAction{
-			Command: []string{
-				"/bin/true",
-			},
-		}
-	} else {
-		args = append(args, nova.KollaServiceCommand)
-		livenessProbe.Exec = &corev1.ExecAction{
-			Command: []string{
-				"/usr/bin/pgrep", "-r", "DRST", "nova-compute",
-			},
-		}
-
-		readinessProbe.Exec = &corev1.ExecAction{
-			Command: []string{
-				"/usr/bin/pgrep", "-r", "DRST", "nova-compute",
-			},
-		}
+	readinessProbe.Exec = &corev1.ExecAction{
+		Command: []string{
+			"/usr/bin/pgrep", "-r", "DRST", "nova-compute",
+		},
 	}
 
 	nodeSelector := map[string]string{}

@@ -150,12 +150,6 @@ type NovaMetadataSpec struct {
 	// TODO(gibi): add webhook to validate this CellName constraint
 	CellDatabaseHostname string `json:"cellDatabaseHostname"`
 
-	// +kubebuilder:validation:Optional
-	// Debug - enable debug for different deploy stages. If an init container
-	// is used, it runs and the actual action pod gets started with sleep
-	// infinity
-	Debug Debug `json:"debug,omitempty"`
-
 	// +kubebuilder:validation:Required
 	// NovaServiceBase specifies the generic fields of the service
 	NovaServiceBase `json:",inline"`
@@ -246,7 +240,6 @@ func NewNovaMetadataSpec(
 		CellDatabaseUser:     novaCell.CellDatabaseUser,
 		APIDatabaseHostname:  novaCell.APIDatabaseHostname,
 		APIDatabaseUser:      novaCell.APIDatabaseUser,
-		Debug:                novaCell.Debug,
 		NovaServiceBase: NovaServiceBase{
 			ContainerImage:         novaCell.MetadataServiceTemplate.ContainerImage,
 			Replicas:               novaCell.MetadataServiceTemplate.Replicas,

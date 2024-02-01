@@ -83,30 +83,6 @@ spec:
                   added to to /etc/<service>/<service>.conf.d directory as custom.conf
                   file.
                 type: string
-              debug:
-                description: Debug - enable debug for different deploy stages. If
-                  an init container is used, it runs and the actual action pod gets
-                  started with sleep infinity
-                properties:
-                  preserveJobs:
-                    default: false
-                    description: PreserveJobs - do not delete jobs after they finished
-                      e.g. to check logs
-                    type: boolean
-                  stopJob:
-                    default: false
-                    description: StopJob allows stopping the jobs containers, like
-                      mapping cells, or dbsync, before executing the script of the
-                      job. If the CR does not start any Jobs, then the value of the
-                      field is ignored.
-                    type: boolean
-                  stopService:
-                    default: false
-                    description: StopService allows stopping the service container
-                      before staring the openstack service binary. If the CR does
-                      not start any service, then the value of the field is ignored.
-                    type: boolean
-                type: object
               defaultConfigOverwrite:
                 additionalProperties:
                   type: string
@@ -131,6 +107,11 @@ spec:
                 description: NodeSelector to target subset of worker nodes running
                   this service
                 type: object
+              preserveJobs:
+                default: false
+                description: PreserveJobs - do not delete jobs after they finished
+                  e.g. to check logs
+                type: boolean
               replicas:
                 default: 1
                 description: Replicas of the service to run
