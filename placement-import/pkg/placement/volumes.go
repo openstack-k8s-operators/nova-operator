@@ -28,11 +28,9 @@ func getVolumes(name string) []corev1.Volume {
 		{
 			Name: "scripts",
 			VolumeSource: corev1.VolumeSource{
-				ConfigMap: &corev1.ConfigMapVolumeSource{
+				Secret: &corev1.SecretVolumeSource{
 					DefaultMode: &scriptsVolumeDefaultMode,
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: name + "-scripts",
-					},
+					SecretName:  name + "-scripts",
 				},
 			},
 		},
@@ -70,7 +68,7 @@ func getVolumeMounts(serviceName string) []corev1.VolumeMount {
 		},
 		{
 			Name:      "config-data",
-			MountPath: "/var/lib/config-data/",
+			MountPath: "/var/lib/config-data/merged",
 			ReadOnly:  false,
 		},
 		{

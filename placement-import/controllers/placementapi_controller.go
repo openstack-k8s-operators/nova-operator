@@ -431,7 +431,9 @@ func (r *PlacementAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	apiEndpoints, result, err := r.ensureServiceExposed(ctx, h, instance)
 
-	if err != nil {
+	if (err != nil || result != ctrl.Result{}) {
+		// We can ignore RequeueAfter as we are watching the Service resource
+		// but we have to return while waiting for the service to be exposed
 		return ctrl.Result{}, err
 	}
 
@@ -441,10 +443,10 @@ func (r *PlacementAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	result, err = r.ensureKeystoneEndpoint(ctx, h, instance, apiEndpoints)
-	if err != nil {
+	if (err != nil || result != ctrl.Result{}) {
+		// We can ignore RequeueAfter as we are watching the KeystoneEndpoint resource
 		return ctrl.Result{}, err
 	}
-
 	result, err = r.ensureDbSync(ctx, instance, h, serviceAnnotations)
 	if (err != nil || result != ctrl.Result{}) {
 		return result, err
@@ -482,6 +484,7 @@ func (r *PlacementAPIReconciler) ensureServiceExposed(
 	}
 	apiEndpoints := make(map[string]string)
 
+	serviceLabels := getServiceLabels(instance)
 	for endpointType, data := range placementEndpoints {
 		endpointTypeStr := string(endpointType)
 		endpointName := placement.ServiceName + "-" + endpointTypeStr
@@ -492,7 +495,7 @@ func (r *PlacementAPIReconciler) ensureServiceExposed(
 		}
 
 		exportLabels := util.MergeStringMaps(
-			getServiceLabels(instance),
+			serviceLabels,
 			map[string]string{
 				service.AnnotationEndpointKey: endpointTypeStr,
 			},
@@ -504,7 +507,7 @@ func (r *PlacementAPIReconciler) ensureServiceExposed(
 				Name:      endpointName,
 				Namespace: instance.Namespace,
 				Labels:    exportLabels,
-				Selector:  getServiceLabels(instance),
+				Selector:  serviceLabels,
 				Port: service.GenericServicePort{
 					Name:     endpointName,
 					Port:     data.Port,
@@ -522,7 +525,7 @@ func (r *PlacementAPIReconciler) ensureServiceExposed(
 				condition.ExposeServiceReadyErrorMessage,
 				err.Error()))
 
-			return nil, ctrl.Result{}, err
+			return apiEndpoints, ctrl.Result{}, err
 		}
 
 		svc.AddAnnotation(map[string]string{
@@ -554,14 +557,14 @@ func (r *PlacementAPIReconciler) ensureServiceExposed(
 				condition.ExposeServiceReadyErrorMessage,
 				err.Error()))
 
-			return nil, ctrlResult, err
+			return apiEndpoints, ctrlResult, err
 		} else if (ctrlResult != ctrl.Result{}) {
 			instance.Status.Conditions.Set(condition.FalseCondition(
 				condition.ExposeServiceReadyCondition,
 				condition.RequestedReason,
 				condition.SeverityInfo,
 				condition.ExposeServiceReadyRunningMessage))
-			return nil, ctrlResult, nil
+			return apiEndpoints, ctrlResult, nil
 		}
 		// create service - end
 
@@ -574,7 +577,7 @@ func (r *PlacementAPIReconciler) ensureServiceExposed(
 		apiEndpoints[string(endpointType)], err = svc.GetAPIEndpoint(
 			svcOverride.EndpointURL, data.Protocol, data.Path)
 		if err != nil {
-			return nil, ctrl.Result{}, err
+			return apiEndpoints, ctrl.Result{}, err
 		}
 	}
 

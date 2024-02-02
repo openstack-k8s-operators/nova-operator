@@ -149,14 +149,14 @@ spec:
         - mountPath: /usr/local/bin/container-scripts
           name: scripts
           readOnly: true
-        - mountPath: /var/lib/config-data
+        - mountPath: /var/log/placement
+          name: logs
+        - mountPath: /var/lib/config-data/merged
           name: config-data
         - mountPath: /var/lib/kolla/config_files/config.json
           name: config-data
           readOnly: true
           subPath: placement-api-config.json
-        - mountPath: /var/log/placement
-          name: logs
         - mountPath: /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
           name: combined-ca-bundle
           readOnly: true

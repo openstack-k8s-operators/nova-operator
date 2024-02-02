@@ -18,6 +18,15 @@ kind: Deployment
 metadata:
   name: placement
 ---
+# the openshift annotations can't be checked through the deployment above
+apiVersion: v1
+kind: Pod
+metadata:
+  annotations:
+    openshift.io/scc: anyuid
+  labels:
+    service: placement
+---
 apiVersion: v1
 kind: Service
 metadata:
@@ -59,6 +68,18 @@ spec:
   selector:
     service: placement
   type: ClusterIP
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  labels:
+    placement.openstack.org/name: placement
+  name: placement-scripts
+  ownerReferences:
+  - blockOwnerDeletion: true
+    controller: true
+    kind: PlacementAPI
+    name: placement
 ---
 apiVersion: v1
 kind: Secret
