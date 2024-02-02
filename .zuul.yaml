@@ -137,7 +137,7 @@
             identity.v3_endpoint_type public
             service_available.swift false
             service_available.cinder false
-      cifmw_tempest_tests_allowed: |
+      cifmw_test_operator_tempest_include_list: |
           tempest.api.compute
           tempest.scenario
       # TODO(samborka): remove
@@ -147,7 +147,7 @@
       # tempest.api.compute.admin.test_live_migration.LiveMigrationTest.test_live_migration_with_trunk
       # NOTE: Need to check
       # tempest.api.compute.admin.test_auto_allocate_network.AutoAllocateNetworkTest.test_server_multi_create_auto_allocate
-      cifmw_tempest_tests_skipped:
+      cifmw_test_operator_tempest_exclude_list: |
           tempest.api.compute.servers.test_device_tagging
           test_create_server_invalid_bdm_in_2nd_dict
           tempest.scenario.test_minimum_basic.TestMinimumBasicScenario.test_minimum_basic_scenario
