@@ -118,62 +118,44 @@
     parent: podified-multinode-edpm-deployment-crc-3comp
     dependencies: ["nova-operator-content-provider"]
     vars:
-      cifmw_tempest_tempestconf_profile:
-          overrides:
-            compute.min_compute_nodes: 3
-            compute-feature-enabled.vnc_console: true
-            compute-feature-enabled.stable_rescue: true
-            compute-feature-enabled.hostname_fqdn_sanitization: true
-            compute-feature-enabled.live_migration: true
-            compute-feature-enabled.block_migration_for_live_migration: true
-            validation.run_validation: true
-            # NOTE(gibi): This is a WA to force the publicURL as otherwise
-            # tempest gets configured with adminURL and that causes test
-            # instability.
-            identity.v3_endpoint_type: public
-      cifmw_tempest_tests_allowed:
-        - tempest.api.compute
-        - tempest.scenario
+      test_fw: test_operator
+      # NOTE(gibi): identity.v3_endpoint_type override is a WA to force the
+      # publicURL as otherwise tempest gets configured with adminURL and that
+      # causes test instability.
+      # NOTE(efoley): swift and cinder are not disabled, we're just telling
+      # tempest that they're unavailable so that it'll skip the tests that
+      # require cinder or swift
+      cifmw_tempest_tempestconf_config:
+          overrides: |
+            compute.min_compute_nodes 3
+            compute-feature-enabled.vnc_console true
+            compute-feature-enabled.stable_rescue true
+            compute-feature-enabled.hostname_fqdn_sanitization true
+            compute-feature-enabled.live_migration true
+            compute-feature-enabled.block_migration_for_live_migration true
+            validation.run_validation true
+            identity.v3_endpoint_type public
+            service_available.swift false
+            service_available.cinder false
+      cifmw_tempest_tests_allowed: |
+          tempest.api.compute
+          tempest.scenario
+      # TODO(samborka): remove
+      # tempest.scenario.test_encrypted_cinder_volumes.TestEncryptedCinderVolumes
+      # once we have a running barbican
+      # Note: We don't have shared local storage so skipping
+      # tempest.api.compute.admin.test_live_migration.LiveMigrationTest.test_live_migration_with_trunk
+      # NOTE: Need to check
+      # tempest.api.compute.admin.test_auto_allocate_network.AutoAllocateNetworkTest.test_server_multi_create_auto_allocate
       cifmw_tempest_tests_skipped:
-      # TODO(samborka): remove this once we have a running barbican
-        - tempest.scenario.test_encrypted_cinder_volumes.TestEncryptedCinderVolumes
-      # We don't have a running cinder-volume
-        - ServersTestBootFromVolume
-        - tempest.api.compute.volumes.test_volumes_list
-        - tempest.api.compute.admin.test_volume.AttachSCSIVolumeTestJSON
-        - tempest.api.compute.admin.test_volumes_negative.VolumesAdminNegativeTest
-        - test_delete_server_while_in_attached_volume
-        - tempest.api.compute.servers.test_device_tagging
-        - test_rebuild_server_with_volume_attached
-        - test_rescued_vm_attach_volume
-        - test_rescued_vm_detach_volume
-        - test_create_server_from_non_bootable_volume
-        - test_create_server_invalid_bdm_in_2nd_dict
-        - test_attach_volume_shelved_or_offload_server
-        - test_detach_volume_shelved_or_offload_server
-        - test_attach_detach_volume
-        - test_list_get_volume_attachments
-        - test_attach_attached_volume
-        - test_delete_attached_volume
-        - tempest.api.compute.volumes.test_volumes_get
-        - test_minimum_basic_instance_hard_reboot_after_vol_snap_deletion
-        - tempest.scenario.test_minimum_basic.TestMinimumBasicScenario.test_minimum_basic_scenario
-        - test_shelve_volume_backed_instance
-        - tempest.scenario.test_stamp_pattern
-        - tempest.scenario.test_volume_boot_pattern
-        - test_volume_snapshot_create_get_list_delete
-        - tempest.api.compute.servers.test_server_rescue.ServerBootFromVolumeStableRescueTest
-        - test_stable_device_rescue_disk_virtio_with_volume_attached
-        - test_resize_volume_backed_server_confirm
-        - test_resize_server_revert_with_volume_attached
-      # We don't have shared local storage
-        - tempest.api.compute.admin.test_live_migration.LiveMigrationTest.test_live_migration_with_trunk
-        - tempest.scenario.test_network_advanced_server_ops.TestNetworkAdvancedServerOps.test_server_connectivity_live_migration
-      # Need to check
-        - tempest.api.compute.admin.test_auto_allocate_network.AutoAllocateNetworkTest.test_server_multi_create_auto_allocate
-        - tempest.api.compute.servers.test_server_rescue.ServerStableDeviceRescueTestIDE
-      # Swift test failing with unauthorized errors
-        - tempest.scenario.test_object_storage
+          tempest.api.compute.servers.test_device_tagging
+          test_create_server_invalid_bdm_in_2nd_dict
+          tempest.scenario.test_minimum_basic.TestMinimumBasicScenario.test_minimum_basic_scenario
+          tempest.scenario.test_stamp_pattern
+          tempest.api.compute.admin.test_live_migration.LiveMigrationTest.test_live_migration_with_trunk
+          tempest.scenario.test_network_advanced_server_ops.TestNetworkAdvancedServerOps.test_server_connectivity_live_migration
+          tempest.api.compute.admin.test_auto_allocate_network.AutoAllocateNetworkTest.test_server_multi_create_auto_allocate
+          tempest.api.compute.servers.test_server_rescue.ServerStableDeviceRescueTestIDE
       # We need to use a custom cpu model to allow live migrating between
       # slightly different computes coming from the node pool
       cifmw_edpm_deploy_nova_compute_extra_config: |
