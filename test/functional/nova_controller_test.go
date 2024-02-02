@@ -129,7 +129,6 @@ var _ = Describe("Nova controller", func() {
 
 		It("initializes Status fields", func() {
 			instance := GetNova(novaNames.NovaName)
-			Expect(instance.Status.Hash).To(BeEmpty())
 			Expect(instance.Status.APIServiceReadyCount).To(Equal(int32(0)))
 			Expect(instance.Status.SchedulerServiceReadyCount).To(Equal(int32(0)))
 			Expect(instance.Status.MetadataServiceReadyCount).To(Equal(int32(0)))

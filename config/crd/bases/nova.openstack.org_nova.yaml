@@ -1738,11 +1738,6 @@ spec:
                   discovered all kubernetes managed computes in cell value is a hash
                   of config from all kubernetes managed computes in cell
                 type: object
-              hash:
-                additionalProperties:
-                  type: string
-                description: Map of hashes to track e.g. job status
-                type: object
               metadataServiceReadyCount:
                 description: MetadataReadyCount defines the number of replicas ready
                   from nova-metadata service
