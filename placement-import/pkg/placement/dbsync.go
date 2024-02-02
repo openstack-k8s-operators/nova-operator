@@ -18,7 +18,6 @@ package placement
 import (
 	placementv1 "github.com/openstack-k8s-operators/placement-operator/api/v1beta1"
 
-	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	env "github.com/openstack-k8s-operators/lib-common/modules/common/env"
 
 	batchv1 "k8s.io/api/batch/v1"
@@ -33,12 +32,7 @@ func DbSyncJob(
 	labels map[string]string,
 	annotations map[string]string,
 ) *batchv1.Job {
-	args := []string{"-c"}
-	if instance.Spec.Debug.DBSync {
-		args = append(args, common.DebugCommand)
-	} else {
-		args = append(args, KollaServiceCommand)
-	}
+	args := []string{"-c", KollaServiceCommand}
 
 	envVars := map[string]env.Setter{}
 	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")

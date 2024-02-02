@@ -56,36 +56,20 @@ func Deployment(
 		InitialDelaySeconds: 5,
 	}
 
-	args := []string{"-c"}
-	if instance.Spec.Debug.Service {
-		args = append(args, common.DebugCommand)
-		livenessProbe.Exec = &corev1.ExecAction{
-			Command: []string{
-				"/bin/true",
-			},
-		}
+	args := []string{"-c", KollaServiceCommand}
+	//
+	// https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
+	//
+	livenessProbe.HTTPGet = &corev1.HTTPGetAction{
+		Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(PlacementPublicPort)},
+	}
+	readinessProbe.HTTPGet = &corev1.HTTPGetAction{
+		Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(PlacementPublicPort)},
+	}
 
-		readinessProbe.Exec = &corev1.ExecAction{
-			Command: []string{
-				"/bin/true",
-			},
-		}
-	} else {
-		args = append(args, KollaServiceCommand)
-		//
-		// https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
-		//
-		livenessProbe.HTTPGet = &corev1.HTTPGetAction{
-			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(PlacementPublicPort)},
-		}
-		readinessProbe.HTTPGet = &corev1.HTTPGetAction{
-			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(PlacementPublicPort)},
-		}
-
-		if instance.Spec.TLS.API.Enabled(service.EndpointPublic) {
-			livenessProbe.HTTPGet.Scheme = corev1.URISchemeHTTPS
-			readinessProbe.HTTPGet.Scheme = corev1.URISchemeHTTPS
-		}
+	if instance.Spec.TLS.API.Enabled(service.EndpointPublic) {
+		livenessProbe.HTTPGet.Scheme = corev1.URISchemeHTTPS
+		readinessProbe.HTTPGet.Scheme = corev1.URISchemeHTTPS
 	}
 
 	envVars := map[string]env.Setter{}

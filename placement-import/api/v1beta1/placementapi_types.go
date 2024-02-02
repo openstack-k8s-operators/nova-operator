@@ -83,11 +83,6 @@ type PlacementAPISpec struct {
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	// Debug - enable debug for different deploy stages. If an init container is used, it runs and the
-	// actual action pod gets started with sleep infinity
-	Debug PlacementAPIDebug `json:"debug,omitempty"`
-
-	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=false
 	// PreserveJobs - do not delete jobs after they finished e.g. to check logs
 	PreserveJobs bool `json:"preserveJobs"`
@@ -141,18 +136,6 @@ type PasswordSelector struct {
 	// +kubebuilder:default="PlacementPassword"
 	// Service - Selector to get the service user password from the Secret
 	Service string `json:"service"`
-}
-
-// PlacementAPIDebug defines the observed state of PlacementAPIDebug
-type PlacementAPIDebug struct {
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=false
-	// DBSync enable debug
-	DBSync bool `json:"dbSync"`
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=false
-	// Service enable debug
-	Service bool `json:"service"`
 }
 
 // PlacementAPIStatus defines the observed state of PlacementAPI

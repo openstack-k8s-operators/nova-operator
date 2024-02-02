@@ -9,9 +9,6 @@ spec:
     debug = true
   databaseInstance: openstack
   databaseUser: placement
-  debug:
-    dbSync: false
-    service: false
   preserveJobs: false
   replicas: 1
   secret: placement-secret
