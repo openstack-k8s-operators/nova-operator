@@ -39,6 +39,10 @@ var _ = Describe("NovaMetadata controller", func() {
 		BeforeEach(func() {
 			spec := GetDefaultNovaMetadataSpec(novaNames.InternalTopLevelSecretName)
 			spec["customServiceConfig"] = "foo=bar"
+			spec["defaultConfigOverwrite"] = map[string]interface{}{
+				"api-paste.ini": "pipeline = cors metaapp",
+			}
+
 			DeferCleanup(th.DeleteInstance, CreateNovaMetadata(novaNames.MetadataName, spec))
 		})
 		When("a NovaMetadata CR is created pointing to a non existent Secret", func() {
@@ -177,6 +181,10 @@ var _ = Describe("NovaMetadata controller", func() {
 				Expect(configDataMap.Data).Should(HaveKey("02-nova-override.conf"))
 				extraData := string(configDataMap.Data["02-nova-override.conf"])
 				Expect(extraData).To(Equal("foo=bar"))
+
+				Expect(configDataMap.Data).Should(HaveKey("api-paste.ini"))
+				pasteData := string(configDataMap.Data["api-paste.ini"])
+				Expect(pasteData).To(Equal("pipeline = cors metaapp"))
 			})
 
 			It("stored the input hash in the Status", func() {
