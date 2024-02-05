@@ -19,6 +19,13 @@
             "owner": "nova",
             "perm": "0600",
             "optional": true
+        },
+        {
+            "source": "/var/lib/openstack/config/provider*.yaml",
+            "dest": "/etc/nova/provider_config/",
+            "owner": "nova",
+            "perm": "0600",
+            "optional": true
         }
     ]
 }
