@@ -47,8 +47,15 @@
       "perm": "0600",
       "optional": true,
       "merge": true
-    }
-  ],
+    },
+    {
+      "source": "/var/lib/openstack/config/api-paste.ini",
+      "dest": "/etc/nova/api-paste.ini",
+      "owner": "nova",
+      "perm": "0600",
+      "optional": true
+  }
+],
   "permissions": [
     {
       "path": "/var/log/nova",
