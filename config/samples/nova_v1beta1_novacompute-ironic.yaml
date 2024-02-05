@@ -4,7 +4,7 @@ metadata:
   name: nova-compute-ironic
 spec:
   novaComputeTemplates:
-    computeIronic:
+    compute-ironic:
       customServiceConfig: ""
       replicas: 1
       resources: {}

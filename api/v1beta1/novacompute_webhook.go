@@ -170,12 +170,13 @@ func ValidateNovaComputeName(path *field.Path, computeName string) field.ErrorLi
 				path, computeName, "should be shorter than 20 characters"),
 		)
 	}
-	match, _ := regexp.MatchString("^[a-z][a-zA-Z0-9.-]*$", computeName)
+	match, _ := regexp.MatchString(CRDNameRegex, computeName)
 	if !match {
 		errors = append(
 			errors,
 			field.Invalid(
-				path, computeName, "should contain only alphanumeric characters, '-', and '.', start with a lowercase letter"),
+				path, computeName,
+				fmt.Sprintf("should match with the regex '%s'", CRDNameRegex)),
 		)
 	}
 	return errors
