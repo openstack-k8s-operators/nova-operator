@@ -226,12 +226,15 @@ var _ = Describe("Nova validation", func() {
 		Expect(statusError.ErrStatus.Details.Kind).To(Equal("Nova"))
 		Expect(statusError.ErrStatus.Message).To(
 			ContainSubstring(
-				fmt.Sprintf("invalid: spec.cellTemplates[%s]: Invalid value: \"%s\": should contain only alphanumeric characters, '-', and '.', start with a lowercase letter", cellName, cellName),
+				fmt.Sprintf(
+					"invalid: spec.cellTemplates[%s]: Invalid value: "+
+						"\"%s\": should match with the regex", cellName, cellName),
 			),
 		)
 	},
 		Entry("cell name starts with a capital letter", "Cell1xx"),
 		Entry("cell name contain wrong signs", "cell1$xx__"),
+		Entry("cell name contain upper case", "cellMy"),
 	)
 	It("rejects NovaCell with too long cell name", func() {
 		cell := GetCellNames(novaNames.NovaName, "cell1"+strings.Repeat("x", 31))
@@ -517,12 +520,15 @@ var _ = Describe("Nova validation", func() {
 		Expect(statusError.ErrStatus.Details.Kind).To(Equal("NovaCell"))
 		Expect(statusError.ErrStatus.Message).To(
 			ContainSubstring(
-				fmt.Sprintf("invalid: spec.novaComputeTemplates: Invalid value: \"%s\": should contain only alphanumeric characters, '-', and '.', start with a lowercase letter", computName),
+				fmt.Sprintf(
+					"invalid: spec.novaComputeTemplates: Invalid value: "+
+						"\"%s\": should match with the regex", computName),
 			),
 		)
 	},
 		Entry("compute name starts with a capital letter", "Compute1xx"),
 		Entry("compute name contain wrong signs", "compute1-xx__"),
+		Entry("compute name contain upper case", "computeFake1"),
 	)
 	It("rejects Nova with metadata both on top and in cells", func() {
 		spec := GetDefaultNovaSpec()

@@ -36,6 +36,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 )
 
+const CRDNameRegex = "^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$"
+
 // NovaCellDefaults -
 type NovaCellDefaults struct {
 	ConductorContainerImageURL   string
@@ -213,12 +215,13 @@ func ValidateCellName(path *field.Path, cellName string) field.ErrorList {
 				path, cellName, "should be shorter than 36 characters"),
 		)
 	}
-	match, _ := regexp.MatchString("^[a-z][a-zA-Z0-9.-]*$", cellName)
+	match, _ := regexp.MatchString(CRDNameRegex, cellName)
 	if !match {
 		errors = append(
 			errors,
 			field.Invalid(
-				path, cellName, "should contain only alphanumeric characters, '-', and '.', start with a lowercase letter"),
+				path, cellName,
+				fmt.Sprintf("should match with the regex '%s'", CRDNameRegex)),
 		)
 	}
 	return errors

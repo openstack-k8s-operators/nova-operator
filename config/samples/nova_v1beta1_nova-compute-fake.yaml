@@ -10,12 +10,12 @@ spec:
       hasAPIAccess: true
     cell1:
       novaComputeTemplates:
-        computeFake1:
+        compute-fake1:
           customServiceConfig: ""
           replicas: 1
           resources: {}
           computeDriver: fake.FakeDriver
-        computeFake2:
+        compute-fake2:
           customServiceConfig: ""
           replicas: 1
           resources: {}

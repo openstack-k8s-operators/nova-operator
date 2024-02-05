@@ -10,7 +10,7 @@ spec:
       hasAPIAccess: true
     cell1:
       novaComputeTemplates:
-        computeIronic:
+        compute-ironic:
           customServiceConfig: ""
           replicas: 1
           resources: {}

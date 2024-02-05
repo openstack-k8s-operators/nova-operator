@@ -751,6 +751,7 @@ func (r *NovaCellReconciler) ensureNovaCompute(
 	})
 
 	if err != nil {
+		Log.Error(err, "Failed to create NovaCompute CR")
 		computeStatus.Errors = true
 		return computeStatus
 	}
