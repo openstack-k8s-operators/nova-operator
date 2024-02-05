@@ -53,8 +53,7 @@ type NovaComputeTemplate struct {
 	CustomServiceConfig string `json:"customServiceConfig"`
 
 	// +kubebuilder:validation:Optional
-	// ConfigOverwrite - interface to overwrite default config files like e.g. logging.conf
-	// But can also be used to add additional files. Those get added to the service config dir in /etc/<service> .
+	// DefaultConfigOverwrite - interface to overwrite default config files like e.g. provider.yaml
 	DefaultConfigOverwrite map[string]string `json:"defaultConfigOverwrite,omitempty"`
 
 	// +kubebuilder:validation:Optional
@@ -118,6 +117,10 @@ type NovaComputeSpec struct {
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	// TLS - Parameters related to the TLS
 	TLS tls.Ca `json:"tls,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// DefaultConfigOverwrite - interface to overwrite default config files like e.g. provider.yaml
+	DefaultConfigOverwrite map[string]string `json:"defaultConfigOverwrite,omitempty"`
 }
 
 // NovaComputeStatus defines the observed state of NovaCompute
@@ -200,19 +203,19 @@ func NewNovaComputeSpec(
 		ComputeName: novaComputeName,
 		Secret:      novaCell.Secret,
 		NovaServiceBase: NovaServiceBase{
-			ContainerImage:         computeTemplate.ContainerImage,
-			Replicas:               computeTemplate.Replicas,
-			NodeSelector:           computeTemplate.NodeSelector,
-			CustomServiceConfig:    computeTemplate.CustomServiceConfig,
-			DefaultConfigOverwrite: computeTemplate.DefaultConfigOverwrite,
-			Resources:              computeTemplate.Resources,
-			NetworkAttachments:     computeTemplate.NetworkAttachments,
+			ContainerImage:      computeTemplate.ContainerImage,
+			Replicas:            computeTemplate.Replicas,
+			NodeSelector:        computeTemplate.NodeSelector,
+			CustomServiceConfig: computeTemplate.CustomServiceConfig,
+			Resources:           computeTemplate.Resources,
+			NetworkAttachments:  computeTemplate.NetworkAttachments,
 		},
-		KeystoneAuthURL: novaCell.KeystoneAuthURL,
-		ServiceUser:     novaCell.ServiceUser,
-		ServiceAccount:  novaCell.ServiceAccount,
-		ComputeDriver:   computeTemplate.ComputeDriver,
-		TLS:             novaCell.TLS,
+		KeystoneAuthURL:        novaCell.KeystoneAuthURL,
+		ServiceUser:            novaCell.ServiceUser,
+		ServiceAccount:         novaCell.ServiceAccount,
+		ComputeDriver:          computeTemplate.ComputeDriver,
+		TLS:                    novaCell.TLS,
+		DefaultConfigOverwrite: computeTemplate.DefaultConfigOverwrite,
 	}
 	return novacomputeSpec
 }
