@@ -38,6 +38,18 @@ var _ = Describe("NovaCompute controller", func() {
 		BeforeEach(func() {
 			spec := GetDefaultNovaComputeSpec(cell1)
 			spec["customServiceConfig"] = "foo=bar"
+			spec["defaultConfigOverwrite"] = map[string]interface{}{
+				"provider1.yaml": `
+				providers:
+				    - identification:
+				      uuid: '$COMPUTE_NODE'
+				`,
+				"provider2.yaml": `
+				providers:
+				    - identification:
+				      uuid: 'EXAMPLE_RESOURCE_PROVIDER'
+				`,
+			}
 			DeferCleanup(th.DeleteInstance, CreateNovaCompute(cell1.NovaComputeName, spec))
 		})
 		When("a NovaCompute CR is created pointing to a non existent Secret", func() {
@@ -160,6 +172,14 @@ var _ = Describe("NovaCompute controller", func() {
 				Expect(configDataMap.Data).Should(HaveKey("02-nova-override.conf"))
 				extraData := string(configDataMap.Data["02-nova-override.conf"])
 				Expect(extraData).To(Equal("foo=bar"))
+
+				Expect(configDataMap.Data).Should(HaveKey("provider1.yaml"))
+				providerData1 := string(configDataMap.Data["provider1.yaml"])
+				Expect(providerData1).Should(ContainSubstring("uuid: '$COMPUTE_NODE'"))
+				Expect(configDataMap.Data).Should(HaveKey("provider2.yaml"))
+				providerData2 := string(configDataMap.Data["provider2.yaml"])
+				Expect(providerData2).Should(ContainSubstring("uuid: 'EXAMPLE_RESOURCE_PROVIDER'"))
+
 			})
 
 			It("stored the input hash in the Status", func() {
