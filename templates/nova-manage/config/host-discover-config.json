@@ -1,5 +1,5 @@
 {
-    "command": "/var/lib/openstack/bin/host_discover.sh",
+    "command": "/bin/host_discover.sh",
     "config_files": [
         {
             "source": "/var/lib/openstack/config/nova-blank.conf",
