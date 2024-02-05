@@ -38,6 +38,10 @@ var _ = Describe("NovaAPI controller", func() {
 		BeforeEach(func() {
 			spec := GetDefaultNovaAPISpec(novaNames)
 			spec["customServiceConfig"] = "foo=bar"
+			spec["defaultConfigOverwrite"] = map[string]interface{}{
+				"policy.yaml":   "\"os_compute_api:os-flavor-manage:create\": \"rule:project_member_or_admin\"",
+				"api-paste.ini": "pipeline = cors compute_req_id faultwrap request_log http_proxy_to_wsgi oscomputeversionapp_v2",
+			}
 			DeferCleanup(th.DeleteInstance, CreateNovaAPI(novaNames.APIName, spec))
 		})
 
@@ -185,10 +189,19 @@ var _ = Describe("NovaAPI controller", func() {
 					ContainSubstring("[upgrade_levels]\ncompute = auto"))
 				Expect(configData).Should(ContainSubstring("enforce_new_defaults=true"))
 				Expect(configData).Should(ContainSubstring("enforce_scope=true"))
+				Expect(configData).Should(ContainSubstring("policy_file=/etc/nova/policy.yaml"))
 				// test config override
 				Expect(configDataMap.Data).Should(HaveKey("02-nova-override.conf"))
 				extraData := string(configDataMap.Data["02-nova-override.conf"])
 				Expect(extraData).To(Equal("foo=bar"))
+
+				Expect(configDataMap.Data).Should(HaveKey("policy.yaml"))
+				policyData := string(configDataMap.Data["policy.yaml"])
+				Expect(policyData).To(Equal("\"os_compute_api:os-flavor-manage:create\": \"rule:project_member_or_admin\""))
+
+				Expect(configDataMap.Data).Should(HaveKey("api-paste.ini"))
+				pasteData := string(configDataMap.Data["api-paste.ini"])
+				Expect(pasteData).To(Equal("pipeline = cors compute_req_id faultwrap request_log http_proxy_to_wsgi oscomputeversionapp_v2"))
 			})
 
 			It("stored the input hash in the Status", func() {
