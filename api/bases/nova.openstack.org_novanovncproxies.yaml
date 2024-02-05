@@ -72,14 +72,6 @@ spec:
                   added to to /etc/<service>/<service>.conf.d directory as custom.conf
                   file.
                 type: string
-              defaultConfigOverwrite:
-                additionalProperties:
-                  type: string
-                description: ConfigOverwrite - interface to overwrite default config
-                  files like e.g. logging.conf or policy.json. But can also be used
-                  to add additional files. Those get added to the service config dir
-                  in /etc/<service> .
-                type: object
               keystoneAuthURL:
                 description: KeystoneAuthURL - the URL that the nova-novncproxy service
                   can use to talk to keystone

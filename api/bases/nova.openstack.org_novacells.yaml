@@ -76,14 +76,6 @@ spec:
                       content gets added to to /etc/<service>/<service>.conf.d directory
                       as custom.conf file.
                     type: string
-                  defaultConfigOverwrite:
-                    additionalProperties:
-                      type: string
-                    description: ConfigOverwrite - interface to overwrite default
-                      config files like e.g. logging.conf But can also be used to
-                      add additional files. Those get added to the service config
-                      dir in /etc/<service> .
-                    type: object
                   networkAttachments:
                     description: NetworkAttachments is a list of NetworkAttachment
                       resource names to expose the services to the given network
@@ -176,10 +168,8 @@ spec:
                   defaultConfigOverwrite:
                     additionalProperties:
                       type: string
-                    description: ConfigOverwrite - interface to overwrite default
-                      config files like e.g. logging.conf But can also be used to
-                      add additional files. Those get added to the service config
-                      dir in /etc/<service> .
+                    description: DefaultConfigOverwrite - interface to overwrite default
+                      config files like e.g. api-paste.ini.
                     type: object
                   enabled:
                     description: Enabled - Whether NovaMetadata services should be
@@ -458,14 +448,6 @@ spec:
                       content gets added to to /etc/<service>/<service>.conf.d directory
                       as custom.conf file.
                     type: string
-                  defaultConfigOverwrite:
-                    additionalProperties:
-                      type: string
-                    description: ConfigOverwrite - interface to overwrite default
-                      config files like e.g. logging.conf But can also be used to
-                      add additional files. Those get added to the service config
-                      dir in /etc/<service> .
-                    type: object
                   enabled:
                     description: Enabled - Whether NovaNoVNCProxy services should
                       be deployed and managed. If it is set to false then the related
@@ -760,10 +742,8 @@ spec:
                     defaultConfigOverwrite:
                       additionalProperties:
                         type: string
-                      description: ConfigOverwrite - interface to overwrite default
-                        config files like e.g. logging.conf But can also be used to
-                        add additional files. Those get added to the service config
-                        dir in /etc/<service> .
+                      description: DefaultConfigOverwrite - interface to overwrite
+                        default config files like e.g. provider.yaml
                       type: object
                     networkAttachments:
                       description: NetworkAttachments is a list of NetworkAttachment

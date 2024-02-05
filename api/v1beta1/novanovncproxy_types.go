@@ -64,11 +64,6 @@ type NovaNoVNCProxyTemplate struct {
 	CustomServiceConfig string `json:"customServiceConfig"`
 
 	// +kubebuilder:validation:Optional
-	// ConfigOverwrite - interface to overwrite default config files like e.g. logging.conf
-	// But can also be used to add additional files. Those get added to the service config dir in /etc/<service> .
-	DefaultConfigOverwrite map[string]string `json:"defaultConfigOverwrite,omitempty"`
-
-	// +kubebuilder:validation:Optional
 	// Resources - Compute Resources required by this service (Limits/Requests).
 	// https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
 	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
@@ -208,13 +203,12 @@ func NewNovaNoVNCProxySpec(
 		CellDatabaseHostname: novaCell.CellDatabaseHostname,
 		CellDatabaseUser:     novaCell.CellDatabaseUser,
 		NovaServiceBase: NovaServiceBase{
-			ContainerImage:         novaCell.NoVNCProxyServiceTemplate.ContainerImage,
-			Replicas:               novaCell.NoVNCProxyServiceTemplate.Replicas,
-			NodeSelector:           novaCell.NoVNCProxyServiceTemplate.NodeSelector,
-			CustomServiceConfig:    novaCell.NoVNCProxyServiceTemplate.CustomServiceConfig,
-			DefaultConfigOverwrite: novaCell.NoVNCProxyServiceTemplate.DefaultConfigOverwrite,
-			Resources:              novaCell.NoVNCProxyServiceTemplate.Resources,
-			NetworkAttachments:     novaCell.NoVNCProxyServiceTemplate.NetworkAttachments,
+			ContainerImage:      novaCell.NoVNCProxyServiceTemplate.ContainerImage,
+			Replicas:            novaCell.NoVNCProxyServiceTemplate.Replicas,
+			NodeSelector:        novaCell.NoVNCProxyServiceTemplate.NodeSelector,
+			CustomServiceConfig: novaCell.NoVNCProxyServiceTemplate.CustomServiceConfig,
+			Resources:           novaCell.NoVNCProxyServiceTemplate.Resources,
+			NetworkAttachments:  novaCell.NoVNCProxyServiceTemplate.NetworkAttachments,
 		},
 		KeystoneAuthURL: novaCell.KeystoneAuthURL,
 		ServiceUser:     novaCell.ServiceUser,

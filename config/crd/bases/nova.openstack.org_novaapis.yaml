@@ -80,10 +80,8 @@ spec:
               defaultConfigOverwrite:
                 additionalProperties:
                   type: string
-                description: ConfigOverwrite - interface to overwrite default config
-                  files like e.g. logging.conf or policy.json. But can also be used
-                  to add additional files. Those get added to the service config dir
-                  in /etc/<service> .
+                description: DefaultConfigOverwrite - interface to overwrite default
+                  config files like e.g. api-paste.ini or policy.yaml.
                 type: object
               keystoneAuthURL:
                 description: KeystoneAuthURL configures the keystone API endpoint

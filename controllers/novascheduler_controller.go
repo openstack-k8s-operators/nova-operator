@@ -434,9 +434,6 @@ func (r *NovaSchedulerReconciler) generateConfigs(
 	if instance.Spec.CustomServiceConfig != "" {
 		extraData["02-nova-override.conf"] = instance.Spec.CustomServiceConfig
 	}
-	for key, data := range instance.Spec.DefaultConfigOverwrite {
-		extraData[key] = data
-	}
 
 	cmLabels := labels.GetLabels(
 		instance, labels.GetGroupLabel(NovaSchedulerLabelPrefix), map[string]string{},

@@ -68,8 +68,7 @@ type NovaMetadataTemplate struct {
 	CustomServiceConfig string `json:"customServiceConfig"`
 
 	// +kubebuilder:validation:Optional
-	// ConfigOverwrite - interface to overwrite default config files like e.g. logging.conf
-	// But can also be used to add additional files. Those get added to the service config dir in /etc/<service> .
+	// DefaultConfigOverwrite - interface to overwrite default config files like e.g. api-paste.ini.
 	DefaultConfigOverwrite map[string]string `json:"defaultConfigOverwrite,omitempty"`
 
 	// +kubebuilder:validation:Optional
@@ -176,6 +175,10 @@ type NovaMetadataSpec struct {
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	// TLS - Parameters related to the TLS
 	TLS tls.SimpleService `json:"tls,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// DefaultConfigOverwrite - interface to overwrite default config files like e.g. api-paste.ini.
+	DefaultConfigOverwrite map[string]string `json:"defaultConfigOverwrite,omitempty"`
 }
 
 // NovaMetadataStatus defines the observed state of NovaMetadata
@@ -241,19 +244,19 @@ func NewNovaMetadataSpec(
 		APIDatabaseHostname:  novaCell.APIDatabaseHostname,
 		APIDatabaseUser:      novaCell.APIDatabaseUser,
 		NovaServiceBase: NovaServiceBase{
-			ContainerImage:         novaCell.MetadataServiceTemplate.ContainerImage,
-			Replicas:               novaCell.MetadataServiceTemplate.Replicas,
-			NodeSelector:           novaCell.MetadataServiceTemplate.NodeSelector,
-			CustomServiceConfig:    novaCell.MetadataServiceTemplate.CustomServiceConfig,
-			DefaultConfigOverwrite: novaCell.MetadataServiceTemplate.DefaultConfigOverwrite,
-			Resources:              novaCell.MetadataServiceTemplate.Resources,
-			NetworkAttachments:     novaCell.MetadataServiceTemplate.NetworkAttachments,
+			ContainerImage:      novaCell.MetadataServiceTemplate.ContainerImage,
+			Replicas:            novaCell.MetadataServiceTemplate.Replicas,
+			NodeSelector:        novaCell.MetadataServiceTemplate.NodeSelector,
+			CustomServiceConfig: novaCell.MetadataServiceTemplate.CustomServiceConfig,
+			Resources:           novaCell.MetadataServiceTemplate.Resources,
+			NetworkAttachments:  novaCell.MetadataServiceTemplate.NetworkAttachments,
 		},
-		KeystoneAuthURL: novaCell.KeystoneAuthURL,
-		ServiceUser:     novaCell.ServiceUser,
-		ServiceAccount:  novaCell.ServiceAccount,
-		Override:        novaCell.MetadataServiceTemplate.Override,
-		TLS:             novaCell.MetadataServiceTemplate.TLS,
+		KeystoneAuthURL:        novaCell.KeystoneAuthURL,
+		ServiceUser:            novaCell.ServiceUser,
+		ServiceAccount:         novaCell.ServiceAccount,
+		Override:               novaCell.MetadataServiceTemplate.Override,
+		TLS:                    novaCell.MetadataServiceTemplate.TLS,
+		DefaultConfigOverwrite: novaCell.MetadataServiceTemplate.DefaultConfigOverwrite,
 	}
 	return metadataSpec
 }
