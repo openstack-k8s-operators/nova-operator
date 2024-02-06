@@ -34,6 +34,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 const CRDNameRegex = "^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$"
@@ -158,18 +159,18 @@ func (r *NovaCellSpec) ValidateCreate(basePath *field.Path) field.ErrorList {
 }
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *NovaCell) ValidateCreate() error {
+func (r *NovaCell) ValidateCreate() (admission.Warnings, error) {
 	novacelllog.Info("validate create", "name", r.Name)
 
 	errors := r.Spec.ValidateCreate(field.NewPath("spec"))
 
 	if len(errors) != 0 {
 		novacelllog.Info("validation failed", "name", r.Name)
-		return apierrors.NewInvalid(
+		return nil, apierrors.NewInvalid(
 			schema.GroupKind{Group: "nova.openstack.org", Kind: "NovaCell"},
 			r.Name, errors)
 	}
-	return nil
+	return nil, nil
 }
 
 func (r *NovaCellSpec) ValidateUpdate(old NovaCellSpec, basePath *field.Path) field.ErrorList {
@@ -177,30 +178,30 @@ func (r *NovaCellSpec) ValidateUpdate(old NovaCellSpec, basePath *field.Path) fi
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *NovaCell) ValidateUpdate(old runtime.Object) error {
+func (r *NovaCell) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	novacelllog.Info("validate update", "name", r.Name)
 	oldCell, ok := old.(*NovaCell)
 	if !ok || oldCell == nil {
-		return apierrors.NewInternalError(fmt.Errorf("unable to convert existing object"))
+		return nil, apierrors.NewInternalError(fmt.Errorf("unable to convert existing object"))
 	}
 
 	errors := r.Spec.ValidateUpdate(oldCell.Spec, field.NewPath("spec"))
 
 	if len(errors) != 0 {
 		novacelllog.Info("validation failed", "name", r.Name)
-		return apierrors.NewInvalid(
+		return nil, apierrors.NewInvalid(
 			schema.GroupKind{Group: "nova.openstack.org", Kind: "NovaCell"},
 			r.Name, errors)
 	}
-	return nil
+	return nil, nil
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *NovaCell) ValidateDelete() error {
+func (r *NovaCell) ValidateDelete() (admission.Warnings, error) {
 	novacelllog.Info("validate delete", "name", r.Name)
 
 	// TODO(user): fill in your validation logic upon object deletion.
-	return nil
+	return nil, nil
 }
 
 // ValidateCellName validates the cell name. It is expected to be called

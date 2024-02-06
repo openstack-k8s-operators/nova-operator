@@ -28,6 +28,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 // NovaMetadataDefaults -
@@ -77,27 +78,27 @@ func (spec *NovaMetadataSpec) Default() {
 var _ webhook.Validator = &NovaMetadata{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *NovaMetadata) ValidateCreate() error {
+func (r *NovaMetadata) ValidateCreate() (admission.Warnings, error) {
 	novametadatalog.Info("validate create", "name", r.Name)
 
 	// TODO(user): fill in your validation logic upon object creation.
-	return nil
+	return nil, nil
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *NovaMetadata) ValidateUpdate(old runtime.Object) error {
+func (r *NovaMetadata) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	novametadatalog.Info("validate update", "name", r.Name)
 
 	// TODO(user): fill in your validation logic upon object update.
-	return nil
+	return nil, nil
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *NovaMetadata) ValidateDelete() error {
+func (r *NovaMetadata) ValidateDelete() (admission.Warnings, error) {
 	novametadatalog.Info("validate delete", "name", r.Name)
 
 	// TODO(user): fill in your validation logic upon object deletion.
-	return nil
+	return nil, nil
 }
 
 // ValidateCell0 validates cell0 Metadata template. This is expected to be called

@@ -28,6 +28,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 // NovaNoVNCProxyDefaults -
@@ -77,27 +78,27 @@ func (spec *NovaNoVNCProxySpec) Default() {
 var _ webhook.Validator = &NovaNoVNCProxy{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *NovaNoVNCProxy) ValidateCreate() error {
+func (r *NovaNoVNCProxy) ValidateCreate() (admission.Warnings, error) {
 	novanovncproxylog.Info("validate create", "name", r.Name)
 
 	// TODO(user): fill in your validation logic upon object creation.
-	return nil
+	return nil, nil
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *NovaNoVNCProxy) ValidateUpdate(old runtime.Object) error {
+func (r *NovaNoVNCProxy) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	novanovncproxylog.Info("validate update", "name", r.Name)
 
 	// TODO(user): fill in your validation logic upon object update.
-	return nil
+	return nil, nil
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *NovaNoVNCProxy) ValidateDelete() error {
+func (r *NovaNoVNCProxy) ValidateDelete() (admission.Warnings, error) {
 	novanovncproxylog.Info("validate delete", "name", r.Name)
 
 	// TODO(user): fill in your validation logic upon object deletion.
-	return nil
+	return nil, nil
 }
 
 // ValidateCell0 validates cell0 NoVNCProxy template. This is expected to be
