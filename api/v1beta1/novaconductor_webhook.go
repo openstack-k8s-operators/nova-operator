@@ -27,6 +27,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 // NovaConductorDefaults -
@@ -76,25 +77,25 @@ func (spec *NovaConductorSpec) Default() {
 var _ webhook.Validator = &NovaConductor{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *NovaConductor) ValidateCreate() error {
+func (r *NovaConductor) ValidateCreate() (admission.Warnings, error) {
 	novaconductorlog.Info("validate create", "name", r.Name)
 
 	// TODO(user): fill in your validation logic upon object creation.
-	return nil
+	return nil, nil
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *NovaConductor) ValidateUpdate(old runtime.Object) error {
+func (r *NovaConductor) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	novaconductorlog.Info("validate update", "name", r.Name)
 
 	// TODO(user): fill in your validation logic upon object update.
-	return nil
+	return nil, nil
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *NovaConductor) ValidateDelete() error {
+func (r *NovaConductor) ValidateDelete() (admission.Warnings, error) {
 	novaconductorlog.Info("validate delete", "name", r.Name)
 
 	// TODO(user): fill in your validation logic upon object deletion.
-	return nil
+	return nil, nil
 }
