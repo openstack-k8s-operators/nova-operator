@@ -36,7 +36,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/go-logr/logr"
 	"github.com/openstack-k8s-operators/lib-common/modules/common"
@@ -740,7 +739,6 @@ func (r *NovaReconciler) ensureDB(
 	databaseServiceName string,
 	targetCondition condition.Type,
 ) (nova.DatabaseStatus, error) {
-
 	ctrlResult, err := db.CreateOrPatchDBByName(
 		ctx,
 		h,
@@ -883,7 +881,6 @@ func (r *NovaReconciler) ensureCell(
 
 		return nil
 	})
-
 	if err != nil {
 		return cell, nova.CellFailed, err
 	}
@@ -899,7 +896,6 @@ func (r *NovaReconciler) ensureCell(
 	}
 	configHash, scriptName, configName, err := r.ensureNovaManageJobSecret(ctx, h, instance,
 		cell, secret, cellTemplate, apiDB.GetDatabaseHostname(), cellTransportURL)
-
 	if err != nil {
 		return cell, nova.CellFailed, err
 	}
@@ -909,7 +905,6 @@ func (r *NovaReconciler) ensureCell(
 	status, err := r.ensureCellMapped(
 		ctx, h, instance,
 		cell, configHash, scriptName, configName)
-
 	if err != nil {
 		return cell, status, err
 	}
@@ -1035,7 +1030,6 @@ func (r *NovaReconciler) ensureAPI(
 
 		return nil
 	})
-
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			novav1.NovaAPIReadyCondition,
@@ -1110,7 +1104,6 @@ func (r *NovaReconciler) ensureScheduler(
 		}
 		return nil
 	})
-
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			novav1.NovaSchedulerReadyCondition,
@@ -1459,7 +1452,6 @@ func (r *NovaReconciler) ensureMetadata(
 
 		return nil
 	})
-
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			novav1.NovaMetadataReadyCondition,
@@ -1499,7 +1491,6 @@ func (r *NovaReconciler) ensureCellMapped(
 	scriptName string,
 	configName string,
 ) (nova.CellDeploymentStatus, error) {
-
 	Log := r.GetLogger(ctx)
 	// This defines those input parameters that can trigger the re-run of the
 	// job and therefore an update on the cell mapping row of this cell in the
@@ -1559,7 +1550,6 @@ func (r *NovaReconciler) ensureCellSecret(
 	cellTransportURL string,
 	externalSecret corev1.Secret,
 ) (string, error) {
-
 	// NOTE(gibi): We can move other sensitive data to the internal Secret from
 	// the NovaCellSpec fields, possibly hostnames or usernames.
 	data := map[string]string{
@@ -1611,7 +1601,6 @@ func (r *NovaReconciler) ensureTopLevelSecret(
 	apiTransportURL string,
 	externalSecret corev1.Secret,
 ) (string, error) {
-
 	// NOTE(gibi): We can move other sensitive data to the internal Secret from
 	// the subCR fields, possibly hostnames or usernames.
 	data := map[string]string{
@@ -1645,7 +1634,7 @@ func (r *NovaReconciler) ensureTopLevelSecret(
 	return secretName, err
 }
 
-func (r *NovaReconciler) findObjectsForSrc(src client.Object) []reconcile.Request {
+func (r *NovaReconciler) findObjectsForSrc(ctx context.Context, src client.Object) []reconcile.Request {
 	requests := []reconcile.Request{}
 
 	l := log.FromContext(context.Background()).WithName("Controllers").WithName("Nova")
@@ -1716,7 +1705,7 @@ func (r *NovaReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.Secret{}).
 		// watch the input secrets
 		Watches(
-			&source.Kind{Type: &corev1.Secret{}},
+			&corev1.Secret{},
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForSrc),
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
 		).
