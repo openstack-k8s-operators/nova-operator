@@ -101,5 +101,5 @@ go.work
 go.work.sum
 
 # kuttl testing
-test/kuttl/test-suites/*/output/
+test/kuttl/test-suites/**/output/*
 kubeconfig
