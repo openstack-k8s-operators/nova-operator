@@ -23,7 +23,9 @@ limitations under the License.
 package v1beta1
 
 import (
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -80,7 +82,16 @@ var _ webhook.Validator = &NovaMetadata{}
 func (r *NovaMetadata) ValidateCreate() error {
 	novametadatalog.Info("validate create", "name", r.Name)
 
-	// TODO(user): fill in your validation logic upon object creation.
+	errors := ValidateMetadataDefaultConfigOverwrite(
+		field.NewPath("spec").Child("defaultConfigOverwrite"),
+		r.Spec.DefaultConfigOverwrite)
+
+	if len(errors) != 0 {
+		novametadatalog.Info("validation failed", "name", r.Name)
+		return apierrors.NewInvalid(
+			schema.GroupKind{Group: "nova.openstack.org", Kind: "NovaMetadata"},
+			r.Name, errors)
+	}
 	return nil
 }
 
@@ -88,7 +99,16 @@ func (r *NovaMetadata) ValidateCreate() error {
 func (r *NovaMetadata) ValidateUpdate(old runtime.Object) error {
 	novametadatalog.Info("validate update", "name", r.Name)
 
-	// TODO(user): fill in your validation logic upon object update.
+	errors := ValidateMetadataDefaultConfigOverwrite(
+		field.NewPath("spec").Child("defaultConfigOverwrite"),
+		r.Spec.DefaultConfigOverwrite)
+
+	if len(errors) != 0 {
+		novametadatalog.Info("validation failed", "name", r.Name)
+		return apierrors.NewInvalid(
+			schema.GroupKind{Group: "nova.openstack.org", Kind: "NovaMetadata"},
+			r.Name, errors)
+	}
 	return nil
 }
 
@@ -112,4 +132,18 @@ func (r *NovaMetadataTemplate) ValidateCell0(basePath *field.Path) field.ErrorLi
 		)
 	}
 	return errors
+}
+
+func (r *NovaMetadataTemplate) ValidateDefaultConfigOverwrite(basePath *field.Path) field.ErrorList {
+	return ValidateMetadataDefaultConfigOverwrite(
+		basePath.Child("defaultConfigOverwrite"),
+		r.DefaultConfigOverwrite)
+}
+
+func ValidateMetadataDefaultConfigOverwrite(
+	basePath *field.Path,
+	defaultConfigOverwrite map[string]string,
+) field.ErrorList {
+	return ValidateDefaultConfigOverwrite(
+		basePath, defaultConfigOverwrite, []string{"api-paste.ini"})
 }

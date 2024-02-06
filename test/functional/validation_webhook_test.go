@@ -713,4 +713,110 @@ var _ = Describe("Nova validation", func() {
 		)
 	})
 
+	It("rejects NovaMetadata with wrong defaultConfigOverwrite", func() {
+		spec := GetDefaultNovaMetadataSpec(novaNames.InternalTopLevelSecretName)
+		spec["defaultConfigOverwrite"] = map[string]interface{}{
+			"policy.yaml":   "custom policy not supported",
+			"api-paste.ini": "custom paste config",
+		}
+		raw := map[string]interface{}{
+			"apiVersion": "nova.openstack.org/v1beta1",
+			"kind":       "NovaMetadata",
+			"metadata": map[string]interface{}{
+				"name":      novaNames.MetadataName.Name,
+				"namespace": novaNames.Namespace,
+			},
+			"spec": spec,
+		}
+
+		unstructuredObj := &unstructured.Unstructured{Object: raw}
+		_, err := controllerutil.CreateOrPatch(
+			ctx, k8sClient, unstructuredObj, func() error { return nil })
+
+		Expect(err).Should(HaveOccurred())
+		var statusError *k8s_errors.StatusError
+		Expect(errors.As(err, &statusError)).To(BeTrue())
+		Expect(statusError.ErrStatus.Details.Kind).To(Equal("NovaMetadata"))
+		Expect(statusError.ErrStatus.Message).To(
+			ContainSubstring(
+				"invalid: spec.defaultConfigOverwrite: " +
+					"Invalid value: \"policy.yaml\": Only the following keys " +
+					"are valid: api-paste.ini",
+			),
+		)
+	})
+	It("rejects Nova with wrong defaultConfigOverwrite in top level NovaMetadata", func() {
+		spec := GetDefaultNovaSpec()
+		spec["cellTemplates"] = map[string]interface{}{
+			"cell0": GetDefaultNovaCellTemplate(),
+		}
+		spec["metadataServiceTemplate"] = map[string]interface{}{
+			"defaultConfigOverwrite": map[string]interface{}{
+				"policy.yaml":   "custom policy not supported",
+				"api-paste.ini": "custom paste config",
+			},
+		}
+		raw := map[string]interface{}{
+			"apiVersion": "nova.openstack.org/v1beta1",
+			"kind":       "Nova",
+			"metadata": map[string]interface{}{
+				"name":      novaNames.NovaName.Name,
+				"namespace": novaNames.Namespace,
+			},
+			"spec": spec,
+		}
+
+		unstructuredObj := &unstructured.Unstructured{Object: raw}
+		_, err := controllerutil.CreateOrPatch(
+			ctx, k8sClient, unstructuredObj, func() error { return nil })
+
+		Expect(err).Should(HaveOccurred())
+		var statusError *k8s_errors.StatusError
+		Expect(errors.As(err, &statusError)).To(BeTrue())
+		Expect(statusError.ErrStatus.Details.Kind).To(Equal("Nova"))
+		Expect(statusError.ErrStatus.Message).To(
+			ContainSubstring(
+				"invalid: spec.metadataServiceTemplate.defaultConfigOverwrite: " +
+					"Invalid value: \"policy.yaml\": Only the following " +
+					"keys are valid: api-paste.ini"),
+		)
+	})
+	It("rejects Nova with wrong defaultConfigOverwrite in cell level NovaMetadata", func() {
+		spec := GetDefaultNovaSpec()
+		cell1 := GetDefaultNovaCellTemplate()
+		cell1["metadataServiceTemplate"] = map[string]interface{}{
+			"defaultConfigOverwrite": map[string]interface{}{
+				"policy.yaml":   "custom policy not supported",
+				"api-paste.ini": "custom paste config",
+			},
+		}
+		spec["cellTemplates"] = map[string]interface{}{
+			"cell0": GetDefaultNovaCellTemplate(),
+			"cell1": cell1,
+		}
+		raw := map[string]interface{}{
+			"apiVersion": "nova.openstack.org/v1beta1",
+			"kind":       "Nova",
+			"metadata": map[string]interface{}{
+				"name":      novaNames.NovaName.Name,
+				"namespace": novaNames.Namespace,
+			},
+			"spec": spec,
+		}
+
+		unstructuredObj := &unstructured.Unstructured{Object: raw}
+		_, err := controllerutil.CreateOrPatch(
+			ctx, k8sClient, unstructuredObj, func() error { return nil })
+
+		Expect(err).Should(HaveOccurred())
+		var statusError *k8s_errors.StatusError
+		Expect(errors.As(err, &statusError)).To(BeTrue())
+		Expect(statusError.ErrStatus.Details.Kind).To(Equal("Nova"))
+		Expect(statusError.ErrStatus.Message).To(
+			ContainSubstring(
+				"invalid: spec.cellTemplates[cell1].metadataServiceTemplate.defaultConfigOverwrite: " +
+					"Invalid value: \"policy.yaml\": Only the following " +
+					"keys are valid: api-paste.ini"),
+		)
+	})
 })

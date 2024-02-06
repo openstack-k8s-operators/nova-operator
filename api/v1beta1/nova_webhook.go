@@ -185,6 +185,11 @@ func (r *NovaSpec) ValidateCellTemplates(basePath *field.Path) field.ErrorList {
 			)
 		}
 
+		errors = append(
+			errors,
+			cell.MetadataServiceTemplate.ValidateDefaultConfigOverwrite(
+				cellPath.Child("metadataServiceTemplate"))...)
+
 		if name == Cell0Name {
 			errors = append(
 				errors,
@@ -230,6 +235,10 @@ func (r *NovaSpec) ValidateAPIServiceTemplate(basePath *field.Path) field.ErrorL
 func (r *NovaSpec) ValidateCreate(basePath *field.Path) field.ErrorList {
 	errors := r.ValidateCellTemplates(basePath)
 	errors = append(errors, r.ValidateAPIServiceTemplate(basePath)...)
+	errors = append(
+		errors,
+		r.MetadataServiceTemplate.ValidateDefaultConfigOverwrite(
+			basePath.Child("metadataServiceTemplate"))...)
 
 	return errors
 }
@@ -254,6 +263,10 @@ func (r *Nova) ValidateCreate() error {
 func (r *NovaSpec) ValidateUpdate(old NovaSpec, basePath *field.Path) field.ErrorList {
 	errors := r.ValidateCellTemplates(basePath)
 	errors = append(errors, r.ValidateAPIServiceTemplate(basePath)...)
+	errors = append(
+		errors,
+		r.MetadataServiceTemplate.ValidateDefaultConfigOverwrite(
+			basePath.Child("metadataServiceTemplate"))...)
 
 	return errors
 }
