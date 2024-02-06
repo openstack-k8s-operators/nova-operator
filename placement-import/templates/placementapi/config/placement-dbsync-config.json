@@ -2,13 +2,13 @@
     "command": "placement-manage db sync",
     "config_files": [
         {
-            "source": "/var/lib/config-data/merged/placement.conf",
+            "source": "/var/lib/openstack/config/placement.conf",
             "dest": "/etc/placement/placement.conf",
             "owner": "placement",
             "perm": "0600"
         },
         {
-            "source": "/var/lib/config-data/merged/custom.conf",
+            "source": "/var/lib/openstack/config/custom.conf",
             "dest": "/etc/placement/placement.conf.d/custom.conf",
             "owner": "placement",
             "perm": "0600"

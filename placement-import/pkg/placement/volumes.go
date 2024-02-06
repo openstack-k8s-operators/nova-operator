@@ -68,7 +68,7 @@ func getVolumeMounts(serviceName string) []corev1.VolumeMount {
 		},
 		{
 			Name:      "config-data",
-			MountPath: "/var/lib/config-data/merged",
+			MountPath: "/var/lib/openstack/config",
 			ReadOnly:  false,
 		},
 		{

@@ -151,7 +151,7 @@ spec:
           readOnly: true
         - mountPath: /var/log/placement
           name: logs
-        - mountPath: /var/lib/config-data/merged
+        - mountPath: /var/lib/openstack/config
           name: config-data
         - mountPath: /var/lib/kolla/config_files/config.json
           name: config-data

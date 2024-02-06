@@ -144,7 +144,7 @@ spec:
           readOnly: true
         - mountPath: /var/log/placement
           name: logs
-        - mountPath: /var/lib/config-data/merged
+        - mountPath: /var/lib/openstack/config
           name: config-data
         - mountPath: /var/lib/kolla/config_files/config.json
           name: config-data
@@ -185,6 +185,17 @@ spec:
 status:
   availableReplicas: 1
   replicas: 1
+---
+# the openshift annotations can't be checked through the deployment above
+apiVersion: v1
+kind: Pod
+metadata:
+  annotations:
+    openshift.io/scc: anyuid
+  labels:
+    service: placement
+status:
+  phase: Running
 ---
 apiVersion: v1
 kind: Service
