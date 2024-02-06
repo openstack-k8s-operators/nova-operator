@@ -675,8 +675,7 @@ func (r *NovaCellReconciler) ensureNovaComputeDeleted(
 	if err != nil && k8s_errors.IsNotFound(err) {
 		return err
 	}
-	Log.Info("NovaCompute isn't defined in the cell, so deleted NovaCompute",
-		instance, "NovaCompute", compute)
+	Log.Info("NovaCompute isn't defined in the cell, so deleted NovaCompute", "NovaCompute", compute)
 
 	return nil
 }

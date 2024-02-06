@@ -943,3 +943,11 @@ func GetDefaultNovaComputeSpec(cell CellNames) map[string]interface{} {
 		"computeDriver":        novav1.IronicDriver,
 	}
 }
+
+func AssertComputeDoesNotExist(name types.NamespacedName) {
+	instance := &novav1.NovaCompute{}
+	Eventually(func(g Gomega) {
+		err := k8sClient.Get(ctx, name, instance)
+		g.Expect(k8s_errors.IsNotFound(err)).To(BeTrue())
+	}, timeout, interval).Should(Succeed())
+}
