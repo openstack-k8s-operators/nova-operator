@@ -30,6 +30,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 // NovaAPIDefaults -
@@ -79,7 +80,7 @@ func (spec *NovaAPISpec) Default() {
 var _ webhook.Validator = &NovaAPI{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *NovaAPI) ValidateCreate() error {
+func (r *NovaAPI) ValidateCreate() (admission.Warnings, error) {
 	novaapilog.Info("validate create", "name", r.Name)
 
 	errors := ValidateAPIDefaultConfigOverwrite(
@@ -88,15 +89,15 @@ func (r *NovaAPI) ValidateCreate() error {
 
 	if len(errors) != 0 {
 		novaapilog.Info("validation failed", "name", r.Name)
-		return apierrors.NewInvalid(
+		return nil, apierrors.NewInvalid(
 			schema.GroupKind{Group: "nova.openstack.org", Kind: "NovaAPI"},
 			r.Name, errors)
 	}
-	return nil
+	return nil, nil
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *NovaAPI) ValidateUpdate(old runtime.Object) error {
+func (r *NovaAPI) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	novaapilog.Info("validate update", "name", r.Name)
 
 	errors := ValidateAPIDefaultConfigOverwrite(
@@ -105,19 +106,19 @@ func (r *NovaAPI) ValidateUpdate(old runtime.Object) error {
 
 	if len(errors) != 0 {
 		novaapilog.Info("validation failed", "name", r.Name)
-		return apierrors.NewInvalid(
+		return nil, apierrors.NewInvalid(
 			schema.GroupKind{Group: "nova.openstack.org", Kind: "NovaAPI"},
 			r.Name, errors)
 	}
-	return nil
+	return nil, nil
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *NovaAPI) ValidateDelete() error {
+func (r *NovaAPI) ValidateDelete() (admission.Warnings, error) {
 	novaapilog.Info("validate delete", "name", r.Name)
 
 	// TODO(user): fill in your validation logic upon object deletion.
-	return nil
+	return nil, nil
 }
 
 func ValidateAPIDefaultConfigOverwrite(

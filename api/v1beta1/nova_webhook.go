@@ -33,6 +33,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 // NovaDefaults -
@@ -248,17 +249,17 @@ func (r *NovaSpec) ValidateCreate(basePath *field.Path) field.ErrorList {
 }
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *Nova) ValidateCreate() error {
+func (r *Nova) ValidateCreate() (admission.Warnings, error) {
 	novalog.Info("validate create", "name", r.Name)
 
 	errors := r.Spec.ValidateCreate(field.NewPath("spec"))
 	if len(errors) != 0 {
 		novalog.Info("validation failed", "name", r.Name)
-		return apierrors.NewInvalid(
+		return nil, apierrors.NewInvalid(
 			schema.GroupKind{Group: "nova.openstack.org", Kind: "Nova"},
 			r.Name, errors)
 	}
-	return nil
+	return nil, nil
 }
 
 // ValidateUpdate validates the NovaSpec during the webhook invocation. It is
@@ -276,27 +277,27 @@ func (r *NovaSpec) ValidateUpdate(old NovaSpec, basePath *field.Path) field.Erro
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *Nova) ValidateUpdate(old runtime.Object) error {
+func (r *Nova) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	novalog.Info("validate update", "name", r.Name)
 	oldNova, ok := old.(*Nova)
 	if !ok || oldNova == nil {
-		return apierrors.NewInternalError(fmt.Errorf("unable to convert existing object"))
+		return nil, apierrors.NewInternalError(fmt.Errorf("unable to convert existing object"))
 	}
 
 	errors := r.Spec.ValidateUpdate(oldNova.Spec, field.NewPath("spec"))
 	if len(errors) != 0 {
 		novalog.Info("validation failed", "name", r.Name)
-		return apierrors.NewInvalid(
+		return nil, apierrors.NewInvalid(
 			schema.GroupKind{Group: "nova.openstack.org", Kind: "Nova"},
 			r.Name, errors)
 	}
-	return nil
+	return nil, nil
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *Nova) ValidateDelete() error {
+func (r *Nova) ValidateDelete() (admission.Warnings, error) {
 	novalog.Info("validate delete", "name", r.Name)
 
 	// TODO(user): fill in your validation logic upon object deletion.
-	return nil
+	return nil, nil
 }
