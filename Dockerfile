@@ -1,23 +1,21 @@
-ARG GOLANG_BUILDER=quay.io/projectquay/golang:1.19
-ARG OPERATOR_BASE_IMAGE=gcr.io/distroless/static:nonroot
+ARG GOLANG_BUILDER=registry.access.redhat.com/ubi9/go-toolset:1.19
+ARG OPERATOR_BASE_IMAGE=registry.access.redhat.com/ubi9/ubi-minimal:latest
 
 # Build the manager binary
 FROM $GOLANG_BUILDER AS builder
 
 #Arguments required by OSBS build system
 ARG CACHITO_ENV_FILE=/remote-source/cachito.env
-
 ARG REMOTE_SOURCE=.
 ARG REMOTE_SOURCE_DIR=/remote-source
 ARG REMOTE_SOURCE_SUBDIR=
 ARG DEST_ROOT=/dest-root
+ARG GO_BUILD_EXTRA_ARGS="-tags strictfipsruntime"
+ARG GO_BUILD_EXTRA_ENV_ARGS="CGO_ENABLED=1 GO111MODULE=on"
 
-ARG GO_BUILD_EXTRA_ARGS=
-# note we set CGO_ENABLED=0 to force a static build so that we can use
-# distroless/static as our base image
-ARG GO_BUILD_EXTRA_ENV_ARGS="CGO_ENABLED=0 GO111MODULE=on"
 COPY $REMOTE_SOURCE $REMOTE_SOURCE_DIR
 WORKDIR $REMOTE_SOURCE_DIR/$REMOTE_SOURCE_SUBDIR
+USER root
 RUN mkdir -p ${DEST_ROOT}/usr/local/bin/
 
 # cache deps before building and copying source so that we don't need to re-download as much
