@@ -1,0 +1,33 @@
+apiVersion: nova.openstack.org/v1beta1
+kind: Nova
+metadata:
+  name: nova-kuttl
+spec:
+  secret: osp-secret
+  apiServiceTemplate:
+    defaultConfigOverwrite:
+      policy.yaml: |
+        "os_compute_api:os-flavor-manage:create": "!"
+  cellTemplates:
+    cell0:
+      cellDatabaseInstance: openstack
+      cellDatabaseUser: nova_cell0
+      cellMessageBusInstance: rabbitmq
+      hasAPIAccess: true
+    cell1:
+      cellDatabaseInstance: openstack-cell1
+      cellDatabaseUser: nova_cell1
+      cellMessageBusInstance: rabbitmq-cell1
+      novaComputeTemplates:
+        compute-fake1:
+          computeDriver: fake.FakeDriver
+          defaultConfigOverwrite:
+            provider.yaml: |
+              meta:
+                schema_version: '1.0'
+              providers:
+                - identification:
+                    uuid: '$COMPUTE_NODE'
+                  traits:
+                    additional:
+                      - 'CUSTOM_FOO'
