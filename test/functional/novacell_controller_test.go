@@ -424,6 +424,43 @@ var _ = Describe("NovaCell controller", func() {
 				corev1.ConditionTrue,
 			)
 		})
+		It("deletes NovaCompute if removed from the template", func() {
+			th.SimulateJobSuccess(cell1.DBSyncJobName)
+			th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
+			th.SimulateStatefulSetReplicaReady(cell1.NovaComputeStatefulSetName)
+			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
+			th.SimulateStatefulSetReplicaReady(cell1.MetadataStatefulSetName)
+
+			th.ExpectCondition(
+				cell1.CellCRName,
+				ConditionGetterFunc(NovaCellConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			novaCell := GetNovaCell(cell1.CellCRName)
+			Expect(novaCell.Status.NovaComputesStatus[ironicComputeName]).To(Equal(
+				novav1.NovaComputeCellStatus{Deployed: true, Errors: false}))
+
+			// Cell is ready. Now remove the compute definition
+			Eventually(func(g Gomega) {
+				novaCell := GetNovaCell(cell1.CellCRName)
+				novaCell.Spec.NovaComputeTemplates = map[string]novav1.NovaComputeTemplate{}
+
+				g.Expect(k8sClient.Update(ctx, novaCell)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			AssertComputeDoesNotExist(cell1.NovaComputeName)
+			th.ExpectCondition(
+				cell1.CellCRName,
+				ConditionGetterFunc(NovaCellConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+			novaCell = GetNovaCell(cell1.CellCRName)
+			Expect(novaCell.Status.NovaComputesStatus).To(BeEmpty())
+
+		})
 	})
 	When("A NovaCell/cell2 CR instance is created without VNCProxy", func() {
 		BeforeEach(func() {
