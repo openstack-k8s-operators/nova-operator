@@ -27,17 +27,14 @@ spec:
       [DEFAULT]
       debug=True
     defaultConfigOverwrite:
-      logging.conf: |
-        # my custom logging configuration
+      policy.yaml: |
+        # my custom policy configuration
     nodeSelector: {}
   schedulerServiceTemplate:
     customServiceConfig: |
       # service config customization
       [DEFAULT]
       debug=True
-    defaultConfigOverwrite:
-      policy.yaml: |
-        # my custom policy
     nodeSelector: {}
   metadataServiceTemplate:
     customServiceConfig: |
@@ -45,8 +42,8 @@ spec:
       [DEFAULT]
       debug=True
     defaultConfigOverwrite:
-      logging.conf: |
-        # my custom logging configuration
+      api-paste.ini: |
+        # my custom api paste config
     nodeSelector: {}
   cellTemplates:
     cell0:
@@ -62,9 +59,6 @@ spec:
           # service config customization
           [DEFAULT]
           debug=True
-        defaultConfigOverwrite:
-          logging.conf: |
-          # my custom logging configuration
         nodeSelector: {}
     cell1:
       cellDatabaseInstance: mariadb-cell1
@@ -78,18 +72,12 @@ spec:
           # service config customization
           [DEFAULT]
           debug=True
-        defaultConfigOverwrite:
-          logging.conf: |
-          # my custom logging configuration
         nodeSelector: {}
       noVNCProxyServiceTemplate:
         customServiceConfig: |
           # service config customization
           [DEFAULT]
           debug=True
-        defaultConfigOverwrite:
-          logging.conf: |
-          # my custom logging configuration
         nodeSelector: {}
     cell2:
       cellDatabaseInstance: mariadb-cell2
@@ -102,16 +90,10 @@ spec:
           # service config customization
           [DEFAULT]
           debug=True
-        defaultConfigOverwrite:
-          logging.conf: |
-          # my custom logging configuration
         nodeSelector: {}
       noVNCProxyServiceTemplate:
         customServiceConfig: |
           # service config customization
           [DEFAULT]
           debug=True
-        defaultConfigOverwrite:
-          logging.conf: |
-          # my custom logging configuration
         nodeSelector: {}
