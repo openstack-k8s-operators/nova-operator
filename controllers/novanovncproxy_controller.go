@@ -31,7 +31,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/go-logr/logr"
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
@@ -85,7 +84,6 @@ func (r *NovaNoVNCProxyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	// Fetch the NovaNoVNCProxy instance that needs to be reconciled
 	instance := &novav1.NovaNoVNCProxy{}
 	err := r.Client.Get(ctx, req.NamespacedName, instance)
-
 	if err != nil {
 		if k8s_errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
@@ -341,7 +339,6 @@ func (r *NovaNoVNCProxyReconciler) generateConfigs(
 	ctx context.Context, h *helper.Helper, instance *novav1.NovaNoVNCProxy, hashes *map[string]env.Setter,
 	secret corev1.Secret,
 ) error {
-
 	templateParameters := map[string]interface{}{
 		"service_name":           novncproxy.ServiceName,
 		"keystone_internal_url":  instance.Spec.KeystoneAuthURL,
@@ -580,7 +577,7 @@ func getNoVNCProxyServiceLabels(cell string) map[string]string {
 	}
 }
 
-func (r *NovaNoVNCProxyReconciler) findObjectsForSrc(src client.Object) []reconcile.Request {
+func (r *NovaNoVNCProxyReconciler) findObjectsForSrc(ctx context.Context, src client.Object) []reconcile.Request {
 	requests := []reconcile.Request{}
 
 	l := log.FromContext(context.Background()).WithName("Controllers").WithName("NovaNoVNCProxy")
@@ -667,7 +664,7 @@ func (r *NovaNoVNCProxyReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.Secret{}).
 		// watch the input secrets
 		Watches(
-			&source.Kind{Type: &corev1.Secret{}},
+			&corev1.Secret{},
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForSrc),
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
 		).

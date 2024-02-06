@@ -33,7 +33,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/go-logr/logr"
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
@@ -503,7 +502,6 @@ func (r *NovaConductorReconciler) cleanServiceFromNovaDb(
 	secret corev1.Secret,
 	l logr.Logger,
 ) error {
-
 	authPassword := string(secret.Data[ServicePasswordSelector])
 	computeClient, err := getNovaClient(ctx, h, instance, authPassword, l)
 	if err != nil {
@@ -513,7 +511,7 @@ func (r *NovaConductorReconciler) cleanServiceFromNovaDb(
 	return cleanNovaServiceFromNovaDb(ctx, computeClient, "nova-conductor")
 }
 
-func (r *NovaConductorReconciler) findObjectsForSrc(src client.Object) []reconcile.Request {
+func (r *NovaConductorReconciler) findObjectsForSrc(ctx context.Context, src client.Object) []reconcile.Request {
 	requests := []reconcile.Request{}
 
 	l := log.FromContext(context.Background()).WithName("Controllers").WithName("NovaConductor")
@@ -587,7 +585,7 @@ func (r *NovaConductorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.Secret{}).
 		// watch the input secrets
 		Watches(
-			&source.Kind{Type: &corev1.Secret{}},
+			&corev1.Secret{},
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForSrc),
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
 		).

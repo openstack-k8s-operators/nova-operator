@@ -33,7 +33,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/go-logr/logr"
 
@@ -392,7 +391,6 @@ func (r *NovaAPIReconciler) ensureConfigs(
 func (r *NovaAPIReconciler) generateConfigs(
 	ctx context.Context, h *helper.Helper, instance *novav1.NovaAPI, hashes *map[string]env.Setter, secret corev1.Secret,
 ) error {
-
 	templateParameters := map[string]interface{}{
 		"service_name":          "nova-api",
 		"keystone_internal_url": instance.Spec.KeystoneAuthURL,
@@ -544,7 +542,7 @@ func (r *NovaAPIReconciler) ensureServiceExposed(
 	h *helper.Helper,
 	instance *novav1.NovaAPI,
 ) (map[string]string, ctrl.Result, error) {
-	var ports = map[service.Endpoint]endpoint.Data{
+	ports := map[service.Endpoint]endpoint.Data{
 		service.EndpointPublic: {
 			Port: novaapi.APIServicePort,
 			Path: "/v2.1",
@@ -755,7 +753,7 @@ func getAPIServiceLabels() map[string]string {
 	}
 }
 
-func (r *NovaAPIReconciler) findObjectsForSrc(src client.Object) []reconcile.Request {
+func (r *NovaAPIReconciler) findObjectsForSrc(ctx context.Context, src client.Object) []reconcile.Request {
 	requests := []reconcile.Request{}
 
 	l := log.FromContext(context.Background()).WithName("Controllers").WithName("NovaAPI")
@@ -856,7 +854,7 @@ func (r *NovaAPIReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.Secret{}).
 		// watch the input secrets
 		Watches(
-			&source.Kind{Type: &corev1.Secret{}},
+			&corev1.Secret{},
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForSrc),
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
 		).

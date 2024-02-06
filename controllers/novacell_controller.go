@@ -35,7 +35,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/go-logr/logr"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
@@ -366,7 +365,6 @@ func (r *NovaCellReconciler) ensureConductor(
 
 		return nil
 	})
-
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			novav1.NovaConductorReadyCondition,
@@ -462,7 +460,6 @@ func (r *NovaCellReconciler) ensureNoVNCProxy(
 
 		return nil
 	})
-
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			novav1.NovaNoVNCProxyReadyCondition,
@@ -586,7 +583,6 @@ func (r *NovaCellReconciler) ensureMetadata(
 
 		return nil
 	})
-
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			novav1.NovaMetadataReadyCondition,
@@ -623,7 +619,6 @@ func (r *NovaCellReconciler) ensureComputeConfig(
 	secret corev1.Secret,
 	vncProxyURL *string,
 ) (ctrl.Result, error) {
-
 	err := r.generateComputeConfigs(ctx, h, instance, secret, vncProxyURL)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
@@ -748,7 +743,6 @@ func (r *NovaCellReconciler) ensureNovaCompute(
 
 		return nil
 	})
-
 	if err != nil {
 		Log.Error(err, "Failed to create NovaCompute CR")
 		computeStatus.Errors = true
@@ -817,7 +811,6 @@ func (r *NovaCellReconciler) generateComputeConfigs(
 func (r *NovaCellReconciler) getVNCProxyURL(
 	ctx context.Context, h *helper.Helper, instance *novav1.NovaCell,
 ) (*string, error) {
-
 	// we should restructure this to be in the same order as the reset of the resources
 	// <nova_instance>-<cell_name>-<service_name>-<service_type>
 	vncServiceName := fmt.Sprintf("nova-novncproxy-%s-public", instance.Spec.CellName)
@@ -851,7 +844,7 @@ func (r *NovaCellReconciler) getVNCProxyURL(
 	return ptr.To(vncProxyURL), nil
 }
 
-func (r *NovaCellReconciler) findObjectsForSrc(src client.Object) []reconcile.Request {
+func (r *NovaCellReconciler) findObjectsForSrc(ctx context.Context, src client.Object) []reconcile.Request {
 	requests := []reconcile.Request{}
 
 	l := log.FromContext(context.Background()).WithName("Controllers").WithName("NovaCell")
@@ -915,7 +908,7 @@ func (r *NovaCellReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.Secret{}).
 		// watch the input secrets
 		Watches(
-			&source.Kind{Type: &corev1.Secret{}},
+			&corev1.Secret{},
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForSrc),
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
 		).
