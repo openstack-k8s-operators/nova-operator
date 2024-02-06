@@ -642,4 +642,75 @@ var _ = Describe("Nova validation", func() {
 			),
 		)
 	})
+	It("rejects NovaAPI with wrong defaultConfigOverwrite", func() {
+		spec := GetDefaultNovaAPISpec(novaNames)
+		spec["defaultConfigOverwrite"] = map[string]interface{}{
+			"policy.yaml":   "custom policy",
+			"api-paste.ini": "custom paste config",
+			"foo.conf":      "wrong custom config",
+		}
+		raw := map[string]interface{}{
+			"apiVersion": "nova.openstack.org/v1beta1",
+			"kind":       "NovaAPI",
+			"metadata": map[string]interface{}{
+				"name":      novaNames.APIName.Name,
+				"namespace": novaNames.Namespace,
+			},
+			"spec": spec,
+		}
+
+		unstructuredObj := &unstructured.Unstructured{Object: raw}
+		_, err := controllerutil.CreateOrPatch(
+			ctx, k8sClient, unstructuredObj, func() error { return nil })
+
+		Expect(err).Should(HaveOccurred())
+		var statusError *k8s_errors.StatusError
+		Expect(errors.As(err, &statusError)).To(BeTrue())
+		Expect(statusError.ErrStatus.Details.Kind).To(Equal("NovaAPI"))
+		Expect(statusError.ErrStatus.Message).To(
+			ContainSubstring(
+				"invalid: spec.defaultConfigOverwrite: " +
+					"Invalid value: \"foo.conf\": Only the following keys " +
+					"are valid: policy.yaml, api-paste.ini",
+			),
+		)
+	})
+	It("rejects Nova with wrong defaultConfigOverwrite in NovaAPI", func() {
+		spec := GetDefaultNovaSpec()
+		spec["cellTemplates"] = map[string]interface{}{
+			"cell0": GetDefaultNovaCellTemplate(),
+		}
+		spec["apiServiceTemplate"] = map[string]interface{}{
+			"defaultConfigOverwrite": map[string]interface{}{
+				"policy.yaml":   "custom policy",
+				"api-paste.ini": "custom paste config",
+				"provider.yaml": "provider.yaml not supported here",
+			},
+		}
+		raw := map[string]interface{}{
+			"apiVersion": "nova.openstack.org/v1beta1",
+			"kind":       "Nova",
+			"metadata": map[string]interface{}{
+				"name":      novaNames.NovaName.Name,
+				"namespace": novaNames.Namespace,
+			},
+			"spec": spec,
+		}
+
+		unstructuredObj := &unstructured.Unstructured{Object: raw}
+		_, err := controllerutil.CreateOrPatch(
+			ctx, k8sClient, unstructuredObj, func() error { return nil })
+
+		Expect(err).Should(HaveOccurred())
+		var statusError *k8s_errors.StatusError
+		Expect(errors.As(err, &statusError)).To(BeTrue())
+		Expect(statusError.ErrStatus.Details.Kind).To(Equal("Nova"))
+		Expect(statusError.ErrStatus.Message).To(
+			ContainSubstring(
+				"invalid: spec.apiServiceTemplate.defaultConfigOverwrite: " +
+					"Invalid value: \"provider.yaml\": Only the following " +
+					"keys are valid: policy.yaml, api-paste.ini"),
+		)
+	})
+
 })

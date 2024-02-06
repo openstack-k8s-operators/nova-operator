@@ -23,7 +23,10 @@ limitations under the License.
 package v1beta1
 
 import (
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
@@ -79,7 +82,16 @@ var _ webhook.Validator = &NovaAPI{}
 func (r *NovaAPI) ValidateCreate() error {
 	novaapilog.Info("validate create", "name", r.Name)
 
-	// TODO(user): fill in your validation logic upon object creation.
+	errors := ValidateAPIDefaultConfigOverwrite(
+		field.NewPath("spec").Child("defaultConfigOverwrite"),
+		r.Spec.DefaultConfigOverwrite)
+
+	if len(errors) != 0 {
+		novaapilog.Info("validation failed", "name", r.Name)
+		return apierrors.NewInvalid(
+			schema.GroupKind{Group: "nova.openstack.org", Kind: "NovaAPI"},
+			r.Name, errors)
+	}
 	return nil
 }
 
@@ -87,7 +99,16 @@ func (r *NovaAPI) ValidateCreate() error {
 func (r *NovaAPI) ValidateUpdate(old runtime.Object) error {
 	novaapilog.Info("validate update", "name", r.Name)
 
-	// TODO(user): fill in your validation logic upon object update.
+	errors := ValidateAPIDefaultConfigOverwrite(
+		field.NewPath("spec").Child("defaultConfigOverwrite"),
+		r.Spec.DefaultConfigOverwrite)
+
+	if len(errors) != 0 {
+		novaapilog.Info("validation failed", "name", r.Name)
+		return apierrors.NewInvalid(
+			schema.GroupKind{Group: "nova.openstack.org", Kind: "NovaAPI"},
+			r.Name, errors)
+	}
 	return nil
 }
 
@@ -97,4 +118,14 @@ func (r *NovaAPI) ValidateDelete() error {
 
 	// TODO(user): fill in your validation logic upon object deletion.
 	return nil
+}
+
+func ValidateAPIDefaultConfigOverwrite(
+	basePath *field.Path,
+	defaultConfigOverwrite map[string]string,
+) field.ErrorList {
+	return ValidateDefaultConfigOverwrite(
+		basePath,
+		defaultConfigOverwrite,
+		[]string{"policy.yaml", "api-paste.ini"})
 }

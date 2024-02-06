@@ -217,11 +217,19 @@ func (r *NovaSpec) ValidateCellTemplates(basePath *field.Path) field.ErrorList {
 	return errors
 }
 
+func (r *NovaSpec) ValidateAPIServiceTemplate(basePath *field.Path) field.ErrorList {
+	errors := ValidateAPIDefaultConfigOverwrite(
+		basePath.Child("apiServiceTemplate").Child("defaultConfigOverwrite"),
+		r.APIServiceTemplate.DefaultConfigOverwrite)
+	return errors
+}
+
 // ValidateCreate validates the NovaSpec during the webhook invocation. It is
 // expected to be called by the validation webhook in the higher level meta
 // operator
 func (r *NovaSpec) ValidateCreate(basePath *field.Path) field.ErrorList {
 	errors := r.ValidateCellTemplates(basePath)
+	errors = append(errors, r.ValidateAPIServiceTemplate(basePath)...)
 
 	return errors
 }
@@ -245,6 +253,7 @@ func (r *Nova) ValidateCreate() error {
 // operator
 func (r *NovaSpec) ValidateUpdate(old NovaSpec, basePath *field.Path) field.ErrorList {
 	errors := r.ValidateCellTemplates(basePath)
+	errors = append(errors, r.ValidateAPIServiceTemplate(basePath)...)
 
 	return errors
 }
