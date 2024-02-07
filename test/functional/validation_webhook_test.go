@@ -819,4 +819,112 @@ var _ = Describe("Nova validation", func() {
 					"keys are valid: api-paste.ini"),
 		)
 	})
+	It("rejects NovaCompute with wrong defaultConfigOverwrite", func() {
+		spec := GetDefaultNovaComputeSpec(cell1)
+		spec["defaultConfigOverwrite"] = map[string]interface{}{
+			"policy.yaml":      "custom policy not supported",
+			"provider123.yaml": "provider*.yaml is supported",
+		}
+		raw := map[string]interface{}{
+			"apiVersion": "nova.openstack.org/v1beta1",
+			"kind":       "NovaCompute",
+			"metadata": map[string]interface{}{
+				"name":      cell1.NovaComputeName.Name,
+				"namespace": novaNames.Namespace,
+			},
+			"spec": spec,
+		}
+
+		unstructuredObj := &unstructured.Unstructured{Object: raw}
+		_, err := controllerutil.CreateOrPatch(
+			ctx, k8sClient, unstructuredObj, func() error { return nil })
+
+		Expect(err).Should(HaveOccurred())
+		var statusError *k8s_errors.StatusError
+		Expect(errors.As(err, &statusError)).To(BeTrue())
+		Expect(statusError.ErrStatus.Details.Kind).To(Equal("NovaCompute"))
+		Expect(statusError.ErrStatus.Message).To(
+			ContainSubstring(
+				"invalid: spec.defaultConfigOverwrite: " +
+					"Invalid value: \"policy.yaml\": " +
+					"Only the following keys are valid: provider*.yaml",
+			),
+		)
+	})
+	It("rejects NovaCell with wrong defaultConfigOverwrite in computeTemplates", func() {
+		spec := GetDefaultNovaCellSpec(cell1)
+		novaCompute := GetDefaultNovaComputeTemplate()
+		novaCompute["defaultConfigOverwrite"] = map[string]interface{}{
+			"policy.yaml":      "custom policy not supported",
+			"provider123.yaml": "provider*.yaml is supported",
+		}
+		spec["novaComputeTemplates"] = map[string]interface{}{
+			ironicComputeName: novaCompute,
+		}
+
+		raw := map[string]interface{}{
+			"apiVersion": "nova.openstack.org/v1beta1",
+			"kind":       "NovaCell",
+			"metadata": map[string]interface{}{
+				"name":      cell1.CellCRName.Name,
+				"namespace": novaNames.Namespace,
+			},
+			"spec": spec,
+		}
+
+		unstructuredObj := &unstructured.Unstructured{Object: raw}
+		_, err := controllerutil.CreateOrPatch(
+			ctx, k8sClient, unstructuredObj, func() error { return nil })
+
+		Expect(err).Should(HaveOccurred())
+		var statusError *k8s_errors.StatusError
+		Expect(errors.As(err, &statusError)).To(BeTrue())
+		Expect(statusError.ErrStatus.Details.Kind).To(Equal("NovaCell"))
+		Expect(statusError.ErrStatus.Message).To(
+			ContainSubstring(
+				"invalid: spec.novaComputeTemplates[ironic-compute].defaultConfigOverwrite: " +
+					"Invalid value: \"policy.yaml\": " +
+					"Only the following keys are valid: provider*.yaml",
+			),
+		)
+	})
+	It("rejects Nova with wrong defaultConfigOverwrite in computeTemplates", func() {
+		spec := GetDefaultNovaSpec()
+		cell0 := GetDefaultNovaCellTemplate()
+		cell1 := GetDefaultNovaCellTemplate()
+		novaCompute := GetDefaultNovaComputeTemplate()
+		novaCompute["defaultConfigOverwrite"] = map[string]interface{}{
+			"policy.yaml":      "custom policy not supported",
+			"provider123.yaml": "provider*.yaml is supported",
+		}
+		cell1["novaComputeTemplates"] = map[string]interface{}{
+			ironicComputeName: novaCompute,
+		}
+		spec["cellTemplates"] = map[string]interface{}{"cell0": cell0, "cell1": cell1}
+		raw := map[string]interface{}{
+			"apiVersion": "nova.openstack.org/v1beta1",
+			"kind":       "Nova",
+			"metadata": map[string]interface{}{
+				"name":      novaNames.NovaName.Name,
+				"namespace": novaNames.Namespace,
+			},
+			"spec": spec,
+		}
+		unstructuredObj := &unstructured.Unstructured{Object: raw}
+		_, err := controllerutil.CreateOrPatch(
+			ctx, k8sClient, unstructuredObj, func() error { return nil })
+
+		Expect(err).Should(HaveOccurred())
+		var statusError *k8s_errors.StatusError
+		Expect(errors.As(err, &statusError)).To(BeTrue())
+		Expect(statusError.ErrStatus.Details.Kind).To(Equal("Nova"))
+		Expect(statusError.ErrStatus.Message).To(
+			ContainSubstring(
+				"invalid: spec.cellTemplates[cell1]." +
+					"novaComputeTemplates[ironic-compute].defaultConfigOverwrite: " +
+					"Invalid value: \"policy.yaml\": " +
+					"Only the following keys are valid: provider*.yaml",
+			),
+		)
+	})
 })

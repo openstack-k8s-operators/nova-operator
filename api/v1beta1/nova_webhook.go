@@ -216,6 +216,10 @@ func (r *NovaSpec) ValidateCellTemplates(basePath *field.Path) field.ErrorList {
 				errors, ValidateNovaComputeName(
 					cellPath.Child("novaComputeTemplates").Key(computeName), computeName)...,
 			)
+			errors = append(
+				errors, computeTemplate.ValidateDefaultConfigOverwrite(
+					cellPath.Child("novaComputeTemplates").Key(computeName))...,
+			)
 		}
 	}
 
