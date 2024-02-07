@@ -204,12 +204,12 @@ func (r *NovaSpec) ValidateCellTemplates(basePath *field.Path) field.ErrorList {
 			if computeTemplate.ComputeDriver == IronicDriver {
 				errors = append(
 					errors, computeTemplate.ValidateIronicDriverReplicas(
-						basePath.Child("novaComputeTemplates"))...,
+						cellPath.Child("novaComputeTemplates").Key(computeName))...,
 				)
 			}
 			errors = append(
 				errors, ValidateNovaComputeName(
-					basePath.Child("novaComputeTemplates"), computeName)...,
+					cellPath.Child("novaComputeTemplates").Key(computeName), computeName)...,
 			)
 		}
 	}

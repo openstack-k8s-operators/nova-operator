@@ -406,7 +406,8 @@ var _ = Describe("Nova validation", func() {
 		Expect(statusError.ErrStatus.Details.Kind).To(Equal("Nova"))
 		Expect(statusError.ErrStatus.Message).To(
 			ContainSubstring(
-				"invalid: spec.novaComputeTemplates: " +
+				"invalid: spec.cellTemplates[cell1]." +
+					"novaComputeTemplates[ironic-computexxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx]: " +
 					"Invalid value: \"ironic-computexxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\": " +
 					"should be shorter than 20 characters",
 			),
@@ -436,6 +437,43 @@ var _ = Describe("Nova validation", func() {
 			ctx, k8sClient, unstructuredObj, func() error { return nil })
 
 		Expect(err).Should(Succeed())
+	})
+	It("rejects ironic NovaCompute with replicas > 1", func() {
+		spec := GetDefaultNovaSpec()
+		cell0 := GetDefaultNovaCellTemplate()
+		cell1 := GetDefaultNovaCellTemplate()
+		novaCompute := GetDefaultNovaComputeTemplate()
+		novaCompute["replicas"] = 2
+		cell1["novaComputeTemplates"] = map[string]interface{}{
+			ironicComputeName: novaCompute,
+		}
+		spec["cellTemplates"] = map[string]interface{}{"cell0": cell0, "cell1": cell1}
+		raw := map[string]interface{}{
+			"apiVersion": "nova.openstack.org/v1beta1",
+			"kind":       "Nova",
+			"metadata": map[string]interface{}{
+				"name":      novaNames.NovaName.Name,
+				"namespace": novaNames.Namespace,
+			},
+			"spec": spec,
+		}
+
+		unstructuredObj := &unstructured.Unstructured{Object: raw}
+		_, err := controllerutil.CreateOrPatch(
+			ctx, k8sClient, unstructuredObj, func() error { return nil })
+
+		Expect(err).Should(HaveOccurred())
+		var statusError *k8s_errors.StatusError
+		Expect(errors.As(err, &statusError)).To(BeTrue())
+		Expect(statusError.ErrStatus.Details.Kind).To(Equal("Nova"))
+
+		Expect(statusError.ErrStatus.Message).To(
+			ContainSubstring(
+				"invalid: spec.cellTemplates[cell1]." +
+					"novaComputeTemplates[ironic-compute].replicas: " +
+					"Invalid value: 2: should be max 1 for ironic.IronicDriver",
+			),
+		)
 	})
 	It("rejects NovaCell - cell0 contains novacomputetemplates", func() {
 		spec := GetDefaultNovaCellSpec(cell0)
@@ -490,16 +528,16 @@ var _ = Describe("Nova validation", func() {
 		Expect(statusError.ErrStatus.Details.Kind).To(Equal("NovaCell"))
 		Expect(statusError.ErrStatus.Message).To(
 			ContainSubstring(
-				"invalid: spec.novaComputeTemplates: " +
+				"invalid: spec.novaComputeTemplates[ironic-computexxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx]: " +
 					"Invalid value: \"ironic-computexxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\": " +
 					"should be shorter than 20 characters",
 			),
 		)
 	})
-	DescribeTable("rejects NovaCell with wrong compute name", func(computName string) {
+	DescribeTable("rejects NovaCell with wrong compute name", func(computeName string) {
 		spec := GetDefaultNovaCellSpec(cell1)
 		spec["novaComputeTemplates"] = map[string]interface{}{
-			computName: GetDefaultNovaComputeTemplate(),
+			computeName: GetDefaultNovaComputeTemplate(),
 		}
 		raw := map[string]interface{}{
 			"apiVersion": "nova.openstack.org/v1beta1",
@@ -521,8 +559,8 @@ var _ = Describe("Nova validation", func() {
 		Expect(statusError.ErrStatus.Message).To(
 			ContainSubstring(
 				fmt.Sprintf(
-					"invalid: spec.novaComputeTemplates: Invalid value: "+
-						"\"%s\": should match with the regex", computName),
+					"invalid: spec.novaComputeTemplates[%s]: Invalid value: "+
+						"\"%s\": should match with the regex", computeName, computeName),
 			),
 		)
 	},
