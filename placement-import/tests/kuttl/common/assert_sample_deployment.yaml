@@ -18,7 +18,7 @@ spec:
   secret: osp-secret
   serviceUser: placement
 status:
-  databaseHostname: openstack
+  databaseHostname: openstack.placement-kuttl-tests.svc
   readyCount: 1
   conditions:
   - message: Setup complete

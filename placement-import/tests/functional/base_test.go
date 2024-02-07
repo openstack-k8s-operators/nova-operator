@@ -25,6 +25,7 @@ import (
 
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	placementv1 "github.com/openstack-k8s-operators/placement-operator/api/v1beta1"
+	"github.com/openstack-k8s-operators/placement-operator/pkg/placement"
 )
 
 type Names struct {
@@ -53,14 +54,12 @@ func CreateNames(placementAPIName types.NamespacedName) Names {
 		ConfigMapName: types.NamespacedName{
 			Namespace: placementAPIName.Namespace,
 			Name:      placementAPIName.Name + "-config-data"},
-		// FIXME(gibi): the db sync job name should not be hardcoded
-		// but based on the name of the PlacementAPI CR
 		DBSyncJobName: types.NamespacedName{
 			Namespace: placementAPIName.Namespace,
 			Name:      placementAPIName.Name + "-db-sync"},
-		MariaDBDatabaseName: placementAPIName,
-		// FIXME(gibi): the deployment name should not be hardcoded
-		// but based on the name of the PlacementAPI CR
+		MariaDBDatabaseName: types.NamespacedName{
+			Namespace: placementAPIName.Namespace,
+			Name:      placement.DatabaseName},
 		DeploymentName: types.NamespacedName{
 			Namespace: placementAPIName.Namespace,
 			Name:      placementAPIName.Name},

@@ -211,6 +211,9 @@ type PlacementAPIReconciler struct {
 // +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=mariadb.openstack.org,resources=mariadbdatabases,verbs=get;list;watch;create;update;patch;delete;
+// +kubebuilder:rbac:groups=mariadb.openstack.org,resources=mariadbdatabases/finalizers,verbs=update
+// +kubebuilder:rbac:groups=mariadb.openstack.org,resources=mariadbaccounts,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=mariadb.openstack.org,resources=mariadbaccounts/finalizers,verbs=update
 // +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneapis,verbs=get;list;watch;
 // +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneservices,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneendpoints,verbs=get;list;watch;create;update;patch;delete;
@@ -863,6 +866,7 @@ func (r *PlacementAPIReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&placementv1.PlacementAPI{}).
 		Owns(&mariadbv1.MariaDBDatabase{}).
+		Owns(&mariadbv1.MariaDBAccount{}).
 		Owns(&keystonev1.KeystoneService{}).
 		Owns(&keystonev1.KeystoneEndpoint{}).
 		Owns(&batchv1.Job{}).
@@ -919,7 +923,7 @@ func (r *PlacementAPIReconciler) reconcileDelete(ctx context.Context, instance *
 	Log.Info("Reconciling Service delete")
 
 	// remove db finalizer before the placement one
-	db, err := mariadbv1.GetDatabaseByName(ctx, helper, instance.Name)
+	db, err := mariadbv1.GetDatabaseByName(ctx, helper, placement.DatabaseName)
 	if err != nil && !k8s_errors.IsNotFound(err) {
 		return ctrl.Result{}, err
 	}
@@ -975,13 +979,15 @@ func (r *PlacementAPIReconciler) ensureDB(
 	instance *placementv1.PlacementAPI,
 ) (ctrl.Result, error) {
 	// (ksambor) should we use  NewDatabaseWithNamespace instead?
-	db := mariadbv1.NewDatabase(
+	db := mariadbv1.NewDatabaseWithNamespace(
 		placement.DatabaseName,
 		instance.Spec.DatabaseUser,
 		instance.Spec.Secret,
 		map[string]string{
 			"dbName": instance.Spec.DatabaseInstance,
 		},
+		placement.DatabaseName,
+		instance.Namespace,
 	)
 	// create or patch the DB
 	ctrlResult, err := db.CreateOrPatchDBByName(

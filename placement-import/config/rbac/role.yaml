@@ -137,6 +137,24 @@ rules:
 - apiGroups:
   - mariadb.openstack.org
   resources:
+  - mariadbaccounts
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - mariadb.openstack.org
+  resources:
+  - mariadbaccounts/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - mariadb.openstack.org
+  resources:
   - mariadbdatabases
   verbs:
   - create
@@ -146,6 +164,12 @@ rules:
   - patch
   - update
   - watch
+- apiGroups:
+  - mariadb.openstack.org
+  resources:
+  - mariadbdatabases/finalizers
+  verbs:
+  - update
 - apiGroups:
   - placement.openstack.org
   resources:

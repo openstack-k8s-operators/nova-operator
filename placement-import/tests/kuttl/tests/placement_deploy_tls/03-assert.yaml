@@ -25,7 +25,7 @@ spec:
         secretName: cert-public-svc
     caBundleSecretName: combined-ca-bundle
 status:
-  databaseHostname: openstack
+  databaseHostname: openstack.placement-kuttl-tests.svc
   readyCount: 1
   conditions:
   - message: Setup complete
