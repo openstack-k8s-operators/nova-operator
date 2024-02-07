@@ -18,25 +18,28 @@ package v1beta1
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	"k8s.io/utils/strings/slices"
 )
 
+// ValidateDefaultConfigOverwrite checks if the file names in the overwrite map
+// are allowed and return an error for each unsupported files. The allowedKeys
+// list supports direct string match and globs like provider*.yaml
 func ValidateDefaultConfigOverwrite(
 	basePath *field.Path,
 	defaultConfigOverwrite map[string]string,
 	allowedKeys []string,
 ) field.ErrorList {
 	var errors field.ErrorList
-	for k := range defaultConfigOverwrite {
-		if !slices.Contains(allowedKeys, k) {
+	for requested := range defaultConfigOverwrite {
+		if !matchAny(requested, allowedKeys) {
 			errors = append(
 				errors,
 				field.Invalid(
 					basePath,
-					k,
+					requested,
 					fmt.Sprintf(
 						"Only the following keys are valid: %s",
 						strings.Join(allowedKeys, ", ")),
@@ -45,4 +48,13 @@ func ValidateDefaultConfigOverwrite(
 		}
 	}
 	return errors
+}
+
+func matchAny(requested string, allowed []string) bool {
+	for _, a := range allowed {
+		if matched, _ := filepath.Match(a, requested); matched {
+			return true
+		}
+	}
+	return false
 }

@@ -142,6 +142,10 @@ func (r *NovaComputeSpec) validate(basePath *field.Path) field.ErrorList {
 				basePath.Child("replicas"), *r.NovaServiceBase.Replicas, "should be max 1 for ironic.IronicDriver"),
 		)
 	}
+	errors = append(
+		errors,
+		ValidateComputeDefaultConfigOverwrite(
+			basePath.Child("defaultConfigOverwrite"), r.DefaultConfigOverwrite)...)
 
 	return errors
 }
@@ -157,6 +161,19 @@ func (r *NovaComputeTemplate) ValidateIronicDriverReplicas(basePath *field.Path)
 		)
 	}
 	return errors
+}
+
+func (r *NovaComputeTemplate) ValidateDefaultConfigOverwrite(basePath *field.Path) field.ErrorList {
+	return ValidateComputeDefaultConfigOverwrite(
+		basePath.Child("defaultConfigOverwrite"), r.DefaultConfigOverwrite)
+}
+
+func ValidateComputeDefaultConfigOverwrite(
+	basePath *field.Path,
+	defaultConfigOverwrite map[string]string,
+) field.ErrorList {
+	return ValidateDefaultConfigOverwrite(
+		basePath, defaultConfigOverwrite, []string{"provider*.yaml"})
 }
 
 // ValidateNovaComputeName validates the compute name. It is expected to be called
