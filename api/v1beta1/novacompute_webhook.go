@@ -184,9 +184,9 @@ func ValidateNovaComputeName(path *field.Path, computeName string) field.ErrorLi
 
 // ValidateNovaComputeCell0 validates cell0 NoVNCProxy template. This is expected to be
 // called by higher level validation webhooks
-func ValidateNovaComputeCell0(basePath *field.Path, mapLenght int) field.ErrorList {
+func ValidateNovaComputeCell0(basePath *field.Path, mapLength int) field.ErrorList {
 	var errors field.ErrorList
-	if mapLenght > 0 {
+	if mapLength > 0 {
 		errors = append(
 			errors,
 			field.Invalid(
