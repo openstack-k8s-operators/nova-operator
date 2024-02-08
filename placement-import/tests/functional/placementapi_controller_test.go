@@ -226,7 +226,12 @@ var _ = Describe("PlacementAPI controller", func() {
 		var keystoneAPI *keystonev1.KeystoneAPI
 
 		BeforeEach(func() {
-			DeferCleanup(th.DeleteInstance, CreatePlacementAPI(names.PlacementAPIName, GetDefaultPlacementAPISpec()))
+			spec := GetDefaultPlacementAPISpec()
+			spec["customServiceConfig"] = "foo = bar"
+			spec["defaultConfigOverwrite"] = map[string]interface{}{
+				"policy.yaml": "\"placement:resource_providers:list\": \"!\"",
+			}
+			DeferCleanup(th.DeleteInstance, CreatePlacementAPI(names.PlacementAPIName, spec))
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreatePlacementAPISecret(namespace, SecretName))
 			keystoneAPIName := keystone.CreateKeystoneAPI(namespace)
@@ -242,19 +247,28 @@ var _ = Describe("PlacementAPI controller", func() {
 				corev1.ConditionTrue,
 			)
 		})
-		It("should create a ConfigMap for placement.conf", func() {
+		It("should create a configuration Secret", func() {
 			cm := th.GetSecret(names.ConfigMapName)
 
-			Expect(cm.Data["placement.conf"]).Should(
+			conf := cm.Data["placement.conf"]
+			Expect(conf).Should(
 				ContainSubstring("auth_url = %s", keystoneAPI.Status.APIEndpoints["internal"]))
-			Expect(cm.Data["placement.conf"]).Should(
+			Expect(conf).Should(
 				ContainSubstring("www_authenticate_uri = %s", keystoneAPI.Status.APIEndpoints["public"]))
-			Expect(cm.Data["placement.conf"]).Should(
+			Expect(conf).Should(
 				ContainSubstring("username = placement"))
-			Expect(cm.Data["placement.conf"]).Should(
+			Expect(conf).Should(
 				ContainSubstring("password = 12345678"))
-			Expect(cm.Data["placement.conf"]).Should(
+			Expect(conf).Should(
 				ContainSubstring("connection = mysql+pymysql://placement:12345678@/placement"))
+
+			custom := cm.Data["custom.conf"]
+			Expect(custom).Should(ContainSubstring("foo = bar"))
+
+			policy := cm.Data["policy.yaml"]
+			Expect(policy).Should(
+				ContainSubstring("\"placement:resource_providers:list\": \"!\""))
+
 		})
 
 		It("creates service account, role and rolebindig", func() {

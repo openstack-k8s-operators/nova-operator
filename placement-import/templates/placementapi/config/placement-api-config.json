@@ -40,6 +40,13 @@
             "perm": "0400",
             "optional": true,
             "merge": true
+        },
+        {
+            "source": "/var/lib/openstack/config/policy.yaml",
+            "dest": "/etc/placement/policy.yaml",
+            "owner": "placement",
+            "perm": "0600",
+            "optional": true
         }
     ],
     "permissions": [

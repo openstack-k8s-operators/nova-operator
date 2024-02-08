@@ -73,10 +73,8 @@ spec:
               defaultConfigOverwrite:
                 additionalProperties:
                   type: string
-                description: 'ConfigOverwrite - interface to overwrite default config
-                  files like e.g. policy.json. But can also be used to add additional
-                  files. Those get added to the service config dir in /etc/<service>
-                  . TODO: -> implement'
+                description: DefaultConfigOverwrite - interface to overwrite default
+                  config files like policy.yaml.
                 type: object
               networkAttachments:
                 description: NetworkAttachments is a list of NetworkAttachment resource

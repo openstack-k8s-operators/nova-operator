@@ -1175,7 +1175,6 @@ func (r *PlacementAPIReconciler) ensureDeployment(
 }
 
 // generateServiceConfigMaps - create create configmaps which hold scripts and service configuration
-// TODO add DefaultConfigOverwrite
 func (r *PlacementAPIReconciler) generateServiceConfigMaps(
 	ctx context.Context,
 	h *helper.Helper,
@@ -1195,7 +1194,6 @@ func (r *PlacementAPIReconciler) generateServiceConfigMaps(
 	// customData hold any customization for the service.
 	// custom.conf is going to /etc/<service>/<service>.conf.d
 	// all other files get placed into /etc/<service> to allow overwrite of e.g. policy.json
-	// TODO: make sure custom.conf can not be overwritten
 	customData := map[string]string{common.CustomServiceConfigFileName: instance.Spec.CustomServiceConfig}
 	for key, data := range instance.Spec.DefaultConfigOverwrite {
 		customData[key] = data

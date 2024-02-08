@@ -94,9 +94,7 @@ type PlacementAPISpec struct {
 	CustomServiceConfig string `json:"customServiceConfig"`
 
 	// +kubebuilder:validation:Optional
-	// ConfigOverwrite - interface to overwrite default config files like e.g. policy.json.
-	// But can also be used to add additional files. Those get added to the service config dir in /etc/<service> .
-	// TODO: -> implement
+	// DefaultConfigOverwrite - interface to overwrite default config files like policy.yaml.
 	DefaultConfigOverwrite map[string]string `json:"defaultConfigOverwrite,omitempty"`
 
 	// +kubebuilder:validation:Optional

@@ -17,11 +17,15 @@ limitations under the License.
 package functional_test
 
 import (
+	"errors"
 	"os"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	placementv1 "github.com/openstack-k8s-operators/placement-operator/api/v1beta1"
 )
@@ -68,4 +72,37 @@ var _ = Describe("PlacementAPI Webhook", func() {
 			))
 		})
 	})
+
+	It("rejects PlacementAPI with wrong defaultConfigOverwrite", func() {
+		spec := GetDefaultPlacementAPISpec()
+		spec["defaultConfigOverwrite"] = map[string]interface{}{
+			"policy.yaml":   "support",
+			"api-paste.ini": "not supported",
+		}
+		raw := map[string]interface{}{
+			"apiVersion": "placement.openstack.org/v1beta1",
+			"kind":       "PlacementAPI",
+			"metadata": map[string]interface{}{
+				"name":      placementApiName.Name,
+				"namespace": placementApiName.Namespace,
+			},
+			"spec": spec,
+		}
+		unstructuredObj := &unstructured.Unstructured{Object: raw}
+		_, err := controllerutil.CreateOrPatch(
+			ctx, k8sClient, unstructuredObj, func() error { return nil })
+
+		Expect(err).Should(HaveOccurred())
+		var statusError *k8s_errors.StatusError
+		Expect(errors.As(err, &statusError)).To(BeTrue())
+		Expect(statusError.ErrStatus.Details.Kind).To(Equal("PlacementAPI"))
+		Expect(statusError.ErrStatus.Message).To(
+			ContainSubstring(
+				"invalid: spec.defaultConfigOverwrite: " +
+					"Invalid value: \"api-paste.ini\": " +
+					"Only the following keys are valid: policy.yaml",
+			),
+		)
+	})
+
 })
