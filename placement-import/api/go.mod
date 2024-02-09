@@ -3,7 +3,7 @@ module github.com/openstack-k8s-operators/placement-operator/api
 go 1.19
 
 require (
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.3.1-0.20240122121228-01dfaafeef46
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.3.1-0.20240129151020-c9467a8fbbfc
 	k8s.io/api v0.26.13
 	k8s.io/apimachinery v0.26.13
 	sigs.k8s.io/controller-runtime v0.14.7
@@ -41,6 +41,7 @@ require (
 	github.com/prometheus/common v0.37.0 // indirect
 	github.com/prometheus/procfs v0.8.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
+	github.com/stretchr/testify v1.8.3 // indirect
 	golang.org/x/net v0.20.0 // indirect
 	golang.org/x/oauth2 v0.7.0 // indirect
 	golang.org/x/sys v0.16.0 // indirect
