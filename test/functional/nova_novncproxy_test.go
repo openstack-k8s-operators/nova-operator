@@ -133,7 +133,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 		When("the Secret is created with all the expected fields", func() {
 			BeforeEach(func() {
 				DeferCleanup(
-					k8sClient.Delete, ctx, CreateCellInternalSecret(cell1))
+					k8sClient.Delete, ctx, CreateDefaultCellInternalSecret(cell1))
 			})
 
 			It("reports that input is ready", func() {
@@ -183,7 +183,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 		When("NoVNCProxy is created with a proper Secret", func() {
 			BeforeEach(func() {
 				DeferCleanup(
-					k8sClient.Delete, ctx, CreateCellInternalSecret(cell1))
+					k8sClient.Delete, ctx, CreateDefaultCellInternalSecret(cell1))
 			})
 
 			It(" reports input ready", func() {
@@ -296,7 +296,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 			spec["networkAttachments"] = []string{"internalapi"}
 			DeferCleanup(th.DeleteInstance, CreateNovaNoVNCProxy(cell1.NoVNCProxyName, spec))
 			DeferCleanup(
-				k8sClient.Delete, ctx, CreateCellInternalSecret(cell1))
+				k8sClient.Delete, ctx, CreateDefaultCellInternalSecret(cell1))
 		})
 
 		It("reports that the definition is missing", func() {
@@ -421,7 +421,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 
 		BeforeEach(func() {
 			DeferCleanup(
-				k8sClient.Delete, ctx, CreateCellInternalSecret(cell1))
+				k8sClient.Delete, ctx, CreateDefaultCellInternalSecret(cell1))
 
 			spec := GetDefaultNovaNoVNCProxySpec(cell1)
 			serviceOverride := map[string]interface{}{
@@ -466,7 +466,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 
 		BeforeEach(func() {
 			DeferCleanup(
-				k8sClient.Delete, ctx, CreateCellInternalSecret(cell1))
+				k8sClient.Delete, ctx, CreateDefaultCellInternalSecret(cell1))
 
 			spec := GetDefaultNovaNoVNCProxySpec(cell1)
 			serviceOverride := map[string]interface{}{
@@ -526,7 +526,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 	When("NovaNoVNCProxy is reconfigured", func() {
 		BeforeEach(func() {
 			DeferCleanup(
-				k8sClient.Delete, ctx, CreateCellInternalSecret(cell1))
+				k8sClient.Delete, ctx, CreateDefaultCellInternalSecret(cell1))
 
 			noVNCProxy := CreateNovaNoVNCProxy(cell1.NoVNCProxyName, GetDefaultNovaNoVNCProxySpec(cell1))
 			DeferCleanup(th.DeleteInstance, noVNCProxy)
@@ -624,7 +624,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 	When("starts zero replicas", func() {
 		BeforeEach(func() {
 			DeferCleanup(
-				k8sClient.Delete, ctx, CreateCellInternalSecret(cell1))
+				k8sClient.Delete, ctx, CreateDefaultCellInternalSecret(cell1))
 
 			spec := GetDefaultNovaNoVNCProxySpec(cell1)
 			spec["replicas"] = 0
@@ -655,7 +655,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 			}
 			DeferCleanup(th.DeleteInstance, CreateNovaNoVNCProxy(cell1.NoVNCProxyName, spec))
 			DeferCleanup(
-				k8sClient.Delete, ctx, CreateCellInternalSecret(cell1))
+				k8sClient.Delete, ctx, CreateDefaultCellInternalSecret(cell1))
 		})
 
 		It("reports that the CA secret is missing", func() {

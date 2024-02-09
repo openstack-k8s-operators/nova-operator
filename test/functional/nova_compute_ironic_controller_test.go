@@ -128,7 +128,7 @@ var _ = Describe("NovaCompute controller", func() {
 		When("the Secret is created with all the expected fields", func() {
 			BeforeEach(func() {
 				DeferCleanup(
-					k8sClient.Delete, ctx, CreateCellInternalSecret(cell1))
+					k8sClient.Delete, ctx, CreateDefaultCellInternalSecret(cell1))
 			})
 
 			It("reports that input is ready", func() {
@@ -174,7 +174,7 @@ var _ = Describe("NovaCompute controller", func() {
 		When("NovaCompute is created with a proper Secret", func() {
 			BeforeEach(func() {
 				DeferCleanup(
-					k8sClient.Delete, ctx, CreateCellInternalSecret(cell1))
+					k8sClient.Delete, ctx, CreateDefaultCellInternalSecret(cell1))
 			})
 
 			It(" reports input ready", func() {
@@ -263,7 +263,7 @@ var _ = Describe("NovaCompute with ironic diver controller", func() {
 			DeferCleanup(
 				k8sClient.Delete,
 				ctx,
-				CreateCellInternalSecret(cell1),
+				CreateDefaultCellInternalSecret(cell1),
 			)
 		})
 	})
@@ -271,7 +271,7 @@ var _ = Describe("NovaCompute with ironic diver controller", func() {
 	When("NovaCompute is created with networkAttachments", func() {
 		BeforeEach(func() {
 			DeferCleanup(
-				k8sClient.Delete, ctx, CreateCellInternalSecret(cell1))
+				k8sClient.Delete, ctx, CreateDefaultCellInternalSecret(cell1))
 
 			spec := GetDefaultNovaComputeSpec(cell1)
 			spec["networkAttachments"] = []string{"internalapi"}
@@ -399,7 +399,7 @@ var _ = Describe("NovaCompute with ironic diver controller", func() {
 	When("NovaCompute with ironic diver is reconfigured", func() {
 		BeforeEach(func() {
 			DeferCleanup(
-				k8sClient.Delete, ctx, CreateCellInternalSecret(cell1))
+				k8sClient.Delete, ctx, CreateDefaultCellInternalSecret(cell1))
 
 			novaCompute := CreateNovaCompute(cell1.NovaComputeName, GetDefaultNovaComputeSpec(cell1))
 			DeferCleanup(th.DeleteInstance, novaCompute)
@@ -497,7 +497,7 @@ var _ = Describe("NovaCompute with ironic diver controller", func() {
 	When("starts zero replicas", func() {
 		BeforeEach(func() {
 			DeferCleanup(
-				k8sClient.Delete, ctx, CreateCellInternalSecret(cell1))
+				k8sClient.Delete, ctx, CreateDefaultCellInternalSecret(cell1))
 
 			spec := GetDefaultNovaComputeSpec(cell1)
 			spec["replicas"] = 0
@@ -543,7 +543,7 @@ var _ = Describe("NovaCompute with ironic diver controller", func() {
 			DeferCleanup(
 				k8sClient.Delete,
 				ctx,
-				CreateCellInternalSecret(cell1),
+				CreateDefaultCellInternalSecret(cell1),
 			)
 		})
 

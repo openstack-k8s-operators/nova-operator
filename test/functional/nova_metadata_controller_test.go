@@ -326,7 +326,7 @@ var _ = Describe("NovaMetadata controller", func() {
 			metadata := CreateNovaMetadata(cell1.MetadataName, spec)
 			DeferCleanup(th.DeleteInstance, metadata)
 			DeferCleanup(
-				k8sClient.Delete, ctx, CreateCellInternalSecret(cell1))
+				k8sClient.Delete, ctx, CreateMetadataCellInternalSecret(cell1))
 		})
 		It("generated config with correct local_metadata_per_cell", func() {
 			th.ExpectCondition(

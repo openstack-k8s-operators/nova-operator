@@ -138,7 +138,7 @@ var _ = Describe("NovaConductor controller", func() {
 				DeferCleanup(
 					k8sClient.Delete,
 					ctx,
-					CreateCellInternalSecret(cell0),
+					CreateDefaultCellInternalSecret(cell0),
 				)
 			})
 
@@ -197,7 +197,7 @@ var _ = Describe("NovaConductor controller", func() {
 	When("NovConductor is created with a proper Secret", func() {
 		BeforeEach(func() {
 			DeferCleanup(
-				k8sClient.Delete, ctx, CreateCellInternalSecret(cell0))
+				k8sClient.Delete, ctx, CreateDefaultCellInternalSecret(cell0))
 
 			spec := GetDefaultNovaConductorSpec(cell0)
 			DeferCleanup(th.DeleteInstance, CreateNovaConductor(cell0.ConductorName, spec))
@@ -320,7 +320,7 @@ var _ = Describe("NovaConductor controller", func() {
 	When("NovaConductor is configured to preserve jobs", func() {
 		BeforeEach(func() {
 			DeferCleanup(
-				k8sClient.Delete, ctx, CreateCellInternalSecret(cell0))
+				k8sClient.Delete, ctx, CreateDefaultCellInternalSecret(cell0))
 
 			spec := GetDefaultNovaConductorSpec(cell0)
 			spec["preserveJobs"] = true
@@ -364,7 +364,7 @@ var _ = Describe("NovaConductor controller", func() {
 	When("PreserveJobs changed from true to false", func() {
 		BeforeEach(func() {
 			DeferCleanup(
-				k8sClient.Delete, ctx, CreateCellInternalSecret(cell0))
+				k8sClient.Delete, ctx, CreateDefaultCellInternalSecret(cell0))
 
 			spec := GetDefaultNovaConductorSpec(cell0)
 			spec["preserveJobs"] = true
@@ -402,7 +402,7 @@ var _ = Describe("NovaConductor controller", func() {
 	When("NovaConductor is created with networkAttachments", func() {
 		BeforeEach(func() {
 			DeferCleanup(
-				k8sClient.Delete, ctx, CreateCellInternalSecret(cell0))
+				k8sClient.Delete, ctx, CreateDefaultCellInternalSecret(cell0))
 
 			spec := GetDefaultNovaConductorSpec(cell0)
 			spec["networkAttachments"] = []string{"internalapi"}
@@ -528,7 +528,7 @@ var _ = Describe("NovaConductor controller", func() {
 	When("NovaConductor is reconfigured", func() {
 		BeforeEach(func() {
 			DeferCleanup(
-				k8sClient.Delete, ctx, CreateCellInternalSecret(cell0))
+				k8sClient.Delete, ctx, CreateDefaultCellInternalSecret(cell0))
 			DeferCleanup(th.DeleteInstance, CreateNovaConductor(cell0.ConductorName, GetDefaultNovaConductorSpec(cell0)))
 
 			th.ExpectCondition(
@@ -663,7 +663,7 @@ var _ = Describe("NovaConductor controller cleaning", func() {
 		spec["keystoneAuthURL"] = f.Endpoint()
 		DeferCleanup(th.DeleteInstance, CreateNovaConductor(cell0.ConductorName, spec))
 		DeferCleanup(
-			k8sClient.Delete, ctx, CreateCellInternalSecret(cell0))
+			k8sClient.Delete, ctx, CreateDefaultCellInternalSecret(cell0))
 		th.SimulateJobSuccess(cell0.DBSyncJobName)
 		th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 	})
@@ -686,7 +686,7 @@ var _ = Describe("NovaConductor controller", func() {
 	When("NovaConductor is created with TLS CA cert secret", func() {
 		BeforeEach(func() {
 			DeferCleanup(
-				k8sClient.Delete, ctx, CreateCellInternalSecret(cell0))
+				k8sClient.Delete, ctx, CreateDefaultCellInternalSecret(cell0))
 
 			spec := GetDefaultNovaConductorSpec(cell0)
 			spec["tls"] = map[string]interface{}{

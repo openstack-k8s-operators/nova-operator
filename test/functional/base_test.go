@@ -22,6 +22,7 @@ import (
 
 	"github.com/go-logr/logr"
 	. "github.com/onsi/gomega"
+	"golang.org/x/exp/maps"
 	corev1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
@@ -877,17 +878,31 @@ func GetDefaultNovaNoVNCProxySpec(cell CellNames) map[string]interface{} {
 	}
 }
 
-func CreateCellInternalSecret(cell CellNames) *corev1.Secret {
+func CreateCellInternalSecret(cell CellNames, additionalValues map[string][]byte) *corev1.Secret {
+
+	secretMap := map[string][]byte{
+		"ServicePassword":      []byte("service-password"),
+		"CellDatabasePassword": []byte("cell-database-password"),
+		"transport_url":        []byte(fmt.Sprintf("rabbit://%s/fake", cell.CellName)),
+	}
+	// (ksambor) this can be replaced with maps.Copy directly from maps
+	// not experimental package when we move to go 1.21
+	maps.Copy(secretMap, additionalValues)
 	return th.CreateSecret(
 		cell.InternalCellSecretName,
-		map[string][]byte{
-			"ServicePassword":      []byte("service-password"),
-			"CellDatabasePassword": []byte("cell-database-password"),
-			// TODO(gibi): we only need this for cells with metadata
-			"MetadataSecret": []byte("metadata-secret"),
-			"transport_url":  []byte(fmt.Sprintf("rabbit://%s/fake", cell.CellName)),
-		},
+		secretMap,
 	)
+}
+
+func CreateMetadataCellInternalSecret(cell CellNames) *corev1.Secret {
+	metadataSecret := map[string][]byte{
+		"MetadataSecret": []byte("metadata-secret"),
+	}
+	return CreateCellInternalSecret(cell, metadataSecret)
+}
+
+func CreateDefaultCellInternalSecret(cell CellNames) *corev1.Secret {
+	return CreateCellInternalSecret(cell, map[string][]byte{})
 }
 
 func AssertNoVNCProxyDoesNotExist(name types.NamespacedName) {
