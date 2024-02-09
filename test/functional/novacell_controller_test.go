@@ -71,7 +71,7 @@ var _ = Describe("NovaCell controller", func() {
 
 	When("A NovaCell/cell0 CR instance is created", func() {
 		BeforeEach(func() {
-			DeferCleanup(k8sClient.Delete, ctx, CreateCellInternalSecret(cell0))
+			DeferCleanup(k8sClient.Delete, ctx, CreateDefaultCellInternalSecret(cell0))
 			DeferCleanup(th.DeleteInstance, CreateNovaCell(cell0.CellCRName, GetDefaultNovaCellSpec(cell0)))
 		})
 
@@ -144,7 +144,7 @@ var _ = Describe("NovaCell controller", func() {
 			DeferCleanup(
 				k8sClient.Delete,
 				ctx,
-				CreateCellInternalSecret(cell1),
+				CreateMetadataCellInternalSecret(cell1),
 			)
 			spec := GetDefaultNovaCellSpec(cell1)
 			spec["metadataServiceTemplate"] = map[string]interface{}{
@@ -467,7 +467,7 @@ var _ = Describe("NovaCell controller", func() {
 			DeferCleanup(
 				k8sClient.Delete,
 				ctx,
-				CreateCellInternalSecret(cell2),
+				CreateMetadataCellInternalSecret(cell2),
 			)
 			spec := GetDefaultNovaCellSpec(cell2)
 			spec["noVNCProxyServiceTemplate"] = map[string]interface{}{
@@ -815,7 +815,7 @@ var _ = Describe("NovaCell controller", func() {
 	})
 	When("NovaCell/cell0 is reconfigured", func() {
 		BeforeEach(func() {
-			DeferCleanup(k8sClient.Delete, ctx, CreateCellInternalSecret(cell0))
+			DeferCleanup(k8sClient.Delete, ctx, CreateDefaultCellInternalSecret(cell0))
 			DeferCleanup(th.DeleteInstance, CreateNovaCell(cell0.CellCRName, GetDefaultNovaCellSpec(cell0)))
 			th.SimulateJobSuccess(cell0.DBSyncJobName)
 
@@ -903,7 +903,7 @@ var _ = Describe("NovaCell controller", func() {
 
 	When("NovaCell/cell1 with metadata is reconfigured", func() {
 		BeforeEach(func() {
-			DeferCleanup(k8sClient.Delete, ctx, CreateCellInternalSecret(cell1))
+			DeferCleanup(k8sClient.Delete, ctx, CreateMetadataCellInternalSecret(cell1))
 
 			spec := GetDefaultNovaCellSpec(cell1)
 			spec["metadataServiceTemplate"] = map[string]interface{}{
@@ -999,7 +999,7 @@ var _ = Describe("NovaCell controller", func() {
 var _ = Describe("NovaCell controller webhook", func() {
 	It("name is too long", func() {
 		cell := GetCellNames(novaNames.NovaName, uuid.New().String())
-		DeferCleanup(k8sClient.Delete, ctx, CreateCellInternalSecret(cell))
+		DeferCleanup(k8sClient.Delete, ctx, CreateDefaultCellInternalSecret(cell))
 
 		spec := GetDefaultNovaCellSpec(cell)
 		rawObj := map[string]interface{}{
