@@ -35,7 +35,20 @@ import (
 var _ = Describe("NovaNoVNCProxy controller", func() {
 	BeforeEach(func() {
 		mariadb.CreateMariaDBDatabase(cell1.MariaDBDatabaseName.Namespace, cell1.MariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
-		mariadb.CreateMariaDBAccount(cell1.MariaDBDatabaseName.Namespace, cell1.MariaDBDatabaseName.Name, mariadbv1.MariaDBAccountSpec{})
+		DeferCleanup(k8sClient.Delete, ctx, mariadb.GetMariaDBDatabase(cell1.MariaDBDatabaseName))
+
+		// only cell DB accounts are needed as novanovncproxy_controller does
+		// not create configurations with the API DB account
+
+		cell0Account, cell0Secret := mariadb.CreateMariaDBAccountAndSecret(
+			cell0.MariaDBAccountName, mariadbv1.MariaDBAccountSpec{})
+		DeferCleanup(k8sClient.Delete, ctx, cell0Account)
+		DeferCleanup(k8sClient.Delete, ctx, cell0Secret)
+
+		cell1Account, cell1Secret := mariadb.CreateMariaDBAccountAndSecret(
+			cell1.MariaDBAccountName, mariadbv1.MariaDBAccountSpec{})
+		DeferCleanup(k8sClient.Delete, ctx, cell1Account)
+		DeferCleanup(k8sClient.Delete, ctx, cell1Secret)
 		memcachedSpec := memcachedv1.MemcachedSpec{
 			Replicas: ptr.To(int32(3)),
 		}
@@ -43,6 +56,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 		infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
 
 	})
+
 	When("with standard spec without network interface", func() {
 		BeforeEach(func() {
 			spec := GetDefaultNovaNoVNCProxySpec(cell1)
@@ -309,7 +323,21 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 var _ = Describe("NovaNoVNCProxy controller", func() {
 	BeforeEach(func() {
 		mariadb.CreateMariaDBDatabase(cell1.MariaDBDatabaseName.Namespace, cell1.MariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
-		mariadb.CreateMariaDBAccount(cell1.MariaDBDatabaseName.Namespace, cell1.MariaDBDatabaseName.Name, mariadbv1.MariaDBAccountSpec{})
+		DeferCleanup(k8sClient.Delete, ctx, mariadb.GetMariaDBDatabase(cell1.MariaDBDatabaseName))
+
+		// only cell DB accounts are needed as novanovncproxy_controller does
+		// not create configurations with the API DB account
+
+		cell0Account, cell0Secret := mariadb.CreateMariaDBAccountAndSecret(
+			cell0.MariaDBAccountName, mariadbv1.MariaDBAccountSpec{})
+		DeferCleanup(k8sClient.Delete, ctx, cell0Account)
+		DeferCleanup(k8sClient.Delete, ctx, cell0Secret)
+
+		cell1Account, cell1Secret := mariadb.CreateMariaDBAccountAndSecret(
+			cell1.MariaDBAccountName, mariadbv1.MariaDBAccountSpec{})
+		DeferCleanup(k8sClient.Delete, ctx, cell1Account)
+		DeferCleanup(k8sClient.Delete, ctx, cell1Secret)
+
 		memcachedSpec := memcachedv1.MemcachedSpec{
 			Replicas: ptr.To(int32(3)),
 		}
@@ -317,6 +345,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 		infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
 
 	})
+
 	When(" is created with networkAttachments", func() {
 		BeforeEach(func() {
 			spec := GetDefaultNovaNoVNCProxySpec(cell1)
@@ -700,10 +729,25 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 var _ = Describe("NovaNoVNCProxy controller", func() {
 	BeforeEach(func() {
 		mariadb.CreateMariaDBDatabase(cell1.MariaDBDatabaseName.Namespace, cell1.MariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
-		mariadb.CreateMariaDBAccount(cell1.MariaDBDatabaseName.Namespace, cell1.MariaDBDatabaseName.Name, mariadbv1.MariaDBAccountSpec{})
+		DeferCleanup(k8sClient.Delete, ctx, mariadb.GetMariaDBDatabase(cell1.MariaDBDatabaseName))
+
 		mariadb.SimulateMariaDBTLSDatabaseCompleted(cell1.MariaDBDatabaseName)
-		mariadb.SimulateMariaDBAccountCompleted(cell1.MariaDBDatabaseName)
+
+		// only cell DB accounts are needed as novanovncproxy_controller does
+		// not create configurations with the API DB account
+
+		cell0Account, cell0Secret := mariadb.CreateMariaDBAccountAndSecret(
+			cell0.MariaDBAccountName, mariadbv1.MariaDBAccountSpec{})
+		DeferCleanup(k8sClient.Delete, ctx, cell0Account)
+		DeferCleanup(k8sClient.Delete, ctx, cell0Secret)
+
+		cell1Account, cell1Secret := mariadb.CreateMariaDBAccountAndSecret(
+			cell1.MariaDBAccountName, mariadbv1.MariaDBAccountSpec{})
+		DeferCleanup(k8sClient.Delete, ctx, cell1Account)
+		DeferCleanup(k8sClient.Delete, ctx, cell1Secret)
+
 	})
+
 	When("NovaNoVNCProxy is created with TLS CA cert secret", func() {
 		BeforeEach(func() {
 			spec := GetDefaultNovaNoVNCProxySpec(cell1)

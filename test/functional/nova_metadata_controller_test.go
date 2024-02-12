@@ -25,6 +25,7 @@ import (
 	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
 	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
 
+	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -32,21 +33,36 @@ import (
 
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
-	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 )
 
 var _ = Describe("NovaMetadata controller", func() {
 	BeforeEach(func() {
+		apiMariaDBAccount, apiMariaDBSecret := mariadb.CreateMariaDBAccountAndSecret(
+			novaNames.APIMariaDBDatabaseAccount, mariadbv1.MariaDBAccountSpec{})
+		DeferCleanup(k8sClient.Delete, ctx, apiMariaDBAccount)
+		DeferCleanup(k8sClient.Delete, ctx, apiMariaDBSecret)
+
+		cell0Account, cell0Secret := mariadb.CreateMariaDBAccountAndSecret(
+			cell0.MariaDBAccountName, mariadbv1.MariaDBAccountSpec{})
+		DeferCleanup(k8sClient.Delete, ctx, cell0Account)
+		DeferCleanup(k8sClient.Delete, ctx, cell0Secret)
+
+		cell1Account, cell1Secret := mariadb.CreateMariaDBAccountAndSecret(
+			cell1.MariaDBAccountName, mariadbv1.MariaDBAccountSpec{})
+		DeferCleanup(k8sClient.Delete, ctx, cell1Account)
+		DeferCleanup(k8sClient.Delete, ctx, cell1Secret)
+
 		mariadb.CreateMariaDBDatabase(novaNames.APIMariaDBDatabaseName.Namespace, novaNames.APIMariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
-		mariadb.CreateMariaDBAccount(novaNames.APIMariaDBDatabaseName.Namespace, novaNames.APIMariaDBDatabaseName.Name, mariadbv1.MariaDBAccountSpec{})
 		memcachedSpec := memcachedv1.MemcachedSpec{
 			Replicas: ptr.To(int32(3)),
 		}
 		DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 		infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
+		DeferCleanup(k8sClient.Delete, ctx, mariadb.GetMariaDBDatabase(novaNames.APIMariaDBDatabaseName))
 
 	})
+
 	When("with standard spec without network interface", func() {
 		BeforeEach(func() {
 			spec := GetDefaultNovaMetadataSpec(novaNames.InternalTopLevelSecretName)
@@ -185,9 +201,16 @@ var _ = Describe("NovaMetadata controller", func() {
 				Expect(configData).Should(ContainSubstring("local_metadata_per_cell = false"))
 				Expect(configData).Should(ContainSubstring("enabled_apis=metadata"))
 				Expect(configData).Should(ContainSubstring("metadata_workers=1"))
-				Expect(configData).Should(
+
+				apiAccount := mariadb.GetMariaDBAccount(novaNames.APIMariaDBDatabaseAccount)
+				apiSecret := th.GetSecret(types.NamespacedName{Name: apiAccount.Spec.Secret, Namespace: novaNames.APIMariaDBDatabaseAccount.Namespace})
+
+				Expect(configData).To(
 					ContainSubstring(
-						"connection = mysql+pymysql://nova_api:api-database-password@nova-api-db-hostname/nova_api?read_default_file=/etc/my.cnf"))
+						fmt.Sprintf("connection = mysql+pymysql://%s:%s@nova-api-db-hostname/nova_api?read_default_file=/etc/my.cnf",
+							apiAccount.Spec.UserName, apiSecret.Data[mariadbv1.DatabasePasswordSelector])),
+				)
+
 				Expect(configData).Should(
 					ContainSubstring("[upgrade_levels]\ncompute = auto"))
 				Expect(configData).To(ContainSubstring("memcache_servers=memcached-0.memcached:11211,memcached-1.memcached:11211,memcached-2.memcached:11211"))
@@ -346,9 +369,26 @@ var _ = Describe("NovaMetadata controller", func() {
 var _ = Describe("NovaMetadata controller", func() {
 	BeforeEach(func() {
 		mariadb.CreateMariaDBDatabase(novaNames.APIMariaDBDatabaseName.Namespace, novaNames.APIMariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
-		mariadb.CreateMariaDBAccount(novaNames.APIMariaDBDatabaseName.Namespace, novaNames.APIMariaDBDatabaseName.Name, mariadbv1.MariaDBAccountSpec{})
+		DeferCleanup(k8sClient.Delete, ctx, mariadb.GetMariaDBDatabase(novaNames.APIMariaDBDatabaseName))
+
 		mariadb.CreateMariaDBDatabase(cell1.MariaDBDatabaseName.Namespace, cell1.MariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
-		mariadb.CreateMariaDBAccount(cell1.MariaDBDatabaseName.Namespace, cell1.MariaDBDatabaseName.Name, mariadbv1.MariaDBAccountSpec{})
+		DeferCleanup(k8sClient.Delete, ctx, mariadb.GetMariaDBDatabase(cell1.MariaDBDatabaseName))
+
+		apiMariaDBAccount, apiMariaDBSecret := mariadb.CreateMariaDBAccountAndSecret(
+			novaNames.APIMariaDBDatabaseAccount, mariadbv1.MariaDBAccountSpec{})
+		DeferCleanup(k8sClient.Delete, ctx, apiMariaDBAccount)
+		DeferCleanup(k8sClient.Delete, ctx, apiMariaDBSecret)
+
+		cell0Account, cell0Secret := mariadb.CreateMariaDBAccountAndSecret(
+			cell0.MariaDBAccountName, mariadbv1.MariaDBAccountSpec{})
+		DeferCleanup(k8sClient.Delete, ctx, cell0Account)
+		DeferCleanup(k8sClient.Delete, ctx, cell0Secret)
+
+		cell1Account, cell1Secret := mariadb.CreateMariaDBAccountAndSecret(
+			cell1.MariaDBAccountName, mariadbv1.MariaDBAccountSpec{})
+		DeferCleanup(k8sClient.Delete, ctx, cell1Account)
+		DeferCleanup(k8sClient.Delete, ctx, cell1Secret)
+
 		memcachedSpec := memcachedv1.MemcachedSpec{
 			Replicas: ptr.To(int32(3)),
 		}
@@ -356,6 +396,7 @@ var _ = Describe("NovaMetadata controller", func() {
 		infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
 
 	})
+
 	When("configured with cell name", func() {
 		BeforeEach(func() {
 			spec := GetDefaultNovaMetadataSpec(cell1.InternalCellSecretName)
@@ -801,10 +842,26 @@ var _ = Describe("NovaMetadata controller", func() {
 
 var _ = Describe("NovaMetadata controller", func() {
 	BeforeEach(func() {
+		apiMariaDBAccount, apiMariaDBSecret := mariadb.CreateMariaDBAccountAndSecret(
+			novaNames.APIMariaDBDatabaseAccount, mariadbv1.MariaDBAccountSpec{})
+		DeferCleanup(k8sClient.Delete, ctx, apiMariaDBAccount)
+		DeferCleanup(k8sClient.Delete, ctx, apiMariaDBSecret)
+
+		cell0Account, cell0Secret := mariadb.CreateMariaDBAccountAndSecret(
+			cell0.MariaDBAccountName, mariadbv1.MariaDBAccountSpec{})
+		DeferCleanup(k8sClient.Delete, ctx, cell0Account)
+		DeferCleanup(k8sClient.Delete, ctx, cell0Secret)
+
+		cell1Account, cell1Secret := mariadb.CreateMariaDBAccountAndSecret(
+			cell1.MariaDBAccountName, mariadbv1.MariaDBAccountSpec{})
+		DeferCleanup(k8sClient.Delete, ctx, cell1Account)
+		DeferCleanup(k8sClient.Delete, ctx, cell1Secret)
+
 		mariadb.CreateMariaDBDatabase(novaNames.APIMariaDBDatabaseName.Namespace, novaNames.APIMariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
-		mariadb.CreateMariaDBAccount(novaNames.APIMariaDBDatabaseName.Namespace, novaNames.APIMariaDBDatabaseName.Name, mariadbv1.MariaDBAccountSpec{})
+		DeferCleanup(k8sClient.Delete, ctx, mariadb.GetMariaDBDatabase(novaNames.APIMariaDBDatabaseName))
+
 		mariadb.SimulateMariaDBTLSDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
-		mariadb.SimulateMariaDBAccountCompleted(novaNames.APIMariaDBDatabaseName)
+		mariadb.SimulateMariaDBAccountCompleted(novaNames.APIMariaDBDatabaseAccount)
 		memcachedSpec := memcachedv1.MemcachedSpec{
 			Replicas: ptr.To(int32(3)),
 		}
@@ -812,6 +869,7 @@ var _ = Describe("NovaMetadata controller", func() {
 		infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
 
 	})
+
 	When("NovaMetadata is created with TLS CA cert secret", func() {
 		BeforeEach(func() {
 			DeferCleanup(

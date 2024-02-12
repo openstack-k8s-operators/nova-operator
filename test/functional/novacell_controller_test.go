@@ -37,6 +37,26 @@ import (
 
 var _ = Describe("NovaCell controller", func() {
 	BeforeEach(func() {
+		apiMariaDBAccount, apiMariaDBSecret := mariadb.CreateMariaDBAccountAndSecret(
+			cell0.APIDatabaseAccountName, mariadbv1.MariaDBAccountSpec{})
+		DeferCleanup(k8sClient.Delete, ctx, apiMariaDBAccount)
+		DeferCleanup(k8sClient.Delete, ctx, apiMariaDBSecret)
+
+		cell0Account, cell0Secret := mariadb.CreateMariaDBAccountAndSecret(
+			cell0.MariaDBAccountName, mariadbv1.MariaDBAccountSpec{})
+		DeferCleanup(k8sClient.Delete, ctx, cell0Account)
+		DeferCleanup(k8sClient.Delete, ctx, cell0Secret)
+
+		cell1Account, cell1Secret := mariadb.CreateMariaDBAccountAndSecret(
+			cell1.MariaDBAccountName, mariadbv1.MariaDBAccountSpec{})
+		DeferCleanup(k8sClient.Delete, ctx, cell1Account)
+		DeferCleanup(k8sClient.Delete, ctx, cell1Secret)
+
+		cell2Account, cell2Secret := mariadb.CreateMariaDBAccountAndSecret(
+			cell2.MariaDBAccountName, mariadbv1.MariaDBAccountSpec{})
+		DeferCleanup(k8sClient.Delete, ctx, cell2Account)
+		DeferCleanup(k8sClient.Delete, ctx, cell2Secret)
+
 		memcachedSpec := memcachedv1.MemcachedSpec{
 			Replicas: ptr.To(int32(3)),
 		}
@@ -88,7 +108,8 @@ var _ = Describe("NovaCell controller", func() {
 	When("A NovaCell/cell0 CR instance is created", func() {
 		BeforeEach(func() {
 			mariadb.CreateMariaDBDatabase(cell0.MariaDBDatabaseName.Namespace, cell0.MariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
-			mariadb.CreateMariaDBAccount(cell0.MariaDBDatabaseName.Namespace, cell0.MariaDBDatabaseName.Name, mariadbv1.MariaDBAccountSpec{})
+			DeferCleanup(k8sClient.Delete, ctx, mariadb.GetMariaDBDatabase(cell0.MariaDBDatabaseName))
+
 			DeferCleanup(k8sClient.Delete, ctx, CreateDefaultCellInternalSecret(cell0))
 			DeferCleanup(th.DeleteInstance, CreateNovaCell(cell0.CellCRName, GetDefaultNovaCellSpec(cell0)))
 		})
@@ -160,12 +181,14 @@ var _ = Describe("NovaCell controller", func() {
 	When("A NovaCell/cell1 CR instance is created", func() {
 		BeforeEach(func() {
 			mariadb.CreateMariaDBDatabase(cell1.MariaDBDatabaseName.Namespace, cell1.MariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
-			mariadb.CreateMariaDBAccount(cell1.MariaDBDatabaseName.Namespace, cell1.MariaDBDatabaseName.Name, mariadbv1.MariaDBAccountSpec{})
+			DeferCleanup(k8sClient.Delete, ctx, mariadb.GetMariaDBDatabase(cell1.MariaDBDatabaseName))
+
 			DeferCleanup(
 				k8sClient.Delete,
 				ctx,
 				CreateMetadataCellInternalSecret(cell1),
 			)
+
 			spec := GetDefaultNovaCellSpec(cell1)
 			spec["metadataServiceTemplate"] = map[string]interface{}{
 				"enabled": true,
@@ -492,7 +515,8 @@ var _ = Describe("NovaCell controller", func() {
 	When("A NovaCell/cell2 CR instance is created without VNCProxy", func() {
 		BeforeEach(func() {
 			mariadb.CreateMariaDBDatabase(cell2.MariaDBDatabaseName.Namespace, cell2.MariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
-			mariadb.CreateMariaDBAccount(cell2.MariaDBDatabaseName.Namespace, cell2.MariaDBDatabaseName.Name, mariadbv1.MariaDBAccountSpec{})
+			DeferCleanup(k8sClient.Delete, ctx, mariadb.GetMariaDBDatabase(cell2.MariaDBDatabaseName))
+
 			DeferCleanup(
 				k8sClient.Delete,
 				ctx,
@@ -845,7 +869,8 @@ var _ = Describe("NovaCell controller", func() {
 	When("NovaCell/cell0 is reconfigured", func() {
 		BeforeEach(func() {
 			mariadb.CreateMariaDBDatabase(cell0.MariaDBDatabaseName.Namespace, cell0.MariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
-			mariadb.CreateMariaDBAccount(cell0.MariaDBDatabaseName.Namespace, cell0.MariaDBDatabaseName.Name, mariadbv1.MariaDBAccountSpec{})
+			DeferCleanup(k8sClient.Delete, ctx, mariadb.GetMariaDBDatabase(cell0.MariaDBDatabaseName))
+
 			DeferCleanup(k8sClient.Delete, ctx, CreateDefaultCellInternalSecret(cell0))
 			DeferCleanup(th.DeleteInstance, CreateNovaCell(cell0.CellCRName, GetDefaultNovaCellSpec(cell0)))
 			th.SimulateJobSuccess(cell0.DBSyncJobName)
@@ -935,7 +960,8 @@ var _ = Describe("NovaCell controller", func() {
 	When("NovaCell/cell1 with metadata is reconfigured", func() {
 		BeforeEach(func() {
 			mariadb.CreateMariaDBDatabase(cell1.MariaDBDatabaseName.Namespace, cell1.MariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
-			mariadb.CreateMariaDBAccount(cell1.MariaDBDatabaseName.Namespace, cell1.MariaDBDatabaseName.Name, mariadbv1.MariaDBAccountSpec{})
+			DeferCleanup(k8sClient.Delete, ctx, mariadb.GetMariaDBDatabase(cell1.MariaDBDatabaseName))
+
 			DeferCleanup(k8sClient.Delete, ctx, CreateMetadataCellInternalSecret(cell1))
 
 			spec := GetDefaultNovaCellSpec(cell1)

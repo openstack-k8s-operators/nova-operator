@@ -567,6 +567,7 @@ func (r *NovaCellReconciler) ensureMetadata(
 	}
 
 	metadataSpec := novav1.NewNovaMetadataSpec(instance.Spec)
+
 	metadata = &novav1.NovaMetadata{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      metadataName.Name,

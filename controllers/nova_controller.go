@@ -200,17 +200,39 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		return rbacResult, nil
 	}
 
+	// ensure MariaDBAccount exists.  This account record may be created by
+	// openstack-operator or the cloud operator up front without a specific
+	// MariaDBDatabase configured yet.   Otherwise, a MariaDBAccount CR is
+	// created here with a generated username as well as a secret with
+	// generated password.   The MariaDBAccount is created without being
+	// yet associated with any MariaDBDatabase.
+	_, _, err = mariadbv1.EnsureMariaDBAccount(
+		ctx, h, instance.Spec.APIDatabaseAccount,
+		instance.Namespace, false, "nova_api",
+	)
+
+	if err != nil {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			mariadbv1.MariaDBAccountReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			mariadbv1.MariaDBAccountNotReadyMessage,
+			err.Error()))
+
+		return ctrl.Result{}, err
+	}
+	instance.Status.Conditions.MarkTrue(
+		mariadbv1.MariaDBAccountReadyCondition,
+		mariadbv1.MariaDBAccountReadyMessage,
+	)
+
 	// There is a webhook validation that ensures that there is always cell0 in
 	// the cellTemplates
 	cell0Template := instance.Spec.CellTemplates[novav1.Cell0Name]
 
 	expectedSelectors := []string{
 		instance.Spec.PasswordSelectors.Service,
-		instance.Spec.PasswordSelectors.APIDatabase,
 		instance.Spec.PasswordSelectors.MetadataSecret,
-	}
-	for _, cellTemplate := range instance.Spec.CellTemplates {
-		expectedSelectors = append(expectedSelectors, cellTemplate.PasswordSelectors.Database)
 	}
 
 	_, result, secret, err := ensureSecret(
@@ -553,6 +575,15 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		instance.Status.MetadataServiceReadyCount = 0
 	}
 
+	// remove finalizers from unused MariaDBAccount records but ONLY if
+	// ensureAPIDB finished
+	if apiDBStatus == nova.DBCompleted {
+		err = mariadbv1.DeleteUnusedMariaDBAccountFinalizers(ctx, h, "nova-api", instance.Spec.APIDatabaseAccount, instance.Namespace)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+
 	Log.Info("Successfully reconciled")
 	return ctrl.Result{}, nil
 }
@@ -668,7 +699,7 @@ func (r *NovaReconciler) ensureNovaManageJobSecret(
 	cellTemplate novav1.NovaCellTemplate,
 	apiDBHostname string,
 	cellTransportURL string,
-	db *mariadbv1.Database,
+	cellDB *mariadbv1.Database,
 ) (map[string]env.Setter, string, string, error) {
 	configName := fmt.Sprintf("%s-config-data", cell.Name+"-manage")
 	scriptName := fmt.Sprintf("%s-scripts", cell.Name+"-manage")
@@ -683,12 +714,22 @@ func (r *NovaReconciler) ensureNovaManageJobSecret(
 	}
 
 	extraData := map[string]string{
-		"my.cnf": db.GetDatabaseClientConfig(tlsCfg), //(mschuppert) for now just get the default my.cnf
+		"my.cnf": cellDB.GetDatabaseClientConfig(tlsCfg), //(mschuppert) for now just get the default my.cnf
 	}
 
 	extraTemplates := map[string]string{
 		"01-nova.conf":    "/nova.conf",
 		"nova-blank.conf": "/nova-blank.conf",
+	}
+
+	apiDatabaseAccount, apiDbSecret, err := mariadbv1.GetAccountAndSecret(ctx, h, instance.Spec.APIDatabaseAccount, instance.Namespace)
+	if err != nil {
+		return nil, "", "", err
+	}
+
+	cellDatabaseAccount, cellDbSecret, err := mariadbv1.GetAccountAndSecret(ctx, h, cell.Spec.CellDatabaseAccount, instance.Namespace)
+	if err != nil {
+		return nil, "", "", err
 	}
 
 	// We configure the Job like it runs in the env of the conductor of the given cell
@@ -699,16 +740,16 @@ func (r *NovaReconciler) ensureNovaManageJobSecret(
 		"keystone_internal_url":  cell.Spec.KeystoneAuthURL,
 		"nova_keystone_user":     cell.Spec.ServiceUser,
 		"nova_keystone_password": string(ospSecret.Data[instance.Spec.PasswordSelectors.Service]),
-		// cell.Spec.APIDatabaseUser is empty for cells without APIDB access
+		// cell.Spec.APIDatabaseAccount is empty for cells without APIDB access
 		"api_db_name":     NovaAPIDatabaseName,
-		"api_db_user":     instance.Spec.APIDatabaseUser,
-		"api_db_password": string(ospSecret.Data[instance.Spec.PasswordSelectors.APIDatabase]),
+		"api_db_user":     apiDatabaseAccount.Spec.UserName,
+		"api_db_password": string(apiDbSecret.Data[mariadbv1.DatabasePasswordSelector]),
 		// cell.Spec.APIDatabaseHostname is empty for cells without APIDB access
 		"api_db_address":         apiDBHostname,
 		"api_db_port":            3306,
 		"cell_db_name":           getCellDatabaseName(cell.Spec.CellName),
-		"cell_db_user":           cell.Spec.CellDatabaseUser,
-		"cell_db_password":       string(ospSecret.Data[cellTemplate.PasswordSelectors.Database]),
+		"cell_db_user":           cellDatabaseAccount.Spec.UserName,
+		"cell_db_password":       string(cellDbSecret.Data[mariadbv1.DatabasePasswordSelector]),
 		"cell_db_address":        cell.Spec.CellDatabaseHostname,
 		"cell_db_port":           3306,
 		"openstack_cacert":       "",          // fixme
@@ -748,7 +789,7 @@ func (r *NovaReconciler) ensureNovaManageJobSecret(
 	}
 
 	configHash := make(map[string]env.Setter)
-	err := secret.EnsureSecrets(ctx, h, instance, cms, &configHash)
+	err = secret.EnsureSecrets(ctx, h, instance, cms, &configHash)
 
 	return configHash, scriptName, configName, err
 }
@@ -761,11 +802,7 @@ func (r *NovaReconciler) ensureDB(
 	databaseServiceName string,
 	targetCondition condition.Type,
 ) (nova.DatabaseStatus, error) {
-	ctrlResult, err := db.CreateOrPatchDBByName(
-		ctx,
-		h,
-		databaseServiceName,
-	)
+	ctrlResult, err := db.CreateOrPatchAll(ctx, h)
 	if err != nil {
 		return nova.DBFailed, err
 	}
@@ -789,16 +826,14 @@ func (r *NovaReconciler) ensureAPIDB(
 	h *helper.Helper,
 	instance *novav1.Nova,
 ) (*mariadbv1.Database, nova.DatabaseStatus, error) {
-	apiDB := mariadbv1.NewDatabaseWithNamespace(
-		NovaAPIDatabaseName,
-		instance.Spec.APIDatabaseUser,
-		instance.Spec.Secret,
-		map[string]string{
-			"dbName": instance.Spec.APIDatabaseInstance,
-		},
-		"nova-api",
-		instance.Namespace,
+	apiDB := mariadbv1.NewDatabaseForAccount(
+		instance.Spec.APIDatabaseInstance, // mariadb/galera service to target
+		NovaAPIDatabaseName,               // name used in CREATE DATABASE in mariadb
+		"nova-api",                        // CR name for MariaDBDatabase
+		instance.Spec.APIDatabaseAccount,  // CR name for MariaDBAccount
+		instance.Namespace,                // namespace
 	)
+
 	result, err := r.ensureDB(
 		ctx,
 		h,
@@ -817,16 +852,30 @@ func (r *NovaReconciler) ensureCellDB(
 	cellName string,
 	cellTemplate novav1.NovaCellTemplate,
 ) (*mariadbv1.Database, nova.DatabaseStatus, error) {
-	cellDB := mariadbv1.NewDatabaseWithNamespace(
-		"nova_"+cellName,
-		cellTemplate.CellDatabaseUser,
-		instance.Spec.Secret,
-		map[string]string{
-			"dbName": cellTemplate.CellDatabaseInstance,
-		},
-		"nova-"+cellName,
-		instance.Namespace,
+
+	// ensure MariaDBAccount exists.  This account record may be created by
+	// openstack-operator or the cloud operator up front without a specific
+	// MariaDBDatabase configured yet.   Otherwise, a MariaDBAccount CR is
+	// created here with a generated username as well as a secret with
+	// generated password.   The MariaDBAccount is created without being
+	// yet associated with any MariaDBDatabase.
+	_, _, err := mariadbv1.EnsureMariaDBAccount(
+		ctx, h, cellTemplate.CellDatabaseAccount,
+		instance.Namespace, false, "nova_"+cellName,
 	)
+
+	if err != nil {
+		return nil, nova.DBFailed, err
+	}
+
+	cellDB := mariadbv1.NewDatabaseForAccount(
+		cellTemplate.CellDatabaseInstance, // mariadb/galera service to target
+		"nova_"+cellName,                  // name used in CREATE DATABASE in mariadb
+		"nova-"+cellName,                  // CR name for MariaDBDatabase
+		cellTemplate.CellDatabaseAccount,  // CR name for MariaDBAccount
+		instance.Namespace,                // namespace
+	)
+
 	result, err := r.ensureDB(
 		ctx,
 		h,
@@ -861,7 +910,7 @@ func (r *NovaReconciler) ensureCell(
 		CellName:                  cellName,
 		Secret:                    cellSecretName,
 		CellDatabaseHostname:      cellDB.GetDatabaseHostname(),
-		CellDatabaseUser:          cellTemplate.CellDatabaseUser,
+		CellDatabaseAccount:       cellTemplate.CellDatabaseAccount,
 		ConductorServiceTemplate:  cellTemplate.ConductorServiceTemplate,
 		MetadataServiceTemplate:   cellTemplate.MetadataServiceTemplate,
 		NoVNCProxyServiceTemplate: cellTemplate.NoVNCProxyServiceTemplate,
@@ -880,7 +929,7 @@ func (r *NovaReconciler) ensureCell(
 	}
 	if cellTemplate.HasAPIAccess {
 		cellSpec.APIDatabaseHostname = apiDB.GetDatabaseHostname()
-		cellSpec.APIDatabaseUser = instance.Spec.APIDatabaseUser
+		cellSpec.APIDatabaseAccount = instance.Spec.APIDatabaseAccount
 	}
 
 	cell := &novav1.NovaCell{
@@ -943,6 +992,14 @@ func (r *NovaReconciler) ensureCell(
 
 	if err != nil {
 		return cell, status, err
+	}
+
+	// remove finalizers from unused MariaDBAccount records
+	if status == nova.CellReady {
+		err = mariadbv1.DeleteUnusedMariaDBAccountFinalizers(ctx, h, "nova-"+cellName, cellTemplate.CellDatabaseAccount, instance.Namespace)
+		if err != nil {
+			return cell, status, err
+		}
 	}
 
 	return cell, status, err
@@ -1010,14 +1067,15 @@ func (r *NovaReconciler) ensureAPI(
 	secretName string,
 ) (ctrl.Result, error) {
 	Log := r.GetLogger(ctx)
+
 	// TODO(gibi): Pass down a narrowed secret that only hold
 	// specific information but also holds user names
 	apiSpec := novav1.NovaAPISpec{
 		Secret:                secretName,
 		APIDatabaseHostname:   apiDB.GetDatabaseHostname(),
-		APIDatabaseUser:       instance.Spec.APIDatabaseUser,
+		APIDatabaseAccount:    instance.Spec.APIDatabaseAccount,
 		Cell0DatabaseHostname: cell0DB.GetDatabaseHostname(),
-		Cell0DatabaseUser:     cell0Template.CellDatabaseUser,
+		Cell0DatabaseAccount:  cell0Template.CellDatabaseAccount,
 		NovaServiceBase: novav1.NovaServiceBase{
 			ContainerImage:      instance.Spec.APIServiceTemplate.ContainerImage,
 			Replicas:            instance.Spec.APIServiceTemplate.Replicas,
@@ -1096,9 +1154,9 @@ func (r *NovaReconciler) ensureScheduler(
 	spec := novav1.NovaSchedulerSpec{
 		Secret:                secretName,
 		APIDatabaseHostname:   apiDB.GetDatabaseHostname(),
-		APIDatabaseUser:       instance.Spec.APIDatabaseUser,
+		APIDatabaseAccount:    instance.Spec.APIDatabaseAccount,
 		Cell0DatabaseHostname: cell0DB.GetDatabaseHostname(),
-		Cell0DatabaseUser:     cell0Template.CellDatabaseUser,
+		Cell0DatabaseAccount:  cell0Template.CellDatabaseAccount,
 		// This is a coincidence that the NovaServiceBase
 		// has exactly the same fields as the SchedulerServiceTemplate so we
 		// can convert between them directly. As soon as these two structs
@@ -1203,13 +1261,14 @@ func (r *NovaReconciler) ensureDBDeletion(
 	// are deleted
 	Log := r.GetLogger(ctx)
 	// initialize a nova dbs list with default db names and add used cells:
-	novaDbs := []string{"nova-api"}
+	novaDbs := [][]string{{"nova-api", instance.Spec.APIDatabaseAccount}}
 	for cellName := range instance.Spec.CellTemplates {
-		novaDbs = append(novaDbs, novaapi.ServiceName+"-"+cellName)
+		novaDbs = append(novaDbs, []string{novaapi.ServiceName + "-" + cellName, instance.Spec.CellTemplates[cellName].CellDatabaseAccount})
 	}
 	// iterate over novaDbs and remove finalizers
-	for _, dbName := range novaDbs {
-		db, err := mariadbv1.GetDatabaseByName(ctx, h, dbName)
+	for _, novaDb := range novaDbs {
+		dbName, accountName := novaDb[0], novaDb[1]
+		db, err := mariadbv1.GetDatabaseByNameAndAccount(ctx, h, dbName, accountName, instance.ObjectMeta.Namespace)
 		if err != nil && !k8s_errors.IsNotFound(err) {
 			return err
 		}
@@ -1439,9 +1498,9 @@ func (r *NovaReconciler) ensureMetadata(
 	apiSpec := novav1.NovaMetadataSpec{
 		Secret:               secretName,
 		APIDatabaseHostname:  apiDB.GetDatabaseHostname(),
-		APIDatabaseUser:      instance.Spec.APIDatabaseUser,
+		APIDatabaseAccount:   instance.Spec.APIDatabaseAccount,
 		CellDatabaseHostname: cell0DB.GetDatabaseHostname(),
-		CellDatabaseUser:     cell0Template.CellDatabaseUser,
+		CellDatabaseAccount:  cell0Template.CellDatabaseAccount,
 		NovaServiceBase: novav1.NovaServiceBase{
 			ContainerImage:      instance.Spec.MetadataServiceTemplate.ContainerImage,
 			Replicas:            instance.Spec.MetadataServiceTemplate.Replicas,
@@ -1580,13 +1639,8 @@ func (r *NovaReconciler) ensureCellSecret(
 	// NOTE(gibi): We can move other sensitive data to the internal Secret from
 	// the NovaCellSpec fields, possibly hostnames or usernames.
 	data := map[string]string{
-		ServicePasswordSelector:      string(externalSecret.Data[instance.Spec.PasswordSelectors.Service]),
-		CellDatabasePasswordSelector: string(externalSecret.Data[cellTemplate.PasswordSelectors.Database]),
-		TransportURLSelector:         cellTransportURL,
-	}
-
-	if cellTemplate.HasAPIAccess {
-		data[APIDatabasePasswordSelector] = string(externalSecret.Data[instance.Spec.PasswordSelectors.APIDatabase])
+		ServicePasswordSelector: string(externalSecret.Data[instance.Spec.PasswordSelectors.Service]),
+		TransportURLSelector:    cellTransportURL,
 	}
 
 	// If metadata is enabled in the cell then the cell secret needs the
@@ -1631,11 +1685,9 @@ func (r *NovaReconciler) ensureTopLevelSecret(
 	// NOTE(gibi): We can move other sensitive data to the internal Secret from
 	// the subCR fields, possibly hostnames or usernames.
 	data := map[string]string{
-		ServicePasswordSelector:      string(externalSecret.Data[instance.Spec.PasswordSelectors.Service]),
-		APIDatabasePasswordSelector:  string(externalSecret.Data[instance.Spec.PasswordSelectors.APIDatabase]),
-		CellDatabasePasswordSelector: string(externalSecret.Data[cell0Template.PasswordSelectors.Database]),
-		MetadataSecretSelector:       string(externalSecret.Data[instance.Spec.PasswordSelectors.MetadataSecret]),
-		TransportURLSelector:         apiTransportURL,
+		ServicePasswordSelector: string(externalSecret.Data[instance.Spec.PasswordSelectors.Service]),
+		MetadataSecretSelector:  string(externalSecret.Data[instance.Spec.PasswordSelectors.MetadataSecret]),
+		TransportURLSelector:    apiTransportURL,
 	}
 
 	// NOTE(gibi): When we switch to immutable secrets then we need to include

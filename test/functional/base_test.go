@@ -250,12 +250,14 @@ func GetDefaultNovaAPISpec(novaNames NovaNames) map[string]interface{} {
 		"secret":                novaNames.InternalTopLevelSecretName.Name,
 		"apiDatabaseHostname":   "nova-api-db-hostname",
 		"cell0DatabaseHostname": "nova-cell0-db-hostname",
+		"cell0DatabaseAccount":  cell0.MariaDBAccountName.Name,
 		"keystoneAuthURL":       "keystone-internal-auth-url",
 		"keystonePublicAuthURL": "keystone-public-auth-url",
 		"containerImage":        ContainerImage,
 		"serviceAccount":        "nova-sa",
 		"registeredCells":       map[string]string{},
 		"memcachedInstance":     MemcachedInstance,
+		"apiDatabaseAccount":    novaNames.APIMariaDBDatabaseAccount.Name,
 	}
 }
 
@@ -304,13 +306,15 @@ func GetDefaultNovaSpec() map[string]interface{} {
 		"secret":                SecretName,
 		"cellTemplates":         map[string]interface{}{},
 		"apiMessageBusInstance": cell0.TransportURLName.Name,
+		"apiDatabaseAccount":    novaNames.APIMariaDBDatabaseAccount.Name,
 	}
 }
 
 func GetDefaultNovaCellTemplate() map[string]interface{} {
 	return map[string]interface{}{
-		"cellDatabaseUser": "nova_cell0",
-		"hasAPIAccess":     true,
+		"cellDatabaseAccount": cell0.MariaDBAccountName.Name,
+		"hasAPIAccess":        true,
+		"apiDatabaseAccount":  novaNames.APIMariaDBDatabaseAccount.Name,
 	}
 }
 
@@ -336,11 +340,13 @@ func CreateNovaWithCell0(name types.NamespacedName) client.Object {
 			"namespace": name.Namespace,
 		},
 		"spec": map[string]interface{}{
-			"secret": SecretName,
+			"secret":             SecretName,
+			"apiDatabaseAccount": novaNames.APIMariaDBDatabaseAccount.Name,
 			"cellTemplates": map[string]interface{}{
 				"cell0": map[string]interface{}{
-					"cellDatabaseUser": "nova_cell0",
-					"hasAPIAccess":     true,
+					"cellDatabaseAccount": cell0.MariaDBAccountName.Name,
+					"apiDatabaseAccount":  novaNames.APIMariaDBDatabaseAccount.Name,
+					"hasAPIAccess":        true,
 					"dbPurge": map[string]interface{}{
 						"schedule": "1 0 * * *",
 					},
@@ -370,11 +376,13 @@ func GetDefaultNovaConductorSpec(cell CellNames) map[string]interface{} {
 	return map[string]interface{}{
 		"cellName":            cell.CellName,
 		"secret":              cell.InternalCellSecretName.Name,
+		"apiDatabaseAccount":  novaNames.APIMariaDBDatabaseAccount.Name,
 		"containerImage":      ContainerImage,
 		"keystoneAuthURL":     "keystone-auth-url",
 		"serviceAccount":      "nova-sa",
 		"customServiceConfig": "foo=bar",
 		"memcachedInstance":   MemcachedInstance,
+		"cellDatabaseAccount": cell.MariaDBAccountName.Name,
 	}
 }
 
@@ -419,10 +427,12 @@ func GetDefaultNovaCellSpec(cell CellNames) map[string]interface{} {
 	return map[string]interface{}{
 		"cellName":             cell.CellName,
 		"secret":               cell.InternalCellSecretName.Name,
+		"apiDatabaseAccount":   novaNames.APIMariaDBDatabaseAccount.Name,
 		"cellDatabaseHostname": "cell-database-hostname",
 		"keystoneAuthURL":      "keystone-auth-url",
 		"serviceAccount":       "nova",
 		"memcachedInstance":    MemcachedInstance,
+		"cellDatabaseAccount":  cell.MariaDBAccountName.Name,
 	}
 }
 
@@ -465,10 +475,8 @@ func CreateNovaSecret(namespace string, name string) *corev1.Secret {
 	return th.CreateSecret(
 		types.NamespacedName{Namespace: namespace, Name: name},
 		map[string][]byte{
-			"NovaPassword":              []byte("service-password"),
-			"NovaAPIDatabasePassword":   []byte("api-database-password"),
-			"MetadataSecret":            []byte("metadata-secret"),
-			"NovaCell0DatabasePassword": []byte("cell0-database-password"),
+			"NovaPassword":   []byte("service-password"),
+			"MetadataSecret": []byte("metadata-secret"),
 		},
 	)
 }
@@ -477,12 +485,8 @@ func CreateNovaSecretFor3Cells(namespace string, name string) *corev1.Secret {
 	return th.CreateSecret(
 		types.NamespacedName{Namespace: namespace, Name: name},
 		map[string][]byte{
-			"NovaPassword":              []byte("service-password"),
-			"NovaAPIDatabasePassword":   []byte("api-database-password"),
-			"MetadataSecret":            []byte("metadata-secret"),
-			"NovaCell0DatabasePassword": []byte("cell0-database-password"),
-			"NovaCell1DatabasePassword": []byte("cell1-database-password"),
-			"NovaCell2DatabasePassword": []byte("cell2-database-password"),
+			"NovaPassword":   []byte("service-password"),
+			"MetadataSecret": []byte("metadata-secret"),
 		},
 	)
 }
@@ -490,8 +494,10 @@ func CreateNovaSecretFor3Cells(namespace string, name string) *corev1.Secret {
 func GetDefaultNovaSchedulerSpec(novaNames NovaNames) map[string]interface{} {
 	return map[string]interface{}{
 		"secret":                novaNames.InternalTopLevelSecretName.Name,
+		"apiDatabaseAccount":    novaNames.APIMariaDBDatabaseAccount.Name,
 		"apiDatabaseHostname":   "nova-api-db-hostname",
 		"cell0DatabaseHostname": "nova-cell0-db-hostname",
+		"cell0DatabaseAccount":  cell0.MariaDBAccountName.Name,
 		"keystoneAuthURL":       "keystone-auth-url",
 		"containerImage":        ContainerImage,
 		"serviceAccount":        "nova-sa",
@@ -533,6 +539,8 @@ type CellNames struct {
 	CellName                         string
 	CellCRName                       types.NamespacedName
 	MariaDBDatabaseName              types.NamespacedName
+	MariaDBAccountName               types.NamespacedName
+	APIDatabaseAccountName           types.NamespacedName
 	ConductorName                    types.NamespacedName
 	DBSyncJobName                    types.NamespacedName
 	ConductorConfigDataName          types.NamespacedName
@@ -585,6 +593,14 @@ func GetCellNames(novaName types.NamespacedName, cell string) CellNames {
 		MariaDBDatabaseName: types.NamespacedName{
 			Namespace: novaName.Namespace,
 			Name:      "nova-" + cell,
+		},
+		MariaDBAccountName: types.NamespacedName{
+			Namespace: novaName.Namespace,
+			Name:      "test-nova-" + cell + "-account",
+		},
+		APIDatabaseAccountName: types.NamespacedName{
+			Namespace: novaName.Namespace,
+			Name:      "test-nova-api-account",
 		},
 		ConductorName: cellConductor,
 		DBSyncJobName: types.NamespacedName{
@@ -660,21 +676,22 @@ func GetCellNames(novaName types.NamespacedName, cell string) CellNames {
 }
 
 type NovaNames struct {
-	Namespace               string
-	NovaName                types.NamespacedName
-	InternalNovaServiceName types.NamespacedName
-	PublicNovaServiceName   types.NamespacedName
-	AdminNovaServiceName    types.NamespacedName
-	KeystoneServiceName     types.NamespacedName
-	APIName                 types.NamespacedName
-	APIMariaDBDatabaseName  types.NamespacedName
-	APIDeploymentName       types.NamespacedName
-	APIKeystoneEndpointName types.NamespacedName
-	APIStatefulSetName      types.NamespacedName
-	APIConfigDataName       types.NamespacedName
-	InternalCertSecretName  types.NamespacedName
-	PublicCertSecretName    types.NamespacedName
-	CaBundleSecretName      types.NamespacedName
+	Namespace                 string
+	NovaName                  types.NamespacedName
+	InternalNovaServiceName   types.NamespacedName
+	PublicNovaServiceName     types.NamespacedName
+	AdminNovaServiceName      types.NamespacedName
+	KeystoneServiceName       types.NamespacedName
+	APIName                   types.NamespacedName
+	APIMariaDBDatabaseName    types.NamespacedName
+	APIMariaDBDatabaseAccount types.NamespacedName
+	APIDeploymentName         types.NamespacedName
+	APIKeystoneEndpointName   types.NamespacedName
+	APIStatefulSetName        types.NamespacedName
+	APIConfigDataName         types.NamespacedName
+	InternalCertSecretName    types.NamespacedName
+	PublicCertSecretName      types.NamespacedName
+	CaBundleSecretName        types.NamespacedName
 	// refers internal API network for all Nova services (not just nova API)
 	InternalAPINetworkNADName       types.NamespacedName
 	SchedulerName                   types.NamespacedName
@@ -735,6 +752,10 @@ func GetNovaNames(novaName types.NamespacedName, cellNames []string) NovaNames {
 		APIMariaDBDatabaseName: types.NamespacedName{
 			Namespace: novaAPI.Namespace,
 			Name:      "nova-api", // a static DB name for nova
+		},
+		APIMariaDBDatabaseAccount: types.NamespacedName{
+			Namespace: novaAPI.Namespace,
+			Name:      "test-nova-api-account",
 		},
 		APIDeploymentName: novaAPI,
 		APIKeystoneEndpointName: types.NamespacedName{
@@ -831,11 +852,9 @@ func CreateInternalTopLevelSecret(novaNames NovaNames) *corev1.Secret {
 	return th.CreateSecret(
 		novaNames.InternalTopLevelSecretName,
 		map[string][]byte{
-			"ServicePassword":      []byte("service-password"),
-			"APIDatabasePassword":  []byte("api-database-password"),
-			"CellDatabasePassword": []byte("cell-database-password"),
-			"MetadataSecret":       []byte("metadata-secret"),
-			"transport_url":        []byte("rabbit://api/fake"),
+			"ServicePassword": []byte("service-password"),
+			"MetadataSecret":  []byte("metadata-secret"),
+			"transport_url":   []byte("rabbit://api/fake"),
 		},
 	)
 }
@@ -843,12 +862,14 @@ func CreateInternalTopLevelSecret(novaNames NovaNames) *corev1.Secret {
 func GetDefaultNovaMetadataSpec(secretName types.NamespacedName) map[string]interface{} {
 	return map[string]interface{}{
 		"secret":               secretName.Name,
+		"apiDatabaseAccount":   novaNames.APIMariaDBDatabaseAccount.Name,
 		"apiDatabaseHostname":  "nova-api-db-hostname",
 		"cellDatabaseHostname": "nova-cell-db-hostname",
 		"containerImage":       ContainerImage,
 		"keystoneAuthURL":      "keystone-auth-url",
 		"serviceAccount":       "nova-sa",
 		"memcachedInstance":    MemcachedInstance,
+		"cellDatabaseAccount":  cell0.MariaDBAccountName.Name,
 	}
 }
 
@@ -889,21 +910,22 @@ func GetNovaNoVNCProxy(name types.NamespacedName) *novav1.NovaNoVNCProxy {
 func GetDefaultNovaNoVNCProxySpec(cell CellNames) map[string]interface{} {
 	return map[string]interface{}{
 		"secret":               cell.InternalCellSecretName.Name,
+		"apiDatabaseAccount":   novaNames.APIMariaDBDatabaseAccount.Name,
 		"cellDatabaseHostname": "nova-cell-db-hostname",
 		"containerImage":       ContainerImage,
 		"keystoneAuthURL":      "keystone-auth-url",
 		"serviceAccount":       "nova-sa",
 		"cellName":             cell.CellName,
 		"memcachedInstance":    MemcachedInstance,
+		"cellDatabaseAccount":  cell.MariaDBAccountName.Name,
 	}
 }
 
 func CreateCellInternalSecret(cell CellNames, additionalValues map[string][]byte) *corev1.Secret {
 
 	secretMap := map[string][]byte{
-		"ServicePassword":      []byte("service-password"),
-		"CellDatabasePassword": []byte("cell-database-password"),
-		"transport_url":        []byte(fmt.Sprintf("rabbit://%s/fake", cell.CellName)),
+		"ServicePassword": []byte("service-password"),
+		"transport_url":   []byte(fmt.Sprintf("rabbit://%s/fake", cell.CellName)),
 	}
 	// (ksambor) this can be replaced with maps.Copy directly from maps
 	// not experimental package when we move to go 1.21
@@ -969,6 +991,7 @@ func GetDefaultNovaComputeTemplate() map[string]interface{} {
 func GetDefaultNovaComputeSpec(cell CellNames) map[string]interface{} {
 	return map[string]interface{}{
 		"secret":               cell.InternalCellSecretName.Name,
+		"apiDatabaseAccount":   novaNames.APIMariaDBDatabaseAccount.Name,
 		"computeName":          "compute1",
 		"cellDatabaseHostname": "nova-cell-db-hostname",
 		"containerImage":       ContainerImage,
@@ -976,6 +999,7 @@ func GetDefaultNovaComputeSpec(cell CellNames) map[string]interface{} {
 		"serviceAccount":       "nova",
 		"cellName":             cell.CellName,
 		"computeDriver":        novav1.IronicDriver,
+		"cellDatabaseAccount":  cell.MariaDBAccountName.Name,
 	}
 }
 

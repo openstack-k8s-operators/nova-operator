@@ -85,18 +85,18 @@ type NovaSchedulerSpec struct {
 	KeystoneAuthURL string `json:"keystoneAuthURL"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=nova_api
-	// APIDatabaseUser - username to use when accessing the API DB
-	APIDatabaseUser string `json:"apiDatabaseUser"`
+	// +kubebuilder:default=nova-api
+	// APIDatabaseAccount - MariaDBAccount to use when accessing the API DB
+	APIDatabaseAccount string `json:"apiDatabaseAccount"`
 
 	// +kubebuilder:validation:Required
 	// APIDatabaseHostname - hostname to use when accessing the API DB
 	APIDatabaseHostname string `json:"apiDatabaseHostname"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default="nova_cell0"
-	// Cell0DatabaseUser - username to use when accessing the cell0 DB
-	Cell0DatabaseUser string `json:"cell0DatabaseUser"`
+	// +kubebuilder:default="nova-cell0"
+	// Cell0DatabaseAccount - MariaDBAccount to use when accessing the cell0 DB
+	Cell0DatabaseAccount string `json:"cell0DatabaseAccount"`
 
 	// +kubebuilder:validation:Required
 	// Cell0DatabaseHostname - hostname to use when accessing the cell0 DB

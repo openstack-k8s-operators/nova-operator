@@ -22,6 +22,10 @@ status:
     reason: Ready
     status: "True"
     type: KeystoneServiceReady
+  - message: MariaDBAccount creation complete
+    reason: Ready
+    status: "True"
+    type: MariaDBAccountReady
   - message: ' Memcached instance has been provisioned'
     reason: Ready
     status: "True"

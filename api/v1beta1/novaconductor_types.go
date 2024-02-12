@@ -90,8 +90,8 @@ type NovaConductorSpec struct {
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=nova
-	// APIDatabaseUser - username to use when accessing the API DB
-	APIDatabaseUser string `json:"apiDatabaseUser"`
+	// APIDatabaseAccount - MariaDBAccount to use when accessing the API DB
+	APIDatabaseAccount string `json:"apiDatabaseAccount"`
 
 	// +kubebuilder:validation:Optional
 	// APIDatabaseHostname - hostname to use when accessing the API DB. If not
@@ -102,8 +102,8 @@ type NovaConductorSpec struct {
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=nova
-	// CellDatabaseUser - username to use when accessing the cell DB
-	CellDatabaseUser string `json:"cellDatabaseUser"`
+	// CellDatabaseAccount - MariaDBAccount to use when accessing the cell DB
+	CellDatabaseAccount string `json:"cellDatabaseAccount"`
 
 	// +kubebuilder:validation:Optional
 	// NOTE(gibi): This should be Required, see notes in KeystoneAuthURL
@@ -196,9 +196,9 @@ func NewNovaConductorSpec(
 		CellName:             novaCell.CellName,
 		Secret:               novaCell.Secret,
 		CellDatabaseHostname: novaCell.CellDatabaseHostname,
-		CellDatabaseUser:     novaCell.CellDatabaseUser,
+		CellDatabaseAccount:  novaCell.CellDatabaseAccount,
 		APIDatabaseHostname:  novaCell.APIDatabaseHostname,
-		APIDatabaseUser:      novaCell.APIDatabaseUser,
+		APIDatabaseAccount:   novaCell.APIDatabaseAccount,
 		NovaServiceBase:      NovaServiceBase(novaCell.ConductorServiceTemplate),
 		KeystoneAuthURL:      novaCell.KeystoneAuthURL,
 		ServiceUser:          novaCell.ServiceUser,

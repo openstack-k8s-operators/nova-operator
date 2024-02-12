@@ -173,8 +173,6 @@ func (r *NovaSchedulerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		// passed via the Secret
 		[]string{
 			ServicePasswordSelector,
-			APIDatabasePasswordSelector,
-			CellDatabasePasswordSelector,
 			TransportURLSelector,
 		},
 		h.GetClient(),
@@ -457,19 +455,32 @@ func (r *NovaSchedulerReconciler) generateConfigs(
 	secret corev1.Secret,
 	memcachedInstance *memcachedv1.Memcached,
 ) error {
+
+	apiDB, err := mariadbv1.GetDatabaseByNameAndAccount(ctx, h, "nova-api", instance.Spec.APIDatabaseAccount, instance.Namespace)
+	if err != nil {
+		return err
+	}
+	apiDatabaseAccount := apiDB.GetAccount()
+	apiDbSecret := apiDB.GetSecret()
+
+	cellDatabaseAccount, cellDbSecret, err := mariadbv1.GetAccountAndSecret(ctx, h, instance.Spec.Cell0DatabaseAccount, instance.Namespace)
+	if err != nil {
+		return err
+	}
+
 	templateParameters := map[string]interface{}{
 		"service_name":             "nova-scheduler",
 		"keystone_internal_url":    instance.Spec.KeystoneAuthURL,
 		"nova_keystone_user":       instance.Spec.ServiceUser,
 		"nova_keystone_password":   string(secret.Data[ServicePasswordSelector]),
 		"api_db_name":              NovaAPIDatabaseName,
-		"api_db_user":              instance.Spec.APIDatabaseUser,
-		"api_db_password":          string(secret.Data[APIDatabasePasswordSelector]),
+		"api_db_user":              apiDatabaseAccount.Spec.UserName,
+		"api_db_password":          string(apiDbSecret.Data[mariadbv1.DatabasePasswordSelector]),
 		"api_db_address":           instance.Spec.APIDatabaseHostname,
 		"api_db_port":              3306,
 		"cell_db_name":             NovaCell0DatabaseName,
-		"cell_db_user":             instance.Spec.Cell0DatabaseUser,
-		"cell_db_password":         string(secret.Data[CellDatabasePasswordSelector]),
+		"cell_db_user":             cellDatabaseAccount.Spec.UserName,
+		"cell_db_password":         string(cellDbSecret.Data[mariadbv1.DatabasePasswordSelector]),
 		"cell_db_address":          instance.Spec.Cell0DatabaseHostname,
 		"cell_db_port":             3306,
 		"openstack_region_name":    "regionOne", // fixme
@@ -480,16 +491,12 @@ func (r *NovaSchedulerReconciler) generateConfigs(
 		"MemcachedServersWithInet": strings.Join(memcachedInstance.Status.ServerListWithInet, ","),
 	}
 
-	db, err := mariadbv1.GetDatabaseByName(ctx, h, "nova-api")
-	if err != nil {
-		return err
-	}
 	var tlsCfg *tls.Service
 	if instance.Spec.TLS.CaBundleSecretName != "" {
 		tlsCfg = &tls.Service{}
 	}
 	extraData := map[string]string{
-		"my.cnf": db.GetDatabaseClientConfig(tlsCfg), //(mschuppert) for now just get the default my.cnf
+		"my.cnf": apiDB.GetDatabaseClientConfig(tlsCfg), //(mschuppert) for now just get the default my.cnf
 	}
 	if instance.Spec.CustomServiceConfig != "" {
 		extraData["02-nova-override.conf"] = instance.Spec.CustomServiceConfig

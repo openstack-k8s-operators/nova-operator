@@ -48,23 +48,23 @@ spec:
           spec:
             description: NovaSchedulerSpec defines the desired state of NovaScheduler
             properties:
+              apiDatabaseAccount:
+                default: nova-api
+                description: APIDatabaseAccount - MariaDBAccount to use when accessing
+                  the API DB
+                type: string
               apiDatabaseHostname:
                 description: APIDatabaseHostname - hostname to use when accessing
                   the API DB
                 type: string
-              apiDatabaseUser:
-                default: nova_api
-                description: APIDatabaseUser - username to use when accessing the
-                  API DB
+              cell0DatabaseAccount:
+                default: nova-cell0
+                description: Cell0DatabaseAccount - MariaDBAccount to use when accessing
+                  the cell0 DB
                 type: string
               cell0DatabaseHostname:
                 description: Cell0DatabaseHostname - hostname to use when accessing
                   the cell0 DB
-                type: string
-              cell0DatabaseUser:
-                default: nova_cell0
-                description: Cell0DatabaseUser - username to use when accessing the
-                  cell0 DB
                 type: string
               containerImage:
                 description: The service specific Container Image URL (will be set

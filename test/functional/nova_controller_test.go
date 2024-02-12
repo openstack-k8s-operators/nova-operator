@@ -26,6 +26,9 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 
+	mariadb_test "github.com/openstack-k8s-operators/mariadb-operator/api/test/helpers"
+	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
+
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
@@ -102,6 +105,7 @@ var _ = Describe("Nova controller", func() {
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace))
 
 			DeferCleanup(th.DeleteInstance, CreateNovaWithCell0(novaNames.NovaName))
+
 		})
 
 		It("creates service account, role and rolebindig", func() {
@@ -179,7 +183,7 @@ var _ = Describe("Nova controller", func() {
 			mariadb.GetMariaDBDatabase(novaNames.APIMariaDBDatabaseName)
 
 			mariadb.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(novaNames.APIMariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(novaNames.APIMariaDBDatabaseAccount)
 			th.ExpectCondition(
 				novaNames.NovaName,
 				ConditionGetterFunc(NovaConditionGetter),
@@ -215,11 +219,12 @@ var _ = Describe("Nova controller", func() {
 				novav1.NovaAllCellsDBReadyCondition,
 				corev1.ConditionFalse,
 			)
+
 			mariadb.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(novaNames.APIMariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(novaNames.APIMariaDBDatabaseAccount)
 			mariadb.GetMariaDBDatabase(cell0.MariaDBDatabaseName)
 			mariadb.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(cell0.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(cell0.MariaDBAccountName)
 			th.ExpectCondition(
 				novaNames.NovaName,
 				ConditionGetterFunc(NovaConditionGetter),
@@ -231,9 +236,9 @@ var _ = Describe("Nova controller", func() {
 		It("creates cell0 NovaCell", func() {
 			keystone.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
 			mariadb.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(novaNames.APIMariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(novaNames.APIMariaDBDatabaseAccount)
 			mariadb.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(cell0.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(cell0.MariaDBAccountName)
 			infra.SimulateTransportURLReady(cell0.TransportURLName)
 			// assert that cell related CRs are created
 			cell := GetNovaCell(cell0.CellCRName)
@@ -254,11 +259,7 @@ var _ = Describe("Nova controller", func() {
 			// proper content and the cell subCRs are configured to use the
 			// internal secret
 			internalCellSecret := th.GetSecret(cell0.InternalCellSecretName)
-			Expect(internalCellSecret.Data).To(HaveLen(4))
-			Expect(internalCellSecret.Data).To(
-				HaveKeyWithValue(controllers.APIDatabasePasswordSelector, []byte("api-database-password")))
-			Expect(internalCellSecret.Data).To(
-				HaveKeyWithValue(controllers.CellDatabasePasswordSelector, []byte("cell0-database-password")))
+			Expect(internalCellSecret.Data).To(HaveLen(2))
 			Expect(internalCellSecret.Data).To(
 				HaveKeyWithValue(controllers.ServicePasswordSelector, []byte("service-password")))
 			Expect(internalCellSecret.Data).To(
@@ -304,11 +305,22 @@ var _ = Describe("Nova controller", func() {
 			)
 			Expect(mappingJobConfig.Data).Should(HaveKey("01-nova.conf"))
 			configData := string(mappingJobConfig.Data["01-nova.conf"])
+
+			cell0Account := mariadb.GetMariaDBAccount(cell0.MariaDBAccountName)
+			cell0Secret := th.GetSecret(types.NamespacedName{Name: cell0Account.Spec.Secret, Namespace: cell0.MariaDBAccountName.Namespace})
+
 			Expect(configData).To(
-				ContainSubstring(fmt.Sprintf("[database]\nconnection = mysql+pymysql://nova_cell0:cell0-database-password@hostname-for-openstack.%s.svc/nova_cell0?read_default_file=/etc/my.cnf", novaNames.Namespace)),
+				ContainSubstring(fmt.Sprintf("[database]\nconnection = mysql+pymysql://%s:%s@hostname-for-openstack.%s.svc/nova_cell0?read_default_file=/etc/my.cnf",
+					cell0Account.Spec.UserName, cell0Secret.Data[mariadbv1.DatabasePasswordSelector],
+					novaNames.Namespace)),
 			)
+
+			apiAccount := mariadb.GetMariaDBAccount(novaNames.APIMariaDBDatabaseAccount)
+			apiSecret := th.GetSecret(types.NamespacedName{Name: apiAccount.Spec.Secret, Namespace: novaNames.APIMariaDBDatabaseAccount.Namespace})
+
 			Expect(configData).To(
-				ContainSubstring(fmt.Sprintf("[api_database]\nconnection = mysql+pymysql://nova_api:api-database-password@hostname-for-openstack.%s.svc/nova_api?read_default_file=/etc/my.cnf", novaNames.Namespace)),
+				ContainSubstring(fmt.Sprintf("[api_database]\nconnection = mysql+pymysql://%s:%s@hostname-for-openstack.%s.svc/nova_api?read_default_file=/etc/my.cnf",
+					apiAccount.Spec.UserName, apiSecret.Data[mariadbv1.DatabasePasswordSelector], novaNames.Namespace)),
 			)
 			// NOTE(gibi): cell mapping for cell0 should not have transport_url
 			// configured. As the nova-manage command used to create the mapping
@@ -348,9 +360,9 @@ var _ = Describe("Nova controller", func() {
 		It("creates an internal Secret for the top level services", func() {
 			keystone.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
 			mariadb.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(novaNames.APIMariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(novaNames.APIMariaDBDatabaseAccount)
 			mariadb.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(cell0.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(cell0.MariaDBAccountName)
 			infra.SimulateTransportURLReady(cell0.TransportURLName)
 			th.SimulateJobSuccess(cell0.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
@@ -361,11 +373,7 @@ var _ = Describe("Nova controller", func() {
 			// assert that a the top level internal internal secret is created
 			// with the proper data
 			internalTopLevelSecret := th.GetSecret(novaNames.InternalTopLevelSecretName)
-			Expect(internalTopLevelSecret.Data).To(HaveLen(5))
-			Expect(internalTopLevelSecret.Data).To(
-				HaveKeyWithValue(controllers.APIDatabasePasswordSelector, []byte("api-database-password")))
-			Expect(internalTopLevelSecret.Data).To(
-				HaveKeyWithValue(controllers.CellDatabasePasswordSelector, []byte("cell0-database-password")))
+			Expect(internalTopLevelSecret.Data).To(HaveLen(3))
 			Expect(internalTopLevelSecret.Data).To(
 				HaveKeyWithValue(controllers.ServicePasswordSelector, []byte("service-password")))
 			Expect(internalTopLevelSecret.Data).To(
@@ -377,9 +385,9 @@ var _ = Describe("Nova controller", func() {
 		It("creates NovaAPI", func() {
 			keystone.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
 			mariadb.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(novaNames.APIMariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(novaNames.APIMariaDBDatabaseAccount)
 			mariadb.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(cell0.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(cell0.MariaDBAccountName)
 			infra.SimulateTransportURLReady(cell0.TransportURLName)
 			th.SimulateJobSuccess(cell0.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
@@ -418,9 +426,9 @@ var _ = Describe("Nova controller", func() {
 		It("creates NovaScheduler", func() {
 			keystone.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
 			mariadb.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(novaNames.APIMariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(novaNames.APIMariaDBDatabaseAccount)
 			mariadb.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(cell0.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(cell0.MariaDBAccountName)
 			infra.SimulateTransportURLReady(cell0.TransportURLName)
 			th.SimulateJobSuccess(cell0.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
@@ -459,9 +467,9 @@ var _ = Describe("Nova controller", func() {
 		It("creates NovaMetadata", func() {
 			keystone.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
 			mariadb.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(novaNames.APIMariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(novaNames.APIMariaDBDatabaseAccount)
 			mariadb.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(cell0.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(cell0.MariaDBAccountName)
 			infra.SimulateTransportURLReady(cell0.TransportURLName)
 			th.SimulateJobSuccess(cell0.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
@@ -527,9 +535,9 @@ var _ = Describe("Nova controller", func() {
 
 			keystone.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
 			mariadb.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(novaNames.APIMariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(novaNames.APIMariaDBDatabaseAccount)
 			mariadb.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(cell0.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(cell0.MariaDBAccountName)
 			infra.SimulateTransportURLReady(cell0.TransportURLName)
 			GetNovaCell(cell0.CellCRName)
 			GetNovaConductor(cell0.ConductorName)
@@ -601,9 +609,9 @@ var _ = Describe("Nova controller", func() {
 
 			keystone.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
 			mariadb.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(novaNames.APIMariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(novaNames.APIMariaDBDatabaseAccount)
 			mariadb.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(cell0.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(cell0.MariaDBAccountName)
 			infra.SimulateTransportURLReady(cell0.TransportURLName)
 			th.SimulateJobSuccess(cell0.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
@@ -673,11 +681,12 @@ var _ = Describe("Nova controller", func() {
 		})
 
 		It("uses the correct hostnames to access the different DB services", func() {
+
 			keystone.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
 			mariadb.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(novaNames.APIMariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(novaNames.APIMariaDBDatabaseAccount)
 			mariadb.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(cell0.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(cell0.MariaDBAccountName)
 			infra.SimulateTransportURLReady(cell0.TransportURLName)
 
 			cell0DBSync := th.GetJob(cell0.DBSyncJobName)
@@ -685,16 +694,26 @@ var _ = Describe("Nova controller", func() {
 			configDataMap := th.GetSecret(cell0.ConductorConfigDataName)
 			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
 			configData := string(configDataMap.Data["01-nova.conf"])
+
+			cell0Account := mariadb.GetMariaDBAccount(cell0.MariaDBAccountName)
+			cell0Secret := th.GetSecret(types.NamespacedName{Name: cell0Account.Spec.Secret, Namespace: cell0.MariaDBAccountName.Namespace})
+
 			Expect(configData).To(
 				ContainSubstring(
 					fmt.Sprintf(
-						"[database]\nconnection = mysql+pymysql://nova_cell0:cell0-database-password@hostname-for-%s.%s.svc/nova_cell0?read_default_file=/etc/my.cnf",
+						"[database]\nconnection = mysql+pymysql://%s:%s@hostname-for-%s.%s.svc/nova_cell0?read_default_file=/etc/my.cnf",
+						cell0Account.Spec.UserName, cell0Secret.Data[mariadbv1.DatabasePasswordSelector],
 						cell0.MariaDBDatabaseName.Name, novaNames.Namespace)),
 			)
+
+			apiAccount := mariadb.GetMariaDBAccount(novaNames.APIMariaDBDatabaseAccount)
+			apiSecret := th.GetSecret(types.NamespacedName{Name: apiAccount.Spec.Secret, Namespace: novaNames.APIMariaDBDatabaseAccount.Namespace})
+
 			Expect(configData).To(
 				ContainSubstring(
 					fmt.Sprintf(
-						"[api_database]\nconnection = mysql+pymysql://nova_api:api-database-password@hostname-for-%s.%s.svc/nova_api?read_default_file=/etc/my.cnf",
+						"[api_database]\nconnection = mysql+pymysql://%s:%s@hostname-for-%s.%s.svc/nova_api?read_default_file=/etc/my.cnf",
+						apiAccount.Spec.UserName, apiSecret.Data[mariadbv1.DatabasePasswordSelector],
 						novaNames.APIMariaDBDatabaseName.Name, novaNames.Namespace)),
 			)
 			Expect(configData).To(ContainSubstring("password = service-password"))
@@ -711,13 +730,15 @@ var _ = Describe("Nova controller", func() {
 			Expect(configData).To(
 				ContainSubstring(
 					fmt.Sprintf(
-						"[database]\nconnection = mysql+pymysql://nova_cell0:cell0-database-password@hostname-for-%s.%s.svc/nova_cell0?read_default_file=/etc/my.cnf",
+						"[database]\nconnection = mysql+pymysql://%s:%s@hostname-for-%s.%s.svc/nova_cell0?read_default_file=/etc/my.cnf",
+						cell0Account.Spec.UserName, cell0Secret.Data[mariadbv1.DatabasePasswordSelector],
 						cell0.MariaDBDatabaseName.Name, novaNames.Namespace)),
 			)
 			Expect(configData).To(
 				ContainSubstring(
 					fmt.Sprintf(
-						"[api_database]\nconnection = mysql+pymysql://nova_api:api-database-password@hostname-for-%s.%s.svc/nova_api?read_default_file=/etc/my.cnf",
+						"[api_database]\nconnection = mysql+pymysql://%s:%s@hostname-for-%s.%s.svc/nova_api?read_default_file=/etc/my.cnf",
+						apiAccount.Spec.UserName, apiSecret.Data[mariadbv1.DatabasePasswordSelector],
 						novaNames.APIMariaDBDatabaseName.Name, novaNames.Namespace)),
 			)
 			Expect(configData).To(ContainSubstring("password = service-password"))
@@ -728,13 +749,15 @@ var _ = Describe("Nova controller", func() {
 			Expect(configData).To(
 				ContainSubstring(
 					fmt.Sprintf(
-						"[database]\nconnection = mysql+pymysql://nova_cell0:cell0-database-password@hostname-for-%s.%s.svc/nova_cell0?read_default_file=/etc/my.cnf",
+						"[database]\nconnection = mysql+pymysql://%s:%s@hostname-for-%s.%s.svc/nova_cell0?read_default_file=/etc/my.cnf",
+						cell0Account.Spec.UserName, cell0Secret.Data[mariadbv1.DatabasePasswordSelector],
 						cell0.MariaDBDatabaseName.Name, novaNames.Namespace)),
 			)
 			Expect(configData).To(
 				ContainSubstring(
 					fmt.Sprintf(
-						"[api_database]\nconnection = mysql+pymysql://nova_api:api-database-password@hostname-for-%s.%s.svc/nova_api?read_default_file=/etc/my.cnf",
+						"[api_database]\nconnection = mysql+pymysql://%s:%s@hostname-for-%s.%s.svc/nova_api?read_default_file=/etc/my.cnf",
+						apiAccount.Spec.UserName, apiSecret.Data[mariadbv1.DatabasePasswordSelector],
 						novaNames.APIMariaDBDatabaseName.Name, novaNames.Namespace)),
 			)
 			Expect(configData).To(ContainSubstring("password = service-password"))
@@ -806,6 +829,7 @@ var _ = Describe("Nova controller", func() {
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace))
 
 			DeferCleanup(th.DeleteInstance, CreateNovaWithCell0(novaNames.NovaName))
+
 		})
 
 		It("removes the finalizer from KeystoneService", func() {
@@ -833,9 +857,9 @@ var _ = Describe("Nova controller", func() {
 			cell0DB := mariadb.GetMariaDBDatabase(cell0.MariaDBDatabaseName)
 			Expect(cell0DB.Finalizers).To(ContainElement("Nova"))
 
-			apiAcc := mariadb.GetMariaDBAccount(novaNames.APIMariaDBDatabaseName)
+			apiAcc := mariadb.GetMariaDBAccount(novaNames.APIMariaDBDatabaseAccount)
 			Expect(apiAcc.Finalizers).To(ContainElement("Nova"))
-			cell0Acc := mariadb.GetMariaDBAccount(cell0.MariaDBDatabaseName)
+			cell0Acc := mariadb.GetMariaDBAccount(cell0.MariaDBAccountName)
 			Expect(cell0Acc.Finalizers).To(ContainElement("Nova"))
 
 			th.DeleteInstance(GetNova(novaNames.NovaName))
@@ -845,9 +869,9 @@ var _ = Describe("Nova controller", func() {
 			cell0DB = mariadb.GetMariaDBDatabase(cell0.MariaDBDatabaseName)
 			Expect(cell0DB.Finalizers).NotTo(ContainElement("Nova"))
 
-			apiAcc = mariadb.GetMariaDBAccount(novaNames.APIMariaDBDatabaseName)
+			apiAcc = mariadb.GetMariaDBAccount(novaNames.APIMariaDBDatabaseAccount)
 			Expect(apiAcc.Finalizers).NotTo(ContainElement("Nova"))
-			cell0Acc = mariadb.GetMariaDBAccount(cell0.MariaDBDatabaseName)
+			cell0Acc = mariadb.GetMariaDBAccount(cell0.MariaDBAccountName)
 			Expect(cell0Acc.Finalizers).NotTo(ContainElement("Nova"))
 
 		})
@@ -890,11 +914,13 @@ var _ = Describe("Nova controller", func() {
 			)
 			rawSpec := map[string]interface{}{
 				"secret":                SecretName,
+				"apiDatabaseAccount":    novaNames.APIMariaDBDatabaseAccount.Name,
 				"apiMessageBusInstance": cell0.TransportURLName.Name,
 				"cellTemplates": map[string]interface{}{
 					"cell0": map[string]interface{}{
-						"cellDatabaseUser": "nova_cell0",
-						"hasAPIAccess":     true,
+						"apiDatabaseAccount":  novaNames.APIMariaDBDatabaseAccount.Name,
+						"cellDatabaseAccount": cell0.MariaDBAccountName.Name,
+						"hasAPIAccess":        true,
 						"conductorServiceTemplate": map[string]interface{}{
 							"networkAttachments": []string{"internalapi"},
 						},
@@ -915,9 +941,9 @@ var _ = Describe("Nova controller", func() {
 
 			keystone.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
 			mariadb.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(novaNames.APIMariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(novaNames.APIMariaDBDatabaseAccount)
 			mariadb.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(cell0.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(cell0.MariaDBAccountName)
 			infra.SimulateTransportURLReady(cell0.TransportURLName)
 			th.SimulateJobSuccess(cell0.DBSyncJobName)
 		})
@@ -989,6 +1015,217 @@ var _ = Describe("Nova controller", func() {
 			}
 		})
 	})
+
+	// Run MariaDBAccount suite tests for NovaAPI database.  these are pre-packaged ginkgo tests
+	// that exercise standard account create / update patterns that should be
+	// common to all controllers that ensure MariaDBAccount CRs.
+	mariadbAPISuite := &mariadb_test.MariaDBTestHarness{
+		PopulateHarness: func(harness *mariadb_test.MariaDBTestHarness) {
+			harness.Setup(
+				"Nova API",
+				novaNames.Namespace,
+				novaNames.APIMariaDBDatabaseName.Name,
+				"Nova",
+				mariadb,
+				timeout,
+				interval,
+			)
+		},
+		// Generate a fully running Nova service given an accountName
+		// needs to make it all the way to the end where the mariadb finalizers
+		// are removed from unused accounts since that's part of what we are testing
+		SetupCR: func(accountName types.NamespacedName) {
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateNovaSecret(novaNames.NovaName.Namespace, SecretName))
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(cell0))
+
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
+					cell0.MariaDBDatabaseName.Namespace,
+					cell0.MariaDBDatabaseName.Name,
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
+					novaNames.APIMariaDBDatabaseName.Namespace,
+					novaNames.APIMariaDBDatabaseName.Name,
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+
+			memcachedSpec := memcachedv1.MemcachedSpec{
+				Replicas: ptr.To(int32(3)),
+			}
+			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
+			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
+
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace))
+
+			spec := GetDefaultNovaSpec()
+			cell0template := GetDefaultNovaCellTemplate()
+			cell0template["cellDatabaseInstance"] = cell0.MariaDBDatabaseName.Name
+			spec["cellTemplates"] = map[string]interface{}{"cell0": cell0template}
+			spec["apiDatabaseInstance"] = novaNames.APIMariaDBDatabaseName.Name
+			spec["apiDatabaseAccount"] = accountName.Name
+
+			DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
+
+			keystone.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
+			mariadb.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(accountName)
+			mariadb.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(cell0.MariaDBAccountName)
+			infra.SimulateTransportURLReady(cell0.TransportURLName)
+			th.SimulateJobSuccess(cell0.DBSyncJobName)
+			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
+			th.SimulateJobSuccess(cell0.CellMappingJobName)
+
+			th.SimulateStatefulSetReplicaReady(novaNames.APIDeploymentName)
+			keystone.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
+			th.SimulateStatefulSetReplicaReady(novaNames.SchedulerStatefulSetName)
+			th.SimulateStatefulSetReplicaReady(novaNames.MetadataStatefulSetName)
+
+			// ensure api/scheduler/metadata all complete
+			Eventually(func(g Gomega) {
+				nova := GetNova(novaNames.NovaName)
+				g.Expect(nova.Status.APIServiceReadyCount).To(Equal(int32(1)))
+				g.Expect(nova.Status.SchedulerServiceReadyCount).To(Equal(int32(1)))
+				g.Expect(nova.Status.MetadataServiceReadyCount).To(Equal(int32(1)))
+			})
+		},
+		// update to a new account name
+		UpdateAccount: func(accountName types.NamespacedName) {
+			Eventually(func(g Gomega) {
+				nova := GetNova(novaNames.NovaName)
+				nova.Spec.APIDatabaseAccount = accountName.Name
+				g.Expect(th.K8sClient.Update(ctx, nova)).Should(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+		},
+		// delete the CR, allowing tests that exercise finalizer removal
+		DeleteCR: func() {
+			th.DeleteInstance(GetNova(novaNames.NovaName))
+		},
+	}
+
+	mariadbAPISuite.RunBasicSuite()
+
+	// Run MariaDBAccount suite tests for NovaCell0 database.  these are pre-packaged ginkgo tests
+	// that exercise standard account create / update patterns that should be
+	// common to all controllers that ensure MariaDBAccount CRs.
+	mariadbCellSuite := &mariadb_test.MariaDBTestHarness{
+		PopulateHarness: func(harness *mariadb_test.MariaDBTestHarness) {
+			harness.Setup(
+				"Nova Cell",
+				novaNames.Namespace,
+				cell0.MariaDBDatabaseName.Name,
+				"Nova",
+				mariadb,
+				timeout,
+				interval,
+			)
+		},
+		// Generate a fully running Nova service given an accountName
+		// needs to make it all the way to the end where the mariadb finalizers
+		// are removed from unused accounts since that's part of what we are testing
+		SetupCR: func(accountName types.NamespacedName) {
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateNovaSecret(novaNames.NovaName.Namespace, SecretName))
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(cell0))
+
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
+					cell0.MariaDBDatabaseName.Namespace,
+					cell0.MariaDBDatabaseName.Name,
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
+					novaNames.APIMariaDBDatabaseName.Namespace,
+					novaNames.APIMariaDBDatabaseName.Name,
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+
+			memcachedSpec := memcachedv1.MemcachedSpec{
+				Replicas: ptr.To(int32(3)),
+			}
+			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
+			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
+
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace))
+
+			spec := GetDefaultNovaSpec()
+			cell0template := GetDefaultNovaCellTemplate()
+			cell0template["cellDatabaseInstance"] = cell0.MariaDBDatabaseName.Name
+			cell0template["cellDatabaseAccount"] = accountName.Name
+			spec["cellTemplates"] = map[string]interface{}{"cell0": cell0template}
+			spec["apiDatabaseInstance"] = novaNames.APIMariaDBDatabaseName.Name
+
+			DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
+
+			keystone.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
+			mariadb.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(novaNames.APIMariaDBDatabaseAccount)
+			mariadb.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(accountName)
+			infra.SimulateTransportURLReady(cell0.TransportURLName)
+			th.SimulateJobSuccess(cell0.DBSyncJobName)
+			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
+			th.SimulateJobSuccess(cell0.CellMappingJobName)
+
+			th.SimulateStatefulSetReplicaReady(novaNames.APIDeploymentName)
+			keystone.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
+			th.SimulateStatefulSetReplicaReady(novaNames.SchedulerStatefulSetName)
+			th.SimulateStatefulSetReplicaReady(novaNames.MetadataStatefulSetName)
+
+			// ensure api/scheduler/metadata all complete so that the Nova
+			// CR is not expected to have subsequent status changes from the controller
+			Eventually(func(g Gomega) {
+				nova := GetNova(novaNames.NovaName)
+				g.Expect(nova.Status.APIServiceReadyCount).To(Equal(int32(1)))
+				g.Expect(nova.Status.SchedulerServiceReadyCount).To(Equal(int32(1)))
+				g.Expect(nova.Status.MetadataServiceReadyCount).To(Equal(int32(1)))
+			})
+		},
+		// update to a new account name
+		UpdateAccount: func(accountName types.NamespacedName) {
+
+			Eventually(func(g Gomega) {
+				nova := GetNova(novaNames.NovaName)
+
+				if entry, ok := nova.Spec.CellTemplates[cell0.CellName]; ok {
+					entry.CellDatabaseAccount = accountName.Name
+					nova.Spec.CellTemplates[cell0.CellName] = entry
+				}
+
+				g.Expect(th.K8sClient.Update(ctx, nova)).Should(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+		},
+		// delete the CR, allowing tests that exercise finalizer removal
+		DeleteCR: func() {
+			th.DeleteInstance(GetNova(novaNames.NovaName))
+		},
+	}
+
+	mariadbCellSuite.RunBasicSuite()
 })
 
 var _ = Describe("Nova controller without memcached", func() {
