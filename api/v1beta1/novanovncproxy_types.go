@@ -117,8 +117,8 @@ type NovaNoVNCProxySpec struct {
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=nova
-	// CellDatabaseUser - username to use when accessing the cell DB
-	CellDatabaseUser string `json:"cellDatabaseUser"`
+	// CellDatabaseAccount - MariaDBAccount to use when accessing the cell DB
+	CellDatabaseAccount string `json:"cellDatabaseAccount"`
 
 	// +kubebuilder:validation:Required
 	// CellDatabaseHostname - hostname to use when accessing the cell DB
@@ -205,7 +205,7 @@ func NewNovaNoVNCProxySpec(
 		CellName:             novaCell.CellName,
 		Secret:               novaCell.Secret,
 		CellDatabaseHostname: novaCell.CellDatabaseHostname,
-		CellDatabaseUser:     novaCell.CellDatabaseUser,
+		CellDatabaseAccount:  novaCell.CellDatabaseAccount,
 		NovaServiceBase: NovaServiceBase{
 			ContainerImage:      novaCell.NoVNCProxyServiceTemplate.ContainerImage,
 			Replicas:            novaCell.NoVNCProxyServiceTemplate.Replicas,

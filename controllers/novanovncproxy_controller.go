@@ -169,7 +169,6 @@ func (r *NovaNoVNCProxyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.Secret},
 		[]string{
 			ServicePasswordSelector,
-			CellDatabasePasswordSelector,
 			TransportURLSelector,
 		},
 		h.GetClient(),
@@ -385,14 +384,22 @@ func (r *NovaNoVNCProxyReconciler) generateConfigs(
 	secret corev1.Secret,
 	memcachedInstance *memcachedv1.Memcached,
 ) error {
+
+	cellDB, err := mariadbv1.GetDatabaseByNameAndAccount(ctx, h, "nova-"+instance.Spec.CellName, instance.Spec.CellDatabaseAccount, instance.Namespace)
+	if err != nil {
+		return err
+	}
+	cellDatabaseAccount := cellDB.GetAccount()
+	cellDbSecret := cellDB.GetSecret()
+
 	templateParameters := map[string]interface{}{
 		"service_name":             novncproxy.ServiceName,
 		"keystone_internal_url":    instance.Spec.KeystoneAuthURL,
 		"nova_keystone_user":       instance.Spec.ServiceUser,
 		"nova_keystone_password":   string(secret.Data[ServicePasswordSelector]),
 		"cell_db_name":             getCellDatabaseName(instance.Spec.CellName),
-		"cell_db_user":             instance.Spec.CellDatabaseUser,
-		"cell_db_password":         string(secret.Data[CellDatabasePasswordSelector]),
+		"cell_db_user":             cellDatabaseAccount.Spec.UserName,
+		"cell_db_password":         string(cellDbSecret.Data[mariadbv1.DatabasePasswordSelector]),
 		"cell_db_address":          instance.Spec.CellDatabaseHostname,
 		"cell_db_port":             3306,
 		"transport_url":            string(secret.Data[TransportURLSelector]),
@@ -406,16 +413,13 @@ func (r *NovaNoVNCProxyReconciler) generateConfigs(
 		templateParameters["SSLCertificateFile"] = fmt.Sprintf("/etc/pki/tls/certs/%s.crt", novncproxy.ServiceName)
 		templateParameters["SSLCertificateKeyFile"] = fmt.Sprintf("/etc/pki/tls/private/%s.key", novncproxy.ServiceName)
 	}
-	db, err := mariadbv1.GetDatabaseByName(ctx, h, "nova-"+instance.Spec.CellName)
-	if err != nil {
-		return err
-	}
+
 	var tlsCfg *tls.Service
 	if instance.Spec.TLS.CaBundleSecretName != "" {
 		tlsCfg = &tls.Service{}
 	}
 	extraData := map[string]string{
-		"my.cnf": db.GetDatabaseClientConfig(tlsCfg), //(mschuppert) for now just get the default my.cnf
+		"my.cnf": cellDB.GetDatabaseClientConfig(tlsCfg), //(mschuppert) for now just get the default my.cnf
 	}
 	if instance.Spec.CustomServiceConfig != "" {
 		extraData["02-nova-override.conf"] = instance.Spec.CustomServiceConfig

@@ -127,9 +127,9 @@ type NovaMetadataSpec struct {
 	KeystoneAuthURL string `json:"keystoneAuthURL"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default="nova_api"
-	// APIDatabaseUser - username to use when accessing the API DB
-	APIDatabaseUser string `json:"apiDatabaseUser"`
+	// +kubebuilder:default="nova-api"
+	// APIDatabaseAccount - MariaDBAccount to use when accessing the API DB
+	APIDatabaseAccount string `json:"apiDatabaseAccount"`
 
 	// +kubebuilder:validation:Optional
 	// APIDatabaseHostname - hostname to use when accessing the API DB.
@@ -139,8 +139,8 @@ type NovaMetadataSpec struct {
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=nova
-	// CellDatabaseUser - username to use when accessing the cell DB
-	CellDatabaseUser string `json:"cellDatabaseUser"`
+	// CellDatabaseAccount - MariaDBAccount to use when accessing the cell DB
+	CellDatabaseAccount string `json:"cellDatabaseAccount"`
 
 	// +kubebuilder:validation:Optional
 	// CellDatabaseHostname - hostname to use when accessing the cell DB
@@ -240,13 +240,14 @@ func (s NovaMetadataStatus) GetConditions() condition.Conditions {
 func NewNovaMetadataSpec(
 	novaCell NovaCellSpec,
 ) NovaMetadataSpec {
+
 	metadataSpec := NovaMetadataSpec{
 		CellName:             novaCell.CellName,
 		Secret:               novaCell.Secret,
 		CellDatabaseHostname: novaCell.CellDatabaseHostname,
-		CellDatabaseUser:     novaCell.CellDatabaseUser,
+		CellDatabaseAccount:  novaCell.CellDatabaseAccount,
 		APIDatabaseHostname:  novaCell.APIDatabaseHostname,
-		APIDatabaseUser:      novaCell.APIDatabaseUser,
+		APIDatabaseAccount:   novaCell.APIDatabaseAccount,
 		NovaServiceBase: NovaServiceBase{
 			ContainerImage:      novaCell.MetadataServiceTemplate.ContainerImage,
 			Replicas:            novaCell.MetadataServiceTemplate.Replicas,

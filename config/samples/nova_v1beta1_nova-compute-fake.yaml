@@ -6,7 +6,7 @@ spec:
   secret: osp-secret
   cellTemplates:
     cell0:
-      cellDatabaseUser: nova_cell0
+      cellDatabaseAccount: nova-cell0
       hasAPIAccess: true
     cell1:
       novaComputeTemplates:

@@ -24,6 +24,7 @@ import (
 
 	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
+	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -50,14 +51,34 @@ func CreateNovaWith3CellsAndEnsureReady(novaNames NovaNames) {
 	DeferCleanup(mariadb.DeleteDBService, mariadb.CreateDBService(cell1.MariaDBDatabaseName.Namespace, cell1.MariaDBDatabaseName.Name, serviceSpec))
 	DeferCleanup(mariadb.DeleteDBService, mariadb.CreateDBService(cell2.MariaDBDatabaseName.Namespace, cell2.MariaDBDatabaseName.Name, serviceSpec))
 
+	apiMariaDBAccount, apiMariaDBSecret := mariadb.CreateMariaDBAccountAndSecret(
+		novaNames.APIMariaDBDatabaseAccount, mariadbv1.MariaDBAccountSpec{})
+	DeferCleanup(k8sClient.Delete, ctx, apiMariaDBAccount)
+	DeferCleanup(k8sClient.Delete, ctx, apiMariaDBSecret)
+
+	cell0Account, cell0Secret := mariadb.CreateMariaDBAccountAndSecret(
+		cell0.MariaDBAccountName, mariadbv1.MariaDBAccountSpec{})
+	DeferCleanup(k8sClient.Delete, ctx, cell0Account)
+	DeferCleanup(k8sClient.Delete, ctx, cell0Secret)
+
+	cell1Account, cell1Secret := mariadb.CreateMariaDBAccountAndSecret(
+		cell1.MariaDBAccountName, mariadbv1.MariaDBAccountSpec{})
+	DeferCleanup(k8sClient.Delete, ctx, cell1Account)
+	DeferCleanup(k8sClient.Delete, ctx, cell1Secret)
+
+	cell2Account, cell2Secret := mariadb.CreateMariaDBAccountAndSecret(
+		cell2.MariaDBAccountName, mariadbv1.MariaDBAccountSpec{})
+	DeferCleanup(k8sClient.Delete, ctx, cell2Account)
+	DeferCleanup(k8sClient.Delete, ctx, cell2Secret)
+
 	spec := GetDefaultNovaSpec()
 	cell0Template := GetDefaultNovaCellTemplate()
 	cell0Template["cellDatabaseInstance"] = cell0.MariaDBDatabaseName.Name
-	cell0Template["cellDatabaseUser"] = "nova_cell0"
+	cell0Template["cellDatabaseAccount"] = cell0Account.Name
 
 	cell1Template := GetDefaultNovaCellTemplate()
 	cell1Template["cellDatabaseInstance"] = cell1.MariaDBDatabaseName.Name
-	cell1Template["cellDatabaseUser"] = "nova_cell1"
+	cell1Template["cellDatabaseAccount"] = cell1Account.Name
 	cell1Template["cellMessageBusInstance"] = cell1.TransportURLName.Name
 	cell1Template["novaComputeTemplates"] = map[string]interface{}{
 		ironicComputeName: GetDefaultNovaComputeTemplate(),
@@ -65,7 +86,7 @@ func CreateNovaWith3CellsAndEnsureReady(novaNames NovaNames) {
 
 	cell2Template := GetDefaultNovaCellTemplate()
 	cell2Template["cellDatabaseInstance"] = cell2.MariaDBDatabaseName.Name
-	cell2Template["cellDatabaseUser"] = "nova_cell2"
+	cell2Template["cellDatabaseAccount"] = cell2Account.Name
 	cell2Template["cellMessageBusInstance"] = cell2.TransportURLName.Name
 	cell2Template["hasAPIAccess"] = false
 
@@ -89,13 +110,14 @@ func CreateNovaWith3CellsAndEnsureReady(novaNames NovaNames) {
 	// END of common logic with Nova multicell test
 
 	mariadb.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
-	mariadb.SimulateMariaDBAccountCompleted(novaNames.APIMariaDBDatabaseName)
 	mariadb.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
-	mariadb.SimulateMariaDBAccountCompleted(cell0.MariaDBDatabaseName)
 	mariadb.SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
-	mariadb.SimulateMariaDBAccountCompleted(cell1.MariaDBDatabaseName)
 	mariadb.SimulateMariaDBDatabaseCompleted(cell2.MariaDBDatabaseName)
-	mariadb.SimulateMariaDBAccountCompleted(cell2.MariaDBDatabaseName)
+
+	mariadb.SimulateMariaDBAccountCompleted(novaNames.APIMariaDBDatabaseAccount)
+	mariadb.SimulateMariaDBAccountCompleted(cell0.MariaDBAccountName)
+	mariadb.SimulateMariaDBAccountCompleted(cell1.MariaDBAccountName)
+	mariadb.SimulateMariaDBAccountCompleted(cell2.MariaDBAccountName)
 
 	infra.SimulateTransportURLReady(cell0.TransportURLName)
 	infra.SimulateTransportURLReady(cell1.TransportURLName)

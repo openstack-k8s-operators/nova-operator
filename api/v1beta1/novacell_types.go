@@ -40,8 +40,8 @@ type NovaCellTemplate struct {
 	CellDatabaseInstance string `json:"cellDatabaseInstance"`
 
 	// +kubebuilder:validation:Required
-	// CellDatabaseUser - username to use when accessing the give cell DB
-	CellDatabaseUser string `json:"cellDatabaseUser"`
+	// CellDatabaseAccount - MariaDBAccount to use when accessing the give cell DB
+	CellDatabaseAccount string `json:"cellDatabaseAccount"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=rabbitmq
@@ -84,12 +84,6 @@ type NovaCellTemplate struct {
 	// compute_name: compute_template. Key from map is arbitrary name for the compute with
 	// a limit of 20 characters.
 	NovaComputeTemplates map[string]NovaComputeTemplate `json:"novaComputeTemplates,omitempty"`
-
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default={database: NovaCell0DatabasePassword}
-	// PasswordSelectors - Selectors to identify the DB passwords from the
-	// Secret
-	PasswordSelectors CellPasswordSelector `json:"passwordSelectors"`
 
 	// +kubebuilder:validation:Optional
 	// MemcachedInstance is the name of the Memcached CR that the services in the cell will use.
@@ -137,8 +131,8 @@ type NovaCellSpec struct {
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=nova
-	// APIDatabaseUser - username to use when accessing the API DB
-	APIDatabaseUser string `json:"apiDatabaseUser"`
+	// APIDatabaseAccount - MariaDBAccount to use when accessing the API DB
+	APIDatabaseAccount string `json:"apiDatabaseAccount"`
 
 	// +kubebuilder:validation:Optional
 	// APIDatabaseHostname - hostname to use when accessing the API DB. If not
@@ -149,8 +143,8 @@ type NovaCellSpec struct {
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=nova
-	// CellDatabaseUser - username to use when accessing the cell DB
-	CellDatabaseUser string `json:"cellDatabaseUser"`
+	// CellDatabaseAccount - MariaDBAccount to use when accessing the cell DB
+	CellDatabaseAccount string `json:"cellDatabaseAccount"`
 
 	// +kubebuilder:validation:Required
 	// CellDatabaseHostname - hostname to use when accessing the cell DB

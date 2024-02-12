@@ -170,11 +170,7 @@ func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	required_secret_fields := []string{
 		ServicePasswordSelector,
-		CellDatabasePasswordSelector,
 		TransportURLSelector,
-	}
-	if len(instance.Spec.APIDatabaseHostname) > 0 {
-		required_secret_fields = append(required_secret_fields, APIDatabasePasswordSelector)
 	}
 
 	secretHash, result, secret, err := ensureSecret(
@@ -396,14 +392,22 @@ func (r *NovaConductorReconciler) generateConfigs(
 	secret corev1.Secret,
 	memcachedInstance *memcachedv1.Memcached,
 ) error {
+
+	cellDB, err := mariadbv1.GetDatabaseByNameAndAccount(ctx, h, "nova-"+instance.Spec.CellName, instance.Spec.CellDatabaseAccount, instance.Namespace)
+	if err != nil {
+		return err
+	}
+	cellDatabaseAccount := cellDB.GetAccount()
+	cellDbSecret := cellDB.GetSecret()
+
 	templateParameters := map[string]interface{}{
 		"service_name":             "nova-conductor",
 		"keystone_internal_url":    instance.Spec.KeystoneAuthURL,
 		"nova_keystone_user":       instance.Spec.ServiceUser,
 		"nova_keystone_password":   string(secret.Data[ServicePasswordSelector]),
 		"cell_db_name":             getCellDatabaseName(instance.Spec.CellName),
-		"cell_db_user":             instance.Spec.CellDatabaseUser,
-		"cell_db_password":         string(secret.Data[CellDatabasePasswordSelector]),
+		"cell_db_user":             cellDatabaseAccount.Spec.UserName,
+		"cell_db_password":         string(cellDbSecret.Data[mariadbv1.DatabasePasswordSelector]),
 		"cell_db_address":          instance.Spec.CellDatabaseHostname,
 		"cell_db_port":             3306,
 		"openstack_region_name":    "regionOne", // fixme
@@ -413,24 +417,25 @@ func (r *NovaConductorReconciler) generateConfigs(
 		"MemcachedServers":         strings.Join(memcachedInstance.Status.ServerList, ","),
 		"MemcachedServersWithInet": strings.Join(memcachedInstance.Status.ServerListWithInet, ","),
 	}
-	if len(instance.Spec.APIDatabaseHostname) > 0 && len(instance.Spec.APIDatabaseUser) > 0 {
+	if len(instance.Spec.APIDatabaseHostname) > 0 {
+		apiDatabaseAccount, apiDbSecret, err := mariadbv1.GetAccountAndSecret(ctx, h, instance.Spec.APIDatabaseAccount, instance.Namespace)
+		if err != nil {
+			return err
+		}
+
 		templateParameters["api_db_name"] = NovaAPIDatabaseName
-		templateParameters["api_db_user"] = instance.Spec.APIDatabaseUser
-		templateParameters["api_db_password"] = string(secret.Data[APIDatabasePasswordSelector])
+		templateParameters["api_db_user"] = apiDatabaseAccount.Spec.UserName
+		templateParameters["api_db_password"] = string(apiDbSecret.Data[mariadbv1.DatabasePasswordSelector])
 		templateParameters["api_db_address"] = instance.Spec.APIDatabaseHostname
 		templateParameters["api_db_port"] = 3306
 	}
 
-	db, err := mariadbv1.GetDatabaseByName(ctx, h, "nova-"+instance.Spec.CellName)
-	if err != nil {
-		return err
-	}
 	var tlsCfg *tls.Service
 	if instance.Spec.TLS.CaBundleSecretName != "" {
 		tlsCfg = &tls.Service{}
 	}
 	extraData := map[string]string{
-		"my.cnf": db.GetDatabaseClientConfig(tlsCfg), //(mschuppert) for now just get the default my.cnf
+		"my.cnf": cellDB.GetDatabaseClientConfig(tlsCfg), //(mschuppert) for now just get the default my.cnf
 	}
 	if instance.Spec.CustomServiceConfig != "" {
 		extraData["02-nova-override.conf"] = instance.Spec.CustomServiceConfig

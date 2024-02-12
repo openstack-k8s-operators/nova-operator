@@ -116,18 +116,18 @@ type NovaAPISpec struct {
 	KeystonePublicAuthURL string `json:"keystonePublicAuthURL"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default="nova_api"
-	// APIDatabaseUser - username to use when accessing the API DB
-	APIDatabaseUser string `json:"apiDatabaseUser"`
+	// +kubebuilder:default="nova-api"
+	// APIDatabaseAccount - MariaDBAccount to use when accessing the API DB
+	APIDatabaseAccount string `json:"apiDatabaseAccount"`
 
 	// +kubebuilder:validation:Required
 	// APIDatabaseHostname - hostname to use when accessing the API DB
 	APIDatabaseHostname string `json:"apiDatabaseHostname"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default="nova_cell0"
-	// APIDatabaseUser - username to use when accessing the cell0 DB
-	Cell0DatabaseUser string `json:"cell0DatabaseUser"`
+	// +kubebuilder:default="nova-cell0"
+	// APIDatabaseAccount - MariaDBAccount to use when accessing the cell0 DB
+	Cell0DatabaseAccount string `json:"cell0DatabaseAccount"`
 
 	// +kubebuilder:validation:Required
 	// APIDatabaseHostname - hostname to use when accessing the cell0 DB

@@ -83,24 +83,10 @@ type PasswordSelector struct {
 	// Secret
 	Service string `json:"service"`
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default="NovaAPIDatabasePassword"
-	// APIDatabase - the name of the field to get the API DB password from the
-	// Secret
-	APIDatabase string `json:"apiDatabase"`
-	// +kubebuilder:validation:Optional
 	// +kubebuilder:default="MetadataSecret"
 	// MetadataSecret - the name of the field to get the metadata secret from the
 	// Secret
 	MetadataSecret string `json:"metadataSecret"`
-}
-
-// PasswordSelector to identify the DB password for the Cell from the Secret
-type CellPasswordSelector struct {
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default="NovaCell0DatabasePassword"
-	// CellDatabase - the name of the field to get the Cell DB password from
-	// the Secret
-	Database string `json:"database"`
 }
 
 // SetupDefaults - initializes any CRD field defaults based on environment variables (the defaulting mechanism itself is implemented via webhooks)

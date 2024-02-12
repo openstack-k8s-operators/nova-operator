@@ -14,7 +14,7 @@ metadata:
   name: nova-kuttl
 spec:
   apiDatabaseInstance: openstack
-  apiDatabaseUser: nova_api
+  apiDatabaseAccount: nova-api
   apiMessageBusInstance: rabbitmq
   apiServiceTemplate:
     containerImage: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
@@ -26,7 +26,7 @@ spec:
   cellTemplates:
     cell0:
       cellDatabaseInstance: openstack
-      cellDatabaseUser: nova_cell0
+      cellDatabaseAccount: nova-cell0
       cellMessageBusInstance: rabbitmq
       conductorServiceTemplate:
         containerImage: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
@@ -39,7 +39,7 @@ spec:
         enabled: false
     cell1:
       cellDatabaseInstance: openstack-cell1
-      cellDatabaseUser: nova_cell1
+      cellDatabaseAccount: nova-cell1
       cellMessageBusInstance: rabbitmq-cell1
       conductorServiceTemplate:
         containerImage: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
@@ -74,9 +74,9 @@ metadata:
   namespace: nova-kuttl-default
 spec:
   apiDatabaseHostname: openstack.nova-kuttl-default.svc
-  apiDatabaseUser: nova_api
+  apiDatabaseAccount: nova-api
   cell0DatabaseHostname: openstack.nova-kuttl-default.svc
-  cell0DatabaseUser: nova_cell0
+  cell0DatabaseAccount: nova-cell0
   replicas: 0
 ---
 apiVersion: nova.openstack.org/v1beta1
@@ -86,9 +86,9 @@ metadata:
   namespace: nova-kuttl-default
 spec:
   apiDatabaseHostname: openstack.nova-kuttl-default.svc
-  apiDatabaseUser: nova_api
+  apiDatabaseAccount: nova-api
   cellDatabaseHostname: openstack.nova-kuttl-default.svc
-  cellDatabaseUser: nova_cell0
+  cellDatabaseAccount: nova-cell0
   replicas: 0
 ---
 apiVersion: nova.openstack.org/v1beta1
@@ -104,9 +104,9 @@ metadata:
     name: nova-kuttl-cell0
 spec:
   apiDatabaseHostname: openstack.nova-kuttl-default.svc
-  apiDatabaseUser: nova_api
+  apiDatabaseAccount: nova-api
   cellDatabaseHostname: openstack.nova-kuttl-default.svc
-  cellDatabaseUser: nova_cell0
+  cellDatabaseAccount: nova-cell0
   cellName: cell0
   containerImage: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
   replicas: 0
@@ -124,9 +124,9 @@ metadata:
     name: nova-kuttl-cell1
 spec:
   apiDatabaseHostname: openstack.nova-kuttl-default.svc
-  apiDatabaseUser: nova_api
+  apiDatabaseAccount: nova-api
   cellDatabaseHostname: openstack-cell1.nova-kuttl-default.svc
-  cellDatabaseUser: nova_cell1
+  cellDatabaseAccount: nova-cell1
   cellName: cell1
   containerImage: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
   replicas: 0

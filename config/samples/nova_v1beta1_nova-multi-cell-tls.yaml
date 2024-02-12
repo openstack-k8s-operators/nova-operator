@@ -23,10 +23,10 @@ spec:
       secretName: cert-nova-metadata-internal-svc
   cellTemplates:
     cell0:
-      cellDatabaseUser: nova_cell0
+      cellDatabaseAccount: nova-cell0
       hasAPIAccess: true
     cell1:
-      cellDatabaseUser: nova_cell1
+      cellDatabaseAccount: nova-cell1
       conductorServiceTemplate:
         replicas: 1
       hasAPIAccess: true

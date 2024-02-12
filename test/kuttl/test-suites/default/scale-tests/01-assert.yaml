@@ -7,7 +7,7 @@ metadata:
   namespace: nova-kuttl-default
 spec:
   apiDatabaseInstance: openstack
-  apiDatabaseUser: nova_api
+  apiDatabaseAccount: nova-api
   apiMessageBusInstance: rabbitmq
   apiServiceTemplate:
     containerImage: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
@@ -17,7 +17,7 @@ spec:
   cellTemplates:
     cell0:
       cellDatabaseInstance: openstack
-      cellDatabaseUser: nova_cell0
+      cellDatabaseAccount: nova-cell0
       cellMessageBusInstance: rabbitmq
       conductorServiceTemplate:
         containerImage: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
@@ -29,11 +29,9 @@ spec:
         enabled: false
       noVNCProxyServiceTemplate:
         enabled: false
-      passwordSelectors:
-        database: NovaCell0DatabasePassword
     cell1:
       cellDatabaseInstance: openstack-cell1
-      cellDatabaseUser: nova_cell1
+      cellDatabaseAccount: nova-cell1
       cellMessageBusInstance: rabbitmq-cell1
       conductorServiceTemplate:
         containerImage: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
@@ -49,8 +47,6 @@ spec:
         customServiceConfig: ""
         replicas: 1
         resources: {}
-      passwordSelectors:
-        database: NovaCell0DatabasePassword
   keystoneInstance: keystone
   metadataServiceTemplate:
     enabled: true
@@ -59,7 +55,6 @@ spec:
     replicas: 1
     resources: {}
   passwordSelectors:
-    apiDatabase: NovaAPIDatabasePassword
     metadataSecret: MetadataSecret
     service: NovaPassword
   schedulerServiceTemplate:
@@ -86,6 +81,10 @@ status:
     reason: Ready
     status: "True"
     type: KeystoneServiceReady
+  - message: MariaDBAccount creation complete
+    reason: Ready
+    status: "True"
+    type: MariaDBAccountReady
   - message: ' Memcached instance has been provisioned'
     reason: Ready
     status: "True"

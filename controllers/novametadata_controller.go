@@ -167,13 +167,10 @@ func (r *NovaMetadataReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	expectedSelectors := []string{
 		ServicePasswordSelector,
-		CellDatabasePasswordSelector,
 		MetadataSecretSelector,
 		TransportURLSelector,
 	}
-	if instance.Spec.CellName == "" {
-		expectedSelectors = append(expectedSelectors, APIDatabasePasswordSelector)
-	}
+
 	secretHash, result, secret, err := ensureSecret(
 		ctx,
 		types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.Secret},
@@ -418,14 +415,38 @@ func (r *NovaMetadataReconciler) generateConfigs(
 	secret corev1.Secret,
 	memcachedInstance *memcachedv1.Memcached,
 ) error {
+
+	var cellDB *mariadbv1.Database
+	var cellDatabaseAccount *mariadbv1.MariaDBAccount
+	var cellDbSecret *corev1.Secret
+	var err error
+
+	if instance.Spec.CellName == "" {
+		cellDB = nil
+		cellDatabaseAccount, cellDbSecret, err = mariadbv1.GetAccountAndSecret(ctx, h, instance.Spec.CellDatabaseAccount, instance.Namespace)
+		if err != nil {
+			return err
+		}
+	} else {
+		cellDB, err = mariadbv1.GetDatabaseByNameAndAccount(ctx, h, "nova-"+instance.Spec.CellName, instance.Spec.CellDatabaseAccount, instance.Namespace)
+
+		if err != nil {
+			return err
+		}
+
+		cellDatabaseAccount = cellDB.GetAccount()
+		cellDbSecret = cellDB.GetSecret()
+
+	}
+
 	templateParameters := map[string]interface{}{
 		"service_name":             novametadata.ServiceName,
 		"keystone_internal_url":    instance.Spec.KeystoneAuthURL,
 		"nova_keystone_user":       instance.Spec.ServiceUser,
 		"nova_keystone_password":   string(secret.Data[ServicePasswordSelector]),
 		"cell_db_name":             NovaCell0DatabaseName,
-		"cell_db_user":             instance.Spec.CellDatabaseUser,
-		"cell_db_password":         string(secret.Data[CellDatabasePasswordSelector]),
+		"cell_db_user":             cellDatabaseAccount.Spec.UserName,
+		"cell_db_password":         string(cellDbSecret.Data[mariadbv1.DatabasePasswordSelector]),
 		"cell_db_address":          instance.Spec.CellDatabaseHostname,
 		"cell_db_port":             3306,
 		"openstack_region_name":    "regionOne", // fixme
@@ -440,28 +461,28 @@ func (r *NovaMetadataReconciler) generateConfigs(
 		"MemcachedServersWithInet": strings.Join(memcachedInstance.Status.ServerListWithInet, ","),
 	}
 
-	var err error
 	var db *mariadbv1.Database
 	if instance.Spec.CellName == "" {
+		apiDB, err := mariadbv1.GetDatabaseByNameAndAccount(ctx, h, "nova-api", instance.Spec.APIDatabaseAccount, instance.Namespace)
+		if err != nil {
+			return err
+		}
+		apiDatabaseAccount := apiDB.GetAccount()
+		apiDbSecret := apiDB.GetSecret()
+
 		templateParameters["api_db_name"] = NovaAPIDatabaseName
-		templateParameters["api_db_user"] = instance.Spec.APIDatabaseUser // fixme
-		templateParameters["api_db_password"] = string(secret.Data[APIDatabasePasswordSelector])
+		templateParameters["api_db_user"] = apiDatabaseAccount.Spec.UserName
+		templateParameters["api_db_password"] = string(apiDbSecret.Data[mariadbv1.DatabasePasswordSelector])
 		templateParameters["api_db_address"] = instance.Spec.APIDatabaseHostname
 		templateParameters["api_db_port"] = 3306
 		templateParameters["local_metadata_per_cell"] = false
 
-		db, err = mariadbv1.GetDatabaseByName(ctx, h, "nova-api")
-		if err != nil {
-			return err
-		}
+		db = apiDB
 	} else {
 		templateParameters["local_metadata_per_cell"] = true
 		templateParameters["cell_db_name"] = getCellDatabaseName(instance.Spec.CellName)
 
-		db, err = mariadbv1.GetDatabaseByName(ctx, h, "nova-"+instance.Spec.CellName)
-		if err != nil {
-			return err
-		}
+		db = cellDB
 	}
 
 	// create httpd tls template parameters

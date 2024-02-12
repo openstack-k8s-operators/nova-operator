@@ -84,12 +84,6 @@ const (
 	// MetadataSecretSelector is the name of key in the internal Secret for
 	// the metadata shared secret
 	MetadataSecretSelector = "MetadataSecret"
-	// APIDatabasePasswordSelector is the name of key in the internal Secret
-	// for the API database
-	APIDatabasePasswordSelector = "APIDatabasePassword"
-	// CellDatabasePasswordSelector is the name of key in the internal cell
-	// Secret for the cell database of the given cell
-	CellDatabasePasswordSelector = "CellDatabasePassword"
 	// TransportURLSelector is the name of key in the internal cell
 	// Secret for the cell message bus transport URL
 	TransportURLSelector = "transport_url"

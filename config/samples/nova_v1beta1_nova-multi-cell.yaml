@@ -6,7 +6,7 @@ spec:
   # This is the name of the single MariaDB CR we deploy today
   # The Service is labelled with app=mariadb,cr=mariadb-<MariaDB.Name>
   apiDatabaseInstance: openstack
-  apiDatabaseUser: nova_api
+  apiDatabaseAccount: nova-api
   # This is the name of the single RabbitMqCluster CR we deploy today
   # The Service is labelled with
   # app.kubernetes.io/component=rabbitmq, app.kubernetes.io/name=<RabbitMqCluster.Name>
@@ -48,7 +48,7 @@ spec:
   cellTemplates:
     cell0:
       cellDatabaseInstance: openstack
-      cellDatabaseUser: nova_cell0
+      cellDatabaseAccount: nova-cell0
       cellMessageBusInstance: rabbitmq
       # cell0 alway needs access to the API DB and MQ as it hosts the super
       # conductor. It will inherit the API DB and MQ access from the Nova CR
@@ -62,7 +62,7 @@ spec:
         nodeSelector: {}
     cell1:
       cellDatabaseInstance: mariadb-cell1
-      cellDatabaseUser: nova_cell1
+      cellDatabaseAccount: nova-cell1
       cellMessageBusInstance: rabbitmq-cell1
       # cell1 will have upcalls support. It will inherit the API DB and MQ
       # access from the Nova CR that creates it.
@@ -81,7 +81,7 @@ spec:
         nodeSelector: {}
     cell2:
       cellDatabaseInstance: mariadb-cell2
-      cellDatabaseUser: nova_cell2
+      cellDatabaseAccount: nova-cell2
       cellMessageBusInstance: rabbitmq-cell2
       # cell2 will not get the API DB and MQ connection info from the Nova CR
       hasAPIAccess: false

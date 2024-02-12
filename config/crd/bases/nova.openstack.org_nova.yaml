@@ -35,15 +35,15 @@ spec:
           spec:
             description: NovaSpec defines the desired state of Nova
             properties:
+              apiDatabaseAccount:
+                default: nova-api
+                description: APIDatabaseAccount - MariaDBAccount to use when accessing
+                  the API DB
+                type: string
               apiDatabaseInstance:
                 default: openstack
                 description: APIDatabaseInstance is the name of the MariaDB CR to
                   select the DB Service instance used for the Nova API DB.
-                type: string
-              apiDatabaseUser:
-                default: nova_api
-                description: APIDatabaseUser - username to use when accessing the
-                  API DB
                 type: string
               apiMessageBusInstance:
                 default: rabbitmq
@@ -361,15 +361,15 @@ spec:
                   description: NovaCellTemplate defines the input parameters specified
                     by the user to create a NovaCell via higher level CRDs.
                   properties:
+                    cellDatabaseAccount:
+                      description: CellDatabaseAccount - MariaDBAccount to use when
+                        accessing the give cell DB
+                      type: string
                     cellDatabaseInstance:
                       default: openstack
                       description: CellDatabaseInstance is the name of the MariaDB
                         CR to select the DB Service instance used as the DB of this
                         cell.
-                      type: string
-                    cellDatabaseUser:
-                      description: CellDatabaseUser - username to use when accessing
-                        the give cell DB
                       type: string
                     cellMessageBusInstance:
                       default: rabbitmq
@@ -1222,29 +1222,17 @@ spec:
                         Key from map is arbitrary name for the compute with a limit
                         of 20 characters.'
                       type: object
-                    passwordSelectors:
-                      default:
-                        database: NovaCell0DatabasePassword
-                      description: PasswordSelectors - Selectors to identify the DB
-                        passwords from the Secret
-                      properties:
-                        database:
-                          default: NovaCell0DatabasePassword
-                          description: CellDatabase - the name of the field to get
-                            the Cell DB password from the Secret
-                          type: string
-                      type: object
                   required:
-                  - cellDatabaseUser
+                  - cellDatabaseAccount
                   - hasAPIAccess
                   type: object
                 default:
                   cell0:
-                    cellDatabaseUser: nova_cell0
+                    cellDatabaseAccount: nova-cell0
                     hasAPIAccess: true
                   cell1:
+                    cellDatabaseAccount: nova-cell1
                     cellDatabaseInstance: openstack-cell1
-                    cellDatabaseUser: nova_cell1
                     cellMessageBusInstance: rabbitmq-cell1
                     hasAPIAccess: true
                 description: Cells is a mapping of cell names to NovaCellTemplate
@@ -1564,11 +1552,6 @@ spec:
                 description: PasswordSelectors - Selectors to identify the DB and
                   ServiceUser passwords from the Secret
                 properties:
-                  apiDatabase:
-                    default: NovaAPIDatabasePassword
-                    description: APIDatabase - the name of the field to get the API
-                      DB password from the Secret
-                    type: string
                   metadataSecret:
                     default: MetadataSecret
                     description: MetadataSecret - the name of the field to get the

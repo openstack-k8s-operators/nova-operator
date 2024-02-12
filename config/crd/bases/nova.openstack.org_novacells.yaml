@@ -35,25 +35,25 @@ spec:
           spec:
             description: NovaCellSpec defines the desired state of NovaCell
             properties:
+              apiDatabaseAccount:
+                default: nova
+                description: APIDatabaseAccount - MariaDBAccount to use when accessing
+                  the API DB
+                type: string
               apiDatabaseHostname:
                 description: 'APIDatabaseHostname - hostname to use when accessing
                   the API DB. If not provided then up-calls will be disabled. This
                   filed is Required for cell0. TODO(gibi): Add a webhook to validate
                   cell0 constraint'
                 type: string
-              apiDatabaseUser:
+              cellDatabaseAccount:
                 default: nova
-                description: APIDatabaseUser - username to use when accessing the
-                  API DB
+                description: CellDatabaseAccount - MariaDBAccount to use when accessing
+                  the cell DB
                 type: string
               cellDatabaseHostname:
                 description: CellDatabaseHostname - hostname to use when accessing
                   the cell DB
-                type: string
-              cellDatabaseUser:
-                default: nova
-                description: CellDatabaseUser - username to use when accessing the
-                  cell DB
                 type: string
               cellName:
                 description: CellName is the name of the Nova Cell. The value "cell0"

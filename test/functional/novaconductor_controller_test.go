@@ -25,7 +25,6 @@ import (
 	keystone_helper "github.com/openstack-k8s-operators/keystone-operator/api/test/helpers"
 	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
 	api "github.com/openstack-k8s-operators/lib-common/modules/test/apis"
-
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 
@@ -40,7 +39,18 @@ import (
 var _ = Describe("NovaConductor controller", func() {
 	BeforeEach(func() {
 		mariadb.CreateMariaDBDatabase(cell0.MariaDBDatabaseName.Namespace, cell0.MariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
-		mariadb.CreateMariaDBAccount(cell0.MariaDBDatabaseName.Namespace, cell0.MariaDBDatabaseName.Name, mariadbv1.MariaDBAccountSpec{})
+		DeferCleanup(k8sClient.Delete, ctx, mariadb.GetMariaDBDatabase(cell0.MariaDBDatabaseName))
+
+		apiMariaDBAccount, apiMariaDBSecret := mariadb.CreateMariaDBAccountAndSecret(
+			novaNames.APIMariaDBDatabaseAccount, mariadbv1.MariaDBAccountSpec{})
+		DeferCleanup(k8sClient.Delete, ctx, apiMariaDBAccount)
+		DeferCleanup(k8sClient.Delete, ctx, apiMariaDBSecret)
+
+		cell0Account, cell0Secret := mariadb.CreateMariaDBAccountAndSecret(
+			cell0.MariaDBAccountName, mariadbv1.MariaDBAccountSpec{})
+		DeferCleanup(k8sClient.Delete, ctx, cell0Account)
+		DeferCleanup(k8sClient.Delete, ctx, cell0Secret)
+
 		memcachedSpec := memcachedv1.MemcachedSpec{
 			Replicas: ptr.To(int32(3)),
 		}
@@ -48,6 +58,7 @@ var _ = Describe("NovaConductor controller", func() {
 		infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
 
 	})
+
 	When("a NovaConductor CR is created pointing to a non existent Secret", func() {
 		BeforeEach(func() {
 			DeferCleanup(
@@ -451,14 +462,27 @@ var _ = Describe("NovaConductor controller", func() {
 
 var _ = Describe("NovaConductor controller", func() {
 	BeforeEach(func() {
+
 		mariadb.CreateMariaDBDatabase(cell0.MariaDBDatabaseName.Namespace, cell0.MariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
-		mariadb.CreateMariaDBAccount(cell0.MariaDBDatabaseName.Namespace, cell0.MariaDBDatabaseName.Name, mariadbv1.MariaDBAccountSpec{})
+		DeferCleanup(k8sClient.Delete, ctx, mariadb.GetMariaDBDatabase(cell0.MariaDBDatabaseName))
+
+		apiMariaDBAccount, apiMariaDBSecret := mariadb.CreateMariaDBAccountAndSecret(
+			novaNames.APIMariaDBDatabaseAccount, mariadbv1.MariaDBAccountSpec{})
+		DeferCleanup(k8sClient.Delete, ctx, apiMariaDBAccount)
+		DeferCleanup(k8sClient.Delete, ctx, apiMariaDBSecret)
+
+		cell0Account, cell0Secret := mariadb.CreateMariaDBAccountAndSecret(
+			cell0.MariaDBAccountName, mariadbv1.MariaDBAccountSpec{})
+		DeferCleanup(k8sClient.Delete, ctx, cell0Account)
+		DeferCleanup(k8sClient.Delete, ctx, cell0Secret)
+
 		memcachedSpec := memcachedv1.MemcachedSpec{
 			Replicas: ptr.To(int32(3)),
 		}
 		DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 		infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
 	})
+
 	When("NovaConductor is created with networkAttachments", func() {
 		BeforeEach(func() {
 			DeferCleanup(
@@ -699,10 +723,24 @@ var _ = Describe("NovaConductor controller", func() {
 })
 
 var _ = Describe("NovaConductor controller cleaning", func() {
+	BeforeEach(func() {
+		apiMariaDBAccount, apiMariaDBSecret := mariadb.CreateMariaDBAccountAndSecret(
+			novaNames.APIMariaDBDatabaseAccount, mariadbv1.MariaDBAccountSpec{})
+		DeferCleanup(k8sClient.Delete, ctx, apiMariaDBAccount)
+		DeferCleanup(k8sClient.Delete, ctx, apiMariaDBSecret)
+
+		cell0Account, cell0Secret := mariadb.CreateMariaDBAccountAndSecret(
+			cell0.MariaDBAccountName, mariadbv1.MariaDBAccountSpec{})
+		DeferCleanup(k8sClient.Delete, ctx, cell0Account)
+		DeferCleanup(k8sClient.Delete, ctx, cell0Secret)
+
+	})
+
 	var novaAPIServer *NovaAPIFixture
 	BeforeEach(func() {
 		mariadb.CreateMariaDBDatabase(cell0.MariaDBDatabaseName.Namespace, cell0.MariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
-		mariadb.CreateMariaDBAccount(cell0.MariaDBDatabaseName.Namespace, cell0.MariaDBDatabaseName.Name, mariadbv1.MariaDBAccountSpec{})
+		DeferCleanup(k8sClient.Delete, ctx, mariadb.GetMariaDBDatabase(cell0.MariaDBDatabaseName))
+
 		novaAPIServer = NewNovaAPIFixtureWithServer(logger)
 		novaAPIServer.Setup()
 		f := keystone_helper.NewKeystoneAPIFixtureWithServer(logger)
@@ -752,10 +790,18 @@ var _ = Describe("NovaConductor controller cleaning", func() {
 
 var _ = Describe("NovaConductor controller", func() {
 	BeforeEach(func() {
+		apiMariaDBAccount, apiMariaDBSecret := mariadb.CreateMariaDBAccountAndSecret(
+			novaNames.APIMariaDBDatabaseAccount, mariadbv1.MariaDBAccountSpec{})
+		DeferCleanup(k8sClient.Delete, ctx, apiMariaDBAccount)
+		DeferCleanup(k8sClient.Delete, ctx, apiMariaDBSecret)
+
+		cell0Account, cell0Secret := mariadb.CreateMariaDBAccountAndSecret(
+			cell0.MariaDBAccountName, mariadbv1.MariaDBAccountSpec{})
+		DeferCleanup(k8sClient.Delete, ctx, cell0Account)
+		DeferCleanup(k8sClient.Delete, ctx, cell0Secret)
+
 		mariadb.CreateMariaDBDatabase(cell0.MariaDBDatabaseName.Namespace, cell0.MariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
-		mariadb.CreateMariaDBAccount(cell0.MariaDBDatabaseName.Namespace, cell0.MariaDBDatabaseName.Name, mariadbv1.MariaDBAccountSpec{})
 		mariadb.SimulateMariaDBTLSDatabaseCompleted(cell0.MariaDBDatabaseName)
-		mariadb.SimulateMariaDBAccountCompleted(cell0.MariaDBDatabaseName)
 		memcachedSpec := memcachedv1.MemcachedSpec{
 			Replicas: ptr.To(int32(3)),
 		}

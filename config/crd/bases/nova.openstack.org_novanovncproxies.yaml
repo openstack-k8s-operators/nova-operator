@@ -48,14 +48,14 @@ spec:
           spec:
             description: NovaNoVNCProxySpec defines the desired state of NovaNoVNCProxy
             properties:
+              cellDatabaseAccount:
+                default: nova
+                description: CellDatabaseAccount - MariaDBAccount to use when accessing
+                  the cell DB
+                type: string
               cellDatabaseHostname:
                 description: CellDatabaseHostname - hostname to use when accessing
                   the cell DB
-                type: string
-              cellDatabaseUser:
-                default: nova
-                description: CellDatabaseUser - username to use when accessing the
-                  cell DB
                 type: string
               cellName:
                 description: CellName is the name of the Nova Cell this novncproxy
