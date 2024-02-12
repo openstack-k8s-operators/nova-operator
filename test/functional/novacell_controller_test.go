@@ -457,8 +457,10 @@ var _ = Describe("NovaCell controller", func() {
 				condition.ReadyCondition,
 				corev1.ConditionTrue,
 			)
-			novaCell = GetNovaCell(cell1.CellCRName)
-			Expect(novaCell.Status.NovaComputesStatus).To(BeEmpty())
+			Eventually(func(g Gomega) {
+				novaCell = GetNovaCell(cell1.CellCRName)
+				g.Expect(novaCell.Status.NovaComputesStatus).To(BeEmpty())
+			}, timeout, interval).Should(Succeed())
 
 		})
 	})
