@@ -89,3 +89,19 @@ replace github.com/openstack-k8s-operators/nova-operator/api => ./api
 // mschuppert: map to latest commit from release-4.13 tag
 // must consistent within modules and service operators
 replace github.com/openshift/api => github.com/openshift/api v0.0.0-20230414143018-3367bc7e6ac7 //allow-merging
+
+// bump-controller-runtime
+replace github.com/openstack-k8s-operators/lib-common/modules/common => github.com/bshephar/lib-common/modules/common v0.0.0-20240212065057-620bad416a86
+
+replace github.com/openstack-k8s-operators/lib-common/modules/openstack => github.com/bshephar/lib-common/modules/openstack v0.0.0-20240212065057-620bad416a86
+
+replace github.com/openstack-k8s-operators/lib-common/modules/test => github.com/bshephar/lib-common/modules/test v0.0.0-20240212065057-620bad416a86
+
+// bshephar:controller-runtime-v16
+replace github.com/openstack-k8s-operators/infra-operator/apis => github.com/bshephar/infra-operator/apis v0.0.0-20240203105616-470002c29854
+
+//bshephar:controller-runtime
+replace github.com/openstack-k8s-operators/keystone-operator/api => github.com/bshephar/keystone-operator/api v0.0.0-20240211043616-392b5bd204c0
+
+//bshephar:controller-runtime
+replace github.com/openstack-k8s-operators/mariadb-operator/api => github.com/bshephar/mariadb-operator/api v0.0.0-20240206224814-4264f1e7465a
