@@ -31,7 +31,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
-	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 // PlacementAPIDefaults -
@@ -81,43 +80,43 @@ func (spec *PlacementAPISpec) Default() {
 var _ webhook.Validator = &PlacementAPI{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *PlacementAPI) ValidateCreate() (admission.Warnings, error) {
+func (r *PlacementAPI) ValidateCreate() error {
 	placementapilog.Info("validate create", "name", r.Name)
 
 	errors := r.Spec.ValidateCreate(field.NewPath("spec"))
 	if len(errors) != 0 {
 		placementapilog.Info("validation failed", "name", r.Name)
-		return nil, apierrors.NewInvalid(
+		return apierrors.NewInvalid(
 			schema.GroupKind{Group: "placement.openstack.org", Kind: "PlacementAPI"},
 			r.Name, errors)
 	}
-	return nil, nil
+	return nil
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *PlacementAPI) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
+func (r *PlacementAPI) ValidateUpdate(old runtime.Object) error {
 	placementapilog.Info("validate update", "name", r.Name)
 	oldPlacement, ok := old.(*PlacementAPI)
 	if !ok || oldPlacement == nil {
-		return nil, apierrors.NewInternalError(fmt.Errorf("unable to convert existing object"))
+		return apierrors.NewInternalError(fmt.Errorf("unable to convert existing object"))
 	}
 
 	errors := r.Spec.ValidateUpdate(oldPlacement.Spec, field.NewPath("spec"))
 	if len(errors) != 0 {
 		placementapilog.Info("validation failed", "name", r.Name)
-		return nil, apierrors.NewInvalid(
+		return apierrors.NewInvalid(
 			schema.GroupKind{Group: "placement.openstack.org", Kind: "PlacementAPI"},
 			r.Name, errors)
 	}
-	return nil, nil
+	return nil
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *PlacementAPI) ValidateDelete() (admission.Warnings, error) {
+func (r *PlacementAPI) ValidateDelete() error {
 	placementapilog.Info("validate delete", "name", r.Name)
 
 	// TODO(user): fill in your validation logic upon object deletion.
-	return nil, nil
+	return nil
 }
 
 func (r PlacementAPISpec) ValidateCreate(basePath *field.Path) field.ErrorList {
