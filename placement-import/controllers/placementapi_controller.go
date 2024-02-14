@@ -35,6 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/go-logr/logr"
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
@@ -178,6 +179,7 @@ func (r *PlacementAPIReconciler) GetSecretMapperFor(crs client.ObjectList, ctx c
 			}
 			return nil
 		})
+
 		if err != nil {
 			Log.Error(err, "Unable to iterate the list of CRs")
 			panic(err)
@@ -479,7 +481,7 @@ func (r *PlacementAPIReconciler) ensureServiceExposed(
 	h *helper.Helper,
 	instance *placementv1.PlacementAPI,
 ) (map[string]string, ctrl.Result, error) {
-	placementEndpoints := map[service.Endpoint]endpoint.Data{
+	var placementEndpoints = map[service.Endpoint]endpoint.Data{
 		service.EndpointPublic:   {Port: placement.PlacementPublicPort},
 		service.EndpointInternal: {Port: placement.PlacementInternalPort},
 	}
@@ -623,6 +625,7 @@ func (r *PlacementAPIReconciler) ensureNetworkAttachments(
 			instance.Spec.NetworkAttachments, err)
 	}
 	return nadAnnotations, ctrl.Result{}, nil
+
 }
 
 func (r *PlacementAPIReconciler) ensureKeystoneServiceUser(
@@ -665,6 +668,7 @@ func (r *PlacementAPIReconciler) ensureKeystoneEndpoint(
 	instance *placementv1.PlacementAPI,
 	apiEndpoints map[string]string,
 ) (ctrl.Result, error) {
+
 	ksEndptSpec := keystonev1.KeystoneEndpointSpec{
 		ServiceName: placement.ServiceName,
 		Endpoints:   apiEndpoints,
@@ -800,12 +804,14 @@ const (
 	tlsAPIPublicField       = ".spec.tls.api.public.secretName"
 )
 
-var allWatchFields = []string{
-	passwordSecretField,
-	caBundleSecretNameField,
-	tlsAPIInternalField,
-	tlsAPIPublicField,
-}
+var (
+	allWatchFields = []string{
+		passwordSecretField,
+		caBundleSecretNameField,
+		tlsAPIInternalField,
+		tlsAPIPublicField,
+	}
+)
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *PlacementAPIReconciler) SetupWithManager(mgr ctrl.Manager) error {
@@ -872,14 +878,14 @@ func (r *PlacementAPIReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&rbacv1.Role{}).
 		Owns(&rbacv1.RoleBinding{}).
 		Watches(
-			&corev1.Secret{},
+			&source.Kind{Type: &corev1.Secret{}},
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForSrc),
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
 		).
 		Complete(r)
 }
 
-func (r *PlacementAPIReconciler) findObjectsForSrc(ctx context.Context, src client.Object) []reconcile.Request {
+func (r *PlacementAPIReconciler) findObjectsForSrc(src client.Object) []reconcile.Request {
 	requests := []reconcile.Request{}
 
 	l := log.FromContext(context.Background()).WithName("Controllers").WithName("PlacementAPI")
@@ -1031,6 +1037,7 @@ func (r *PlacementAPIReconciler) ensureDB(
 	instance.Status.DatabaseHostname = db.GetDatabaseHostname()
 	instance.Status.Conditions.MarkTrue(condition.DBReadyCondition, condition.DBReadyMessage)
 	return ctrlResult, nil
+
 }
 
 func (r *PlacementAPIReconciler) ensureDbSync(
@@ -1085,8 +1092,7 @@ func (r *PlacementAPIReconciler) ensureDeployment(
 	h *helper.Helper,
 	instance *placementv1.PlacementAPI,
 	inputHash string,
-	serviceAnnotations map[string]string,
-) (ctrl.Result, error) {
+	serviceAnnotations map[string]string) (ctrl.Result, error) {
 	Log := r.GetLogger(ctx)
 	Log.Info("Reconciling Service")
 
@@ -1094,6 +1100,7 @@ func (r *PlacementAPIReconciler) ensureDeployment(
 
 	// Define a new Deployment object
 	deplDef, err := placement.Deployment(ctx, h, instance, inputHash, serviceLabels, serviceAnnotations)
+
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.DeploymentReadyCondition,
