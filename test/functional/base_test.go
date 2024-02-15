@@ -44,6 +44,7 @@ const (
 	// asserts using `Consistently`.
 	consistencyTimeout = timeout
 	ironicComputeName  = "ironic-compute"
+	MemcachedInstance  = "memcached"
 )
 
 type NovaAPIFixture struct {
@@ -253,6 +254,7 @@ func GetDefaultNovaAPISpec(novaNames NovaNames) map[string]interface{} {
 		"containerImage":        ContainerImage,
 		"serviceAccount":        "nova-sa",
 		"registeredCells":       map[string]string{},
+		"memcachedInstance":     MemcachedInstance,
 	}
 }
 
@@ -368,6 +370,7 @@ func GetDefaultNovaConductorSpec(cell CellNames) map[string]interface{} {
 		"keystoneAuthURL":     "keystone-auth-url",
 		"serviceAccount":      "nova-sa",
 		"customServiceConfig": "foo=bar",
+		"memcachedInstance":   MemcachedInstance,
 	}
 }
 
@@ -415,6 +418,7 @@ func GetDefaultNovaCellSpec(cell CellNames) map[string]interface{} {
 		"cellDatabaseHostname": "cell-database-hostname",
 		"keystoneAuthURL":      "keystone-auth-url",
 		"serviceAccount":       "nova",
+		"memcachedInstance":    MemcachedInstance,
 	}
 }
 
@@ -488,6 +492,7 @@ func GetDefaultNovaSchedulerSpec(novaNames NovaNames) map[string]interface{} {
 		"containerImage":        ContainerImage,
 		"serviceAccount":        "nova-sa",
 		"registeredCells":       map[string]string{},
+		"memcachedInstance":     MemcachedInstance,
 	}
 }
 
@@ -875,6 +880,7 @@ func GetDefaultNovaNoVNCProxySpec(cell CellNames) map[string]interface{} {
 		"keystoneAuthURL":      "keystone-auth-url",
 		"serviceAccount":       "nova-sa",
 		"cellName":             cell.CellName,
+		"memcachedInstance":    MemcachedInstance,
 	}
 }
 

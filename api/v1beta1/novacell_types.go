@@ -92,7 +92,8 @@ type NovaCellTemplate struct {
 	PasswordSelectors CellPasswordSelector `json:"passwordSelectors"`
 
 	// +kubebuilder:validation:Optional
-	// Cell Memcached instance if it's not defined global one will apply.
+	// MemcachedInstance is the name of the Memcached CR that the services in the cell will use.
+	// If defined then this takes precedence over Nova.Spec.MemcachedInstance for this cel
 	MemcachedInstance string `json:"memcachedInstance"`
 }
 
@@ -183,6 +184,10 @@ type NovaCellSpec struct {
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	// TLS - Parameters related to the TLS
 	TLS tls.Ca `json:"tls,omitempty"`
+
+	// +kubebuilder:validation:Required
+	// MemcachedInstance is the name of the Memcached CR that all nova service will use.
+	MemcachedInstance string `json:"memcachedInstance"`
 }
 
 // NovaCellStatus defines the observed state of NovaCell

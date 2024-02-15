@@ -21,6 +21,7 @@ import (
 	networkv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
 	keystone_helper "github.com/openstack-k8s-operators/keystone-operator/api/test/helpers"
 	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
 	api "github.com/openstack-k8s-operators/lib-common/modules/test/apis"
@@ -30,6 +31,8 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
@@ -39,6 +42,16 @@ var _ = Describe("NovaConductor controller", func() {
 	BeforeEach(func() {
 		mariadb.CreateMariaDBDatabase(cell0.MariaDBDatabaseName.Namespace, cell0.MariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
 		mariadb.CreateMariaDBAccount(cell0.MariaDBDatabaseName.Namespace, cell0.MariaDBDatabaseName.Name, mariadbv1.MariaDBAccountSpec{})
+		memcachedSpec := memcachedv1.MemcachedSpec{
+			Replicas: ptr.To(int32(3)),
+		}
+		memcachedNamespace := types.NamespacedName{
+			Name:      MemcachedInstance,
+			Namespace: novaNames.NovaName.Namespace,
+		}
+		DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
+		infra.SimulateMemcachedReady(memcachedNamespace)
+
 	})
 	When("a NovaConductor CR is created pointing to a non existent Secret", func() {
 		BeforeEach(func() {
@@ -177,6 +190,8 @@ var _ = Describe("NovaConductor controller", func() {
 				Expect(configData).Should(ContainSubstring("transport_url=rabbit://cell0/fake"))
 				Expect(configData).Should(
 					ContainSubstring("[upgrade_levels]\ncompute = auto"))
+				Expect(configData).To(ContainSubstring("memcache_servers="))
+				Expect(configData).To(ContainSubstring("memcached_servers="))
 				Expect(configDataMap.Data).Should(HaveKey("02-nova-override.conf"))
 				myCnf := configDataMap.Data["my.cnf"]
 				Expect(myCnf).To(
@@ -411,6 +426,16 @@ var _ = Describe("NovaConductor controller", func() {
 	BeforeEach(func() {
 		mariadb.CreateMariaDBDatabase(cell0.MariaDBDatabaseName.Namespace, cell0.MariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
 		mariadb.CreateMariaDBAccount(cell0.MariaDBDatabaseName.Namespace, cell0.MariaDBDatabaseName.Name, mariadbv1.MariaDBAccountSpec{})
+		memcachedSpec := memcachedv1.MemcachedSpec{
+			Replicas: ptr.To(int32(3)),
+		}
+		memcachedNamespace := types.NamespacedName{
+			Name:      MemcachedInstance,
+			Namespace: novaNames.NovaName.Namespace,
+		}
+		DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
+		infra.SimulateMemcachedReady(memcachedNamespace)
+
 	})
 	When("NovaConductor is created with networkAttachments", func() {
 		BeforeEach(func() {
@@ -674,6 +699,16 @@ var _ = Describe("NovaConductor controller cleaning", func() {
 			}})
 		DeferCleanup(f.Cleanup)
 
+		memcachedSpec := memcachedv1.MemcachedSpec{
+			Replicas: ptr.To(int32(3)),
+		}
+		memcachedNamespace := types.NamespacedName{
+			Name:      MemcachedInstance,
+			Namespace: novaNames.NovaName.Namespace,
+		}
+
+		DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
+		infra.SimulateMemcachedReady(memcachedNamespace)
 		spec := GetDefaultNovaConductorSpec(cell0)
 		spec["keystoneAuthURL"] = f.Endpoint()
 		DeferCleanup(th.DeleteInstance, CreateNovaConductor(cell0.ConductorName, spec))
@@ -698,6 +733,18 @@ var _ = Describe("NovaConductor controller cleaning", func() {
 })
 
 var _ = Describe("NovaConductor controller", func() {
+	BeforeEach(func() {
+		memcachedSpec := memcachedv1.MemcachedSpec{
+			Replicas: ptr.To(int32(3)),
+		}
+		memcachedNamespace := types.NamespacedName{
+			Name:      MemcachedInstance,
+			Namespace: novaNames.NovaName.Namespace,
+		}
+		DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
+		infra.SimulateMemcachedReady(memcachedNamespace)
+
+	})
 	When("NovaConductor is created with TLS CA cert secret", func() {
 		BeforeEach(func() {
 			mariadb.CreateMariaDBDatabase(cell0.MariaDBDatabaseName.Namespace, cell0.MariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})

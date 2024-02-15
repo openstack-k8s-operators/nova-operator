@@ -20,6 +20,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
 	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
 
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
@@ -27,6 +28,7 @@ import (
 	"github.com/openstack-k8s-operators/nova-operator/controllers"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 )
 
 var _ = Describe("Nova multicell", func() {
@@ -79,6 +81,16 @@ var _ = Describe("Nova multicell", func() {
 
 			DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace))
+			memcachedSpec := memcachedv1.MemcachedSpec{
+				Replicas: ptr.To(int32(3)),
+			}
+			memcachedNamespace := types.NamespacedName{
+				Name:      MemcachedInstance,
+				Namespace: novaNames.NovaName.Namespace,
+			}
+
+			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
+			infra.SimulateMemcachedReady(memcachedNamespace)
 			keystone.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
 		})
 
@@ -594,6 +606,16 @@ var _ = Describe("Nova multicell", func() {
 			spec["apiMessageBusInstance"] = cell0.TransportURLName.Name
 
 			DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
+			memcachedSpec := memcachedv1.MemcachedSpec{
+				Replicas: ptr.To(int32(3)),
+			}
+			memcachedNamespace := types.NamespacedName{
+				Name:      MemcachedInstance,
+				Namespace: novaNames.NovaName.Namespace,
+			}
+
+			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
+			infra.SimulateMemcachedReady(memcachedNamespace)
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace))
 			keystone.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
 		})
@@ -708,6 +730,16 @@ var _ = Describe("Nova multicell", func() {
 			spec["apiMessageBusInstance"] = cell0.TransportURLName.Name
 
 			DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
+			memcachedSpec := memcachedv1.MemcachedSpec{
+				Replicas: ptr.To(int32(3)),
+			}
+			memcachedNamespace := types.NamespacedName{
+				Name:      MemcachedInstance,
+				Namespace: novaNames.NovaName.Namespace,
+			}
+
+			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
+			infra.SimulateMemcachedReady(memcachedNamespace)
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(novaNames.Namespace))
 			keystone.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
 		})
@@ -761,6 +793,16 @@ var _ = Describe("Nova multicell", func() {
 			spec["apiMessageBusInstance"] = cell0.TransportURLName.Name
 
 			DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
+			memcachedSpec := memcachedv1.MemcachedSpec{
+				Replicas: ptr.To(int32(3)),
+			}
+			memcachedNamespace := types.NamespacedName{
+				Name:      MemcachedInstance,
+				Namespace: novaNames.NovaName.Namespace,
+			}
+
+			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
+			infra.SimulateMemcachedReady(memcachedNamespace)
 			keystoneAPIName := keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace)
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystoneAPIName)
 			keystoneAPI := keystone.GetKeystoneAPI(keystoneAPIName)

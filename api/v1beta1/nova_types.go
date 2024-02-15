@@ -108,7 +108,7 @@ type NovaSpec struct {
 
 	// +kubebuilder:validation:Required
 	// +kubebuilder:default=memcached
-	// Global memcached instance name.
+	// MemcachedInstance is the name of the Memcached CR that all nova service will use.
 	MemcachedInstance string `json:"memcachedInstance"`
 }
 

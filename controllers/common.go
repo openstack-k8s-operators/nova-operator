@@ -32,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
+	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/nova-operator/pkg/nova"
 
@@ -542,4 +543,32 @@ func getNovaClient(
 
 func getCellDatabaseName(cellName string) string {
 	return "nova_" + cellName
+}
+
+func getMemcachedInstance(instance *novav1.Nova, cellTemplate novav1.NovaCellTemplate) string {
+	if cellTemplate.MemcachedInstance != "" {
+		return cellTemplate.MemcachedInstance
+	}
+	return instance.Spec.MemcachedInstance
+}
+
+// getMemcached - gets the Memcached instance cell specific used for nova services cache backend
+func getMemcached(
+	ctx context.Context,
+	h *helper.Helper,
+	namespaceName string,
+	mamcachedName string,
+) (*memcachedv1.Memcached, error) {
+	memcached := &memcachedv1.Memcached{}
+	err := h.GetClient().Get(
+		ctx,
+		types.NamespacedName{
+			Name:      mamcachedName,
+			Namespace: namespaceName,
+		},
+		memcached)
+	if err != nil {
+		return nil, err
+	}
+	return memcached, err
 }

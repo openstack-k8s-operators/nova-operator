@@ -161,6 +161,10 @@ type NovaAPISpec struct {
 	// +kubebuilder:validation:Optional
 	// DefaultConfigOverwrite - interface to overwrite default config files like e.g. api-paste.ini or policy.yaml.
 	DefaultConfigOverwrite map[string]string `json:"defaultConfigOverwrite,omitempty"`
+
+	// +kubebuilder:validation:Required
+	// MemcachedInstance is the name of the Memcached CR that all nova service will use.
+	MemcachedInstance string `json:"memcachedInstance"`
 }
 
 // NovaAPIStatus defines the observed state of NovaAPI

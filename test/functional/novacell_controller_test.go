@@ -21,11 +21,13 @@ import (
 	"github.com/google/uuid"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
@@ -35,6 +37,18 @@ import (
 )
 
 var _ = Describe("NovaCell controller", func() {
+	BeforeEach(func() {
+		memcachedSpec := memcachedv1.MemcachedSpec{
+			Replicas: ptr.To(int32(3)),
+		}
+		memcachedNamespace := types.NamespacedName{
+			Name:      MemcachedInstance,
+			Namespace: novaNames.NovaName.Namespace,
+		}
+		DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
+		infra.SimulateMemcachedReady(memcachedNamespace)
+
+	})
 	When("A NovaCell CR instance is created without any input", func() {
 		BeforeEach(func() {
 			DeferCleanup(th.DeleteInstance, CreateNovaCell(cell0.CellCRName, GetDefaultNovaCellSpec(cell0)))
@@ -1015,6 +1029,18 @@ var _ = Describe("NovaCell controller", func() {
 })
 
 var _ = Describe("NovaCell controller webhook", func() {
+	BeforeEach(func() {
+		memcachedSpec := memcachedv1.MemcachedSpec{
+			Replicas: ptr.To(int32(3)),
+		}
+		memcachedNamespace := types.NamespacedName{
+			Name:      MemcachedInstance,
+			Namespace: novaNames.NovaName.Namespace,
+		}
+		DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
+		infra.SimulateMemcachedReady(memcachedNamespace)
+
+	})
 	It("name is too long", func() {
 		cell := GetCellNames(novaNames.NovaName, uuid.New().String())
 		DeferCleanup(k8sClient.Delete, ctx, CreateDefaultCellInternalSecret(cell))

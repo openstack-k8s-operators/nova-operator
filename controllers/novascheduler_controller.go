@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -34,6 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/go-logr/logr"
+	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
@@ -68,6 +70,7 @@ func (r *NovaSchedulerReconciler) GetLogger(ctx context.Context) logr.Logger {
 // +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;
 // +kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=k8s.cni.cncf.io,resources=network-attachment-definitions,verbs=get;list;watch
+// +kubebuilder:rbac:groups=memcached.openstack.org,resources=memcacheds,verbs=get;list;watch;
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -200,7 +203,36 @@ func (r *NovaSchedulerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	// all cert input checks out so report InputReady
 	instance.Status.Conditions.MarkTrue(condition.TLSInputReadyCondition, condition.InputReadyMessage)
 
-	err = r.ensureConfigs(ctx, h, instance, &hashes, secret)
+	memcached, err := getMemcached(ctx, h, instance.Namespace, instance.Spec.MemcachedInstance)
+	if err != nil {
+		if k8s_errors.IsNotFound(err) {
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				condition.MemcachedReadyCondition,
+				condition.RequestedReason,
+				condition.SeverityInfo,
+				condition.MemcachedReadyWaitingMessage))
+			return ctrl.Result{}, fmt.Errorf("memcached %s not found", instance.Spec.MemcachedInstance)
+		}
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.MemcachedReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.MemcachedReadyErrorMessage,
+			err.Error()))
+		return ctrl.Result{}, err
+	}
+
+	if !memcached.IsReady() {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.MemcachedReadyCondition,
+			condition.RequestedReason,
+			condition.SeverityInfo,
+			condition.MemcachedReadyWaitingMessage))
+		return ctrl.Result{}, fmt.Errorf("memcached %s is not ready", memcached.Name)
+	}
+	instance.Status.Conditions.MarkTrue(condition.MemcachedReadyCondition, condition.MemcachedReadyMessage)
+
+	err = r.ensureConfigs(ctx, h, instance, &hashes, secret, memcached)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -391,8 +423,9 @@ func (r *NovaSchedulerReconciler) ensureConfigs(
 	instance *novav1.NovaScheduler,
 	hashes *map[string]env.Setter,
 	secret corev1.Secret,
+	memcachedInstance *memcachedv1.Memcached,
 ) error {
-	err := r.generateConfigs(ctx, h, instance, hashes, secret)
+	err := r.generateConfigs(ctx, h, instance, hashes, secret, memcachedInstance)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.ServiceConfigReadyCondition,
@@ -408,26 +441,30 @@ func (r *NovaSchedulerReconciler) ensureConfigs(
 func (r *NovaSchedulerReconciler) generateConfigs(
 	ctx context.Context, h *helper.Helper, instance *novav1.NovaScheduler, hashes *map[string]env.Setter,
 	secret corev1.Secret,
+	memcachedInstance *memcachedv1.Memcached,
 ) error {
 	templateParameters := map[string]interface{}{
-		"service_name":           "nova-scheduler",
-		"keystone_internal_url":  instance.Spec.KeystoneAuthURL,
-		"nova_keystone_user":     instance.Spec.ServiceUser,
-		"nova_keystone_password": string(secret.Data[ServicePasswordSelector]),
-		"api_db_name":            NovaAPIDatabaseName,
-		"api_db_user":            instance.Spec.APIDatabaseUser,
-		"api_db_password":        string(secret.Data[APIDatabasePasswordSelector]),
-		"api_db_address":         instance.Spec.APIDatabaseHostname,
-		"api_db_port":            3306,
-		"cell_db_name":           NovaCell0DatabaseName,
-		"cell_db_user":           instance.Spec.Cell0DatabaseUser,
-		"cell_db_password":       string(secret.Data[CellDatabasePasswordSelector]),
-		"cell_db_address":        instance.Spec.Cell0DatabaseHostname,
-		"cell_db_port":           3306,
-		"openstack_region_name":  "regionOne", // fixme
-		"default_project_domain": "Default",   // fixme
-		"default_user_domain":    "Default",   // fixme
-		"transport_url":          string(secret.Data[TransportURLSelector]),
+		"service_name":             "nova-scheduler",
+		"keystone_internal_url":    instance.Spec.KeystoneAuthURL,
+		"nova_keystone_user":       instance.Spec.ServiceUser,
+		"nova_keystone_password":   string(secret.Data[ServicePasswordSelector]),
+		"api_db_name":              instance.Spec.APIDatabaseUser, // fixme
+		"api_db_user":              instance.Spec.APIDatabaseUser,
+		"api_db_password":          string(secret.Data[APIDatabasePasswordSelector]),
+		"api_db_address":           instance.Spec.APIDatabaseHostname,
+		"api_db_port":              3306,
+		"cell_db_name":             instance.Spec.Cell0DatabaseUser, // fixme
+		"cell_db_user":             instance.Spec.Cell0DatabaseUser,
+		"cell_db_password":         string(secret.Data[CellDatabasePasswordSelector]),
+		"cell_db_address":          instance.Spec.Cell0DatabaseHostname,
+		"cell_db_port":             3306,
+		"openstack_cacert":         "",          // fixme
+		"openstack_region_name":    "regionOne", // fixme
+		"default_project_domain":   "Default",   // fixme
+		"default_user_domain":      "Default",   // fixme
+		"transport_url":            string(secret.Data[TransportURLSelector]),
+		"MemcachedServers":         strings.Join(memcachedInstance.Status.ServerList, ","),
+		"MemcachedServersWithInet": strings.Join(memcachedInstance.Status.ServerListWithInet, ","),
 	}
 
 	db, err := mariadbv1.GetDatabaseByName(ctx, h, "nova-api")
