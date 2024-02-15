@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -33,6 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/go-logr/logr"
+	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
@@ -69,6 +71,7 @@ func (r *NovaNoVNCProxyReconciler) GetLogger(ctx context.Context) logr.Logger {
 // +kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneendpoints,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=k8s.cni.cncf.io,resources=network-attachment-definitions,verbs=get;list;watch
+// +kubebuilder:rbac:groups=memcached.openstack.org,resources=memcacheds,verbs=get;list;watch;
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -223,7 +226,36 @@ func (r *NovaNoVNCProxyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, err
 	}
 
-	err = r.ensureConfigs(ctx, h, instance, &hashes, secret)
+	memcached, err := getMemcached(ctx, h, instance.Namespace, instance.Spec.MemcachedInstance)
+	if err != nil {
+		if k8s_errors.IsNotFound(err) {
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				condition.MemcachedReadyCondition,
+				condition.RequestedReason,
+				condition.SeverityInfo,
+				condition.MemcachedReadyWaitingMessage))
+			return ctrl.Result{}, fmt.Errorf("memcached %s not found", instance.Spec.MemcachedInstance)
+		}
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.MemcachedReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.MemcachedReadyErrorMessage,
+			err.Error()))
+		return ctrl.Result{}, err
+	}
+
+	if !memcached.IsReady() {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.MemcachedReadyCondition,
+			condition.RequestedReason,
+			condition.SeverityInfo,
+			condition.MemcachedReadyWaitingMessage))
+		return ctrl.Result{}, fmt.Errorf("memcached %s is not ready", memcached.Name)
+	}
+	instance.Status.Conditions.MarkTrue(condition.MemcachedReadyCondition, condition.MemcachedReadyMessage)
+
+	err = r.ensureConfigs(ctx, h, instance, &hashes, secret, memcached)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -275,8 +307,9 @@ func (r *NovaNoVNCProxyReconciler) ensureConfigs(
 	instance *novav1.NovaNoVNCProxy,
 	hashes *map[string]env.Setter,
 	secret corev1.Secret,
+	memcachedInstance *memcachedv1.Memcached,
 ) error {
-	err := r.generateConfigs(ctx, h, instance, hashes, secret)
+	err := r.generateConfigs(ctx, h, instance, hashes, secret, memcachedInstance)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.ServiceConfigReadyCondition,
@@ -329,6 +362,11 @@ func (r *NovaNoVNCProxyReconciler) initConditions(
 				condition.InitReason,
 				condition.InputReadyInitMessage,
 			),
+			condition.UnknownCondition(
+				condition.MemcachedReadyCondition,
+				condition.InitReason,
+				condition.MemcachedReadyInitMessage,
+			),
 		)
 
 		instance.Status.Conditions.Init(&cl)
@@ -339,21 +377,24 @@ func (r *NovaNoVNCProxyReconciler) initConditions(
 func (r *NovaNoVNCProxyReconciler) generateConfigs(
 	ctx context.Context, h *helper.Helper, instance *novav1.NovaNoVNCProxy, hashes *map[string]env.Setter,
 	secret corev1.Secret,
+	memcachedInstance *memcachedv1.Memcached,
 ) error {
 	templateParameters := map[string]interface{}{
-		"service_name":           novncproxy.ServiceName,
-		"keystone_internal_url":  instance.Spec.KeystoneAuthURL,
-		"nova_keystone_user":     instance.Spec.ServiceUser,
-		"nova_keystone_password": string(secret.Data[ServicePasswordSelector]),
-		"cell_db_name":           getCellDatabaseName(instance.Spec.CellName),
-		"cell_db_user":           instance.Spec.CellDatabaseUser,
-		"cell_db_password":       string(secret.Data[CellDatabasePasswordSelector]),
-		"cell_db_address":        instance.Spec.CellDatabaseHostname,
-		"cell_db_port":           3306,
-		"transport_url":          string(secret.Data[TransportURLSelector]),
-		"openstack_region_name":  "regionOne", // fixme
-		"default_project_domain": "Default",   // fixme
-		"default_user_domain":    "Default",   // fixme
+		"service_name":             novncproxy.ServiceName,
+		"keystone_internal_url":    instance.Spec.KeystoneAuthURL,
+		"nova_keystone_user":       instance.Spec.ServiceUser,
+		"nova_keystone_password":   string(secret.Data[ServicePasswordSelector]),
+		"cell_db_name":             instance.Spec.CellDatabaseUser, // fixme
+		"cell_db_user":             instance.Spec.CellDatabaseUser,
+		"cell_db_password":         string(secret.Data[CellDatabasePasswordSelector]),
+		"cell_db_address":          instance.Spec.CellDatabaseHostname,
+		"cell_db_port":             3306,
+		"transport_url":            string(secret.Data[TransportURLSelector]),
+		"openstack_region_name":    "regionOne", // fixme
+		"default_project_domain":   "Default",   // fixme
+		"default_user_domain":      "Default",   // fixme
+		"MemcachedServers":         strings.Join(memcachedInstance.Status.ServerList, ","),
+		"MemcachedServersWithInet": strings.Join(memcachedInstance.Status.ServerListWithInet, ","),
 	}
 	if instance.Spec.TLS.GenericService.Enabled() {
 		templateParameters["SSLCertificateFile"] = fmt.Sprintf("/etc/pki/tls/certs/%s.crt", novncproxy.ServiceName)

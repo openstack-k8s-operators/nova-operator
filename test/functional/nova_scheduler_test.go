@@ -21,6 +21,7 @@ import (
 	networkv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
 	keystone_helper "github.com/openstack-k8s-operators/keystone-operator/api/test/helpers"
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
@@ -30,6 +31,8 @@ import (
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 
 	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
 )
@@ -43,6 +46,16 @@ var _ = Describe("NovaScheduler controller", func() {
 		// Uncomment this if you need the full output in the logs from gomega
 		// matchers
 		// format.MaxLength = 0
+		memcachedSpec := memcachedv1.MemcachedSpec{
+			Replicas: ptr.To(int32(3)),
+		}
+		memcachedNamespace := types.NamespacedName{
+			Name:      MemcachedInstance,
+			Namespace: novaNames.NovaName.Namespace,
+		}
+		DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
+		infra.SimulateMemcachedReady(memcachedNamespace)
+
 		novaAPIServer := NewNovaAPIFixtureWithServer(logger)
 		novaAPIServer.Setup()
 		DeferCleanup(novaAPIServer.Cleanup)
@@ -207,6 +220,8 @@ var _ = Describe("NovaScheduler controller", func() {
 			configData := string(configDataMap.Data["01-nova.conf"])
 			Expect(configData).To(ContainSubstring("transport_url=rabbit://api/fake"))
 			Expect(configData).To(ContainSubstring("password = service-password"))
+			Expect(configData).To(ContainSubstring("memcache_servers="))
+			Expect(configData).To(ContainSubstring("memcached_servers="))
 			Expect(configData).Should(
 				ContainSubstring("[upgrade_levels]\ncompute = auto"))
 			Expect(configDataMap.Data).Should(HaveKey("02-nova-override.conf"))
@@ -305,6 +320,16 @@ var _ = Describe("NovaScheduler controller", func() {
 	BeforeEach(func() {
 		mariadb.CreateMariaDBDatabase(novaNames.APIMariaDBDatabaseName.Namespace, novaNames.APIMariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
 		mariadb.CreateMariaDBAccount(novaNames.APIMariaDBDatabaseName.Namespace, novaNames.APIMariaDBDatabaseName.Name, mariadbv1.MariaDBAccountSpec{})
+		memcachedSpec := memcachedv1.MemcachedSpec{
+			Replicas: ptr.To(int32(3)),
+		}
+		memcachedNamespace := types.NamespacedName{
+			Name:      MemcachedInstance,
+			Namespace: novaNames.NovaName.Namespace,
+		}
+		DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
+		infra.SimulateMemcachedReady(memcachedNamespace)
+
 	})
 	When("NovaScheduler is created with networkAttachments", func() {
 		BeforeEach(func() {
@@ -569,6 +594,16 @@ var _ = Describe("NovaScheduler controller cleaning", func() {
 	})
 	var novaAPIFixture *NovaAPIFixture
 	BeforeEach(func() {
+		memcachedSpec := memcachedv1.MemcachedSpec{
+			Replicas: ptr.To(int32(3)),
+		}
+		memcachedNamespace := types.NamespacedName{
+			Name:      MemcachedInstance,
+			Namespace: novaNames.NovaName.Namespace,
+		}
+		DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
+		infra.SimulateMemcachedReady(memcachedNamespace)
+
 		DeferCleanup(
 			k8sClient.Delete, ctx, CreateNovaSecret(novaNames.NovaName.Namespace, SecretName))
 		novaAPIFixture = NewNovaAPIFixtureWithServer(logger)
@@ -620,6 +655,16 @@ var _ = Describe("NovaScheduler controller", func() {
 		mariadb.CreateMariaDBAccount(novaNames.APIMariaDBDatabaseName.Namespace, novaNames.APIMariaDBDatabaseName.Name, mariadbv1.MariaDBAccountSpec{})
 		mariadb.SimulateMariaDBTLSDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
 		mariadb.SimulateMariaDBAccountCompleted(novaNames.APIMariaDBDatabaseName)
+		memcachedSpec := memcachedv1.MemcachedSpec{
+			Replicas: ptr.To(int32(3)),
+		}
+		memcachedNamespace := types.NamespacedName{
+			Name:      MemcachedInstance,
+			Namespace: novaNames.NovaName.Namespace,
+		}
+		DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
+		infra.SimulateMemcachedReady(memcachedNamespace)
+
 	})
 	When("NovaScheduler is created with TLS CA cert secret", func() {
 		BeforeEach(func() {

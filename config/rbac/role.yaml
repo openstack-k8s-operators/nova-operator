@@ -159,6 +159,14 @@ rules:
   verbs:
   - update
 - apiGroups:
+  - memcached.openstack.org
+  resources:
+  - memcacheds
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
   - nova.openstack.org
   resources:
   - nova

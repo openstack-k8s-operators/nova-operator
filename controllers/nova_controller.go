@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -82,6 +81,7 @@ func (r *NovaReconciler) GetLogger(ctx context.Context) logr.Logger {
 // +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneservices,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneendpoints,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=rabbitmq.openstack.org,resources=transporturls,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=memcached.openstack.org,resources=memcacheds,verbs=get;list;watch;
 
 // service account, role, rolebinding
 // +kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;create;update
@@ -225,7 +225,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	}
 	instance.Status.Conditions.MarkTrue(condition.InputReadyCondition, condition.InputReadyMessage)
 
-	memcached, err := r.getNovaMemcached(ctx, helper, instance)
+	memcached, err := getMemcached(ctx, h, instance.Namespace, instance.Spec.MemcachedInstance)
 	if err != nil {
 		if k8s_errors.IsNotFound(err) {
 			instance.Status.Conditions.Set(condition.FalseCondition(
@@ -233,7 +233,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 				condition.RequestedReason,
 				condition.SeverityInfo,
 				condition.MemcachedReadyWaitingMessage))
-			return ctrl.Result{RequeueAfter: time.Duration(10) * time.Second}, fmt.Errorf("memcached %s not found", instance.Spec.MemcachedInstance)
+			return ctrl.Result{}, fmt.Errorf("memcached %s not found", instance.Spec.MemcachedInstance)
 		}
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.MemcachedReadyCondition,
@@ -243,6 +243,16 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 			err.Error()))
 		return ctrl.Result{}, err
 	}
+
+	if !memcached.IsReady() {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.MemcachedReadyCondition,
+			condition.RequestedReason,
+			condition.SeverityInfo,
+			condition.MemcachedReadyWaitingMessage))
+		return ctrl.Result{}, fmt.Errorf("memcached %s is not ready", memcached.Name)
+	}
+	instance.Status.Conditions.MarkTrue(condition.MemcachedReadyCondition, condition.MemcachedReadyMessage)
 
 	err = r.ensureKeystoneServiceUser(ctx, h, instance)
 	if err != nil {
@@ -457,7 +467,6 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 			Log.Info("Skip NovaCell as cell0 is not ready yet and this cell needs API DB access", "CellName", cellName)
 			continue
 		}
-
 		cell, status, err := r.ensureCell(
 			ctx, h, instance, cellName, cellTemplate,
 			cellDB.Database, apiDB, cellMQ.TransportURL,
@@ -664,6 +673,11 @@ func (r *NovaReconciler) initConditions(
 				condition.RoleBindingReadyCondition,
 				condition.InitReason,
 				condition.RoleBindingReadyInitMessage,
+			),
+			condition.UnknownCondition(
+				condition.MemcachedReadyCondition,
+				condition.InitReason,
+				condition.MemcachedReadyInitMessage,
 			),
 		)
 		instance.Status.Conditions.Init(&cl)
@@ -883,8 +897,9 @@ func (r *NovaReconciler) ensureCell(
 		ServiceAccount:  instance.RbacResourceName(),
 		// The assumtpion is that the CA bundle for ironic compute in the cell
 		// and the conductor in the cell always the same as the NovaAPI
-		TLS:          instance.Spec.APIServiceTemplate.TLS.Ca,
-		PreserveJobs: instance.Spec.PreserveJobs,
+		TLS:               instance.Spec.APIServiceTemplate.TLS.Ca,
+		PreserveJobs:      instance.Spec.PreserveJobs,
+		MemcachedInstance: getMemcachedInstance(instance, cellTemplate),
 	}
 	if cellTemplate.HasAPIAccess {
 		cellSpec.APIDatabaseHostname = apiDB.GetDatabaseHostname()
@@ -1042,6 +1057,7 @@ func (r *NovaReconciler) ensureAPI(
 		RegisteredCells:        instance.Status.RegisteredCells,
 		TLS:                    instance.Spec.APIServiceTemplate.TLS,
 		DefaultConfigOverwrite: instance.Spec.APIServiceTemplate.DefaultConfigOverwrite,
+		MemcachedInstance:      getMemcachedInstance(instance, cell0Template),
 	}
 	api := &novav1.NovaAPI{
 		ObjectMeta: metav1.ObjectMeta{
@@ -1116,7 +1132,8 @@ func (r *NovaReconciler) ensureScheduler(
 		ServiceAccount:  instance.RbacResourceName(),
 		RegisteredCells: instance.Status.RegisteredCells,
 		// The assumption is that the CA bundle for the NovaScheduler is the same as the NovaAPI
-		TLS: instance.Spec.APIServiceTemplate.TLS.Ca,
+		TLS:               instance.Spec.APIServiceTemplate.TLS.Ca,
+		MemcachedInstance: getMemcachedInstance(instance, cell0Template),
 	}
 	scheduler := &novav1.NovaScheduler{
 		ObjectMeta: metav1.ObjectMeta{
@@ -1623,7 +1640,7 @@ func (r *NovaReconciler) ensureCellSecret(
 	return secretName, err
 }
 
-// ensureCellSecret makes sure that the internal Cell Secret exists and up to
+// ensureTopLevelSecret makes sure that the internal Cell Secret exists and up to
 // date
 func (r *NovaReconciler) ensureTopLevelSecret(
 	ctx context.Context,
@@ -1699,24 +1716,32 @@ func (r *NovaReconciler) findObjectsForSrc(ctx context.Context, src client.Objec
 	return requests
 }
 
-// getNovaMemcached - gets the Memcached instance used for nova cache backend
-func (r *NovaReconciler) getNovaMemcached(
-	ctx context.Context,
-	h *helper.Helper,
-	instance *novav1.Nova,
-) (*memcachedv1.Memcached, error) {
-	memcached := &memcachedv1.Memcached{}
-	err := h.GetClient().Get(
-		ctx,
-		types.NamespacedName{
-			Name:      instance.Spec.MemcachedInstance,
-			Namespace: instance.Namespace,
-		},
-		memcached)
-	if err != nil {
-		return nil, err
+func (r *NovaReconciler) memcachedNamespaceMapFunc(ctx context.Context, src client.Object) []reconcile.Request {
+
+	result := []reconcile.Request{}
+
+	// get all Nova CRs
+	novaList := &novav1.NovaList{}
+	listOpts := []client.ListOption{
+		client.InNamespace(src.GetNamespace()),
 	}
-	return memcached, err
+	if err := r.Client.List(context.Background(), novaList, listOpts...); err != nil {
+		return nil
+	}
+
+	for _, cr := range novaList.Items {
+		if src.GetName() == cr.Spec.MemcachedInstance {
+			name := client.ObjectKey{
+				Namespace: src.GetNamespace(),
+				Name:      cr.Name,
+			}
+			result = append(result, reconcile.Request{NamespacedName: name})
+		}
+	}
+	if len(result) > 0 {
+		return result
+	}
+	return nil
 }
 
 // fields to index to reconcile when change
@@ -1762,8 +1787,8 @@ func (r *NovaReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
 		).
 		Watches(
-			&source.Kind{Type: &memcachedv1.Memcached{}},
-			handler.EnqueueRequestsFromMapFunc(r.memcachedNamespaceMapFunc(ctx, crs)),
+			&memcachedv1.Memcached{},
+			handler.EnqueueRequestsFromMapFunc(r.memcachedNamespaceMapFunc),
 		).
 		Complete(r)
 }

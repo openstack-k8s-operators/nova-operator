@@ -20,9 +20,11 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
 	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
@@ -90,6 +92,17 @@ var _ = Describe("Nova controller", func() {
 					},
 				),
 			)
+			memcachedSpec := memcachedv1.MemcachedSpec{
+				Replicas: ptr.To(int32(3)),
+			}
+			memcachedNamespace := types.NamespacedName{
+				Name:      MemcachedInstance,
+				Namespace: novaNames.NovaName.Namespace,
+			}
+
+			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
+			infra.SimulateMemcachedReady(memcachedNamespace)
+
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace))
 
 			DeferCleanup(th.DeleteInstance, CreateNovaWithCell0(novaNames.NovaName))
@@ -492,6 +505,17 @@ var _ = Describe("Nova controller", func() {
 					},
 				),
 			)
+
+			memcachedSpec := memcachedv1.MemcachedSpec{
+				Replicas: ptr.To(int32(3)),
+			}
+			memcachedNamespace := types.NamespacedName{
+				Name:      MemcachedInstance,
+				Namespace: novaNames.NovaName.Namespace,
+			}
+
+			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
+			infra.SimulateMemcachedReady(memcachedNamespace)
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace))
 
 			DeferCleanup(th.DeleteInstance, CreateNovaWithCell0(novaNames.NovaName))
@@ -560,6 +584,16 @@ var _ = Describe("Nova controller", func() {
 					},
 				),
 			)
+			memcachedSpec := memcachedv1.MemcachedSpec{
+				Replicas: ptr.To(int32(3)),
+			}
+			memcachedNamespace := types.NamespacedName{
+				Name:      MemcachedInstance,
+				Namespace: novaNames.NovaName.Namespace,
+			}
+
+			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
+			infra.SimulateMemcachedReady(memcachedNamespace)
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace))
 
 			DeferCleanup(th.DeleteInstance, CreateNovaWithCell0(novaNames.NovaName))
@@ -620,6 +654,16 @@ var _ = Describe("Nova controller", func() {
 					},
 				),
 			)
+			memcachedSpec := memcachedv1.MemcachedSpec{
+				Replicas: ptr.To(int32(3)),
+			}
+			memcachedNamespace := types.NamespacedName{
+				Name:      MemcachedInstance,
+				Namespace: novaNames.NovaName.Namespace,
+			}
+
+			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
+			infra.SimulateMemcachedReady(memcachedNamespace)
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace))
 
 			spec := GetDefaultNovaSpec()
@@ -756,6 +800,16 @@ var _ = Describe("Nova controller", func() {
 					},
 				),
 			)
+			memcachedSpec := memcachedv1.MemcachedSpec{
+				Replicas: ptr.To(int32(3)),
+			}
+			memcachedNamespace := types.NamespacedName{
+				Name:      MemcachedInstance,
+				Namespace: novaNames.NovaName.Namespace,
+			}
+
+			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
+			infra.SimulateMemcachedReady(memcachedNamespace)
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace))
 
 			DeferCleanup(th.DeleteInstance, CreateNovaWithCell0(novaNames.NovaName))
@@ -822,6 +876,16 @@ var _ = Describe("Nova controller", func() {
 					},
 				),
 			)
+			memcachedSpec := memcachedv1.MemcachedSpec{
+				Replicas: ptr.To(int32(3)),
+			}
+			memcachedNamespace := types.NamespacedName{
+				Name:      MemcachedInstance,
+				Namespace: novaNames.NovaName.Namespace,
+			}
+
+			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
+			infra.SimulateMemcachedReady(memcachedNamespace)
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace))
 
 			nad := th.CreateNetworkAttachmentDefinition(novaNames.InternalAPINetworkNADName)
