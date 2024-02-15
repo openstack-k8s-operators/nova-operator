@@ -349,7 +349,14 @@ func (r *PlacementAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	// all our input checks out so report InputReady
 	instance.Status.Conditions.MarkTrue(condition.InputReadyCondition, condition.InputReadyMessage)
 
-	err = r.generateServiceConfigMaps(ctx, h, instance, secret, &configMapVars)
+	db, result, err := r.ensureDB(ctx, h, instance)
+	if err != nil {
+		return ctrl.Result{}, err
+	} else if (result != ctrl.Result{}) {
+		return result, nil
+	}
+
+	err = r.generateServiceConfigMaps(ctx, h, instance, secret, &configMapVars, db)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.ServiceConfigReadyCondition,
@@ -423,11 +430,6 @@ func (r *PlacementAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	serviceAnnotations, result, err := r.ensureNetworkAttachments(ctx, h, instance)
 	if (err != nil || result != ctrl.Result{}) {
 		return result, err
-	}
-
-	result, err = r.ensureDB(ctx, h, instance)
-	if err != nil {
-		return ctrl.Result{}, err
 	}
 
 	apiEndpoints, result, err := r.ensureServiceExposed(ctx, h, instance)
@@ -971,7 +973,7 @@ func (r *PlacementAPIReconciler) ensureDB(
 	ctx context.Context,
 	h *helper.Helper,
 	instance *placementv1.PlacementAPI,
-) (ctrl.Result, error) {
+) (*mariadbv1.Database, ctrl.Result, error) {
 	// (ksambor) should we use  NewDatabaseWithNamespace instead?
 	db := mariadbv1.NewDatabaseWithNamespace(
 		placement.DatabaseName,
@@ -996,7 +998,7 @@ func (r *PlacementAPIReconciler) ensureDB(
 			condition.SeverityWarning,
 			condition.DBReadyErrorMessage,
 			err.Error()))
-		return ctrl.Result{}, err
+		return db, ctrl.Result{}, err
 	}
 	if (ctrlResult != ctrl.Result{}) {
 		instance.Status.Conditions.Set(condition.FalseCondition(
@@ -1004,7 +1006,7 @@ func (r *PlacementAPIReconciler) ensureDB(
 			condition.RequestedReason,
 			condition.SeverityInfo,
 			condition.DBReadyRunningMessage))
-		return ctrlResult, nil
+		return db, ctrlResult, nil
 	}
 	// wait for the DB to be setup
 	// (ksambor) should we use WaitForDBCreatedWithTimeout instead?
@@ -1016,7 +1018,7 @@ func (r *PlacementAPIReconciler) ensureDB(
 			condition.SeverityWarning,
 			condition.DBReadyErrorMessage,
 			err.Error()))
-		return ctrlResult, err
+		return db, ctrlResult, err
 	}
 	if (ctrlResult != ctrl.Result{}) {
 		instance.Status.Conditions.Set(condition.FalseCondition(
@@ -1024,13 +1026,13 @@ func (r *PlacementAPIReconciler) ensureDB(
 			condition.RequestedReason,
 			condition.SeverityInfo,
 			condition.DBReadyRunningMessage))
-		return ctrlResult, nil
+		return db, ctrlResult, nil
 	}
 
 	// update Status.DatabaseHostname, used to config the service
 	instance.Status.DatabaseHostname = db.GetDatabaseHostname()
 	instance.Status.Conditions.MarkTrue(condition.DBReadyCondition, condition.DBReadyMessage)
-	return ctrlResult, nil
+	return db, ctrlResult, nil
 }
 
 func (r *PlacementAPIReconciler) ensureDbSync(
@@ -1174,6 +1176,7 @@ func (r *PlacementAPIReconciler) generateServiceConfigMaps(
 	instance *placementv1.PlacementAPI,
 	ospSecret corev1.Secret,
 	envVars *map[string]env.Setter,
+	db *mariadbv1.Database,
 ) error {
 	//
 	// create Secret required for placement input
@@ -1184,10 +1187,19 @@ func (r *PlacementAPIReconciler) generateServiceConfigMaps(
 
 	cmLabels := labels.GetLabels(instance, labels.GetGroupLabel(placement.ServiceName), map[string]string{})
 
+	var tlsCfg *tls.Service
+	if instance.Spec.TLS.Ca.CaBundleSecretName != "" {
+		tlsCfg = &tls.Service{}
+	}
+
 	// customData hold any customization for the service.
 	// custom.conf is going to /etc/<service>/<service>.conf.d
+	// my.cnf is going to /etc/my.cnf
 	// all other files get placed into /etc/<service> to allow overwrite of e.g. policy.json
-	customData := map[string]string{common.CustomServiceConfigFileName: instance.Spec.CustomServiceConfig}
+	customData := map[string]string{
+		common.CustomServiceConfigFileName: instance.Spec.CustomServiceConfig,
+		"my.cnf":                           db.GetDatabaseClientConfig(tlsCfg), //(mschuppert) for now just get the default my.cnf
+	}
 	for key, data := range instance.Spec.DefaultConfigOverwrite {
 		customData[key] = data
 	}
@@ -1209,11 +1221,13 @@ func (r *PlacementAPIReconciler) generateServiceConfigMaps(
 		"KeystoneInternalURL": keystoneInternalURL,
 		"KeystonePublicURL":   keystonePublicURL,
 		"PlacementPassword":   string(ospSecret.Data[instance.Spec.PasswordSelectors.Service]),
-		"DBUser":              instance.Spec.DatabaseUser,
-		"DBPassword":          string(ospSecret.Data[instance.Spec.PasswordSelectors.Database]),
-		"DBAddress":           instance.Status.DatabaseHostname,
-		"DBName":              placement.DatabaseName,
 		"log_file":            "/var/log/placement/placement-api.log",
+		"DatabaseConnection": fmt.Sprintf("mysql+pymysql://%s:%s@%s/%s?read_default_file=/etc/my.cnf",
+			instance.Spec.DatabaseUser,
+			string(ospSecret.Data[instance.Spec.PasswordSelectors.Database]),
+			instance.Status.DatabaseHostname,
+			placement.DatabaseName,
+		),
 	}
 
 	// create httpd  vhost template parameters

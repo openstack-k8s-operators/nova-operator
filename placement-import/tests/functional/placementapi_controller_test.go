@@ -17,6 +17,7 @@ limitations under the License.
 package functional_test
 
 import (
+	"fmt"
 	"os"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -200,6 +201,17 @@ var _ = Describe("PlacementAPI controller", func() {
 			)
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreatePlacementAPISecret(namespace, SecretName))
+
+			serviceSpec := corev1.ServiceSpec{Ports: []corev1.ServicePort{{Port: 3306}}}
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(namespace, "openstack", serviceSpec),
+			)
+			db := mariadb.GetMariaDBDatabase(names.MariaDBDatabaseName)
+			Expect(db.Spec.Name).To(Equal(names.MariaDBDatabaseName.Name))
+
+			mariadb.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBDatabaseName)
 		})
 
 		It("should have input ready", func() {
@@ -239,7 +251,45 @@ var _ = Describe("PlacementAPI controller", func() {
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystoneAPIName)
 		})
 
+		It("creates MariaDB database", func() {
+			th.ExpectCondition(
+				names.PlacementAPIName,
+				ConditionGetterFunc(PlacementConditionGetter),
+				condition.DBReadyCondition,
+				corev1.ConditionFalse,
+			)
+
+			serviceSpec := corev1.ServiceSpec{Ports: []corev1.ServicePort{{Port: 3306}}}
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(namespace, "openstack", serviceSpec),
+			)
+			db := mariadb.GetMariaDBDatabase(names.MariaDBDatabaseName)
+			Expect(db.Spec.Name).To(Equal(names.MariaDBDatabaseName.Name))
+
+			mariadb.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBDatabaseName)
+
+			th.ExpectCondition(
+				names.PlacementAPIName,
+				ConditionGetterFunc(PlacementConditionGetter),
+				condition.DBReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
+
 		It("should have config ready", func() {
+			serviceSpec := corev1.ServiceSpec{Ports: []corev1.ServicePort{{Port: 3306}}}
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(namespace, "openstack", serviceSpec),
+			)
+			db := mariadb.GetMariaDBDatabase(names.MariaDBDatabaseName)
+			Expect(db.Spec.Name).To(Equal(names.MariaDBDatabaseName.Name))
+
+			mariadb.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBDatabaseName)
+
 			th.ExpectCondition(
 				names.PlacementAPIName,
 				ConditionGetterFunc(PlacementConditionGetter),
@@ -247,7 +297,16 @@ var _ = Describe("PlacementAPI controller", func() {
 				corev1.ConditionTrue,
 			)
 		})
+
 		It("should create a configuration Secret", func() {
+			serviceSpec := corev1.ServiceSpec{Ports: []corev1.ServicePort{{Port: 3306}}}
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(namespace, "openstack", serviceSpec),
+			)
+			mariadb.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBDatabaseName)
+
 			cm := th.GetSecret(names.ConfigMapName)
 
 			conf := cm.Data["placement.conf"]
@@ -260,8 +319,7 @@ var _ = Describe("PlacementAPI controller", func() {
 			Expect(conf).Should(
 				ContainSubstring("password = 12345678"))
 			Expect(conf).Should(
-				ContainSubstring("connection = mysql+pymysql://placement:12345678@/placement"))
-
+				ContainSubstring(fmt.Sprintf("connection = mysql+pymysql://placement:12345678@hostname-for-openstack.%s.svc/placement?read_default_file=/etc/my.cnf", namespace)))
 			custom := cm.Data["custom.conf"]
 			Expect(custom).Should(ContainSubstring("foo = bar"))
 
@@ -269,9 +327,20 @@ var _ = Describe("PlacementAPI controller", func() {
 			Expect(policy).Should(
 				ContainSubstring("\"placement:resource_providers:list\": \"!\""))
 
+			myCnf := cm.Data["my.cnf"]
+			Expect(myCnf).To(
+				ContainSubstring("[client]\nssl=0"))
 		})
 
 		It("creates service account, role and rolebindig", func() {
+			serviceSpec := corev1.ServiceSpec{Ports: []corev1.ServicePort{{Port: 3306}}}
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(namespace, "openstack", serviceSpec),
+			)
+			mariadb.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBDatabaseName)
+
 			th.ExpectCondition(
 				names.PlacementAPIName,
 				ConditionGetterFunc(PlacementConditionGetter),
@@ -301,33 +370,6 @@ var _ = Describe("PlacementAPI controller", func() {
 			Expect(binding.RoleRef.Name).To(Equal(role.Name))
 			Expect(binding.Subjects).To(HaveLen(1))
 			Expect(binding.Subjects[0].Name).To(Equal(sa.Name))
-		})
-
-		It("creates MariaDB database", func() {
-			th.ExpectCondition(
-				names.PlacementAPIName,
-				ConditionGetterFunc(PlacementConditionGetter),
-				condition.DBReadyCondition,
-				corev1.ConditionFalse,
-			)
-
-			serviceSpec := corev1.ServiceSpec{Ports: []corev1.ServicePort{{Port: 3306}}}
-			DeferCleanup(
-				mariadb.DeleteDBService,
-				mariadb.CreateDBService(namespace, "openstack", serviceSpec),
-			)
-			db := mariadb.GetMariaDBDatabase(names.MariaDBDatabaseName)
-			Expect(db.Spec.Name).To(Equal(names.MariaDBDatabaseName.Name))
-
-			mariadb.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBDatabaseName)
-
-			th.ExpectCondition(
-				names.PlacementAPIName,
-				ConditionGetterFunc(PlacementConditionGetter),
-				condition.DBReadyCondition,
-				corev1.ConditionTrue,
-			)
 		})
 		It("creates keystone service", func() {
 			th.ExpectCondition(
@@ -757,7 +799,7 @@ var _ = Describe("PlacementAPI controller", func() {
 				mariadb.DeleteDBService,
 				mariadb.CreateDBService(namespace, "openstack", serviceSpec),
 			)
-			mariadb.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBTLSDatabaseCompleted(names.MariaDBDatabaseName)
 			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBDatabaseName)
 			keystone.SimulateKeystoneServiceReady(names.KeystoneServiceName)
 			keystone.SimulateKeystoneEndpointReady(names.KeystoneEndpointName)
@@ -795,6 +837,10 @@ var _ = Describe("PlacementAPI controller", func() {
 			Expect(configData).Should(ContainSubstring("SSLCertificateKeyFile   \"/etc/pki/tls/private/internal.key\""))
 			Expect(configData).Should(ContainSubstring("SSLCertificateFile      \"/etc/pki/tls/certs/public.crt\""))
 			Expect(configData).Should(ContainSubstring("SSLCertificateKeyFile   \"/etc/pki/tls/private/public.key\""))
+
+			configData = string(configDataMap.Data["my.cnf"])
+			Expect(configData).To(
+				ContainSubstring("[client]\nssl-ca=/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem\nssl=1"))
 		})
 	})
 })
@@ -823,7 +869,7 @@ var _ = Describe("PlacementAPI reconfiguration", func() {
 				mariadb.DeleteDBService,
 				mariadb.CreateDBService(namespace, "openstack", serviceSpec),
 			)
-			mariadb.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBTLSDatabaseCompleted(names.MariaDBDatabaseName)
 			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBDatabaseName)
 			keystone.SimulateKeystoneServiceReady(names.KeystoneServiceName)
 			keystone.SimulateKeystoneEndpointReady(names.KeystoneEndpointName)

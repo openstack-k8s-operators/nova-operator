@@ -11,7 +11,7 @@ require (
 	github.com/openstack-k8s-operators/keystone-operator/api v0.3.1-0.20240219094943-9bbb46c9afba
 	github.com/openstack-k8s-operators/lib-common/modules/common v0.3.1-0.20240216173409-86913e6d5885
 	github.com/openstack-k8s-operators/lib-common/modules/test v0.3.1-0.20240216173409-86913e6d5885
-	github.com/openstack-k8s-operators/mariadb-operator/api v0.3.1-0.20240219072536-62f6b4dc7798
+	github.com/openstack-k8s-operators/mariadb-operator/api v0.3.1-0.20240220132409-f96d4d040f4e
 	github.com/openstack-k8s-operators/placement-operator/api v0.3.1-0.20240216174613-3d349f26e681
 	go.uber.org/zap v1.26.0
 	k8s.io/api v0.28.6

@@ -12,6 +12,12 @@
             "dest": "/etc/placement/placement.conf.d/custom.conf",
             "owner": "placement",
             "perm": "0600"
+        },
+        {
+            "source": "/var/lib/openstack/config/my.cnf",
+            "dest": "/etc/my.cnf",
+            "owner": "placement",
+            "perm": "0644"
         }
     ]
 }
