@@ -145,11 +145,58 @@
         [libvirt]
         cpu_mode = custom
         cpu_models = Nehalem
+- job:
+    name: nova-operator-tempest-multinode-ceph
+    parent: podified-multinode-hci-deployment-crc-3comp
+    dependencies: ["nova-operator-content-provider"]
+    # Note:  When inheriting from a job (or creating a variant of a job) vars are merged with previous definitions
+    vars:
+      cifmw_extras:
+        - "@scenarios/centos-9/multinode-ci.yml"
+        - "@{{ ansible_user_dir }}/{{ zuul.projects['github.com/openstack-k8s-operators/nova-operator'].src_dir }}/ci/nova-operator-tempest-multinode-ceph/ci_fw_vars.yaml"
+      # dedupe this later
+      cifmw_run_test_role: test_operator
+      cifmw_test_operator_concurrency: 4
+      cifmw_test_operator_timeout: 7200
+      cifmw_tempest_tempestconf_config:
+          overrides: |
+            compute.min_compute_nodes 3
+            compute-feature-enabled.vnc_console true
+            compute-feature-enabled.stable_rescue true
+            compute-feature-enabled.hostname_fqdn_sanitization true
+            compute-feature-enabled.live_migration true
+            compute-feature-enabled.block_migration_for_live_migration false
+            validation.run_validation true
+            identity.v3_endpoint_type public
+            service_available.swift false
+            service_available.cinder true
+      cifmw_test_operator_tempest_include_list: |
+          tempest.api.compute
+          tempest.scenario
+      cifmw_test_operator_tempest_exclude_list: |
+          tempest.api.compute.servers.test_device_tagging
+          test_create_server_invalid_bdm_in_2nd_dict
+          tempest.scenario.test_minimum_basic.TestMinimumBasicScenario.test_minimum_basic_scenario
+          tempest.scenario.test_stamp_pattern
+          tempest.api.compute.admin.test_live_migration.LiveMigrationTest.test_live_migration_with_trunk
+          tempest.scenario.test_network_advanced_server_ops.TestNetworkAdvancedServerOps.test_server_connectivity_live_migration
+          tempest.api.compute.admin.test_auto_allocate_network.AutoAllocateNetworkTest.test_server_multi_create_auto_allocate
+          tempest.api.compute.servers.test_server_rescue.ServerStableDeviceRescueTestIDE
+          tempest.scenario.test_network_basic_ops.TestNetworkBasicOps.test_mtu_sized_frames
+      # We need to use a custom cpu model to allow live migrating between
+      # slightly different computes coming from the node pool
+      # for ceph i might need to add https://github.com/openstack-k8s-operators/docs/blob/main/ceph.md#configure-nova
+      # but if i do i can just add that here as i dont know what the fsid will be
+      cifmw_edpm_deploy_nova_compute_extra_config: |
+        [libvirt]
+        cpu_mode = custom
+        cpu_models = Nehalem
 
 - project:
     name: openstack-k8s-operators/nova-operator
     github-check:
       jobs:
         - nova-operator-content-provider
-        - nova-operator-kuttl
-        - nova-operator-tempest-multinode
+        # - nova-operator-kuttl
+        # - nova-operator-tempest-multinode
+        - nova-operator-tempest-multinode-ceph
