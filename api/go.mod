@@ -68,3 +68,6 @@ require (
 // mschuppert: map to latest commit from release-4.13 tag
 // must consistent within modules and service operators
 replace github.com/openshift/api => github.com/openshift/api v0.0.0-20230414143018-3367bc7e6ac7 //allow-merging
+
+// sean-k-mooney: pin this to keep go 1.20 support
+replace k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20230717233707-2695361300d9
