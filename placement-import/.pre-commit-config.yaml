@@ -26,7 +26,7 @@ repos:
     - id: go-mod-tidy
 
 - repo: https://github.com/golangci/golangci-lint
-  rev: v1.54.2
+  rev: v1.55.2
   hooks:
     - id: golangci-lint
       args: ["--verbose"]
