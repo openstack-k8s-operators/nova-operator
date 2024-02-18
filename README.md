@@ -13,10 +13,6 @@ You’ll need a Kubernetes cluster to run against.
 You can use [openshift-local](https://developers.redhat.com/products/openshift-local/overview) to get a local cluster for testing, or run against a remote cluster.
 **Note:** Your controller will automatically use the current context in your kubeconfig file (i.e. whatever cluster `kubectl cluster-info` shows).
 
-### golang
-
-This repo currently uses go 1.19+
-
 ### pre-commit
 
 This repo uses pre-commit to automate basic checks that should be run before pushing a PR for review.
