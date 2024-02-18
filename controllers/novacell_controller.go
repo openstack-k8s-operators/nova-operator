@@ -776,7 +776,6 @@ func (r *NovaCellReconciler) generateComputeConfigs(
 		"default_user_domain":    "Default",   // fixme
 		"compute_driver":         "libvirt.LibvirtDriver",
 		"transport_url":          string(secret.Data[TransportURLSelector]),
-		"log_file":               "/var/log/containers/nova/nova-compute.log",
 	}
 	// vnc is optional so we only need to configure it for the compute
 	// if the proxy service is deployed in the cell
