@@ -277,6 +277,7 @@ var _ = Describe("NovaCell controller", func() {
 			Expect(configData).To(
 				ContainSubstring(
 					"live_migration_uri = qemu+ssh://nova@%s/system?keyfile=/var/lib/nova/.ssh/ssh-privatekey"))
+			Expect(configData).To(ContainSubstring("cpu_power_management=true"))
 
 			th.ExpectCondition(
 				cell1.CellCRName,
