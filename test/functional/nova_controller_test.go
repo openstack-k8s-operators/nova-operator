@@ -144,6 +144,14 @@ var _ = Describe("Nova controller", func() {
 			Expect(instance.Status.RegisteredCells).To(BeEmpty())
 		})
 
+		It("defaults Spec fields", func() {
+			nova := GetNova(novaNames.NovaName)
+			cell0Template := nova.Spec.CellTemplates["cell0"]
+			Expect(cell0Template.DBPurge.Schedule).To(Equal(ptr.To("0 0 * * *")))
+			Expect(cell0Template.DBPurge.ArchiveAge).To(Equal(ptr.To(30)))
+			Expect(cell0Template.DBPurge.PurgeAge).To(Equal(ptr.To(90)))
+		})
+
 		It("registers nova service to keystone", func() {
 			// assert that the KeystoneService for nova is created
 			keystone.GetKeystoneService(novaNames.KeystoneServiceName)
@@ -232,10 +240,16 @@ var _ = Describe("Nova controller", func() {
 			cell := GetNovaCell(cell0.CellCRName)
 			Expect(cell.Spec.ServiceUser).To(Equal("nova"))
 			Expect(cell.Spec.ServiceAccount).To(Equal(novaNames.ServiceAccountName.Name))
+			Expect(cell.Spec.DBPurge.Schedule).To(Equal(ptr.To("0 0 * * *")))
+			Expect(cell.Spec.DBPurge.ArchiveAge).To(Equal(ptr.To(30)))
+			Expect(cell.Spec.DBPurge.PurgeAge).To(Equal(ptr.To(90)))
 
 			conductor := GetNovaConductor(cell0.ConductorName)
 			Expect(conductor.Spec.ServiceUser).To(Equal("nova"))
 			Expect(conductor.Spec.ServiceAccount).To(Equal(novaNames.ServiceAccountName.Name))
+			Expect(conductor.Spec.DBPurge.Schedule).To(Equal(ptr.To("0 0 * * *")))
+			Expect(conductor.Spec.DBPurge.ArchiveAge).To(Equal(ptr.To(30)))
+			Expect(conductor.Spec.DBPurge.PurgeAge).To(Equal(ptr.To(90)))
 
 			// assert that a cell specific internal secret is created with the
 			// proper content and the cell subCRs are configured to use the

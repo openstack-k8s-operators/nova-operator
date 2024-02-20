@@ -465,6 +465,28 @@ spec:
                               type: object
                           type: object
                       type: object
+                    dbPurge:
+                      description: DBPurge defines the parameters for the DB archiving
+                        and purging cron job
+                      properties:
+                        archiveAge:
+                          default: 30
+                          description: ArchiveAge defines the minimuma age of the
+                            records in days that can be moved to the shadow tables.
+                          minimum: 1
+                          type: integer
+                        purgeAge:
+                          default: 90
+                          description: PurgeAge defines the minimum age of the records
+                            in days that can be deleted from the shadow tables
+                          minimum: 1
+                          type: integer
+                        schedule:
+                          default: 0 0 * * *
+                          description: Schedule defines when to run the DB maintenance
+                            job in a cron format. By default it runs every midnight.
+                          type: string
+                      type: object
                     hasAPIAccess:
                       description: HasAPIAccess defines if this Cell is configured
                         to have access to the API DB and message bus.
