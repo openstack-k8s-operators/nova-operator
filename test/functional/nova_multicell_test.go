@@ -106,13 +106,13 @@ var _ = Describe("Nova multicell", func() {
 			Expect(configData).To(
 				ContainSubstring(
 					fmt.Sprintf(
-						"[database]\nconnection = mysql+pymysql://nova_cell0:cell0-database-password@hostname-for-%s.%s.svc/nova_cell0",
+						"[database]\nconnection = mysql+pymysql://nova_cell0:cell0-database-password@hostname-for-%s.%s.svc/nova_cell0?read_default_file=/etc/my.cnf",
 						cell0.MariaDBDatabaseName.Name, novaNames.Namespace)),
 			)
 			Expect(configData).To(
 				ContainSubstring(
 					fmt.Sprintf(
-						"[api_database]\nconnection = mysql+pymysql://nova_api:api-database-password@hostname-for-%s.%s.svc/nova_api",
+						"[api_database]\nconnection = mysql+pymysql://nova_api:api-database-password@hostname-for-%s.%s.svc/nova_api?read_default_file=/etc/my.cnf",
 						novaNames.APIMariaDBDatabaseName.Name, novaNames.Namespace)),
 			)
 			// and that it is using the top level MQ
@@ -169,13 +169,13 @@ var _ = Describe("Nova multicell", func() {
 			Expect(configData).To(
 				ContainSubstring(
 					fmt.Sprintf(
-						"[database]\nconnection = mysql+pymysql://nova_cell0:cell0-database-password@hostname-for-%s.%s.svc/nova_cell0",
+						"[database]\nconnection = mysql+pymysql://nova_cell0:cell0-database-password@hostname-for-%s.%s.svc/nova_cell0?read_default_file=/etc/my.cnf",
 						cell0.MariaDBDatabaseName.Name, novaNames.Namespace)),
 			)
 			Expect(configData).To(
 				ContainSubstring(
 					fmt.Sprintf(
-						"[api_database]\nconnection = mysql+pymysql://nova_api:api-database-password@hostname-for-%s.%s.svc/nova_api",
+						"[api_database]\nconnection = mysql+pymysql://nova_api:api-database-password@hostname-for-%s.%s.svc/nova_api?read_default_file=/etc/my.cnf",
 						novaNames.APIMariaDBDatabaseName.Name, novaNames.Namespace)),
 			)
 			Expect(configData).To(ContainSubstring("transport_url=rabbit://cell0/fake"))
@@ -278,16 +278,20 @@ var _ = Describe("Nova multicell", func() {
 			Expect(configData).To(
 				ContainSubstring(
 					fmt.Sprintf(
-						"[database]\nconnection = mysql+pymysql://nova_cell1:cell1-database-password@hostname-for-%s.%s.svc/nova_cell1",
+						"[database]\nconnection = mysql+pymysql://nova_cell1:cell1-database-password@hostname-for-%s.%s.svc/nova_cell1?read_default_file=/etc/my.cnf",
 						cell1.MariaDBDatabaseName.Name, novaNames.Namespace)),
 			)
 			Expect(configData).To(
 				ContainSubstring(
 					fmt.Sprintf(
-						"[api_database]\nconnection = mysql+pymysql://nova_api:api-database-password@hostname-for-%s.%s.svc/nova_api",
+						"[api_database]\nconnection = mysql+pymysql://nova_api:api-database-password@hostname-for-%s.%s.svc/nova_api?read_default_file=/etc/my.cnf",
 						novaNames.APIMariaDBDatabaseName.Name, novaNames.Namespace)),
 			)
 			Expect(configData).To(ContainSubstring("transport_url=rabbit://cell1/fake"))
+
+			myCnf := configDataMap.Data["my.cnf"]
+			Expect(myCnf).To(
+				ContainSubstring("[client]\nssl=0"))
 
 			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
 			th.SimulateJobSuccess(cell1.DBSyncJobName)
@@ -378,7 +382,7 @@ var _ = Describe("Nova multicell", func() {
 			Expect(configData).To(
 				ContainSubstring(
 					fmt.Sprintf(
-						"[database]\nconnection = mysql+pymysql://nova_cell2:cell2-database-password@hostname-for-%s.%s.svc/nova_cell2",
+						"[database]\nconnection = mysql+pymysql://nova_cell2:cell2-database-password@hostname-for-%s.%s.svc/nova_cell2?read_default_file=/etc/my.cnf",
 						cell2.MariaDBDatabaseName.Name, novaNames.Namespace)),
 			)
 			Expect(configData).ToNot(
@@ -411,13 +415,13 @@ var _ = Describe("Nova multicell", func() {
 			Expect(configData).To(
 				ContainSubstring(
 					fmt.Sprintf(
-						"[database]\nconnection = mysql+pymysql://nova_cell2:cell2-database-password@hostname-for-%s.%s.svc/nova_cell2",
+						"[database]\nconnection = mysql+pymysql://nova_cell2:cell2-database-password@hostname-for-%s.%s.svc/nova_cell2?read_default_file=/etc/my.cnf",
 						cell2.MariaDBDatabaseName.Name, novaNames.Namespace)),
 			)
 			Expect(configData).To(
 				ContainSubstring(
 					fmt.Sprintf(
-						"[api_database]\nconnection = mysql+pymysql://nova_api:api-database-password@hostname-for-%s.%s.svc/nova_api",
+						"[api_database]\nconnection = mysql+pymysql://nova_api:api-database-password@hostname-for-%s.%s.svc/nova_api?read_default_file=/etc/my.cnf",
 						novaNames.APIMariaDBDatabaseName.Name, novaNames.Namespace)),
 			)
 

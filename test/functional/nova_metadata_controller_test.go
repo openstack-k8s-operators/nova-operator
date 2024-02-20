@@ -31,10 +31,15 @@ import (
 
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
+	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 )
 
 var _ = Describe("NovaMetadata controller", func() {
+	BeforeEach(func() {
+		mariadb.CreateMariaDBDatabase(novaNames.APIMariaDBDatabaseName.Namespace, novaNames.APIMariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
+		mariadb.CreateMariaDBAccount(novaNames.APIMariaDBDatabaseName.Namespace, novaNames.APIMariaDBDatabaseName.Name, mariadbv1.MariaDBAccountSpec{})
+	})
 	When("with standard spec without network interface", func() {
 		BeforeEach(func() {
 			spec := GetDefaultNovaMetadataSpec(novaNames.InternalTopLevelSecretName)
@@ -175,10 +180,13 @@ var _ = Describe("NovaMetadata controller", func() {
 				Expect(configData).Should(ContainSubstring("metadata_workers=1"))
 				Expect(configData).Should(
 					ContainSubstring(
-						"connection = mysql+pymysql://nova_api:api-database-password@nova-api-db-hostname/nova_api"))
+						"connection = mysql+pymysql://nova_api:api-database-password@nova-api-db-hostname/nova_api?read_default_file=/etc/my.cnf"))
 				Expect(configData).Should(
 					ContainSubstring("[upgrade_levels]\ncompute = auto"))
 				Expect(configDataMap.Data).Should(HaveKey("02-nova-override.conf"))
+				myCnf := configDataMap.Data["my.cnf"]
+				Expect(myCnf).To(
+					ContainSubstring("[client]\nssl=0"))
 				extraData := string(configDataMap.Data["02-nova-override.conf"])
 				Expect(extraData).To(Equal("foo=bar"))
 
@@ -327,6 +335,12 @@ var _ = Describe("NovaMetadata controller", func() {
 })
 
 var _ = Describe("NovaMetadata controller", func() {
+	BeforeEach(func() {
+		mariadb.CreateMariaDBDatabase(novaNames.APIMariaDBDatabaseName.Namespace, novaNames.APIMariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
+		mariadb.CreateMariaDBAccount(novaNames.APIMariaDBDatabaseName.Namespace, novaNames.APIMariaDBDatabaseName.Name, mariadbv1.MariaDBAccountSpec{})
+		mariadb.CreateMariaDBDatabase(cell1.MariaDBDatabaseName.Namespace, cell1.MariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
+		mariadb.CreateMariaDBAccount(cell1.MariaDBDatabaseName.Namespace, cell1.MariaDBDatabaseName.Name, mariadbv1.MariaDBAccountSpec{})
+	})
 	When("configured with cell name", func() {
 		BeforeEach(func() {
 			spec := GetDefaultNovaMetadataSpec(cell1.InternalCellSecretName)
@@ -745,6 +759,12 @@ var _ = Describe("NovaMetadata controller", func() {
 })
 
 var _ = Describe("NovaMetadata controller", func() {
+	BeforeEach(func() {
+		mariadb.CreateMariaDBDatabase(novaNames.APIMariaDBDatabaseName.Namespace, novaNames.APIMariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
+		mariadb.CreateMariaDBAccount(novaNames.APIMariaDBDatabaseName.Namespace, novaNames.APIMariaDBDatabaseName.Name, mariadbv1.MariaDBAccountSpec{})
+		mariadb.SimulateMariaDBTLSDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
+		mariadb.SimulateMariaDBAccountCompleted(novaNames.APIMariaDBDatabaseName)
+	})
 	When("NovaMetadata is created with TLS CA cert secret", func() {
 		BeforeEach(func() {
 			DeferCleanup(
@@ -832,6 +852,9 @@ var _ = Describe("NovaMetadata controller", func() {
 			Expect(configData).Should(ContainSubstring("SSLEngine on"))
 			Expect(configData).Should(ContainSubstring("SSLCertificateFile      \"/etc/pki/tls/certs/nova-metadata.crt\""))
 			Expect(configData).Should(ContainSubstring("SSLCertificateKeyFile   \"/etc/pki/tls/private/nova-metadata.key\""))
+			myCnf := configDataMap.Data["my.cnf"]
+			Expect(myCnf).To(
+				ContainSubstring("[client]\nssl-ca=/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem\nssl=1"))
 
 			computeConfigData := th.GetSecret(novaNames.MetadataNeutronConfigDataName)
 			Expect(computeConfigData).ShouldNot(BeNil())

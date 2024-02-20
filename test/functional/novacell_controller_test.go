@@ -30,6 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
+	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 )
 
@@ -71,6 +72,8 @@ var _ = Describe("NovaCell controller", func() {
 
 	When("A NovaCell/cell0 CR instance is created", func() {
 		BeforeEach(func() {
+			mariadb.CreateMariaDBDatabase(cell0.MariaDBDatabaseName.Namespace, cell0.MariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
+			mariadb.CreateMariaDBAccount(cell0.MariaDBDatabaseName.Namespace, cell0.MariaDBDatabaseName.Name, mariadbv1.MariaDBAccountSpec{})
 			DeferCleanup(k8sClient.Delete, ctx, CreateDefaultCellInternalSecret(cell0))
 			DeferCleanup(th.DeleteInstance, CreateNovaCell(cell0.CellCRName, GetDefaultNovaCellSpec(cell0)))
 		})
@@ -141,6 +144,8 @@ var _ = Describe("NovaCell controller", func() {
 	})
 	When("A NovaCell/cell1 CR instance is created", func() {
 		BeforeEach(func() {
+			mariadb.CreateMariaDBDatabase(cell1.MariaDBDatabaseName.Namespace, cell1.MariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
+			mariadb.CreateMariaDBAccount(cell1.MariaDBDatabaseName.Namespace, cell1.MariaDBDatabaseName.Name, mariadbv1.MariaDBAccountSpec{})
 			DeferCleanup(
 				k8sClient.Delete,
 				ctx,
@@ -471,6 +476,8 @@ var _ = Describe("NovaCell controller", func() {
 	})
 	When("A NovaCell/cell2 CR instance is created without VNCProxy", func() {
 		BeforeEach(func() {
+			mariadb.CreateMariaDBDatabase(cell2.MariaDBDatabaseName.Namespace, cell2.MariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
+			mariadb.CreateMariaDBAccount(cell2.MariaDBDatabaseName.Namespace, cell2.MariaDBDatabaseName.Name, mariadbv1.MariaDBAccountSpec{})
 			DeferCleanup(
 				k8sClient.Delete,
 				ctx,
@@ -822,6 +829,8 @@ var _ = Describe("NovaCell controller", func() {
 	})
 	When("NovaCell/cell0 is reconfigured", func() {
 		BeforeEach(func() {
+			mariadb.CreateMariaDBDatabase(cell0.MariaDBDatabaseName.Namespace, cell0.MariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
+			mariadb.CreateMariaDBAccount(cell0.MariaDBDatabaseName.Namespace, cell0.MariaDBDatabaseName.Name, mariadbv1.MariaDBAccountSpec{})
 			DeferCleanup(k8sClient.Delete, ctx, CreateDefaultCellInternalSecret(cell0))
 			DeferCleanup(th.DeleteInstance, CreateNovaCell(cell0.CellCRName, GetDefaultNovaCellSpec(cell0)))
 			th.SimulateJobSuccess(cell0.DBSyncJobName)
@@ -910,6 +919,8 @@ var _ = Describe("NovaCell controller", func() {
 
 	When("NovaCell/cell1 with metadata is reconfigured", func() {
 		BeforeEach(func() {
+			mariadb.CreateMariaDBDatabase(cell1.MariaDBDatabaseName.Namespace, cell1.MariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
+			mariadb.CreateMariaDBAccount(cell1.MariaDBDatabaseName.Namespace, cell1.MariaDBDatabaseName.Name, mariadbv1.MariaDBAccountSpec{})
 			DeferCleanup(k8sClient.Delete, ctx, CreateMetadataCellInternalSecret(cell1))
 
 			spec := GetDefaultNovaCellSpec(cell1)

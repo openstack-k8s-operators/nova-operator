@@ -283,16 +283,20 @@ var _ = Describe("Nova controller", func() {
 			Expect(mappingJobConfig.Data).Should(HaveKey("01-nova.conf"))
 			configData := string(mappingJobConfig.Data["01-nova.conf"])
 			Expect(configData).To(
-				ContainSubstring(fmt.Sprintf("[database]\nconnection = mysql+pymysql://nova_cell0:cell0-database-password@hostname-for-openstack.%s.svc/nova_cell0", novaNames.Namespace)),
+				ContainSubstring(fmt.Sprintf("[database]\nconnection = mysql+pymysql://nova_cell0:cell0-database-password@hostname-for-openstack.%s.svc/nova_cell0?read_default_file=/etc/my.cnf", novaNames.Namespace)),
 			)
 			Expect(configData).To(
-				ContainSubstring(fmt.Sprintf("[api_database]\nconnection = mysql+pymysql://nova_api:api-database-password@hostname-for-openstack.%s.svc/nova_api", novaNames.Namespace)),
+				ContainSubstring(fmt.Sprintf("[api_database]\nconnection = mysql+pymysql://nova_api:api-database-password@hostname-for-openstack.%s.svc/nova_api?read_default_file=/etc/my.cnf", novaNames.Namespace)),
 			)
 			// NOTE(gibi): cell mapping for cell0 should not have transport_url
 			// configured. As the nova-manage command used to create the mapping
 			// uses the transport_url from the nova.conf provided to the job
 			// we need to make sure that it is empty.
 			Expect(configData).NotTo(ContainSubstring("transport_url"))
+
+			myCnf := mappingJobConfig.Data["my.cnf"]
+			Expect(myCnf).To(
+				ContainSubstring("[client]\nssl=0"))
 
 			mappingJobScript := th.GetSecret(
 				types.NamespacedName{
@@ -643,13 +647,13 @@ var _ = Describe("Nova controller", func() {
 			Expect(configData).To(
 				ContainSubstring(
 					fmt.Sprintf(
-						"[database]\nconnection = mysql+pymysql://nova_cell0:cell0-database-password@hostname-for-%s.%s.svc/nova_cell0",
+						"[database]\nconnection = mysql+pymysql://nova_cell0:cell0-database-password@hostname-for-%s.%s.svc/nova_cell0?read_default_file=/etc/my.cnf",
 						cell0.MariaDBDatabaseName.Name, novaNames.Namespace)),
 			)
 			Expect(configData).To(
 				ContainSubstring(
 					fmt.Sprintf(
-						"[api_database]\nconnection = mysql+pymysql://nova_api:api-database-password@hostname-for-%s.%s.svc/nova_api",
+						"[api_database]\nconnection = mysql+pymysql://nova_api:api-database-password@hostname-for-%s.%s.svc/nova_api?read_default_file=/etc/my.cnf",
 						novaNames.APIMariaDBDatabaseName.Name, novaNames.Namespace)),
 			)
 			Expect(configData).To(ContainSubstring("password = service-password"))
@@ -666,13 +670,13 @@ var _ = Describe("Nova controller", func() {
 			Expect(configData).To(
 				ContainSubstring(
 					fmt.Sprintf(
-						"[database]\nconnection = mysql+pymysql://nova_cell0:cell0-database-password@hostname-for-%s.%s.svc/nova_cell0",
+						"[database]\nconnection = mysql+pymysql://nova_cell0:cell0-database-password@hostname-for-%s.%s.svc/nova_cell0?read_default_file=/etc/my.cnf",
 						cell0.MariaDBDatabaseName.Name, novaNames.Namespace)),
 			)
 			Expect(configData).To(
 				ContainSubstring(
 					fmt.Sprintf(
-						"[api_database]\nconnection = mysql+pymysql://nova_api:api-database-password@hostname-for-%s.%s.svc/nova_api",
+						"[api_database]\nconnection = mysql+pymysql://nova_api:api-database-password@hostname-for-%s.%s.svc/nova_api?read_default_file=/etc/my.cnf",
 						novaNames.APIMariaDBDatabaseName.Name, novaNames.Namespace)),
 			)
 			Expect(configData).To(ContainSubstring("password = service-password"))
@@ -683,13 +687,13 @@ var _ = Describe("Nova controller", func() {
 			Expect(configData).To(
 				ContainSubstring(
 					fmt.Sprintf(
-						"[database]\nconnection = mysql+pymysql://nova_cell0:cell0-database-password@hostname-for-%s.%s.svc/nova_cell0",
+						"[database]\nconnection = mysql+pymysql://nova_cell0:cell0-database-password@hostname-for-%s.%s.svc/nova_cell0?read_default_file=/etc/my.cnf",
 						cell0.MariaDBDatabaseName.Name, novaNames.Namespace)),
 			)
 			Expect(configData).To(
 				ContainSubstring(
 					fmt.Sprintf(
-						"[api_database]\nconnection = mysql+pymysql://nova_api:api-database-password@hostname-for-%s.%s.svc/nova_api",
+						"[api_database]\nconnection = mysql+pymysql://nova_api:api-database-password@hostname-for-%s.%s.svc/nova_api?read_default_file=/etc/my.cnf",
 						novaNames.APIMariaDBDatabaseName.Name, novaNames.Namespace)),
 			)
 			Expect(configData).To(ContainSubstring("password = service-password"))

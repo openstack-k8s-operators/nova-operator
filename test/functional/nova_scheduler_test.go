@@ -26,6 +26,7 @@ import (
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	api "github.com/openstack-k8s-operators/lib-common/modules/test/apis"
+	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -34,6 +35,10 @@ import (
 )
 
 var _ = Describe("NovaScheduler controller", func() {
+	BeforeEach(func() {
+		mariadb.CreateMariaDBDatabase(novaNames.APIMariaDBDatabaseName.Namespace, novaNames.APIMariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
+		mariadb.CreateMariaDBAccount(novaNames.APIMariaDBDatabaseName.Namespace, novaNames.APIMariaDBDatabaseName.Name, mariadbv1.MariaDBAccountSpec{})
+	})
 	BeforeEach(func() {
 		// Uncomment this if you need the full output in the logs from gomega
 		// matchers
@@ -205,6 +210,9 @@ var _ = Describe("NovaScheduler controller", func() {
 			Expect(configData).Should(
 				ContainSubstring("[upgrade_levels]\ncompute = auto"))
 			Expect(configDataMap.Data).Should(HaveKey("02-nova-override.conf"))
+			myCnf := configDataMap.Data["my.cnf"]
+			Expect(myCnf).To(
+				ContainSubstring("[client]\nssl=0"))
 			extraConfigData := string(configDataMap.Data["02-nova-override.conf"])
 			Expect(extraConfigData).To(Equal("foo=bar"))
 		})
@@ -294,6 +302,10 @@ var _ = Describe("NovaScheduler controller", func() {
 })
 
 var _ = Describe("NovaScheduler controller", func() {
+	BeforeEach(func() {
+		mariadb.CreateMariaDBDatabase(novaNames.APIMariaDBDatabaseName.Namespace, novaNames.APIMariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
+		mariadb.CreateMariaDBAccount(novaNames.APIMariaDBDatabaseName.Namespace, novaNames.APIMariaDBDatabaseName.Name, mariadbv1.MariaDBAccountSpec{})
+	})
 	When("NovaScheduler is created with networkAttachments", func() {
 		BeforeEach(func() {
 			DeferCleanup(
@@ -551,6 +563,10 @@ var _ = Describe("NovaScheduler controller", func() {
 })
 
 var _ = Describe("NovaScheduler controller cleaning", func() {
+	BeforeEach(func() {
+		mariadb.CreateMariaDBDatabase(novaNames.APIMariaDBDatabaseName.Namespace, novaNames.APIMariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
+		mariadb.CreateMariaDBAccount(novaNames.APIMariaDBDatabaseName.Namespace, novaNames.APIMariaDBDatabaseName.Name, mariadbv1.MariaDBAccountSpec{})
+	})
 	var novaAPIFixture *NovaAPIFixture
 	BeforeEach(func() {
 		DeferCleanup(
@@ -599,6 +615,12 @@ var _ = Describe("NovaScheduler controller cleaning", func() {
 })
 
 var _ = Describe("NovaScheduler controller", func() {
+	BeforeEach(func() {
+		mariadb.CreateMariaDBDatabase(novaNames.APIMariaDBDatabaseName.Namespace, novaNames.APIMariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
+		mariadb.CreateMariaDBAccount(novaNames.APIMariaDBDatabaseName.Namespace, novaNames.APIMariaDBDatabaseName.Name, mariadbv1.MariaDBAccountSpec{})
+		mariadb.SimulateMariaDBTLSDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
+		mariadb.SimulateMariaDBAccountCompleted(novaNames.APIMariaDBDatabaseName)
+	})
 	When("NovaScheduler is created with TLS CA cert secret", func() {
 		BeforeEach(func() {
 			spec := GetDefaultNovaSchedulerSpec(novaNames)
@@ -644,6 +666,12 @@ var _ = Describe("NovaScheduler controller", func() {
 			// CA container certs
 			apiContainer := ss.Spec.Template.Spec.Containers[0]
 			th.AssertVolumeMountExists(novaNames.CaBundleSecretName.Name, "tls-ca-bundle.pem", apiContainer.VolumeMounts)
+
+			configDataMap := th.GetSecret(novaNames.SchedulerConfigDataName)
+			Expect(configDataMap).ShouldNot(BeNil())
+			myCnf := configDataMap.Data["my.cnf"]
+			Expect(myCnf).To(
+				ContainSubstring("[client]\nssl-ca=/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem\nssl=1"))
 
 			th.ExpectCondition(
 				novaNames.SchedulerName,

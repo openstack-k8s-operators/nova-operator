@@ -46,6 +46,7 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/statefulset"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
+	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/nova-operator/pkg/nova"
 	"github.com/openstack-k8s-operators/nova-operator/pkg/novametadata"
@@ -382,7 +383,6 @@ func (r *NovaMetadataReconciler) generateConfigs(
 		"cell_db_password":       string(secret.Data[CellDatabasePasswordSelector]),
 		"cell_db_address":        instance.Spec.CellDatabaseHostname,
 		"cell_db_port":           3306,
-		"openstack_cacert":       "",          // fixme
 		"openstack_region_name":  "regionOne", // fixme
 		"default_project_domain": "Default",   // fixme
 		"default_user_domain":    "Default",   // fixme
@@ -393,6 +393,8 @@ func (r *NovaMetadataReconciler) generateConfigs(
 		"ServerName":             fmt.Sprintf("%s.%s.svc", novametadata.ServiceName, instance.Namespace),
 	}
 
+	var err error
+	var db *mariadbv1.Database
 	if instance.Spec.CellName == "" {
 		templateParameters["api_db_name"] = NovaAPIDatabaseName
 		templateParameters["api_db_user"] = instance.Spec.APIDatabaseUser // fixme
@@ -400,9 +402,19 @@ func (r *NovaMetadataReconciler) generateConfigs(
 		templateParameters["api_db_address"] = instance.Spec.APIDatabaseHostname
 		templateParameters["api_db_port"] = 3306
 		templateParameters["local_metadata_per_cell"] = false
+
+		db, err = mariadbv1.GetDatabaseByName(ctx, h, "nova-api")
+		if err != nil {
+			return err
+		}
 	} else {
 		templateParameters["local_metadata_per_cell"] = true
 		templateParameters["cell_db_name"] = getCellDatabaseName(instance.Spec.CellName)
+
+		db, err = mariadbv1.GetDatabaseByName(ctx, h, "nova-"+instance.Spec.CellName)
+		if err != nil {
+			return err
+		}
 	}
 
 	// create httpd tls template parameters
@@ -412,7 +424,13 @@ func (r *NovaMetadataReconciler) generateConfigs(
 		templateParameters["SSLCertificateKeyFile"] = fmt.Sprintf("/etc/pki/tls/private/%s.key", novametadata.ServiceName)
 	}
 
-	extraData := map[string]string{}
+	var tlsCfg *tls.Service
+	if instance.Spec.TLS.CaBundleSecretName != "" {
+		tlsCfg = &tls.Service{}
+	}
+	extraData := map[string]string{
+		"my.cnf": db.GetDatabaseClientConfig(tlsCfg), //(mschuppert) for now just get the default my.cnf
+	}
 	if instance.Spec.CustomServiceConfig != "" {
 		extraData["02-nova-override.conf"] = instance.Spec.CustomServiceConfig
 	}
@@ -424,7 +442,7 @@ func (r *NovaMetadataReconciler) generateConfigs(
 		instance, labels.GetGroupLabel(NovaMetadataLabelPrefix), map[string]string{},
 	)
 
-	err := r.GenerateConfigs(
+	err = r.GenerateConfigs(
 		ctx, h, instance, nova.GetServiceConfigSecretName(instance.GetName()),
 		hashes, templateParameters, extraData, cmLabels, map[string]string{},
 	)

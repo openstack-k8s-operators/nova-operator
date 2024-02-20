@@ -25,6 +25,12 @@
             "dest": "/bin/",
             "owner": "nova",
             "perm": "0700"
+        },
+        {
+            "source": "/var/lib/openstack/config/my.cnf",
+            "dest": "/etc/my.cnf",
+            "owner": "nova",
+            "perm": "0644"
         }
     ]
 }

@@ -47,6 +47,7 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/labels"
 	common_rbac "github.com/openstack-k8s-operators/lib-common/modules/common/rbac"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/secret"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
@@ -656,6 +657,7 @@ func (r *NovaReconciler) ensureNovaManageJobSecret(
 	cellTemplate novav1.NovaCellTemplate,
 	apiDBHostname string,
 	cellTransportURL string,
+	db *mariadbv1.Database,
 ) (map[string]env.Setter, string, string, error) {
 	configName := fmt.Sprintf("%s-config-data", cell.Name+"-manage")
 	scriptName := fmt.Sprintf("%s-scripts", cell.Name+"-manage")
@@ -663,6 +665,15 @@ func (r *NovaReconciler) ensureNovaManageJobSecret(
 	cmLabels := labels.GetLabels(
 		instance, labels.GetGroupLabel(NovaLabelPrefix), map[string]string{},
 	)
+
+	var tlsCfg *tls.Service
+	if instance.Spec.APIServiceTemplate.TLS.Ca.CaBundleSecretName != "" {
+		tlsCfg = &tls.Service{}
+	}
+
+	extraData := map[string]string{
+		"my.cnf": db.GetDatabaseClientConfig(tlsCfg), //(mschuppert) for now just get the default my.cnf
+	}
 
 	extraTemplates := map[string]string{
 		"01-nova.conf":    "/nova.conf",
@@ -719,7 +730,7 @@ func (r *NovaReconciler) ensureNovaManageJobSecret(
 			InstanceType:       "nova-manage",
 			ConfigOptions:      templateParameters,
 			Labels:             cmLabels,
-			CustomData:         map[string]string{},
+			CustomData:         extraData,
 			Annotations:        map[string]string{},
 			AdditionalTemplate: extraTemplates,
 		},
@@ -895,7 +906,7 @@ func (r *NovaReconciler) ensureCell(
 		return cell, nova.CellDeploying, err
 	}
 	configHash, scriptName, configName, err := r.ensureNovaManageJobSecret(ctx, h, instance,
-		cell, secret, cellTemplate, apiDB.GetDatabaseHostname(), cellTransportURL)
+		cell, secret, cellTemplate, apiDB.GetDatabaseHostname(), cellTransportURL, cellDB)
 	if err != nil {
 		return cell, nova.CellFailed, err
 	}
