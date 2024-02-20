@@ -23,6 +23,7 @@ import (
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
+	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,6 +32,10 @@ import (
 )
 
 var _ = Describe("NovaNoVNCProxy controller", func() {
+	BeforeEach(func() {
+		mariadb.CreateMariaDBDatabase(cell1.MariaDBDatabaseName.Namespace, cell1.MariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
+		mariadb.CreateMariaDBAccount(cell1.MariaDBDatabaseName.Namespace, cell1.MariaDBDatabaseName.Name, mariadbv1.MariaDBAccountSpec{})
+	})
 	When("with standard spec without network interface", func() {
 		BeforeEach(func() {
 			spec := GetDefaultNovaNoVNCProxySpec(cell1)
@@ -168,6 +173,9 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 				Expect(configData).Should(
 					ContainSubstring("[upgrade_levels]\ncompute = auto"))
 				Expect(configDataMap.Data).Should(HaveKey("02-nova-override.conf"))
+				myCnf := configDataMap.Data["my.cnf"]
+				Expect(myCnf).To(
+					ContainSubstring("[client]\nssl=0"))
 				extraData := string(configDataMap.Data["02-nova-override.conf"])
 				Expect(extraData).To(Equal("foo=bar"))
 			})
@@ -290,6 +298,10 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 })
 
 var _ = Describe("NovaNoVNCProxy controller", func() {
+	BeforeEach(func() {
+		mariadb.CreateMariaDBDatabase(cell1.MariaDBDatabaseName.Namespace, cell1.MariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
+		mariadb.CreateMariaDBAccount(cell1.MariaDBDatabaseName.Namespace, cell1.MariaDBDatabaseName.Name, mariadbv1.MariaDBAccountSpec{})
+	})
 	When(" is created with networkAttachments", func() {
 		BeforeEach(func() {
 			spec := GetDefaultNovaNoVNCProxySpec(cell1)
@@ -646,6 +658,12 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 })
 
 var _ = Describe("NovaNoVNCProxy controller", func() {
+	BeforeEach(func() {
+		mariadb.CreateMariaDBDatabase(cell1.MariaDBDatabaseName.Namespace, cell1.MariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
+		mariadb.CreateMariaDBAccount(cell1.MariaDBDatabaseName.Namespace, cell1.MariaDBDatabaseName.Name, mariadbv1.MariaDBAccountSpec{})
+		mariadb.SimulateMariaDBTLSDatabaseCompleted(cell1.MariaDBDatabaseName)
+		mariadb.SimulateMariaDBAccountCompleted(cell1.MariaDBDatabaseName)
+	})
 	When("NovaNoVNCProxy is created with TLS CA cert secret", func() {
 		BeforeEach(func() {
 			spec := GetDefaultNovaNoVNCProxySpec(cell1)
@@ -735,6 +753,9 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 			Expect(configData).Should(ContainSubstring("ssl_only=true"))
 			Expect(configData).Should(ContainSubstring("cert=/etc/pki/tls/certs/nova-novncproxy.crt"))
 			Expect(configData).Should(ContainSubstring("key=/etc/pki/tls/private/nova-novncproxy.key"))
+			myCnf := configDataMap.Data["my.cnf"]
+			Expect(myCnf).To(
+				ContainSubstring("[client]\nssl-ca=/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem\nssl=1"))
 		})
 
 		It("reconfigures the NovaNoVNCProxy pod when CA changes", func() {

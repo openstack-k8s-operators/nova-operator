@@ -24,6 +24,8 @@ import (
 	keystone_helper "github.com/openstack-k8s-operators/keystone-operator/api/test/helpers"
 	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
 	api "github.com/openstack-k8s-operators/lib-common/modules/test/apis"
+
+	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 
 	corev1 "k8s.io/api/core/v1"
@@ -34,6 +36,10 @@ import (
 )
 
 var _ = Describe("NovaConductor controller", func() {
+	BeforeEach(func() {
+		mariadb.CreateMariaDBDatabase(cell0.MariaDBDatabaseName.Namespace, cell0.MariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
+		mariadb.CreateMariaDBAccount(cell0.MariaDBDatabaseName.Namespace, cell0.MariaDBDatabaseName.Name, mariadbv1.MariaDBAccountSpec{})
+	})
 	When("a NovaConductor CR is created pointing to a non existent Secret", func() {
 		BeforeEach(func() {
 			DeferCleanup(
@@ -172,6 +178,9 @@ var _ = Describe("NovaConductor controller", func() {
 				Expect(configData).Should(
 					ContainSubstring("[upgrade_levels]\ncompute = auto"))
 				Expect(configDataMap.Data).Should(HaveKey("02-nova-override.conf"))
+				myCnf := configDataMap.Data["my.cnf"]
+				Expect(myCnf).To(
+					ContainSubstring("[client]\nssl=0"))
 				extraData := string(configDataMap.Data["02-nova-override.conf"])
 				Expect(extraData).To(Equal("foo=bar"))
 
@@ -399,6 +408,10 @@ var _ = Describe("NovaConductor controller", func() {
 })
 
 var _ = Describe("NovaConductor controller", func() {
+	BeforeEach(func() {
+		mariadb.CreateMariaDBDatabase(cell0.MariaDBDatabaseName.Namespace, cell0.MariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
+		mariadb.CreateMariaDBAccount(cell0.MariaDBDatabaseName.Namespace, cell0.MariaDBDatabaseName.Name, mariadbv1.MariaDBAccountSpec{})
+	})
 	When("NovaConductor is created with networkAttachments", func() {
 		BeforeEach(func() {
 			DeferCleanup(
@@ -641,6 +654,8 @@ var _ = Describe("NovaConductor controller", func() {
 var _ = Describe("NovaConductor controller cleaning", func() {
 	var novaAPIServer *NovaAPIFixture
 	BeforeEach(func() {
+		mariadb.CreateMariaDBDatabase(cell0.MariaDBDatabaseName.Namespace, cell0.MariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
+		mariadb.CreateMariaDBAccount(cell0.MariaDBDatabaseName.Namespace, cell0.MariaDBDatabaseName.Name, mariadbv1.MariaDBAccountSpec{})
 		novaAPIServer = NewNovaAPIFixtureWithServer(logger)
 		novaAPIServer.Setup()
 		f := keystone_helper.NewKeystoneAPIFixtureWithServer(logger)
@@ -685,6 +700,10 @@ var _ = Describe("NovaConductor controller cleaning", func() {
 var _ = Describe("NovaConductor controller", func() {
 	When("NovaConductor is created with TLS CA cert secret", func() {
 		BeforeEach(func() {
+			mariadb.CreateMariaDBDatabase(cell0.MariaDBDatabaseName.Namespace, cell0.MariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
+			mariadb.CreateMariaDBAccount(cell0.MariaDBDatabaseName.Namespace, cell0.MariaDBDatabaseName.Name, mariadbv1.MariaDBAccountSpec{})
+			mariadb.SimulateMariaDBTLSDatabaseCompleted(cell0.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(cell0.MariaDBDatabaseName)
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreateDefaultCellInternalSecret(cell0))
 
@@ -737,6 +756,12 @@ var _ = Describe("NovaConductor controller", func() {
 				condition.ReadyCondition,
 				corev1.ConditionTrue,
 			)
+
+			configDataMap := th.GetSecret(cell0.ConductorConfigDataName)
+			Expect(configDataMap).ShouldNot(BeNil())
+			myCnf := configDataMap.Data["my.cnf"]
+			Expect(myCnf).To(
+				ContainSubstring("[client]\nssl-ca=/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem\nssl=1"))
 		})
 
 		It("reconfigures the NovaConductor pod when CA changes", func() {

@@ -24,6 +24,7 @@ import (
 	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
 
 	networkv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
+	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -34,6 +35,10 @@ import (
 )
 
 var _ = Describe("NovaAPI controller", func() {
+	BeforeEach(func() {
+		mariadb.CreateMariaDBDatabase(novaNames.APIMariaDBDatabaseName.Namespace, novaNames.APIMariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
+		mariadb.CreateMariaDBAccount(novaNames.APIMariaDBDatabaseName.Namespace, novaNames.APIMariaDBDatabaseName.Name, mariadbv1.MariaDBAccountSpec{})
+	})
 	When("a NovaAPI CR is created pointing to a non existent Secret", func() {
 		BeforeEach(func() {
 			spec := GetDefaultNovaAPISpec(novaNames)
@@ -202,6 +207,9 @@ var _ = Describe("NovaAPI controller", func() {
 				Expect(configDataMap.Data).Should(HaveKey("api-paste.ini"))
 				pasteData := string(configDataMap.Data["api-paste.ini"])
 				Expect(pasteData).To(Equal("pipeline = cors compute_req_id faultwrap request_log http_proxy_to_wsgi oscomputeversionapp_v2"))
+				myCnf := configDataMap.Data["my.cnf"]
+				Expect(myCnf).To(
+					ContainSubstring("[client]\nssl=0"))
 			})
 
 			It("stored the input hash in the Status", func() {
@@ -372,6 +380,10 @@ var _ = Describe("NovaAPI controller", func() {
 })
 
 var _ = Describe("NovaAPI controller", func() {
+	BeforeEach(func() {
+		mariadb.CreateMariaDBDatabase(novaNames.APIMariaDBDatabaseName.Namespace, novaNames.APIMariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
+		mariadb.CreateMariaDBAccount(novaNames.APIMariaDBDatabaseName.Namespace, novaNames.APIMariaDBDatabaseName.Name, mariadbv1.MariaDBAccountSpec{})
+	})
 	When("NovaAPI is created with networkAttachments", func() {
 		BeforeEach(func() {
 			DeferCleanup(
@@ -804,6 +816,10 @@ var _ = Describe("NovaAPI controller", func() {
 })
 
 var _ = Describe("NovaAPI controller", func() {
+	BeforeEach(func() {
+		mariadb.CreateMariaDBDatabase(novaNames.APIMariaDBDatabaseName.Namespace, novaNames.APIMariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
+		mariadb.CreateMariaDBAccount(novaNames.APIMariaDBDatabaseName.Namespace, novaNames.APIMariaDBDatabaseName.Name, mariadbv1.MariaDBAccountSpec{})
+	})
 	When("NovaAPI CR is created without container image defined", func() {
 		BeforeEach(func() {
 			spec := GetDefaultNovaAPISpec(novaNames)
@@ -819,6 +835,12 @@ var _ = Describe("NovaAPI controller", func() {
 })
 
 var _ = Describe("NovaAPI controller", func() {
+	BeforeEach(func() {
+		mariadb.CreateMariaDBDatabase(novaNames.APIMariaDBDatabaseName.Namespace, novaNames.APIMariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
+		mariadb.CreateMariaDBAccount(novaNames.APIMariaDBDatabaseName.Namespace, novaNames.APIMariaDBDatabaseName.Name, mariadbv1.MariaDBAccountSpec{})
+		mariadb.SimulateMariaDBTLSDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
+		mariadb.SimulateMariaDBAccountCompleted(novaNames.APIMariaDBDatabaseName)
+	})
 	When("NovaAPI is created with TLS cert secrets", func() {
 		BeforeEach(func() {
 			spec := GetDefaultNovaAPISpec(novaNames)
@@ -935,6 +957,9 @@ var _ = Describe("NovaAPI controller", func() {
 			Expect(configData).Should(ContainSubstring("SSLCertificateKeyFile   \"/etc/pki/tls/private/internal.key\""))
 			Expect(configData).Should(ContainSubstring("SSLCertificateFile      \"/etc/pki/tls/certs/public.crt\""))
 			Expect(configData).Should(ContainSubstring("SSLCertificateKeyFile   \"/etc/pki/tls/private/public.key\""))
+			myCnf := configDataMap.Data["my.cnf"]
+			Expect(myCnf).To(
+				ContainSubstring("[client]\nssl-ca=/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem\nssl=1"))
 		})
 
 		It("TLS Endpoints are created", func() {
