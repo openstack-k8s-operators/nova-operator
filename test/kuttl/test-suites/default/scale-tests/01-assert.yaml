@@ -86,6 +86,10 @@ status:
     reason: Ready
     status: "True"
     type: KeystoneServiceReady
+  - message: ' Memcached instance has been provisioned'
+    reason: Ready
+    status: "True"
+    type: MemcachedReady
   - message: DB create completed
     reason: Ready
     status: "True"

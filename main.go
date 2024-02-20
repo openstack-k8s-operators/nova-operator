@@ -38,6 +38,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
+	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	networkv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
@@ -68,6 +69,7 @@ func init() {
 	utilruntime.Must(appsv1.AddToScheme(scheme))
 	utilruntime.Must(rabbitmqv1.AddToScheme(scheme))
 	utilruntime.Must(networkv1.AddToScheme(scheme))
+	utilruntime.Must(memcachedv1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 

@@ -205,34 +205,10 @@ func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	// all cert input checks out so report InputReady
 	instance.Status.Conditions.MarkTrue(condition.TLSInputReadyCondition, condition.InputReadyMessage)
 
-	memcached, err := getMemcached(ctx, h, instance.Namespace, instance.Spec.MemcachedInstance)
+	memcached, err := getMemcached(ctx, h, instance.Namespace, instance.Spec.MemcachedInstance, &instance.Status.Conditions)
 	if err != nil {
-		if k8s_errors.IsNotFound(err) {
-			instance.Status.Conditions.Set(condition.FalseCondition(
-				condition.MemcachedReadyCondition,
-				condition.RequestedReason,
-				condition.SeverityInfo,
-				condition.MemcachedReadyWaitingMessage))
-			return ctrl.Result{}, fmt.Errorf("memcached %s not found", instance.Spec.MemcachedInstance)
-		}
-		instance.Status.Conditions.Set(condition.FalseCondition(
-			condition.MemcachedReadyCondition,
-			condition.ErrorReason,
-			condition.SeverityWarning,
-			condition.MemcachedReadyErrorMessage,
-			err.Error()))
 		return ctrl.Result{}, err
 	}
-
-	if !memcached.IsReady() {
-		instance.Status.Conditions.Set(condition.FalseCondition(
-			condition.MemcachedReadyCondition,
-			condition.RequestedReason,
-			condition.SeverityInfo,
-			condition.MemcachedReadyWaitingMessage))
-		return ctrl.Result{}, fmt.Errorf("memcached %s is not ready", memcached.Name)
-	}
-	instance.Status.Conditions.MarkTrue(condition.MemcachedReadyCondition, condition.MemcachedReadyMessage)
 
 	err = r.ensureConfigs(ctx, h, instance, &hashes, secret, memcached)
 	if err != nil {

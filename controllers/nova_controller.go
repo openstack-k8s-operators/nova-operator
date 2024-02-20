@@ -225,35 +225,10 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	}
 	instance.Status.Conditions.MarkTrue(condition.InputReadyCondition, condition.InputReadyMessage)
 
-	memcached, err := getMemcached(ctx, h, instance.Namespace, instance.Spec.MemcachedInstance)
+	_, err = getMemcached(ctx, h, instance.Namespace, instance.Spec.MemcachedInstance, &instance.Status.Conditions)
 	if err != nil {
-		if k8s_errors.IsNotFound(err) {
-			instance.Status.Conditions.Set(condition.FalseCondition(
-				condition.MemcachedReadyCondition,
-				condition.RequestedReason,
-				condition.SeverityInfo,
-				condition.MemcachedReadyWaitingMessage))
-			return ctrl.Result{}, fmt.Errorf("memcached %s not found", instance.Spec.MemcachedInstance)
-		}
-		instance.Status.Conditions.Set(condition.FalseCondition(
-			condition.MemcachedReadyCondition,
-			condition.ErrorReason,
-			condition.SeverityWarning,
-			condition.MemcachedReadyErrorMessage,
-			err.Error()))
 		return ctrl.Result{}, err
 	}
-
-	if !memcached.IsReady() {
-		instance.Status.Conditions.Set(condition.FalseCondition(
-			condition.MemcachedReadyCondition,
-			condition.RequestedReason,
-			condition.SeverityInfo,
-			condition.MemcachedReadyWaitingMessage))
-		return ctrl.Result{}, fmt.Errorf("memcached %s is not ready", memcached.Name)
-	}
-	instance.Status.Conditions.MarkTrue(condition.MemcachedReadyCondition, condition.MemcachedReadyMessage)
-
 	err = r.ensureKeystoneServiceUser(ctx, h, instance)
 	if err != nil {
 		return ctrl.Result{}, err
@@ -1725,7 +1700,7 @@ func (r *NovaReconciler) memcachedNamespaceMapFunc(ctx context.Context, src clie
 	listOpts := []client.ListOption{
 		client.InNamespace(src.GetNamespace()),
 	}
-	if err := r.Client.List(context.Background(), novaList, listOpts...); err != nil {
+	if err := r.Client.List(context.TODO(), novaList, listOpts...); err != nil {
 		return nil
 	}
 
