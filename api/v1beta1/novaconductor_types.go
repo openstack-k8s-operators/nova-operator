@@ -131,6 +131,10 @@ type NovaConductorSpec struct {
 	// +kubebuilder:validation:Required
 	// MemcachedInstance is the name of the Memcached CR that all nova service will use.
 	MemcachedInstance string `json:"memcachedInstance"`
+
+	// +kubebuilder:validation:Optional
+	// DBPurge defines the parameters for the DB archiving and purging cron job
+	DBPurge NovaCellDBPurge `json:"dbPurge"`
 }
 
 // NovaConductorStatus defines the observed state of NovaConductor

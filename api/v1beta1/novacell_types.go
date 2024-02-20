@@ -95,6 +95,10 @@ type NovaCellTemplate struct {
 	// MemcachedInstance is the name of the Memcached CR that the services in the cell will use.
 	// If defined then this takes precedence over Nova.Spec.MemcachedInstance for this cel
 	MemcachedInstance string `json:"memcachedInstance"`
+
+	// +kubebuilder:validation:Optional
+	// DBPurge defines the parameters for the DB archiving and purging cron job
+	DBPurge NovaCellDBPurge `json:"dbPurge"`
 }
 
 // NovaCellSpec defines the desired state of NovaCell
@@ -188,6 +192,34 @@ type NovaCellSpec struct {
 	// +kubebuilder:validation:Required
 	// MemcachedInstance is the name of the Memcached CR that all nova service will use.
 	MemcachedInstance string `json:"memcachedInstance"`
+
+	// +kubebuilder:validation:Optional
+	// DBPurge defines the parameters for the DB archiving and purging cron job
+	DBPurge NovaCellDBPurge `json:"dbPurge"`
+}
+
+// NovaCellDBPurge defines the parameters for the DB archiving and purging
+// cron job
+type NovaCellDBPurge struct {
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default="0 0 * * *"
+	// Schedule defines when to run the DB maintenance job in a cron format.
+	// By default it runs every midnight.
+	Schedule *string `json:"schedule"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=30
+	// +kubebuilder:validation:Minimum=1
+	// ArchiveAge defines the minimuma age of the records in days that can be
+	// moved to the shadow tables.
+	ArchiveAge *int `json:"archiveAge"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=90
+	// +kubebuilder:validation:Minimum=1
+	// PurgeAge defines the minimum age of the records in days that can be
+	// deleted from the shadow tables
+	PurgeAge *int `json:"purgeAge"`
 }
 
 // NovaCellStatus defines the observed state of NovaCell

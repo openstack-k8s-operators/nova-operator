@@ -72,6 +72,13 @@ var _ = Describe("NovaConductor controller", func() {
 			Expect(instance.Status.ReadyCount).To(Equal(int32(0)))
 		})
 
+		It("defaults Spec fields", func() {
+			instance := GetNovaConductor(cell0.ConductorName)
+			Expect(instance.Spec.DBPurge.Schedule).To(Equal(ptr.To("0 0 * * *")))
+			Expect(instance.Spec.DBPurge.ArchiveAge).To(Equal(ptr.To(30)))
+			Expect(instance.Spec.DBPurge.PurgeAge).To(Equal(ptr.To(90)))
+		})
+
 		It("is missing the secret", func() {
 			th.ExpectCondition(
 				cell0.ConductorName,

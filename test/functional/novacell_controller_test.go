@@ -59,6 +59,13 @@ var _ = Describe("NovaCell controller", func() {
 			)
 		})
 
+		It("defaults Spec fields", func() {
+			cell0 := GetNovaCell(cell0.CellCRName)
+			Expect(cell0.Spec.DBPurge.Schedule).To(Equal(ptr.To("0 0 * * *")))
+			Expect(cell0.Spec.DBPurge.ArchiveAge).To(Equal(ptr.To(30)))
+			Expect(cell0.Spec.DBPurge.PurgeAge).To(Equal(ptr.To(90)))
+		})
+
 		It("is not Ready", func() {
 			th.ExpectCondition(
 				cell0.CellCRName,
