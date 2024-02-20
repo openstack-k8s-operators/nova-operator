@@ -1001,3 +1001,39 @@ var _ = Describe("Nova controller", func() {
 		})
 	})
 })
+
+var _ = Describe("Nova controller without memcached", func() {
+	BeforeEach(func() {
+		DeferCleanup(
+			mariadb.DeleteDBService,
+			mariadb.CreateDBService(
+				novaNames.NovaName.Namespace,
+				"openstack",
+				corev1.ServiceSpec{
+					Ports: []corev1.ServicePort{{Port: 3306}},
+				},
+			),
+		)
+		DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace))
+
+		DeferCleanup(th.DeleteInstance, CreateNovaWithCell0(novaNames.NovaName))
+		DeferCleanup(
+			k8sClient.Delete, ctx, CreateNovaSecret(novaNames.NovaName.Namespace, SecretName))
+		DeferCleanup(
+			k8sClient.Delete, ctx, CreateNovaMessageBusSecret(cell0))
+	})
+	It("memcached failed", func() {
+		th.ExpectCondition(
+			novaNames.NovaName,
+			ConditionGetterFunc(NovaConditionGetter),
+			condition.ServiceAccountReadyCondition,
+			corev1.ConditionTrue,
+		)
+		th.ExpectCondition(
+			novaNames.NovaName,
+			ConditionGetterFunc(NovaConditionGetter),
+			condition.MemcachedReadyCondition,
+			corev1.ConditionFalse,
+		)
+	})
+})

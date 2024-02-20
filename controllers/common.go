@@ -558,6 +558,7 @@ func getMemcached(
 	h *helper.Helper,
 	namespaceName string,
 	mamcachedName string,
+	conditionUpdater conditionUpdater,
 ) (*memcachedv1.Memcached, error) {
 	memcached := &memcachedv1.Memcached{}
 	err := h.GetClient().Get(
@@ -568,7 +569,32 @@ func getMemcached(
 		},
 		memcached)
 	if err != nil {
+		if k8s_errors.IsNotFound(err) {
+			conditionUpdater.Set(condition.FalseCondition(
+				condition.MemcachedReadyCondition,
+				condition.RequestedReason,
+				condition.SeverityInfo,
+				condition.MemcachedReadyWaitingMessage))
+			return nil, fmt.Errorf("memcached %s not found", mamcachedName)
+		}
+		conditionUpdater.Set(condition.FalseCondition(
+			condition.MemcachedReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.MemcachedReadyErrorMessage,
+			err.Error()))
 		return nil, err
 	}
+
+	if !memcached.IsReady() {
+		conditionUpdater.Set(condition.FalseCondition(
+			condition.MemcachedReadyCondition,
+			condition.RequestedReason,
+			condition.SeverityInfo,
+			condition.MemcachedReadyWaitingMessage))
+		return nil, fmt.Errorf("memcached %s is not ready", mamcachedName)
+	}
+	conditionUpdater.MarkTrue(condition.MemcachedReadyCondition, condition.MemcachedReadyMessage)
+
 	return memcached, err
 }
