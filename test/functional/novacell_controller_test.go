@@ -27,7 +27,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
@@ -41,13 +40,8 @@ var _ = Describe("NovaCell controller", func() {
 		memcachedSpec := memcachedv1.MemcachedSpec{
 			Replicas: ptr.To(int32(3)),
 		}
-		memcachedNamespace := types.NamespacedName{
-			Name:      MemcachedInstance,
-			Namespace: novaNames.NovaName.Namespace,
-		}
 		DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
-		infra.SimulateMemcachedReady(memcachedNamespace)
-
+		infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
 	})
 	When("A NovaCell CR instance is created without any input", func() {
 		BeforeEach(func() {
@@ -1033,12 +1027,8 @@ var _ = Describe("NovaCell controller webhook", func() {
 		memcachedSpec := memcachedv1.MemcachedSpec{
 			Replicas: ptr.To(int32(3)),
 		}
-		memcachedNamespace := types.NamespacedName{
-			Name:      MemcachedInstance,
-			Namespace: novaNames.NovaName.Namespace,
-		}
 		DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
-		infra.SimulateMemcachedReady(memcachedNamespace)
+		infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
 
 	})
 	It("name is too long", func() {

@@ -680,6 +680,7 @@ type NovaNames struct {
 	MetadataConfigDataName          types.NamespacedName
 	InternalNovaMetadataServiceName types.NamespacedName
 	InternalTopLevelSecretName      types.NamespacedName
+	MemcachedNamespace              types.NamespacedName
 	Cells                           map[string]CellNames
 }
 
@@ -783,7 +784,10 @@ func GetNovaNames(novaName types.NamespacedName, cellNames []string) NovaNames {
 			Name:      "nova-metadata-internal",
 		},
 		InternalTopLevelSecretName: novaName,
-
+		MemcachedNamespace: types.NamespacedName{
+			Name:      MemcachedInstance,
+			Namespace: novaName.Namespace,
+		},
 		Cells: cells,
 	}
 }

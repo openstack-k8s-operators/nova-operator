@@ -95,13 +95,9 @@ var _ = Describe("Nova controller", func() {
 			memcachedSpec := memcachedv1.MemcachedSpec{
 				Replicas: ptr.To(int32(3)),
 			}
-			memcachedNamespace := types.NamespacedName{
-				Name:      MemcachedInstance,
-				Namespace: novaNames.NovaName.Namespace,
-			}
 
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
-			infra.SimulateMemcachedReady(memcachedNamespace)
+			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
 
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace))
 
@@ -509,13 +505,9 @@ var _ = Describe("Nova controller", func() {
 			memcachedSpec := memcachedv1.MemcachedSpec{
 				Replicas: ptr.To(int32(3)),
 			}
-			memcachedNamespace := types.NamespacedName{
-				Name:      MemcachedInstance,
-				Namespace: novaNames.NovaName.Namespace,
-			}
 
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
-			infra.SimulateMemcachedReady(memcachedNamespace)
+			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace))
 
 			DeferCleanup(th.DeleteInstance, CreateNovaWithCell0(novaNames.NovaName))
@@ -587,13 +579,9 @@ var _ = Describe("Nova controller", func() {
 			memcachedSpec := memcachedv1.MemcachedSpec{
 				Replicas: ptr.To(int32(3)),
 			}
-			memcachedNamespace := types.NamespacedName{
-				Name:      MemcachedInstance,
-				Namespace: novaNames.NovaName.Namespace,
-			}
 
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
-			infra.SimulateMemcachedReady(memcachedNamespace)
+			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace))
 
 			DeferCleanup(th.DeleteInstance, CreateNovaWithCell0(novaNames.NovaName))
@@ -657,13 +645,9 @@ var _ = Describe("Nova controller", func() {
 			memcachedSpec := memcachedv1.MemcachedSpec{
 				Replicas: ptr.To(int32(3)),
 			}
-			memcachedNamespace := types.NamespacedName{
-				Name:      MemcachedInstance,
-				Namespace: novaNames.NovaName.Namespace,
-			}
 
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
-			infra.SimulateMemcachedReady(memcachedNamespace)
+			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace))
 
 			spec := GetDefaultNovaSpec()
@@ -803,13 +787,9 @@ var _ = Describe("Nova controller", func() {
 			memcachedSpec := memcachedv1.MemcachedSpec{
 				Replicas: ptr.To(int32(3)),
 			}
-			memcachedNamespace := types.NamespacedName{
-				Name:      MemcachedInstance,
-				Namespace: novaNames.NovaName.Namespace,
-			}
 
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
-			infra.SimulateMemcachedReady(memcachedNamespace)
+			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace))
 
 			DeferCleanup(th.DeleteInstance, CreateNovaWithCell0(novaNames.NovaName))
@@ -879,13 +859,9 @@ var _ = Describe("Nova controller", func() {
 			memcachedSpec := memcachedv1.MemcachedSpec{
 				Replicas: ptr.To(int32(3)),
 			}
-			memcachedNamespace := types.NamespacedName{
-				Name:      MemcachedInstance,
-				Namespace: novaNames.NovaName.Namespace,
-			}
 
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
-			infra.SimulateMemcachedReady(memcachedNamespace)
+			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace))
 
 			nad := th.CreateNetworkAttachmentDefinition(novaNames.InternalAPINetworkNADName)

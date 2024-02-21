@@ -43,13 +43,8 @@ var _ = Describe("NovaAPI controller", func() {
 		memcachedSpec := memcachedv1.MemcachedSpec{
 			Replicas: ptr.To(int32(3)),
 		}
-		memcachedNamespace := types.NamespacedName{
-			Name:      MemcachedInstance,
-			Namespace: novaNames.NovaName.Namespace,
-		}
 		DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
-		infra.SimulateMemcachedReady(memcachedNamespace)
-
+		infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
 	})
 	When("a NovaAPI CR is created pointing to a non existent Secret", func() {
 		BeforeEach(func() {
@@ -204,8 +199,8 @@ var _ = Describe("NovaAPI controller", func() {
 				Expect(configData).Should(ContainSubstring("www_authenticate_uri = keystone-public-auth-url"))
 				Expect(configData).Should(
 					ContainSubstring("[upgrade_levels]\ncompute = auto"))
-				Expect(configData).To(ContainSubstring("memcache_servers="))
-				Expect(configData).To(ContainSubstring("memcached_servers="))
+				Expect(configData).To(ContainSubstring("memcache_servers=memcached-0.memcached:11211,memcached-1.memcached:11211,memcached-2.memcached:11211"))
+				Expect(configData).To(ContainSubstring("memcached_servers=inet:[memcached-0.memcached]:11211,inet:[memcached-1.memcached]:11211,inet:[memcached-2.memcached]:11211"))
 				Expect(configData).Should(ContainSubstring("enforce_new_defaults=true"))
 				Expect(configData).Should(ContainSubstring("enforce_scope=true"))
 				Expect(configData).Should(ContainSubstring("policy_file=/etc/nova/policy.yaml"))
@@ -400,12 +395,8 @@ var _ = Describe("NovaAPI controller", func() {
 		memcachedSpec := memcachedv1.MemcachedSpec{
 			Replicas: ptr.To(int32(3)),
 		}
-		memcachedNamespace := types.NamespacedName{
-			Name:      MemcachedInstance,
-			Namespace: novaNames.NovaName.Namespace,
-		}
 		DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
-		infra.SimulateMemcachedReady(memcachedNamespace)
+		infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
 
 	})
 	When("NovaAPI is created with networkAttachments", func() {
@@ -867,13 +858,8 @@ var _ = Describe("NovaAPI controller", func() {
 		memcachedSpec := memcachedv1.MemcachedSpec{
 			Replicas: ptr.To(int32(3)),
 		}
-		memcachedNamespace := types.NamespacedName{
-			Name:      MemcachedInstance,
-			Namespace: novaNames.NovaName.Namespace,
-		}
 		DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
-		infra.SimulateMemcachedReady(memcachedNamespace)
-
+		infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
 	})
 	When("NovaAPI is created with TLS cert secrets", func() {
 		BeforeEach(func() {

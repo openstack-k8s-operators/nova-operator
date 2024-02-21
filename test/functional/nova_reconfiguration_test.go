@@ -82,13 +82,9 @@ func CreateNovaWith3CellsAndEnsureReady(novaNames NovaNames) {
 	memcachedSpec := memcachedv1.MemcachedSpec{
 		Replicas: ptr.To(int32(3)),
 	}
-	memcachedNamespace := types.NamespacedName{
-		Name:      MemcachedInstance,
-		Namespace: novaNames.NovaName.Namespace,
-	}
 
 	DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
-	infra.SimulateMemcachedReady(memcachedNamespace)
+	infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
 	keystone.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
 	// END of common logic with Nova multicell test
 
