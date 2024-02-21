@@ -61,6 +61,8 @@ var _ = Describe("Nova multicell", func() {
 			cell1Template["novaComputeTemplates"] = map[string]interface{}{
 				ironicComputeName: GetDefaultNovaComputeTemplate(),
 			}
+			cell1Memcached := "memcached1"
+			cell1Template["memcachedInstance"] = cell1Memcached
 
 			cell2Template := GetDefaultNovaCellTemplate()
 			cell2Template["cellDatabaseInstance"] = cell2.MariaDBDatabaseName.Name
@@ -81,6 +83,16 @@ var _ = Describe("Nova multicell", func() {
 
 			DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace))
+			memcachedSpecCell1 := memcachedv1.MemcachedSpec{
+				Replicas: ptr.To(int32(3)),
+			}
+			memcachedNamespace := types.NamespacedName{
+				Name:      cell1Memcached,
+				Namespace: novaNames.NovaName.Namespace,
+			}
+			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, cell1Memcached, memcachedSpecCell1))
+			infra.SimulateMemcachedReady(memcachedNamespace)
+
 			memcachedSpec := memcachedv1.MemcachedSpec{
 				Replicas: ptr.To(int32(3)),
 			}
@@ -186,6 +198,8 @@ var _ = Describe("Nova multicell", func() {
 						"[api_database]\nconnection = mysql+pymysql://nova_api:api-database-password@hostname-for-%s.%s.svc/nova_api?read_default_file=/etc/my.cnf",
 						novaNames.APIMariaDBDatabaseName.Name, novaNames.Namespace)),
 			)
+			Expect(configData).To(ContainSubstring("memcache_servers=memcached-0.memcached:11211,memcached-1.memcached:11211,memcached-2.memcached:11211"))
+			Expect(configData).To(ContainSubstring("memcached_servers=inet:[memcached-0.memcached]:11211,inet:[memcached-1.memcached]:11211,inet:[memcached-2.memcached]:11211"))
 			Expect(configData).To(ContainSubstring("transport_url=rabbit://cell0/fake"))
 
 			th.SimulateStatefulSetReplicaReady(novaNames.APIDeploymentName)
@@ -296,6 +310,8 @@ var _ = Describe("Nova multicell", func() {
 						novaNames.APIMariaDBDatabaseName.Name, novaNames.Namespace)),
 			)
 			Expect(configData).To(ContainSubstring("transport_url=rabbit://cell1/fake"))
+			Expect(configData).To(ContainSubstring("memcache_servers=memcached1-0.memcached1:11211,memcached1-1.memcached1:11211,memcached1-2.memcached1:11211"))
+			Expect(configData).To(ContainSubstring("memcached_servers=inet:[memcached1-0.memcached1]:11211,inet:[memcached1-1.memcached1]:11211,inet:[memcached1-2.memcached1]:11211"))
 
 			myCnf := configDataMap.Data["my.cnf"]
 			Expect(myCnf).To(

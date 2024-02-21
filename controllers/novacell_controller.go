@@ -37,6 +37,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/go-logr/logr"
+	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
@@ -61,6 +62,7 @@ func (r *NovaCellReconciler) GetLogger(ctx context.Context) logr.Logger {
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=novacells/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=novacells/finalizers,verbs=update
 // +kubebuilder:rbac:groups=memcached.openstack.org,resources=memcacheds,verbs=get;list;watch;
+// +kubebuilder:rbac:groups=memcached.openstack.org,resources=memcacheds/finalizers,verbs=update
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -883,6 +885,34 @@ var (
 	}
 )
 
+func (r *NovaCellReconciler) memcachedNamespaceMapFunc(ctx context.Context, src client.Object) []reconcile.Request {
+
+	result := []reconcile.Request{}
+
+	// get all Nova CRs
+	novaCellList := &novav1.NovaCellList{}
+	listOpts := []client.ListOption{
+		client.InNamespace(src.GetNamespace()),
+	}
+	if err := r.Client.List(ctx, novaCellList, listOpts...); err != nil {
+		return nil
+	}
+
+	for _, cr := range novaCellList.Items {
+		if src.GetName() == cr.Spec.MemcachedInstance {
+			name := client.ObjectKey{
+				Namespace: src.GetNamespace(),
+				Name:      cr.Name,
+			}
+			result = append(result, reconcile.Request{NamespacedName: name})
+		}
+	}
+	if len(result) > 0 {
+		return result
+	}
+	return nil
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *NovaCellReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	// index passwordSecretField
@@ -910,6 +940,10 @@ func (r *NovaCellReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			&corev1.Secret{},
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForSrc),
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+		).
+		Watches(
+			&memcachedv1.Memcached{},
+			handler.EnqueueRequestsFromMapFunc(r.memcachedNamespaceMapFunc),
 		).
 		Complete(r)
 }

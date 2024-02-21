@@ -82,6 +82,7 @@ func (r *NovaReconciler) GetLogger(ctx context.Context) logr.Logger {
 // +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneendpoints,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=rabbitmq.openstack.org,resources=transporturls,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=memcached.openstack.org,resources=memcacheds,verbs=get;list;watch;
+// +kubebuilder:rbac:groups=memcached.openstack.org,resources=memcacheds/finalizers,verbs=update
 
 // service account, role, rolebinding
 // +kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;create;update
@@ -1700,7 +1701,7 @@ func (r *NovaReconciler) memcachedNamespaceMapFunc(ctx context.Context, src clie
 	listOpts := []client.ListOption{
 		client.InNamespace(src.GetNamespace()),
 	}
-	if err := r.Client.List(context.TODO(), novaList, listOpts...); err != nil {
+	if err := r.Client.List(ctx, novaList, listOpts...); err != nil {
 		return nil
 	}
 
