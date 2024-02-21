@@ -40,6 +40,7 @@ import (
 	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/cronjob"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 	job "github.com/openstack-k8s-operators/lib-common/modules/common/job"
@@ -73,6 +74,7 @@ func (r *NovaConductorReconciler) GetLogger(ctx context.Context) logr.Logger {
 //+kubebuilder:rbac:groups=k8s.cni.cncf.io,resources=network-attachment-definitions,verbs=get;list;watch
 //+kubebuilder:rbac:groups=memcached.openstack.org,resources=memcacheds,verbs=get;list;watch;update;
 //+kubebuilder:rbac:groups=memcached.openstack.org,resources=memcacheds/finalizers,verbs=update
+// +kubebuilder:rbac:groups=batch,resources=cronjobs,verbs=get;list;watch;create;update;patch;delete;
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -274,6 +276,11 @@ func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return result, err
 	}
 
+	err = r.ensureDBPurgeCronJob(ctx, h, instance, serviceAnnotations)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
 	// clean up nova services from nova db should be always a last step in reconcile
 	err = r.cleanServiceFromNovaDb(ctx, h, instance, secret, Log)
 	if err != nil {
@@ -347,6 +354,11 @@ func (r *NovaConductorReconciler) initConditions(
 				condition.MemcachedReadyCondition,
 				condition.InitReason,
 				condition.MemcachedReadyInitMessage,
+			),
+			condition.UnknownCondition(
+				condition.CronJobReadyCondition,
+				condition.InitReason,
+				condition.CronJobReadyInitMessage,
 			),
 		)
 
@@ -553,6 +565,34 @@ func (r *NovaConductorReconciler) ensureDeployment(
 	return ctrl.Result{}, nil
 }
 
+func (r *NovaConductorReconciler) ensureDBPurgeCronJob(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *novav1.NovaConductor,
+	annotations map[string]string,
+) error {
+	serviceLabels := map[string]string{
+		common.AppSelector: NovaConductorLabelPrefix,
+	}
+	cronDef := novaconductor.DBPurgeCronJob(instance, serviceLabels, annotations)
+	cronjob := cronjob.NewCronJob(cronDef, r.RequeueTimeout)
+
+	_, err := cronjob.CreateOrPatch(ctx, h)
+	if err != nil {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.CronJobReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.CronJobReadyErrorMessage,
+			err.Error()))
+		return err
+	}
+
+	instance.Status.Conditions.MarkTrue(
+		condition.CronJobReadyCondition, condition.CronJobReadyMessage)
+	return nil
+}
+
 func (r *NovaConductorReconciler) cleanServiceFromNovaDb(
 	ctx context.Context,
 	h *helper.Helper,
@@ -700,6 +740,7 @@ func (r *NovaConductorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&novav1.NovaConductor{}).
 		Owns(&v1.StatefulSet{}).
 		Owns(&batchv1.Job{}).
+		Owns(&batchv1.CronJob{}).
 		Owns(&corev1.Secret{}).
 		// watch the input secrets
 		Watches(
