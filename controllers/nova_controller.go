@@ -876,6 +876,7 @@ func (r *NovaReconciler) ensureCell(
 		TLS:               instance.Spec.APIServiceTemplate.TLS.Ca,
 		PreserveJobs:      instance.Spec.PreserveJobs,
 		MemcachedInstance: getMemcachedInstance(instance, cellTemplate),
+		DBPurge:           cellTemplate.DBPurge,
 	}
 	if cellTemplate.HasAPIAccess {
 		cellSpec.APIDatabaseHostname = apiDB.GetDatabaseHostname()
