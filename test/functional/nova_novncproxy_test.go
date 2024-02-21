@@ -39,12 +39,8 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 		memcachedSpec := memcachedv1.MemcachedSpec{
 			Replicas: ptr.To(int32(3)),
 		}
-		memcachedNamespace := types.NamespacedName{
-			Name:      MemcachedInstance,
-			Namespace: novaNames.NovaName.Namespace,
-		}
 		DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
-		infra.SimulateMemcachedReady(memcachedNamespace)
+		infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
 
 	})
 	When("with standard spec without network interface", func() {
@@ -180,8 +176,8 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 				Expect(configData).Should(ContainSubstring("novncproxy_host = \"::0\""))
 				Expect(configData).Should(ContainSubstring("novncproxy_port = 6080"))
 				Expect(configData).Should(ContainSubstring("password = service-password"))
-				Expect(configData).To(ContainSubstring("memcache_servers="))
-				Expect(configData).To(ContainSubstring("memcached_servers="))
+				Expect(configData).To(ContainSubstring("memcache_servers=memcached-0.memcached:11211,memcached-1.memcached:11211,memcached-2.memcached:11211"))
+				Expect(configData).To(ContainSubstring("memcached_servers=inet:[memcached-0.memcached]:11211,inet:[memcached-1.memcached]:11211,inet:[memcached-2.memcached]:11211"))
 				Expect(configData).Should(ContainSubstring("transport_url=rabbit://cell1/fake"))
 				Expect(configData).Should(
 					ContainSubstring("[upgrade_levels]\ncompute = auto"))
@@ -317,12 +313,8 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 		memcachedSpec := memcachedv1.MemcachedSpec{
 			Replicas: ptr.To(int32(3)),
 		}
-		memcachedNamespace := types.NamespacedName{
-			Name:      MemcachedInstance,
-			Namespace: novaNames.NovaName.Namespace,
-		}
 		DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
-		infra.SimulateMemcachedReady(memcachedNamespace)
+		infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
 
 	})
 	When(" is created with networkAttachments", func() {
@@ -697,13 +689,9 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 			memcachedSpec := memcachedv1.MemcachedSpec{
 				Replicas: ptr.To(int32(3)),
 			}
-			memcachedNamespace := types.NamespacedName{
-				Name:      MemcachedInstance,
-				Namespace: novaNames.NovaName.Namespace,
-			}
 
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
-			infra.SimulateMemcachedReady(memcachedNamespace)
+			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
 			DeferCleanup(th.DeleteInstance, CreateNovaNoVNCProxy(cell1.NoVNCProxyName, spec))
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreateDefaultCellInternalSecret(cell1))
