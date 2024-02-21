@@ -206,6 +206,7 @@ func NewNovaConductorSpec(
 		TLS:                  novaCell.TLS,
 		PreserveJobs:         novaCell.PreserveJobs,
 		MemcachedInstance:    novaCell.MemcachedInstance,
+		DBPurge:              novaCell.DBPurge,
 	}
 	return conductorSpec
 }

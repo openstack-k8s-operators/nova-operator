@@ -340,6 +340,9 @@ func CreateNovaWithCell0(name types.NamespacedName) client.Object {
 				"cell0": map[string]interface{}{
 					"cellDatabaseUser": "nova_cell0",
 					"hasAPIAccess":     true,
+					"dbPurge": map[string]interface{}{
+						"schedule": "1 0 * * *",
+					},
 				},
 			},
 			"apiMessageBusInstance": cell0.TransportURLName.Name,
