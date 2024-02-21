@@ -208,6 +208,10 @@ var _ = Describe("NovaConductor controller", func() {
 				scriptData := string(scriptMap.Data["dbsync.sh"])
 				Expect(scriptData).Should(ContainSubstring("nova-manage db sync"))
 				Expect(scriptData).Should(ContainSubstring("nova-manage api_db sync"))
+				Expect(scriptMap.Data).Should(HaveKey("dbpurge.sh"))
+				scriptData = string(scriptMap.Data["dbpurge.sh"])
+				Expect(scriptData).Should(ContainSubstring("nova-manage db archive_deleted_rows"))
+				Expect(scriptData).Should(ContainSubstring("nova-manage db purge"))
 			})
 
 			It("stored the input hash in the Status", func() {
@@ -339,6 +343,27 @@ var _ = Describe("NovaConductor controller", func() {
 				)
 				conductor := GetNovaConductor(cell0.ConductorName)
 				Expect(conductor.Status.ReadyCount).To(BeNumerically(">", 0))
+			})
+
+			It("creates the DB purge CronJob", func() {
+				th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
+
+				conductor := GetNovaConductor(cell0.ConductorName)
+				cron := GetCronJob(cell0.DBPurgeCronJobName)
+
+				Expect(cron.Spec.Schedule).To(Equal(*conductor.Spec.DBPurge.Schedule))
+				jobEnv := cron.Spec.JobTemplate.Spec.Template.Spec.Containers[0].Env
+				Expect(GetEnvVarValue(jobEnv, "ARCHIVE_AGE", "")).To(
+					Equal(fmt.Sprintf("%d", *conductor.Spec.DBPurge.ArchiveAge)))
+				Expect(GetEnvVarValue(jobEnv, "PURGE_AGE", "")).To(
+					Equal(fmt.Sprintf("%d", *conductor.Spec.DBPurge.PurgeAge)))
+
+				th.ExpectCondition(
+					cell0.ConductorName,
+					ConditionGetterFunc(NovaConductorConditionGetter),
+					condition.CronJobReadyCondition,
+					corev1.ConditionTrue,
+				)
 			})
 		})
 	})

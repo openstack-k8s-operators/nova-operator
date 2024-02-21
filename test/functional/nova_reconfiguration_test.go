@@ -678,4 +678,27 @@ var _ = Describe("Nova reconfiguration", func() {
 			g.Expect(configData).To(ContainSubstring("memcached_servers=inet_new"))
 		}, timeout, interval).Should(Succeed())
 	})
+
+	It("reconfigures DB Pruge job", func() {
+		Eventually(func(g Gomega) {
+			nova := GetNova(novaNames.NovaName)
+			cell0 := nova.Spec.CellTemplates["cell0"]
+			(&cell0).DBPurge.Schedule = ptr.To("3 0 * * *")
+			(&cell0).DBPurge.ArchiveAge = ptr.To(33)
+			(&cell0).DBPurge.PurgeAge = ptr.To(99)
+
+			nova.Spec.CellTemplates["cell0"] = cell0
+
+			g.Expect(k8sClient.Update(ctx, nova)).To(Succeed())
+		}, timeout, interval).Should(Succeed())
+
+		Eventually(func(g Gomega) {
+			cron := GetCronJob(cell0.DBPurgeCronJobName)
+
+			g.Expect(cron.Spec.Schedule).To(Equal("3 0 * * *"))
+			jobEnv := cron.Spec.JobTemplate.Spec.Template.Spec.Containers[0].Env
+			g.Expect(GetEnvVarValue(jobEnv, "ARCHIVE_AGE", "")).To(Equal("33"))
+			g.Expect(GetEnvVarValue(jobEnv, "PURGE_AGE", "")).To(Equal("99"))
+		}, timeout, interval).Should(Succeed())
+	})
 })

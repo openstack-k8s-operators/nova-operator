@@ -23,6 +23,7 @@ import (
 	"github.com/go-logr/logr"
 	. "github.com/onsi/gomega"
 	"golang.org/x/exp/maps"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
@@ -553,6 +554,7 @@ type CellNames struct {
 	NovaComputeStatefulSetName       types.NamespacedName
 	NovaComputeConfigDataName        types.NamespacedName
 	HostDiscoveryJobName             types.NamespacedName
+	DBPurgeCronJobName               types.NamespacedName
 }
 
 func GetCellNames(novaName types.NamespacedName, cell string) CellNames {
@@ -640,6 +642,10 @@ func GetCellNames(novaName types.NamespacedName, cell string) CellNames {
 		ComputeConfigSecretName: types.NamespacedName{
 			Namespace: novaName.Namespace,
 			Name:      cellName.Name + "-compute-config",
+		},
+		DBPurgeCronJobName: types.NamespacedName{
+			Namespace: novaName.Namespace,
+			Name:      cellName.Name + "-db-purge",
 		},
 	}
 
@@ -979,4 +985,13 @@ func AssertComputeDoesNotExist(name types.NamespacedName) {
 		err := k8sClient.Get(ctx, name, instance)
 		g.Expect(k8s_errors.IsNotFound(err)).To(BeTrue())
 	}, timeout, interval).Should(Succeed())
+}
+
+func GetCronJob(name types.NamespacedName) *batchv1.CronJob {
+	cron := &batchv1.CronJob{}
+	Eventually(func(g Gomega) {
+		g.Expect(k8sClient.Get(ctx, name, cron)).Should(Succeed())
+	}, timeout, interval).Should(Succeed())
+
+	return cron
 }
