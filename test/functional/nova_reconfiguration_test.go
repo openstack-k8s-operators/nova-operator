@@ -655,4 +655,29 @@ var _ = Describe("Nova reconfiguration", func() {
 			novaNames.MetadataName).Status.Hash[novaNames.MetadataNeutronConfigDataName.Name]
 		Expect(originalComputeHash).NotTo(Equal(newComputeHash))
 	})
+
+	It("reconfigures memcached service and check", func() {
+		configDataMap := th.GetSecret(novaNames.SchedulerConfigDataName)
+		Expect(configDataMap).ShouldNot(BeNil())
+		Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
+		configData := string(configDataMap.Data["01-nova.conf"])
+		Expect(configData).To(ContainSubstring("memcache_servers=memcached-0.memcached:11211,memcached-1.memcached:11211,memcached-2.memcached:11211"))
+		Expect(configData).To(ContainSubstring("memcached_servers=inet:[memcached-0.memcached]:11211,inet:[memcached-1.memcached]:11211,inet:[memcached-2.memcached]:11211"))
+
+		Eventually(func(g Gomega) {
+			memcached := infra.GetMemcached(novaNames.MemcachedNamespace)
+			memcached.Status.ServerList = []string{"new"}
+			memcached.Status.ServerListWithInet = []string{"inet_new"}
+			g.Expect(k8sClient.Status().Update(ctx, memcached)).To(Succeed())
+		}, timeout, interval).Should(Succeed())
+
+		Eventually(func(g Gomega) {
+			configDataMap = th.GetSecret(novaNames.SchedulerConfigDataName)
+			g.Expect(configDataMap).ShouldNot(BeNil())
+			g.Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
+			configData = string(configDataMap.Data["01-nova.conf"])
+			g.Expect(configData).To(ContainSubstring("memcache_servers=new"))
+			g.Expect(configData).To(ContainSubstring("memcached_servers=inet_new"))
+		}, timeout, interval).Should(Succeed())
+	})
 })

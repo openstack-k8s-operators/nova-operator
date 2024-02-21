@@ -167,6 +167,12 @@ rules:
   - list
   - watch
 - apiGroups:
+  - memcached.openstack.org
+  resources:
+  - memcacheds/finalizers
+  verbs:
+  - update
+- apiGroups:
   - nova.openstack.org
   resources:
   - nova

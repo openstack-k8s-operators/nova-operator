@@ -71,6 +71,7 @@ func (r *NovaConductorReconciler) GetLogger(ctx context.Context) logr.Logger {
 //+kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete;
 //+kubebuilder:rbac:groups=k8s.cni.cncf.io,resources=network-attachment-definitions,verbs=get;list;watch
 // +kubebuilder:rbac:groups=memcached.openstack.org,resources=memcacheds,verbs=get;list;watch;
+// +kubebuilder:rbac:groups=memcached.openstack.org,resources=memcacheds/finalizers,verbs=update
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -355,7 +356,7 @@ func (r *NovaConductorReconciler) generateConfigs(
 		"keystone_internal_url":    instance.Spec.KeystoneAuthURL,
 		"nova_keystone_user":       instance.Spec.ServiceUser,
 		"nova_keystone_password":   string(secret.Data[ServicePasswordSelector]),
-		"cell_db_name":             instance.Spec.CellDatabaseUser, // fixme
+		"cell_db_name":             getCellDatabaseName(instance.Spec.CellName),
 		"cell_db_user":             instance.Spec.CellDatabaseUser,
 		"cell_db_password":         string(secret.Data[CellDatabasePasswordSelector]),
 		"cell_db_address":          instance.Spec.CellDatabaseHostname,
@@ -577,6 +578,34 @@ var (
 	}
 )
 
+func (r *NovaConductorReconciler) memcachedNamespaceMapFunc(ctx context.Context, src client.Object) []reconcile.Request {
+
+	result := []reconcile.Request{}
+
+	// get all Nova CRs
+	novaConductorList := &novav1.NovaConductorList{}
+	listOpts := []client.ListOption{
+		client.InNamespace(src.GetNamespace()),
+	}
+	if err := r.Client.List(ctx, novaConductorList, listOpts...); err != nil {
+		return nil
+	}
+
+	for _, cr := range novaConductorList.Items {
+		if src.GetName() == cr.Spec.MemcachedInstance {
+			name := client.ObjectKey{
+				Namespace: src.GetNamespace(),
+				Name:      cr.Name,
+			}
+			result = append(result, reconcile.Request{NamespacedName: name})
+		}
+	}
+	if len(result) > 0 {
+		return result
+	}
+	return nil
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *NovaConductorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	// index passwordSecretField
@@ -613,6 +642,10 @@ func (r *NovaConductorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			&corev1.Secret{},
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForSrc),
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+		).
+		Watches(
+			&memcachedv1.Memcached{},
+			handler.EnqueueRequestsFromMapFunc(r.memcachedNamespaceMapFunc),
 		).
 		Complete(r)
 }
