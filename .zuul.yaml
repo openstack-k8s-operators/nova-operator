@@ -113,7 +113,7 @@
     parent: podified-multinode-edpm-deployment-crc-3comp
     dependencies: ["nova-operator-content-provider"]
     vars:
-      test_fw: test_operator
+      cifmw_run_test_role: test_operator
       cifmw_test_operator_concurrency: 4
       cifmw_test_operator_timeout: 7200
       # NOTE(gibi): identity.v3_endpoint_type override is a WA to force the
