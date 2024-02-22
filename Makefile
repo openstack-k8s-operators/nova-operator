@@ -365,11 +365,12 @@ OPERATOR_NAMESPACE ?= openstack-operators
 
 update-nova-csv:
 	@echo "Scaling nova-controller-manager to 0 in CSV"
-	oc patch csv -n $(OPERATOR_NAMESPACE) nova-operator.v0.0.1 --type json -p='[{"op": "replace", "path": "/spec/install/spec/deployments/0/spec/replicas", "value": 0}]'
+	$(eval csv=$(shell oc get csv -n openstack-operators -o name | grep nova))
+	oc patch -n $(OPERATOR_NAMESPACE) $(csv) --type json -p='[{"op": "replace", "path": "/spec/install/spec/deployments/0/spec/replicas", "value": 0}]'
 	@echo "Removing olm installed webhooks from CSV"
-	$(eval has_webhooks=$(shell oc get -o json csv nova-operator.v0.0.1  | jq ".spec.webhookdefinitions"))
+	$(eval has_webhooks=$(shell oc get -o json $(csv)  | jq ".spec.webhookdefinitions"))
 	if [ "$(has_webhooks)" != "null" ]; then \
-	    oc patch csv -n $(OPERATOR_NAMESPACE) nova-operator.v0.0.1 --type json -p='[{"op": "remove", "path": "/spec/webhookdefinitions"}]'; \
+	    oc patch -n $(OPERATOR_NAMESPACE) $(csv) --type json -p='[{"op": "remove", "path": "/spec/webhookdefinitions"}]'; \
 	fi
 
 # Used for webhook testing
