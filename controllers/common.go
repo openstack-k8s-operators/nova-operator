@@ -558,7 +558,6 @@ func getMemcached(
 	h *helper.Helper,
 	namespaceName string,
 	mamcachedName string,
-	conditionUpdater conditionUpdater,
 ) (*memcachedv1.Memcached, error) {
 	memcached := &memcachedv1.Memcached{}
 	err := h.GetClient().Get(
@@ -568,6 +567,18 @@ func getMemcached(
 			Namespace: namespaceName,
 		},
 		memcached)
+	return memcached, err
+}
+
+// ensureMemcached - gets the Memcached instance cell specific used for nova services cache backend
+func ensureMemcached(
+	ctx context.Context,
+	h *helper.Helper,
+	namespaceName string,
+	mamcachedName string,
+	conditionUpdater conditionUpdater,
+) (*memcachedv1.Memcached, error) {
+	memcached, err := getMemcached(ctx, h, namespaceName, mamcachedName)
 	if err != nil {
 		if k8s_errors.IsNotFound(err) {
 			conditionUpdater.Set(condition.FalseCondition(

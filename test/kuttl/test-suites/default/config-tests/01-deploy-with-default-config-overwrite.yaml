@@ -14,10 +14,12 @@ spec:
       cellDatabaseUser: nova_cell0
       cellMessageBusInstance: rabbitmq
       hasAPIAccess: true
+      memcachedInstance: memcached
     cell1:
       cellDatabaseInstance: openstack-cell1
       cellDatabaseUser: nova_cell1
       cellMessageBusInstance: rabbitmq-cell1
+      memcachedInstance: memcached
       novaComputeTemplates:
         compute-fake1:
           computeDriver: fake.FakeDriver

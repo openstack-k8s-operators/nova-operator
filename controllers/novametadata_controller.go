@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"strings"
 
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -29,12 +30,14 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/go-logr/logr"
+	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
@@ -71,6 +74,8 @@ func (r *NovaMetadataReconciler) GetLogger(ctx context.Context) logr.Logger {
 // +kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=k8s.cni.cncf.io,resources=network-attachment-definitions,verbs=get;list;watch
+// +kubebuilder:rbac:groups=memcached.openstack.org,resources=memcacheds,verbs=get;list;watch;update;
+// +kubebuilder:rbac:groups=memcached.openstack.org,resources=memcacheds/finalizers,verbs=update
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -144,6 +149,20 @@ func (r *NovaMetadataReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, r.reconcileDelete(ctx, h, instance)
 	}
 
+	// We are adding Nova finalizer to Memcached CR later.
+	// So we need a finalizer on the ourselves too so that
+	// during CR delete we can have a chance to remove the finalizer from
+	// the our Memcached so that is also deleted.
+	updated := controllerutil.AddFinalizer(instance, h.GetFinalizer())
+	if updated {
+		Log.Info("Added finalizer to ourselves")
+		// we intentionally return immediately to force the deferred function
+		// to persist the Instance with the finalizer. We need to have our own
+		// finalizer persisted before we try to create the Memcached with
+		// our finalizer to avoid orphaning the Memcached.
+		return ctrl.Result{}, nil
+	}
+
 	hashes := make(map[string]env.Setter)
 
 	expectedSelectors := []string{
@@ -171,6 +190,25 @@ func (r *NovaMetadataReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	// all our input checks out so report InputReady
 	instance.Status.Conditions.MarkTrue(condition.InputReadyCondition, condition.InputReadyMessage)
+
+	memcached, err := ensureMemcached(ctx, h, instance.Namespace, instance.Spec.MemcachedInstance, &instance.Status.Conditions)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	// Add finalizer to Memcached to prevent it from being deleted now that we're using it
+	if controllerutil.AddFinalizer(memcached, h.GetFinalizer()) {
+		err := h.GetClient().Update(ctx, memcached)
+		if err != nil {
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				condition.MemcachedReadyCondition,
+				condition.ErrorReason,
+				condition.SeverityWarning,
+				condition.MemcachedReadyErrorMessage,
+				err.Error()))
+			return ctrl.Result{}, err
+		}
+	}
 
 	//
 	// TLS input validation
@@ -221,7 +259,7 @@ func (r *NovaMetadataReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	// all cert input checks out so report InputReady
 	instance.Status.Conditions.MarkTrue(condition.TLSInputReadyCondition, condition.InputReadyMessage)
 
-	err = r.ensureConfigs(ctx, h, instance, &hashes, secret)
+	err = r.ensureConfigs(ctx, h, instance, &hashes, secret, memcached)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -342,6 +380,11 @@ func (r *NovaMetadataReconciler) initConditions(
 				condition.InitReason,
 				condition.InputReadyInitMessage,
 			),
+			condition.UnknownCondition(
+				condition.MemcachedReadyCondition,
+				condition.InitReason,
+				condition.MemcachedReadyInitMessage,
+			),
 		)
 
 		instance.Status.Conditions.Init(&cl)
@@ -355,8 +398,9 @@ func (r *NovaMetadataReconciler) ensureConfigs(
 	instance *novav1.NovaMetadata,
 	hashes *map[string]env.Setter,
 	secret corev1.Secret,
+	memcachedInstance *memcachedv1.Memcached,
 ) error {
-	err := r.generateConfigs(ctx, h, instance, hashes, secret)
+	err := r.generateConfigs(ctx, h, instance, hashes, secret, memcachedInstance)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.ServiceConfigReadyCondition,
@@ -372,25 +416,28 @@ func (r *NovaMetadataReconciler) ensureConfigs(
 func (r *NovaMetadataReconciler) generateConfigs(
 	ctx context.Context, h *helper.Helper, instance *novav1.NovaMetadata, hashes *map[string]env.Setter,
 	secret corev1.Secret,
+	memcachedInstance *memcachedv1.Memcached,
 ) error {
 	templateParameters := map[string]interface{}{
-		"service_name":           novametadata.ServiceName,
-		"keystone_internal_url":  instance.Spec.KeystoneAuthURL,
-		"nova_keystone_user":     instance.Spec.ServiceUser,
-		"nova_keystone_password": string(secret.Data[ServicePasswordSelector]),
-		"cell_db_name":           NovaCell0DatabaseName,
-		"cell_db_user":           instance.Spec.CellDatabaseUser,
-		"cell_db_password":       string(secret.Data[CellDatabasePasswordSelector]),
-		"cell_db_address":        instance.Spec.CellDatabaseHostname,
-		"cell_db_port":           3306,
-		"openstack_region_name":  "regionOne", // fixme
-		"default_project_domain": "Default",   // fixme
-		"default_user_domain":    "Default",   // fixme
-		"metadata_secret":        string(secret.Data[MetadataSecretSelector]),
-		"log_file":               "/var/log/nova/nova-metadata.log",
-		"transport_url":          string(secret.Data[TransportURLSelector]),
-		"tls":                    false,
-		"ServerName":             fmt.Sprintf("%s.%s.svc", novametadata.ServiceName, instance.Namespace),
+		"service_name":             novametadata.ServiceName,
+		"keystone_internal_url":    instance.Spec.KeystoneAuthURL,
+		"nova_keystone_user":       instance.Spec.ServiceUser,
+		"nova_keystone_password":   string(secret.Data[ServicePasswordSelector]),
+		"cell_db_name":             NovaCell0DatabaseName,
+		"cell_db_user":             instance.Spec.CellDatabaseUser,
+		"cell_db_password":         string(secret.Data[CellDatabasePasswordSelector]),
+		"cell_db_address":          instance.Spec.CellDatabaseHostname,
+		"cell_db_port":             3306,
+		"openstack_region_name":    "regionOne", // fixme
+		"default_project_domain":   "Default",   // fixme
+		"default_user_domain":      "Default",   // fixme
+		"metadata_secret":          string(secret.Data[MetadataSecretSelector]),
+		"log_file":                 "/var/log/nova/nova-metadata.log",
+		"transport_url":            string(secret.Data[TransportURLSelector]),
+		"tls":                      false,
+		"ServerName":               fmt.Sprintf("%s.%s.svc", novametadata.ServiceName, instance.Namespace),
+		"MemcachedServers":         strings.Join(memcachedInstance.Status.ServerList, ","),
+		"MemcachedServersWithInet": strings.Join(memcachedInstance.Status.ServerListWithInet, ","),
 	}
 
 	var err error
@@ -640,6 +687,25 @@ func (r *NovaMetadataReconciler) reconcileDelete(
 	Log.Info("Reconciling delete")
 	// TODO(ksambor): add cleanup for the service rows in the nova DB
 	// when the service is scaled in or deleted
+
+	// Remove our finalizer from Memcached
+	memcached, _ := getMemcached(ctx, h, instance.Namespace, instance.Spec.MemcachedInstance)
+	if memcached != nil {
+		if controllerutil.RemoveFinalizer(memcached, h.GetFinalizer()) {
+			err := h.GetClient().Update(ctx, memcached)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// Successfully cleaned up everything. So as the final step let's remove the
+	// finalizer from ourselves to allow the deletion of NovaMetadata CR itself
+	updated := controllerutil.RemoveFinalizer(instance, h.GetFinalizer())
+	if updated {
+		Log.Info("Removed finalizer from ourselves")
+	}
+
 	Log.Info("Reconciled delete successfully")
 	return nil
 }
@@ -775,6 +841,34 @@ var (
 	}
 )
 
+func (r *NovaMetadataReconciler) memcachedNamespaceMapFunc(ctx context.Context, src client.Object) []reconcile.Request {
+
+	result := []reconcile.Request{}
+
+	// get all Nova CRs
+	novaMetadataList := &novav1.NovaMetadataList{}
+	listOpts := []client.ListOption{
+		client.InNamespace(src.GetNamespace()),
+	}
+	if err := r.Client.List(ctx, novaMetadataList, listOpts...); err != nil {
+		return nil
+	}
+
+	for _, cr := range novaMetadataList.Items {
+		if src.GetName() == cr.Spec.MemcachedInstance {
+			name := client.ObjectKey{
+				Namespace: src.GetNamespace(),
+				Name:      cr.Name,
+			}
+			result = append(result, reconcile.Request{NamespacedName: name})
+		}
+	}
+	if len(result) > 0 {
+		return result
+	}
+	return nil
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *NovaMetadataReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	// index passwordSecretField
@@ -823,6 +917,10 @@ func (r *NovaMetadataReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			&corev1.Secret{},
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForSrc),
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+		).
+		Watches(
+			&memcachedv1.Memcached{},
+			handler.EnqueueRequestsFromMapFunc(r.memcachedNamespaceMapFunc),
 		).
 		Complete(r)
 }

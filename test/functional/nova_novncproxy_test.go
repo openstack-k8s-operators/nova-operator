@@ -670,6 +670,31 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 
 		})
 	})
+	When("NoVNCProxy CR instance is deleted", func() {
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateDefaultCellInternalSecret(cell1))
+			DeferCleanup(th.DeleteInstance, CreateNovaNoVNCProxy(cell1.NoVNCProxyName, GetDefaultNovaNoVNCProxySpec(cell1)))
+		})
+
+		It("removes the finalizer from Memcached", func() {
+			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
+			th.ExpectCondition(
+				cell1.NoVNCProxyName,
+				ConditionGetterFunc(NoVNCProxyConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+			memcached := infra.GetMemcached(novaNames.MemcachedNamespace)
+			Expect(memcached.Finalizers).To(ContainElement("NovaNoVNCProxy"))
+
+			Eventually(func(g Gomega) {
+				th.DeleteInstance(GetNovaNoVNCProxy(cell1.NoVNCProxyStatefulSetName))
+				memcached := infra.GetMemcached(novaNames.MemcachedNamespace)
+				g.Expect(memcached.Finalizers).NotTo(ContainElement("NovaNoVNCProxy"))
+			}, timeout, interval).Should(Succeed())
+		})
+	})
 })
 
 var _ = Describe("NovaNoVNCProxy controller", func() {

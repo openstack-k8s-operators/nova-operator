@@ -720,18 +720,47 @@ var _ = Describe("NovaConductor controller cleaning", func() {
 
 var _ = Describe("NovaConductor controller", func() {
 	BeforeEach(func() {
+		mariadb.CreateMariaDBDatabase(cell0.MariaDBDatabaseName.Namespace, cell0.MariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
+		mariadb.CreateMariaDBAccount(cell0.MariaDBDatabaseName.Namespace, cell0.MariaDBDatabaseName.Name, mariadbv1.MariaDBAccountSpec{})
+		mariadb.SimulateMariaDBTLSDatabaseCompleted(cell0.MariaDBDatabaseName)
+		mariadb.SimulateMariaDBAccountCompleted(cell0.MariaDBDatabaseName)
 		memcachedSpec := memcachedv1.MemcachedSpec{
 			Replicas: ptr.To(int32(3)),
 		}
 		DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 		infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
 	})
+
+	When("NovaConductor CR instance is deleted", func() {
+		BeforeEach(func() {
+
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateDefaultCellInternalSecret(cell0))
+			DeferCleanup(th.DeleteInstance, CreateNovaConductor(cell0.ConductorName, GetDefaultNovaConductorSpec(cell0)))
+		})
+
+		It("removes the finalizer from Memcached", func() {
+			th.SimulateJobSuccess(cell0.DBSyncJobName)
+			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
+			th.ExpectCondition(
+				cell0.ConductorName,
+				ConditionGetterFunc(NovaConductorConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+			memcached := infra.GetMemcached(novaNames.MemcachedNamespace)
+			Expect(memcached.Finalizers).To(ContainElement("NovaConductor"))
+
+			Eventually(func(g Gomega) {
+				th.DeleteInstance(GetNovaConductor(cell0.ConductorName))
+				memcached := infra.GetMemcached(novaNames.MemcachedNamespace)
+				g.Expect(memcached.Finalizers).NotTo(ContainElement("NovaConductor"))
+			}, timeout, interval).Should(Succeed())
+		})
+	})
+
 	When("NovaConductor is created with TLS CA cert secret", func() {
 		BeforeEach(func() {
-			mariadb.CreateMariaDBDatabase(cell0.MariaDBDatabaseName.Namespace, cell0.MariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
-			mariadb.CreateMariaDBAccount(cell0.MariaDBDatabaseName.Namespace, cell0.MariaDBDatabaseName.Name, mariadbv1.MariaDBAccountSpec{})
-			mariadb.SimulateMariaDBTLSDatabaseCompleted(cell0.MariaDBDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(cell0.MariaDBDatabaseName)
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreateDefaultCellInternalSecret(cell0))
 
