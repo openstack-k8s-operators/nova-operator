@@ -12,3 +12,4 @@ spec:
     debug=true
   serviceAccount: nova
   registeredCells: {}
+  memcachedInstance: memcached

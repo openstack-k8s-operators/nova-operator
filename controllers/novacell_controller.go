@@ -61,7 +61,7 @@ func (r *NovaCellReconciler) GetLogger(ctx context.Context) logr.Logger {
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=novacells,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=novacells/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=novacells/finalizers,verbs=update
-// +kubebuilder:rbac:groups=memcached.openstack.org,resources=memcacheds,verbs=get;list;watch;
+// +kubebuilder:rbac:groups=memcached.openstack.org,resources=memcacheds,verbs=get;list;watch;update;
 // +kubebuilder:rbac:groups=memcached.openstack.org,resources=memcacheds/finalizers,verbs=update
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to

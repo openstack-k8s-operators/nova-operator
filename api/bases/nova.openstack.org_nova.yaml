@@ -1661,7 +1661,6 @@ spec:
                   to register in keystone
                 type: string
             required:
-            - memcachedInstance
             - secret
             type: object
           status:

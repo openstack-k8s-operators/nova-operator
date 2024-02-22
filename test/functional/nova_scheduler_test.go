@@ -648,6 +648,32 @@ var _ = Describe("NovaScheduler controller", func() {
 		DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 		infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
 	})
+	When("NovaScheduler CR instance is deleted", func() {
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateInternalTopLevelSecret(novaNames))
+			DeferCleanup(th.DeleteInstance, CreateNovaScheduler(novaNames.SchedulerName, GetDefaultNovaSchedulerSpec(novaNames)))
+		})
+
+		It("removes the finalizer from Memcached", func() {
+			th.SimulateStatefulSetReplicaReady(novaNames.SchedulerName)
+			th.ExpectCondition(
+				novaNames.SchedulerName,
+				ConditionGetterFunc(NovaSchedulerConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+			memcached := infra.GetMemcached(novaNames.MemcachedNamespace)
+			Expect(memcached.Finalizers).To(ContainElement("NovaScheduler"))
+
+			Eventually(func(g Gomega) {
+				th.DeleteInstance(GetNovaScheduler(novaNames.SchedulerName))
+				memcached := infra.GetMemcached(novaNames.MemcachedNamespace)
+				g.Expect(memcached.Finalizers).NotTo(ContainElement("NovaScheduler"))
+			}, timeout, interval).Should(Succeed())
+		})
+	})
+
 	When("NovaScheduler is created with TLS CA cert secret", func() {
 		BeforeEach(func() {
 			spec := GetDefaultNovaSchedulerSpec(novaNames)

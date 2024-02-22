@@ -839,6 +839,7 @@ func GetDefaultNovaMetadataSpec(secretName types.NamespacedName) map[string]inte
 		"containerImage":       ContainerImage,
 		"keystoneAuthURL":      "keystone-auth-url",
 		"serviceAccount":       "nova-sa",
+		"memcachedInstance":    MemcachedInstance,
 	}
 }
 

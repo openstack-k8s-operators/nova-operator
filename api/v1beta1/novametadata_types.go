@@ -179,6 +179,10 @@ type NovaMetadataSpec struct {
 	// +kubebuilder:validation:Optional
 	// DefaultConfigOverwrite - interface to overwrite default config files like e.g. api-paste.ini.
 	DefaultConfigOverwrite map[string]string `json:"defaultConfigOverwrite,omitempty"`
+
+	// +kubebuilder:validation:Required
+	// MemcachedInstance is the name of the Memcached CR that all nova service will use.
+	MemcachedInstance string `json:"memcachedInstance"`
 }
 
 // NovaMetadataStatus defines the observed state of NovaMetadata
@@ -257,6 +261,7 @@ func NewNovaMetadataSpec(
 		Override:               novaCell.MetadataServiceTemplate.Override,
 		TLS:                    novaCell.MetadataServiceTemplate.TLS,
 		DefaultConfigOverwrite: novaCell.MetadataServiceTemplate.DefaultConfigOverwrite,
+		MemcachedInstance:      novaCell.MemcachedInstance,
 	}
 	return metadataSpec
 }

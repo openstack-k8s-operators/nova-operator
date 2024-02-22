@@ -96,6 +96,10 @@ spec:
                   can use to talk to keystone TODO(ksambor) Add checking if dynamic
                   vendor data is configured
                 type: string
+              memcachedInstance:
+                description: MemcachedInstance is the name of the Memcached CR that
+                  all nova service will use.
+                type: string
               networkAttachments:
                 description: NetworkAttachments is a list of NetworkAttachment resource
                   names to expose the services to the given network
@@ -366,6 +370,7 @@ spec:
                 type: object
             required:
             - keystoneAuthURL
+            - memcachedInstance
             - secret
             - serviceAccount
             type: object

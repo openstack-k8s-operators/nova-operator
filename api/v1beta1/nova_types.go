@@ -106,7 +106,7 @@ type NovaSpec struct {
 	// here and enabled in the cellTemplates instead.
 	MetadataServiceTemplate NovaMetadataTemplate `json:"metadataServiceTemplate"`
 
-	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=memcached
 	// MemcachedInstance is the name of the Memcached CR that all nova service will use.
 	MemcachedInstance string `json:"memcachedInstance"`

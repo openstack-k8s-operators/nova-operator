@@ -22,6 +22,7 @@ import (
 	networkv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
 	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
 
 	corev1 "k8s.io/api/core/v1"
@@ -39,6 +40,12 @@ var _ = Describe("NovaMetadata controller", func() {
 	BeforeEach(func() {
 		mariadb.CreateMariaDBDatabase(novaNames.APIMariaDBDatabaseName.Namespace, novaNames.APIMariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
 		mariadb.CreateMariaDBAccount(novaNames.APIMariaDBDatabaseName.Namespace, novaNames.APIMariaDBDatabaseName.Name, mariadbv1.MariaDBAccountSpec{})
+		memcachedSpec := memcachedv1.MemcachedSpec{
+			Replicas: ptr.To(int32(3)),
+		}
+		DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
+		infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
+
 	})
 	When("with standard spec without network interface", func() {
 		BeforeEach(func() {
@@ -183,6 +190,8 @@ var _ = Describe("NovaMetadata controller", func() {
 						"connection = mysql+pymysql://nova_api:api-database-password@nova-api-db-hostname/nova_api?read_default_file=/etc/my.cnf"))
 				Expect(configData).Should(
 					ContainSubstring("[upgrade_levels]\ncompute = auto"))
+				Expect(configData).To(ContainSubstring("memcache_servers=memcached-0.memcached:11211,memcached-1.memcached:11211,memcached-2.memcached:11211"))
+				Expect(configData).To(ContainSubstring("memcached_servers=inet:[memcached-0.memcached]:11211,inet:[memcached-1.memcached]:11211,inet:[memcached-2.memcached]:11211"))
 				Expect(configDataMap.Data).Should(HaveKey("02-nova-override.conf"))
 				myCnf := configDataMap.Data["my.cnf"]
 				Expect(myCnf).To(
@@ -340,6 +349,12 @@ var _ = Describe("NovaMetadata controller", func() {
 		mariadb.CreateMariaDBAccount(novaNames.APIMariaDBDatabaseName.Namespace, novaNames.APIMariaDBDatabaseName.Name, mariadbv1.MariaDBAccountSpec{})
 		mariadb.CreateMariaDBDatabase(cell1.MariaDBDatabaseName.Namespace, cell1.MariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
 		mariadb.CreateMariaDBAccount(cell1.MariaDBDatabaseName.Namespace, cell1.MariaDBDatabaseName.Name, mariadbv1.MariaDBAccountSpec{})
+		memcachedSpec := memcachedv1.MemcachedSpec{
+			Replicas: ptr.To(int32(3)),
+		}
+		DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
+		infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
+
 	})
 	When("configured with cell name", func() {
 		BeforeEach(func() {
@@ -744,6 +759,32 @@ var _ = Describe("NovaMetadata controller", func() {
 		})
 	})
 
+	When("NovaMetadata CR instance is deleted", func() {
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateInternalTopLevelSecret(novaNames))
+			DeferCleanup(th.DeleteInstance, CreateNovaMetadata(novaNames.MetadataName, GetDefaultNovaMetadataSpec(novaNames.InternalTopLevelSecretName)))
+		})
+
+		It("removes the finalizer from Memcached", func() {
+			th.SimulateStatefulSetReplicaReady(novaNames.MetadataStatefulSetName)
+			th.ExpectCondition(
+				novaNames.MetadataName,
+				ConditionGetterFunc(NovaMetadataConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+			memcached := infra.GetMemcached(novaNames.MemcachedNamespace)
+			Expect(memcached.Finalizers).To(ContainElement("NovaMetadata"))
+
+			Eventually(func(g Gomega) {
+				th.DeleteInstance(GetNovaMetadata(novaNames.MetadataName))
+				memcached := infra.GetMemcached(novaNames.MemcachedNamespace)
+				g.Expect(memcached.Finalizers).NotTo(ContainElement("NovaMetadata"))
+			}, timeout, interval).Should(Succeed())
+		})
+	})
+
 	When("NovaMetadata CR is created without container image defined", func() {
 		BeforeEach(func() {
 			spec := GetDefaultNovaMetadataSpec(novaNames.InternalTopLevelSecretName)
@@ -764,6 +805,12 @@ var _ = Describe("NovaMetadata controller", func() {
 		mariadb.CreateMariaDBAccount(novaNames.APIMariaDBDatabaseName.Namespace, novaNames.APIMariaDBDatabaseName.Name, mariadbv1.MariaDBAccountSpec{})
 		mariadb.SimulateMariaDBTLSDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
 		mariadb.SimulateMariaDBAccountCompleted(novaNames.APIMariaDBDatabaseName)
+		memcachedSpec := memcachedv1.MemcachedSpec{
+			Replicas: ptr.To(int32(3)),
+		}
+		DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
+		infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
+
 	})
 	When("NovaMetadata is created with TLS CA cert secret", func() {
 		BeforeEach(func() {

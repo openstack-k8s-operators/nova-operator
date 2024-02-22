@@ -368,7 +368,7 @@ var _ = Describe("NovaAPI controller", func() {
 			DeferCleanup(th.DeleteInstance, CreateNovaAPI(novaNames.APIName, GetDefaultNovaAPISpec(novaNames)))
 		})
 
-		It("removes the finalizer from KeystoneEndpoint", func() {
+		It("removes the finalizer from KeystoneEndpoint and Memcached", func() {
 			th.SimulateStatefulSetReplicaReady(novaNames.APIStatefulSetName)
 			keystone.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
 			th.ExpectCondition(
@@ -381,9 +381,13 @@ var _ = Describe("NovaAPI controller", func() {
 			endpoint := keystone.GetKeystoneEndpoint(novaNames.APIKeystoneEndpointName)
 			Expect(endpoint.Finalizers).To(ContainElement("NovaAPI"))
 
+			memcached := infra.GetMemcached(novaNames.MemcachedNamespace)
+			Expect(memcached.Finalizers).To(ContainElement("NovaAPI"))
 			th.DeleteInstance(GetNovaAPI(novaNames.APIName))
 			endpoint = keystone.GetKeystoneEndpoint(novaNames.APIKeystoneEndpointName)
 			Expect(endpoint.Finalizers).NotTo(ContainElement("NovaAPI"))
+			memcached = infra.GetMemcached(novaNames.MemcachedNamespace)
+			Expect(memcached.Finalizers).NotTo(ContainElement("NovaAPI"))
 		})
 	})
 })

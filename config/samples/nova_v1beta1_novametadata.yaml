@@ -11,3 +11,4 @@ spec:
   apiDatabaseUser: nova_api
   serviceAccount: nova
   registeredCells: {}
+  memcachedInstance: memcached

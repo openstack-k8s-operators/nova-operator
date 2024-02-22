@@ -9,3 +9,4 @@ spec:
   secret: osp-secret
   serviceAccount: nova
   registeredCells: {}
+  memcachedInstance: memcached
