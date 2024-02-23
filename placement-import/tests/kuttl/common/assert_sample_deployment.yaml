@@ -9,9 +9,8 @@ spec:
     [DEFAULT]
     debug = true
   databaseInstance: openstack
-  databaseUser: placement
+  databaseAccount: placement
   passwordSelectors:
-    database: PlacementDatabasePassword
     service: PlacementPassword
   preserveJobs: false
   replicas: 1
@@ -53,6 +52,10 @@ status:
     reason: Ready
     status: "True"
     type: KeystoneServiceReady
+  - message: MariaDBAccount creation complete
+    reason: Ready
+    status: "True"
+    type: MariaDBAccountReady
   - message: NetworkAttachments completed
     reason: Ready
     status: "True"

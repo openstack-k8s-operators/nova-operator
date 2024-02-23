@@ -54,9 +54,8 @@ type PlacementAPISpec struct {
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=placement
-	// DatabaseUser - optional username used for placement DB, defaults to placement
-	// TODO: -> implement needs work in mariadb-operator, right now only placement
-	DatabaseUser string `json:"databaseUser"`
+	// DatabaseAccount - name of MariaDBAccount which will be used to connect.
+	DatabaseAccount string `json:"databaseAccount"`
 
 	// +kubebuilder:validation:Required
 	// PlacementAPI Container Image URL (will be set to environmental default if empty)
@@ -70,11 +69,11 @@ type PlacementAPISpec struct {
 	Replicas *int32 `json:"replicas"`
 
 	// +kubebuilder:validation:Required
-	// Secret containing OpenStack password information for placement PlacementDatabasePassword, PlacementPassword
+	// Secret containing OpenStack password information for placement PlacementPassword
 	Secret string `json:"secret"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default={database: PlacementDatabasePassword, service: PlacementPassword}
+	// +kubebuilder:default={service: PlacementPassword}
 	// PasswordSelectors - Selectors to identify the DB and ServiceUser password from the Secret
 	PasswordSelectors PasswordSelector `json:"passwordSelectors"`
 
@@ -125,11 +124,6 @@ type APIOverrideSpec struct {
 
 // PasswordSelector to identify the DB and AdminUser password from the Secret
 type PasswordSelector struct {
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default="PlacementDatabasePassword"
-	// Database - Selector to get the Database user password from the Secret
-	// TODO: not used, need change in mariadb-operator
-	Database string `json:"database"`
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default="PlacementPassword"
 	// Service - Selector to get the service user password from the Secret

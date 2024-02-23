@@ -23,11 +23,14 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
+	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
+	"github.com/openstack-k8s-operators/placement-operator/pkg/placement"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
+	mariadb_test "github.com/openstack-k8s-operators/mariadb-operator/api/test/helpers"
 )
 
 var _ = Describe("PlacementAPI controller", func() {
@@ -51,7 +54,7 @@ var _ = Describe("PlacementAPI controller", func() {
 		It("should have the Spec fields defaulted", func() {
 			Placement := GetPlacementAPI(names.PlacementAPIName)
 			Expect(Placement.Spec.DatabaseInstance).Should(Equal("openstack"))
-			Expect(Placement.Spec.DatabaseUser).Should(Equal("placement"))
+			Expect(Placement.Spec.DatabaseAccount).Should(Equal(AccountName))
 			Expect(Placement.Spec.ServiceUser).Should(Equal("placement"))
 			Expect(*(Placement.Spec.Replicas)).Should(Equal(int32(1)))
 		})
@@ -154,7 +157,7 @@ var _ = Describe("PlacementAPI controller", func() {
 				mariadb.CreateDBService(namespace, "openstack", serviceSpec),
 			)
 			mariadb.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBAccount)
 			th.SimulateJobSuccess(names.DBSyncJobName)
 			placement := GetPlacementAPI(names.PlacementAPIName)
 			Expect(*(placement.Spec.Replicas)).Should(Equal(int32(0)))
@@ -211,7 +214,7 @@ var _ = Describe("PlacementAPI controller", func() {
 			Expect(db.Spec.Name).To(Equal(names.MariaDBDatabaseName.Name))
 
 			mariadb.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBAccount)
 		})
 
 		It("should have input ready", func() {
@@ -268,7 +271,7 @@ var _ = Describe("PlacementAPI controller", func() {
 			Expect(db.Spec.Name).To(Equal(names.MariaDBDatabaseName.Name))
 
 			mariadb.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBAccount)
 
 			th.ExpectCondition(
 				names.PlacementAPIName,
@@ -288,7 +291,7 @@ var _ = Describe("PlacementAPI controller", func() {
 			Expect(db.Spec.Name).To(Equal(names.MariaDBDatabaseName.Name))
 
 			mariadb.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBAccount)
 
 			th.ExpectCondition(
 				names.PlacementAPIName,
@@ -305,7 +308,7 @@ var _ = Describe("PlacementAPI controller", func() {
 				mariadb.CreateDBService(namespace, "openstack", serviceSpec),
 			)
 			mariadb.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBAccount)
 
 			cm := th.GetSecret(names.ConfigMapName)
 
@@ -318,8 +321,14 @@ var _ = Describe("PlacementAPI controller", func() {
 				ContainSubstring("username = placement"))
 			Expect(conf).Should(
 				ContainSubstring("password = 12345678"))
-			Expect(conf).Should(
-				ContainSubstring(fmt.Sprintf("connection = mysql+pymysql://placement:12345678@hostname-for-openstack.%s.svc/placement?read_default_file=/etc/my.cnf", namespace)))
+
+			mariadbAccount := mariadb.GetMariaDBAccount(names.MariaDBAccount)
+			mariadbSecret := th.GetSecret(types.NamespacedName{Name: mariadbAccount.Spec.Secret, Namespace: names.PlacementAPIName.Namespace})
+
+			Expect(string(conf)).Should(
+				ContainSubstring(fmt.Sprintf("connection = mysql+pymysql://%s:%s@hostname-for-openstack.%s.svc/placement?read_default_file=/etc/my.cnf",
+					mariadbAccount.Spec.UserName, mariadbSecret.Data[mariadbv1.DatabasePasswordSelector], namespace)))
+
 			custom := cm.Data["custom.conf"]
 			Expect(custom).Should(ContainSubstring("foo = bar"))
 
@@ -339,7 +348,7 @@ var _ = Describe("PlacementAPI controller", func() {
 				mariadb.CreateDBService(namespace, "openstack", serviceSpec),
 			)
 			mariadb.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBAccount)
 
 			th.ExpectCondition(
 				names.PlacementAPIName,
@@ -371,6 +380,7 @@ var _ = Describe("PlacementAPI controller", func() {
 			Expect(binding.Subjects).To(HaveLen(1))
 			Expect(binding.Subjects[0].Name).To(Equal(sa.Name))
 		})
+
 		It("creates keystone service", func() {
 			th.ExpectCondition(
 				names.PlacementAPIName,
@@ -385,7 +395,7 @@ var _ = Describe("PlacementAPI controller", func() {
 				mariadb.CreateDBService(namespace, "openstack", serviceSpec),
 			)
 			mariadb.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBAccount)
 
 			keystone.SimulateKeystoneServiceReady(names.KeystoneServiceName)
 
@@ -410,7 +420,7 @@ var _ = Describe("PlacementAPI controller", func() {
 				mariadb.CreateDBService(namespace, "openstack", serviceSpec),
 			)
 			mariadb.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBAccount)
 
 			keystone.SimulateKeystoneEndpointReady(names.KeystoneEndpointName)
 
@@ -428,7 +438,7 @@ var _ = Describe("PlacementAPI controller", func() {
 				mariadb.CreateDBService(namespace, "openstack", serviceSpec),
 			)
 			mariadb.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBAccount)
 
 			th.ExpectCondition(
 				names.PlacementAPIName,
@@ -461,7 +471,7 @@ var _ = Describe("PlacementAPI controller", func() {
 				mariadb.CreateDBService(namespace, "openstack", serviceSpec),
 			)
 			mariadb.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBAccount)
 			th.SimulateJobSuccess(names.DBSyncJobName)
 
 			th.ExpectCondition(
@@ -500,7 +510,7 @@ var _ = Describe("PlacementAPI controller", func() {
 				mariadb.CreateDBService(namespace, "openstack", serviceSpec),
 			)
 			mariadb.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBAccount)
 			th.SimulateJobSuccess(names.DBSyncJobName)
 			th.SimulateDeploymentReplicaReady(names.DeploymentName)
 
@@ -531,7 +541,7 @@ var _ = Describe("PlacementAPI controller", func() {
 				mariadb.CreateDBService(namespace, "openstack", serviceSpec),
 			)
 			mariadb.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBAccount)
 			keystone.SimulateKeystoneServiceReady(names.KeystoneServiceName)
 			keystone.SimulateKeystoneEndpointReady(names.KeystoneEndpointName)
 			th.SimulateJobSuccess(names.DBSyncJobName)
@@ -588,7 +598,7 @@ var _ = Describe("PlacementAPI controller", func() {
 			)
 
 			mariadb.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBAccount)
 			th.SimulateJobSuccess(names.DBSyncJobName)
 			th.SimulateDeploymentReplicaReady(names.DeploymentName)
 			keystone.SimulateKeystoneServiceReady(names.KeystoneServiceName)
@@ -660,7 +670,7 @@ var _ = Describe("PlacementAPI controller", func() {
 			)
 
 			mariadb.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBAccount)
 			th.SimulateJobSuccess(names.DBSyncJobName)
 			th.SimulateDeploymentReplicaReady(names.DeploymentName)
 			keystone.SimulateKeystoneServiceReady(names.KeystoneServiceName)
@@ -696,7 +706,7 @@ var _ = Describe("PlacementAPI controller", func() {
 				mariadb.CreateDBService(namespace, "openstack", serviceSpec),
 			)
 			mariadb.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBAccount)
 			keystone.SimulateKeystoneServiceReady(names.KeystoneServiceName)
 			keystone.SimulateKeystoneEndpointReady(names.KeystoneEndpointName)
 			th.SimulateJobSuccess(names.DBSyncJobName)
@@ -719,7 +729,7 @@ var _ = Describe("PlacementAPI controller", func() {
 			Expect(keystoneEndpoint.Finalizers).To(ContainElement("PlacementAPI"))
 			db := mariadb.GetMariaDBDatabase(names.MariaDBDatabaseName)
 			Expect(db.Finalizers).To(ContainElement("PlacementAPI"))
-			acc := mariadb.GetMariaDBAccount(names.MariaDBDatabaseName)
+			acc := mariadb.GetMariaDBAccount(names.MariaDBAccount)
 			Expect(acc.Finalizers).To(ContainElement("PlacementAPI"))
 
 			th.DeleteInstance(GetPlacementAPI(names.PlacementAPIName))
@@ -730,7 +740,7 @@ var _ = Describe("PlacementAPI controller", func() {
 			Expect(keystoneEndpoint.Finalizers).NotTo(ContainElement("PlacementAPI"))
 			db = mariadb.GetMariaDBDatabase(names.MariaDBDatabaseName)
 			Expect(db.Finalizers).NotTo(ContainElement("PlacementAPI"))
-			acc = mariadb.GetMariaDBAccount(names.MariaDBDatabaseName)
+			acc = mariadb.GetMariaDBAccount(names.MariaDBAccount)
 			Expect(acc.Finalizers).NotTo(ContainElement("PlacementAPI"))
 		})
 
@@ -800,7 +810,7 @@ var _ = Describe("PlacementAPI controller", func() {
 				mariadb.CreateDBService(namespace, "openstack", serviceSpec),
 			)
 			mariadb.SimulateMariaDBTLSDatabaseCompleted(names.MariaDBDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBAccount)
 			keystone.SimulateKeystoneServiceReady(names.KeystoneServiceName)
 			keystone.SimulateKeystoneEndpointReady(names.KeystoneEndpointName)
 			th.SimulateJobSuccess(names.DBSyncJobName)
@@ -843,6 +853,87 @@ var _ = Describe("PlacementAPI controller", func() {
 				ContainSubstring("[client]\nssl-ca=/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem\nssl=1"))
 		})
 	})
+
+	// Run MariaDBAccount suite tests.  these are pre-packaged ginkgo tests
+	// that exercise standard account create / update patterns that should be
+	// common to all controllers that ensure MariaDBAccount CRs.
+
+	mariadb_suite := &mariadb_test.MariaDBTestHarness{
+		PopulateHarness: func(harness *mariadb_test.MariaDBTestHarness) {
+			harness.Setup(
+				"Placement",
+				names.PlacementAPIName.Namespace,
+				placement.DatabaseName,
+				"PlacementAPI",
+				mariadb, timeout, interval,
+			)
+		},
+
+		// Generate a fully running Keystone service given an accountName
+		// needs to make it all the way to the end where the mariadb finalizers
+		// are removed from unused accounts since that's part of what we are testing
+		SetupCR: func(accountName types.NamespacedName) {
+			DeferCleanup(k8sClient.Delete, ctx, CreatePlacementAPISecret(namespace, SecretName))
+			keystoneAPIName := keystone.CreateKeystoneAPI(namespace)
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystoneAPIName)
+
+			spec := GetDefaultPlacementAPISpec()
+			spec["databaseAccount"] = accountName.Name
+			DeferCleanup(
+				th.DeleteInstance,
+				CreatePlacementAPI(names.PlacementAPIName, spec),
+			)
+
+			serviceSpec := corev1.ServiceSpec{Ports: []corev1.ServicePort{{Port: 3306}}}
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(namespace, "openstack", serviceSpec),
+			)
+			db := mariadb.GetMariaDBDatabase(names.MariaDBDatabaseName)
+			Expect(db.Spec.Name).To(Equal(names.MariaDBDatabaseName.Name))
+
+			mariadb.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(accountName)
+			keystone.SimulateKeystoneServiceReady(names.KeystoneServiceName)
+			keystone.SimulateKeystoneEndpointReady(names.KeystoneEndpointName)
+			th.SimulateJobSuccess(names.DBSyncJobName)
+			th.SimulateDeploymentReplicaReady(names.DeploymentName)
+
+		},
+		// Change the account name in the service to a new name
+		UpdateAccount: func(newAccountName types.NamespacedName) {
+
+			Eventually(func(g Gomega) {
+				placementapi := GetPlacementAPI(names.PlacementAPIName)
+				placementapi.Spec.DatabaseAccount = newAccountName.Name
+				g.Expect(th.K8sClient.Update(ctx, placementapi)).Should(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+		},
+		// delete the CR instance to exercise finalizer removal
+		DeleteCR: func() {
+			th.DeleteInstance(GetPlacementAPI(names.PlacementAPIName))
+		},
+	}
+
+	mariadb_suite.RunBasicSuite()
+
+	mariadb_suite.RunURLAssertSuite(func(accountName types.NamespacedName, username string, password string) {
+		cm := th.GetSecret(names.ConfigMapName)
+
+		conf := cm.Data["placement.conf"]
+
+		Expect(string(conf)).Should(
+			ContainSubstring(fmt.Sprintf("connection = mysql+pymysql://%s:%s@hostname-for-openstack.%s.svc/placement?read_default_file=/etc/my.cnf",
+				username, password, namespace)))
+
+	})
+
+	mariadb_suite.RunConfigHashSuite(func() string {
+		deployment := th.GetDeployment(names.DeploymentName)
+		return GetEnvVarValue(deployment.Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
+	})
+
 })
 
 var _ = Describe("PlacementAPI reconfiguration", func() {
@@ -870,7 +961,7 @@ var _ = Describe("PlacementAPI reconfiguration", func() {
 				mariadb.CreateDBService(namespace, "openstack", serviceSpec),
 			)
 			mariadb.SimulateMariaDBTLSDatabaseCompleted(names.MariaDBDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBAccount)
 			keystone.SimulateKeystoneServiceReady(names.KeystoneServiceName)
 			keystone.SimulateKeystoneEndpointReady(names.KeystoneEndpointName)
 			th.SimulateJobSuccess(names.DBSyncJobName)
@@ -904,4 +995,5 @@ var _ = Describe("PlacementAPI reconfiguration", func() {
 		})
 
 	})
+
 })

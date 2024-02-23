@@ -59,16 +59,15 @@ spec:
                   added to to /etc/<service>/<service>.conf.d directory as custom.conf
                   file.
                 type: string
+              databaseAccount:
+                default: placement
+                description: DatabaseAccount - name of MariaDBAccount which will be
+                  used to connect.
+                type: string
               databaseInstance:
                 description: MariaDB instance name Right now required by the maridb-operator
                   to get the credentials from the instance to create the DB Might
                   not be required in future
-                type: string
-              databaseUser:
-                default: placement
-                description: 'DatabaseUser - optional username used for placement
-                  DB, defaults to placement TODO: -> implement needs work in mariadb-operator,
-                  right now only placement'
                 type: string
               defaultConfigOverwrite:
                 additionalProperties:
@@ -264,16 +263,10 @@ spec:
                 type: object
               passwordSelectors:
                 default:
-                  database: PlacementDatabasePassword
                   service: PlacementPassword
                 description: PasswordSelectors - Selectors to identify the DB and
                   ServiceUser password from the Secret
                 properties:
-                  database:
-                    default: PlacementDatabasePassword
-                    description: 'Database - Selector to get the Database user password
-                      from the Secret TODO: not used, need change in mariadb-operator'
-                    type: string
                   service:
                     default: PlacementPassword
                     description: Service - Selector to get the service user password
@@ -343,7 +336,7 @@ spec:
                 type: object
               secret:
                 description: Secret containing OpenStack password information for
-                  placement PlacementDatabasePassword, PlacementPassword
+                  placement PlacementPassword
                 type: string
               serviceUser:
                 default: placement

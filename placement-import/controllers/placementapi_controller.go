@@ -323,7 +323,6 @@ func (r *PlacementAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.Secret},
 		[]string{
 			instance.Spec.PasswordSelectors.Service,
-			instance.Spec.PasswordSelectors.Database,
 		},
 		h.GetClient(),
 		&instance.Status.Conditions)
@@ -348,6 +347,32 @@ func (r *PlacementAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	// all our input checks out so report InputReady
 	instance.Status.Conditions.MarkTrue(condition.InputReadyCondition, condition.InputReadyMessage)
+
+	// ensure MariaDBAccount exists.  This account record may be created by
+	// openstack-operator or the cloud operator up front without a specific
+	// MariaDBDatabase configured yet.   Otherwise, a MariaDBAccount CR is
+	// created here with a generated username as well as a secret with
+	// generated password.   The MariaDBAccount is created without being
+	// yet associated with any MariaDBDatabase.
+	_, _, err = mariadbv1.EnsureMariaDBAccount(
+		ctx, h, instance.Spec.DatabaseAccount,
+		instance.Namespace, false, placement.DatabaseName,
+	)
+
+	if err != nil {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			mariadbv1.MariaDBAccountReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			mariadbv1.MariaDBAccountNotReadyMessage,
+			err.Error()))
+
+		return ctrl.Result{}, err
+	}
+	instance.Status.Conditions.MarkTrue(
+		mariadbv1.MariaDBAccountReadyCondition,
+		mariadbv1.MariaDBAccountReadyMessage,
+	)
 
 	db, result, err := r.ensureDB(ctx, h, instance)
 	if err != nil {
@@ -450,6 +475,7 @@ func (r *PlacementAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		// We can ignore RequeueAfter as we are watching the KeystoneEndpoint resource
 		return ctrl.Result{}, err
 	}
+
 	result, err = r.ensureDbSync(ctx, instance, h, serviceAnnotations)
 	if (err != nil || result != ctrl.Result{}) {
 		return result, err
@@ -464,6 +490,12 @@ func (r *PlacementAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	if !instance.Status.Conditions.IsTrue(condition.DeploymentReadyCondition) {
 		Log.Info("Waiting for the Deployment to become Ready before exposing the sevice in Keystone")
 		return ctrl.Result{}, nil
+	}
+
+	// remove finalizers from unused MariaDBAccount records
+	err = mariadbv1.DeleteUnusedMariaDBAccountFinalizers(ctx, h, placement.DatabaseName, instance.Spec.DatabaseAccount, instance.Namespace)
+	if err != nil {
+		return ctrl.Result{}, err
 	}
 
 	return ctrl.Result{}, nil
@@ -919,7 +951,7 @@ func (r *PlacementAPIReconciler) reconcileDelete(ctx context.Context, instance *
 	Log.Info("Reconciling Service delete")
 
 	// remove db finalizer before the placement one
-	db, err := mariadbv1.GetDatabaseByName(ctx, helper, placement.DatabaseName)
+	db, err := mariadbv1.GetDatabaseByNameAndAccount(ctx, helper, placement.DatabaseName, instance.Spec.DatabaseAccount, instance.Namespace)
 	if err != nil && !k8s_errors.IsNotFound(err) {
 		return ctrl.Result{}, err
 	}
@@ -974,23 +1006,16 @@ func (r *PlacementAPIReconciler) ensureDB(
 	h *helper.Helper,
 	instance *placementv1.PlacementAPI,
 ) (*mariadbv1.Database, ctrl.Result, error) {
-	// (ksambor) should we use  NewDatabaseWithNamespace instead?
-	db := mariadbv1.NewDatabaseWithNamespace(
-		placement.DatabaseName,
-		instance.Spec.DatabaseUser,
-		instance.Spec.Secret,
-		map[string]string{
-			"dbName": instance.Spec.DatabaseInstance,
-		},
-		placement.DatabaseName,
-		instance.Namespace,
+	db := mariadbv1.NewDatabaseForAccount(
+		instance.Spec.DatabaseInstance, // mariadb/galera service to target
+		placement.DatabaseName,         // name used in CREATE DATABASE in mariadb
+		placement.DatabaseName,         // CR name for MariaDBDatabase
+		instance.Spec.DatabaseAccount,  // CR name for MariaDBAccount
+		instance.Namespace,             // namespace
 	)
+
 	// create or patch the DB
-	ctrlResult, err := db.CreateOrPatchDBByName(
-		ctx,
-		h,
-		instance.Spec.DatabaseInstance,
-	)
+	ctrlResult, err := db.CreateOrPatchAll(ctx, h)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.DBReadyCondition,
@@ -1216,6 +1241,10 @@ func (r *PlacementAPIReconciler) generateServiceConfigMaps(
 	if err != nil {
 		return err
 	}
+
+	databaseAccount := db.GetAccount()
+	dbSecret := db.GetSecret()
+
 	templateParameters := map[string]interface{}{
 		"ServiceUser":         instance.Spec.ServiceUser,
 		"KeystoneInternalURL": keystoneInternalURL,
@@ -1223,8 +1252,8 @@ func (r *PlacementAPIReconciler) generateServiceConfigMaps(
 		"PlacementPassword":   string(ospSecret.Data[instance.Spec.PasswordSelectors.Service]),
 		"log_file":            "/var/log/placement/placement-api.log",
 		"DatabaseConnection": fmt.Sprintf("mysql+pymysql://%s:%s@%s/%s?read_default_file=/etc/my.cnf",
-			instance.Spec.DatabaseUser,
-			string(ospSecret.Data[instance.Spec.PasswordSelectors.Database]),
+			databaseAccount.Spec.UserName,
+			string(dbSecret.Data[mariadbv1.DatabasePasswordSelector]),
 			instance.Status.DatabaseHostname,
 			placement.DatabaseName,
 		),

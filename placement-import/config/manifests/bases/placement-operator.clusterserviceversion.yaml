@@ -18,6 +18,10 @@ spec:
       displayName: Placement API
       kind: PlacementAPI
       name: placementapis.placement.openstack.org
+      specDescriptors:
+      - description: TLS - Parameters related to the TLS
+        displayName: TLS
+        path: tls
       version: v1beta1
   description: Placement Operator
   displayName: Placement Operator

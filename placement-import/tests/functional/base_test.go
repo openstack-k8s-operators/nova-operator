@@ -34,6 +34,7 @@ type Names struct {
 	ConfigMapName          types.NamespacedName
 	DBSyncJobName          types.NamespacedName
 	MariaDBDatabaseName    types.NamespacedName
+	MariaDBAccount         types.NamespacedName
 	DeploymentName         types.NamespacedName
 	PublicServiceName      types.NamespacedName
 	InternalServiceName    types.NamespacedName
@@ -60,6 +61,9 @@ func CreateNames(placementAPIName types.NamespacedName) Names {
 		MariaDBDatabaseName: types.NamespacedName{
 			Namespace: placementAPIName.Namespace,
 			Name:      placement.DatabaseName},
+		MariaDBAccount: types.NamespacedName{
+			Namespace: placementAPIName.Namespace,
+			Name:      AccountName},
 		DeploymentName: types.NamespacedName{
 			Namespace: placementAPIName.Namespace,
 			Name:      placementAPIName.Name},
@@ -100,6 +104,7 @@ func GetDefaultPlacementAPISpec() map[string]interface{} {
 	return map[string]interface{}{
 		"databaseInstance": "openstack",
 		"secret":           SecretName,
+		"databaseAccount":  AccountName,
 	}
 }
 
@@ -108,6 +113,7 @@ func GetTLSPlacementAPISpec(names Names) map[string]interface{} {
 		"databaseInstance": "openstack",
 		"replicas":         1,
 		"secret":           SecretName,
+		"databaseAccount":  AccountName,
 		"tls": map[string]interface{}{
 			"api": map[string]interface{}{
 				"internal": map[string]interface{}{
