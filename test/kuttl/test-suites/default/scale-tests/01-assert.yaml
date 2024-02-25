@@ -513,3 +513,118 @@ status:
   readyReplicas: 1
   replicas: 1
 ---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  labels:
+    service: nova-conductor
+  name: nova-kuttl-cell0-db-purge
+  namespace: nova-kuttl-default
+spec:
+  concurrencyPolicy: Forbid
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      completions: 1
+      parallelism: 1
+      template:
+        spec:
+          containers:
+          - args:
+            - -c
+            - /usr/local/bin/kolla_start
+            command:
+            - /bin/bash
+            env:
+            - name: ARCHIVE_AGE
+              value: "30"
+            - name: KOLLA_BOOTSTRAP
+              value: "true"
+            - name: KOLLA_CONFIG_STRATEGY
+              value: COPY_ALWAYS
+            - name: PURGE_AGE
+              value: "90"
+            image: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
+            name: nova-manage
+            securityContext:
+              runAsUser: 42436
+            volumeMounts:
+            - mountPath: /var/lib/openstack/config
+              name: config-data
+            - mountPath: /var/lib/openstack/bin
+              name: scripts
+            - mountPath: /var/lib/kolla/config_files/config.json
+              name: config-data
+              subPath: nova-conductor-dbpurge-config.json
+          restartPolicy: OnFailure
+          serviceAccount: nova-nova-kuttl
+          serviceAccountName: nova-nova-kuttl
+          volumes:
+          - name: config-data
+            secret:
+              secretName: nova-kuttl-cell0-conductor-config-data
+          - name: scripts
+            secret:
+              secretName: nova-kuttl-cell0-conductor-scripts
+  schedule: 0 0 * * *
+  successfulJobsHistoryLimit: 3
+  suspend: false
+status: {}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  labels:
+    service: nova-conductor
+  name: nova-kuttl-cell1-db-purge
+  namespace: nova-kuttl-default
+spec:
+  concurrencyPolicy: Forbid
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      completions: 1
+      parallelism: 1
+      template:
+        spec:
+          containers:
+          - args:
+            - -c
+            - /usr/local/bin/kolla_start
+            command:
+            - /bin/bash
+            env:
+            - name: ARCHIVE_AGE
+              value: "30"
+            - name: KOLLA_BOOTSTRAP
+              value: "true"
+            - name: KOLLA_CONFIG_STRATEGY
+              value: COPY_ALWAYS
+            - name: PURGE_AGE
+              value: "90"
+            image: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
+            name: nova-manage
+            securityContext:
+              runAsUser: 42436
+            volumeMounts:
+            - mountPath: /var/lib/openstack/config
+              name: config-data
+            - mountPath: /var/lib/openstack/bin
+              name: scripts
+            - mountPath: /var/lib/kolla/config_files/config.json
+              name: config-data
+              subPath: nova-conductor-dbpurge-config.json
+          restartPolicy: OnFailure
+          serviceAccount: nova-nova-kuttl
+          serviceAccountName: nova-nova-kuttl
+          volumes:
+          - name: config-data
+            secret:
+              secretName: nova-kuttl-cell1-conductor-config-data
+          - name: scripts
+            secret:
+              secretName: nova-kuttl-cell1-conductor-scripts
+  schedule: 0 0 * * *
+  successfulJobsHistoryLimit: 3
+  suspend: false
+status: {}
