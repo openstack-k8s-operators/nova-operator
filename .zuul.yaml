@@ -14,7 +14,6 @@
           src: "~/src/github.com/{{ cifmw_operator_build_org }}/openstack-operator"
           image_base: nova
 
-
 - job:
     name: nova-operator-base
     description: |
@@ -41,22 +40,6 @@
       - ci/nova-operator-base/playbooks/pre-wrapper.yaml
     post-run:
       - ci/nova-operator-base/playbooks/collect-logs.yaml
-
-- job:
-    name: nova-operator-compute-kit
-    parent:  nova-operator-base
-    dependencies: ["nova-operator-content-provider"]
-    roles:
-      - zuul: github.com/openstack-k8s-operators/ci-framework
-    description: |
-      This job deploy a basic "Compute Starter Kit" topology
-      https://www.openstack.org/software/sample-configs#compute-starter-kit
-      that is the minium set of openstack services required to boot a vm.
-    requires:
-      - "nova-operator-content"
-    run:
-      - ci/nova-operator-compute-kit/playbooks/deploy-openstack.yaml
-      - ci/nova-operator-compute-kit/playbooks/tempest.yaml
 
 - job:
     name: nova-operator-kuttl
