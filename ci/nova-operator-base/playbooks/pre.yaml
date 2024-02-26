@@ -126,9 +126,3 @@
               oc wait InstallPlan {{ cifmw_edpm_prepare_wait_installplan_out.stdout }}
               --namespace=openstack-operators
               --for=jsonpath='{.status.phase}'=Complete --timeout=20m
-        - name: Update OpenStack Services containers Env
-          when: cifmw_edpm_prepare_update_os_containers | bool
-          vars:
-            cifmw_set_openstack_containers_extra_vars: "{{ cifmw_edpm_prepare_extra_vars }}"
-          ansible.builtin.include_role:
-            name: set_openstack_containers
