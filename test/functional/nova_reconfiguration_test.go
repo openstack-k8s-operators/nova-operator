@@ -24,7 +24,7 @@ import (
 
 	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
-	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
+
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -88,8 +88,6 @@ func CreateNovaWith3CellsAndEnsureReady(novaNames NovaNames) {
 	keystone.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
 	// END of common logic with Nova multicell test
 
-	mariadb.CreateMariaDBDatabase(novaNames.APIMariaDBDatabaseName.Namespace, novaNames.APIMariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
-	mariadb.CreateMariaDBAccount(novaNames.APIMariaDBDatabaseName.Namespace, novaNames.APIMariaDBDatabaseName.Name, mariadbv1.MariaDBAccountSpec{})
 	mariadb.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
 	mariadb.SimulateMariaDBAccountCompleted(novaNames.APIMariaDBDatabaseName)
 	mariadb.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
