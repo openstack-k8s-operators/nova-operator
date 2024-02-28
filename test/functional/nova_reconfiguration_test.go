@@ -640,18 +640,18 @@ var _ = Describe("Nova reconfiguration", func() {
 				th.GetStatefulSet(novaNames.MetadataStatefulSetName).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
 			g.Expect(newHash).NotTo(BeEmpty())
 			g.Expect(newHash).NotTo(Equal(originalHash))
+
+			//Assert that the compute config is updated too
+			computeConfigData := th.GetSecret(novaNames.MetadataNeutronConfigDataName)
+			g.Expect(computeConfigData).ShouldNot(BeNil())
+			g.Expect(computeConfigData.Data).Should(HaveKey("05-nova-metadata.conf"))
+			configData := string(computeConfigData.Data["05-nova-metadata.conf"])
+			g.Expect(configData).To(ContainSubstring("metadata_proxy_shared_secret = new-metadata-secret"))
+
+			newComputeHash := GetNovaMetadata(
+				novaNames.MetadataName).Status.Hash[novaNames.MetadataNeutronConfigDataName.Name]
+			g.Expect(originalComputeHash).NotTo(Equal(newComputeHash))
 		}, timeout, interval).Should(Succeed())
-
-		//Assert that the compute config is updated too
-		computeConfigData := th.GetSecret(novaNames.MetadataNeutronConfigDataName)
-		Expect(computeConfigData).ShouldNot(BeNil())
-		Expect(computeConfigData.Data).Should(HaveKey("05-nova-metadata.conf"))
-		configData := string(computeConfigData.Data["05-nova-metadata.conf"])
-		Expect(configData).To(ContainSubstring("metadata_proxy_shared_secret = new-metadata-secret"))
-
-		newComputeHash := GetNovaMetadata(
-			novaNames.MetadataName).Status.Hash[novaNames.MetadataNeutronConfigDataName.Name]
-		Expect(originalComputeHash).NotTo(Equal(newComputeHash))
 	})
 
 	It("reconfigures memcached service and check", func() {
