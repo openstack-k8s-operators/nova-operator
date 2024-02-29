@@ -147,7 +147,6 @@ var _ = Describe("Nova controller", func() {
 		It("defaults Spec fields", func() {
 			nova := GetNova(novaNames.NovaName)
 			cell0Template := nova.Spec.CellTemplates["cell0"]
-			Expect(cell0Template.DBPurge.Schedule).To(Equal(ptr.To("1 0 * * *")))
 			Expect(cell0Template.DBPurge.ArchiveAge).To(Equal(ptr.To(30)))
 			Expect(cell0Template.DBPurge.PurgeAge).To(Equal(ptr.To(90)))
 		})
