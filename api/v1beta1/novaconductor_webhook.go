@@ -23,7 +23,10 @@ limitations under the License.
 package v1beta1
 
 import (
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
@@ -80,7 +83,15 @@ var _ webhook.Validator = &NovaConductor{}
 func (r *NovaConductor) ValidateCreate() (admission.Warnings, error) {
 	novaconductorlog.Info("validate create", "name", r.Name)
 
-	// TODO(user): fill in your validation logic upon object creation.
+	errors := r.Spec.DBPurge.Validate(
+		field.NewPath("spec").Child("dbPurge"))
+
+	if len(errors) != 0 {
+		novaconductorlog.Info("validation failed", "name", r.Name)
+		return nil, apierrors.NewInvalid(
+			schema.GroupKind{Group: "nova.openstack.org", Kind: "NovaConductor"},
+			r.Name, errors)
+	}
 	return nil, nil
 }
 
@@ -88,7 +99,15 @@ func (r *NovaConductor) ValidateCreate() (admission.Warnings, error) {
 func (r *NovaConductor) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	novaconductorlog.Info("validate update", "name", r.Name)
 
-	// TODO(user): fill in your validation logic upon object update.
+	errors := r.Spec.DBPurge.Validate(
+		field.NewPath("spec").Child("dbPurge"))
+
+	if len(errors) != 0 {
+		novaconductorlog.Info("validation failed", "name", r.Name)
+		return nil, apierrors.NewInvalid(
+			schema.GroupKind{Group: "nova.openstack.org", Kind: "NovaConductor"},
+			r.Name, errors)
+	}
 	return nil, nil
 }
 

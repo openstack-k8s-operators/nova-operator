@@ -25,6 +25,8 @@ package v1beta1
 import (
 	"fmt"
 
+	"github.com/robfig/cron/v3"
+
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -191,6 +193,10 @@ func (r *NovaSpec) ValidateCellTemplates(basePath *field.Path) field.ErrorList {
 			cell.MetadataServiceTemplate.ValidateDefaultConfigOverwrite(
 				cellPath.Child("metadataServiceTemplate"))...)
 
+		errors = append(
+			errors,
+			cell.DBPurge.Validate(cellPath.Child("dbPurge"))...)
+
 		if name == Cell0Name {
 			errors = append(
 				errors,
@@ -300,4 +306,19 @@ func (r *Nova) ValidateDelete() (admission.Warnings, error) {
 
 	// TODO(user): fill in your validation logic upon object deletion.
 	return nil, nil
+}
+
+// Validate the field values
+func (r *NovaCellDBPurge) Validate(basePath *field.Path) field.ErrorList {
+	var errors field.ErrorList
+	// k8s uses the same cron lib to validate the schedule of the CronJob
+	// https://github.com/kubernetes/kubernetes/blob/master/pkg/apis/batch/validation/validation.go
+	if _, err := cron.ParseStandard(*r.Schedule); err != nil {
+		errors = append(
+			errors,
+			field.Invalid(
+				basePath.Child("schedule"), r.Schedule, err.Error()),
+		)
+	}
+	return errors
 }

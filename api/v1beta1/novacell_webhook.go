@@ -156,6 +156,11 @@ func (r *NovaCellSpec) validate(basePath *field.Path) field.ErrorList {
 		errors, ValidateCellName(
 			basePath.Child("cellName"), r.CellName)...,
 	)
+	errors = append(
+		errors,
+		r.DBPurge.Validate(basePath.Child("dbPurge"))...,
+	)
+
 	return errors
 }
 

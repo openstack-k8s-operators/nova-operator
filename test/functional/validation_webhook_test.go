@@ -927,4 +927,102 @@ var _ = Describe("Nova validation", func() {
 			),
 		)
 	})
+	It("rejects NovaConductor with wrong dbPurge.Schedule", func() {
+		spec := GetDefaultNovaConductorSpec(cell1)
+		spec["dbPurge"] = map[string]interface{}{
+			"schedule": "* * * *",
+		}
+		raw := map[string]interface{}{
+			"apiVersion": "nova.openstack.org/v1beta1",
+			"kind":       "NovaConductor",
+			"metadata": map[string]interface{}{
+				"name":      cell1.ConductorName.Name,
+				"namespace": novaNames.Namespace,
+			},
+			"spec": spec,
+		}
+
+		unstructuredObj := &unstructured.Unstructured{Object: raw}
+		_, err := controllerutil.CreateOrPatch(
+			ctx, k8sClient, unstructuredObj, func() error { return nil })
+
+		Expect(err).Should(HaveOccurred())
+		var statusError *k8s_errors.StatusError
+		Expect(errors.As(err, &statusError)).To(BeTrue())
+		Expect(statusError.ErrStatus.Details.Kind).To(Equal("NovaConductor"))
+		Expect(statusError.ErrStatus.Message).To(
+			ContainSubstring(
+				"invalid: spec.dbPurge.schedule: " +
+					"Invalid value: \"* * * *\": " +
+					"expected exactly 5 fields, found 4: [* * * *]",
+			),
+		)
+	})
+	It("rejects NovaCell with wrong dbPurge.Schedule", func() {
+		spec := GetDefaultNovaCellSpec(cell1)
+
+		spec["dbPurge"] = map[string]interface{}{
+			"schedule": "* * * * * 1",
+		}
+
+		raw := map[string]interface{}{
+			"apiVersion": "nova.openstack.org/v1beta1",
+			"kind":       "NovaCell",
+			"metadata": map[string]interface{}{
+				"name":      cell1.CellCRName.Name,
+				"namespace": novaNames.Namespace,
+			},
+			"spec": spec,
+		}
+
+		unstructuredObj := &unstructured.Unstructured{Object: raw}
+		_, err := controllerutil.CreateOrPatch(
+			ctx, k8sClient, unstructuredObj, func() error { return nil })
+
+		Expect(err).Should(HaveOccurred())
+		var statusError *k8s_errors.StatusError
+		Expect(errors.As(err, &statusError)).To(BeTrue())
+		Expect(statusError.ErrStatus.Details.Kind).To(Equal("NovaCell"))
+		Expect(statusError.ErrStatus.Message).To(
+			ContainSubstring(
+				"invalid: spec.dbPurge.schedule: " +
+					"Invalid value: \"* * * * * 1\": " +
+					"expected exactly 5 fields, found 6: [* * * * * 1]",
+			),
+		)
+	})
+	It("rejects Nova with wrong dbPurge.Schedule in cellTemplate", func() {
+		spec := GetDefaultNovaSpec()
+		cell0 := GetDefaultNovaCellTemplate()
+		cell1 := GetDefaultNovaCellTemplate()
+		cell1["dbPurge"] = map[string]interface{}{
+			"schedule": "@dailyX",
+		}
+		spec["cellTemplates"] = map[string]interface{}{"cell0": cell0, "cell1": cell1}
+		raw := map[string]interface{}{
+			"apiVersion": "nova.openstack.org/v1beta1",
+			"kind":       "Nova",
+			"metadata": map[string]interface{}{
+				"name":      novaNames.NovaName.Name,
+				"namespace": novaNames.Namespace,
+			},
+			"spec": spec,
+		}
+		unstructuredObj := &unstructured.Unstructured{Object: raw}
+		_, err := controllerutil.CreateOrPatch(
+			ctx, k8sClient, unstructuredObj, func() error { return nil })
+
+		Expect(err).Should(HaveOccurred())
+		var statusError *k8s_errors.StatusError
+		Expect(errors.As(err, &statusError)).To(BeTrue())
+		Expect(statusError.ErrStatus.Details.Kind).To(Equal("Nova"))
+		Expect(statusError.ErrStatus.Message).To(
+			ContainSubstring(
+				"invalid: spec.cellTemplates[cell1]." +
+					"dbPurge.schedule: " +
+					"Invalid value: \"@dailyX\": " +
+					"unrecognized descriptor: @dailyX",
+			),
+		)
+	})
 })
