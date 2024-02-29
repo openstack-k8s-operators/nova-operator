@@ -7,16 +7,16 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/gophercloud/gophercloud v1.9.0
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.4.0
-	github.com/onsi/ginkgo/v2 v2.14.0
-	github.com/onsi/gomega v1.30.0
-	github.com/openstack-k8s-operators/infra-operator/apis v0.3.1-0.20240219072823-a587b364203f
-	github.com/openstack-k8s-operators/keystone-operator/api v0.3.1-0.20240219094943-9bbb46c9afba
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.3.1-0.20240227073850-ffd41379d759
-	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.3.1-0.20240227073850-ffd41379d759
-	github.com/openstack-k8s-operators/lib-common/modules/test v0.3.1-0.20240227073850-ffd41379d759
-	github.com/openstack-k8s-operators/mariadb-operator/api v0.3.1-0.20240220132409-f96d4d040f4e
+	github.com/onsi/ginkgo/v2 v2.15.0
+	github.com/onsi/gomega v1.31.1
+	github.com/openstack-k8s-operators/infra-operator/apis v0.3.1-0.20240221083751-49edc0df8a12
+	github.com/openstack-k8s-operators/keystone-operator/api v0.3.1-0.20240226160457-b1b853eb4600
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.3.1-0.20240229121803-169ced56d56e
+	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.3.1-0.20240229121803-169ced56d56e
+	github.com/openstack-k8s-operators/lib-common/modules/test v0.3.1-0.20240229121803-169ced56d56e
+	github.com/openstack-k8s-operators/mariadb-operator/api v0.3.1-0.20240222094307-76fef735f093
 	github.com/openstack-k8s-operators/nova-operator/api v0.0.0-20221209164002-f9e6b9363961
-	go.uber.org/zap v1.26.0
+	go.uber.org/zap v1.27.0
 	golang.org/x/exp v0.0.0-20240213143201-ec583247a57a
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.28.7
