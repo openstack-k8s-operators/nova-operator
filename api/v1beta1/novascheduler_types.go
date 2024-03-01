@@ -29,9 +29,15 @@ import (
 // NovaSchedulerTemplate defines the input parameters specified by the user to
 // create a NovaScheduler via higher level CRDs.
 type NovaSchedulerTemplate struct {
+	NovaSchedulerTemplateCore `json:",inline"`
+
 	// +kubebuilder:validation:Optional
 	// The service specific Container Image URL (will be set to environmental default if empty)
 	ContainerImage string `json:"containerImage"`
+}
+
+// NovaSchedulerTemplateCore -
+type NovaSchedulerTemplateCore struct {
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=1
@@ -65,6 +71,10 @@ type NovaSchedulerTemplate struct {
 type NovaSchedulerSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
+
+	// +kubebuilder:validation:Optional
+	// The service specific Container Image URL (will be set to environmental default if empty)
+	ContainerImage string `json:"containerImage"`
 
 	// +kubebuilder:validation:Required
 	// Secret is the name of the Secret instance containing password

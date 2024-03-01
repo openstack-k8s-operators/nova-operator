@@ -31,6 +31,15 @@ import (
 // create a NovaMetadata via higher level CRDs.
 type NovaMetadataTemplate struct {
 	// +kubebuilder:validation:Optional
+	// The service specific Container Image URL (will be set to environmental default if empty)
+	ContainerImage string `json:"containerImage"`
+
+	NovaMetadataTemplateCore `json:",inline"`
+}
+
+// NovaMetadataTemplateCore - this version is used by the OpenStackControlplane
+type NovaMetadataTemplateCore struct {
+	// +kubebuilder:validation:Optional
 	// Enabled - Whether NovaMetadata services should be deployed and managed.
 	// If it is set to false then the related NovaMetadata CR will be deleted
 	// if exists and owned by a higher level nova CR (Nova or NovaCell). If it
@@ -44,10 +53,6 @@ type NovaMetadataTemplate struct {
 	Enabled *bool `json:"enabled"`
 	// NOTE(gibi): the default value of enabled depends on the context so
 	// it is set by webhooks
-
-	// +kubebuilder:validation:Optional
-	// The service specific Container Image URL (will be set to environmental default if empty)
-	ContainerImage string `json:"containerImage"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=1
@@ -101,6 +106,10 @@ type MetadataOverrideSpec struct {
 type NovaMetadataSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
+
+	// +kubebuilder:validation:Optional
+	// The service specific Container Image URL (will be set to environmental default if empty)
+	ContainerImage string `json:"containerImage"`
 
 	// +kubebuilder:validation:Optional
 	// CellName is the name of the Nova Cell this metadata service belongs to.
@@ -242,6 +251,7 @@ func NewNovaMetadataSpec(
 ) NovaMetadataSpec {
 
 	metadataSpec := NovaMetadataSpec{
+		ContainerImage:       novaCell.MetadataServiceTemplate.ContainerImage,
 		CellName:             novaCell.CellName,
 		Secret:               novaCell.Secret,
 		CellDatabaseHostname: novaCell.CellDatabaseHostname,
@@ -249,7 +259,6 @@ func NewNovaMetadataSpec(
 		APIDatabaseHostname:  novaCell.APIDatabaseHostname,
 		APIDatabaseAccount:   novaCell.APIDatabaseAccount,
 		NovaServiceBase: NovaServiceBase{
-			ContainerImage:      novaCell.MetadataServiceTemplate.ContainerImage,
 			Replicas:            novaCell.MetadataServiceTemplate.Replicas,
 			NodeSelector:        novaCell.MetadataServiceTemplate.NodeSelector,
 			CustomServiceConfig: novaCell.MetadataServiceTemplate.CustomServiceConfig,

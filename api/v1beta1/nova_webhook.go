@@ -138,6 +138,45 @@ func (spec *NovaSpec) Default() {
 	}
 }
 
+// Default - set defaults for this Nova spec
+func (spec *NovaSpecCore) Default() {
+
+	// NOTE(gibi): this cannot be expressed as kubebuilder defaults as the
+	// MetadataServiceTemplate is used both in the cellTemplate and in the
+	// NovaSpec but we need different defaults in the two places
+	if spec.MetadataServiceTemplate.Enabled == nil {
+		spec.MetadataServiceTemplate.Enabled = ptr.To(true)
+	}
+
+	for cellName, cellTemplate := range spec.CellTemplates {
+
+		if cellTemplate.MetadataServiceTemplate.Enabled == nil {
+			cellTemplate.MetadataServiceTemplate.Enabled = ptr.To(false)
+		}
+
+		if cellName == Cell0Name {
+			// in cell0 disable VNC by default
+			if cellTemplate.NoVNCProxyServiceTemplate.Enabled == nil {
+				cellTemplate.NoVNCProxyServiceTemplate.Enabled = ptr.To(false)
+			}
+		} else {
+			// in other cells enable VNC by default
+			if cellTemplate.NoVNCProxyServiceTemplate.Enabled == nil {
+				cellTemplate.NoVNCProxyServiceTemplate.Enabled = ptr.To(true)
+			}
+		}
+
+		for computeName, computeTemplate := range cellTemplate.NovaComputeTemplates {
+			if computeTemplate.ContainerImage == "" {
+				computeTemplate.ContainerImage = novaCellDefaults.NovaComputeContainerImageURL
+			}
+			cellTemplate.NovaComputeTemplates[computeName] = computeTemplate
+		}
+		// "cellTemplate" is a by-value copy, so we need to re-inject the updated version of it into the map
+		spec.CellTemplates[cellName] = cellTemplate
+	}
+}
+
 // NOTE: change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
 //+kubebuilder:webhook:path=/validate-nova-openstack-org-v1beta1-nova,mutating=false,failurePolicy=fail,sideEffects=None,groups=nova.openstack.org,resources=nova,verbs=create;update,versions=v1beta1,name=vnova.kb.io,admissionReviewVersions=v1
 

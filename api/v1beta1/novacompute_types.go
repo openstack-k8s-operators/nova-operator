@@ -30,6 +30,15 @@ import (
 // NovaComputeTemplate defines the input parameters specified by the user to
 // create a NovaCompute via higher level CRDs.
 type NovaComputeTemplate struct {
+	NovaComputeTemplateCore `json:",inline"`
+
+	// +kubebuilder:validation:Optional
+	// ContainerImage - The service specific Container Image URL (will be set to environmental default if empty)
+	ContainerImage string `json:"containerImage"`
+}
+
+// NovaComputeTemplateCore - this version of the NovaComputeTemplate is used by OpenStackControlplane
+type NovaComputeTemplateCore struct {
 	// +kubebuilder:validation:Optional
 	// ContainerImage - The service specific Container Image URL (will be set to environmental default if empty)
 	ContainerImage string `json:"containerImage"`
@@ -75,6 +84,10 @@ type NovaComputeTemplate struct {
 type NovaComputeSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
+
+	// +kubebuilder:validation:Optional
+	// The service specific Container Image URL (will be set to environmental default if empty)
+	ContainerImage string `json:"containerImage"`
 
 	// +kubebuilder:validation:Required
 	// CellName is the name of the Nova Cell this NovaCompute belongs to.
@@ -199,11 +212,11 @@ func NewNovaComputeSpec(
 	novaComputeName string,
 ) NovaComputeSpec {
 	novacomputeSpec := NovaComputeSpec{
-		CellName:    novaCell.CellName,
-		ComputeName: novaComputeName,
-		Secret:      novaCell.Secret,
+		ContainerImage: computeTemplate.ContainerImage,
+		CellName:       novaCell.CellName,
+		ComputeName:    novaComputeName,
+		Secret:         novaCell.Secret,
 		NovaServiceBase: NovaServiceBase{
-			ContainerImage:      computeTemplate.ContainerImage,
 			Replicas:            computeTemplate.Replicas,
 			NodeSelector:        computeTemplate.NodeSelector,
 			CustomServiceConfig: computeTemplate.CustomServiceConfig,

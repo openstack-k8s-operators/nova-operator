@@ -26,6 +26,68 @@ import (
 
 // NovaSpec defines the desired state of Nova
 type NovaSpec struct {
+	NovaSpecBase `json:",inline"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default={cell0: {cellDatabaseAccount: nova-cell0, hasAPIAccess: true}, cell1: {cellDatabaseAccount: nova-cell1, cellDatabaseInstance: openstack-cell1, cellMessageBusInstance: rabbitmq-cell1, hasAPIAccess: true}}
+	// Cells is a mapping of cell names to NovaCellTemplate objects defining
+	// the cells in the deployment. The "cell0" cell is a mandatory cell in
+	// every deployment. Moreover any real deployment needs at least one
+	// additional normal cell as "cell0" cannot have any computes.
+	CellTemplates map[string]NovaCellTemplate `json:"cellTemplates"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default={replicas:1}
+	// APIServiceTemplate - define the nova-api service
+	APIServiceTemplate NovaAPITemplate `json:"apiServiceTemplate"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default={replicas:1}
+	// SchedulerServiceTemplate- define the nova-scheduler service
+	SchedulerServiceTemplate NovaSchedulerTemplate `json:"schedulerServiceTemplate"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default={enabled: true}
+	// MetadataServiceTemplate - defines the metadata service that is global
+	// for the deployment serving all the cells. Note that if you want to
+	// deploy metadata per cell then the metadata service should be disabled
+	// here and enabled in the cellTemplates instead.
+	MetadataServiceTemplate NovaMetadataTemplate `json:"metadataServiceTemplate"`
+}
+
+// NovaSpecCore defines the desired state of Nova. This version is without containerImages for use with OpenStackControlplane
+type NovaSpecCore struct {
+	NovaSpecBase `json:",inline"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default={cell0: {cellDatabaseAccount: nova-cell0, hasAPIAccess: true}, cell1: {cellDatabaseAccount: nova-cell1, cellDatabaseInstance: openstack-cell1, cellMessageBusInstance: rabbitmq-cell1, hasAPIAccess: true}}
+	// Cells is a mapping of cell names to NovaCellTemplate objects defining
+	// the cells in the deployment. The "cell0" cell is a mandatory cell in
+	// every deployment. Moreover any real deployment needs at least one
+	// additional normal cell as "cell0" cannot have any computes.
+	CellTemplates map[string]NovaCellTemplateCore `json:"cellTemplates"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default={replicas:1}
+	// APIServiceTemplate - define the nova-api service
+	APIServiceTemplate NovaAPITemplateCore `json:"apiServiceTemplate"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default={replicas:1}
+	// SchedulerServiceTemplate- define the nova-scheduler service
+	SchedulerServiceTemplate NovaSchedulerTemplateCore `json:"schedulerServiceTemplate"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default={enabled: true}
+	// MetadataServiceTemplate - defines the metadata service that is global
+	// for the deployment serving all the cells. Note that if you want to
+	// deploy metadata per cell then the metadata service should be disabled
+	// here and enabled in the cellTemplates instead.
+	MetadataServiceTemplate NovaMetadataTemplateCore `json:"metadataServiceTemplate"`
+}
+
+// NovaSpecBase
+type NovaSpecBase struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
@@ -47,14 +109,6 @@ type NovaSpec struct {
 	// the Message Bus Service instance used by the Nova top level services to
 	// communicate.
 	APIMessageBusInstance string `json:"apiMessageBusInstance"`
-
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default={cell0: {cellDatabaseAccount: nova-cell0, hasAPIAccess: true}, cell1: {cellDatabaseAccount: nova-cell1, cellDatabaseInstance: openstack-cell1, cellMessageBusInstance: rabbitmq-cell1, hasAPIAccess: true}}
-	// Cells is a mapping of cell names to NovaCellTemplate objects defining
-	// the cells in the deployment. The "cell0" cell is a mandatory cell in
-	// every deployment. Moreover any real deployment needs at least one
-	// additional normal cell as "cell0" cannot have any computes.
-	CellTemplates map[string]NovaCellTemplate `json:"cellTemplates"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default="nova"
@@ -87,24 +141,6 @@ type NovaSpec struct {
 	// +kubebuilder:default=false
 	// PreserveJobs - do not delete jobs after they finished e.g. to check logs
 	PreserveJobs bool `json:"preserveJobs"`
-
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default={replicas:1}
-	// APIServiceTemplate - define the nova-api service
-	APIServiceTemplate NovaAPITemplate `json:"apiServiceTemplate"`
-
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default={replicas:1}
-	// SchedulerServiceTemplate- define the nova-scheduler service
-	SchedulerServiceTemplate NovaSchedulerTemplate `json:"schedulerServiceTemplate"`
-
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default={enabled: true}
-	// MetadataServiceTemplate - defines the metadata service that is global
-	// for the deployment serving all the cells. Note that if you want to
-	// deploy metadata per cell then the metadata service should be disabled
-	// here and enabled in the cellTemplates instead.
-	MetadataServiceTemplate NovaMetadataTemplate `json:"metadataServiceTemplate"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=memcached

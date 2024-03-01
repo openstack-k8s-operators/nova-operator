@@ -44,9 +44,6 @@ const (
 
 // NovaServiceBase contains the fields that are needed for each nova service CRD
 type NovaServiceBase struct {
-	// +kubebuilder:validation:Optional
-	// The service specific Container Image URL (will be set to environmental default if empty)
-	ContainerImage string `json:"containerImage"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=1

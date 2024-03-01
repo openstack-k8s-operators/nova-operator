@@ -33,31 +33,7 @@ const (
 // NovaCellTemplate defines the input parameters specified by the user to
 // create a NovaCell via higher level CRDs.
 type NovaCellTemplate struct {
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=openstack
-	// CellDatabaseInstance is the name of the MariaDB CR to select the DB
-	// Service instance used as the DB of this cell.
-	CellDatabaseInstance string `json:"cellDatabaseInstance"`
-
-	// +kubebuilder:validation:Required
-	// CellDatabaseAccount - MariaDBAccount to use when accessing the give cell DB
-	CellDatabaseAccount string `json:"cellDatabaseAccount"`
-
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=rabbitmq
-	// CellMessageBusInstance is the name of the RabbitMqCluster CR to select
-	// the Message Bus Service instance used by the nova services to
-	// communicate in this cell. For cell0 it is unused.
-	CellMessageBusInstance string `json:"cellMessageBusInstance"`
-
-	// +kubebuilder:validation:Required
-	// HasAPIAccess defines if this Cell is configured to have access to the
-	// API DB and message bus.
-	HasAPIAccess bool `json:"hasAPIAccess"`
-
-	// +kubebuilder:validation:Optional
-	// NodeSelector to target subset of worker nodes running cell.
-	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+	NovaCellTemplateBase `json:",inline"`
 
 	// +kubebuilder:validation:Optional
 	// ConductorServiceTemplate - defines the cell conductor deployment for the cell.
@@ -84,6 +60,67 @@ type NovaCellTemplate struct {
 	// compute_name: compute_template. Key from map is arbitrary name for the compute with
 	// a limit of 20 characters.
 	NovaComputeTemplates map[string]NovaComputeTemplate `json:"novaComputeTemplates,omitempty"`
+}
+
+// NovaCellTemplateCore - defines the input parameters specified by the user to
+// create a NovaCell via higher level CRDs. This version is without containerImages for use with OpenStackControlplane
+type NovaCellTemplateCore struct {
+	NovaCellTemplateBase `json:",inline"`
+
+	// +kubebuilder:validation:Optional
+	// ConductorServiceTemplate - defines the cell conductor deployment for the cell.
+	ConductorServiceTemplate NovaConductorTemplateCore `json:"conductorServiceTemplate"`
+
+	// +kubebuilder:validation:Optional
+	// MetadataServiceTemplate - defines the metadata service dedicated for the
+	// cell. Note that for cell0 metadata service should not be deployed. Also
+	// if metadata service needs to be deployed per cell here then it should
+	// not be enabled to be deployed on the top level via the Nova CR at the
+	// same time. By default Nova CR deploys the metadata service at the top
+	// level and disables it on the cell level.
+	MetadataServiceTemplate NovaMetadataTemplateCore `json:"metadataServiceTemplate"`
+
+	// +kubebuilder:validation:Optional
+	// NoVNCProxyServiceTemplate - defines the novncproxy service dedicated for
+	// the cell. Note that for cell0 novncproxy should not be deployed so
+	// the enabled field of this template is defaulted to false in cell0 but
+	// defaulted to true in other cells.
+	NoVNCProxyServiceTemplate NovaNoVNCProxyTemplateCore `json:"noVNCProxyServiceTemplate"`
+
+	// +kubebuilder:validation:Optional
+	// NovaComputeTemplates - map of nova computes template with selected drivers in format
+	// compute_name: compute_template. Key from map is arbitrary name for the compute with
+	// a limit of 20 characters.
+	NovaComputeTemplates map[string]NovaComputeTemplateCore `json:"novaComputeTemplates,omitempty"`
+}
+
+// NovaCellTemplateBase -
+type NovaCellTemplateBase struct {
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=openstack
+	// CellDatabaseInstance is the name of the MariaDB CR to select the DB
+	// Service instance used as the DB of this cell.
+	CellDatabaseInstance string `json:"cellDatabaseInstance"`
+
+	// +kubebuilder:validation:Required
+	// CellDatabaseAccount - MariaDBAccount to use when accessing the give cell DB
+	CellDatabaseAccount string `json:"cellDatabaseAccount"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=rabbitmq
+	// CellMessageBusInstance is the name of the RabbitMqCluster CR to select
+	// the Message Bus Service instance used by the nova services to
+	// communicate in this cell. For cell0 it is unused.
+	CellMessageBusInstance string `json:"cellMessageBusInstance"`
+
+	// +kubebuilder:validation:Required
+	// HasAPIAccess defines if this Cell is configured to have access to the
+	// API DB and message bus.
+	HasAPIAccess bool `json:"hasAPIAccess"`
+
+	// +kubebuilder:validation:Optional
+	// NodeSelector to target subset of worker nodes running cell.
+	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	// MemcachedInstance is the name of the Memcached CR that the services in the cell will use.

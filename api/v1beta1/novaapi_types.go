@@ -38,6 +38,11 @@ type NovaAPITemplate struct {
 	// ContainerImage - The service specific Container Image URL (will be set to environmental default if empty)
 	ContainerImage string `json:"containerImage"`
 
+	NovaAPITemplateCore `json:",inline"`
+}
+
+// NovaAPITemplateCore - this struct is used by OpenStackControlPlane and contains no image URL
+type NovaAPITemplateCore struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=1
 	// +kubebuilder:validation:Maximum=32
@@ -88,8 +93,13 @@ type APIOverrideSpec struct {
 
 // NovaAPISpec defines the desired state of NovaAPI
 type NovaAPISpec struct {
+
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
+
+	// +kubebuilder:validation:Optional
+	// The service specific Container Image URL (will be set to environmental default if empty)
+	ContainerImage string `json:"containerImage"`
 
 	// +kubebuilder:validation:Required
 	// Secret is the name of the Secret instance containing password

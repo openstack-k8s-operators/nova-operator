@@ -1071,13 +1071,13 @@ func (r *NovaReconciler) ensureAPI(
 	// TODO(gibi): Pass down a narrowed secret that only hold
 	// specific information but also holds user names
 	apiSpec := novav1.NovaAPISpec{
+		ContainerImage:        instance.Spec.APIServiceTemplate.ContainerImage,
 		Secret:                secretName,
 		APIDatabaseHostname:   apiDB.GetDatabaseHostname(),
 		APIDatabaseAccount:    instance.Spec.APIDatabaseAccount,
 		Cell0DatabaseHostname: cell0DB.GetDatabaseHostname(),
 		Cell0DatabaseAccount:  cell0Template.CellDatabaseAccount,
 		NovaServiceBase: novav1.NovaServiceBase{
-			ContainerImage:      instance.Spec.APIServiceTemplate.ContainerImage,
 			Replicas:            instance.Spec.APIServiceTemplate.Replicas,
 			NodeSelector:        instance.Spec.APIServiceTemplate.NodeSelector,
 			CustomServiceConfig: instance.Spec.APIServiceTemplate.CustomServiceConfig,
@@ -1152,6 +1152,7 @@ func (r *NovaReconciler) ensureScheduler(
 	// TODO(gibi): Pass down a narrowed secret that only hold
 	// specific information but also holds user names
 	spec := novav1.NovaSchedulerSpec{
+		ContainerImage:        instance.Spec.SchedulerServiceTemplate.ContainerImage,
 		Secret:                secretName,
 		APIDatabaseHostname:   apiDB.GetDatabaseHostname(),
 		APIDatabaseAccount:    instance.Spec.APIDatabaseAccount,
@@ -1161,7 +1162,7 @@ func (r *NovaReconciler) ensureScheduler(
 		// has exactly the same fields as the SchedulerServiceTemplate so we
 		// can convert between them directly. As soon as these two structs
 		// start to diverge we need to copy fields one by one here.
-		NovaServiceBase: novav1.NovaServiceBase(instance.Spec.SchedulerServiceTemplate),
+		NovaServiceBase: novav1.NovaServiceBase(instance.Spec.SchedulerServiceTemplate.NovaSchedulerTemplateCore),
 		KeystoneAuthURL: keystoneAuthURL,
 		ServiceUser:     instance.Spec.ServiceUser,
 		ServiceAccount:  instance.RbacResourceName(),
@@ -1496,13 +1497,13 @@ func (r *NovaReconciler) ensureMetadata(
 	// TODO(gibi): Pass down a narrowed secret that only hold
 	// specific information but also holds user names
 	apiSpec := novav1.NovaMetadataSpec{
+		ContainerImage:       instance.Spec.MetadataServiceTemplate.ContainerImage,
 		Secret:               secretName,
 		APIDatabaseHostname:  apiDB.GetDatabaseHostname(),
 		APIDatabaseAccount:   instance.Spec.APIDatabaseAccount,
 		CellDatabaseHostname: cell0DB.GetDatabaseHostname(),
 		CellDatabaseAccount:  cell0Template.CellDatabaseAccount,
 		NovaServiceBase: novav1.NovaServiceBase{
-			ContainerImage:      instance.Spec.MetadataServiceTemplate.ContainerImage,
 			Replicas:            instance.Spec.MetadataServiceTemplate.Replicas,
 			NodeSelector:        instance.Spec.MetadataServiceTemplate.NodeSelector,
 			CustomServiceConfig: instance.Spec.MetadataServiceTemplate.CustomServiceConfig,

@@ -30,6 +30,16 @@ import (
 // NovaNoVNCProxyTemplate defines the input parameters specified by the user to
 // create a NovaNoVNCProxy via higher level CRDs.
 type NovaNoVNCProxyTemplate struct {
+
+	// +kubebuilder:validation:Optional
+	// The service specific Container Image URL (will be set to environmental default if empty)
+	ContainerImage string `json:"containerImage"`
+
+	NovaNoVNCProxyTemplateCore `json:",inline"`
+}
+
+// NovaNoVNCProxyTemplateCore - this version is used by the OpenStackControlplane
+type NovaNoVNCProxyTemplateCore struct {
 	// +kubebuilder:validation:Optional
 	// Enabled - Whether NovaNoVNCProxy services should be deployed and managed.
 	// If it is set to false then the related NovaNoVNCProxy CR will be deleted
@@ -41,10 +51,6 @@ type NovaNoVNCProxyTemplate struct {
 	// NovaCell be in error state until the manually create NovaNoVNCProxy CR
 	// is deleted by the operator.
 	Enabled *bool `json:"enabled"`
-
-	// +kubebuilder:validation:Optional
-	// The service specific Container Image URL (will be set to environmental default if empty)
-	ContainerImage string `json:"containerImage"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=1
@@ -92,6 +98,10 @@ type VNCProxyOverrideSpec struct {
 type NovaNoVNCProxySpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
+
+	// +kubebuilder:validation:Optional
+	// The service specific Container Image URL (will be set to environmental default if empty)
+	ContainerImage string `json:"containerImage"`
 
 	// +kubebuilder:validation:Required
 	// CellName is the name of the Nova Cell this novncproxy belongs to.
@@ -202,12 +212,12 @@ func NewNovaNoVNCProxySpec(
 	novaCell NovaCellSpec,
 ) NovaNoVNCProxySpec {
 	noVNCProxSpec := NovaNoVNCProxySpec{
+		ContainerImage:       novaCell.NoVNCProxyServiceTemplate.ContainerImage,
 		CellName:             novaCell.CellName,
 		Secret:               novaCell.Secret,
 		CellDatabaseHostname: novaCell.CellDatabaseHostname,
 		CellDatabaseAccount:  novaCell.CellDatabaseAccount,
 		NovaServiceBase: NovaServiceBase{
-			ContainerImage:      novaCell.NoVNCProxyServiceTemplate.ContainerImage,
 			Replicas:            novaCell.NoVNCProxyServiceTemplate.Replicas,
 			NodeSelector:        novaCell.NoVNCProxyServiceTemplate.NodeSelector,
 			CustomServiceConfig: novaCell.NoVNCProxyServiceTemplate.CustomServiceConfig,

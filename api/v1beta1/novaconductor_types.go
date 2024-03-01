@@ -33,6 +33,12 @@ type NovaConductorTemplate struct {
 	// The service specific Container Image URL (will be set to environmental default if empty)
 	ContainerImage string `json:"containerImage"`
 
+	NovaConductorTemplateCore `json:",inline"`
+}
+
+// NovaConductorTemplateCore - this version is used by OpenStackControlplane
+type NovaConductorTemplateCore struct {
+
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=1
 	// +kubebuilder:validation:Maximum=32
@@ -65,6 +71,10 @@ type NovaConductorTemplate struct {
 type NovaConductorSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
+
+	// +kubebuilder:validation:Optional
+	// The service specific Container Image URL (will be set to environmental default if empty)
+	ContainerImage string `json:"containerImage"`
 
 	// +kubebuilder:validation:Required
 	// CellName is the name of the Nova Cell this conductor belongs to.
@@ -199,7 +209,7 @@ func NewNovaConductorSpec(
 		CellDatabaseAccount:  novaCell.CellDatabaseAccount,
 		APIDatabaseHostname:  novaCell.APIDatabaseHostname,
 		APIDatabaseAccount:   novaCell.APIDatabaseAccount,
-		NovaServiceBase:      NovaServiceBase(novaCell.ConductorServiceTemplate),
+		NovaServiceBase:      NovaServiceBase(novaCell.ConductorServiceTemplate.NovaConductorTemplateCore),
 		KeystoneAuthURL:      novaCell.KeystoneAuthURL,
 		ServiceUser:          novaCell.ServiceUser,
 		ServiceAccount:       novaCell.ServiceAccount,
