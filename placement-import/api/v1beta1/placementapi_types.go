@@ -41,6 +41,15 @@ const (
 
 // PlacementAPISpec defines the desired state of PlacementAPI
 type PlacementAPISpec struct {
+	PlacementAPISpecCore `json:",inline"`
+
+	// +kubebuilder:validation:Required
+	// PlacementAPI Container Image URL (will be set to environmental default if empty)
+	ContainerImage string `json:"containerImage"`
+}
+
+// PlacementAPISpecCore -
+type PlacementAPISpecCore struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=placement
 	// ServiceUser - optional username used for this service to register in keystone
@@ -56,10 +65,6 @@ type PlacementAPISpec struct {
 	// +kubebuilder:default=placement
 	// DatabaseAccount - name of MariaDBAccount which will be used to connect.
 	DatabaseAccount string `json:"databaseAccount"`
-
-	// +kubebuilder:validation:Required
-	// PlacementAPI Container Image URL (will be set to environmental default if empty)
-	ContainerImage string `json:"containerImage"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=1

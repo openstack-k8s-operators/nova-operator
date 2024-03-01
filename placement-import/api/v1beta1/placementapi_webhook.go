@@ -75,6 +75,11 @@ func (spec *PlacementAPISpec) Default() {
 	}
 }
 
+// Default - set defaults for this PlacementAPI core spec (this version is used by the OpenStackControlplane webhook)
+func (spec *PlacementAPISpecCore) Default() {
+	// nothing here yet
+}
+
 // TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
 //+kubebuilder:webhook:path=/validate-placement-openstack-org-v1beta1-placementapi,mutating=false,failurePolicy=fail,sideEffects=None,groups=placement.openstack.org,resources=placementapis,verbs=create;update,versions=v1beta1,name=vplacementapi.kb.io,admissionReviewVersions=v1
 
