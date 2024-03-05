@@ -919,13 +919,15 @@ var _ = Describe("PlacementAPI controller", func() {
 	mariadb_suite.RunBasicSuite()
 
 	mariadb_suite.RunURLAssertSuite(func(accountName types.NamespacedName, username string, password string) {
-		cm := th.GetSecret(names.ConfigMapName)
+		Eventually(func(g Gomega) {
+			cm := th.GetSecret(names.ConfigMapName)
 
-		conf := cm.Data["placement.conf"]
+			conf := cm.Data["placement.conf"]
 
-		Expect(string(conf)).Should(
-			ContainSubstring(fmt.Sprintf("connection = mysql+pymysql://%s:%s@hostname-for-openstack.%s.svc/placement?read_default_file=/etc/my.cnf",
-				username, password, namespace)))
+			g.Expect(string(conf)).Should(
+				ContainSubstring(fmt.Sprintf("connection = mysql+pymysql://%s:%s@hostname-for-openstack.%s.svc/placement?read_default_file=/etc/my.cnf",
+					username, password, namespace)))
+		}, timeout, interval).Should(Succeed())
 
 	})
 
