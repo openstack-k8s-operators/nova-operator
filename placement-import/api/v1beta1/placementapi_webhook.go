@@ -126,18 +126,27 @@ func (r *PlacementAPI) ValidateDelete() (admission.Warnings, error) {
 }
 
 func (r PlacementAPISpec) ValidateCreate(basePath *field.Path) field.ErrorList {
-	return r.ValidateDefaultConfigOverwrite(basePath)
+	return ValidateDefaultConfigOverwrite(basePath, r.DefaultConfigOverwrite)
 }
 
 func (r PlacementAPISpec) ValidateUpdate(old PlacementAPISpec, basePath *field.Path) field.ErrorList {
-	return r.ValidateDefaultConfigOverwrite(basePath)
+	return ValidateDefaultConfigOverwrite(basePath, r.DefaultConfigOverwrite)
 }
 
-func (r PlacementAPISpec) ValidateDefaultConfigOverwrite(
+func (r PlacementAPISpecCore) ValidateCreate(basePath *field.Path) field.ErrorList {
+	return ValidateDefaultConfigOverwrite(basePath, r.DefaultConfigOverwrite)
+}
+
+func (r PlacementAPISpecCore) ValidateUpdate(old PlacementAPISpec, basePath *field.Path) field.ErrorList {
+	return ValidateDefaultConfigOverwrite(basePath, r.DefaultConfigOverwrite)
+}
+
+func ValidateDefaultConfigOverwrite(
 	basePath *field.Path,
+	validateConfigOverwrite map[string]string,
 ) field.ErrorList {
 	var errors field.ErrorList
-	for requested := range r.DefaultConfigOverwrite {
+	for requested := range validateConfigOverwrite {
 		if requested != "policy.yaml" {
 			errors = append(
 				errors,
