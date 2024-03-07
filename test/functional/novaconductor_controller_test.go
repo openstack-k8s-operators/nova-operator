@@ -52,7 +52,9 @@ var _ = Describe("NovaConductor controller", func() {
 		DeferCleanup(k8sClient.Delete, ctx, cell0Secret)
 
 		memcachedSpec := memcachedv1.MemcachedSpec{
-			Replicas: ptr.To(int32(3)),
+			MemcachedSpecCore: memcachedv1.MemcachedSpecCore{
+				Replicas: ptr.To(int32(3)),
+			},
 		}
 		DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 		infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
@@ -477,7 +479,9 @@ var _ = Describe("NovaConductor controller", func() {
 		DeferCleanup(k8sClient.Delete, ctx, cell0Secret)
 
 		memcachedSpec := memcachedv1.MemcachedSpec{
-			Replicas: ptr.To(int32(3)),
+			MemcachedSpecCore: memcachedv1.MemcachedSpecCore{
+				Replicas: ptr.To(int32(3)),
+			},
 		}
 		DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 		infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
@@ -760,7 +764,9 @@ var _ = Describe("NovaConductor controller cleaning", func() {
 		DeferCleanup(f.Cleanup)
 
 		memcachedSpec := memcachedv1.MemcachedSpec{
-			Replicas: ptr.To(int32(3)),
+			MemcachedSpecCore: memcachedv1.MemcachedSpecCore{
+				Replicas: ptr.To(int32(3)),
+			},
 		}
 
 		DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
@@ -803,7 +809,9 @@ var _ = Describe("NovaConductor controller", func() {
 		mariadb.CreateMariaDBDatabase(cell0.MariaDBDatabaseName.Namespace, cell0.MariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
 		mariadb.SimulateMariaDBTLSDatabaseCompleted(cell0.MariaDBDatabaseName)
 		memcachedSpec := memcachedv1.MemcachedSpec{
-			Replicas: ptr.To(int32(3)),
+			MemcachedSpecCore: memcachedv1.MemcachedSpecCore{
+				Replicas: ptr.To(int32(3)),
+			},
 		}
 		DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 		infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)

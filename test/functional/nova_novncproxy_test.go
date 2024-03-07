@@ -50,7 +50,9 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 		DeferCleanup(k8sClient.Delete, ctx, cell1Account)
 		DeferCleanup(k8sClient.Delete, ctx, cell1Secret)
 		memcachedSpec := memcachedv1.MemcachedSpec{
-			Replicas: ptr.To(int32(3)),
+			MemcachedSpecCore: memcachedv1.MemcachedSpecCore{
+				Replicas: ptr.To(int32(3)),
+			},
 		}
 		DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 		infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
@@ -339,7 +341,9 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 		DeferCleanup(k8sClient.Delete, ctx, cell1Secret)
 
 		memcachedSpec := memcachedv1.MemcachedSpec{
-			Replicas: ptr.To(int32(3)),
+			MemcachedSpecCore: memcachedv1.MemcachedSpecCore{
+				Replicas: ptr.To(int32(3)),
+			},
 		}
 		DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 		infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
@@ -756,7 +760,9 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 				"caBundleSecretName": novaNames.CaBundleSecretName.Name,
 			}
 			memcachedSpec := memcachedv1.MemcachedSpec{
-				Replicas: ptr.To(int32(3)),
+				MemcachedSpecCore: memcachedv1.MemcachedSpecCore{
+					Replicas: ptr.To(int32(3)),
+				},
 			}
 
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
