@@ -107,7 +107,9 @@ var _ = Describe("Nova multicell", func() {
 			DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace))
 			memcachedSpecCell1 := memcachedv1.MemcachedSpec{
-				Replicas: ptr.To(int32(3)),
+				MemcachedSpecCore: memcachedv1.MemcachedSpecCore{
+					Replicas: ptr.To(int32(3)),
+				},
 			}
 			memcachedNamespace := types.NamespacedName{
 				Name:      cell1Memcached,
@@ -117,7 +119,9 @@ var _ = Describe("Nova multicell", func() {
 			infra.SimulateMemcachedReady(memcachedNamespace)
 
 			memcachedSpec := memcachedv1.MemcachedSpec{
-				Replicas: ptr.To(int32(3)),
+				MemcachedSpecCore: memcachedv1.MemcachedSpecCore{
+					Replicas: ptr.To(int32(3)),
+				},
 			}
 
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
@@ -685,7 +689,9 @@ var _ = Describe("Nova multicell", func() {
 
 			DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
 			memcachedSpec := memcachedv1.MemcachedSpec{
-				Replicas: ptr.To(int32(3)),
+				MemcachedSpecCore: memcachedv1.MemcachedSpecCore{
+					Replicas: ptr.To(int32(3)),
+				},
 			}
 
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
@@ -806,7 +812,9 @@ var _ = Describe("Nova multicell", func() {
 
 			DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
 			memcachedSpec := memcachedv1.MemcachedSpec{
-				Replicas: ptr.To(int32(3)),
+				MemcachedSpecCore: memcachedv1.MemcachedSpecCore{
+					Replicas: ptr.To(int32(3)),
+				},
 			}
 
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
@@ -865,7 +873,9 @@ var _ = Describe("Nova multicell", func() {
 
 			DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
 			memcachedSpec := memcachedv1.MemcachedSpec{
-				Replicas: ptr.To(int32(3)),
+				MemcachedSpecCore: memcachedv1.MemcachedSpecCore{
+					Replicas: ptr.To(int32(3)),
+				},
 			}
 
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))

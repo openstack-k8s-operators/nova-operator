@@ -101,7 +101,9 @@ func CreateNovaWith3CellsAndEnsureReady(novaNames NovaNames) {
 	DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
 	DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace))
 	memcachedSpec := memcachedv1.MemcachedSpec{
-		Replicas: ptr.To(int32(3)),
+		MemcachedSpecCore: memcachedv1.MemcachedSpecCore{
+			Replicas: ptr.To(int32(3)),
+		},
 	}
 
 	DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
