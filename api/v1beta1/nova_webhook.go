@@ -182,10 +182,163 @@ func (spec *NovaSpecCore) Default() {
 
 var _ webhook.Validator = &Nova{}
 
-func (r *NovaSpec) ValidateCellTemplates(basePath *field.Path) field.ErrorList {
+// NovaComputeTemplateValidator - interface for NovaComputeTemplate and NovaComputeTemplateCore specific validations
+// +kubebuilder:object:generate=false
+type NovaComputeTemplateValidator interface {
+	ReplicaCount() int32
+	ComputeDriverString() string
+	DefaultConfigOverwriteValidator() map[string]string
+	ValidateDefaultConfigOverwrite(basePath *field.Path) field.ErrorList
+}
+
+// ReplicaCount -
+func (r *NovaComputeTemplate) ReplicaCount() int32 {
+	return *r.Replicas
+}
+
+// ComputeDriverString -
+func (r *NovaComputeTemplate) ComputeDriverString() string {
+	return r.ComputeDriver
+}
+
+// DefaultConfigOverwriteValidator -
+func (r *NovaComputeTemplate) DefaultConfigOverwriteValidator() map[string]string {
+	return r.DefaultConfigOverwrite
+}
+
+// ValidateDefaultConfigOverwrite -
+func (r *NovaComputeTemplate) ValidateDefaultConfigOverwrite(basePath *field.Path) field.ErrorList {
+	return ComputeValidateDefaultConfigOverwrite(
+		basePath.Child("defaultConfigOverwrite"), r.DefaultConfigOverwrite)
+}
+
+// ReplicaCount -
+func (r *NovaComputeTemplateCore) ReplicaCount() int32 {
+	return *r.Replicas
+}
+
+// ComputeDriverString -
+func (r *NovaComputeTemplateCore) ComputeDriverString() string {
+	return r.ComputeDriver
+}
+
+// DefaultConfigOverwriteValidator -
+func (r *NovaComputeTemplateCore) DefaultConfigOverwriteValidator() map[string]string {
+	return r.DefaultConfigOverwrite
+}
+
+// ValidateDefaultConfigOverwrite -
+func (r *NovaComputeTemplateCore) ValidateDefaultConfigOverwrite(basePath *field.Path) field.ErrorList {
+	return ComputeValidateDefaultConfigOverwrite(
+		basePath.Child("defaultConfigOverwrite"), r.DefaultConfigOverwrite)
+}
+
+// NovaCellTypeValidator - interface for NovaCellTemplate and NovaCellTemplateCore specific validations
+// +kubebuilder:object:generate=false
+type NovaCellTypeValidator interface {
+	CellMessageBusInstanceVal() string
+	MetadataServiceTemplateValEnabled() bool
+	DBPurgeVal() *NovaCellDBPurge
+	NoVNCProxyServiceTemplateValidateCell0() field.ErrorList
+	NovaComputeTemplateValidators() map[string]NovaComputeTemplateValidator
+	NovaComputeTemplatesCount() int
+	MetadataServiceValidateDefaultConfigOverwrite(basePath *field.Path) field.ErrorList
+	MetadataServiceValidateCell0(basePath *field.Path) field.ErrorList
+}
+
+// CellMessageBusInstanceVal -
+func (r *NovaCellTemplate) CellMessageBusInstanceVal() string {
+	return r.CellMessageBusInstance
+}
+
+// MetadataServiceTemplateValEnabled -
+func (r *NovaCellTemplate) MetadataServiceTemplateValEnabled() bool {
+	return *r.MetadataServiceTemplate.Enabled
+}
+
+// DBPurgeVal -
+func (r *NovaCellTemplate) DBPurgeVal() *NovaCellDBPurge {
+	return &r.DBPurge
+}
+
+// NoVNCProxyServiceTemplateValidateCell0 -
+func (r *NovaCellTemplate) NoVNCProxyServiceTemplateValidateCell0() field.ErrorList {
+	return r.NoVNCProxyServiceTemplate.ValidateCell0(field.NewPath("noVNCProxyServiceTemplate"))
+}
+
+// NovaComputeTemplatesCount -
+func (r *NovaCellTemplate) NovaComputeTemplatesCount() int {
+	return len(r.NovaComputeTemplates)
+}
+
+// MetadataServiceValidateDefaultConfigOverwrite -
+func (r *NovaCellTemplate) MetadataServiceValidateDefaultConfigOverwrite(basePath *field.Path) field.ErrorList {
+	return r.MetadataServiceTemplate.ValidateDefaultConfigOverwrite(basePath)
+}
+
+// MetadataServiceValidateCell0 -
+func (r *NovaCellTemplate) MetadataServiceValidateCell0(basePath *field.Path) field.ErrorList {
+	return r.MetadataServiceTemplate.ValidateCell0(basePath)
+}
+
+// NovaComputeTemplateValidators -
+func (r *NovaCellTemplate) NovaComputeTemplateValidators() map[string]NovaComputeTemplateValidator {
+	convertedNovaComputeTemplates := make(map[string]NovaComputeTemplateValidator)
+	for key, value := range r.NovaComputeTemplates {
+		convertedNovaComputeTemplates[key] = &value
+	}
+	return convertedNovaComputeTemplates
+}
+
+// CellMessageBusInstanceVal -
+func (r *NovaCellTemplateCore) CellMessageBusInstanceVal() string {
+	return r.CellMessageBusInstance
+}
+
+// MetadataServiceTemplateValEnabled -
+func (r *NovaCellTemplateCore) MetadataServiceTemplateValEnabled() bool {
+	return *r.MetadataServiceTemplate.Enabled
+}
+
+// DBPurgeVal -
+func (r *NovaCellTemplateCore) DBPurgeVal() *NovaCellDBPurge {
+	return &r.DBPurge
+}
+
+// NoVNCProxyServiceTemplateValidateCell0 -
+func (r *NovaCellTemplateCore) NoVNCProxyServiceTemplateValidateCell0() field.ErrorList {
+	return r.NoVNCProxyServiceTemplate.ValidateCell0(field.NewPath("noVNCProxyServiceTemplate"))
+}
+
+// NovaComputeTemplatesCount -
+func (r *NovaCellTemplateCore) NovaComputeTemplatesCount() int {
+	return len(r.NovaComputeTemplates)
+}
+
+// MetadataServiceValidateCell0 -
+func (r *NovaCellTemplateCore) MetadataServiceValidateCell0(basePath *field.Path) field.ErrorList {
+	return r.MetadataServiceTemplate.ValidateCell0(basePath)
+}
+
+// MetadataServiceValidateDefaultConfigOverwrite -
+func (r *NovaCellTemplateCore) MetadataServiceValidateDefaultConfigOverwrite(basePath *field.Path) field.ErrorList {
+	return r.MetadataServiceTemplate.ValidateDefaultConfigOverwrite(basePath)
+}
+
+// NovaComputeTemplateValidators -
+func (r *NovaCellTemplateCore) NovaComputeTemplateValidators() map[string]NovaComputeTemplateValidator {
+	convertedNovaComputeTemplates := make(map[string]NovaComputeTemplateValidator)
+	for key, value := range r.NovaComputeTemplates {
+		convertedNovaComputeTemplates[key] = &value
+	}
+	return convertedNovaComputeTemplates
+}
+
+// ValidateNovaComputeName - validate the name of the NovaComputeTemplate
+func validateCellTemplates(basePath *field.Path, cellTemplates map[string]NovaCellTypeValidator, metadataServiceEnabled bool) field.ErrorList {
 	var errors field.ErrorList
 
-	if _, ok := r.CellTemplates[Cell0Name]; !ok {
+	if _, ok := cellTemplates[Cell0Name]; !ok {
 		errors = append(
 			errors,
 			field.Required(basePath.Child("cellTemplates"),
@@ -195,17 +348,17 @@ func (r *NovaSpec) ValidateCellTemplates(basePath *field.Path) field.ErrorList {
 
 	cellMessageBusNames := make(map[string]string)
 
-	for name, cell := range r.CellTemplates {
+	for name, cell := range cellTemplates {
 		cellPath := basePath.Child("cellTemplates").Key(name)
 		errors = append(
 			errors,
 			ValidateCellName(cellPath, name)...,
 		)
 		if name != Cell0Name {
-			if dupName, ok := cellMessageBusNames[cell.CellMessageBusInstance]; ok {
+			if dupName, ok := cellMessageBusNames[cell.CellMessageBusInstanceVal()]; ok {
 				errors = append(errors, field.Invalid(
 					cellPath.Child("cellMessageBusInstance"),
-					cell.CellMessageBusInstance,
+					cell.CellMessageBusInstanceVal(),
 					fmt.Sprintf(
 						"RabbitMqCluster CR need to be uniq per cell. It's duplicated with cell: %s",
 						dupName),
@@ -213,14 +366,14 @@ func (r *NovaSpec) ValidateCellTemplates(basePath *field.Path) field.ErrorList {
 				)
 			}
 
-			cellMessageBusNames[cell.CellMessageBusInstance] = name
+			cellMessageBusNames[cell.CellMessageBusInstanceVal()] = name
 		}
-		if *cell.MetadataServiceTemplate.Enabled && *r.MetadataServiceTemplate.Enabled {
+		if cell.MetadataServiceTemplateValEnabled() && metadataServiceEnabled {
 			errors = append(
 				errors,
 				field.Invalid(
 					cellPath.Child("metadataServiceTemplate").Child("enabled"),
-					*cell.MetadataServiceTemplate.Enabled,
+					cell.MetadataServiceTemplateValEnabled(),
 					"should be false as metadata is enabled on the top level too. "+
 						"The metadata service can be either enabled on top "+
 						"or in the cells but not in both places at the same time."),
@@ -229,42 +382,36 @@ func (r *NovaSpec) ValidateCellTemplates(basePath *field.Path) field.ErrorList {
 
 		errors = append(
 			errors,
-			cell.MetadataServiceTemplate.ValidateDefaultConfigOverwrite(
-				cellPath.Child("metadataServiceTemplate"))...)
+			cell.MetadataServiceValidateDefaultConfigOverwrite(cellPath.Child("metadataServiceTemplate"))...)
 
 		errors = append(
 			errors,
-			cell.DBPurge.Validate(cellPath.Child("dbPurge"))...)
+			cell.DBPurgeVal().Validate(cellPath.Child("dbPurge"))...)
 
 		if name == Cell0Name {
 			errors = append(
 				errors,
-				cell.MetadataServiceTemplate.ValidateCell0(
-					cellPath.Child("metadataServiceTemplate"))...)
+				cell.MetadataServiceValidateCell0(cellPath.Child("metadataServiceTemplate"))...)
 			errors = append(
 				errors,
-				cell.NoVNCProxyServiceTemplate.ValidateCell0(
-					cellPath.Child("noVNCProxyServiceTemplate"))...)
+				cell.NoVNCProxyServiceTemplateValidateCell0()...)
 			errors = append(
 				errors,
 				ValidateNovaComputeCell0(
-					cellPath.Child("novaComputeTemplates"), len(cell.NovaComputeTemplates))...)
+					cellPath.Child("novaComputeTemplates"), cell.NovaComputeTemplatesCount())...)
 		}
 
-		for computeName, computeTemplate := range cell.NovaComputeTemplates {
-			if computeTemplate.ComputeDriver == IronicDriver {
+		for computeName, computeTemplate := range cell.NovaComputeTemplateValidators() {
+			if computeTemplate.ComputeDriverString() == IronicDriver {
 				errors = append(
-					errors, computeTemplate.ValidateIronicDriverReplicas(
-						cellPath.Child("novaComputeTemplates").Key(computeName))...,
-				)
+					errors, ValidateIronicDriverReplicas(cellPath.Child("novaComputeTemplates").Key(computeName), int(computeTemplate.ReplicaCount()))...)
 			}
 			errors = append(
 				errors, ValidateNovaComputeName(
 					cellPath.Child("novaComputeTemplates").Key(computeName), computeName)...,
 			)
 			errors = append(
-				errors, computeTemplate.ValidateDefaultConfigOverwrite(
-					cellPath.Child("novaComputeTemplates").Key(computeName))...,
+				errors, computeTemplate.ValidateDefaultConfigOverwrite(cellPath.Child("novaComputeTemplates").Key(computeName))...,
 			)
 		}
 	}
@@ -272,10 +419,10 @@ func (r *NovaSpec) ValidateCellTemplates(basePath *field.Path) field.ErrorList {
 	return errors
 }
 
-func (r *NovaSpec) ValidateAPIServiceTemplate(basePath *field.Path) field.ErrorList {
+func validateAPIServiceTemplate(basePath *field.Path, defaultConfigOverwrite map[string]string) field.ErrorList {
 	errors := ValidateAPIDefaultConfigOverwrite(
 		basePath.Child("apiServiceTemplate").Child("defaultConfigOverwrite"),
-		r.APIServiceTemplate.DefaultConfigOverwrite)
+		defaultConfigOverwrite)
 	return errors
 }
 
@@ -283,8 +430,30 @@ func (r *NovaSpec) ValidateAPIServiceTemplate(basePath *field.Path) field.ErrorL
 // expected to be called by the validation webhook in the higher level meta
 // operator
 func (r *NovaSpec) ValidateCreate(basePath *field.Path) field.ErrorList {
-	errors := r.ValidateCellTemplates(basePath)
-	errors = append(errors, r.ValidateAPIServiceTemplate(basePath)...)
+	convertedCellTemplates := make(map[string]NovaCellTypeValidator)
+	for key, value := range r.CellTemplates {
+		convertedCellTemplates[key] = &value
+	}
+	errors := validateCellTemplates(basePath, convertedCellTemplates, *r.MetadataServiceTemplate.Enabled)
+	errors = append(errors, validateAPIServiceTemplate(basePath, r.APIServiceTemplate.DefaultConfigOverwrite)...)
+	errors = append(
+		errors,
+		r.MetadataServiceTemplate.ValidateDefaultConfigOverwrite(
+			basePath.Child("metadataServiceTemplate"))...)
+
+	return errors
+}
+
+// ValidateCreate validates the NovaSpec during the webhook invocation. It is
+// expected to be called by the validation webhook in the higher level meta
+// operator
+func (r *NovaSpecCore) ValidateCreate(basePath *field.Path) field.ErrorList {
+	convertedCellTemplates := make(map[string]NovaCellTypeValidator)
+	for key, value := range r.CellTemplates {
+		convertedCellTemplates[key] = &value
+	}
+	errors := validateCellTemplates(basePath, convertedCellTemplates, *r.MetadataServiceTemplate.Enabled)
+	errors = append(errors, validateAPIServiceTemplate(basePath, r.APIServiceTemplate.DefaultConfigOverwrite)...)
 	errors = append(
 		errors,
 		r.MetadataServiceTemplate.ValidateDefaultConfigOverwrite(
@@ -311,8 +480,13 @@ func (r *Nova) ValidateCreate() (admission.Warnings, error) {
 // expected to be called by the validation webhook in the higher level meta
 // operator
 func (r *NovaSpec) ValidateUpdate(old NovaSpec, basePath *field.Path) field.ErrorList {
-	errors := r.ValidateCellTemplates(basePath)
-	errors = append(errors, r.ValidateAPIServiceTemplate(basePath)...)
+	convertedCellTemplates := make(map[string]NovaCellTypeValidator)
+	for key, value := range r.CellTemplates {
+		convertedCellTemplates[key] = &value
+	}
+
+	errors := validateCellTemplates(basePath, convertedCellTemplates, *r.MetadataServiceTemplate.Enabled)
+	errors = append(errors, validateAPIServiceTemplate(basePath, r.APIServiceTemplate.DefaultConfigOverwrite)...)
 	errors = append(
 		errors,
 		r.MetadataServiceTemplate.ValidateDefaultConfigOverwrite(

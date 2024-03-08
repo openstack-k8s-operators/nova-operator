@@ -135,7 +135,27 @@ func (r *NovaMetadataTemplate) ValidateCell0(basePath *field.Path) field.ErrorLi
 	return errors
 }
 
+// ValidateCell0 validates cell0 Metadata template. This is expected to be called
+// by higher level validation webhooks
+func (r *NovaMetadataTemplateCore) ValidateCell0(basePath *field.Path) field.ErrorList {
+	var errors field.ErrorList
+	if *r.Enabled {
+		errors = append(
+			errors,
+			field.Invalid(
+				basePath.Child("enabled"), *r.Enabled, "should be false for cell0"),
+		)
+	}
+	return errors
+}
+
 func (r *NovaMetadataTemplate) ValidateDefaultConfigOverwrite(basePath *field.Path) field.ErrorList {
+	return ValidateMetadataDefaultConfigOverwrite(
+		basePath.Child("defaultConfigOverwrite"),
+		r.DefaultConfigOverwrite)
+}
+
+func (r *NovaMetadataTemplateCore) ValidateDefaultConfigOverwrite(basePath *field.Path) field.ErrorList {
 	return ValidateMetadataDefaultConfigOverwrite(
 		basePath.Child("defaultConfigOverwrite"),
 		r.DefaultConfigOverwrite)

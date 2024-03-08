@@ -114,3 +114,16 @@ func (r *NovaNoVNCProxyTemplate) ValidateCell0(basePath *field.Path) field.Error
 	}
 	return errors
 }
+
+// called by higher level validation webhooks
+func (r *NovaNoVNCProxyTemplateCore) ValidateCell0(basePath *field.Path) field.ErrorList {
+	var errors field.ErrorList
+	if *r.Enabled {
+		errors = append(
+			errors,
+			field.Invalid(
+				basePath.Child("enabled"), *r.Enabled, "should be false for cell0"),
+		)
+	}
+	return errors
+}

@@ -137,8 +137,8 @@ func (r *NovaCellSpec) validate(basePath *field.Path) field.ErrorList {
 	for computeName, computeTemplate := range r.NovaComputeTemplates {
 		if computeTemplate.ComputeDriver == IronicDriver {
 			errors = append(
-				errors, computeTemplate.ValidateIronicDriverReplicas(
-					basePath.Child("novaComputeTemplates").Key(computeName))...,
+				errors, ValidateIronicDriverReplicas(
+					basePath.Child("novaComputeTemplates").Key(computeName), int(*computeTemplate.Replicas))...,
 			)
 		}
 		errors = append(
