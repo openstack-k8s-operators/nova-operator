@@ -19,7 +19,6 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -487,8 +486,8 @@ func (r *NovaSchedulerReconciler) generateConfigs(
 		"default_project_domain":   "Default",   // fixme
 		"default_user_domain":      "Default",   // fixme
 		"transport_url":            string(secret.Data[TransportURLSelector]),
-		"MemcachedServers":         strings.Join(memcachedInstance.Status.ServerList, ","),
-		"MemcachedServersWithInet": strings.Join(memcachedInstance.Status.ServerListWithInet, ","),
+		"MemcachedServers":         memcachedInstance.GetMemcachedServerListString(),
+		"MemcachedServersWithInet": memcachedInstance.GetMemcachedServerListWithInetString(),
 	}
 
 	var tlsCfg *tls.Service
@@ -629,7 +628,7 @@ func (r *NovaSchedulerReconciler) reconcileDelete(
 	Log.Info("Reconciling delete")
 
 	// Remove our finalizer from Memcached
-	memcached, _ := getMemcached(ctx, h, instance.Namespace, instance.Spec.MemcachedInstance)
+	memcached, _ := memcachedv1.GetMemcachedByName(ctx, h, instance.Spec.MemcachedInstance, instance.Namespace)
 
 	if memcached != nil {
 		if controllerutil.RemoveFinalizer(memcached, h.GetFinalizer()) {

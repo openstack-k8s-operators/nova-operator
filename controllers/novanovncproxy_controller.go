@@ -19,7 +19,6 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -406,8 +405,8 @@ func (r *NovaNoVNCProxyReconciler) generateConfigs(
 		"openstack_region_name":    "regionOne", // fixme
 		"default_project_domain":   "Default",   // fixme
 		"default_user_domain":      "Default",   // fixme
-		"MemcachedServers":         strings.Join(memcachedInstance.Status.ServerList, ","),
-		"MemcachedServersWithInet": strings.Join(memcachedInstance.Status.ServerListWithInet, ","),
+		"MemcachedServers":         memcachedInstance.GetMemcachedServerListString(),
+		"MemcachedServersWithInet": memcachedInstance.GetMemcachedServerListWithInetString(),
 	}
 	if instance.Spec.TLS.GenericService.Enabled() {
 		templateParameters["SSLCertificateFile"] = fmt.Sprintf("/etc/pki/tls/certs/%s.crt", novncproxy.ServiceName)
@@ -625,7 +624,7 @@ func (r *NovaNoVNCProxyReconciler) reconcileDelete(
 	Log := r.GetLogger(ctx)
 	Log.Info("Reconciling delete")
 	// Remove our finalizer from Memcached
-	memcached, _ := getMemcached(ctx, h, instance.Namespace, instance.Spec.MemcachedInstance)
+	memcached, _ := memcachedv1.GetMemcachedByName(ctx, h, instance.Spec.MemcachedInstance, instance.Namespace)
 
 	if memcached != nil {
 		if controllerutil.RemoveFinalizer(memcached, h.GetFinalizer()) {

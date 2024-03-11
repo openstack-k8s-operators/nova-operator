@@ -19,7 +19,6 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -461,8 +460,8 @@ func (r *NovaAPIReconciler) generateConfigs(
 		"transport_url":            string(secret.Data[TransportURLSelector]),
 		"log_file":                 "/var/log/nova/nova-api.log",
 		"tls":                      false,
-		"MemcachedServers":         strings.Join(memcachedInstance.Status.ServerList, ","),
-		"MemcachedServersWithInet": strings.Join(memcachedInstance.Status.ServerListWithInet, ","),
+		"MemcachedServers":         memcachedInstance.GetMemcachedServerListString(),
+		"MemcachedServersWithInet": memcachedInstance.GetMemcachedServerListWithInetString(),
 	}
 	// create httpd  vhost template parameters
 	httpdVhostConfig := map[string]interface{}{}
@@ -793,7 +792,7 @@ func (r *NovaAPIReconciler) reconcileDelete(
 	}
 
 	// Remove our finalizer from Memcached
-	memcached, err := getMemcached(ctx, h, instance.Namespace, instance.Spec.MemcachedInstance)
+	memcached, err := memcachedv1.GetMemcachedByName(ctx, h, instance.Spec.MemcachedInstance, instance.Namespace)
 	if memcached != nil {
 		if controllerutil.RemoveFinalizer(memcached, h.GetFinalizer()) {
 			err := h.GetClient().Update(ctx, memcached)
