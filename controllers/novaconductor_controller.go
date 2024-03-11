@@ -19,7 +19,6 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	v1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -414,8 +413,8 @@ func (r *NovaConductorReconciler) generateConfigs(
 		"default_project_domain":   "Default",   // fixme
 		"default_user_domain":      "Default",   // fixme
 		"transport_url":            string(secret.Data[TransportURLSelector]),
-		"MemcachedServers":         strings.Join(memcachedInstance.Status.ServerList, ","),
-		"MemcachedServersWithInet": strings.Join(memcachedInstance.Status.ServerListWithInet, ","),
+		"MemcachedServers":         memcachedInstance.GetMemcachedServerListString(),
+		"MemcachedServersWithInet": memcachedInstance.GetMemcachedServerListWithInetString(),
 	}
 	if len(instance.Spec.APIDatabaseHostname) > 0 {
 		apiDatabaseAccount, apiDbSecret, err := mariadbv1.GetAccountAndSecret(ctx, h, instance.Spec.APIDatabaseAccount, instance.Namespace)
@@ -694,7 +693,7 @@ func (r *NovaConductorReconciler) reconcileDelete(
 
 	// Remove our finalizer from Memcached
 
-	memcached, _ := getMemcached(ctx, h, instance.Namespace, instance.Spec.MemcachedInstance)
+	memcached, _ := memcachedv1.GetMemcachedByName(ctx, h, instance.Spec.MemcachedInstance, instance.Namespace)
 	if memcached != nil {
 		if controllerutil.RemoveFinalizer(memcached, h.GetFinalizer()) {
 			err := h.GetClient().Update(ctx, memcached)

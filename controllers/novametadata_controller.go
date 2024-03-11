@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"net/url"
-	"strings"
 
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -457,8 +456,8 @@ func (r *NovaMetadataReconciler) generateConfigs(
 		"transport_url":            string(secret.Data[TransportURLSelector]),
 		"tls":                      false,
 		"ServerName":               fmt.Sprintf("%s.%s.svc", novametadata.ServiceName, instance.Namespace),
-		"MemcachedServers":         strings.Join(memcachedInstance.Status.ServerList, ","),
-		"MemcachedServersWithInet": strings.Join(memcachedInstance.Status.ServerListWithInet, ","),
+		"MemcachedServers":         memcachedInstance.GetMemcachedServerListString(),
+		"MemcachedServersWithInet": memcachedInstance.GetMemcachedServerListWithInetString(),
 	}
 
 	var db *mariadbv1.Database
@@ -710,7 +709,7 @@ func (r *NovaMetadataReconciler) reconcileDelete(
 	// when the service is scaled in or deleted
 
 	// Remove our finalizer from Memcached
-	memcached, _ := getMemcached(ctx, h, instance.Namespace, instance.Spec.MemcachedInstance)
+	memcached, _ := memcachedv1.GetMemcachedByName(ctx, h, instance.Spec.MemcachedInstance, instance.Namespace)
 	if memcached != nil {
 		if controllerutil.RemoveFinalizer(memcached, h.GetFinalizer()) {
 			err := h.GetClient().Update(ctx, memcached)
