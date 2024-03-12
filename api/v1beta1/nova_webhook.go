@@ -74,10 +74,15 @@ func (r *Nova) Default() {
 	r.Spec.Default()
 }
 
-// Default - set defaults for this Nova spec
+// Default - set defaults for this NovaCore spec.
 func (spec *NovaSpec) Default() {
 	spec.NovaImages.Default(novaDefaults)
+	spec.NovaSpecCore.Default()
+}
 
+// Default - set defaults for this Nova spec. Expected to be called from
+// the higher level meta operator.
+func (spec *NovaSpecCore) Default() {
 	// NOTE(gibi): this cannot be expressed as kubebuilder defaults as the
 	// MetadataServiceTemplate is used both in the cellTemplate and in the
 	// NovaSpec but we need different defaults in the two places
@@ -113,7 +118,7 @@ func (spec *NovaSpec) Default() {
 
 var _ webhook.Validator = &Nova{}
 
-func (r *NovaSpec) ValidateCellTemplates(basePath *field.Path) field.ErrorList {
+func (r *NovaSpecCore) ValidateCellTemplates(basePath *field.Path) field.ErrorList {
 	var errors field.ErrorList
 
 	if _, ok := r.CellTemplates[Cell0Name]; !ok {
@@ -203,17 +208,22 @@ func (r *NovaSpec) ValidateCellTemplates(basePath *field.Path) field.ErrorList {
 	return errors
 }
 
-func (r *NovaSpec) ValidateAPIServiceTemplate(basePath *field.Path) field.ErrorList {
+func (r *NovaSpecCore) ValidateAPIServiceTemplate(basePath *field.Path) field.ErrorList {
 	errors := ValidateAPIDefaultConfigOverwrite(
 		basePath.Child("apiServiceTemplate").Child("defaultConfigOverwrite"),
 		r.APIServiceTemplate.DefaultConfigOverwrite)
 	return errors
 }
 
-// ValidateCreate validates the NovaSpec during the webhook invocation. It is
+// ValidateCreate validates the NovaSpec during the webhook invocation.
+func (r *NovaSpec) ValidateCreate(basePath *field.Path) field.ErrorList {
+	return r.NovaSpecCore.ValidateCreate(basePath)
+}
+
+// ValidateCreate validates the NovaSpecCore during the webhook invocation. It is
 // expected to be called by the validation webhook in the higher level meta
 // operator
-func (r *NovaSpec) ValidateCreate(basePath *field.Path) field.ErrorList {
+func (r *NovaSpecCore) ValidateCreate(basePath *field.Path) field.ErrorList {
 	errors := r.ValidateCellTemplates(basePath)
 	errors = append(errors, r.ValidateAPIServiceTemplate(basePath)...)
 	errors = append(
@@ -238,10 +248,15 @@ func (r *Nova) ValidateCreate() (admission.Warnings, error) {
 	return nil, nil
 }
 
-// ValidateUpdate validates the NovaSpec during the webhook invocation. It is
+// ValidateUpdate validates the NovaSpec during the webhook invocation.
+func (r *NovaSpec) ValidateUpdate(old NovaSpec, basePath *field.Path) field.ErrorList {
+	return r.NovaSpecCore.ValidateUpdate(old.NovaSpecCore, basePath)
+}
+
+// ValidateUpdate validates the NovaSpecCore during the webhook invocation. It is
 // expected to be called by the validation webhook in the higher level meta
 // operator
-func (r *NovaSpec) ValidateUpdate(old NovaSpec, basePath *field.Path) field.ErrorList {
+func (r *NovaSpecCore) ValidateUpdate(old NovaSpecCore, basePath *field.Path) field.ErrorList {
 	errors := r.ValidateCellTemplates(basePath)
 	errors = append(errors, r.ValidateAPIServiceTemplate(basePath)...)
 	errors = append(
