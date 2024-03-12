@@ -35,6 +35,9 @@ spec:
           spec:
             description: NovaSpec defines the desired state of Nova
             properties:
+              apiContainerImageURL:
+                description: APIContainerImageURL
+                type: string
               apiDatabaseAccount:
                 default: nova-api
                 description: APIDatabaseAccount - MariaDBAccount to use when accessing
@@ -56,10 +59,6 @@ spec:
                   replicas: 1
                 description: APIServiceTemplate - define the nova-api service
                 properties:
-                  containerImage:
-                    description: ContainerImage - The service specific Container Image
-                      URL (will be set to environmental default if empty)
-                    type: string
                   customServiceConfig:
                     description: CustomServiceConfig - customize the service config
                       using this parameter to change service defaults, or overwrite
@@ -382,10 +381,6 @@ spec:
                       description: ConductorServiceTemplate - defines the cell conductor
                         deployment for the cell.
                       properties:
-                        containerImage:
-                          description: The service specific Container Image URL (will
-                            be set to environmental default if empty)
-                          type: string
                         customServiceConfig:
                           description: CustomServiceConfig - customize the service
                             config using this parameter to change service defaults,
@@ -506,10 +501,6 @@ spec:
                         time. By default Nova CR deploys the metadata service at the
                         top level and disables it on the cell level.
                       properties:
-                        containerImage:
-                          description: The service specific Container Image URL (will
-                            be set to environmental default if empty)
-                          type: string
                         customServiceConfig:
                           description: CustomServiceConfig - customize the service
                             config using this parameter to change service defaults,
@@ -812,10 +803,6 @@ spec:
                         is defaulted to false in cell0 but defaulted to true in other
                         cells.
                       properties:
-                        containerImage:
-                          description: The service specific Container Image URL (will
-                            be set to environmental default if empty)
-                          type: string
                         customServiceConfig:
                           description: CustomServiceConfig - customize the service
                             config using this parameter to change service defaults,
@@ -1123,10 +1110,6 @@ spec:
                             - ironic.IronicDriver
                             - fake.FakeDriver
                             type: string
-                          containerImage:
-                            description: ContainerImage - The service specific Container
-                              Image URL (will be set to environmental default if empty)
-                            type: string
                           customServiceConfig:
                             description: CustomServiceConfig - customize the service
                               config using this parameter to change service defaults,
@@ -1241,6 +1224,12 @@ spec:
                   needs at least one additional normal cell as "cell0" cannot have
                   any computes.
                 type: object
+              computeContainerImageURL:
+                description: NovaComputeContainerImageURL
+                type: string
+              conductorContainerImageURL:
+                description: ConductorContainerImageURL
+                type: string
               keystoneInstance:
                 default: keystone
                 description: KeystoneInstance to name of the KeystoneAPI CR to select
@@ -1251,6 +1240,9 @@ spec:
                 description: MemcachedInstance is the name of the Memcached CR that
                   all nova service will use.
                 type: string
+              metadataContainerImageURL:
+                description: MetadataContainerImageURL
+                type: string
               metadataServiceTemplate:
                 default:
                   enabled: true
@@ -1259,10 +1251,6 @@ spec:
                   if you want to deploy metadata per cell then the metadata service
                   should be disabled here and enabled in the cellTemplates instead.
                 properties:
-                  containerImage:
-                    description: The service specific Container Image URL (will be
-                      set to environmental default if empty)
-                    type: string
                   customServiceConfig:
                     description: CustomServiceConfig - customize the service config
                       using this parameter to change service defaults, or overwrite
@@ -1546,6 +1534,9 @@ spec:
                   this service. Setting NodeSelector here acts as a default value
                   and can be overridden by service specific NodeSelector Settings.
                 type: object
+              novncproxyContainerImageURL:
+                description: NoVNCContainerImageURL
+                type: string
               passwordSelectors:
                 default:
                   service: NovaPassword
@@ -1568,15 +1559,14 @@ spec:
                 description: PreserveJobs - do not delete jobs after they finished
                   e.g. to check logs
                 type: boolean
+              schedulerContainerImageURL:
+                description: SchedulerContainerImageURL
+                type: string
               schedulerServiceTemplate:
                 default:
                   replicas: 1
                 description: SchedulerServiceTemplate- define the nova-scheduler service
                 properties:
-                  containerImage:
-                    description: The service specific Container Image URL (will be
-                      set to environmental default if empty)
-                    type: string
                   customServiceConfig:
                     description: CustomServiceConfig - customize the service config
                       using this parameter to change service defaults, or overwrite
@@ -1666,6 +1656,12 @@ spec:
                   to register in keystone
                 type: string
             required:
+            - apiContainerImageURL
+            - computeContainerImageURL
+            - conductorContainerImageURL
+            - metadataContainerImageURL
+            - novncproxyContainerImageURL
+            - schedulerContainerImageURL
             - secret
             type: object
           status:

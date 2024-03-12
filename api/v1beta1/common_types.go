@@ -89,16 +89,80 @@ type PasswordSelector struct {
 	MetadataSecret string `json:"metadataSecret"`
 }
 
+type NovaImages struct {
+	// +kubebuilder:validation:Required
+	// APIContainerImageURL
+	APIContainerImageURL string `json:"apiContainerImageURL"`
+
+	// +kubebuilder:validation:Required
+	// SchedulerContainerImageURL
+	SchedulerContainerImageURL string `json:"schedulerContainerImageURL"`
+
+	// +kubebuilder:validation:Required
+	NovaCellImages `json:",inline"`
+}
+
+func (r *NovaImages) Default(defaults NovaDefaults) {
+	r.NovaCellImages.Default(defaults.NovaCellDefaults)
+	if r.APIContainerImageURL == "" {
+		r.APIContainerImageURL = defaults.APIContainerImageURL
+	}
+	if r.SchedulerContainerImageURL == "" {
+		r.SchedulerContainerImageURL = defaults.SchedulerContainerImageURL
+	}
+}
+
+type NovaCellImages struct {
+
+	// +kubebuilder:validation:Required
+	// ConductorContainerImageURL
+	ConductorContainerImageURL string `json:"conductorContainerImageURL"`
+
+	// +kubebuilder:validation:Required
+	// MetadataContainerImageURL
+	MetadataContainerImageURL string `json:"metadataContainerImageURL"`
+
+	// +kubebuilder:validation:Required
+	// NoVNCContainerImageURL
+	NoVNCContainerImageURL string `json:"novncproxyContainerImageURL"`
+
+	// +kubebuilder:validation:Required
+	// NovaComputeContainerImageURL
+	NovaComputeContainerImageURL string `json:"computeContainerImageURL"`
+}
+
+func (r *NovaCellImages) Default(defaults NovaCellDefaults) {
+	if r.ConductorContainerImageURL == "" {
+		r.ConductorContainerImageURL = defaults.ConductorContainerImageURL
+	}
+	if r.MetadataContainerImageURL == "" {
+		r.MetadataContainerImageURL = defaults.MetadataContainerImageURL
+	}
+	if r.NoVNCContainerImageURL == "" {
+		r.NoVNCContainerImageURL = defaults.NoVNCContainerImageURL
+	}
+	if r.NovaComputeContainerImageURL == "" {
+		r.NovaComputeContainerImageURL = defaults.NovaComputeContainerImageURL
+	}
+}
+
 // SetupDefaults - initializes any CRD field defaults based on environment variables (the defaulting mechanism itself is implemented via webhooks)
 func SetupDefaults() {
-	// Acquire environmental defaults and initialize Nova defaults with them
-	novaDefaults := NovaDefaults{
-		APIContainerImageURL:         util.GetEnvVar("RELATED_IMAGE_NOVA_API_IMAGE_URL_DEFAULT", NovaAPIContainerImage),
+	// Acquire environmental defaults and initialize NovaCell defaults with them
+	novaCellDefaults := NovaCellDefaults{
 		ConductorContainerImageURL:   util.GetEnvVar("RELATED_IMAGE_NOVA_CONDUCTOR_IMAGE_URL_DEFAULT", NovaConductorContainerImage),
 		MetadataContainerImageURL:    util.GetEnvVar("RELATED_IMAGE_NOVA_API_IMAGE_URL_DEFAULT", NovaMetadataContainerImage),
 		NoVNCContainerImageURL:       util.GetEnvVar("RELATED_IMAGE_NOVA_NOVNC_IMAGE_URL_DEFAULT", NovaNoVNCContainerImage),
-		SchedulerContainerImageURL:   util.GetEnvVar("RELATED_IMAGE_NOVA_SCHEDULER_IMAGE_URL_DEFAULT", NovaSchedulerContainerImage),
 		NovaComputeContainerImageURL: util.GetEnvVar("RELATED_IMAGE_NOVA_COMPUTE_IMAGE_URL_DEFAULT", NovaComputeContainerImage),
+	}
+
+	SetupNovaCellDefaults(novaCellDefaults)
+
+	// Acquire environmental defaults and initialize Nova defaults with them
+	novaDefaults := NovaDefaults{
+		APIContainerImageURL:       util.GetEnvVar("RELATED_IMAGE_NOVA_API_IMAGE_URL_DEFAULT", NovaAPIContainerImage),
+		SchedulerContainerImageURL: util.GetEnvVar("RELATED_IMAGE_NOVA_SCHEDULER_IMAGE_URL_DEFAULT", NovaSchedulerContainerImage),
+		NovaCellDefaults:           novaCellDefaults,
 	}
 
 	SetupNovaDefaults(novaDefaults)
@@ -109,16 +173,6 @@ func SetupDefaults() {
 	}
 
 	SetupNovaAPIDefaults(novaAPIDefaults)
-
-	// Acquire environmental defaults and initialize NovaCell defaults with them
-	novaCellDefaults := NovaCellDefaults{
-		ConductorContainerImageURL:   util.GetEnvVar("RELATED_IMAGE_NOVA_CONDUCTOR_IMAGE_URL_DEFAULT", NovaConductorContainerImage),
-		MetadataContainerImageURL:    util.GetEnvVar("RELATED_IMAGE_NOVA_API_IMAGE_URL_DEFAULT", NovaMetadataContainerImage),
-		NoVNCContainerImageURL:       util.GetEnvVar("RELATED_IMAGE_NOVA_NOVNC_IMAGE_URL_DEFAULT", NovaNoVNCContainerImage),
-		NovaComputeContainerImageURL: util.GetEnvVar("RELATED_IMAGE_NOVA_COMPUTE_IMAGE_URL_DEFAULT", NovaComputeContainerImage),
-	}
-
-	SetupNovaCellDefaults(novaCellDefaults)
 
 	// Acquire environmental defaults and initialize NovaConductor defaults with them
 	novaConductorDefaults := NovaConductorDefaults{

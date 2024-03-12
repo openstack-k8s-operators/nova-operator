@@ -35,10 +35,6 @@ import (
 // are duplicated.
 type NovaAPITemplate struct {
 	// +kubebuilder:validation:Optional
-	// ContainerImage - The service specific Container Image URL (will be set to environmental default if empty)
-	ContainerImage string `json:"containerImage"`
-
-	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=1
 	// +kubebuilder:validation:Maximum=32
 	// +kubebuilder:validation:Minimum=0

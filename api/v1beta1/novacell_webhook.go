@@ -78,20 +78,12 @@ func (r *NovaCell) Default() {
 
 // Default - set defaults for this NovaCell spec
 func (spec *NovaCellSpec) Default() {
-	if spec.ConductorServiceTemplate.ContainerImage == "" {
-		spec.ConductorServiceTemplate.ContainerImage = novaCellDefaults.ConductorContainerImageURL
-	}
+	spec.NovaCellImages.Default(novaCellDefaults)
 
-	if spec.MetadataServiceTemplate.ContainerImage == "" {
-		spec.MetadataServiceTemplate.ContainerImage = novaCellDefaults.MetadataContainerImageURL
-	}
 	if spec.MetadataServiceTemplate.Enabled == nil {
 		spec.MetadataServiceTemplate.Enabled = ptr.To(false)
 	}
 
-	if spec.NoVNCProxyServiceTemplate.ContainerImage == "" {
-		spec.NoVNCProxyServiceTemplate.ContainerImage = novaCellDefaults.NoVNCContainerImageURL
-	}
 	if spec.CellName == Cell0Name {
 		// in cell0 disable VNC by default
 		if spec.NoVNCProxyServiceTemplate.Enabled == nil {
@@ -102,12 +94,6 @@ func (spec *NovaCellSpec) Default() {
 		if spec.NoVNCProxyServiceTemplate.Enabled == nil {
 			spec.NoVNCProxyServiceTemplate.Enabled = ptr.To(true)
 		}
-	}
-	for computeName, computeTemplate := range spec.NovaComputeTemplates {
-		if computeTemplate.ContainerImage == "" {
-			computeTemplate.ContainerImage = novaCellDefaults.NovaComputeContainerImageURL
-		}
-		spec.NovaComputeTemplates[computeName] = computeTemplate
 	}
 }
 

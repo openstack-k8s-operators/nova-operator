@@ -926,6 +926,7 @@ func (r *NovaReconciler) ensureCell(
 		PreserveJobs:      instance.Spec.PreserveJobs,
 		MemcachedInstance: getMemcachedInstance(instance, cellTemplate),
 		DBPurge:           cellTemplate.DBPurge,
+		NovaCellImages:    instance.Spec.NovaCellImages,
 	}
 	if cellTemplate.HasAPIAccess {
 		cellSpec.APIDatabaseHostname = apiDB.GetDatabaseHostname()
@@ -1077,7 +1078,7 @@ func (r *NovaReconciler) ensureAPI(
 		Cell0DatabaseHostname: cell0DB.GetDatabaseHostname(),
 		Cell0DatabaseAccount:  cell0Template.CellDatabaseAccount,
 		NovaServiceBase: novav1.NovaServiceBase{
-			ContainerImage:      instance.Spec.APIServiceTemplate.ContainerImage,
+			ContainerImage:      instance.Spec.APIContainerImageURL,
 			Replicas:            instance.Spec.APIServiceTemplate.Replicas,
 			NodeSelector:        instance.Spec.APIServiceTemplate.NodeSelector,
 			CustomServiceConfig: instance.Spec.APIServiceTemplate.CustomServiceConfig,
@@ -1161,7 +1162,14 @@ func (r *NovaReconciler) ensureScheduler(
 		// has exactly the same fields as the SchedulerServiceTemplate so we
 		// can convert between them directly. As soon as these two structs
 		// start to diverge we need to copy fields one by one here.
-		NovaServiceBase: novav1.NovaServiceBase(instance.Spec.SchedulerServiceTemplate),
+		NovaServiceBase: novav1.NovaServiceBase{
+			ContainerImage:      instance.Spec.SchedulerContainerImageURL,
+			Replicas:            instance.Spec.SchedulerServiceTemplate.Replicas,
+			NodeSelector:        instance.Spec.SchedulerServiceTemplate.NodeSelector,
+			CustomServiceConfig: instance.Spec.SchedulerServiceTemplate.CustomServiceConfig,
+			Resources:           instance.Spec.SchedulerServiceTemplate.Resources,
+			NetworkAttachments:  instance.Spec.SchedulerServiceTemplate.NetworkAttachments,
+		},
 		KeystoneAuthURL: keystoneAuthURL,
 		ServiceUser:     instance.Spec.ServiceUser,
 		ServiceAccount:  instance.RbacResourceName(),
@@ -1502,7 +1510,7 @@ func (r *NovaReconciler) ensureMetadata(
 		CellDatabaseHostname: cell0DB.GetDatabaseHostname(),
 		CellDatabaseAccount:  cell0Template.CellDatabaseAccount,
 		NovaServiceBase: novav1.NovaServiceBase{
-			ContainerImage:      instance.Spec.MetadataServiceTemplate.ContainerImage,
+			ContainerImage:      instance.Spec.MetadataContainerImageURL,
 			Replicas:            instance.Spec.MetadataServiceTemplate.Replicas,
 			NodeSelector:        instance.Spec.MetadataServiceTemplate.NodeSelector,
 			CustomServiceConfig: instance.Spec.MetadataServiceTemplate.CustomServiceConfig,

@@ -46,10 +46,6 @@ type NovaMetadataTemplate struct {
 	// it is set by webhooks
 
 	// +kubebuilder:validation:Optional
-	// The service specific Container Image URL (will be set to environmental default if empty)
-	ContainerImage string `json:"containerImage"`
-
-	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=1
 	// +kubebuilder:validation:Maximum=32
 	// +kubebuilder:validation:Minimum=0
@@ -249,7 +245,7 @@ func NewNovaMetadataSpec(
 		APIDatabaseHostname:  novaCell.APIDatabaseHostname,
 		APIDatabaseAccount:   novaCell.APIDatabaseAccount,
 		NovaServiceBase: NovaServiceBase{
-			ContainerImage:      novaCell.MetadataServiceTemplate.ContainerImage,
+			ContainerImage:      novaCell.MetadataContainerImageURL,
 			Replicas:            novaCell.MetadataServiceTemplate.Replicas,
 			NodeSelector:        novaCell.MetadataServiceTemplate.NodeSelector,
 			CustomServiceConfig: novaCell.MetadataServiceTemplate.CustomServiceConfig,
