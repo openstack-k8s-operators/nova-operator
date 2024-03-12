@@ -43,10 +43,6 @@ type NovaNoVNCProxyTemplate struct {
 	Enabled *bool `json:"enabled"`
 
 	// +kubebuilder:validation:Optional
-	// The service specific Container Image URL (will be set to environmental default if empty)
-	ContainerImage string `json:"containerImage"`
-
-	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=1
 	// +kubebuilder:validation:Maximum=32
 	// +kubebuilder:validation:Minimum=0
@@ -207,7 +203,7 @@ func NewNovaNoVNCProxySpec(
 		CellDatabaseHostname: novaCell.CellDatabaseHostname,
 		CellDatabaseAccount:  novaCell.CellDatabaseAccount,
 		NovaServiceBase: NovaServiceBase{
-			ContainerImage:      novaCell.NoVNCProxyServiceTemplate.ContainerImage,
+			ContainerImage:      novaCell.NoVNCContainerImageURL,
 			Replicas:            novaCell.NoVNCProxyServiceTemplate.Replicas,
 			NodeSelector:        novaCell.NoVNCProxyServiceTemplate.NodeSelector,
 			CustomServiceConfig: novaCell.NoVNCProxyServiceTemplate.CustomServiceConfig,

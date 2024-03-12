@@ -17,7 +17,6 @@ spec:
   apiDatabaseAccount: nova-api
   apiMessageBusInstance: rabbitmq
   apiServiceTemplate:
-    containerImage: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
     customServiceConfig: ""
     replicas: 0
   metadataServiceTemplate:
@@ -29,7 +28,6 @@ spec:
       cellDatabaseAccount: nova-cell0
       cellMessageBusInstance: rabbitmq
       conductorServiceTemplate:
-        containerImage: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
         customServiceConfig: ""
         replicas: 0
       hasAPIAccess: true
@@ -42,7 +40,6 @@ spec:
       cellDatabaseAccount: nova-cell1
       cellMessageBusInstance: rabbitmq-cell1
       conductorServiceTemplate:
-        containerImage: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
         customServiceConfig: ""
         replicas: 0
       hasAPIAccess: true
@@ -50,7 +47,6 @@ spec:
         enabled: false
       noVNCProxyServiceTemplate:
         enabled: true
-        containerImage: quay.io/podified-antelope-centos9/openstack-nova-novncproxy:current-podified
         customServiceConfig: ""
         replicas: 1
 ---

@@ -40,12 +40,9 @@ import (
 
 // NovaDefaults -
 type NovaDefaults struct {
-	APIContainerImageURL         string
-	ConductorContainerImageURL   string
-	MetadataContainerImageURL    string
-	NoVNCContainerImageURL       string
-	SchedulerContainerImageURL   string
-	NovaComputeContainerImageURL string
+	APIContainerImageURL       string
+	SchedulerContainerImageURL string
+	NovaCellDefaults
 }
 
 var novaDefaults NovaDefaults
@@ -79,13 +76,7 @@ func (r *Nova) Default() {
 
 // Default - set defaults for this Nova spec
 func (spec *NovaSpec) Default() {
-	if spec.APIServiceTemplate.ContainerImage == "" {
-		spec.APIServiceTemplate.ContainerImage = novaDefaults.APIContainerImageURL
-	}
-
-	if spec.MetadataServiceTemplate.ContainerImage == "" {
-		spec.MetadataServiceTemplate.ContainerImage = novaDefaults.MetadataContainerImageURL
-	}
+	spec.NovaImages.Default(novaDefaults)
 
 	// NOTE(gibi): this cannot be expressed as kubebuilder defaults as the
 	// MetadataServiceTemplate is used both in the cellTemplate and in the
@@ -94,25 +85,10 @@ func (spec *NovaSpec) Default() {
 		spec.MetadataServiceTemplate.Enabled = ptr.To(true)
 	}
 
-	if spec.SchedulerServiceTemplate.ContainerImage == "" {
-		spec.SchedulerServiceTemplate.ContainerImage = novaDefaults.SchedulerContainerImageURL
-	}
-
 	for cellName, cellTemplate := range spec.CellTemplates {
-		if cellTemplate.ConductorServiceTemplate.ContainerImage == "" {
-			cellTemplate.ConductorServiceTemplate.ContainerImage = novaDefaults.ConductorContainerImageURL
-		}
-
-		if cellTemplate.MetadataServiceTemplate.ContainerImage == "" {
-			cellTemplate.MetadataServiceTemplate.ContainerImage = novaDefaults.MetadataContainerImageURL
-		}
 
 		if cellTemplate.MetadataServiceTemplate.Enabled == nil {
 			cellTemplate.MetadataServiceTemplate.Enabled = ptr.To(false)
-		}
-
-		if cellTemplate.NoVNCProxyServiceTemplate.ContainerImage == "" {
-			cellTemplate.NoVNCProxyServiceTemplate.ContainerImage = novaDefaults.NoVNCContainerImageURL
 		}
 
 		if cellName == Cell0Name {
@@ -127,12 +103,6 @@ func (spec *NovaSpec) Default() {
 			}
 		}
 
-		for computeName, computeTemplate := range cellTemplate.NovaComputeTemplates {
-			if computeTemplate.ContainerImage == "" {
-				computeTemplate.ContainerImage = novaCellDefaults.NovaComputeContainerImageURL
-			}
-			cellTemplate.NovaComputeTemplates[computeName] = computeTemplate
-		}
 		// "cellTemplate" is a by-value copy, so we need to re-inject the updated version of it into the map
 		spec.CellTemplates[cellName] = cellTemplate
 	}

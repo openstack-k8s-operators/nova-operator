@@ -81,7 +81,7 @@ func HostDiscoveryJob(
 								"/bin/bash",
 							},
 							Args:  args,
-							Image: instance.Spec.ConductorServiceTemplate.ContainerImage,
+							Image: instance.Spec.ConductorContainerImageURL,
 							SecurityContext: &corev1.SecurityContext{
 								RunAsUser: ptr.To(NovaUserID),
 							},

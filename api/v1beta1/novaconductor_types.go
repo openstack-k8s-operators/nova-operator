@@ -30,10 +30,6 @@ import (
 // create a NovaConductor via higher level CRDs.
 type NovaConductorTemplate struct {
 	// +kubebuilder:validation:Optional
-	// The service specific Container Image URL (will be set to environmental default if empty)
-	ContainerImage string `json:"containerImage"`
-
-	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=1
 	// +kubebuilder:validation:Maximum=32
 	// +kubebuilder:validation:Minimum=0
@@ -199,14 +195,21 @@ func NewNovaConductorSpec(
 		CellDatabaseAccount:  novaCell.CellDatabaseAccount,
 		APIDatabaseHostname:  novaCell.APIDatabaseHostname,
 		APIDatabaseAccount:   novaCell.APIDatabaseAccount,
-		NovaServiceBase:      NovaServiceBase(novaCell.ConductorServiceTemplate),
-		KeystoneAuthURL:      novaCell.KeystoneAuthURL,
-		ServiceUser:          novaCell.ServiceUser,
-		ServiceAccount:       novaCell.ServiceAccount,
-		TLS:                  novaCell.TLS,
-		PreserveJobs:         novaCell.PreserveJobs,
-		MemcachedInstance:    novaCell.MemcachedInstance,
-		DBPurge:              novaCell.DBPurge,
+		NovaServiceBase: NovaServiceBase{
+			ContainerImage:      novaCell.ConductorContainerImageURL,
+			Replicas:            novaCell.ConductorServiceTemplate.Replicas,
+			NodeSelector:        novaCell.ConductorServiceTemplate.NodeSelector,
+			CustomServiceConfig: novaCell.ConductorServiceTemplate.CustomServiceConfig,
+			Resources:           novaCell.ConductorServiceTemplate.Resources,
+			NetworkAttachments:  novaCell.ConductorServiceTemplate.NetworkAttachments,
+		},
+		KeystoneAuthURL:   novaCell.KeystoneAuthURL,
+		ServiceUser:       novaCell.ServiceUser,
+		ServiceAccount:    novaCell.ServiceAccount,
+		TLS:               novaCell.TLS,
+		PreserveJobs:      novaCell.PreserveJobs,
+		MemcachedInstance: novaCell.MemcachedInstance,
+		DBPurge:           novaCell.DBPurge,
 	}
 	return conductorSpec
 }

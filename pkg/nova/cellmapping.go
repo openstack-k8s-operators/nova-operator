@@ -69,7 +69,7 @@ func CellMappingJob(
 								"/bin/bash",
 							},
 							Args:  args,
-							Image: cell.Spec.ConductorServiceTemplate.ContainerImage,
+							Image: cell.Spec.ConductorContainerImageURL,
 							SecurityContext: &corev1.SecurityContext{
 								RunAsUser: ptr.To(NovaUserID),
 							},
