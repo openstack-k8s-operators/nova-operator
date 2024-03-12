@@ -209,7 +209,7 @@ func (r *NovaComputeTemplate) DefaultConfigOverwriteValidator() map[string]strin
 // ValidateDefaultConfigOverwrite -
 func (r *NovaComputeTemplate) ValidateDefaultConfigOverwrite(basePath *field.Path) field.ErrorList {
 	return ComputeValidateDefaultConfigOverwrite(
-		basePath.Child("defaultConfigOverwrite"), r.DefaultConfigOverwrite)
+		basePath, r.DefaultConfigOverwrite)
 }
 
 // ReplicaCount -
@@ -230,7 +230,7 @@ func (r *NovaComputeTemplateCore) DefaultConfigOverwriteValidator() map[string]s
 // ValidateDefaultConfigOverwrite -
 func (r *NovaComputeTemplateCore) ValidateDefaultConfigOverwrite(basePath *field.Path) field.ErrorList {
 	return ComputeValidateDefaultConfigOverwrite(
-		basePath.Child("defaultConfigOverwrite"), r.DefaultConfigOverwrite)
+		basePath, r.DefaultConfigOverwrite)
 }
 
 // NovaCellTypeValidator - interface for NovaCellTemplate and NovaCellTemplateCore specific validations
@@ -239,7 +239,7 @@ type NovaCellTypeValidator interface {
 	CellMessageBusInstanceVal() string
 	MetadataServiceTemplateValEnabled() bool
 	DBPurgeVal() *NovaCellDBPurge
-	NoVNCProxyServiceTemplateValidateCell0() field.ErrorList
+	NoVNCProxyServiceTemplateValidateCell0(basePath *field.Path) field.ErrorList
 	NovaComputeTemplateValidators() map[string]NovaComputeTemplateValidator
 	NovaComputeTemplatesCount() int
 	MetadataServiceValidateDefaultConfigOverwrite(basePath *field.Path) field.ErrorList
@@ -262,8 +262,8 @@ func (r *NovaCellTemplate) DBPurgeVal() *NovaCellDBPurge {
 }
 
 // NoVNCProxyServiceTemplateValidateCell0 -
-func (r *NovaCellTemplate) NoVNCProxyServiceTemplateValidateCell0() field.ErrorList {
-	return r.NoVNCProxyServiceTemplate.ValidateCell0(field.NewPath("noVNCProxyServiceTemplate"))
+func (r *NovaCellTemplate) NoVNCProxyServiceTemplateValidateCell0(basePath *field.Path) field.ErrorList {
+	return r.NoVNCProxyServiceTemplate.ValidateCell0(basePath)
 }
 
 // NovaComputeTemplatesCount -
@@ -306,8 +306,8 @@ func (r *NovaCellTemplateCore) DBPurgeVal() *NovaCellDBPurge {
 }
 
 // NoVNCProxyServiceTemplateValidateCell0 -
-func (r *NovaCellTemplateCore) NoVNCProxyServiceTemplateValidateCell0() field.ErrorList {
-	return r.NoVNCProxyServiceTemplate.ValidateCell0(field.NewPath("noVNCProxyServiceTemplate"))
+func (r *NovaCellTemplateCore) NoVNCProxyServiceTemplateValidateCell0(basePath *field.Path) field.ErrorList {
+	return r.NoVNCProxyServiceTemplate.ValidateCell0(basePath)
 }
 
 // NovaComputeTemplatesCount -
@@ -394,7 +394,7 @@ func validateCellTemplates(basePath *field.Path, cellTemplates map[string]NovaCe
 				cell.MetadataServiceValidateCell0(cellPath.Child("metadataServiceTemplate"))...)
 			errors = append(
 				errors,
-				cell.NoVNCProxyServiceTemplateValidateCell0()...)
+				cell.NoVNCProxyServiceTemplateValidateCell0(cellPath.Child("noVNCProxyServiceTemplate"))...)
 			errors = append(
 				errors,
 				ValidateNovaComputeCell0(
@@ -432,6 +432,7 @@ func validateAPIServiceTemplate(basePath *field.Path, defaultConfigOverwrite map
 func (r *NovaSpec) ValidateCreate(basePath *field.Path) field.ErrorList {
 	convertedCellTemplates := make(map[string]NovaCellTypeValidator)
 	for key, value := range r.CellTemplates {
+		value := value
 		convertedCellTemplates[key] = &value
 	}
 	errors := validateCellTemplates(basePath, convertedCellTemplates, *r.MetadataServiceTemplate.Enabled)
@@ -450,6 +451,7 @@ func (r *NovaSpec) ValidateCreate(basePath *field.Path) field.ErrorList {
 func (r *NovaSpecCore) ValidateCreate(basePath *field.Path) field.ErrorList {
 	convertedCellTemplates := make(map[string]NovaCellTypeValidator)
 	for key, value := range r.CellTemplates {
+		value := value
 		convertedCellTemplates[key] = &value
 	}
 	errors := validateCellTemplates(basePath, convertedCellTemplates, *r.MetadataServiceTemplate.Enabled)
@@ -482,6 +484,7 @@ func (r *Nova) ValidateCreate() (admission.Warnings, error) {
 func (r *NovaSpec) ValidateUpdate(old NovaSpec, basePath *field.Path) field.ErrorList {
 	convertedCellTemplates := make(map[string]NovaCellTypeValidator)
 	for key, value := range r.CellTemplates {
+		value := value
 		convertedCellTemplates[key] = &value
 	}
 
