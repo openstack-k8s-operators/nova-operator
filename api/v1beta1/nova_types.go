@@ -24,8 +24,8 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// NovaSpec defines the desired state of Nova
-type NovaSpec struct {
+// NovaSpecCore defines the template for NovaSpec used in OpenStackControlPlane
+type NovaSpecCore struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
@@ -110,6 +110,12 @@ type NovaSpec struct {
 	// +kubebuilder:default=memcached
 	// MemcachedInstance is the name of the Memcached CR that all nova service will use.
 	MemcachedInstance string `json:"memcachedInstance"`
+}
+
+// NovaSpec defines the desired state of Nova
+type NovaSpec struct {
+	// +kubebuilder:validation:Required
+	NovaSpecCore `json:",inline"`
 
 	// +kubebuilder:validation:Required
 	NovaImages `json:",inline"`
