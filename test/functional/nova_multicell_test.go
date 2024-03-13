@@ -244,8 +244,12 @@ var _ = Describe("Nova multicell", func() {
 						apiAccount.Spec.UserName, apiSecret.Data[mariadbv1.DatabasePasswordSelector],
 						novaNames.APIMariaDBDatabaseName.Name, novaNames.Namespace)),
 			)
-			Expect(configData).To(ContainSubstring("memcache_servers=memcached-0.memcached:11211,memcached-1.memcached:11211,memcached-2.memcached:11211"))
-			Expect(configData).To(ContainSubstring("memcached_servers=inet:[memcached-0.memcached]:11211,inet:[memcached-1.memcached]:11211,inet:[memcached-2.memcached]:11211"))
+			Expect(configData).Should(
+				ContainSubstring(fmt.Sprintf("memcache_servers=memcached-0.memcached.%s.svc:11211,memcached-1.memcached.%s.svc:11211,memcached-2.memcached.%s.svc:11211",
+					novaNames.Namespace, novaNames.Namespace, novaNames.Namespace)))
+			Expect(configData).Should(
+				ContainSubstring(fmt.Sprintf("memcached_servers=inet:[memcached-0.memcached.%s.svc]:11211,inet:[memcached-1.memcached.%s.svc]:11211,inet:[memcached-2.memcached.%s.svc]:11211",
+					novaNames.Namespace, novaNames.Namespace, novaNames.Namespace)))
 
 			Expect(configData).To(ContainSubstring("transport_url=rabbit://cell0/fake"))
 
@@ -368,8 +372,12 @@ var _ = Describe("Nova multicell", func() {
 			)
 
 			Expect(configData).To(ContainSubstring("transport_url=rabbit://cell1/fake"))
-			Expect(configData).To(ContainSubstring("memcache_servers=memcached1-0.memcached1:11211,memcached1-1.memcached1:11211,memcached1-2.memcached1:11211"))
-			Expect(configData).To(ContainSubstring("memcached_servers=inet:[memcached1-0.memcached1]:11211,inet:[memcached1-1.memcached1]:11211,inet:[memcached1-2.memcached1]:11211"))
+			Expect(configData).Should(
+				ContainSubstring(fmt.Sprintf("memcache_servers=memcached1-0.memcached1.%s.svc:11211,memcached1-1.memcached1.%s.svc:11211,memcached1-2.memcached1.%s.svc:11211",
+					novaNames.Namespace, novaNames.Namespace, novaNames.Namespace)))
+			Expect(configData).Should(
+				ContainSubstring(fmt.Sprintf("memcached_servers=inet:[memcached1-0.memcached1.%s.svc]:11211,inet:[memcached1-1.memcached1.%s.svc]:11211,inet:[memcached1-2.memcached1.%s.svc]:11211",
+					novaNames.Namespace, novaNames.Namespace, novaNames.Namespace)))
 
 			myCnf := configDataMap.Data["my.cnf"]
 			Expect(myCnf).To(
