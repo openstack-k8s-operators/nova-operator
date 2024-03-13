@@ -192,8 +192,12 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 				Expect(configData).Should(ContainSubstring("novncproxy_host = \"::0\""))
 				Expect(configData).Should(ContainSubstring("novncproxy_port = 6080"))
 				Expect(configData).Should(ContainSubstring("password = service-password"))
-				Expect(configData).To(ContainSubstring("memcache_servers=memcached-0.memcached:11211,memcached-1.memcached:11211,memcached-2.memcached:11211"))
-				Expect(configData).To(ContainSubstring("memcached_servers=inet:[memcached-0.memcached]:11211,inet:[memcached-1.memcached]:11211,inet:[memcached-2.memcached]:11211"))
+				Expect(configData).Should(
+					ContainSubstring(fmt.Sprintf("memcache_servers=memcached-0.memcached.%s.svc:11211,memcached-1.memcached.%s.svc:11211,memcached-2.memcached.%s.svc:11211",
+						novaNames.Namespace, novaNames.Namespace, novaNames.Namespace)))
+				Expect(configData).Should(
+					ContainSubstring(fmt.Sprintf("memcached_servers=inet:[memcached-0.memcached.%s.svc]:11211,inet:[memcached-1.memcached.%s.svc]:11211,inet:[memcached-2.memcached.%s.svc]:11211",
+						novaNames.Namespace, novaNames.Namespace, novaNames.Namespace)))
 				Expect(configData).Should(ContainSubstring("transport_url=rabbit://cell1/fake"))
 				Expect(configData).Should(
 					ContainSubstring("[upgrade_levels]\ncompute = auto"))
