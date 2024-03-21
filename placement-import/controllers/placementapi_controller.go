@@ -256,6 +256,10 @@ func (r *PlacementAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		Log.Error(err, "Failed to create lib-common Helper")
 		return ctrl.Result{}, err
 	}
+
+	// Save a copy of the condtions so that we can restore the LastTransitionTime
+	// when a condition's state doesn't change.
+	savedConditions := instance.Status.Conditions.DeepCopy()
 	// initialize status fields
 	if err = r.initStatus(ctx, h, instance); err != nil {
 		return ctrl.Result{}, err
@@ -263,6 +267,7 @@ func (r *PlacementAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	// Always patch the instance status when exiting this function so we can persist any changes.
 	defer func() {
+		condition.RestoreLastTransitionTimes(&instance.Status.Conditions, savedConditions)
 		// update the Ready condition based on the sub conditions
 		if instance.Status.Conditions.AllSubConditionIsTrue() {
 			instance.Status.Conditions.MarkTrue(
@@ -752,77 +757,77 @@ func (r *PlacementAPIReconciler) initConditions(
 ) error {
 	if instance.Status.Conditions == nil {
 		instance.Status.Conditions = condition.Conditions{}
-		// initialize conditions used later as Status=Unknown
-		cl := condition.CreateList(
-			condition.UnknownCondition(
-				condition.DBReadyCondition,
-				condition.InitReason,
-				condition.DBReadyInitMessage,
-			),
-			condition.UnknownCondition(
-				condition.DBSyncReadyCondition,
-				condition.InitReason,
-				condition.DBSyncReadyInitMessage,
-			),
-			condition.UnknownCondition(
-				condition.ExposeServiceReadyCondition,
-				condition.InitReason,
-				condition.ExposeServiceReadyInitMessage,
-			),
-			condition.UnknownCondition(
-				condition.InputReadyCondition,
-				condition.InitReason,
-				condition.InputReadyInitMessage,
-			),
-			condition.UnknownCondition(
-				condition.ServiceConfigReadyCondition,
-				condition.InitReason,
-				condition.ServiceConfigReadyInitMessage,
-			),
-			condition.UnknownCondition(
-				condition.DeploymentReadyCondition,
-				condition.InitReason,
-				condition.DeploymentReadyInitMessage,
-			),
-			// right now we have no dedicated KeystoneServiceReadyInitMessage and KeystoneEndpointReadyInitMessage
-			condition.UnknownCondition(
-				condition.KeystoneServiceReadyCondition,
-				condition.InitReason,
-				"Service registration not started",
-			),
-			condition.UnknownCondition(
-				condition.KeystoneEndpointReadyCondition,
-				condition.InitReason,
-				"KeystoneEndpoint not created",
-			),
-			condition.UnknownCondition(
-				condition.NetworkAttachmentsReadyCondition,
-				condition.InitReason,
-				condition.NetworkAttachmentsReadyInitMessage,
-			),
-			// service account, role, rolebinding conditions
-			condition.UnknownCondition(
-				condition.ServiceAccountReadyCondition,
-				condition.InitReason,
-				condition.ServiceAccountReadyInitMessage,
-			),
-			condition.UnknownCondition(
-				condition.RoleReadyCondition,
-				condition.InitReason,
-				condition.RoleReadyInitMessage,
-			),
-			condition.UnknownCondition(
-				condition.RoleBindingReadyCondition,
-				condition.InitReason,
-				condition.RoleBindingReadyInitMessage),
-			condition.UnknownCondition(
-				condition.TLSInputReadyCondition,
-				condition.InitReason,
-				condition.InputReadyInitMessage),
-		)
-
-		instance.Status.Conditions.Init(&cl)
 	}
+	// initialize conditions used later as Status=Unknown
+	cl := condition.CreateList(
+		condition.UnknownCondition(
+			condition.DBReadyCondition,
+			condition.InitReason,
+			condition.DBReadyInitMessage,
+		),
+		condition.UnknownCondition(
+			condition.DBSyncReadyCondition,
+			condition.InitReason,
+			condition.DBSyncReadyInitMessage,
+		),
+		condition.UnknownCondition(
+			condition.ExposeServiceReadyCondition,
+			condition.InitReason,
+			condition.ExposeServiceReadyInitMessage,
+		),
+		condition.UnknownCondition(
+			condition.InputReadyCondition,
+			condition.InitReason,
+			condition.InputReadyInitMessage,
+		),
+		condition.UnknownCondition(
+			condition.ServiceConfigReadyCondition,
+			condition.InitReason,
+			condition.ServiceConfigReadyInitMessage,
+		),
+		condition.UnknownCondition(
+			condition.DeploymentReadyCondition,
+			condition.InitReason,
+			condition.DeploymentReadyInitMessage,
+		),
+		// right now we have no dedicated KeystoneServiceReadyInitMessage and KeystoneEndpointReadyInitMessage
+		condition.UnknownCondition(
+			condition.KeystoneServiceReadyCondition,
+			condition.InitReason,
+			"Service registration not started",
+		),
+		condition.UnknownCondition(
+			condition.KeystoneEndpointReadyCondition,
+			condition.InitReason,
+			"KeystoneEndpoint not created",
+		),
+		condition.UnknownCondition(
+			condition.NetworkAttachmentsReadyCondition,
+			condition.InitReason,
+			condition.NetworkAttachmentsReadyInitMessage,
+		),
+		// service account, role, rolebinding conditions
+		condition.UnknownCondition(
+			condition.ServiceAccountReadyCondition,
+			condition.InitReason,
+			condition.ServiceAccountReadyInitMessage,
+		),
+		condition.UnknownCondition(
+			condition.RoleReadyCondition,
+			condition.InitReason,
+			condition.RoleReadyInitMessage,
+		),
+		condition.UnknownCondition(
+			condition.RoleBindingReadyCondition,
+			condition.InitReason,
+			condition.RoleBindingReadyInitMessage),
+		condition.UnknownCondition(
+			condition.TLSInputReadyCondition,
+			condition.InitReason,
+			condition.InputReadyInitMessage),
+	)
+
+	instance.Status.Conditions.Init(&cl)
 	return nil
 }
 
