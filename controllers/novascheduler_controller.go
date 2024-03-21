@@ -114,6 +114,10 @@ func (r *NovaSchedulerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 	Log.Info("Reconciling")
 
+	// Save a copy of the condtions so that we can restore the LastTransitionTime
+	// when a condition's state doesn't change.
+	savedConditions := instance.Status.Conditions.DeepCopy()
+
 	// initialize status fields
 	if err = r.initStatus(ctx, h, instance); err != nil {
 		return ctrl.Result{}, err
@@ -122,6 +126,7 @@ func (r *NovaSchedulerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	// Always update the instance status when exiting this function so we can
 	// persist any changes happened during the current reconciliation.
 	defer func() {
+		condition.RestoreLastTransitionTimes(&instance.Status.Conditions, savedConditions)
 		// update the Ready condition based on the sub conditions
 		if allSubConditionIsTrue(instance.Status) {
 			instance.Status.Conditions.MarkTrue(
@@ -391,40 +396,40 @@ func (r *NovaSchedulerReconciler) initConditions(
 ) error {
 	if instance.Status.Conditions == nil {
 		instance.Status.Conditions = condition.Conditions{}
-		// initialize all conditions to Unknown
-		cl := condition.CreateList(
-			// TODO(gibi): Initialize each condition the controller reports
-			// here to Unknown. By default only the top level Ready condition is
-			// created by Conditions.Init()
-			condition.UnknownCondition(
-				condition.InputReadyCondition,
-				condition.InitReason,
-				condition.InputReadyInitMessage,
-			),
-			condition.UnknownCondition(
-				condition.ServiceConfigReadyCondition,
-				condition.InitReason,
-				condition.ServiceConfigReadyInitMessage,
-			),
-			condition.UnknownCondition(
-				condition.DeploymentReadyCondition,
-				condition.InitReason,
-				condition.DeploymentReadyInitMessage,
-			),
-			condition.UnknownCondition(
-				condition.NetworkAttachmentsReadyCondition,
-				condition.InitReason,
-				condition.NetworkAttachmentsReadyInitMessage,
-			),
-			condition.UnknownCondition(
-				condition.TLSInputReadyCondition,
-				condition.InitReason,
-				condition.InputReadyInitMessage,
-			),
-		)
-
-		instance.Status.Conditions.Init(&cl)
 	}
+	// initialize all conditions to Unknown
+	cl := condition.CreateList(
+		// TODO(gibi): Initialize each condition the controller reports
+		// here to Unknown. By default only the top level Ready condition is
+		// created by Conditions.Init()
+		condition.UnknownCondition(
+			condition.InputReadyCondition,
+			condition.InitReason,
+			condition.InputReadyInitMessage,
+		),
+		condition.UnknownCondition(
+			condition.ServiceConfigReadyCondition,
+			condition.InitReason,
+			condition.ServiceConfigReadyInitMessage,
+		),
+		condition.UnknownCondition(
+			condition.DeploymentReadyCondition,
+			condition.InitReason,
+			condition.DeploymentReadyInitMessage,
+		),
+		condition.UnknownCondition(
+			condition.NetworkAttachmentsReadyCondition,
+			condition.InitReason,
+			condition.NetworkAttachmentsReadyInitMessage,
+		),
+		condition.UnknownCondition(
+			condition.TLSInputReadyCondition,
+			condition.InitReason,
+			condition.InputReadyInitMessage,
+		),
+	)
+
+	instance.Status.Conditions.Init(&cl)
 	return nil
 }
 
