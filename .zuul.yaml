@@ -148,6 +148,7 @@
         cpu_mode = custom
         cpu_models = Nehalem
 
+# DNM: temp change to trigger job with depends on https://github.com/openstack-k8s-operators/dataplane-operator/pull/754
 - project:
     name: openstack-k8s-operators/nova-operator
     github-check:
