@@ -147,6 +147,9 @@ type NovaStatus struct {
 	// DiscoveredCells is a map keyed by cell names that have discovered all kubernetes managed
 	// computes in cell value is a hash of config from all kubernetes managed computes in cell
 	DiscoveredCells map[string]string `json:"discoveredCells,omitempty"`
+
+	//ObservedGeneration - the most recent generation observed for this service. If the observed generation is less than the spec generation, then the controller has not processed the latest changes.
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 }
 
 //+kubebuilder:object:root=true
