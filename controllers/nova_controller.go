@@ -585,6 +585,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	}
 
 	Log.Info("Successfully reconciled")
+	instance.Status.ObservedGeneration = instance.Generation
 	return ctrl.Result{}, nil
 }
 
