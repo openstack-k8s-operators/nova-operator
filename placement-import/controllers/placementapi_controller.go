@@ -503,6 +503,7 @@ func (r *PlacementAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, err
 	}
 
+	instance.Status.ObservedGeneration = instance.Generation
 	return ctrl.Result{}, nil
 }
 
