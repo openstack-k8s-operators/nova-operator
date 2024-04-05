@@ -493,6 +493,7 @@ func (r *NovaSchedulerReconciler) generateConfigs(
 		"transport_url":            string(secret.Data[TransportURLSelector]),
 		"MemcachedServers":         memcachedInstance.GetMemcachedServerListString(),
 		"MemcachedServersWithInet": memcachedInstance.GetMemcachedServerListWithInetString(),
+		"MemcachedTLS":             memcachedInstance.GetMemcachedTLSSupport(),
 	}
 
 	var tlsCfg *tls.Service

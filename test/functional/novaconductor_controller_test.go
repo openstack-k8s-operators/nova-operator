@@ -211,6 +211,8 @@ var _ = Describe("NovaConductor controller", func() {
 				Expect(configData).Should(
 					ContainSubstring(fmt.Sprintf("memcached_servers=inet:[memcached-0.memcached.%s.svc]:11211,inet:[memcached-1.memcached.%s.svc]:11211,inet:[memcached-2.memcached.%s.svc]:11211",
 						novaNames.Namespace, novaNames.Namespace, novaNames.Namespace)))
+				Expect(configData).Should(
+					ContainSubstring("tls_enabled=false"))
 				Expect(configDataMap.Data).Should(HaveKey("02-nova-override.conf"))
 				myCnf := configDataMap.Data["my.cnf"]
 				Expect(myCnf).To(
@@ -818,7 +820,7 @@ var _ = Describe("NovaConductor controller", func() {
 			},
 		}
 		DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
-		infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
+		infra.SimulateTLSMemcachedReady(novaNames.MemcachedNamespace)
 	})
 
 	When("NovaConductor CR instance is deleted", func() {
@@ -906,6 +908,17 @@ var _ = Describe("NovaConductor controller", func() {
 
 			configDataMap := th.GetSecret(cell0.ConductorConfigDataName)
 			Expect(configDataMap).ShouldNot(BeNil())
+
+			configData := string(configDataMap.Data["01-nova.conf"])
+			Expect(configData).Should(
+				ContainSubstring(fmt.Sprintf("memcache_servers=memcached-0.memcached.%s.svc:11211,memcached-1.memcached.%s.svc:11211,memcached-2.memcached.%s.svc:11211",
+					novaNames.Namespace, novaNames.Namespace, novaNames.Namespace)))
+			Expect(configData).Should(
+				ContainSubstring(fmt.Sprintf("memcached_servers=inet:[memcached-0.memcached.%s.svc]:11211,inet:[memcached-1.memcached.%s.svc]:11211,inet:[memcached-2.memcached.%s.svc]:11211",
+					novaNames.Namespace, novaNames.Namespace, novaNames.Namespace)))
+			Expect(configData).Should(
+				ContainSubstring("tls_enabled=true"))
+
 			myCnf := configDataMap.Data["my.cnf"]
 			Expect(myCnf).To(
 				ContainSubstring("[client]\nssl-ca=/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem\nssl=1"))

@@ -462,6 +462,7 @@ func (r *NovaMetadataReconciler) generateConfigs(
 		"ServerName":               fmt.Sprintf("%s.%s.svc", novametadata.ServiceName, instance.Namespace),
 		"MemcachedServers":         memcachedInstance.GetMemcachedServerListString(),
 		"MemcachedServersWithInet": memcachedInstance.GetMemcachedServerListWithInetString(),
+		"MemcachedTLS":             memcachedInstance.GetMemcachedTLSSupport(),
 	}
 
 	var db *mariadbv1.Database
