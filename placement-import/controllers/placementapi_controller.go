@@ -217,6 +217,7 @@ func (r *PlacementAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	if err = r.initStatus(instance); err != nil {
 		return ctrl.Result{}, err
 	}
+	instance.Status.ObservedGeneration = instance.Generation
 
 	// Always patch the instance status when exiting this function so we can persist any changes.
 	defer func() {
@@ -240,14 +241,23 @@ func (r *PlacementAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		}
 	}()
 
-	// If we're not deleting this and the service object doesn't have our finalizer, add it.
-	if instance.DeletionTimestamp.IsZero() && controllerutil.AddFinalizer(instance, h.GetFinalizer()) {
-		return ctrl.Result{}, nil
-	}
-
 	// Handle service delete
 	if !instance.DeletionTimestamp.IsZero() {
 		return r.reconcileDelete(ctx, instance, h)
+	}
+
+	// We create a KeystoneService CR later and that will automatically get the
+	// Nova finalizer. So we need a finalizer on the ourselves too so that
+	// during Nova CR delete we can have a chance to remove the finalizer from
+	// the our KeystoneService so that is also deleted.
+	updated := controllerutil.AddFinalizer(instance, h.GetFinalizer())
+	if updated {
+		Log.Info("Added finalizer to ourselves")
+		// we intentionally return immediately to force the deferred function
+		// to persist the Instance with the finalizer. We need to have our own
+		// finalizer persisted before we try to create the KeystoneService with
+		// our finalizer to avoid orphaning the KeystoneService.
+		return ctrl.Result{}, nil
 	}
 	// Service account, role, binding
 	rbacRules := []rbacv1.PolicyRule{
@@ -444,19 +454,12 @@ func (r *PlacementAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return result, err
 	}
 
-	// Only expose the service is the deployment succeeded
-	if !instance.Status.Conditions.IsTrue(condition.DeploymentReadyCondition) {
-		Log.Info("Waiting for the Deployment to become Ready before exposing the sevice in Keystone")
-		return ctrl.Result{}, nil
-	}
-
 	// remove finalizers from unused MariaDBAccount records
 	err = mariadbv1.DeleteUnusedMariaDBAccountFinalizers(ctx, h, placement.DatabaseName, instance.Spec.DatabaseAccount, instance.Namespace)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	instance.Status.ObservedGeneration = instance.Generation
 	return ctrl.Result{}, nil
 }
 
@@ -1111,7 +1114,11 @@ func (r *PlacementAPIReconciler) ensureDeployment(
 			condition.DeploymentReadyRunningMessage))
 		return ctrl.Result{}, nil
 	}
-	instance.Status.ReadyCount = depl.GetDeployment().Status.ReadyReplicas
+
+	deployment := depl.GetDeployment()
+	if depl.GetDeployment().Generation == depl.GetDeployment().Status.ObservedGeneration {
+		instance.Status.ReadyCount = depl.GetDeployment().Status.ReadyReplicas
+	}
 
 	// verify if network attachment matches expectations
 	networkReady, networkAttachmentStatus, err := nad.VerifyNetworkStatusFromAnnotation(ctx, h, instance.Spec.NetworkAttachments, serviceLabels, instance.Status.ReadyCount)
@@ -1134,7 +1141,7 @@ func (r *PlacementAPIReconciler) ensureDeployment(
 		return ctrl.Result{}, err
 	}
 
-	if instance.Status.ReadyCount > 0 || *instance.Spec.Replicas == 0 {
+	if instance.Status.ReadyCount == *instance.Spec.Replicas && deployment.Generation == deployment.Status.ObservedGeneration {
 		instance.Status.Conditions.MarkTrue(condition.DeploymentReadyCondition, condition.DeploymentReadyMessage)
 	} else {
 		Log.Info("Deployment is not ready")
@@ -1146,11 +1153,11 @@ func (r *PlacementAPIReconciler) ensureDeployment(
 		// It is OK to return success as we are watching for StatefulSet changes
 		return ctrl.Result{}, nil
 	}
-
 	// create Deployment - end
 
 	Log.Info("Reconciled Service successfully")
 	return ctrl.Result{}, nil
+
 }
 
 // generateServiceConfigMaps - create create configmaps which hold scripts and service configuration

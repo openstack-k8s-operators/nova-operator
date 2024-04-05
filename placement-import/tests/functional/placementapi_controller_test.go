@@ -152,6 +152,7 @@ var _ = Describe("PlacementAPI controller", func() {
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystoneAPIName)
 
 		})
+
 		It("and deployment is Ready", func() {
 			serviceSpec := corev1.ServiceSpec{Ports: []corev1.ServicePort{{Port: 3306}}}
 			DeferCleanup(
@@ -161,8 +162,10 @@ var _ = Describe("PlacementAPI controller", func() {
 			mariadb.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
 			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBAccount)
 			th.SimulateJobSuccess(names.DBSyncJobName)
+			th.SimulateDeploymentReplicaReady(names.DeploymentName)
 			placement := GetPlacementAPI(names.PlacementAPIName)
 			Expect(*(placement.Spec.Replicas)).Should(Equal(int32(0)))
+			Expect(placement.Status.ReadyCount).Should(Equal(int32(0)))
 			th.ExpectCondition(
 				names.PlacementAPIName,
 				ConditionGetterFunc(PlacementConditionGetter),
