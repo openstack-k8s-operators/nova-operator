@@ -412,6 +412,7 @@ func (r *NovaNoVNCProxyReconciler) generateConfigs(
 		"default_user_domain":      "Default",   // fixme
 		"MemcachedServers":         memcachedInstance.GetMemcachedServerListString(),
 		"MemcachedServersWithInet": memcachedInstance.GetMemcachedServerListWithInetString(),
+		"MemcachedTLS":             memcachedInstance.GetMemcachedTLSSupport(),
 	}
 	if instance.Spec.TLS.GenericService.Enabled() {
 		templateParameters["SSLCertificateFile"] = fmt.Sprintf("/etc/pki/tls/certs/%s.crt", novncproxy.ServiceName)

@@ -466,6 +466,7 @@ func (r *NovaAPIReconciler) generateConfigs(
 		"tls":                      false,
 		"MemcachedServers":         memcachedInstance.GetMemcachedServerListString(),
 		"MemcachedServersWithInet": memcachedInstance.GetMemcachedServerListWithInetString(),
+		"MemcachedTLS":             memcachedInstance.GetMemcachedTLSSupport(),
 	}
 	// create httpd  vhost template parameters
 	httpdVhostConfig := map[string]interface{}{}

@@ -378,6 +378,8 @@ var _ = Describe("Nova multicell", func() {
 			Expect(configData).Should(
 				ContainSubstring(fmt.Sprintf("memcached_servers=inet:[memcached1-0.memcached1.%s.svc]:11211,inet:[memcached1-1.memcached1.%s.svc]:11211,inet:[memcached1-2.memcached1.%s.svc]:11211",
 					novaNames.Namespace, novaNames.Namespace, novaNames.Namespace)))
+			Expect(configData).Should(
+				ContainSubstring("tls_enabled=false"))
 
 			myCnf := configDataMap.Data["my.cnf"]
 			Expect(myCnf).To(

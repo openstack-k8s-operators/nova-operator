@@ -419,6 +419,7 @@ func (r *NovaConductorReconciler) generateConfigs(
 		"transport_url":            string(secret.Data[TransportURLSelector]),
 		"MemcachedServers":         memcachedInstance.GetMemcachedServerListString(),
 		"MemcachedServersWithInet": memcachedInstance.GetMemcachedServerListWithInetString(),
+		"MemcachedTLS":             memcachedInstance.GetMemcachedTLSSupport(),
 	}
 	if len(instance.Spec.APIDatabaseHostname) > 0 {
 		apiDatabaseAccount, apiDbSecret, err := mariadbv1.GetAccountAndSecret(ctx, h, instance.Spec.APIDatabaseAccount, instance.Namespace)

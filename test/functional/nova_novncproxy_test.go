@@ -198,6 +198,8 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 				Expect(configData).Should(
 					ContainSubstring(fmt.Sprintf("memcached_servers=inet:[memcached-0.memcached.%s.svc]:11211,inet:[memcached-1.memcached.%s.svc]:11211,inet:[memcached-2.memcached.%s.svc]:11211",
 						novaNames.Namespace, novaNames.Namespace, novaNames.Namespace)))
+				Expect(configData).Should(
+					ContainSubstring("tls_enabled=false"))
 				Expect(configData).Should(ContainSubstring("transport_url=rabbit://cell1/fake"))
 				Expect(configData).Should(
 					ContainSubstring("[upgrade_levels]\ncompute = auto"))
@@ -770,7 +772,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 			}
 
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
-			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
+			infra.SimulateTLSMemcachedReady(novaNames.MemcachedNamespace)
 			DeferCleanup(th.DeleteInstance, CreateNovaNoVNCProxy(cell1.NoVNCProxyName, spec))
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreateDefaultCellInternalSecret(cell1))
@@ -853,6 +855,17 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 			Expect(configData).Should(ContainSubstring("ssl_only=true"))
 			Expect(configData).Should(ContainSubstring("cert=/etc/pki/tls/certs/nova-novncproxy.crt"))
 			Expect(configData).Should(ContainSubstring("key=/etc/pki/tls/private/nova-novncproxy.key"))
+
+			configData = string(configDataMap.Data["01-nova.conf"])
+			Expect(configData).Should(
+				ContainSubstring(fmt.Sprintf("memcache_servers=memcached-0.memcached.%s.svc:11211,memcached-1.memcached.%s.svc:11211,memcached-2.memcached.%s.svc:11211",
+					novaNames.Namespace, novaNames.Namespace, novaNames.Namespace)))
+			Expect(configData).Should(
+				ContainSubstring(fmt.Sprintf("memcached_servers=inet:[memcached-0.memcached.%s.svc]:11211,inet:[memcached-1.memcached.%s.svc]:11211,inet:[memcached-2.memcached.%s.svc]:11211",
+					novaNames.Namespace, novaNames.Namespace, novaNames.Namespace)))
+			Expect(configData).Should(
+				ContainSubstring("tls_enabled=true"))
+
 			myCnf := configDataMap.Data["my.cnf"]
 			Expect(myCnf).To(
 				ContainSubstring("[client]\nssl-ca=/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem\nssl=1"))
