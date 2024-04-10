@@ -23,6 +23,10 @@ limitations under the License.
 package v1beta1
 
 import (
+	"fmt"
+
+	"github.com/google/go-cmp/cmp"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -87,6 +91,13 @@ func (r *NovaScheduler) ValidateCreate() (admission.Warnings, error) {
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
 func (r *NovaScheduler) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	novaschedulerlog.Info("validate update", "name", r.Name)
+
+	oldScheduler, ok := old.(*NovaScheduler)
+	if !ok || oldScheduler == nil {
+		return nil, apierrors.NewInternalError(fmt.Errorf("unable to convert existing object"))
+	}
+
+	novaschedulerlog.Info("validate update", "diff", cmp.Diff(oldScheduler, r))
 
 	// TODO(user): fill in your validation logic upon object update.
 	return nil, nil
