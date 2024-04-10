@@ -26,6 +26,7 @@ import (
 	"fmt"
 	"regexp"
 
+	"github.com/google/go-cmp/cmp"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -104,6 +105,8 @@ func (r *NovaCompute) ValidateUpdate(old runtime.Object) (admission.Warnings, er
 	if !ok || oldNovaCompute == nil {
 		return nil, apierrors.NewInternalError(fmt.Errorf("unable to convert existing object"))
 	}
+
+	novacomputelog.Info("validate update", "diff", cmp.Diff(oldNovaCompute, r))
 
 	errors := r.Spec.ValidateUpdate(oldNovaCompute.Spec, field.NewPath("spec"))
 

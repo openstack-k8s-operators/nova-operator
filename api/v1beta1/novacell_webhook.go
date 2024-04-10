@@ -26,6 +26,7 @@ import (
 	"fmt"
 	"regexp"
 
+	"github.com/google/go-cmp/cmp"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -180,6 +181,8 @@ func (r *NovaCell) ValidateUpdate(old runtime.Object) (admission.Warnings, error
 	if !ok || oldCell == nil {
 		return nil, apierrors.NewInternalError(fmt.Errorf("unable to convert existing object"))
 	}
+
+	novacelllog.Info("validate update", "diff", cmp.Diff(oldCell, r))
 
 	errors := r.Spec.ValidateUpdate(oldCell.Spec, field.NewPath("spec"))
 

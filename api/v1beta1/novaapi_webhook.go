@@ -23,6 +23,9 @@ limitations under the License.
 package v1beta1
 
 import (
+	"fmt"
+
+	"github.com/google/go-cmp/cmp"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -99,6 +102,12 @@ func (r *NovaAPI) ValidateCreate() (admission.Warnings, error) {
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
 func (r *NovaAPI) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	novaapilog.Info("validate update", "name", r.Name)
+	oldNovaAPI, ok := old.(*NovaAPI)
+	if !ok || oldNovaAPI == nil {
+		return nil, apierrors.NewInternalError(fmt.Errorf("unable to convert existing object"))
+	}
+
+	novaapilog.Info("validate update", "diff", cmp.Diff(oldNovaAPI, r))
 
 	errors := ValidateAPIDefaultConfigOverwrite(
 		field.NewPath("spec").Child("defaultConfigOverwrite"),

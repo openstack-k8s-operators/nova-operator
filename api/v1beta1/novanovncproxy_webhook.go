@@ -23,6 +23,10 @@ limitations under the License.
 package v1beta1
 
 import (
+	"fmt"
+
+	"github.com/google/go-cmp/cmp"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -88,6 +92,13 @@ func (r *NovaNoVNCProxy) ValidateCreate() (admission.Warnings, error) {
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
 func (r *NovaNoVNCProxy) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	novanovncproxylog.Info("validate update", "name", r.Name)
+
+	oldProxy, ok := old.(*NovaNoVNCProxy)
+	if !ok || oldProxy == nil {
+		return nil, apierrors.NewInternalError(fmt.Errorf("unable to convert existing object"))
+	}
+
+	novanovncproxylog.Info("validate update", "diff", cmp.Diff(oldProxy, r))
 
 	// TODO(user): fill in your validation logic upon object update.
 	return nil, nil

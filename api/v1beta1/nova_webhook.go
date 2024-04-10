@@ -25,6 +25,7 @@ package v1beta1
 import (
 	"fmt"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/robfig/cron/v3"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -274,6 +275,8 @@ func (r *Nova) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	if !ok || oldNova == nil {
 		return nil, apierrors.NewInternalError(fmt.Errorf("unable to convert existing object"))
 	}
+
+	novalog.Info("validate update", "diff", cmp.Diff(oldNova, r))
 
 	errors := r.Spec.ValidateUpdate(oldNova.Spec, field.NewPath("spec"))
 	if len(errors) != 0 {
