@@ -18,13 +18,15 @@ package functional_test
 import (
 	"fmt"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
-	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
-	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
-	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
+	. "github.com/onsi/ginkgo/v2" //revive:disable:dot-imports
+	. "github.com/onsi/gomega"    //revive:disable:dot-imports
 
+	//revive:disable-next-line:dot-imports
+	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
+
+	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
+	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/nova-operator/controllers"
 	corev1 "k8s.io/api/core/v1"
@@ -144,7 +146,7 @@ var _ = Describe("Nova multicell", func() {
 			)
 			// assert that cell0 conductor is using the same DB as the API
 			dbSync := th.GetJob(cell0.DBSyncJobName)
-			Expect(dbSync.Spec.Template.Spec.InitContainers).To(HaveLen(0))
+			Expect(dbSync.Spec.Template.Spec.InitContainers).To(BeEmpty())
 
 			configDataMap := th.GetSecret(cell0.ConductorConfigDataName)
 			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
@@ -344,7 +346,7 @@ var _ = Describe("Nova multicell", func() {
 			)
 			// assert that cell1 using its own DB but has access to the API DB
 			dbSync := th.GetJob(cell1.DBSyncJobName)
-			Expect(dbSync.Spec.Template.Spec.InitContainers).To(HaveLen(0))
+			Expect(dbSync.Spec.Template.Spec.InitContainers).To(BeEmpty())
 			configDataMap := th.GetSecret(cell1.ConductorConfigDataName)
 			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
 			configData := string(configDataMap.Data["01-nova.conf"])
@@ -467,7 +469,7 @@ var _ = Describe("Nova multicell", func() {
 			)
 			// assert that cell2 using its own DB but has *no* access to the API DB
 			dbSync := th.GetJob(cell2.DBSyncJobName)
-			Expect(dbSync.Spec.Template.Spec.InitContainers).To(HaveLen(0))
+			Expect(dbSync.Spec.Template.Spec.InitContainers).To(BeEmpty())
 			configDataMap := th.GetSecret(cell2.ConductorConfigDataName)
 			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
 			configData := string(configDataMap.Data["01-nova.conf"])

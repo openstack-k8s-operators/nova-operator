@@ -18,21 +18,22 @@ package functional_test
 import (
 	"fmt"
 
-	"github.com/google/uuid"
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
-	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
-	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
+	. "github.com/onsi/ginkgo/v2" //revive:disable:dot-imports
+	. "github.com/onsi/gomega"    //revive:disable:dot-imports
+
+	//revive:disable-next-line:dot-imports
 	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
 
+	"github.com/google/uuid"
+	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
+	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
+	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
+	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-
-	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
-	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
-	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 )
 
 var _ = Describe("NovaCell controller", func() {
@@ -313,9 +314,9 @@ var _ = Describe("NovaCell controller", func() {
 			configData := string(computeConfigData.Data["01-nova.conf"])
 			Expect(configData).To(ContainSubstring("transport_url=rabbit://cell1/fake"))
 			Expect(configData).To(ContainSubstring("username = nova\npassword = service-password\n"))
-			vncUrlConfig := fmt.Sprintf("novncproxy_base_url = http://%s/vnc_lite.html",
+			vncURLConfig := fmt.Sprintf("novncproxy_base_url = http://%s/vnc_lite.html",
 				fmt.Sprintf("nova-novncproxy-%s-public.%s.svc:6080", cell1.CellName, cell1.CellCRName.Namespace))
-			Expect(configData).To(ContainSubstring(vncUrlConfig))
+			Expect(configData).To(ContainSubstring(vncURLConfig))
 			Expect(configData).To(ContainSubstring("[vnc]\nenabled = True"))
 			Expect(configData).Should(
 				ContainSubstring("[upgrade_levels]\ncompute = auto"))
@@ -374,8 +375,8 @@ var _ = Describe("NovaCell controller", func() {
 			configData := string(computeConfigData.Data["01-nova.conf"])
 			Expect(configData).To(ContainSubstring("transport_url=rabbit://cell1/fake"))
 			Expect(configData).To(ContainSubstring("username = nova\npassword = service-password\n"))
-			vncUrlConfig := "novncproxy_base_url = http://foo/vnc_lite.html"
-			Expect(configData).To(ContainSubstring(vncUrlConfig))
+			vncURLConfig := "novncproxy_base_url = http://foo/vnc_lite.html"
+			Expect(configData).To(ContainSubstring(vncURLConfig))
 			Expect(configData).To(ContainSubstring("[vnc]\nenabled = True"))
 
 			th.ExpectCondition(
@@ -630,9 +631,9 @@ var _ = Describe("NovaCell controller", func() {
 			Expect(computeConfigData).ShouldNot(BeNil())
 			Expect(computeConfigData.Data).Should(HaveKey("01-nova.conf"))
 			configData := string(computeConfigData.Data["01-nova.conf"])
-			vncUrlConfig := fmt.Sprintf("novncproxy_base_url = http://%s/vnc_lite.html",
+			vncURLConfig := fmt.Sprintf("novncproxy_base_url = http://%s/vnc_lite.html",
 				fmt.Sprintf("nova-novncproxy-%s-public.%s.svc:6080", cell2.CellName, cell2.CellCRName.Namespace))
-			Expect(configData).To(ContainSubstring(vncUrlConfig))
+			Expect(configData).To(ContainSubstring(vncURLConfig))
 			Expect(configData).To(ContainSubstring("[vnc]\nenabled = True"))
 
 			Expect(GetNovaCell(cell2.CellCRName).Status.Hash[cell2.ComputeConfigSecretName.Name]).NotTo(BeNil())

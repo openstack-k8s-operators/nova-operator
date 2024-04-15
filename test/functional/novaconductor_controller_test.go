@@ -18,22 +18,23 @@ import (
 	"fmt"
 	"net/http"
 
+	. "github.com/onsi/ginkgo/v2" //revive:disable:dot-imports
+	. "github.com/onsi/gomega"    //revive:disable:dot-imports
+
+	//revive:disable-next-line:dot-imports
+	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
+
 	networkv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
 	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
 	keystone_helper "github.com/openstack-k8s-operators/keystone-operator/api/test/helpers"
-	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
+	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	api "github.com/openstack-k8s-operators/lib-common/modules/test/apis"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
-
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
-
-	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
-	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
 )
 
 var _ = Describe("NovaConductor controller", func() {
@@ -275,7 +276,7 @@ var _ = Describe("NovaConductor controller", func() {
 			job := th.GetJob(cell0.DBSyncJobName)
 			Expect(job.Spec.Template.Spec.ServiceAccountName).To(Equal("nova-sa"))
 			Expect(job.Spec.Template.Spec.Volumes).To(HaveLen(2))
-			Expect(job.Spec.Template.Spec.InitContainers).To(HaveLen(0))
+			Expect(job.Spec.Template.Spec.InitContainers).To(BeEmpty())
 			Expect(job.Spec.Template.Spec.Containers).To(HaveLen(1))
 			container := job.Spec.Template.Spec.Containers[0]
 			Expect(container.VolumeMounts).To(HaveLen(3))

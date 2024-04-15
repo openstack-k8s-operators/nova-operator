@@ -18,10 +18,13 @@ package functional_test
 import (
 	"fmt"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
-	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
+	. "github.com/onsi/ginkgo/v2" //revive:disable:dot-imports
+	. "github.com/onsi/gomega"    //revive:disable:dot-imports
+
+	//revive:disable-next-line:dot-imports
 	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
+
+	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
@@ -698,7 +701,7 @@ var _ = Describe("Nova controller", func() {
 			infra.SimulateTransportURLReady(cell0.TransportURLName)
 
 			cell0DBSync := th.GetJob(cell0.DBSyncJobName)
-			Expect(len(cell0DBSync.Spec.Template.Spec.InitContainers)).To(Equal(0))
+			Expect(cell0DBSync.Spec.Template.Spec.InitContainers).To(BeEmpty())
 			configDataMap := th.GetSecret(cell0.ConductorConfigDataName)
 			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
 			configData := string(configDataMap.Data["01-nova.conf"])
@@ -1149,7 +1152,7 @@ var _ = Describe("Nova controller", func() {
 				g.Expect(nova.Status.APIServiceReadyCount).To(Equal(int32(1)))
 				g.Expect(nova.Status.SchedulerServiceReadyCount).To(Equal(int32(1)))
 				g.Expect(nova.Status.MetadataServiceReadyCount).To(Equal(int32(1)))
-			})
+			}, timeout, interval).Should(Succeed())
 		},
 		// update to a new account name
 		UpdateAccount: func(accountName types.NamespacedName) {
@@ -1254,7 +1257,7 @@ var _ = Describe("Nova controller", func() {
 				g.Expect(nova.Status.APIServiceReadyCount).To(Equal(int32(1)))
 				g.Expect(nova.Status.SchedulerServiceReadyCount).To(Equal(int32(1)))
 				g.Expect(nova.Status.MetadataServiceReadyCount).To(Equal(int32(1)))
-			})
+			}, timeout, interval).Should(Succeed())
 		},
 		// update to a new account name
 		UpdateAccount: func(accountName types.NamespacedName) {

@@ -139,7 +139,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	savedConditions := instance.Status.Conditions.DeepCopy()
 
 	// initialize status fields
-	if err = r.initStatus(ctx, h, instance); err != nil {
+	if err = r.initStatus(instance); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -301,7 +301,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	case nova.DBCompleted:
 		instance.Status.Conditions.MarkTrue(novav1.NovaAPIDBReadyCondition, condition.DBReadyMessage)
 	default:
-		return ctrl.Result{}, fmt.Errorf("Invalid DatabaseStatus from ensureAPIDB: %d", apiDBStatus)
+		return ctrl.Result{}, fmt.Errorf("invalid DatabaseStatus from ensureAPIDB: %d", apiDBStatus)
 	}
 
 	// We need to create a list of cellNames to iterate on and as the map
@@ -331,7 +331,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 			creatingDBs = append(creatingDBs, cellName)
 		case nova.DBCompleted:
 		default:
-			return ctrl.Result{}, fmt.Errorf("Invalid DatabaseStatus from ensureCellDB: %d for cell %s", status, cellName)
+			return ctrl.Result{}, fmt.Errorf("invalid DatabaseStatus from ensureCellDB: %d for cell %s", status, cellName)
 		}
 		cellDBs[cellName] = &nova.Database{Database: cellDB, Status: status}
 	}
@@ -379,7 +379,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		instance.Status.Conditions.MarkTrue(
 			novav1.NovaAPIMQReadyCondition, novav1.NovaAPIMQReadyMessage)
 	default:
-		return ctrl.Result{}, fmt.Errorf("Invalid MessageBusStatus from  for the API MQ: %d", apiMQStatus)
+		return ctrl.Result{}, fmt.Errorf("invalid MessageBusStatus from  for the API MQ: %d", apiMQStatus)
 	}
 
 	cellMQs := map[string]*nova.MessageBus{}
@@ -407,7 +407,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 			creatingMQs = append(creatingMQs, cellName)
 		case nova.MQCompleted:
 		default:
-			return ctrl.Result{}, fmt.Errorf("Invalid MessageBusStatus from ensureMQ: %d for cell %s", status, cellName)
+			return ctrl.Result{}, fmt.Errorf("invalid MessageBusStatus from ensureMQ: %d for cell %s", status, cellName)
 		}
 		cellMQs[cellName] = &nova.MessageBus{TransportURL: cellTransportURL, Status: status}
 	}
@@ -536,13 +536,13 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		return ctrl.Result{}, nil
 	}
 
-	topLevelSecretName, err := r.ensureTopLevelSecret(ctx, h, instance, cell0Template, apiTransportURL, secret)
+	topLevelSecretName, err := r.ensureTopLevelSecret(ctx, h, instance, apiTransportURL, secret)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
 	result, err = r.ensureAPI(
-		ctx, h, instance, cell0Template,
+		ctx, instance, cell0Template,
 		cellDBs[novav1.Cell0Name].Database, apiDB,
 		keystoneInternalAuthURL, keystonePublicAuthURL,
 		topLevelSecretName,
@@ -552,7 +552,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	}
 
 	result, err = r.ensureScheduler(
-		ctx, h, instance, cell0Template,
+		ctx, instance, cell0Template,
 		cellDBs[novav1.Cell0Name].Database, apiDB, keystoneInternalAuthURL,
 		topLevelSecretName,
 	)
@@ -562,7 +562,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 
 	if *instance.Spec.MetadataServiceTemplate.Enabled {
 		result, err = r.ensureMetadata(
-			ctx, h, instance, cell0Template,
+			ctx, instance, cell0Template,
 			cellDBs[novav1.Cell0Name].Database, apiDB, keystoneInternalAuthURL,
 			topLevelSecretName,
 		)
@@ -572,7 +572,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	} else {
 		// The NovaMetadata is explicitly disable so we delete its deployment
 		// if exists
-		err = r.ensureMetadataDeleted(ctx, h, instance)
+		err = r.ensureMetadataDeleted(ctx, instance)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
@@ -595,9 +595,9 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 }
 
 func (r *NovaReconciler) initStatus(
-	ctx context.Context, h *helper.Helper, instance *novav1.Nova,
+	instance *novav1.Nova,
 ) error {
-	if err := r.initConditions(ctx, h, instance); err != nil {
+	if err := r.initConditions(instance); err != nil {
 		return err
 	}
 
@@ -612,7 +612,7 @@ func (r *NovaReconciler) initStatus(
 }
 
 func (r *NovaReconciler) initConditions(
-	ctx context.Context, h *helper.Helper, instance *novav1.Nova,
+	instance *novav1.Nova,
 ) error {
 	//
 	// initialize status
@@ -706,7 +706,6 @@ func (r *NovaReconciler) ensureNovaManageJobSecret(
 	ctx context.Context, h *helper.Helper, instance *novav1.Nova,
 	cell *novav1.NovaCell,
 	ospSecret corev1.Secret,
-	cellTemplate novav1.NovaCellTemplate,
 	apiDBHostname string,
 	cellTransportURL string,
 	cellDB *mariadbv1.Database,
@@ -807,10 +806,7 @@ func (r *NovaReconciler) ensureNovaManageJobSecret(
 func (r *NovaReconciler) ensureDB(
 	ctx context.Context,
 	h *helper.Helper,
-	instance *novav1.Nova,
 	db *mariadbv1.Database,
-	databaseServiceName string,
-	targetCondition condition.Type,
 ) (nova.DatabaseStatus, error) {
 	ctrlResult, err := db.CreateOrPatchAll(ctx, h)
 	if err != nil {
@@ -844,14 +840,7 @@ func (r *NovaReconciler) ensureAPIDB(
 		instance.Namespace,                // namespace
 	)
 
-	result, err := r.ensureDB(
-		ctx,
-		h,
-		instance,
-		apiDB,
-		instance.Spec.APIDatabaseInstance,
-		novav1.NovaAPIDBReadyCondition,
-	)
+	result, err := r.ensureDB(ctx, h, apiDB)
 	return apiDB, result, err
 }
 
@@ -886,14 +875,7 @@ func (r *NovaReconciler) ensureCellDB(
 		instance.Namespace,                // namespace
 	)
 
-	result, err := r.ensureDB(
-		ctx,
-		h,
-		instance,
-		cellDB,
-		cellTemplate.CellDatabaseInstance,
-		novav1.NovaAllCellsDBReadyCondition,
-	)
+	result, err := r.ensureDB(ctx, h, cellDB)
 	return cellDB, result, err
 }
 
@@ -979,7 +961,7 @@ func (r *NovaReconciler) ensureCell(
 		return cell, nova.CellDeploying, err
 	}
 	configHash, scriptName, configName, err := r.ensureNovaManageJobSecret(ctx, h, instance,
-		cell, secret, cellTemplate, apiDB.GetDatabaseHostname(), cellTransportURL, cellDB)
+		cell, secret, apiDB.GetDatabaseHostname(), cellTransportURL, cellDB)
 	if err != nil {
 		return cell, nova.CellFailed, err
 	}
@@ -995,7 +977,7 @@ func (r *NovaReconciler) ensureCell(
 
 	// We need to discover computes when cell have computetemplates and mapping is done
 	status, err = r.ensureNovaComputeDiscover(
-		ctx, h, instance, cell, secret, cellTemplate, configHash, scriptName, configName)
+		ctx, h, instance, cell, cellTemplate, scriptName, configName)
 
 	if status == nova.CellComputeDiscoveryReady {
 		status = nova.CellReady
@@ -1019,11 +1001,9 @@ func (r *NovaReconciler) ensureCell(
 func (r *NovaReconciler) ensureNovaComputeDiscover(
 	ctx context.Context,
 	h *helper.Helper,
-	novainstance *novav1.Nova,
+	instance *novav1.Nova,
 	cell *novav1.NovaCell,
-	novaSecret corev1.Secret,
 	cellTemplate novav1.NovaCellTemplate,
-	configHash map[string]env.Setter,
 	scriptName string,
 	configName string,
 ) (nova.CellDeploymentStatus, error) {
@@ -1042,7 +1022,7 @@ func (r *NovaReconciler) ensureNovaComputeDiscover(
 
 	job := job.NewJob(
 		jobDef, cell.Name+"-host-discover",
-		cell.Spec.PreserveJobs, r.RequeueTimeout, novainstance.Status.DiscoveredCells[cell.Name])
+		cell.Spec.PreserveJobs, r.RequeueTimeout, instance.Status.DiscoveredCells[cell.Name])
 
 	result, err := job.DoJob(ctx, h)
 	if err != nil {
@@ -1060,7 +1040,7 @@ func (r *NovaReconciler) ensureNovaComputeDiscover(
 		return nova.CellComputeDiscoveryReady, nil
 	}
 
-	novainstance.Status.DiscoveredCells[cell.Name] = job.GetHash()
+	instance.Status.DiscoveredCells[cell.Name] = job.GetHash()
 	Log.Info(fmt.Sprintf("Job %s hash added - %s", jobDef.Name, cell.Name))
 
 	return nova.CellComputeDiscoveryReady, nil
@@ -1068,7 +1048,6 @@ func (r *NovaReconciler) ensureNovaComputeDiscover(
 
 func (r *NovaReconciler) ensureAPI(
 	ctx context.Context,
-	h *helper.Helper,
 	instance *novav1.Nova,
 	cell0Template novav1.NovaCellTemplate,
 	cell0DB *mariadbv1.Database,
@@ -1151,7 +1130,6 @@ func (r *NovaReconciler) ensureAPI(
 
 func (r *NovaReconciler) ensureScheduler(
 	ctx context.Context,
-	h *helper.Helper,
 	instance *novav1.Nova,
 	cell0Template novav1.NovaCellTemplate,
 	cell0DB *mariadbv1.Database,
@@ -1465,7 +1443,6 @@ func getNovaMetadataName(instance client.Object) types.NamespacedName {
 
 func (r *NovaReconciler) ensureMetadata(
 	ctx context.Context,
-	h *helper.Helper,
 	instance *novav1.Nova,
 	cell0Template novav1.NovaCellTemplate,
 	cell0DB *mariadbv1.Database,
@@ -1696,7 +1673,6 @@ func (r *NovaReconciler) ensureTopLevelSecret(
 	ctx context.Context,
 	h *helper.Helper,
 	instance *novav1.Nova,
-	cell0Template novav1.NovaCellTemplate,
 	apiTransportURL string,
 	externalSecret corev1.Secret,
 ) (string, error) {
@@ -1734,7 +1710,7 @@ func (r *NovaReconciler) ensureTopLevelSecret(
 func (r *NovaReconciler) findObjectsForSrc(ctx context.Context, src client.Object) []reconcile.Request {
 	requests := []reconcile.Request{}
 
-	l := log.FromContext(context.Background()).WithName("Controllers").WithName("Nova")
+	l := log.FromContext(ctx).WithName("Controllers").WithName("Nova")
 
 	for _, field := range novaWatchFields {
 		crList := &novav1.NovaList{}
@@ -1742,7 +1718,7 @@ func (r *NovaReconciler) findObjectsForSrc(ctx context.Context, src client.Objec
 			FieldSelector: fields.OneTermEqualSelector(field, src.GetName()),
 			Namespace:     src.GetNamespace(),
 		}
-		err := r.Client.List(context.TODO(), crList, listOps)
+		err := r.Client.List(ctx, crList, listOps)
 		if err != nil {
 			return []reconcile.Request{}
 		}

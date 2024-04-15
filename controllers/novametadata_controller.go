@@ -121,7 +121,7 @@ func (r *NovaMetadataReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	// when a condition's state doesn't change.
 	savedConditions := instance.Status.Conditions.DeepCopy()
 	// initialize status fields
-	if err = r.initStatus(ctx, h, instance); err != nil {
+	if err = r.initStatus(instance); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -319,9 +319,9 @@ func (r *NovaMetadataReconciler) Reconcile(ctx context.Context, req ctrl.Request
 }
 
 func (r *NovaMetadataReconciler) initStatus(
-	ctx context.Context, h *helper.Helper, instance *novav1.NovaMetadata,
+	instance *novav1.NovaMetadata,
 ) error {
-	if err := r.initConditions(ctx, h, instance); err != nil {
+	if err := r.initConditions(instance); err != nil {
 		return err
 	}
 
@@ -336,7 +336,7 @@ func (r *NovaMetadataReconciler) initStatus(
 }
 
 func (r *NovaMetadataReconciler) initConditions(
-	ctx context.Context, h *helper.Helper, instance *novav1.NovaMetadata,
+	instance *novav1.NovaMetadata,
 ) error {
 	if instance.Status.Conditions == nil {
 		instance.Status.Conditions = condition.Conditions{}
@@ -827,7 +827,7 @@ func (r *NovaMetadataReconciler) generateNeutronConfigs(
 func (r *NovaMetadataReconciler) findObjectsForSrc(ctx context.Context, src client.Object) []reconcile.Request {
 	requests := []reconcile.Request{}
 
-	l := log.FromContext(context.Background()).WithName("Controllers").WithName("NovaMetadata")
+	l := log.FromContext(ctx).WithName("Controllers").WithName("NovaMetadata")
 
 	for _, field := range metaWatchFields {
 		crList := &novav1.NovaMetadataList{}
@@ -835,7 +835,7 @@ func (r *NovaMetadataReconciler) findObjectsForSrc(ctx context.Context, src clie
 			FieldSelector: fields.OneTermEqualSelector(field, src.GetName()),
 			Namespace:     src.GetNamespace(),
 		}
-		err := r.Client.List(context.TODO(), crList, listOps)
+		err := r.Client.List(ctx, crList, listOps)
 		if err != nil {
 			return []reconcile.Request{}
 		}

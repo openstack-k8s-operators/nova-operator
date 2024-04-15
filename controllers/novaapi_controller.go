@@ -126,7 +126,7 @@ func (r *NovaAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (re
 	// when a condition's state doesn't change.
 	savedConditions := instance.Status.Conditions.DeepCopy()
 	// initialize status fields
-	if err = r.initStatus(ctx, h, instance); err != nil {
+	if err = r.initStatus(instance); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -323,9 +323,9 @@ func (r *NovaAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (re
 }
 
 func (r *NovaAPIReconciler) initStatus(
-	ctx context.Context, h *helper.Helper, instance *novav1.NovaAPI,
+	instance *novav1.NovaAPI,
 ) error {
-	if err := r.initConditions(ctx, h, instance); err != nil {
+	if err := r.initConditions(instance); err != nil {
 		return err
 	}
 
@@ -342,7 +342,7 @@ func (r *NovaAPIReconciler) initStatus(
 }
 
 func (r *NovaAPIReconciler) initConditions(
-	ctx context.Context, h *helper.Helper, instance *novav1.NovaAPI,
+	instance *novav1.NovaAPI,
 ) error {
 	if instance.Status.Conditions == nil {
 		instance.Status.Conditions = condition.Conditions{}
@@ -798,6 +798,9 @@ func (r *NovaAPIReconciler) reconcileDelete(
 
 	// Remove our finalizer from Memcached
 	memcached, err := memcachedv1.GetMemcachedByName(ctx, h, instance.Spec.MemcachedInstance, instance.Namespace)
+	if err != nil && !k8s_errors.IsNotFound(err) {
+		return err
+	}
 	if memcached != nil {
 		if controllerutil.RemoveFinalizer(memcached, h.GetFinalizer()) {
 			err := h.GetClient().Update(ctx, memcached)
@@ -827,7 +830,7 @@ func getAPIServiceLabels() map[string]string {
 func (r *NovaAPIReconciler) findObjectsForSrc(ctx context.Context, src client.Object) []reconcile.Request {
 	requests := []reconcile.Request{}
 
-	l := log.FromContext(context.Background()).WithName("Controllers").WithName("NovaAPI")
+	l := log.FromContext(ctx).WithName("Controllers").WithName("NovaAPI")
 
 	for _, field := range apiWatchFields {
 		crList := &novav1.NovaAPIList{}
@@ -835,7 +838,7 @@ func (r *NovaAPIReconciler) findObjectsForSrc(ctx context.Context, src client.Ob
 			FieldSelector: fields.OneTermEqualSelector(field, src.GetName()),
 			Namespace:     src.GetNamespace(),
 		}
-		err := r.Client.List(context.TODO(), crList, listOps)
+		err := r.Client.List(ctx, crList, listOps)
 		if err != nil {
 			return []reconcile.Request{}
 		}

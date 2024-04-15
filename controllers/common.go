@@ -109,7 +109,6 @@ type conditionsGetter interface {
 }
 
 func cleanNovaServiceFromNovaDb(
-	ctx context.Context,
 	computeClient *gophercloud.ServiceClient,
 	serviceName string,
 ) error {
@@ -175,7 +174,7 @@ func ensureSecret(
 			return "",
 				ctrl.Result{RequeueAfter: requeueTimeout},
 				*secret,
-				fmt.Errorf("Secret %s not found", secretName)
+				fmt.Errorf("secret %s not found", secretName)
 		}
 		conditionUpdater.Set(condition.FalseCondition(
 			condition.InputReadyCondition,
@@ -282,9 +281,9 @@ type Reconciler interface {
 	SetRequeueTimeout(timeout time.Duration)
 }
 
-// NewReconcilerBase constructs a ReconcilerBase given a name manager and Kclient.
+// NewReconcilerBase constructs a ReconcilerBase given a manager and Kclient.
 func NewReconcilerBase(
-	name string, mgr ctrl.Manager, kclient kubernetes.Interface,
+	mgr ctrl.Manager, kclient kubernetes.Interface,
 ) ReconcilerBase {
 	return ReconcilerBase{
 		Client:         mgr.GetClient(),
@@ -310,28 +309,28 @@ func NewReconcilers(mgr ctrl.Manager, kclient *kubernetes.Clientset) *Reconciler
 	return &Reconcilers{
 		reconcilers: map[string]Reconciler{
 			"Nova": &NovaReconciler{
-				ReconcilerBase: NewReconcilerBase("Nova", mgr, kclient),
+				ReconcilerBase: NewReconcilerBase(mgr, kclient),
 			},
 			"NovaCell": &NovaCellReconciler{
-				ReconcilerBase: NewReconcilerBase("NovaCell", mgr, kclient),
+				ReconcilerBase: NewReconcilerBase(mgr, kclient),
 			},
 			"NovaAPI": &NovaAPIReconciler{
-				ReconcilerBase: NewReconcilerBase("NovaAPI", mgr, kclient),
+				ReconcilerBase: NewReconcilerBase(mgr, kclient),
 			},
 			"NovaScheduler": &NovaSchedulerReconciler{
-				ReconcilerBase: NewReconcilerBase("NovaScheduler", mgr, kclient),
+				ReconcilerBase: NewReconcilerBase(mgr, kclient),
 			},
 			"NovaConductor": &NovaConductorReconciler{
-				ReconcilerBase: NewReconcilerBase("NovaConductor", mgr, kclient),
+				ReconcilerBase: NewReconcilerBase(mgr, kclient),
 			},
 			"NovaMetadata": &NovaMetadataReconciler{
-				ReconcilerBase: NewReconcilerBase("NovaMetadata", mgr, kclient),
+				ReconcilerBase: NewReconcilerBase(mgr, kclient),
 			},
 			"NovaNoVNCProxy": &NovaNoVNCProxyReconciler{
-				ReconcilerBase: NewReconcilerBase("NovaNoVNCProxy", mgr, kclient),
+				ReconcilerBase: NewReconcilerBase(mgr, kclient),
 			},
 			"NovaCompute": &NovaComputeReconciler{
-				ReconcilerBase: NewReconcilerBase("NovaCompute", mgr, kclient),
+				ReconcilerBase: NewReconcilerBase(mgr, kclient),
 			},
 		}}
 }
@@ -472,7 +471,6 @@ func OwnedBy(owned client.Object, owner client.Object) bool {
 
 func (r *ReconcilerBase) ensureMetadataDeleted(
 	ctx context.Context,
-	h *helper.Helper,
 	instance client.Object,
 ) error {
 	Log := r.GetLogger(ctx)
@@ -511,7 +509,6 @@ type keystoneAuth interface {
 }
 
 func getNovaClient(
-	ctx context.Context, h *helper.Helper,
 	keystoneAuth keystoneAuth, password string,
 	l logr.Logger,
 ) (*gophercloud.ServiceClient, error) {

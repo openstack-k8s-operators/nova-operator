@@ -20,8 +20,9 @@ import (
 	"net/http"
 	"time"
 
+	. "github.com/onsi/gomega" //revive:disable:dot-imports
+
 	"github.com/go-logr/logr"
-	. "github.com/onsi/gomega"
 	"golang.org/x/exp/maps"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"

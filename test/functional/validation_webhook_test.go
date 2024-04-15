@@ -20,8 +20,8 @@ import (
 	"fmt"
 	"strings"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
+	. "github.com/onsi/ginkgo/v2" //revive:disable:dot-imports
+	. "github.com/onsi/gomega"    //revive:disable:dot-imports
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"

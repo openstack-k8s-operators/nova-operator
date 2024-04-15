@@ -119,7 +119,7 @@ func (r *NovaSchedulerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	savedConditions := instance.Status.Conditions.DeepCopy()
 
 	// initialize status fields
-	if err = r.initStatus(ctx, h, instance); err != nil {
+	if err = r.initStatus(instance); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -280,7 +280,7 @@ func (r *NovaSchedulerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	// clean up nova services from nova db should be always a last step in reconcile
 	// to make sure that
-	err = r.cleanServiceFromNovaDb(ctx, h, instance, secret, Log)
+	err = r.cleanServiceFromNovaDb(instance, secret, Log)
 	if err != nil {
 		Log.Error(err, "Failed cleaning services from nova db")
 	}
@@ -291,7 +291,7 @@ func (r *NovaSchedulerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 func (r *NovaSchedulerReconciler) findObjectsForSrc(ctx context.Context, src client.Object) []reconcile.Request {
 	requests := []reconcile.Request{}
 
-	l := log.FromContext(context.Background()).WithName("Controllers").WithName("NovaScheduler")
+	l := log.FromContext(ctx).WithName("Controllers").WithName("NovaScheduler")
 
 	for _, field := range schedulerWatchFields {
 		crList := &novav1.NovaSchedulerList{}
@@ -299,7 +299,7 @@ func (r *NovaSchedulerReconciler) findObjectsForSrc(ctx context.Context, src cli
 			FieldSelector: fields.OneTermEqualSelector(field, src.GetName()),
 			Namespace:     src.GetNamespace(),
 		}
-		err := r.Client.List(context.TODO(), crList, listOps)
+		err := r.Client.List(ctx, crList, listOps)
 		if err != nil {
 			return []reconcile.Request{}
 		}
@@ -373,9 +373,9 @@ func (r *NovaSchedulerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func (r *NovaSchedulerReconciler) initStatus(
-	ctx context.Context, h *helper.Helper, instance *novav1.NovaScheduler,
+	instance *novav1.NovaScheduler,
 ) error {
-	if err := r.initConditions(ctx, h, instance); err != nil {
+	if err := r.initConditions(instance); err != nil {
 		return err
 	}
 
@@ -392,7 +392,7 @@ func (r *NovaSchedulerReconciler) initStatus(
 }
 
 func (r *NovaSchedulerReconciler) initConditions(
-	ctx context.Context, h *helper.Helper, instance *novav1.NovaScheduler,
+	instance *novav1.NovaScheduler,
 ) error {
 	if instance.Status.Conditions == nil {
 		instance.Status.Conditions = condition.Conditions{}
@@ -657,17 +657,15 @@ func (r *NovaSchedulerReconciler) reconcileDelete(
 }
 
 func (r *NovaSchedulerReconciler) cleanServiceFromNovaDb(
-	ctx context.Context,
-	h *helper.Helper,
 	instance *novav1.NovaScheduler,
 	secret corev1.Secret,
 	l logr.Logger,
 ) error {
 	authPassword := string(secret.Data[ServicePasswordSelector])
-	computeClient, err := getNovaClient(ctx, h, instance, authPassword, l)
+	computeClient, err := getNovaClient(instance, authPassword, l)
 	if err != nil {
 		return err
 	}
 
-	return cleanNovaServiceFromNovaDb(ctx, computeClient, "nova-scheduler")
+	return cleanNovaServiceFromNovaDb(computeClient, "nova-scheduler")
 }
