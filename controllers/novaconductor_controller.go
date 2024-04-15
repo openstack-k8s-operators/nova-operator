@@ -120,7 +120,7 @@ func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	// when a condition's state doesn't change.
 	savedConditions := instance.Status.Conditions.DeepCopy()
 	// initialize status fields
-	if err = r.initStatus(ctx, h, instance); err != nil {
+	if err = r.initStatus(instance); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -171,7 +171,7 @@ func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	// detect if something is changed.
 	hashes := make(map[string]env.Setter)
 
-	required_secret_fields := []string{
+	requiredSecretFields := []string{
 		ServicePasswordSelector,
 		TransportURLSelector,
 	}
@@ -179,7 +179,7 @@ func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	secretHash, result, secret, err := ensureSecret(
 		ctx,
 		types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.Secret},
-		required_secret_fields,
+		requiredSecretFields,
 		h.GetClient(),
 		&instance.Status.Conditions,
 		r.RequeueTimeout,
@@ -281,7 +281,7 @@ func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 
 	// clean up nova services from nova db should be always a last step in reconcile
-	err = r.cleanServiceFromNovaDb(ctx, h, instance, secret, Log)
+	err = r.cleanServiceFromNovaDb(instance, secret, Log)
 	if err != nil {
 		Log.Error(err, "Failed cleaning services from nova db")
 	}
@@ -291,9 +291,9 @@ func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 }
 
 func (r *NovaConductorReconciler) initStatus(
-	ctx context.Context, h *helper.Helper, instance *novav1.NovaConductor,
+	instance *novav1.NovaConductor,
 ) error {
-	if err := r.initConditions(ctx, h, instance); err != nil {
+	if err := r.initConditions(instance); err != nil {
 		return err
 	}
 
@@ -310,7 +310,7 @@ func (r *NovaConductorReconciler) initStatus(
 }
 
 func (r *NovaConductorReconciler) initConditions(
-	ctx context.Context, h *helper.Helper, instance *novav1.NovaConductor,
+	instance *novav1.NovaConductor,
 ) error {
 	if instance.Status.Conditions == nil {
 		instance.Status.Conditions = condition.Conditions{}
@@ -603,25 +603,23 @@ func (r *NovaConductorReconciler) ensureDBPurgeCronJob(
 }
 
 func (r *NovaConductorReconciler) cleanServiceFromNovaDb(
-	ctx context.Context,
-	h *helper.Helper,
 	instance *novav1.NovaConductor,
 	secret corev1.Secret,
 	l logr.Logger,
 ) error {
 	authPassword := string(secret.Data[ServicePasswordSelector])
-	computeClient, err := getNovaClient(ctx, h, instance, authPassword, l)
+	computeClient, err := getNovaClient(instance, authPassword, l)
 	if err != nil {
 		return err
 	}
 
-	return cleanNovaServiceFromNovaDb(ctx, computeClient, "nova-conductor")
+	return cleanNovaServiceFromNovaDb(computeClient, "nova-conductor")
 }
 
 func (r *NovaConductorReconciler) findObjectsForSrc(ctx context.Context, src client.Object) []reconcile.Request {
 	requests := []reconcile.Request{}
 
-	l := log.FromContext(context.Background()).WithName("Controllers").WithName("NovaConductor")
+	l := log.FromContext(ctx).WithName("Controllers").WithName("NovaConductor")
 
 	for _, field := range cdWatchFields {
 		crList := &novav1.NovaConductorList{}
@@ -629,7 +627,7 @@ func (r *NovaConductorReconciler) findObjectsForSrc(ctx context.Context, src cli
 			FieldSelector: fields.OneTermEqualSelector(field, src.GetName()),
 			Namespace:     src.GetNamespace(),
 		}
-		err := r.Client.List(context.TODO(), crList, listOps)
+		err := r.Client.List(ctx, crList, listOps)
 		if err != nil {
 			return []reconcile.Request{}
 		}

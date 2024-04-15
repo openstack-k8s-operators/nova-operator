@@ -18,9 +18,13 @@ import (
 	"fmt"
 	"net/http"
 
+	. "github.com/onsi/ginkgo/v2" //revive:disable:dot-imports
+	. "github.com/onsi/gomega"    //revive:disable:dot-imports
+
+	//revive:disable-next-line:dot-imports
+	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
+
 	networkv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
 	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
 	keystone_helper "github.com/openstack-k8s-operators/keystone-operator/api/test/helpers"
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
@@ -32,8 +36,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
-
-	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
 )
 
 var _ = Describe("NovaScheduler controller", func() {
@@ -80,17 +82,17 @@ var _ = Describe("NovaScheduler controller", func() {
 				}
 			}})
 		DeferCleanup(f.Cleanup)
-		keystone_name := keystone.CreateKeystoneAPIWithFixture(novaNames.NovaName.Namespace, f)
-		keystone_instance := keystone.GetKeystoneAPI(keystone_name)
-		keystone_instance.Status = keystonev1.KeystoneAPIStatus{
+		keystoneName := keystone.CreateKeystoneAPIWithFixture(novaNames.NovaName.Namespace, f)
+		keystoneInstance := keystone.GetKeystoneAPI(keystoneName)
+		keystoneInstance.Status = keystonev1.KeystoneAPIStatus{
 			APIEndpoints: map[string]string{
 				"public":   f.Endpoint(),
 				"internal": f.Endpoint(),
 			},
 		}
-		Expect(th.K8sClient.Status().Update(th.Ctx, keystone_instance.DeepCopy())).Should(Succeed())
+		Expect(th.K8sClient.Status().Update(th.Ctx, keystoneInstance.DeepCopy())).Should(Succeed())
 
-		DeferCleanup(keystone.DeleteKeystoneAPI, keystone_name)
+		DeferCleanup(keystone.DeleteKeystoneAPI, keystoneName)
 		DeferCleanup(
 			k8sClient.Delete, ctx, CreateNovaSecret(novaNames.NovaName.Namespace, SecretName))
 

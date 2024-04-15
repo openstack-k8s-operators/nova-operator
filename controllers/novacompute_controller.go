@@ -117,7 +117,7 @@ func (r *NovaComputeReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	// when a condition's state doesn't change.
 	savedConditions := instance.Status.Conditions.DeepCopy()
 	// initialize status fields
-	if err = r.initStatus(ctx, h, instance); err != nil {
+	if err = r.initStatus(instance); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -145,7 +145,7 @@ func (r *NovaComputeReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}()
 
 	if !instance.DeletionTimestamp.IsZero() {
-		return ctrl.Result{}, r.reconcileDelete(ctx, h, instance)
+		return ctrl.Result{}, r.reconcileDelete(ctx)
 	}
 
 	hashes := make(map[string]env.Setter)
@@ -232,9 +232,9 @@ func (r *NovaComputeReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 }
 
 func (r *NovaComputeReconciler) initStatus(
-	ctx context.Context, h *helper.Helper, instance *novav1.NovaCompute,
+	instance *novav1.NovaCompute,
 ) error {
-	if err := r.initConditions(ctx, h, instance); err != nil {
+	if err := r.initConditions(instance); err != nil {
 		return err
 	}
 
@@ -249,7 +249,7 @@ func (r *NovaComputeReconciler) initStatus(
 }
 
 func (r *NovaComputeReconciler) initConditions(
-	ctx context.Context, h *helper.Helper, instance *novav1.NovaCompute,
+	instance *novav1.NovaCompute,
 ) error {
 	if instance.Status.Conditions == nil {
 		instance.Status.Conditions = condition.Conditions{}
@@ -422,8 +422,6 @@ func (r *NovaComputeReconciler) ensureDeployment(
 
 func (r *NovaComputeReconciler) reconcileDelete(
 	ctx context.Context,
-	h *helper.Helper,
-	instance *novav1.NovaCompute,
 ) error {
 	Log := r.GetLogger(ctx)
 	Log.Info("Reconciling delete")
@@ -441,7 +439,7 @@ func getComputeServiceLabels(cell string) map[string]string {
 func (r *NovaComputeReconciler) findObjectsForSrc(ctx context.Context, src client.Object) []reconcile.Request {
 	requests := []reconcile.Request{}
 
-	l := log.FromContext(context.Background()).WithName("Controllers").WithName("NovaCompute")
+	l := log.FromContext(ctx).WithName("Controllers").WithName("NovaCompute")
 
 	for _, field := range cmpWatchFields {
 		crList := &novav1.NovaComputeList{}
@@ -449,7 +447,7 @@ func (r *NovaComputeReconciler) findObjectsForSrc(ctx context.Context, src clien
 			FieldSelector: fields.OneTermEqualSelector(field, src.GetName()),
 			Namespace:     src.GetNamespace(),
 		}
-		err := r.Client.List(context.TODO(), crList, listOps)
+		err := r.Client.List(ctx, crList, listOps)
 		if err != nil {
 			return []reconcile.Request{}
 		}

@@ -19,8 +19,8 @@ import (
 	"os"
 	"path/filepath"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
+	. "github.com/onsi/ginkgo/v2" //revive:disable:dot-imports
+	. "github.com/onsi/gomega"    //revive:disable:dot-imports
 	"gopkg.in/yaml.v3"
 	"k8s.io/apimachinery/pkg/types"
 )

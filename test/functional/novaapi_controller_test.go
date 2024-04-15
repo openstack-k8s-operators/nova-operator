@@ -19,21 +19,22 @@ import (
 	"encoding/json"
 	"fmt"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
-	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
+	. "github.com/onsi/ginkgo/v2" //revive:disable:dot-imports
+	. "github.com/onsi/gomega"    //revive:disable:dot-imports
+
+	//revive:disable-next-line:dot-imports
 	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
 
 	networkv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
+	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
+	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
-
-	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
-	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
 )
 
 var _ = Describe("NovaAPI controller", func() {
@@ -881,8 +882,8 @@ var _ = Describe("NovaAPI controller", func() {
 			DeferCleanup(th.DeleteInstance, api)
 		})
 		It("has the expected container image default", func() {
-			novaApiDefault := GetNovaAPI(novaNames.APIName)
-			Expect(novaApiDefault.Spec.ContainerImage).To(Equal(util.GetEnvVar("RELATED_IMAGE_NOVA_API_IMAGE_URL_DEFAULT", novav1.NovaAPIContainerImage)))
+			novaAPIDefault := GetNovaAPI(novaNames.APIName)
+			Expect(novaAPIDefault.Spec.ContainerImage).To(Equal(util.GetEnvVar("RELATED_IMAGE_NOVA_API_IMAGE_URL_DEFAULT", novav1.NovaAPIContainerImage)))
 		})
 	})
 })

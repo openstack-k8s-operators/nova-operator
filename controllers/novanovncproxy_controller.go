@@ -121,7 +121,7 @@ func (r *NovaNoVNCProxyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	savedConditions := instance.Status.Conditions.DeepCopy()
 
 	// initialize status fields
-	if err = r.initStatus(ctx, h, instance); err != nil {
+	if err = r.initStatus(instance); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -293,9 +293,9 @@ func (r *NovaNoVNCProxyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 }
 
 func (r *NovaNoVNCProxyReconciler) initStatus(
-	ctx context.Context, h *helper.Helper, instance *novav1.NovaNoVNCProxy,
+	instance *novav1.NovaNoVNCProxy,
 ) error {
-	if err := r.initConditions(ctx, h, instance); err != nil {
+	if err := r.initConditions(instance); err != nil {
 		return err
 	}
 
@@ -332,7 +332,7 @@ func (r *NovaNoVNCProxyReconciler) ensureConfigs(
 }
 
 func (r *NovaNoVNCProxyReconciler) initConditions(
-	ctx context.Context, h *helper.Helper, instance *novav1.NovaNoVNCProxy,
+	instance *novav1.NovaNoVNCProxy,
 ) error {
 	if instance.Status.Conditions == nil {
 		instance.Status.Conditions = condition.Conditions{}
@@ -662,7 +662,7 @@ func getNoVNCProxyServiceLabels(cell string) map[string]string {
 func (r *NovaNoVNCProxyReconciler) findObjectsForSrc(ctx context.Context, src client.Object) []reconcile.Request {
 	requests := []reconcile.Request{}
 
-	l := log.FromContext(context.Background()).WithName("Controllers").WithName("NovaNoVNCProxy")
+	l := log.FromContext(ctx).WithName("Controllers").WithName("NovaNoVNCProxy")
 
 	for _, field := range noVNCProxyWatchFields {
 		crList := &novav1.NovaNoVNCProxyList{}
@@ -670,7 +670,7 @@ func (r *NovaNoVNCProxyReconciler) findObjectsForSrc(ctx context.Context, src cl
 			FieldSelector: fields.OneTermEqualSelector(field, src.GetName()),
 			Namespace:     src.GetNamespace(),
 		}
-		err := r.Client.List(context.TODO(), crList, listOps)
+		err := r.Client.List(ctx, crList, listOps)
 		if err != nil {
 			return []reconcile.Request{}
 		}

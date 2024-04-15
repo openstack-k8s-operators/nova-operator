@@ -109,7 +109,7 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 	// when a condition's state doesn't change.
 	savedConditions := instance.Status.Conditions.DeepCopy()
 	// initialize status fields
-	if err = r.initStatus(ctx, h, instance); err != nil {
+	if err = r.initStatus(instance); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -155,20 +155,20 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 	// all our input checks out so report InputReady
 	instance.Status.Conditions.MarkTrue(condition.InputReadyCondition, condition.InputReadyMessage)
 
-	result, err = r.ensureConductor(ctx, h, instance)
+	result, err = r.ensureConductor(ctx, instance)
 	if err != nil {
 		return result, err
 	}
 
 	if *instance.Spec.MetadataServiceTemplate.Enabled {
-		result, err = r.ensureMetadata(ctx, h, instance)
+		result, err = r.ensureMetadata(ctx, instance)
 		if err != nil {
 			return result, err
 		}
 	} else {
 		// The NovaMetadata is explicitly disable so we delete its deployment
 		// if exists
-		err = r.ensureMetadataDeleted(ctx, h, instance)
+		err = r.ensureMetadataDeleted(ctx, instance)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
@@ -182,7 +182,7 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 	// to run discover job only when all computes are deployed and never discovered
 	computeTemplatesHashMap := make(map[string]string)
 	for computeName, computeTemplate := range instance.Spec.NovaComputeTemplates {
-		computeStatus := r.ensureNovaCompute(ctx, h, instance, computeTemplate, computeName, secret)
+		computeStatus := r.ensureNovaCompute(ctx, instance, computeTemplate, computeName)
 		instance.Status.NovaComputesStatus[computeName] = computeStatus
 		// We hash the entire compute template to keep track of changes in the number of replicas,
 		// allowing us to discover nodes accordingly
@@ -193,7 +193,7 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 	for computeName := range instance.Status.NovaComputesStatus {
 		_, ok := instance.Spec.NovaComputeTemplates[computeName]
 		if !ok {
-			err = r.ensureNovaComputeDeleted(ctx, h, instance, computeName)
+			err = r.ensureNovaComputeDeleted(ctx, instance, computeName)
 			if err != nil {
 				return ctrl.Result{}, err
 			}
@@ -237,14 +237,14 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 
 	cellHasVNCService := (*instance.Spec.NoVNCProxyServiceTemplate.Enabled)
 	if cellHasVNCService {
-		result, err = r.ensureNoVNCProxy(ctx, h, instance)
+		result, err = r.ensureNoVNCProxy(ctx, instance)
 		if err != nil {
 			return result, err
 		}
 	} else {
 		// The NoVNCProxy is explicitly disable for this cell so we delete its
 		// deployment if exists
-		err = r.ensureNoVNCProxyDeleted(ctx, h, instance)
+		err = r.ensureNoVNCProxyDeleted(ctx, instance)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
@@ -284,9 +284,9 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 }
 
 func (r *NovaCellReconciler) initStatus(
-	ctx context.Context, h *helper.Helper, instance *novav1.NovaCell,
+	instance *novav1.NovaCell,
 ) error {
-	if err := r.initConditions(ctx, h, instance); err != nil {
+	if err := r.initConditions(instance); err != nil {
 		return err
 	}
 	if instance.Status.Hash == nil {
@@ -300,7 +300,7 @@ func (r *NovaCellReconciler) initStatus(
 }
 
 func (r *NovaCellReconciler) initConditions(
-	ctx context.Context, h *helper.Helper, instance *novav1.NovaCell,
+	instance *novav1.NovaCell,
 ) error {
 	if instance.Status.Conditions == nil {
 		instance.Status.Conditions = condition.Conditions{}
@@ -347,7 +347,6 @@ func (r *NovaCellReconciler) initConditions(
 
 func (r *NovaCellReconciler) ensureConductor(
 	ctx context.Context,
-	h *helper.Helper,
 	instance *novav1.NovaCell,
 ) (ctrl.Result, error) {
 	Log := r.GetLogger(ctx)
@@ -404,7 +403,6 @@ func getNoVNCProxyName(instance *novav1.NovaCell) types.NamespacedName {
 
 func (r *NovaCellReconciler) ensureNoVNCProxy(
 	ctx context.Context,
-	h *helper.Helper,
 	instance *novav1.NovaCell,
 ) (ctrl.Result, error) {
 	Log := r.GetLogger(ctx)
@@ -494,7 +492,6 @@ func (r *NovaCellReconciler) ensureNoVNCProxy(
 
 func (r *NovaCellReconciler) ensureNoVNCProxyDeleted(
 	ctx context.Context,
-	h *helper.Helper,
 	instance *novav1.NovaCell,
 ) error {
 	Log := r.GetLogger(ctx)
@@ -529,7 +526,6 @@ func (r *NovaCellReconciler) ensureNoVNCProxyDeleted(
 
 func (r *NovaCellReconciler) ensureMetadata(
 	ctx context.Context,
-	h *helper.Helper,
 	instance *novav1.NovaCell,
 ) (ctrl.Result, error) {
 	Log := r.GetLogger(ctx)
@@ -650,7 +646,6 @@ func getNovaComputeName(instance client.Object, computeName string) types.Namesp
 
 func (r *NovaCellReconciler) ensureNovaComputeDeleted(
 	ctx context.Context,
-	h *helper.Helper,
 	instance client.Object,
 	computeName string,
 ) error {
@@ -685,11 +680,9 @@ func (r *NovaCellReconciler) ensureNovaComputeDeleted(
 
 func (r *NovaCellReconciler) ensureNovaCompute(
 	ctx context.Context,
-	h *helper.Helper,
 	instance *novav1.NovaCell,
 	compute novav1.NovaComputeTemplate,
 	computeName string,
-	secret corev1.Secret,
 ) novav1.NovaComputeCellStatus {
 	Log := r.GetLogger(ctx)
 	// There is a case when the user manually created a NovaCompute with selected name.
@@ -853,7 +846,7 @@ func (r *NovaCellReconciler) getVNCProxyURL(
 func (r *NovaCellReconciler) findObjectsForSrc(ctx context.Context, src client.Object) []reconcile.Request {
 	requests := []reconcile.Request{}
 
-	l := log.FromContext(context.Background()).WithName("Controllers").WithName("NovaCell")
+	l := log.FromContext(ctx).WithName("Controllers").WithName("NovaCell")
 
 	for _, field := range cellWatchFields {
 		crList := &novav1.NovaCellList{}
@@ -861,7 +854,7 @@ func (r *NovaCellReconciler) findObjectsForSrc(ctx context.Context, src client.O
 			FieldSelector: fields.OneTermEqualSelector(field, src.GetName()),
 			Namespace:     src.GetNamespace(),
 		}
-		err := r.Client.List(context.TODO(), crList, listOps)
+		err := r.Client.List(ctx, crList, listOps)
 		if err != nil {
 			return []reconcile.Request{}
 		}
