@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"time"
 
-	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -146,52 +145,6 @@ func (r *PlacementAPIReconciler) GetLogger(ctx context.Context) logr.Logger {
 	return log.FromContext(ctx).WithName("Controllers").WithName("PlacementAPI")
 }
 
-func (r *PlacementAPIReconciler) GetSecretMapperFor(crs client.ObjectList, ctx context.Context) func(client.Object) []reconcile.Request {
-	Log := r.GetLogger(ctx)
-	mapper := func(secret client.Object) []reconcile.Request {
-		var namespace string = secret.GetNamespace()
-		var secretName string = secret.GetName()
-		result := []reconcile.Request{}
-
-		listOpts := []client.ListOption{
-			client.InNamespace(namespace),
-		}
-		if err := r.Client.List(ctx, crs, listOpts...); err != nil {
-			Log.Error(err, "Unable to retrieve the list of CRs")
-			panic(err)
-		}
-
-		err := apimeta.EachListItem(crs, func(o runtime.Object) error {
-			// NOTE(gibi): intentionally let the failed cast panic to catch
-			// this implementation error as soon as possible.
-			cr := o.(GetSecret)
-			if cr.GetSecret() == secretName {
-				name := client.ObjectKey{
-					Namespace: namespace,
-					Name:      cr.GetName(),
-				}
-				Log.Info(
-					"Requesting reconcile due to secret change",
-					"Secret", secretName, "CR", name.Name,
-				)
-				result = append(result, reconcile.Request{NamespacedName: name})
-			}
-			return nil
-		})
-		if err != nil {
-			Log.Error(err, "Unable to iterate the list of CRs")
-			panic(err)
-		}
-
-		if len(result) > 0 {
-			return result
-		}
-		return nil
-	}
-
-	return mapper
-}
-
 // PlacementAPIReconciler reconciles a PlacementAPI object
 type PlacementAPIReconciler struct {
 	client.Client
@@ -261,7 +214,7 @@ func (r *PlacementAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	// when a condition's state doesn't change.
 	savedConditions := instance.Status.Conditions.DeepCopy()
 	// initialize status fields
-	if err = r.initStatus(ctx, h, instance); err != nil {
+	if err = r.initStatus(instance); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -735,9 +688,9 @@ func (r *PlacementAPIReconciler) ensureKeystoneEndpoint(
 }
 
 func (r *PlacementAPIReconciler) initStatus(
-	ctx context.Context, h *helper.Helper, instance *placementv1.PlacementAPI,
+	instance *placementv1.PlacementAPI,
 ) error {
-	if err := r.initConditions(ctx, h, instance); err != nil {
+	if err := r.initConditions(instance); err != nil {
 		return err
 	}
 
@@ -754,7 +707,7 @@ func (r *PlacementAPIReconciler) initStatus(
 }
 
 func (r *PlacementAPIReconciler) initConditions(
-	ctx context.Context, h *helper.Helper, instance *placementv1.PlacementAPI,
+	instance *placementv1.PlacementAPI,
 ) error {
 	if instance.Status.Conditions == nil {
 		instance.Status.Conditions = condition.Conditions{}
@@ -930,7 +883,7 @@ func (r *PlacementAPIReconciler) findObjectsForSrc(ctx context.Context, src clie
 			FieldSelector: fields.OneTermEqualSelector(field, src.GetName()),
 			Namespace:     src.GetNamespace(),
 		}
-		err := r.List(context.TODO(), crList, listOps)
+		err := r.List(ctx, crList, listOps)
 		if err != nil {
 			return []reconcile.Request{}
 		}
@@ -1126,7 +1079,7 @@ func (r *PlacementAPIReconciler) ensureDeployment(
 	serviceLabels := getServiceLabels(instance)
 
 	// Define a new Deployment object
-	deplDef, err := placement.Deployment(ctx, h, instance, inputHash, serviceLabels, serviceAnnotations)
+	deplDef, err := placement.Deployment(instance, inputHash, serviceLabels, serviceAnnotations)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.DeploymentReadyCondition,

@@ -28,7 +28,7 @@ repos:
 - repo: https://github.com/golangci/golangci-lint
   rev: v1.55.2
   hooks:
-    - id: golangci-lint
+    - id: golangci-lint-full
       args: ["--verbose"]
 
 - repo: https://github.com/pre-commit/pre-commit-hooks

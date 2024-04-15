@@ -20,8 +20,8 @@ import (
 	"errors"
 	"os"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
+	. "github.com/onsi/ginkgo/v2" //revive:disable:dot-imports
+	. "github.com/onsi/gomega"    //revive:disable:dot-imports
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
@@ -32,11 +32,11 @@ import (
 
 var _ = Describe("PlacementAPI Webhook", func() {
 
-	var placementApiName types.NamespacedName
+	var placementAPIName types.NamespacedName
 
 	BeforeEach(func() {
 
-		placementApiName = types.NamespacedName{
+		placementAPIName = types.NamespacedName{
 			Name:      "placement",
 			Namespace: namespace,
 		}
@@ -47,11 +47,11 @@ var _ = Describe("PlacementAPI Webhook", func() {
 
 	When("A PlacementAPI instance is created without container images", func() {
 		BeforeEach(func() {
-			DeferCleanup(th.DeleteInstance, CreatePlacementAPI(placementApiName, GetDefaultPlacementAPISpec()))
+			DeferCleanup(th.DeleteInstance, CreatePlacementAPI(placementAPIName, GetDefaultPlacementAPISpec()))
 		})
 
 		It("should have the defaults initialized by webhook", func() {
-			PlacementAPI := GetPlacementAPI(placementApiName)
+			PlacementAPI := GetPlacementAPI(placementAPIName)
 			Expect(PlacementAPI.Spec.ContainerImage).Should(Equal(
 				placementv1.PlacementAPIContainerImage,
 			))
@@ -60,13 +60,13 @@ var _ = Describe("PlacementAPI Webhook", func() {
 
 	When("A PlacementAPI instance is created with container images", func() {
 		BeforeEach(func() {
-			placementApiSpec := GetDefaultPlacementAPISpec()
-			placementApiSpec["containerImage"] = "api-container-image"
-			DeferCleanup(th.DeleteInstance, CreatePlacementAPI(placementApiName, placementApiSpec))
+			placementAPISpec := GetDefaultPlacementAPISpec()
+			placementAPISpec["containerImage"] = "api-container-image"
+			DeferCleanup(th.DeleteInstance, CreatePlacementAPI(placementAPIName, placementAPISpec))
 		})
 
 		It("should use the given values", func() {
-			PlacementAPI := GetPlacementAPI(placementApiName)
+			PlacementAPI := GetPlacementAPI(placementAPIName)
 			Expect(PlacementAPI.Spec.ContainerImage).Should(Equal(
 				"api-container-image",
 			))
@@ -83,8 +83,8 @@ var _ = Describe("PlacementAPI Webhook", func() {
 			"apiVersion": "placement.openstack.org/v1beta1",
 			"kind":       "PlacementAPI",
 			"metadata": map[string]interface{}{
-				"name":      placementApiName.Name,
-				"namespace": placementApiName.Namespace,
+				"name":      placementAPIName.Name,
+				"namespace": placementAPIName.Namespace,
 			},
 			"spec": spec,
 		}

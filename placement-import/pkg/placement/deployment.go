@@ -16,12 +16,9 @@ limitations under the License.
 package placement
 
 import (
-	"context"
-
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	affinity "github.com/openstack-k8s-operators/lib-common/modules/common/affinity"
 	env "github.com/openstack-k8s-operators/lib-common/modules/common/env"
-	"github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
 
@@ -36,8 +33,6 @@ import (
 
 // Deployment func
 func Deployment(
-	ctx context.Context,
-	helper *helper.Helper,
 	instance *placementv1.PlacementAPI,
 	configHash string,
 	labels map[string]string,

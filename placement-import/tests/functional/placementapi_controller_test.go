@@ -20,8 +20,10 @@ import (
 	"fmt"
 	"os"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
+	. "github.com/onsi/ginkgo/v2" //revive:disable:dot-imports
+	. "github.com/onsi/gomega"    //revive:disable:dot-imports
+
+	//revive:disable-next-line:dot-imports
 	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/placement-operator/pkg/placement"
@@ -485,7 +487,7 @@ var _ = Describe("PlacementAPI controller", func() {
 			Expect(int(*deployment.Spec.Replicas)).To(Equal(1))
 			Expect(deployment.Spec.Selector.MatchLabels).To(Equal(map[string]string{"service": "placement", "owner": names.PlacementAPIName.Name}))
 			Expect(deployment.Spec.Template.Spec.ServiceAccountName).To(Equal(names.ServiceAccountName.Name))
-			Expect(len(deployment.Spec.Template.Spec.Containers)).To(Equal(2))
+			Expect(deployment.Spec.Template.Spec.Containers).To(HaveLen(2))
 
 			th.SimulateDeploymentReplicaReady(names.DeploymentName)
 
@@ -858,7 +860,7 @@ var _ = Describe("PlacementAPI controller", func() {
 	// that exercise standard account create / update patterns that should be
 	// common to all controllers that ensure MariaDBAccount CRs.
 
-	mariadb_suite := &mariadb_test.MariaDBTestHarness{
+	mariadbSuite := &mariadb_test.MariaDBTestHarness{
 		PopulateHarness: func(harness *mariadb_test.MariaDBTestHarness) {
 			harness.Setup(
 				"Placement",
@@ -916,9 +918,9 @@ var _ = Describe("PlacementAPI controller", func() {
 		},
 	}
 
-	mariadb_suite.RunBasicSuite()
+	mariadbSuite.RunBasicSuite()
 
-	mariadb_suite.RunURLAssertSuite(func(accountName types.NamespacedName, username string, password string) {
+	mariadbSuite.RunURLAssertSuite(func(accountName types.NamespacedName, username string, password string) {
 		Eventually(func(g Gomega) {
 			cm := th.GetSecret(names.ConfigMapName)
 
@@ -931,7 +933,7 @@ var _ = Describe("PlacementAPI controller", func() {
 
 	})
 
-	mariadb_suite.RunConfigHashSuite(func() string {
+	mariadbSuite.RunConfigHashSuite(func() string {
 		deployment := th.GetDeployment(names.DeploymentName)
 		return GetEnvVarValue(deployment.Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
 	})
