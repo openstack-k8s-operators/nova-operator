@@ -63,7 +63,7 @@ type NovaAPIReconciler struct {
 	ReconcilerBase
 }
 
-// getlogger returns a logger object with a prefix of "conroller.name" and aditional controller context fields
+// GetLogger returns a logger object with a prefix of "controller.name" and additional controller context fields
 func (r *NovaAPIReconciler) GetLogger(ctx context.Context) logr.Logger {
 	return log.FromContext(ctx).WithName("Controllers").WithName("NovaAPI")
 }
@@ -122,7 +122,7 @@ func (r *NovaAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (re
 	}
 	Log.Info("Reconciling")
 
-	// Save a copy of the condtions so that we can restore the LastTransitionTime
+	// Save a copy of the conditions so that we can restore the LastTransitionTime
 	// when a condition's state doesn't change.
 	savedConditions := instance.Status.Conditions.DeepCopy()
 	// initialize status fields
@@ -301,7 +301,7 @@ func (r *NovaAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (re
 
 	// Only expose the service is the deployment succeeded
 	if !instance.Status.Conditions.IsTrue(condition.DeploymentReadyCondition) {
-		Log.Info("Waiting for the Deployment to become Ready before exposing the sevice in Keystone")
+		Log.Info("Waiting for the Deployment to become Ready before exposing the service in Keystone")
 		return ctrl.Result{}, nil
 	}
 

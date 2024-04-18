@@ -89,7 +89,7 @@ spec:
                 properties:
                   archiveAge:
                     default: 30
-                    description: ArchiveAge defines the minimuma age of the records
+                    description: ArchiveAge defines the minimum age of the records
                       in days that can be moved to the shadow tables.
                     minimum: 1
                     type: integer

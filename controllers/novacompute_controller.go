@@ -55,7 +55,7 @@ type NovaComputeReconciler struct {
 	ReconcilerBase
 }
 
-// getlogger returns a logger object with a prefix of "conroller.name" and aditional controller context fields
+// GetLOgger returns a logger object with a prefix of "controller.name" and additional controller context fields
 func (r *NovaComputeReconciler) GetLogger(ctx context.Context) logr.Logger {
 	return log.FromContext(ctx).WithName("Controllers").WithName("NovaCompute")
 }
@@ -113,7 +113,7 @@ func (r *NovaComputeReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 	Log.Info("Reconciling")
 
-	// Save a copy of the condtions so that we can restore the LastTransitionTime
+	// Save a copy of the conditions so that we can restore the LastTransitionTime
 	// when a condition's state doesn't change.
 	savedConditions := instance.Status.Conditions.DeepCopy()
 	// initialize status fields

@@ -111,7 +111,7 @@ func CreateNovaWith3CellsAndEnsureReady(novaNames NovaNames) {
 	DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 	infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
 	keystone.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
-	// END of common logic with Nova multicell test
+	// END of common logic with Nova multi cell test
 
 	mariadb.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
 	mariadb.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
@@ -199,7 +199,7 @@ var _ = Describe("Nova reconfiguration", func() {
 			}, timeout, interval).Should(Succeed())
 		})
 	})
-	When("networkAttachemnt is added to a conductor while the definition is missing", func() {
+	When("networkAttachment is added to a conductor while the definition is missing", func() {
 		It("applies new NetworkAttachments configuration to that Conductor", func() {
 			Eventually(func(g Gomega) {
 				nova := GetNova(novaNames.NovaName)
@@ -711,7 +711,7 @@ var _ = Describe("Nova reconfiguration", func() {
 		}, timeout, interval).Should(Succeed())
 	})
 
-	It("reconfigures DB Pruge job", func() {
+	It("reconfigures DB Purge job", func() {
 		Eventually(func(g Gomega) {
 			nova := GetNova(novaNames.NovaName)
 			cell0 := nova.Spec.CellTemplates["cell0"]

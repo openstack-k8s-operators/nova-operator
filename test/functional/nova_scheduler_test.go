@@ -665,7 +665,7 @@ var _ = Describe("NovaScheduler controller cleaning", func() {
 		It("during reconciling", func() {
 			// We can assert the service cleanup behavior or the reconciler as the cleanup is triggered
 			// unconditionally at the end of every successful reconciliation. So we don't actually need
-			// to trigger a scaledown to see the down services are deleted. The novaAPIFixture is
+			// to trigger a scale down to see the down services are deleted. The novaAPIFixture is
 			// set up in a way that it always respond with a list of services in down state.
 			th.SimulateStatefulSetReplicaReady(novaNames.SchedulerStatefulSetName)
 			th.ExpectCondition(

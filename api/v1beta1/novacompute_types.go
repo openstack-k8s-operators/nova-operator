@@ -194,7 +194,7 @@ func NewNovaComputeSpec(
 	computeTemplate NovaComputeTemplate,
 	novaComputeName string,
 ) NovaComputeSpec {
-	novacomputeSpec := NovaComputeSpec{
+	novaComputeSpec := NovaComputeSpec{
 		CellName:    novaCell.CellName,
 		ComputeName: novaComputeName,
 		Secret:      novaCell.Secret,
@@ -213,5 +213,5 @@ func NewNovaComputeSpec(
 		TLS:                    novaCell.TLS,
 		DefaultConfigOverwrite: computeTemplate.DefaultConfigOverwrite,
 	}
-	return novacomputeSpec
+	return novaComputeSpec
 }

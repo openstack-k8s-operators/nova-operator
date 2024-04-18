@@ -277,7 +277,7 @@ var _ = Describe("NovaCompute controller", func() {
 
 var _ = Describe("NovaCompute with ironic diver controller", func() {
 
-	When("with configure cellname", func() {
+	When("with configure cell name", func() {
 		BeforeEach(func() {
 			spec := GetDefaultNovaComputeSpec(cell1)
 			novaCompute := CreateNovaCompute(cell1.NovaComputeName, spec)

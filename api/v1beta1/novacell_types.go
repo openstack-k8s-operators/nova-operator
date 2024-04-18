@@ -164,7 +164,7 @@ type NovaCellSpec struct {
 	MetadataServiceTemplate NovaMetadataTemplate `json:"metadataServiceTemplate"`
 
 	// +kubebuilder:validation:Required
-	// NoVNCProxyServiceTemplate - defines the novvncproxy service dedicated for
+	// NoVNCProxyServiceTemplate - defines the novncproxy service dedicated for
 	// the cell.
 	NoVNCProxyServiceTemplate NovaNoVNCProxyTemplate `json:"noVNCProxyServiceTemplate"`
 
@@ -207,7 +207,7 @@ type NovaCellDBPurge struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=30
 	// +kubebuilder:validation:Minimum=1
-	// ArchiveAge defines the minimuma age of the records in days that can be
+	// ArchiveAge defines the minimum age of the records in days that can be
 	// moved to the shadow tables.
 	ArchiveAge *int `json:"archiveAge"`
 
