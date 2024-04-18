@@ -34,7 +34,7 @@ import (
 	"k8s.io/utils/ptr"
 )
 
-var _ = Describe("Nova multicell", func() {
+var _ = Describe("Nova multi cell", func() {
 	BeforeEach(func() {
 		apiMariaDBAccount, apiMariaDBSecret := mariadb.CreateMariaDBAccountAndSecret(
 			novaNames.APIMariaDBDatabaseAccount, mariadbv1.MariaDBAccountSpec{})

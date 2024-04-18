@@ -752,7 +752,7 @@ var _ = Describe("NovaCell controller", func() {
 				g.Expect(k8sClient.Update(ctx, novaCell)).To(Succeed())
 			}, timeout, interval).Should(Succeed())
 
-			// Check that the Metdata is now deployed
+			// Check that the Metadata is now deployed
 			GetNovaMetadata(cell2.MetadataName)
 			th.ExpectCondition(
 				cell2.CellCRName,

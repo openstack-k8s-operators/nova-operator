@@ -155,7 +155,7 @@ spec:
                 properties:
                   archiveAge:
                     default: 30
-                    description: ArchiveAge defines the minimuma age of the records
+                    description: ArchiveAge defines the minimum age of the records
                       in days that can be moved to the shadow tables.
                     minimum: 1
                     type: integer
@@ -463,7 +463,7 @@ spec:
                     type: object
                 type: object
               noVNCProxyServiceTemplate:
-                description: NoVNCProxyServiceTemplate - defines the novvncproxy service
+                description: NoVNCProxyServiceTemplate - defines the novncproxy service
                   dedicated for the cell.
                 properties:
                   customServiceConfig:

@@ -454,7 +454,7 @@ type GetSecret interface {
 	client.Object
 }
 
-// getlogger returns a logger object with a prefix of "conroller.name" and aditional controller context fields
+// GetLogger returns a logger object with a prefix of "controller.name" and additional controller context fields
 func (r *ReconcilerBase) GetLogger(ctx context.Context) logr.Logger {
 	return log.FromContext(ctx).WithName("Controllers").WithName("ReconcilerBase")
 }
@@ -548,10 +548,10 @@ func ensureMemcached(
 	ctx context.Context,
 	h *helper.Helper,
 	namespaceName string,
-	mamcachedName string,
+	memcachedName string,
 	conditionUpdater conditionUpdater,
 ) (*memcachedv1.Memcached, error) {
-	memcached, err := memcachedv1.GetMemcachedByName(ctx, h, mamcachedName, namespaceName)
+	memcached, err := memcachedv1.GetMemcachedByName(ctx, h, memcachedName, namespaceName)
 	if err != nil {
 		if k8s_errors.IsNotFound(err) {
 			conditionUpdater.Set(condition.FalseCondition(
@@ -559,7 +559,7 @@ func ensureMemcached(
 				condition.RequestedReason,
 				condition.SeverityInfo,
 				condition.MemcachedReadyWaitingMessage))
-			return nil, fmt.Errorf("memcached %s not found", mamcachedName)
+			return nil, fmt.Errorf("memcached %s not found", memcachedName)
 		}
 		conditionUpdater.Set(condition.FalseCondition(
 			condition.MemcachedReadyCondition,
@@ -576,7 +576,7 @@ func ensureMemcached(
 			condition.RequestedReason,
 			condition.SeverityInfo,
 			condition.MemcachedReadyWaitingMessage))
-		return nil, fmt.Errorf("memcached %s is not ready", mamcachedName)
+		return nil, fmt.Errorf("memcached %s is not ready", memcachedName)
 	}
 	conditionUpdater.MarkTrue(condition.MemcachedReadyCondition, condition.MemcachedReadyMessage)
 

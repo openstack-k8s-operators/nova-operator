@@ -552,7 +552,7 @@ var _ = Describe("Nova controller", func() {
 			th.SimulateJobFailure(cell0.DBSyncJobName)
 		})
 
-		It("does not set the cell db sync ready condtion to true", func() {
+		It("does not set the cell db sync ready condition to true", func() {
 			th.ExpectCondition(
 				cell0.ConductorName,
 				ConditionGetterFunc(NovaConductorConditionGetter),

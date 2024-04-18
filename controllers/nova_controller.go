@@ -65,7 +65,7 @@ type NovaReconciler struct {
 	ReconcilerBase
 }
 
-// getlogger returns a logger object with a prefix of "conroller.name" and aditional controller context fields
+// GetLogger returns a logger object with a prefix of "controller.name" and additional controller context fields
 func (r *NovaReconciler) GetLogger(ctx context.Context) logr.Logger {
 	return log.FromContext(ctx).WithName("Controllers").WithName("Nova")
 }
@@ -134,7 +134,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	}
 	Log.Info("Reconciling")
 
-	// Save a copy of the condtions so that we can restore the LastTransitionTime
+	// Save a copy of the conditions so that we can restore the LastTransitionTime
 	// when a condition's state doesn't change.
 	savedConditions := instance.Status.Conditions.DeepCopy()
 
@@ -912,7 +912,7 @@ func (r *NovaReconciler) ensureCell(
 		ServiceUser:     instance.Spec.ServiceUser,
 		KeystoneAuthURL: keystoneAuthURL,
 		ServiceAccount:  instance.RbacResourceName(),
-		// The assumtpion is that the CA bundle for ironic compute in the cell
+		// The assumption is that the CA bundle for ironic compute in the cell
 		// and the conductor in the cell always the same as the NovaAPI
 		TLS:               instance.Spec.APIServiceTemplate.TLS.Ca,
 		PreserveJobs:      instance.Spec.PreserveJobs,
@@ -975,7 +975,7 @@ func (r *NovaReconciler) ensureCell(
 		return cell, status, err
 	}
 
-	// We need to discover computes when cell have computetemplates and mapping is done
+	// We need to discover computes when cell have compute templates and mapping is done
 	status, err = r.ensureNovaComputeDiscover(
 		ctx, h, instance, cell, cellTemplate, scriptName, configName)
 

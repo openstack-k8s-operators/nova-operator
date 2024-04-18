@@ -110,7 +110,7 @@ var _ = BeforeSuite(func() {
 		"github.com/openstack-k8s-operators/infra-operator/apis", gomod, "bases")
 	Expect(err).ShouldNot(HaveOccurred())
 	// NOTE(gibi): there are packages where the CRD directory has other
-	// yamls files as well, then we need to specify the extac file to load
+	// yamls files as well, then we need to specify the exact file to load
 	networkv1CRD, err := test.GetCRDDirFromModule(
 		"github.com/k8snetworkplumbingwg/network-attachment-definition-client", gomod, "artifacts/networks-crd.yaml")
 	Expect(err).ShouldNot(HaveOccurred())
@@ -270,7 +270,7 @@ var _ = BeforeEach(func() {
 	// we run the test in an existing cluster.
 	DeferCleanup(th.DeleteNamespace, namespace)
 
-	// We need to limit the lenght of the name of the Nova CR as the operator generates names
+	// We need to limit the length of the name of the Nova CR as the operator generates names
 	// for the sub CRs from this name as a prefix.
 	// E.g. <nova-CR-name>-<cell name>-metadata-internal
 	// K8s limits the name of a CR to 63 chars so we can easily hit that limit with uuids as names

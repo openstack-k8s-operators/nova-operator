@@ -506,8 +506,8 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 				"service": serviceOverride,
 			}
 
-			noVNCP := CreateNovaNoVNCProxy(cell1.NoVNCProxyName, spec)
-			DeferCleanup(th.DeleteInstance, noVNCP)
+			noVNC := CreateNovaNoVNCProxy(cell1.NoVNCProxyName, spec)
+			DeferCleanup(th.DeleteInstance, noVNC)
 		})
 
 		It("creates ClusterIP service", func() {
@@ -559,8 +559,8 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 				"service": serviceOverride,
 			}
 
-			noVNCP := CreateNovaNoVNCProxy(cell1.NoVNCProxyName, spec)
-			DeferCleanup(th.DeleteInstance, noVNCP)
+			noVNC := CreateNovaNoVNCProxy(cell1.NoVNCProxyName, spec)
+			DeferCleanup(th.DeleteInstance, noVNC)
 		})
 
 		It("creates LoadBalancer service", func() {
