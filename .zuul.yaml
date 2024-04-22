@@ -88,6 +88,9 @@
       # NOTE(efoley): swift and cinder are not disabled, we're just telling
       # tempest that they're unavailable so that it'll skip the tests that
       # require cinder or swift
+      # TODO(sean-k-mooney): we are currently using cirros 0.5.2 we should be using 0.6.2
+      # for now we need to use the old password cubswin:) but we should update this to gocubsgo!
+      # once we update the image
       cifmw_tempest_tempestconf_config:
           overrides: |
             identity.v3_endpoint_type public
@@ -98,25 +101,17 @@
             compute-feature-enabled.block_migration_for_live_migration true
             service_available.swift false
             service_available.cinder false
+            validation.image_ssh_user cirros
+            validation.image_ssh_password cubswin:)
+            validation.image_alt_ssh_user cirros
+            validation.image_alt_ssh_password cubswin:)
       cifmw_test_operator_tempest_include_list: |
           tempest.api.compute
           tempest.scenario
-      # TODO(samborka): remove
-      # tempest.scenario.test_encrypted_cinder_volumes.TestEncryptedCinderVolumes
-      # once we have a running barbican
-      # Note: We don't have shared local storage so skipping
-      # tempest.api.compute.admin.test_live_migration.LiveMigrationTest.test_live_migration_with_trunk
-      # NOTE: Need to check
-      # tempest.api.compute.admin.test_auto_allocate_network.AutoAllocateNetworkTest.test_server_multi_create_auto_allocate
-      # TODO(sean-k-mooney): fix tempest.scenario.test_network_basic_ops.TestNetworkBasicOps.test_mtu_sized_frames
-      # we probably are not configuring the mtu correctly in ci
+      # ide tests cannot be used with our default machine type.
+      # auto allocate network is blocked by https://issues.redhat.com/browse/OSPRH-6541
+      # test_mtu_sized_frames is blocked by https://issues.redhat.com/browse/OSPRH-6546
       cifmw_test_operator_tempest_exclude_list: |
-          tempest.api.compute.servers.test_device_tagging
-          test_create_server_invalid_bdm_in_2nd_dict
-          tempest.scenario.test_minimum_basic.TestMinimumBasicScenario.test_minimum_basic_scenario
-          tempest.scenario.test_stamp_pattern
-          tempest.api.compute.admin.test_live_migration.LiveMigrationTest.test_live_migration_with_trunk
-          tempest.scenario.test_network_advanced_server_ops.TestNetworkAdvancedServerOps.test_server_connectivity_live_migration
           tempest.api.compute.admin.test_auto_allocate_network.AutoAllocateNetworkTest.test_server_multi_create_auto_allocate
           tempest.api.compute.servers.test_server_rescue.ServerStableDeviceRescueTestIDE
           tempest.scenario.test_network_basic_ops.TestNetworkBasicOps.test_mtu_sized_frames
@@ -142,6 +137,9 @@
       # NOTE(gibi): identity.v3_endpoint_type override is a WA to force the
       # publicURL as otherwise tempest gets configured with adminURL and that
       # causes test instability.
+      # TODO(sean-k-mooney): we are currently using cirros 0.5.2 we should be using 0.6.2
+      # for now we need to use the old password cubswin:) but we should update this to gocubsgo!
+      # once we update the image
       cifmw_tempest_tempestconf_config:
           overrides: |
             identity.v3_endpoint_type public
@@ -153,27 +151,29 @@
             volume.storage_protocol ceph
             service_available.swift false
             service_available.cinder true
+            validation.image_ssh_user cirros
+            validation.image_ssh_password cubswin:)
+            validation.image_alt_ssh_user cirros
+            validation.image_alt_ssh_password cubswin:)
       cifmw_test_operator_tempest_include_list: |
           tempest.api.compute
           tempest.scenario
-      # for now lets disable all encyption tests just to ensure we have basic integration working
-      # skip test_rebuild_volume_backed_server because of incorrect user "Please login as 'cirros' user, not as root"
+      # ide tests cannot be used with our default machine type.
+      # auto allocate network is blocked by https://issues.redhat.com/browse/OSPRH-6541
+      # test_mtu_sized_frames is blocked by https://issues.redhat.com/browse/OSPRH-6546
+      # test_server_detach_rules and test_old_versions_reject are blocked by the requirement
+      # to use service tokens to authenticate with cinder when a volume is attached to a server
+      # as such the tests are not valid following CVE-2023-2088
+      # test_encrypted_cinder_volumes_cryptsetup use encyption format plain which is either
+      # not supported by ceph or a volume type that supprots it is not available.
+      # luks support is enabled and we are testing encrypted volumes with luks.
       cifmw_test_operator_tempest_exclude_list: |
-          tempest.api.compute.servers.test_device_tagging
-          test_create_server_invalid_bdm_in_2nd_dict
-          tempest.scenario.test_minimum_basic.TestMinimumBasicScenario.test_minimum_basic_scenario
-          tempest.scenario.test_stamp_pattern
-          tempest.api.compute.admin.test_live_migration.LiveMigrationTest.test_live_migration_with_trunk
-          tempest.scenario.test_network_advanced_server_ops.TestNetworkAdvancedServerOps.test_server_connectivity_live_migration
           tempest.api.compute.admin.test_auto_allocate_network.AutoAllocateNetworkTest.test_server_multi_create_auto_allocate
           tempest.api.compute.servers.test_server_rescue.ServerStableDeviceRescueTestIDE
           tempest.scenario.test_network_basic_ops.TestNetworkBasicOps.test_mtu_sized_frames
-          tempest.scenario.test_encrypted_cinder_volumes.TestEncryptedCinderVolumes
-          crypt
-          tempest.api.compute.servers.test_server_actions.ServerActionsV293TestJSON.test_rebuild_volume_backed_server
-          tempest.scenario.test_server_volume_attachment.TestServerVolumeAttachScenarioOldVersion.test_old_versions_reject
           tempest.scenario.test_server_volume_attachment.TestServerVolumeAttachmentScenario.test_server_detach_rules
-
+          tempest.scenario.test_server_volume_attachment.TestServerVolumeAttachScenarioOldVersion.test_old_versions_reject
+          tempest.scenario.test_encrypted_cinder_volumes.TestEncryptedCinderVolumes.test_encrypted_cinder_volumes_cryptsetup
       # We need to use a custom cpu model to allow live migrating between
       # slightly different computes coming from the node pool
       # for ceph i might need to add https://github.com/openstack-k8s-operators/docs/blob/main/ceph.md#configure-nova
