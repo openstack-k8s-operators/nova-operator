@@ -90,14 +90,12 @@
       # require cinder or swift
       cifmw_tempest_tempestconf_config:
           overrides: |
-            compute.min_compute_nodes 3
+            identity.v3_endpoint_type public
             compute-feature-enabled.vnc_console true
             compute-feature-enabled.stable_rescue true
             compute-feature-enabled.hostname_fqdn_sanitization true
             compute-feature-enabled.live_migration true
             compute-feature-enabled.block_migration_for_live_migration true
-            validation.run_validation true
-            identity.v3_endpoint_type public
             service_available.swift false
             service_available.cinder false
       cifmw_test_operator_tempest_include_list: |
@@ -141,9 +139,11 @@
       cifmw_run_test_role: test_operator
       cifmw_test_operator_concurrency: 4
       cifmw_test_operator_timeout: 7200
+      # NOTE(gibi): identity.v3_endpoint_type override is a WA to force the
+      # publicURL as otherwise tempest gets configured with adminURL and that
+      # causes test instability.
       cifmw_tempest_tempestconf_config:
           overrides: |
-            compute.min_compute_nodes 3
             identity.v3_endpoint_type public
             compute-feature-enabled.vnc_console true
             compute-feature-enabled.stable_rescue true
@@ -151,7 +151,6 @@
             compute-feature-enabled.live_migration true
             compute-feature-enabled.block_migration_for_live_migration false
             volume.storage_protocol ceph
-            validation.run_validation true
             service_available.swift false
             service_available.cinder true
       cifmw_test_operator_tempest_include_list: |
