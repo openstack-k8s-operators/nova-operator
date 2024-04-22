@@ -939,6 +939,13 @@ var _ = Describe("NovaMetadata controller", func() {
 			DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(novaNames.InternalCertSecretName))
 			th.SimulateStatefulSetReplicaReady(novaNames.MetadataStatefulSetName)
 
+			th.ExpectCondition(
+				novaNames.MetadataName,
+				ConditionGetterFunc(NovaMetadataConditionGetter),
+				condition.TLSInputReadyCondition,
+				corev1.ConditionTrue,
+			)
+
 			ss := th.GetStatefulSet(novaNames.MetadataStatefulSetName)
 
 			// Check the resulting deployment fields
@@ -998,6 +1005,13 @@ var _ = Describe("NovaMetadata controller", func() {
 			DeferCleanup(k8sClient.Delete, ctx, th.CreateCABundleSecret(novaNames.CaBundleSecretName))
 			DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(novaNames.InternalCertSecretName))
 			th.SimulateStatefulSetReplicaReady(novaNames.MetadataStatefulSetName)
+
+			th.ExpectCondition(
+				novaNames.MetadataName,
+				ConditionGetterFunc(NovaMetadataConditionGetter),
+				condition.TLSInputReadyCondition,
+				corev1.ConditionTrue,
+			)
 
 			ss := th.GetStatefulSet(novaNames.MetadataStatefulSetName)
 

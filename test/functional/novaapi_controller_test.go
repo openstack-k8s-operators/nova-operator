@@ -996,6 +996,13 @@ var _ = Describe("NovaAPI controller", func() {
 			th.SimulateStatefulSetReplicaReady(novaNames.APIStatefulSetName)
 			keystone.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
 
+			th.ExpectCondition(
+				novaNames.APIName,
+				ConditionGetterFunc(NovaAPIConditionGetter),
+				condition.TLSInputReadyCondition,
+				corev1.ConditionTrue,
+			)
+
 			ss := th.GetStatefulSet(novaNames.APIStatefulSetName)
 			// Check the resulting deployment fields
 			Expect(int(*ss.Spec.Replicas)).To(Equal(1))
@@ -1071,6 +1078,13 @@ var _ = Describe("NovaAPI controller", func() {
 			DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(novaNames.PublicCertSecretName))
 			th.SimulateStatefulSetReplicaReady(novaNames.APIStatefulSetName)
 			keystone.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
+
+			th.ExpectCondition(
+				novaNames.APIName,
+				ConditionGetterFunc(NovaAPIConditionGetter),
+				condition.TLSInputReadyCondition,
+				corev1.ConditionTrue,
+			)
 
 			ss := th.GetStatefulSet(novaNames.APIStatefulSetName)
 			// Check the resulting deployment fields

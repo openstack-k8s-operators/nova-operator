@@ -590,6 +590,13 @@ var _ = Describe("NovaCompute with ironic diver controller", func() {
 			DeferCleanup(k8sClient.Delete, ctx, th.CreateCABundleSecret(novaNames.CaBundleSecretName))
 			th.SimulateStatefulSetReplicaReady(cell1.NovaComputeStatefulSetName)
 
+			th.ExpectCondition(
+				cell1.NovaComputeName,
+				ConditionGetterFunc(NovaComputeConditionGetter),
+				condition.TLSInputReadyCondition,
+				corev1.ConditionTrue,
+			)
+
 			ss := th.GetStatefulSet(cell1.NovaComputeStatefulSetName)
 
 			// Check the resulting deployment fields
