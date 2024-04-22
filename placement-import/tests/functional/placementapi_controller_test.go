@@ -820,6 +820,13 @@ var _ = Describe("PlacementAPI controller", func() {
 		})
 
 		It("it creates deployment with CA and service certs mounted", func() {
+			th.ExpectCondition(
+				names.PlacementAPIName,
+				ConditionGetterFunc(PlacementConditionGetter),
+				condition.TLSInputReadyCondition,
+				corev1.ConditionTrue,
+			)
+
 			j := th.GetDeployment(names.DeploymentName)
 
 			container := j.Spec.Template.Spec.Containers[0]
@@ -981,6 +988,13 @@ var _ = Describe("PlacementAPI reconfiguration", func() {
 		})
 
 		It("reconfigures the API pod", func() {
+			th.ExpectCondition(
+				names.PlacementAPIName,
+				ConditionGetterFunc(PlacementConditionGetter),
+				condition.TLSInputReadyCondition,
+				corev1.ConditionTrue,
+			)
+
 			// Grab the current config hash
 			originalHash := GetEnvVarValue(
 				th.GetDeployment(names.DeploymentName).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
