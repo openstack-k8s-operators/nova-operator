@@ -886,6 +886,13 @@ var _ = Describe("NovaConductor controller", func() {
 			th.SimulateJobSuccess(cell0.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 
+			th.ExpectCondition(
+				cell0.ConductorName,
+				ConditionGetterFunc(NovaConductorConditionGetter),
+				condition.TLSInputReadyCondition,
+				corev1.ConditionTrue,
+			)
+
 			ss := th.GetStatefulSet(cell0.ConductorStatefulSetName)
 
 			// Check the resulting deployment fields

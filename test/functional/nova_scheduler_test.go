@@ -761,6 +761,13 @@ var _ = Describe("NovaScheduler controller", func() {
 			DeferCleanup(k8sClient.Delete, ctx, th.CreateCABundleSecret(novaNames.CaBundleSecretName))
 			th.SimulateStatefulSetReplicaReady(novaNames.SchedulerStatefulSetName)
 
+			th.ExpectCondition(
+				novaNames.SchedulerName,
+				ConditionGetterFunc(NovaSchedulerConditionGetter),
+				condition.TLSInputReadyCondition,
+				corev1.ConditionTrue,
+			)
+
 			ss := th.GetStatefulSet(novaNames.SchedulerStatefulSetName)
 			// Check the resulting deployment fields
 			Expect(int(*ss.Spec.Replicas)).To(Equal(1))
@@ -802,6 +809,13 @@ var _ = Describe("NovaScheduler controller", func() {
 		It("reconfigures the NovaScheduler pod when CA changes", func() {
 			DeferCleanup(k8sClient.Delete, ctx, th.CreateCABundleSecret(novaNames.CaBundleSecretName))
 			th.SimulateStatefulSetReplicaReady(novaNames.SchedulerStatefulSetName)
+
+			th.ExpectCondition(
+				novaNames.SchedulerName,
+				ConditionGetterFunc(NovaSchedulerConditionGetter),
+				condition.TLSInputReadyCondition,
+				corev1.ConditionTrue,
+			)
 
 			ss := th.GetStatefulSet(novaNames.SchedulerStatefulSetName)
 

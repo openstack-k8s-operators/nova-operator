@@ -822,6 +822,13 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 			DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(novaNames.InternalCertSecretName))
 			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
 
+			th.ExpectCondition(
+				cell1.NoVNCProxyName,
+				ConditionGetterFunc(NoVNCProxyConditionGetter),
+				condition.TLSInputReadyCondition,
+				corev1.ConditionTrue,
+			)
+
 			ss := th.GetStatefulSet(cell1.NoVNCProxyStatefulSetName)
 
 			// Check the resulting deployment fields
@@ -878,6 +885,13 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 			DeferCleanup(k8sClient.Delete, ctx, th.CreateCABundleSecret(novaNames.CaBundleSecretName))
 			DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(novaNames.InternalCertSecretName))
 			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
+
+			th.ExpectCondition(
+				cell1.NoVNCProxyName,
+				ConditionGetterFunc(NoVNCProxyConditionGetter),
+				condition.TLSInputReadyCondition,
+				corev1.ConditionTrue,
+			)
 
 			ss := th.GetStatefulSet(cell1.NoVNCProxyStatefulSetName)
 
