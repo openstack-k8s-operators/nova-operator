@@ -731,9 +731,28 @@ spec:
                         description: CaBundleSecretName - holding the CA certs in
                           a pre-created bundle file
                         type: string
-                      secretName:
-                        description: SecretName - holding the cert, key for the service
-                        type: string
+                      service:
+                        description: Service - Cert secret used for the nova novnc
+                          service endpoint
+                        properties:
+                          secretName:
+                            description: SecretName - holding the cert, key for the
+                              service
+                            type: string
+                        type: object
+                      vencrypt:
+                        description: Vencrypt - cert secret containing the x509 certificate
+                          to be presented to the VNC server. The CommonName field
+                          should match the primary hostname of the controller node.
+                          If using a HA deployment, the Organization field can also
+                          be configured to a value that is common across all console
+                          proxy instances in the deployment. https://docs.openstack.org/nova/latest/admin/remote-console-access.html#novnc-proxy-server-configuration
+                        properties:
+                          secretName:
+                            description: SecretName - holding the cert, key for the
+                              service
+                            type: string
+                        type: object
                     type: object
                 type: object
               nodeSelector:

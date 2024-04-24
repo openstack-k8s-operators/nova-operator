@@ -218,9 +218,9 @@ func (r *NovaNoVNCProxyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		}
 	}
 
-	// Validate metadata service cert secret
-	if instance.Spec.TLS.Enabled() {
-		hash, ctrlResult, err := instance.Spec.TLS.ValidateCertSecret(ctx, h, instance.Namespace)
+	// Validate the service cert secret
+	if instance.Spec.TLS.Service.Enabled() {
+		hash, ctrlResult, err := instance.Spec.TLS.Service.ValidateCertSecret(ctx, h, instance.Namespace)
 		if err != nil {
 			instance.Status.Conditions.Set(condition.FalseCondition(
 				condition.TLSInputReadyCondition,
@@ -233,6 +233,23 @@ func (r *NovaNoVNCProxyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			return ctrlResult, nil
 		}
 		hashes[tls.TLSHashName] = env.SetValue(hash)
+	}
+
+	// Validate the Vencrypt cert secret
+	if instance.Spec.TLS.Vencrypt.Enabled() {
+		hash, ctrlResult, err := instance.Spec.TLS.Vencrypt.ValidateCertSecret(ctx, h, instance.Namespace)
+		if err != nil {
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				condition.TLSInputReadyCondition,
+				condition.ErrorReason,
+				condition.SeverityWarning,
+				condition.TLSInputErrorMessage,
+				err.Error()))
+			return ctrl.Result{}, err
+		} else if (ctrlResult != ctrl.Result{}) {
+			return ctrlResult, nil
+		}
+		hashes[novncproxy.VencryptName] = env.SetValue(hash)
 	}
 
 	// all cert input checks out so report InputReady
@@ -414,9 +431,15 @@ func (r *NovaNoVNCProxyReconciler) generateConfigs(
 		"MemcachedServersWithInet": memcachedInstance.GetMemcachedServerListWithInetString(),
 		"MemcachedTLS":             memcachedInstance.GetMemcachedTLSSupport(),
 	}
-	if instance.Spec.TLS.GenericService.Enabled() {
+	if instance.Spec.TLS.Service.Enabled() {
 		templateParameters["SSLCertificateFile"] = fmt.Sprintf("/etc/pki/tls/certs/%s.crt", novncproxy.ServiceName)
 		templateParameters["SSLCertificateKeyFile"] = fmt.Sprintf("/etc/pki/tls/private/%s.key", novncproxy.ServiceName)
+	}
+
+	if instance.Spec.TLS.Vencrypt.Enabled() {
+		templateParameters["VencryptClientKey"] = "/etc/pki/nova-novncproxy/client-key.pem"
+		templateParameters["VencryptClientCert"] = "/etc/pki/nova-novncproxy/client-cert.pem"
+		templateParameters["VencryptCACerts"] = "/etc/pki/nova-novncproxy/ca-cert.pem"
 	}
 
 	var tlsCfg *tls.Service
@@ -697,7 +720,8 @@ var (
 	noVNCProxyWatchFields = []string{
 		passwordSecretField,
 		caBundleSecretNameField,
-		tlsNoVNCProxyField,
+		tlsNoVNCProxyServiceField,
+		tlsNoVNCProxyVencryptField,
 	}
 )
 
@@ -755,14 +779,26 @@ func (r *NovaNoVNCProxyReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		return err
 	}
 
-	// index tlsNoVNCProxyField
-	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &novav1.NovaNoVNCProxy{}, tlsNoVNCProxyField, func(rawObj client.Object) []string {
+	// index service cert secret tlsNoVNCProxyField
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &novav1.NovaNoVNCProxy{}, tlsNoVNCProxyServiceField, func(rawObj client.Object) []string {
 		// Extract the secret name from the spec, if one is provided
 		cr := rawObj.(*novav1.NovaNoVNCProxy)
-		if cr.Spec.TLS.SecretName == nil {
+		if cr.Spec.TLS.Service.SecretName == nil {
 			return nil
 		}
-		return []string{*cr.Spec.TLS.SecretName}
+		return []string{*cr.Spec.TLS.Service.SecretName}
+	}); err != nil {
+		return err
+	}
+
+	// index vencrypt cert secret tlsNoVNCProxyField
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &novav1.NovaNoVNCProxy{}, tlsNoVNCProxyVencryptField, func(rawObj client.Object) []string {
+		// Extract the secret name from the spec, if one is provided
+		cr := rawObj.(*novav1.NovaNoVNCProxy)
+		if cr.Spec.TLS.Vencrypt.SecretName == nil {
+			return nil
+		}
+		return []string{*cr.Spec.TLS.Vencrypt.SecretName}
 	}); err != nil {
 		return err
 	}

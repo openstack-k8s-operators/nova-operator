@@ -36,5 +36,9 @@ spec:
         tls:
           # secret holding the tls-ca-bundle.pem to be used as a deploymend env CA bundle
           caBundleSecretName: combined-ca-bundle
-          # secret holding tls.crt and tls.key for the novncproxy k8s service
-          secretName: cert-nova-novncproxy-cell1-public-svc
+          service:
+            # secret holding tls.crt and tls.key for the novncproxy k8s service
+            secretName: cert-nova-novncproxy-cell1-public-svc
+          vencrypt:
+            # secret holding tls.crt and tls.key used for vencrypt to authenticate to the vnc server
+            secretName: cert-nova-novncproxy-cell1-vencrypt

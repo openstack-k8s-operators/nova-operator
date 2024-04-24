@@ -89,12 +89,13 @@ const (
 	TransportURLSelector = "transport_url"
 
 	// fields to index to reconcile when change
-	passwordSecretField     = ".spec.secret"
-	caBundleSecretNameField = ".spec.tls.caBundleSecretName"
-	tlsAPIInternalField     = ".spec.tls.api.internal.secretName"
-	tlsAPIPublicField       = ".spec.tls.api.public.secretName"
-	tlsMetadataField        = ".spec.tls.secretName"
-	tlsNoVNCProxyField      = ".spec.tls.secretName"
+	passwordSecretField        = ".spec.secret"
+	caBundleSecretNameField    = ".spec.tls.caBundleSecretName"
+	tlsAPIInternalField        = ".spec.tls.api.internal.secretName"
+	tlsAPIPublicField          = ".spec.tls.api.public.secretName"
+	tlsMetadataField           = ".spec.tls.secretName"
+	tlsNoVNCProxyServiceField  = ".spec.tls.service.secretName"
+	tlsNoVNCProxyVencryptField = ".spec.tls.vencrypt.secretName"
 
 	// NovaAPIDatabaseName is the name of the DB schema created for the
 	// top level nova DB
