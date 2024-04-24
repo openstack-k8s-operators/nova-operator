@@ -121,10 +121,10 @@ spec:
             path: /
             port: 8778
             scheme: HTTP
-          initialDelaySeconds: 3
-          periodSeconds: 3
+          initialDelaySeconds: 5
+          periodSeconds: 30
           successThreshold: 1
-          timeoutSeconds: 5
+          timeoutSeconds: 30
         name: placement-log
         readinessProbe:
           failureThreshold: 3
@@ -133,9 +133,9 @@ spec:
             port: 8778
             scheme: HTTP
           initialDelaySeconds: 5
-          periodSeconds: 5
+          periodSeconds: 30
           successThreshold: 1
-          timeoutSeconds: 5
+          timeoutSeconds: 30
         resources: {}
         securityContext:
           runAsUser: 42482
@@ -165,10 +165,10 @@ spec:
             path: /
             port: 8778
             scheme: HTTP
-          initialDelaySeconds: 3
-          periodSeconds: 3
+          initialDelaySeconds: 5
+          periodSeconds: 30
           successThreshold: 1
-          timeoutSeconds: 5
+          timeoutSeconds: 30
         name: placement-api
         readinessProbe:
           failureThreshold: 3
@@ -177,9 +177,9 @@ spec:
             port: 8778
             scheme: HTTP
           initialDelaySeconds: 5
-          periodSeconds: 5
+          periodSeconds: 30
           successThreshold: 1
-          timeoutSeconds: 5
+          timeoutSeconds: 30
         resources: {}
       restartPolicy: Always
       securityContext: {}
