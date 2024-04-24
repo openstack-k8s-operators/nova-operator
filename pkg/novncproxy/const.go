@@ -20,6 +20,7 @@ const (
 	//NoVNCProxyPort - The port the nova-noVNCProxyPort service is exposed on
 	NoVNCProxyPort = 6080
 	// ServiceName - The name of the service exposed to k8s
-	ServiceName = "nova-novncproxy"
-	Host        = "::0"
+	ServiceName  = "nova-novncproxy"
+	Host         = "::0"
+	VencryptName = "vencrypt"
 )

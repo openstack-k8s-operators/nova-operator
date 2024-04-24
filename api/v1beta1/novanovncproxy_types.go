@@ -75,7 +75,28 @@ type NovaNoVNCProxyTemplate struct {
 	// +kubebuilder:validation:Optional
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	// TLS - Parameters related to the TLS
-	TLS tls.SimpleService `json:"tls,omitempty"`
+	TLS TLSSection `json:"tls"`
+}
+
+// TLSSection defines the desired state of TLS configuration
+type TLSSection struct {
+	// +kubebuilder:validation:optional
+	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	// Service - Cert secret used for the nova novnc service endpoint
+	Service tls.GenericService `json:"service,omitempty"`
+
+	// +kubebuilder:validation:optional
+	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	// Vencrypt - cert secret containing the x509 certificate to be presented to the VNC server.
+	// The CommonName field should match the primary hostname of the controller node. If using a HA deployment,
+	// the Organization field can also be configured to a value that is common across all console proxy instances in the deployment.
+	// https://docs.openstack.org/nova/latest/admin/remote-console-access.html#novnc-proxy-server-configuration
+	Vencrypt tls.GenericService `json:"vencrypt,omitempty"`
+
+	// +kubebuilder:validation:optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	// Secret containing CA bundle
+	tls.Ca `json:",inline"`
 }
 
 // VNCProxyOverrideSpec to override the generated manifest of several child resources.
@@ -135,7 +156,7 @@ type NovaNoVNCProxySpec struct {
 	// +kubebuilder:validation:Optional
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	// TLS - Parameters related to the TLS
-	TLS tls.SimpleService `json:"tls,omitempty"`
+	TLS TLSSection `json:"tls"`
 
 	// +kubebuilder:validation:Required
 	// MemcachedInstance is the name of the Memcached CR that all nova service will use.

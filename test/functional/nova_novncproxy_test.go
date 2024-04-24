@@ -761,11 +761,13 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 
 	})
 
-	When("NovaNoVNCProxy is created with TLS CA cert secret", func() {
+	When("NovaNoVNCProxy is created with service and CA bundle cert secret", func() {
 		BeforeEach(func() {
 			spec := GetDefaultNovaNoVNCProxySpec(cell1)
 			spec["tls"] = map[string]interface{}{
-				"secretName":         ptr.To(novaNames.InternalCertSecretName.Name),
+				"service": map[string]interface{}{
+					"secretName": ptr.To(novaNames.InternalCertSecretName.Name),
+				},
 				"caBundleSecretName": novaNames.CaBundleSecretName.Name,
 			}
 			memcachedSpec := memcachedv1.MemcachedSpec{
@@ -817,7 +819,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 			)
 		})
 
-		It("creates a StatefulSet for nova-metadata service with TLS CA cert attached", func() {
+		It("creates a StatefulSet for nova-novncproxy service with TLS CA cert attached", func() {
 			DeferCleanup(k8sClient.Delete, ctx, th.CreateCABundleSecret(novaNames.CaBundleSecretName))
 			DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(novaNames.InternalCertSecretName))
 			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
@@ -865,6 +867,10 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 			Expect(configData).Should(ContainSubstring("ssl_only=true"))
 			Expect(configData).Should(ContainSubstring("cert=/etc/pki/tls/certs/nova-novncproxy.crt"))
 			Expect(configData).Should(ContainSubstring("key=/etc/pki/tls/private/nova-novncproxy.key"))
+			Expect(configData).Should(Not(ContainSubstring("auth_schemes=vencrypt,none")))
+			Expect(configData).Should(Not(ContainSubstring("vencrypt_client_key=/etc/pki/tls/private/vencrypt.key")))
+			Expect(configData).Should(Not(ContainSubstring("vencrypt_client_cert=/etc/pki/tls/certs/vencrypt.crt")))
+			Expect(configData).Should(Not(ContainSubstring("vencrypt_ca_certs=/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem")))
 
 			configData = string(configDataMap.Data["01-nova.conf"])
 			Expect(configData).Should(
@@ -898,6 +904,360 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 			// Check the resulting deployment fields
 			Expect(int(*ss.Spec.Replicas)).To(Equal(1))
 			Expect(ss.Spec.Template.Spec.Volumes).To(HaveLen(3))
+			Expect(ss.Spec.Template.Spec.Containers).To(HaveLen(1))
+
+			// Grab the current config hash
+			originalHash := GetEnvVarValue(
+				th.GetStatefulSet(cell1.NoVNCProxyStatefulSetName).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
+			Expect(originalHash).NotTo(BeEmpty())
+
+			// Change the content of the CA secret
+			th.UpdateSecret(novaNames.CaBundleSecretName, "tls-ca-bundle.pem", []byte("DifferentCAData"))
+
+			// Assert that the deployment is updated
+			Eventually(func(g Gomega) {
+				newHash := GetEnvVarValue(
+					th.GetStatefulSet(cell1.NoVNCProxyStatefulSetName).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
+				g.Expect(newHash).NotTo(BeEmpty())
+				g.Expect(newHash).NotTo(Equal(originalHash))
+			}, timeout, interval).Should(Succeed())
+		})
+	})
+
+	When("NovaNoVNCProxy is created with vencrypt and CA bundle cert secret", func() {
+		BeforeEach(func() {
+			spec := GetDefaultNovaNoVNCProxySpec(cell1)
+			spec["tls"] = map[string]interface{}{
+				"vencrypt": map[string]interface{}{
+					"secretName": ptr.To(novaNames.VNCProxyVencryptCertSecretName.Name),
+				},
+				"caBundleSecretName": novaNames.CaBundleSecretName.Name,
+			}
+			memcachedSpec := memcachedv1.MemcachedSpec{
+				MemcachedSpecCore: memcachedv1.MemcachedSpecCore{
+					Replicas: ptr.To(int32(3)),
+				},
+			}
+
+			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
+			infra.SimulateTLSMemcachedReady(novaNames.MemcachedNamespace)
+			DeferCleanup(th.DeleteInstance, CreateNovaNoVNCProxy(cell1.NoVNCProxyName, spec))
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateDefaultCellInternalSecret(cell1))
+		})
+
+		It("reports that the CA secret is missing", func() {
+			th.ExpectConditionWithDetails(
+				cell1.NoVNCProxyName,
+				ConditionGetterFunc(NoVNCProxyConditionGetter),
+				condition.TLSInputReadyCondition,
+				corev1.ConditionFalse,
+				condition.ErrorReason,
+				fmt.Sprintf("TLSInput error occured in TLS sources Secret %s/combined-ca-bundle not found", novaNames.Namespace),
+			)
+			th.ExpectCondition(
+				cell1.NoVNCProxyName,
+				ConditionGetterFunc(NoVNCProxyConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+			)
+		})
+
+		It("reports that the vencrypt cert secret is missing", func() {
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCABundleSecret(novaNames.CaBundleSecretName))
+
+			th.ExpectConditionWithDetails(
+				cell1.NoVNCProxyName,
+				ConditionGetterFunc(NoVNCProxyConditionGetter),
+				condition.TLSInputReadyCondition,
+				corev1.ConditionFalse,
+				condition.ErrorReason,
+				fmt.Sprintf("TLSInput error occured in TLS sources Secret %s/vencrypt-tls-certs not found", novaNames.Namespace),
+			)
+			th.ExpectCondition(
+				cell1.NoVNCProxyName,
+				ConditionGetterFunc(NoVNCProxyConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+			)
+		})
+
+		It("creates a StatefulSet for nova-novncproxy service with TLS CA cert attached", func() {
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCABundleSecret(novaNames.CaBundleSecretName))
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(novaNames.VNCProxyVencryptCertSecretName))
+			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
+
+			th.ExpectCondition(
+				cell1.NoVNCProxyName,
+				ConditionGetterFunc(NoVNCProxyConditionGetter),
+				condition.TLSInputReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			ss := th.GetStatefulSet(cell1.NoVNCProxyStatefulSetName)
+
+			// Check the resulting deployment fields
+			Expect(int(*ss.Spec.Replicas)).To(Equal(1))
+			Expect(ss.Spec.Template.Spec.Volumes).To(HaveLen(3))
+			Expect(ss.Spec.Template.Spec.Containers).To(HaveLen(1))
+
+			// cert deployment volumes
+			th.AssertVolumeExists(novaNames.CaBundleSecretName.Name, ss.Spec.Template.Spec.Volumes)
+			th.AssertVolumeExists("vencrypt-tls-certs", ss.Spec.Template.Spec.Volumes)
+
+			// CA container certs
+			apiContainer := ss.Spec.Template.Spec.Containers[0]
+			th.AssertVolumeMountExists(novaNames.CaBundleSecretName.Name, "tls-ca-bundle.pem", apiContainer.VolumeMounts)
+			th.AssertVolumeMountExists("vencrypt-tls-certs", "tls.key", apiContainer.VolumeMounts)
+			th.AssertVolumeMountExists("vencrypt-tls-certs", "tls.crt", apiContainer.VolumeMounts)
+
+			th.ExpectCondition(
+				cell1.NoVNCProxyName,
+				ConditionGetterFunc(NoVNCProxyConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			configDataMap := th.GetSecret(
+				types.NamespacedName{
+					Namespace: cell1.NoVNCProxyName.Namespace,
+					Name:      fmt.Sprintf("%s-config-data", cell1.NoVNCProxyName.Name),
+				},
+			)
+			Expect(configDataMap).ShouldNot(BeNil())
+			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
+			configData := string(configDataMap.Data["01-nova.conf"])
+			Expect(configData).Should(Not(ContainSubstring("ssl_only=true")))
+			Expect(configData).Should(Not(ContainSubstring("cert=/etc/pki/tls/certs/nova-novncproxy.crt")))
+			Expect(configData).Should(Not(ContainSubstring("key=/etc/pki/tls/private/nova-novncproxy.key")))
+			Expect(configData).Should(ContainSubstring("auth_schemes=vencrypt,none"))
+			Expect(configData).Should(ContainSubstring("vencrypt_client_key=/etc/pki/tls/private/vencrypt.key"))
+			Expect(configData).Should(ContainSubstring("vencrypt_client_cert=/etc/pki/tls/certs/vencrypt.crt"))
+			Expect(configData).Should(ContainSubstring("vencrypt_ca_certs=/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem"))
+
+			configData = string(configDataMap.Data["01-nova.conf"])
+			Expect(configData).Should(
+				ContainSubstring(fmt.Sprintf("memcache_servers=memcached-0.memcached.%s.svc:11211,memcached-1.memcached.%s.svc:11211,memcached-2.memcached.%s.svc:11211",
+					novaNames.Namespace, novaNames.Namespace, novaNames.Namespace)))
+			Expect(configData).Should(
+				ContainSubstring(fmt.Sprintf("memcached_servers=inet:[memcached-0.memcached.%s.svc]:11211,inet:[memcached-1.memcached.%s.svc]:11211,inet:[memcached-2.memcached.%s.svc]:11211",
+					novaNames.Namespace, novaNames.Namespace, novaNames.Namespace)))
+			Expect(configData).Should(
+				ContainSubstring("tls_enabled=true"))
+
+			myCnf := configDataMap.Data["my.cnf"]
+			Expect(myCnf).To(
+				ContainSubstring("[client]\nssl-ca=/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem\nssl=1"))
+		})
+
+		It("reconfigures the NovaNoVNCProxy pod when CA changes", func() {
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCABundleSecret(novaNames.CaBundleSecretName))
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(novaNames.VNCProxyVencryptCertSecretName))
+			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
+
+			th.ExpectCondition(
+				cell1.NoVNCProxyName,
+				ConditionGetterFunc(NoVNCProxyConditionGetter),
+				condition.TLSInputReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			ss := th.GetStatefulSet(cell1.NoVNCProxyStatefulSetName)
+
+			// Check the resulting deployment fields
+			Expect(int(*ss.Spec.Replicas)).To(Equal(1))
+			Expect(ss.Spec.Template.Spec.Volumes).To(HaveLen(3))
+			Expect(ss.Spec.Template.Spec.Containers).To(HaveLen(1))
+
+			// Grab the current config hash
+			originalHash := GetEnvVarValue(
+				th.GetStatefulSet(cell1.NoVNCProxyStatefulSetName).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
+			Expect(originalHash).NotTo(BeEmpty())
+
+			// Change the content of the CA secret
+			th.UpdateSecret(novaNames.CaBundleSecretName, "tls-ca-bundle.pem", []byte("DifferentCAData"))
+
+			// Assert that the deployment is updated
+			Eventually(func(g Gomega) {
+				newHash := GetEnvVarValue(
+					th.GetStatefulSet(cell1.NoVNCProxyStatefulSetName).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
+				g.Expect(newHash).NotTo(BeEmpty())
+				g.Expect(newHash).NotTo(Equal(originalHash))
+			}, timeout, interval).Should(Succeed())
+		})
+	})
+
+	When("NovaNoVNCProxy is created with both service, vencrypt and CA bundle cert secret", func() {
+		BeforeEach(func() {
+			spec := GetDefaultNovaNoVNCProxySpec(cell1)
+			spec["tls"] = map[string]interface{}{
+				"service": map[string]interface{}{
+					"secretName": ptr.To(novaNames.InternalCertSecretName.Name),
+				},
+				"vencrypt": map[string]interface{}{
+					"secretName": ptr.To(novaNames.VNCProxyVencryptCertSecretName.Name),
+				},
+				"caBundleSecretName": novaNames.CaBundleSecretName.Name,
+			}
+			memcachedSpec := memcachedv1.MemcachedSpec{
+				MemcachedSpecCore: memcachedv1.MemcachedSpecCore{
+					Replicas: ptr.To(int32(3)),
+				},
+			}
+
+			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
+			infra.SimulateTLSMemcachedReady(novaNames.MemcachedNamespace)
+			DeferCleanup(th.DeleteInstance, CreateNovaNoVNCProxy(cell1.NoVNCProxyName, spec))
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateDefaultCellInternalSecret(cell1))
+		})
+
+		It("reports that the CA secret is missing", func() {
+			th.ExpectConditionWithDetails(
+				cell1.NoVNCProxyName,
+				ConditionGetterFunc(NoVNCProxyConditionGetter),
+				condition.TLSInputReadyCondition,
+				corev1.ConditionFalse,
+				condition.ErrorReason,
+				fmt.Sprintf("TLSInput error occured in TLS sources Secret %s/combined-ca-bundle not found", novaNames.Namespace),
+			)
+			th.ExpectCondition(
+				cell1.NoVNCProxyName,
+				ConditionGetterFunc(NoVNCProxyConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+			)
+		})
+
+		It("reports that the service cert secret is missing", func() {
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCABundleSecret(novaNames.CaBundleSecretName))
+
+			th.ExpectConditionWithDetails(
+				cell1.NoVNCProxyName,
+				ConditionGetterFunc(NoVNCProxyConditionGetter),
+				condition.TLSInputReadyCondition,
+				corev1.ConditionFalse,
+				condition.ErrorReason,
+				fmt.Sprintf("TLSInput error occured in TLS sources Secret %s/internal-tls-certs not found", novaNames.Namespace),
+			)
+			th.ExpectCondition(
+				cell1.NoVNCProxyName,
+				ConditionGetterFunc(NoVNCProxyConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+			)
+		})
+
+		It("reports that the vencrypt cert secret is missing", func() {
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCABundleSecret(novaNames.CaBundleSecretName))
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(novaNames.InternalCertSecretName))
+
+			th.ExpectConditionWithDetails(
+				cell1.NoVNCProxyName,
+				ConditionGetterFunc(NoVNCProxyConditionGetter),
+				condition.TLSInputReadyCondition,
+				corev1.ConditionFalse,
+				condition.ErrorReason,
+				fmt.Sprintf("TLSInput error occured in TLS sources Secret %s/vencrypt-tls-certs not found", novaNames.Namespace),
+			)
+			th.ExpectCondition(
+				cell1.NoVNCProxyName,
+				ConditionGetterFunc(NoVNCProxyConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+			)
+		})
+
+		It("creates a StatefulSet for nova-novncproxy service with TLS CA cert attached", func() {
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCABundleSecret(novaNames.CaBundleSecretName))
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(novaNames.InternalCertSecretName))
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(novaNames.VNCProxyVencryptCertSecretName))
+			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
+
+			th.ExpectCondition(
+				cell1.NoVNCProxyName,
+				ConditionGetterFunc(NoVNCProxyConditionGetter),
+				condition.TLSInputReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			ss := th.GetStatefulSet(cell1.NoVNCProxyStatefulSetName)
+
+			// Check the resulting deployment fields
+			Expect(int(*ss.Spec.Replicas)).To(Equal(1))
+			Expect(ss.Spec.Template.Spec.Volumes).To(HaveLen(4))
+			Expect(ss.Spec.Template.Spec.Containers).To(HaveLen(1))
+
+			// cert deployment volumes
+			th.AssertVolumeExists(novaNames.CaBundleSecretName.Name, ss.Spec.Template.Spec.Volumes)
+			th.AssertVolumeExists("nova-novncproxy-tls-certs", ss.Spec.Template.Spec.Volumes)
+			th.AssertVolumeExists("vencrypt-tls-certs", ss.Spec.Template.Spec.Volumes)
+
+			// CA container certs
+			apiContainer := ss.Spec.Template.Spec.Containers[0]
+			th.AssertVolumeMountExists(novaNames.CaBundleSecretName.Name, "tls-ca-bundle.pem", apiContainer.VolumeMounts)
+			th.AssertVolumeMountExists("nova-novncproxy-tls-certs", "tls.key", apiContainer.VolumeMounts)
+			th.AssertVolumeMountExists("nova-novncproxy-tls-certs", "tls.crt", apiContainer.VolumeMounts)
+			th.AssertVolumeMountExists("vencrypt-tls-certs", "tls.key", apiContainer.VolumeMounts)
+			th.AssertVolumeMountExists("vencrypt-tls-certs", "tls.crt", apiContainer.VolumeMounts)
+
+			th.ExpectCondition(
+				cell1.NoVNCProxyName,
+				ConditionGetterFunc(NoVNCProxyConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			configDataMap := th.GetSecret(
+				types.NamespacedName{
+					Namespace: cell1.NoVNCProxyName.Namespace,
+					Name:      fmt.Sprintf("%s-config-data", cell1.NoVNCProxyName.Name),
+				},
+			)
+			Expect(configDataMap).ShouldNot(BeNil())
+			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
+			configData := string(configDataMap.Data["01-nova.conf"])
+			Expect(configData).Should(ContainSubstring("ssl_only=true"))
+			Expect(configData).Should(ContainSubstring("cert=/etc/pki/tls/certs/nova-novncproxy.crt"))
+			Expect(configData).Should(ContainSubstring("key=/etc/pki/tls/private/nova-novncproxy.key"))
+			Expect(configData).Should(ContainSubstring("auth_schemes=vencrypt,none"))
+			Expect(configData).Should(ContainSubstring("vencrypt_client_key=/etc/pki/tls/private/vencrypt.key"))
+			Expect(configData).Should(ContainSubstring("vencrypt_client_cert=/etc/pki/tls/certs/vencrypt.crt"))
+			Expect(configData).Should(ContainSubstring("vencrypt_ca_certs=/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem"))
+
+			configData = string(configDataMap.Data["01-nova.conf"])
+			Expect(configData).Should(
+				ContainSubstring(fmt.Sprintf("memcache_servers=memcached-0.memcached.%s.svc:11211,memcached-1.memcached.%s.svc:11211,memcached-2.memcached.%s.svc:11211",
+					novaNames.Namespace, novaNames.Namespace, novaNames.Namespace)))
+			Expect(configData).Should(
+				ContainSubstring(fmt.Sprintf("memcached_servers=inet:[memcached-0.memcached.%s.svc]:11211,inet:[memcached-1.memcached.%s.svc]:11211,inet:[memcached-2.memcached.%s.svc]:11211",
+					novaNames.Namespace, novaNames.Namespace, novaNames.Namespace)))
+			Expect(configData).Should(
+				ContainSubstring("tls_enabled=true"))
+
+			myCnf := configDataMap.Data["my.cnf"]
+			Expect(myCnf).To(
+				ContainSubstring("[client]\nssl-ca=/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem\nssl=1"))
+		})
+
+		It("reconfigures the NovaNoVNCProxy pod when CA changes", func() {
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCABundleSecret(novaNames.CaBundleSecretName))
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(novaNames.InternalCertSecretName))
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(novaNames.VNCProxyVencryptCertSecretName))
+			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
+
+			th.ExpectCondition(
+				cell1.NoVNCProxyName,
+				ConditionGetterFunc(NoVNCProxyConditionGetter),
+				condition.TLSInputReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			ss := th.GetStatefulSet(cell1.NoVNCProxyStatefulSetName)
+
+			// Check the resulting deployment fields
+			Expect(int(*ss.Spec.Replicas)).To(Equal(1))
+			Expect(ss.Spec.Template.Spec.Volumes).To(HaveLen(4))
 			Expect(ss.Spec.Template.Spec.Containers).To(HaveLen(1))
 
 			// Grab the current config hash

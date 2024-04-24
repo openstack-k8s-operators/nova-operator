@@ -677,21 +677,22 @@ func GetCellNames(novaName types.NamespacedName, cell string) CellNames {
 }
 
 type NovaNames struct {
-	Namespace                 string
-	NovaName                  types.NamespacedName
-	InternalNovaServiceName   types.NamespacedName
-	PublicNovaServiceName     types.NamespacedName
-	AdminNovaServiceName      types.NamespacedName
-	KeystoneServiceName       types.NamespacedName
-	APIName                   types.NamespacedName
-	APIMariaDBDatabaseName    types.NamespacedName
-	APIMariaDBDatabaseAccount types.NamespacedName
-	APIStatefulSetName        types.NamespacedName
-	APIKeystoneEndpointName   types.NamespacedName
-	APIConfigDataName         types.NamespacedName
-	InternalCertSecretName    types.NamespacedName
-	PublicCertSecretName      types.NamespacedName
-	CaBundleSecretName        types.NamespacedName
+	Namespace                      string
+	NovaName                       types.NamespacedName
+	InternalNovaServiceName        types.NamespacedName
+	PublicNovaServiceName          types.NamespacedName
+	AdminNovaServiceName           types.NamespacedName
+	KeystoneServiceName            types.NamespacedName
+	APIName                        types.NamespacedName
+	APIMariaDBDatabaseName         types.NamespacedName
+	APIMariaDBDatabaseAccount      types.NamespacedName
+	APIStatefulSetName             types.NamespacedName
+	APIKeystoneEndpointName        types.NamespacedName
+	APIConfigDataName              types.NamespacedName
+	InternalCertSecretName         types.NamespacedName
+	PublicCertSecretName           types.NamespacedName
+	CaBundleSecretName             types.NamespacedName
+	VNCProxyVencryptCertSecretName types.NamespacedName
 	// refers internal API network for all Nova services (not just nova API)
 	InternalAPINetworkNADName       types.NamespacedName
 	SchedulerName                   types.NamespacedName
@@ -775,7 +776,9 @@ func GetNovaNames(novaName types.NamespacedName, cellNames []string) NovaNames {
 		CaBundleSecretName: types.NamespacedName{
 			Namespace: novaName.Namespace,
 			Name:      "combined-ca-bundle"},
-
+		VNCProxyVencryptCertSecretName: types.NamespacedName{
+			Namespace: novaAPI.Namespace,
+			Name:      "vencrypt-tls-certs"},
 		InternalAPINetworkNADName: types.NamespacedName{
 			Namespace: novaName.Namespace,
 			Name:      "internalapi",

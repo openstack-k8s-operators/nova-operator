@@ -69,7 +69,7 @@ func StatefulSet(
 		Path: "/vnc_lite.html",
 	}
 
-	if instance.Spec.TLS.GenericService.Enabled() {
+	if instance.Spec.TLS.Service.Enabled() {
 		livenessProbe.HTTPGet.Scheme = corev1.URISchemeHTTPS
 		readinessProbe.HTTPGet.Scheme = corev1.URISchemeHTTPS
 		startupProbe.HTTPGet.Scheme = corev1.URISchemeHTTPS
@@ -104,13 +104,24 @@ func StatefulSet(
 		volumeMounts = append(volumeMounts, instance.Spec.TLS.CreateVolumeMounts(nil)...)
 	}
 
-	if instance.Spec.TLS.GenericService.Enabled() {
-		svc, err := instance.Spec.TLS.GenericService.ToService()
+	// add service certs if defined
+	if instance.Spec.TLS.Service.Enabled() {
+		svc, err := instance.Spec.TLS.Service.ToService()
 		if err != nil {
 			return nil, err
 		}
 		volumes = append(volumes, svc.CreateVolume(ServiceName))
 		volumeMounts = append(volumeMounts, svc.CreateVolumeMounts(ServiceName)...)
+	}
+
+	// add Vencrypt certs if defined
+	if instance.Spec.TLS.Vencrypt.Enabled() {
+		svc, err := instance.Spec.TLS.Vencrypt.ToService()
+		if err != nil {
+			return nil, err
+		}
+		volumes = append(volumes, svc.CreateVolume(VencryptName))
+		volumeMounts = append(volumeMounts, svc.CreateVolumeMounts(VencryptName)...)
 	}
 
 	statefulset := &appsv1.StatefulSet{
