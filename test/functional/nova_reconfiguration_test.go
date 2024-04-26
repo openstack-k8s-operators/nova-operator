@@ -131,7 +131,7 @@ func CreateNovaWith3CellsAndEnsureReady(novaNames NovaNames) {
 	th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 	th.SimulateJobSuccess(cell0.CellMappingJobName)
 
-	th.SimulateStatefulSetReplicaReady(novaNames.APIDeploymentName)
+	th.SimulateStatefulSetReplicaReady(novaNames.APIStatefulSetName)
 	keystone.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
 
 	th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
@@ -362,7 +362,7 @@ var _ = Describe("Nova reconfiguration", func() {
 				}
 				g.Expect(k8sClient.Update(ctx, nova)).To(Succeed())
 
-				apiDeployment := th.GetStatefulSet(novaNames.APIDeploymentName)
+				apiDeployment := th.GetStatefulSet(novaNames.APIStatefulSetName)
 				g.Expect(apiDeployment.Spec.Template.Spec.NodeSelector).To(Equal(serviceSelector))
 				schedulerDeployment := th.GetStatefulSet(novaNames.SchedulerStatefulSetName)
 				g.Expect(schedulerDeployment.Spec.Template.Spec.NodeSelector).To(Equal(serviceSelector))
@@ -386,7 +386,7 @@ var _ = Describe("Nova reconfiguration", func() {
 				g.Expect(k8sClient.Update(ctx, nova)).To(Succeed())
 
 				// NovaService's deployment keeps it own selector
-				apiDeployment := th.GetStatefulSet(novaNames.APIDeploymentName)
+				apiDeployment := th.GetStatefulSet(novaNames.APIStatefulSetName)
 				g.Expect(apiDeployment.Spec.Template.Spec.NodeSelector).To(Equal(serviceSelector))
 				schedulerDeployment := th.GetStatefulSet(novaNames.SchedulerStatefulSetName)
 				g.Expect(schedulerDeployment.Spec.Template.Spec.NodeSelector).To(Equal(serviceSelector))
