@@ -255,7 +255,7 @@ var _ = Describe("Nova multi cell", func() {
 
 			Expect(configData).To(ContainSubstring("transport_url=rabbit://cell0/fake"))
 
-			th.SimulateStatefulSetReplicaReady(novaNames.APIDeploymentName)
+			th.SimulateStatefulSetReplicaReady(novaNames.APIStatefulSetName)
 
 			th.ExpectCondition(
 				novaNames.APIName,
@@ -282,7 +282,7 @@ var _ = Describe("Nova multi cell", func() {
 			th.SimulateJobSuccess(cell0.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 			th.SimulateJobSuccess(cell0.CellMappingJobName)
-			th.SimulateStatefulSetReplicaReady(novaNames.APIDeploymentName)
+			th.SimulateStatefulSetReplicaReady(novaNames.APIStatefulSetName)
 			keystone.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
 
 			mariadb.SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
@@ -332,7 +332,7 @@ var _ = Describe("Nova multi cell", func() {
 			th.SimulateJobSuccess(cell0.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 			th.SimulateJobSuccess(cell0.CellMappingJobName)
-			th.SimulateStatefulSetReplicaReady(novaNames.APIDeploymentName)
+			th.SimulateStatefulSetReplicaReady(novaNames.APIStatefulSetName)
 			keystone.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
 			mariadb.SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
 			mariadb.SimulateMariaDBAccountCompleted(cell1.MariaDBAccountName)
@@ -443,7 +443,7 @@ var _ = Describe("Nova multi cell", func() {
 			th.SimulateJobSuccess(cell0.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 			th.SimulateJobSuccess(cell0.CellMappingJobName)
-			th.SimulateStatefulSetReplicaReady(novaNames.APIDeploymentName)
+			th.SimulateStatefulSetReplicaReady(novaNames.APIStatefulSetName)
 			keystone.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
 			th.SimulateStatefulSetReplicaReady(novaNames.SchedulerStatefulSetName)
 			th.SimulateStatefulSetReplicaReady(novaNames.MetadataStatefulSetName)
@@ -628,7 +628,7 @@ var _ = Describe("Nova multi cell", func() {
 
 			// NovaAPI is still created
 			GetNovaAPI(novaNames.APIName)
-			th.SimulateStatefulSetReplicaReady(novaNames.APIDeploymentName)
+			th.SimulateStatefulSetReplicaReady(novaNames.APIStatefulSetName)
 			keystone.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
 			th.ExpectCondition(
 				novaNames.NovaName,
@@ -760,7 +760,7 @@ var _ = Describe("Nova multi cell", func() {
 
 			th.SimulateStatefulSetReplicaReady(novaNames.MetadataStatefulSetName)
 			// As cell0 is ready API is deployed
-			th.SimulateStatefulSetReplicaReady(novaNames.APIDeploymentName)
+			th.SimulateStatefulSetReplicaReady(novaNames.APIStatefulSetName)
 			keystone.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
 			th.ExpectCondition(
 				novaNames.NovaName,

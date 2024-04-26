@@ -686,9 +686,8 @@ type NovaNames struct {
 	APIName                   types.NamespacedName
 	APIMariaDBDatabaseName    types.NamespacedName
 	APIMariaDBDatabaseAccount types.NamespacedName
-	APIDeploymentName         types.NamespacedName
-	APIKeystoneEndpointName   types.NamespacedName
 	APIStatefulSetName        types.NamespacedName
+	APIKeystoneEndpointName   types.NamespacedName
 	APIConfigDataName         types.NamespacedName
 	InternalCertSecretName    types.NamespacedName
 	PublicCertSecretName      types.NamespacedName
@@ -758,12 +757,11 @@ func GetNovaNames(novaName types.NamespacedName, cellNames []string) NovaNames {
 			Namespace: novaAPI.Namespace,
 			Name:      "test-nova-api-account",
 		},
-		APIDeploymentName: novaAPI,
+		APIStatefulSetName: novaAPI,
 		APIKeystoneEndpointName: types.NamespacedName{
 			Namespace: novaName.Namespace,
 			Name:      "nova", // a static keystone endpoint name for nova
 		},
-		APIStatefulSetName: novaAPI,
 		APIConfigDataName: types.NamespacedName{
 			Namespace: novaAPI.Namespace,
 			Name:      novaAPI.Name + "-config-data",

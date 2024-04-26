@@ -405,7 +405,7 @@ var _ = Describe("Nova controller", func() {
 			Expect(api.Spec.ServiceAccount).To(Equal(novaNames.ServiceAccountName.Name))
 			Expect(api.Spec.Secret).To(Equal(novaNames.InternalTopLevelSecretName.Name))
 
-			th.SimulateStatefulSetReplicaReady(novaNames.APIDeploymentName)
+			th.SimulateStatefulSetReplicaReady(novaNames.APIStatefulSetName)
 			keystone.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
 			th.ExpectCondition(
 				novaNames.APIName,
@@ -438,7 +438,7 @@ var _ = Describe("Nova controller", func() {
 			th.SimulateJobSuccess(cell0.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 			th.SimulateJobSuccess(cell0.CellMappingJobName)
-			th.SimulateStatefulSetReplicaReady(novaNames.APIDeploymentName)
+			th.SimulateStatefulSetReplicaReady(novaNames.APIStatefulSetName)
 			keystone.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
 			th.SimulateStatefulSetReplicaReady(novaNames.MetadataStatefulSetName)
 
@@ -479,7 +479,7 @@ var _ = Describe("Nova controller", func() {
 			th.SimulateJobSuccess(cell0.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 			th.SimulateJobSuccess(cell0.CellMappingJobName)
-			th.SimulateStatefulSetReplicaReady(novaNames.APIDeploymentName)
+			th.SimulateStatefulSetReplicaReady(novaNames.APIStatefulSetName)
 			keystone.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
 			th.SimulateStatefulSetReplicaReady(novaNames.SchedulerStatefulSetName)
 
@@ -975,7 +975,7 @@ var _ = Describe("Nova controller", func() {
 				map[string][]string{novaNames.NovaName.Namespace + "/internalapi": {"10.0.0.1"}},
 			)
 			th.SimulateStatefulSetReplicaReadyWithPods(
-				novaNames.APIDeploymentName,
+				novaNames.APIStatefulSetName,
 				map[string][]string{novaNames.NovaName.Namespace + "/internalapi": {"10.0.0.1"}},
 			)
 			th.SimulateStatefulSetReplicaReadyWithPods(
@@ -1141,7 +1141,7 @@ var _ = Describe("Nova controller", func() {
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 			th.SimulateJobSuccess(cell0.CellMappingJobName)
 
-			th.SimulateStatefulSetReplicaReady(novaNames.APIDeploymentName)
+			th.SimulateStatefulSetReplicaReady(novaNames.APIStatefulSetName)
 			keystone.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
 			th.SimulateStatefulSetReplicaReady(novaNames.SchedulerStatefulSetName)
 			th.SimulateStatefulSetReplicaReady(novaNames.MetadataStatefulSetName)
@@ -1245,7 +1245,7 @@ var _ = Describe("Nova controller", func() {
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 			th.SimulateJobSuccess(cell0.CellMappingJobName)
 
-			th.SimulateStatefulSetReplicaReady(novaNames.APIDeploymentName)
+			th.SimulateStatefulSetReplicaReady(novaNames.APIStatefulSetName)
 			keystone.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
 			th.SimulateStatefulSetReplicaReady(novaNames.SchedulerStatefulSetName)
 			th.SimulateStatefulSetReplicaReady(novaNames.MetadataStatefulSetName)
