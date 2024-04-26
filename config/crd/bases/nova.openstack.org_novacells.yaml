@@ -731,6 +731,10 @@ spec:
                         description: CaBundleSecretName - holding the CA certs in
                           a pre-created bundle file
                         type: string
+                      secretName:
+                        description: 'SecretName - holding the cert, key for the service
+                          Deprecated: will be removed in a follow up'
+                        type: string
                       service:
                         description: Service - Cert secret used for the nova novnc
                           service endpoint
