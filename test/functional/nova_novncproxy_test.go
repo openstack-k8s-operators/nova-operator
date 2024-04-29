@@ -196,6 +196,8 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 				Expect(configData).Should(ContainSubstring("novncproxy_port = 6080"))
 				Expect(configData).Should(ContainSubstring("password = service-password"))
 				Expect(configData).Should(
+					ContainSubstring("backend = dogpile.cache.memcached"))
+				Expect(configData).Should(
 					ContainSubstring(fmt.Sprintf("memcache_servers=memcached-0.memcached.%s.svc:11211,memcached-1.memcached.%s.svc:11211,memcached-2.memcached.%s.svc:11211",
 						novaNames.Namespace, novaNames.Namespace, novaNames.Namespace)))
 				Expect(configData).Should(
@@ -874,6 +876,8 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 
 			configData = string(configDataMap.Data["01-nova.conf"])
 			Expect(configData).Should(
+				ContainSubstring("backend = dogpile.cache.pymemcache"))
+			Expect(configData).Should(
 				ContainSubstring(fmt.Sprintf("memcache_servers=memcached-0.memcached.%s.svc:11211,memcached-1.memcached.%s.svc:11211,memcached-2.memcached.%s.svc:11211",
 					novaNames.Namespace, novaNames.Namespace, novaNames.Namespace)))
 			Expect(configData).Should(
@@ -1036,6 +1040,8 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 			Expect(configData).Should(ContainSubstring("vencrypt_ca_certs=/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem"))
 
 			configData = string(configDataMap.Data["01-nova.conf"])
+			Expect(configData).Should(
+				ContainSubstring("backend = dogpile.cache.pymemcache"))
 			Expect(configData).Should(
 				ContainSubstring(fmt.Sprintf("memcache_servers=memcached-0.memcached.%s.svc:11211,memcached-1.memcached.%s.svc:11211,memcached-2.memcached.%s.svc:11211",
 					novaNames.Namespace, novaNames.Namespace, novaNames.Namespace)))
@@ -1226,6 +1232,8 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 			Expect(configData).Should(ContainSubstring("vencrypt_ca_certs=/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem"))
 
 			configData = string(configDataMap.Data["01-nova.conf"])
+			Expect(configData).Should(
+				ContainSubstring("backend = dogpile.cache.pymemcache"))
 			Expect(configData).Should(
 				ContainSubstring(fmt.Sprintf("memcache_servers=memcached-0.memcached.%s.svc:11211,memcached-1.memcached.%s.svc:11211,memcached-2.memcached.%s.svc:11211",
 					novaNames.Namespace, novaNames.Namespace, novaNames.Namespace)))
