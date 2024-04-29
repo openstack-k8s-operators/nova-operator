@@ -215,6 +215,8 @@ var _ = Describe("NovaAPI controller", func() {
 				Expect(configData).Should(
 					ContainSubstring("[upgrade_levels]\ncompute = auto"))
 				Expect(configData).Should(
+					ContainSubstring("backend = dogpile.cache.memcached"))
+				Expect(configData).Should(
 					ContainSubstring(fmt.Sprintf("memcache_servers=memcached-0.memcached.%s.svc:11211,memcached-1.memcached.%s.svc:11211,memcached-2.memcached.%s.svc:11211",
 						novaNames.Namespace, novaNames.Namespace, novaNames.Namespace)))
 				Expect(configData).Should(
@@ -1038,6 +1040,8 @@ var _ = Describe("NovaAPI controller", func() {
 			Expect(configData).Should(ContainSubstring("SSLCertificateKeyFile   \"/etc/pki/tls/private/public.key\""))
 
 			configData = string(configDataMap.Data["01-nova.conf"])
+			Expect(configData).Should(
+				ContainSubstring("backend = dogpile.cache.pymemcache"))
 			Expect(configData).Should(
 				ContainSubstring(fmt.Sprintf("memcache_servers=memcached-0.memcached.%s.svc:11211,memcached-1.memcached.%s.svc:11211,memcached-2.memcached.%s.svc:11211",
 					novaNames.Namespace, novaNames.Namespace, novaNames.Namespace)))
