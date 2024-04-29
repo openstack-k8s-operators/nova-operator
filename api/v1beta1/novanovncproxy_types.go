@@ -80,11 +80,6 @@ type NovaNoVNCProxyTemplate struct {
 
 // TLSSection defines the desired state of TLS configuration
 type TLSSection struct {
-	// +kubebuilder:validation:Optional
-	// SecretName - holding the cert, key for the service
-	// Deprecated: will be removed in a follow up
-	SecretName *string `json:"secretName,omitempty"`
-
 	// +kubebuilder:validation:optional
 	//+operator-sdk:csv:customresourcedefinitions:type=spec
 	// Service - Cert secret used for the nova novnc service endpoint
