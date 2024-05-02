@@ -100,6 +100,7 @@
             compute-feature-enabled.stable_rescue true
             compute-feature-enabled.hostname_fqdn_sanitization true
             compute-feature-enabled.live_migration true
+            compute-feature-enabled.live_migrate_back_and_forth true
             compute-feature-enabled.block_migration_for_live_migration true
             compute-feature-enabled.ide_bus false
             service_available.swift false
@@ -113,8 +114,11 @@
           tempest.scenario
       # ide tests cannot be used with our default machine type.
       # auto allocate network is blocked by https://issues.redhat.com/browse/OSPRH-6541
+      # test_live_block_migration_paused is currently blocked by
+      # https://issues.redhat.com/browse/RHEL-33754
       cifmw_test_operator_tempest_exclude_list: |
           tempest.api.compute.admin.test_auto_allocate_network.AutoAllocateNetworkTest.test_server_multi_create_auto_allocate
+          test_live_block_migration_paused
       # We need to use a custom cpu model to allow live migrating between
       # slightly different computes coming from the node pool
       cifmw_edpm_deploy_nova_compute_extra_config: |
@@ -149,8 +153,12 @@
             compute-feature-enabled.stable_rescue true
             compute-feature-enabled.hostname_fqdn_sanitization true
             compute-feature-enabled.live_migration true
+            compute-feature-enabled.live_migrate_back_and_forth true
             compute-feature-enabled.block_migration_for_live_migration false
             compute-feature-enabled.ide_bus false
+            compute-feature-enabled.volume_backed_live_migration true
+            compute-feature-enabled.volume_multiattach true
+            volume.volume_type_multiattach multiattach
             volume.storage_protocol ceph
             service_available.swift false
             service_available.cinder true
