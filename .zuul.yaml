@@ -101,6 +101,7 @@
             compute-feature-enabled.hostname_fqdn_sanitization true
             compute-feature-enabled.live_migration true
             compute-feature-enabled.block_migration_for_live_migration true
+            compute-feature-enabled.ide_bus false
             service_available.swift false
             service_available.cinder false
             validation.image_ssh_user cirros
@@ -114,7 +115,6 @@
       # auto allocate network is blocked by https://issues.redhat.com/browse/OSPRH-6541
       cifmw_test_operator_tempest_exclude_list: |
           tempest.api.compute.admin.test_auto_allocate_network.AutoAllocateNetworkTest.test_server_multi_create_auto_allocate
-          tempest.api.compute.servers.test_server_rescue.ServerStableDeviceRescueTestIDE
       # We need to use a custom cpu model to allow live migrating between
       # slightly different computes coming from the node pool
       cifmw_edpm_deploy_nova_compute_extra_config: |
@@ -150,6 +150,7 @@
             compute-feature-enabled.hostname_fqdn_sanitization true
             compute-feature-enabled.live_migration true
             compute-feature-enabled.block_migration_for_live_migration false
+            compute-feature-enabled.ide_bus false
             volume.storage_protocol ceph
             service_available.swift false
             service_available.cinder true
@@ -170,7 +171,6 @@
       # luks support is enabled and we are testing encrypted volumes with luks.
       cifmw_test_operator_tempest_exclude_list: |
           tempest.api.compute.admin.test_auto_allocate_network.AutoAllocateNetworkTest.test_server_multi_create_auto_allocate
-          tempest.api.compute.servers.test_server_rescue.ServerStableDeviceRescueTestIDE
           tempest.scenario.test_server_volume_attachment.TestServerVolumeAttachmentScenario.test_server_detach_rules
           tempest.scenario.test_server_volume_attachment.TestServerVolumeAttachScenarioOldVersion.test_old_versions_reject
           tempest.scenario.test_encrypted_cinder_volumes.TestEncryptedCinderVolumes.test_encrypted_cinder_volumes_cryptsetup
