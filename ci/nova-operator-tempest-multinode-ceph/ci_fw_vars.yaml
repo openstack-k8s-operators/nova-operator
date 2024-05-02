@@ -27,10 +27,11 @@ post_deploy:
 # we can use this hook to create flavors, images, etc
 # before we execute tempest simiilar to how we would use
 # local.sh in devstack based jobs
-# pre_tempest:
-#   - name: Create manila resources
-#     type: playbook
-#     source: manila_create_default_resources.yml
+pre_tests:
+  - name: 01 Create cinder multiattach volume type
+    type: playbook
+    source: cinder_multiattach_volume_type.yml
+
 
 cifmw_run_tests: true
 cifmw_tempest_container: openstack-tempest-extras
