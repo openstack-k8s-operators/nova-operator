@@ -80,6 +80,8 @@
       cifmw_run_test_role: test_operator
       cifmw_test_operator_concurrency: 4
       cifmw_test_operator_timeout: 7200
+      cifmw_test_operator_tempest_network_attachments:
+        - ctlplane
       # avoid using default test_operator exclude list
       cifmw_test_operator_tempest_tests_exclude_override_scenario: false
       # NOTE(gibi): identity.v3_endpoint_type override is a WA to force the
@@ -110,11 +112,9 @@
           tempest.scenario
       # ide tests cannot be used with our default machine type.
       # auto allocate network is blocked by https://issues.redhat.com/browse/OSPRH-6541
-      # test_mtu_sized_frames is blocked by https://issues.redhat.com/browse/OSPRH-6546
       cifmw_test_operator_tempest_exclude_list: |
           tempest.api.compute.admin.test_auto_allocate_network.AutoAllocateNetworkTest.test_server_multi_create_auto_allocate
           tempest.api.compute.servers.test_server_rescue.ServerStableDeviceRescueTestIDE
-          tempest.scenario.test_network_basic_ops.TestNetworkBasicOps.test_mtu_sized_frames
       # We need to use a custom cpu model to allow live migrating between
       # slightly different computes coming from the node pool
       cifmw_edpm_deploy_nova_compute_extra_config: |
@@ -134,6 +134,8 @@
       cifmw_run_test_role: test_operator
       cifmw_test_operator_concurrency: 4
       cifmw_test_operator_timeout: 7200
+      cifmw_test_operator_tempest_network_attachments:
+        - ctlplane
       # NOTE(gibi): identity.v3_endpoint_type override is a WA to force the
       # publicURL as otherwise tempest gets configured with adminURL and that
       # causes test instability.
@@ -160,7 +162,6 @@
           tempest.scenario
       # ide tests cannot be used with our default machine type.
       # auto allocate network is blocked by https://issues.redhat.com/browse/OSPRH-6541
-      # test_mtu_sized_frames is blocked by https://issues.redhat.com/browse/OSPRH-6546
       # test_server_detach_rules and test_old_versions_reject are blocked by the requirement
       # to use service tokens to authenticate with cinder when a volume is attached to a server
       # as such the tests are not valid following CVE-2023-2088
@@ -170,7 +171,6 @@
       cifmw_test_operator_tempest_exclude_list: |
           tempest.api.compute.admin.test_auto_allocate_network.AutoAllocateNetworkTest.test_server_multi_create_auto_allocate
           tempest.api.compute.servers.test_server_rescue.ServerStableDeviceRescueTestIDE
-          tempest.scenario.test_network_basic_ops.TestNetworkBasicOps.test_mtu_sized_frames
           tempest.scenario.test_server_volume_attachment.TestServerVolumeAttachmentScenario.test_server_detach_rules
           tempest.scenario.test_server_volume_attachment.TestServerVolumeAttachScenarioOldVersion.test_old_versions_reject
           tempest.scenario.test_encrypted_cinder_volumes.TestEncryptedCinderVolumes.test_encrypted_cinder_volumes_cryptsetup
