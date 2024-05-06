@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"sort"
 	"time"
 
@@ -514,13 +515,27 @@ func getNovaClient(
 	l logr.Logger,
 ) (*gophercloud.ServiceClient, error) {
 
+	authURL := keystoneAuth.GetKeystoneAuthURL()
+	parsedAuthURL, err := url.Parse(authURL)
+	if err != nil {
+		return nil, err
+	}
+
+	tlsConfig := &openstack.TLSConfig{}
+	if parsedAuthURL.Scheme == "https" {
+		// TODO: (mschuppert) for now just set to insecure, when keystone got
+		// enabled for internal tls, get the CA secret name from the keystoneAPI
+		tlsConfig.Insecure = true
+	}
+
 	cfg := openstack.AuthOpts{
-		AuthURL:    keystoneAuth.GetKeystoneAuthURL(),
+		AuthURL:    authURL,
 		Username:   keystoneAuth.GetKeystoneUser(),
 		Password:   password,
 		DomainName: "Default",   // fixme",
 		Region:     "regionOne", // fixme",
 		TenantName: "service",   // fixme",
+		TLS:        tlsConfig,
 	}
 	endpointOpts := gophercloud.EndpointOpts{
 		Region:       cfg.Region,
