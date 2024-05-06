@@ -613,7 +613,7 @@ func (r *NovaConductorReconciler) cleanServiceFromNovaDb(
 		return err
 	}
 
-	return cleanNovaServiceFromNovaDb(computeClient, "nova-conductor")
+	return cleanNovaServiceFromNovaDb(computeClient, "nova-conductor", l)
 }
 
 func (r *NovaConductorReconciler) findObjectsForSrc(ctx context.Context, src client.Object) []reconcile.Request {

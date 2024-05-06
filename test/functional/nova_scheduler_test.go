@@ -676,7 +676,10 @@ var _ = Describe("NovaScheduler controller cleaning", func() {
 				condition.ReadyCondition,
 				corev1.ConditionTrue,
 			)
-			Expect(novaAPIFixture.FindRequest("DELETE", "/compute/os-services/3", "")).To(BeTrue())
+			Expect(novaAPIFixture.HasRequest("DELETE", "/compute/os-services/3", "")).To(BeTrue())
+			req := novaAPIFixture.FindRequest("DELETE", "/compute/os-services/3", "")
+			Expect(req.Header.Get("X-OpenStack-Nova-API-Version")).To(Equal("2.95"))
+
 		})
 	})
 })

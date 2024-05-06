@@ -667,5 +667,5 @@ func (r *NovaSchedulerReconciler) cleanServiceFromNovaDb(
 		return err
 	}
 
-	return cleanNovaServiceFromNovaDb(computeClient, "nova-scheduler")
+	return cleanNovaServiceFromNovaDb(computeClient, "nova-scheduler", l)
 }
