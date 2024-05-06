@@ -1,0 +1,15 @@
+# The automatic service cleanup only deletes services from the DB after they
+# are in down state. To speed up the testing we set the service_down_time to a
+# smaller value.
+# Note that automatic service cleanup only happens for the conductor and
+# scheduler services.
+apiVersion: nova.openstack.org/v1beta1
+kind: Nova
+metadata:
+  name: nova-kuttl
+  namespace: nova-kuttl-default
+spec:
+  apiServiceTemplate:
+    customServiceConfig: |
+      [DEFAULT]
+      service_down_time = 20

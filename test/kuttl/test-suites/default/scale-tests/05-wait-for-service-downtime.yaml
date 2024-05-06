@@ -1,0 +1,7 @@
+# Wait a bit more than the service_down_time to make sure that scaled down
+# services are considered down.
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+  - script: |
+      sleep 25

@@ -17,7 +17,6 @@ spec:
   apiDatabaseAccount: nova-api
   apiMessageBusInstance: rabbitmq
   apiServiceTemplate:
-    customServiceConfig: ""
     replicas: 0
   metadataServiceTemplate:
     enabled: True
@@ -236,4 +235,3 @@ spec:
       labels:
         cell: cell1
         service: nova-conductor
----
