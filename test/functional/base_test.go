@@ -51,7 +51,7 @@ const (
 
 type NovaAPIFixture struct {
 	api.APIFixture
-	APIRequests []map[string]string
+	APIRequests []http.Request
 }
 
 func AddNovaAPIFixture(log logr.Logger, server *api.FakeAPIServer) *NovaAPIFixture {
@@ -62,7 +62,7 @@ func AddNovaAPIFixture(log logr.Logger, server *api.FakeAPIServer) *NovaAPIFixtu
 			URLBase:    "/compute",
 			OwnsServer: false,
 		},
-		APIRequests: []map[string]string{},
+		APIRequests: []http.Request{},
 	}
 	return fixture
 }
@@ -78,22 +78,22 @@ func NewNovaAPIFixtureWithServer(log logr.Logger) *NovaAPIFixture {
 }
 
 func (f *NovaAPIFixture) RecordRequest(r *http.Request) {
-	f.APIRequests = append(f.APIRequests, map[string]string{
-		"method": r.Method,
-		"path":   r.URL.Path,
-		"query":  r.URL.RawQuery,
-	})
+	f.APIRequests = append(f.APIRequests, *r)
 }
 
-func (f *NovaAPIFixture) FindRequest(method string, path string, query string) bool {
+func (f *NovaAPIFixture) FindRequest(method string, path string, query string) *http.Request {
 	for _, request := range f.APIRequests {
-		if request["method"] == method && request["path"] == path {
-			if request["query"] == query || query == "" {
-				return true
+		if request.Method == method && request.URL.Path == path {
+			if request.URL.RawQuery == query || query == "" {
+				return &request
 			}
 		}
 	}
-	return false
+	return nil
+}
+
+func (f *NovaAPIFixture) HasRequest(method string, path string, query string) bool {
+	return f.FindRequest(method, path, query) != nil
 }
 
 // Setup adds the API request handlers to the fixture. If no handlers is passed

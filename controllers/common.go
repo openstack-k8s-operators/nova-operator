@@ -113,6 +113,7 @@ type conditionsGetter interface {
 func cleanNovaServiceFromNovaDb(
 	computeClient *gophercloud.ServiceClient,
 	serviceName string,
+	l logr.Logger,
 ) error {
 	opts := services.ListOpts{
 		Binary: serviceName,
@@ -127,9 +128,15 @@ func cleanNovaServiceFromNovaDb(
 	if err != nil {
 		return err
 	}
+
 	for _, service := range allServices {
 		if service.State == "down" {
-			services.Delete(computeClient, service.ID)
+			rsp := services.Delete(computeClient, service.ID)
+			if rsp.Err != nil {
+				l.Error(rsp.Err, "Failed to delete service", "service", service, "response", rsp)
+				return rsp.Err
+			}
+			l.Info("Deleted service", "service", service)
 		}
 	}
 
@@ -545,7 +552,12 @@ func getNovaClient(
 	if err != nil {
 		return nil, err
 	}
-	return computeClient.GetOSClient(), nil
+
+	client := computeClient.GetOSClient()
+	// NOTE(gibi): We use Antelope maximum because we can. In reality we only
+	// need 2.53 to be able to delete services based on UUID.
+	client.Microversion = "2.95"
+	return client, nil
 }
 
 func getCellDatabaseName(cellName string) string {
