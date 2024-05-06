@@ -1,0 +1,12 @@
+---
+# Scaled down to 1 replicas so the other service instances should be
+# removed from the DB.
+apiVersion: kuttl.dev/v1beta1
+kind: TestAssert
+namespaced: true
+commands:
+  - script: |
+      set -euxo pipefail
+      (( $(oc exec -n $NAMESPACE openstackclient -- openstack compute service list --service nova-scheduler -f value | wc -l) == 1 ))
+      (( $(oc exec -n $NAMESPACE openstackclient -- openstack compute service list --service nova-conductor -f value | grep cell1 | wc -l) == 1 ))
+      (( $(oc exec -n $NAMESPACE openstackclient -- openstack compute service list --service nova-conductor -f value | grep cell0 | wc -l) == 1 ))
