@@ -248,6 +248,12 @@ type NovaCellStatus struct {
 	// When a compute is removed from the Spec the operator will delete the
 	// related NovaCompute CR and then remove the compute from this Status field.
 	NovaComputesStatus map[string]NovaComputeCellStatus `json:"novaComputesStatus,omitempty"`
+
+	// ObservedGeneration - the most recent generation observed for this
+	// service. If the observed generation is less than the spec generation,
+	// then the controller has not processed the latest changes injected by
+	// the opentack-operator in the top-level CR (e.g. the ContainerImage)
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 }
 
 //+kubebuilder:object:root=true

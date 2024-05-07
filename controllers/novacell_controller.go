@@ -112,11 +112,11 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 	if err = r.initStatus(instance); err != nil {
 		return ctrl.Result{}, err
 	}
+	instance.Status.ObservedGeneration = instance.Generation
 
 	// Always update the instance status when exiting this function so we can
 	// persist any changes happened during the current reconciliation.
 	defer func() {
-		condition.RestoreLastTransitionTimes(&instance.Status.Conditions, savedConditions)
 		// update the Ready condition based on the sub conditions
 		if allSubConditionIsTrue(instance.Status) {
 			instance.Status.Conditions.MarkTrue(
@@ -129,6 +129,7 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 			instance.Status.Conditions.Set(
 				instance.Status.Conditions.Mirror(condition.ReadyCondition))
 		}
+		condition.RestoreLastTransitionTimes(&instance.Status.Conditions, savedConditions)
 		err := h.PatchInstance(ctx, instance)
 		if err != nil {
 			_err = err

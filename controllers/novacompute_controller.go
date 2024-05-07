@@ -120,12 +120,12 @@ func (r *NovaComputeReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	if err = r.initStatus(instance); err != nil {
 		return ctrl.Result{}, err
 	}
+	instance.Status.ObservedGeneration = instance.Generation
 
 	// Always update the instance status when exiting this function so we can
 	// persist any changes happened during the current reconciliation.
 	defer func() {
 		// update the Ready condition based on the sub conditions
-		condition.RestoreLastTransitionTimes(&instance.Status.Conditions, savedConditions)
 		if allSubConditionIsTrue(instance.Status) {
 			instance.Status.Conditions.MarkTrue(
 				condition.ReadyCondition, condition.ReadyMessage)
@@ -137,6 +137,7 @@ func (r *NovaComputeReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			instance.Status.Conditions.Set(
 				instance.Status.Conditions.Mirror(condition.ReadyCondition))
 		}
+		condition.RestoreLastTransitionTimes(&instance.Status.Conditions, savedConditions)
 		err := h.PatchInstance(ctx, instance)
 		if err != nil {
 			_err = err
