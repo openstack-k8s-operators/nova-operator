@@ -34,6 +34,8 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
+
+	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 )
 
 // NovaAPIDefaults -
@@ -86,9 +88,16 @@ var _ webhook.Validator = &NovaAPI{}
 func (r *NovaAPI) ValidateCreate() (admission.Warnings, error) {
 	novaapilog.Info("validate create", "name", r.Name)
 
-	errors := ValidateAPIDefaultConfigOverwrite(
-		field.NewPath("spec").Child("defaultConfigOverwrite"),
-		r.Spec.DefaultConfigOverwrite)
+	errors := field.ErrorList{}
+	basePath := field.NewPath("spec")
+
+	// validate the service override key is valid
+	errors = append(errors, service.ValidateRoutedOverrides(basePath.Child("override").Child("service"), r.Spec.Override.Service)...)
+
+	errors = append(errors,
+		ValidateAPIDefaultConfigOverwrite(
+			basePath.Child("defaultConfigOverwrite"),
+			r.Spec.DefaultConfigOverwrite)...)
 
 	if len(errors) != 0 {
 		novaapilog.Info("validation failed", "name", r.Name)
@@ -109,9 +118,16 @@ func (r *NovaAPI) ValidateUpdate(old runtime.Object) (admission.Warnings, error)
 
 	novaapilog.Info("validate update", "diff", cmp.Diff(oldNovaAPI, r))
 
-	errors := ValidateAPIDefaultConfigOverwrite(
-		field.NewPath("spec").Child("defaultConfigOverwrite"),
-		r.Spec.DefaultConfigOverwrite)
+	errors := field.ErrorList{}
+	basePath := field.NewPath("spec")
+
+	// validate the service override key is valid
+	errors = append(errors, service.ValidateRoutedOverrides(basePath.Child("override").Child("service"), r.Spec.Override.Service)...)
+
+	errors = append(errors,
+		ValidateAPIDefaultConfigOverwrite(
+			basePath.Child("defaultConfigOverwrite"),
+			r.Spec.DefaultConfigOverwrite)...)
 
 	if len(errors) != 0 {
 		novaapilog.Info("validation failed", "name", r.Name)
