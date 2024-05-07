@@ -531,7 +531,8 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 
 	// Don't move forward with the top level service creations like NovaAPI
 	// until cell0 is ready as top level services need cell0 to register in
-	if cell0, ok := cells[novav1.Cell0Name]; !ok || !cell0.IsReady() {
+	if cell0, ok := cells[novav1.Cell0Name]; !ok || !cell0.IsReady() ||
+		cell0.Generation > cell0.Status.ObservedGeneration {
 		// we need to stop here until cell0 is ready
 		Log.Info("Waiting for cell0 to become Ready before creating the top level services")
 		return ctrl.Result{}, nil
@@ -955,7 +956,7 @@ func (r *NovaReconciler) ensureCell(
 		Log.Info(fmt.Sprintf("NovaCell %s.", string(op)), "NovaCell.Name", cell.Name)
 	}
 
-	if !cell.IsReady() {
+	if !cell.IsReady() || cell.Generation != cell.Status.ObservedGeneration {
 		// We wait for the cell to become Ready before we map it in the
 		// nova_api DB.
 		return cell, nova.CellDeploying, err
@@ -1117,13 +1118,15 @@ func (r *NovaReconciler) ensureAPI(
 		Log.Info(fmt.Sprintf("NovaAPI %s , NovaAPI.Name %s.", string(op), api.Name))
 	}
 
-	c := api.Status.Conditions.Mirror(novav1.NovaAPIReadyCondition)
-	// NOTE(gibi): it can be nil if the NovaAPI CR is created but no
-	// reconciliation is run on it to initialize the ReadyCondition yet.
-	if c != nil {
-		instance.Status.Conditions.Set(c)
+	if api.Generation == api.Status.ObservedGeneration {
+		c := api.Status.Conditions.Mirror(novav1.NovaAPIReadyCondition)
+		// NOTE(gibi): it can be nil if the NovaAPI CR is created but no
+		// reconciliation is run on it to initialize the ReadyCondition yet.
+		if c != nil {
+			instance.Status.Conditions.Set(c)
+		}
+		instance.Status.APIServiceReadyCount = api.Status.ReadyCount
 	}
-	instance.Status.APIServiceReadyCount = api.Status.ReadyCount
 
 	return ctrl.Result{}, nil
 }
@@ -1199,13 +1202,15 @@ func (r *NovaReconciler) ensureScheduler(
 			scheduler.Name))
 	}
 
-	c := scheduler.Status.Conditions.Mirror(novav1.NovaSchedulerReadyCondition)
-	// NOTE(gibi): it can be nil if the NovaScheduler CR is created but no
-	// reconciliation is run on it to initialize the ReadyCondition yet.
-	if c != nil {
-		instance.Status.Conditions.Set(c)
+	if scheduler.Generation == scheduler.Status.ObservedGeneration {
+		c := scheduler.Status.Conditions.Mirror(novav1.NovaSchedulerReadyCondition)
+		// NOTE(gibi): it can be nil if the NovaScheduler CR is created but no
+		// reconciliation is run on it to initialize the ReadyCondition yet.
+		if c != nil {
+			instance.Status.Conditions.Set(c)
+		}
+		instance.Status.SchedulerServiceReadyCount = scheduler.Status.ReadyCount
 	}
-	instance.Status.SchedulerServiceReadyCount = scheduler.Status.ReadyCount
 
 	return ctrl.Result{}, nil
 }
@@ -1547,14 +1552,15 @@ func (r *NovaReconciler) ensureMetadata(
 		Log.Info(fmt.Sprintf("NovaMetadata %s.", string(op)), "NovaMetadata.Name", metadata.Name)
 	}
 
-	c := metadata.Status.Conditions.Mirror(novav1.NovaMetadataReadyCondition)
-	// NOTE(gibi): it can be nil if the NovaMetadata CR is created but no
-	// reconciliation is run on it to initialize the ReadyCondition yet.
-	if c != nil {
-		instance.Status.Conditions.Set(c)
+	if metadata.Generation == metadata.Status.ObservedGeneration {
+		c := metadata.Status.Conditions.Mirror(novav1.NovaMetadataReadyCondition)
+		// NOTE(gibi): it can be nil if the NovaMetadata CR is created but no
+		// reconciliation is run on it to initialize the ReadyCondition yet.
+		if c != nil {
+			instance.Status.Conditions.Set(c)
+		}
+		instance.Status.MetadataServiceReadyCount = metadata.Status.ReadyCount
 	}
-	instance.Status.MetadataServiceReadyCount = metadata.Status.ReadyCount
-
 	return ctrl.Result{}, nil
 }
 
