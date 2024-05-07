@@ -281,7 +281,7 @@ func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 
 	// clean up nova services from nova db should be always a last step in reconcile
-	err = r.cleanServiceFromNovaDb(instance, secret, Log)
+	err = r.cleanServiceFromNovaDb(ctx, h, instance, secret, Log)
 	if err != nil {
 		Log.Error(err, "Failed cleaning services from nova db")
 	}
@@ -603,12 +603,14 @@ func (r *NovaConductorReconciler) ensureDBPurgeCronJob(
 }
 
 func (r *NovaConductorReconciler) cleanServiceFromNovaDb(
+	ctx context.Context,
+	h *helper.Helper,
 	instance *novav1.NovaConductor,
 	secret corev1.Secret,
 	l logr.Logger,
 ) error {
 	authPassword := string(secret.Data[ServicePasswordSelector])
-	computeClient, err := getNovaClient(instance, authPassword, l)
+	computeClient, err := getNovaClient(ctx, h, instance, authPassword, l)
 	if err != nil {
 		return err
 	}

@@ -228,3 +228,8 @@ func (n NovaConductor) GetKeystoneAuthURL() string {
 func (n NovaConductor) GetKeystoneUser() string {
 	return n.Spec.ServiceUser
 }
+
+// GetCABundleSecretName returns the TLS CA bundle name from the Spec
+func (n NovaConductor) GetCABundleSecretName() string {
+	return n.Spec.TLS.CaBundleSecretName
+}

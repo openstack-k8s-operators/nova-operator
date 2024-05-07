@@ -44,6 +44,7 @@ import (
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 	nad "github.com/openstack-k8s-operators/lib-common/modules/common/networkattachment"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/secret"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	"github.com/openstack-k8s-operators/lib-common/modules/openstack"
 )
@@ -512,32 +513,54 @@ func (r *ReconcilerBase) ensureMetadataDeleted(
 	return nil
 }
 
-type keystoneAuth interface {
+type clientAuth interface {
 	GetKeystoneAuthURL() string
 	GetKeystoneUser() string
+	GetCABundleSecretName() string
 }
 
 func getNovaClient(
-	keystoneAuth keystoneAuth, password string,
+	ctx context.Context,
+	h *helper.Helper,
+	auth clientAuth,
+	password string,
 	l logr.Logger,
 ) (*gophercloud.ServiceClient, error) {
-
-	authURL := keystoneAuth.GetKeystoneAuthURL()
+	authURL := auth.GetKeystoneAuthURL()
 	parsedAuthURL, err := url.Parse(authURL)
 	if err != nil {
 		return nil, err
 	}
 
-	tlsConfig := &openstack.TLSConfig{}
+	var tlsConfig *openstack.TLSConfig
+
 	if parsedAuthURL.Scheme == "https" {
-		// TODO: (mschuppert) for now just set to insecure, when keystone got
-		// enabled for internal tls, get the CA secret name from the keystoneAPI
-		tlsConfig.Insecure = true
+
+		caCert, ctrlResult, err := secret.GetDataFromSecret(
+			ctx,
+			h,
+			auth.GetCABundleSecretName(),
+			// requeue is translated to error below as the secret already
+			// verified to exists and has the expected fields.
+			time.Second,
+			tls.InternalCABundleKey)
+		if err != nil {
+			return nil, err
+		}
+		if (ctrlResult != ctrl.Result{}) {
+			return nil, fmt.Errorf("the CABundleSecret %s not found", auth.GetCABundleSecretName())
+		}
+
+		tlsConfig = &openstack.TLSConfig{
+			CACerts: []string{
+				caCert,
+			},
+		}
 	}
 
 	cfg := openstack.AuthOpts{
 		AuthURL:    authURL,
-		Username:   keystoneAuth.GetKeystoneUser(),
+		Username:   auth.GetKeystoneUser(),
 		Password:   password,
 		DomainName: "Default",   // fixme",
 		Region:     "regionOne", // fixme",
