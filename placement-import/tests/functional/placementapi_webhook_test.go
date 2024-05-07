@@ -22,11 +22,18 @@ import (
 
 	. "github.com/onsi/ginkgo/v2" //revive:disable:dot-imports
 	. "github.com/onsi/gomega"    //revive:disable:dot-imports
+
+	//revive:disable-next-line:dot-imports
+	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
+
+	corev1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
+	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	placementv1 "github.com/openstack-k8s-operators/placement-operator/api/v1beta1"
 )
 
@@ -105,4 +112,82 @@ var _ = Describe("PlacementAPI Webhook", func() {
 		)
 	})
 
+	It("rejects with wrong service override endpoint type", func() {
+		spec := GetDefaultPlacementAPISpec()
+		spec["override"] = map[string]interface{}{
+			"service": map[string]interface{}{
+				"internal": map[string]interface{}{},
+				"wrooong":  map[string]interface{}{},
+			},
+		}
+
+		raw := map[string]interface{}{
+			"apiVersion": "placement.openstack.org/v1beta1",
+			"kind":       "PlacementAPI",
+			"metadata": map[string]interface{}{
+				"name":      placementAPIName.Name,
+				"namespace": placementAPIName.Namespace,
+			},
+			"spec": spec,
+		}
+
+		unstructuredObj := &unstructured.Unstructured{Object: raw}
+		_, err := controllerutil.CreateOrPatch(
+			th.Ctx, th.K8sClient, unstructuredObj, func() error { return nil })
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(
+			ContainSubstring(
+				"invalid: spec.override.service[wrooong]: " +
+					"Invalid value: \"wrooong\": invalid endpoint type: wrooong"),
+		)
+	})
+
+	When("A PlacementAPI instance is updated with wrong service override endpoint", func() {
+		BeforeEach(func() {
+			DeferCleanup(k8sClient.Delete, ctx, CreatePlacementAPISecret(namespace, SecretName))
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(namespace))
+
+			placementAPI := CreatePlacementAPI(names.PlacementAPIName, GetDefaultPlacementAPISpec())
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
+					namespace,
+					GetPlacementAPI(names.PlacementAPIName).Spec.DatabaseInstance,
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+
+			mariadb.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBAccount)
+			th.SimulateJobSuccess(names.DBSyncJobName)
+			th.SimulateDeploymentReplicaReady(names.DeploymentName)
+			keystone.SimulateKeystoneServiceReady(names.KeystoneServiceName)
+			keystone.SimulateKeystoneEndpointReady(names.KeystoneEndpointName)
+			DeferCleanup(th.DeleteInstance, placementAPI)
+
+			th.ExpectCondition(
+				names.PlacementAPIName,
+				ConditionGetterFunc(PlacementConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
+		It("rejects update with wrong service override endpoint type", func() {
+			PlacementAPI := GetPlacementAPI(names.PlacementAPIName)
+			Expect(PlacementAPI).NotTo(BeNil())
+			if PlacementAPI.Spec.Override.Service == nil {
+				PlacementAPI.Spec.Override.Service = map[service.Endpoint]service.RoutedOverrideSpec{}
+			}
+			PlacementAPI.Spec.Override.Service["wrooong"] = service.RoutedOverrideSpec{}
+			err := k8sClient.Update(ctx, PlacementAPI)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(
+				ContainSubstring(
+					"invalid: spec.override.service[wrooong]: " +
+						"Invalid value: \"wrooong\": invalid endpoint type: wrooong"),
+			)
+		})
+	})
 })

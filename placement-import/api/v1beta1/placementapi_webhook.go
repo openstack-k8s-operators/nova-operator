@@ -24,6 +24,7 @@ package v1beta1
 import (
 	"fmt"
 
+	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -126,19 +127,33 @@ func (r *PlacementAPI) ValidateDelete() (admission.Warnings, error) {
 }
 
 func (r PlacementAPISpec) ValidateCreate(basePath *field.Path) field.ErrorList {
-	return ValidateDefaultConfigOverwrite(basePath, r.DefaultConfigOverwrite)
+	return r.PlacementAPISpecCore.ValidateCreate(basePath)
 }
 
 func (r PlacementAPISpec) ValidateUpdate(old PlacementAPISpec, basePath *field.Path) field.ErrorList {
-	return ValidateDefaultConfigOverwrite(basePath, r.DefaultConfigOverwrite)
+	return r.PlacementAPISpecCore.ValidateCreate(basePath)
 }
 
 func (r PlacementAPISpecCore) ValidateCreate(basePath *field.Path) field.ErrorList {
-	return ValidateDefaultConfigOverwrite(basePath, r.DefaultConfigOverwrite)
+	var allErrs field.ErrorList
+
+	// validate the service override key is valid
+	allErrs = append(allErrs, service.ValidateRoutedOverrides(basePath.Child("override").Child("service"), r.Override.Service)...)
+
+	allErrs = append(allErrs, ValidateDefaultConfigOverwrite(basePath, r.DefaultConfigOverwrite)...)
+
+	return allErrs
 }
 
 func (r PlacementAPISpecCore) ValidateUpdate(old PlacementAPISpecCore, basePath *field.Path) field.ErrorList {
-	return ValidateDefaultConfigOverwrite(basePath, r.DefaultConfigOverwrite)
+	var allErrs field.ErrorList
+
+	// validate the service override key is valid
+	allErrs = append(allErrs, service.ValidateRoutedOverrides(basePath.Child("override").Child("service"), r.Override.Service)...)
+
+	allErrs = append(allErrs, ValidateDefaultConfigOverwrite(basePath, r.DefaultConfigOverwrite)...)
+
+	return allErrs
 }
 
 func ValidateDefaultConfigOverwrite(
