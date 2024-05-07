@@ -280,7 +280,7 @@ func (r *NovaSchedulerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	// clean up nova services from nova db should be always a last step in reconcile
 	// to make sure that
-	err = r.cleanServiceFromNovaDb(instance, secret, Log)
+	err = r.cleanServiceFromNovaDb(ctx, h, instance, secret, Log)
 	if err != nil {
 		Log.Error(err, "Failed cleaning services from nova db")
 	}
@@ -657,12 +657,14 @@ func (r *NovaSchedulerReconciler) reconcileDelete(
 }
 
 func (r *NovaSchedulerReconciler) cleanServiceFromNovaDb(
+	ctx context.Context,
+	h *helper.Helper,
 	instance *novav1.NovaScheduler,
 	secret corev1.Secret,
 	l logr.Logger,
 ) error {
 	authPassword := string(secret.Data[ServicePasswordSelector])
-	computeClient, err := getNovaClient(instance, authPassword, l)
+	computeClient, err := getNovaClient(ctx, h, instance, authPassword, l)
 	if err != nil {
 		return err
 	}
