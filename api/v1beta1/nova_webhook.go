@@ -26,6 +26,7 @@ import (
 	"fmt"
 
 	"github.com/google/go-cmp/cmp"
+	service "github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	"github.com/robfig/cron/v3"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -210,9 +211,19 @@ func (r *NovaSpecCore) ValidateCellTemplates(basePath *field.Path) field.ErrorLi
 }
 
 func (r *NovaSpecCore) ValidateAPIServiceTemplate(basePath *field.Path) field.ErrorList {
-	errors := ValidateAPIDefaultConfigOverwrite(
-		basePath.Child("apiServiceTemplate").Child("defaultConfigOverwrite"),
-		r.APIServiceTemplate.DefaultConfigOverwrite)
+	errors := field.ErrorList{}
+
+	// validate the service override key is valid
+	errors = append(errors,
+		service.ValidateRoutedOverrides(
+			basePath.Child("apiServiceTemplate").Child("override").Child("service"),
+			r.APIServiceTemplate.Override.Service)...)
+
+	errors = append(errors,
+		ValidateAPIDefaultConfigOverwrite(
+			basePath.Child("apiServiceTemplate").Child("defaultConfigOverwrite"),
+			r.APIServiceTemplate.DefaultConfigOverwrite)...)
+
 	return errors
 }
 
