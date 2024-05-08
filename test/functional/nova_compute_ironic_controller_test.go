@@ -529,6 +529,7 @@ var _ = Describe("NovaCompute with ironic diver controller", func() {
 		It("and deployment is Ready", func() {
 			ss := th.GetStatefulSet(cell1.NovaComputeStatefulSetName)
 			Expect(int(*ss.Spec.Replicas)).To(Equal(0))
+			th.SimulateStatefulSetReplicaReady(cell1.NovaComputeStatefulSetName)
 			th.ExpectCondition(
 				cell1.NovaComputeName,
 				ConditionGetterFunc(NovaComputeConditionGetter),

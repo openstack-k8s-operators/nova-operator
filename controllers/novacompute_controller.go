@@ -377,7 +377,10 @@ func (r *NovaComputeReconciler) ensureDeployment(
 		return ctrlResult, nil
 	}
 
-	instance.Status.ReadyCount = ss.GetStatefulSet().Status.ReadyReplicas
+	statefulSet := ss.GetStatefulSet()
+	if statefulSet.Generation == statefulSet.Status.ObservedGeneration {
+		instance.Status.ReadyCount = statefulSet.Status.ReadyReplicas
+	}
 
 	// verify if network attachment matches expectations
 	networkReady, networkAttachmentStatus, err := nad.VerifyNetworkStatusFromAnnotation(
@@ -405,7 +408,7 @@ func (r *NovaComputeReconciler) ensureDeployment(
 		return ctrl.Result{}, err
 	}
 
-	if instance.Status.ReadyCount > 0 || *instance.Spec.Replicas == 0 {
+	if instance.Status.ReadyCount == *instance.Spec.Replicas && statefulSet.Generation == statefulSet.Status.ObservedGeneration {
 		Log.Info("Deployment is ready")
 		instance.Status.Conditions.MarkTrue(condition.DeploymentReadyCondition, condition.DeploymentReadyMessage)
 	} else {
