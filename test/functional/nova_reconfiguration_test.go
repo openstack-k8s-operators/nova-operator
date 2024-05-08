@@ -462,6 +462,19 @@ var _ = Describe("Nova reconfiguration", func() {
 				g.Expect(configData).Should(ContainSubstring("transport_url=rabbit://alternate-mq-for-cell1/fake"))
 			}, timeout, interval).Should(Succeed())
 
+			// Expect that the compute config is updated with the new transport URL
+			Eventually(func(g Gomega) {
+				configDataMap := th.GetSecret(cell1.ComputeConfigSecretName)
+				g.Expect(configDataMap).ShouldNot(BeNil())
+				g.Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
+				configData := string(configDataMap.Data["01-nova.conf"])
+				g.Expect(configData).Should(ContainSubstring("transport_url=rabbit://alternate-mq-for-cell1/fake"))
+			}, timeout, interval).Should(Succeed())
+			Expect(GetNovaCell(cell1.CellCRName).Status.Hash[cell1.ComputeConfigSecretName.Name]).NotTo(Equal(oldComputeConfigHash))
+			// and therefore the statefulset is also updated with a new config
+			// hash so the test needs to make the Generation of the StatefulSet
+			// Ready
+			th.SimulateStatefulSetReplicaReady(cell1.NovaComputeStatefulSetName)
 			// Expect that nova controller updates the mapping Job to re-run that
 			// to update the CellMapping table in the nova_api DB.
 			Eventually(func(g Gomega) {
@@ -514,6 +527,7 @@ var _ = Describe("Nova reconfiguration", func() {
 			// to update the CellMapping table in the nova_api DB.
 			Eventually(func(g Gomega) {
 				discoverJob := th.GetJob(cell1.HostDiscoveryJobName)
+				th.SimulateStatefulSetReplicaReady(cell1.NovaComputeStatefulSetName)
 				newJobInputHash := GetEnvVarValue(
 					discoverJob.Spec.Template.Spec.Containers[0].Env, "INPUT_HASH", "")
 				g.Expect(newJobInputHash).NotTo(Equal(oldJobInputHash))
