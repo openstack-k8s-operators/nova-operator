@@ -1015,6 +1015,7 @@ var _ = Describe("NovaCell controller", func() {
 			}, timeout, interval).Should(Succeed())
 
 			Eventually(func(g Gomega) {
+				th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
 				ss := th.GetStatefulSet(cell1.NoVNCProxyStatefulSetName)
 				g.Expect(ss.Spec.Replicas).To(Equal(ptr.To[int32](0)))
 			}, timeout, interval).Should(Succeed())

@@ -703,6 +703,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 			DeferCleanup(th.DeleteInstance, noVNCProxy)
 		})
 		It("and deployment is Ready", func() {
+			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
 			ss := th.GetStatefulSet(cell1.NoVNCProxyStatefulSetName)
 			Expect(int(*ss.Spec.Replicas)).To(Equal(0))
 			th.ExpectCondition(

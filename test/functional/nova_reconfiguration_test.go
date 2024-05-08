@@ -450,6 +450,18 @@ var _ = Describe("Nova reconfiguration", func() {
 				g.Expect(configData).Should(ContainSubstring("transport_url=rabbit://alternate-mq-for-cell1/fake"))
 			}, timeout, interval).Should(Succeed())
 
+			// As the NoVNCProxy config is updated its StatefulSet is also updated,
+			// so the test needs to simulate that the new StatefulSet Generation is Ready
+			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
+			// Expect that the NovaNoVNCProxy config is updated with the new transport URL
+			Eventually(func(g Gomega) {
+				configDataMap := th.GetSecret(cell1.CellNoVNCProxyNameConfigDataName)
+				g.Expect(configDataMap).ShouldNot(BeNil())
+				g.Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
+				configData := string(configDataMap.Data["01-nova.conf"])
+				g.Expect(configData).Should(ContainSubstring("transport_url=rabbit://alternate-mq-for-cell1/fake"))
+			}, timeout, interval).Should(Succeed())
+
 			// Expect that nova controller updates the mapping Job to re-run that
 			// to update the CellMapping table in the nova_api DB.
 			Eventually(func(g Gomega) {
