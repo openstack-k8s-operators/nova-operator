@@ -399,16 +399,13 @@ var _ = Describe("Nova controller", func() {
 			th.SimulateJobSuccess(cell0.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 			th.SimulateJobSuccess(cell0.CellMappingJobName)
-			th.SimulateStatefulSetReplicaReady(novaNames.SchedulerStatefulSetName)
-			th.SimulateStatefulSetReplicaReady(novaNames.MetadataStatefulSetName)
+			SimulateReadyOfNovaTopServices()
 
 			api := GetNovaAPI(novaNames.APIName)
 			Expect(api.Spec.ServiceUser).To(Equal("nova"))
 			Expect(api.Spec.ServiceAccount).To(Equal(novaNames.ServiceAccountName.Name))
 			Expect(api.Spec.Secret).To(Equal(novaNames.InternalTopLevelSecretName.Name))
 
-			th.SimulateStatefulSetReplicaReady(novaNames.APIStatefulSetName)
-			keystone.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
 			th.ExpectCondition(
 				novaNames.APIName,
 				ConditionGetterFunc(NovaAPIConditionGetter),
@@ -440,15 +437,11 @@ var _ = Describe("Nova controller", func() {
 			th.SimulateJobSuccess(cell0.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 			th.SimulateJobSuccess(cell0.CellMappingJobName)
-			th.SimulateStatefulSetReplicaReady(novaNames.APIStatefulSetName)
-			keystone.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
-			th.SimulateStatefulSetReplicaReady(novaNames.MetadataStatefulSetName)
+			SimulateReadyOfNovaTopServices()
 
 			scheduler := GetNovaScheduler(novaNames.SchedulerName)
 			Expect(scheduler.Spec.ServiceAccount).To(Equal(novaNames.ServiceAccountName.Name))
 			Expect(scheduler.Spec.Secret).To(Equal(novaNames.InternalTopLevelSecretName.Name))
-
-			th.SimulateStatefulSetReplicaReady(novaNames.SchedulerStatefulSetName)
 
 			th.ExpectCondition(
 				novaNames.SchedulerName,
@@ -489,7 +482,7 @@ var _ = Describe("Nova controller", func() {
 			Expect(metadata.Spec.ServiceAccount).To(Equal(novaNames.ServiceAccountName.Name))
 			Expect(metadata.Spec.Secret).To(Equal(novaNames.InternalTopLevelSecretName.Name))
 
-			th.SimulateStatefulSetReplicaReady(novaNames.MetadataStatefulSetName)
+			SimulateReadyOfNovaTopServices()
 
 			th.ExpectCondition(
 				novaNames.MetadataName,
@@ -734,8 +727,7 @@ var _ = Describe("Nova controller", func() {
 			th.SimulateJobSuccess(cell0.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 			th.SimulateJobSuccess(cell0.CellMappingJobName)
-			th.SimulateStatefulSetReplicaReady(novaNames.SchedulerStatefulSetName)
-			th.SimulateStatefulSetReplicaReady(novaNames.MetadataStatefulSetName)
+			SimulateReadyOfNovaTopServices()
 
 			configDataMap = th.GetSecret(novaNames.APIConfigDataName)
 			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
@@ -775,8 +767,7 @@ var _ = Describe("Nova controller", func() {
 			)
 			Expect(configData).To(ContainSubstring("password = service-password"))
 
-			th.SimulateStatefulSetReplicaReady(novaNames.APIName)
-			keystone.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
+			SimulateReadyOfNovaTopServices()
 
 			th.ExpectCondition(
 				cell0.ConductorName,
@@ -985,7 +976,8 @@ var _ = Describe("Nova controller", func() {
 				map[string][]string{novaNames.NovaName.Namespace + "/internalapi": {"10.0.0.1"}},
 			)
 			keystone.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
-
+			th.SimulateStatefulSetReplicaReady(novaNames.SchedulerStatefulSetName)
+			th.SimulateStatefulSetReplicaReady(novaNames.MetadataStatefulSetName)
 			th.ExpectCondition(
 				novaNames.NovaName,
 				ConditionGetterFunc(NovaConditionGetter),
