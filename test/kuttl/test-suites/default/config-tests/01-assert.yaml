@@ -134,11 +134,6 @@ commands:
       set -euxo pipefail
       oc exec -n $NAMESPACE openstackclient -- openstack flavor create my-flavor 2>&1 |
           grep "Policy doesn't allow os_compute_api:os-flavor-manage:create to be performed"
----
-apiVersion: kuttl.dev/v1beta1
-kind: TestAssert
-namespaced: true
-commands:
   - script: |
       set -euxo pipefail
       RP_UUID=$(oc exec -n $NAMESPACE openstackclient -- openstack resource provider list --name nova-kuttl-cell1-compute-fake1-compute-0 -f value -c uuid)
