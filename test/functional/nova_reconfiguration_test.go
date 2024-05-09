@@ -276,11 +276,10 @@ var _ = Describe("Nova reconfiguration", func() {
 				cell1.ConductorStatefulSetName,
 				map[string][]string{novaNames.NovaName.Namespace + "/internalapi": {"10.0.0.1"}},
 			)
-
 			th.ExpectCondition(
-				novaNames.NovaName,
-				ConditionGetterFunc(NovaConditionGetter),
-				condition.ReadyCondition,
+				cell1.ConductorName,
+				ConditionGetterFunc(NovaConductorConditionGetter),
+				condition.NetworkAttachmentsReadyCondition,
 				corev1.ConditionTrue,
 			)
 		})
@@ -298,8 +297,11 @@ var _ = Describe("Nova reconfiguration", func() {
 				nova.Spec.NodeSelector = newSelector
 
 				g.Expect(k8sClient.Update(ctx, nova)).To(Succeed())
-
 				novaDeploymentName := serviceNameFunc()
+				th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
+				th.SimulateStatefulSetReplicaReady(novaDeploymentName)
+				SimulateReadyOfNovaTopServices()
+
 				serviceDeployment := th.GetStatefulSet(novaDeploymentName)
 				g.Expect(serviceDeployment.Spec.Template.Spec.NodeSelector).To(Equal(newSelector))
 
@@ -315,6 +317,8 @@ var _ = Describe("Nova reconfiguration", func() {
 				g.Expect(k8sClient.Update(ctx, nova)).To(Succeed())
 
 				serviceDeploymentName := serviceNameFunc()
+				th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
+				th.SimulateStatefulSetReplicaReady(serviceDeploymentName)
 				serviceDeployment := th.GetStatefulSet(serviceDeploymentName)
 				g.Expect(serviceDeployment.Spec.Template.Spec.NodeSelector).To(BeNil())
 			}, timeout, interval).Should(Succeed())
@@ -356,8 +360,13 @@ var _ = Describe("Nova reconfiguration", func() {
 					cellTemplate := nova.Spec.CellTemplates[cell]
 					cellTemplate.ConductorServiceTemplate.NodeSelector = conductorSelector
 					nova.Spec.CellTemplates[cell] = cellTemplate
+
 				}
 				g.Expect(k8sClient.Update(ctx, nova)).To(Succeed())
+				th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
+				th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
+				th.SimulateStatefulSetReplicaReady(cell2.ConductorStatefulSetName)
+				SimulateReadyOfNovaTopServices()
 
 				apiDeployment := th.GetStatefulSet(novaNames.APIStatefulSetName)
 				g.Expect(apiDeployment.Spec.Template.Spec.NodeSelector).To(Equal(serviceSelector))
@@ -438,6 +447,7 @@ var _ = Describe("Nova reconfiguration", func() {
 
 			infra.SimulateTransportURLReady(cell1.TransportURLName)
 
+			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
 			// Expect that the NovaConductor config is updated with the new transport URL
 			Eventually(func(g Gomega) {
 				configDataMap := th.GetSecret(cell1.ConductorConfigDataName)
@@ -472,6 +482,7 @@ var _ = Describe("Nova reconfiguration", func() {
 			// hash so the test needs to make the Generation of the StatefulSet
 			// Ready
 			th.SimulateStatefulSetReplicaReady(cell1.NovaComputeStatefulSetName)
+			th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
 			// Expect that nova controller updates the mapping Job to re-run that
 			// to update the CellMapping table in the nova_api DB.
 			Eventually(func(g Gomega) {

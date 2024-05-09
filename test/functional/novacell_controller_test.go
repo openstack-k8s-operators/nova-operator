@@ -719,6 +719,7 @@ var _ = Describe("NovaCell controller", func() {
 				"Deployment in progress",
 			)
 			th.SimulateStatefulSetReplicaReady(cell2.NoVNCProxyStatefulSetName)
+			th.SimulateStatefulSetReplicaReady(cell2.ConductorStatefulSetName)
 			th.ExpectCondition(
 				cell2.CellCRName,
 				ConditionGetterFunc(NovaCellConditionGetter),
@@ -856,6 +857,7 @@ var _ = Describe("NovaCell controller", func() {
 			// As the manually created Metadata is deleted the controller is
 			// unblocked to deploy its own NovaMetadata CR
 			th.SimulateStatefulSetReplicaReady(cell2.MetadataStatefulSetName)
+			th.SimulateStatefulSetReplicaReady(cell2.ConductorStatefulSetName)
 			th.ExpectCondition(
 				cell2.CellCRName,
 				ConditionGetterFunc(NovaCellConditionGetter),

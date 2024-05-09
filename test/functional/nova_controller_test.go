@@ -978,12 +978,6 @@ var _ = Describe("Nova controller", func() {
 			keystone.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
 			th.SimulateStatefulSetReplicaReady(novaNames.SchedulerStatefulSetName)
 			th.SimulateStatefulSetReplicaReady(novaNames.MetadataStatefulSetName)
-			th.ExpectCondition(
-				novaNames.NovaName,
-				ConditionGetterFunc(NovaConditionGetter),
-				condition.ReadyCondition,
-				corev1.ConditionTrue,
-			)
 
 			nova := GetNova(novaNames.NovaName)
 

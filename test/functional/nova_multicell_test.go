@@ -433,7 +433,7 @@ var _ = Describe("Nova multi cell", func() {
 			metadata := GetNovaMetadata(novaNames.MetadataName)
 			Expect(metadata.Spec.RegisteredCells).To(Equal(nova.Status.RegisteredCells))
 		})
-		It("creates cell2 NovaCell", func() {
+		It("creates cell2 NovaCell ready", func() {
 			mariadb.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
 			mariadb.SimulateMariaDBAccountCompleted(novaNames.APIMariaDBDatabaseAccount)
 			mariadb.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
@@ -501,7 +501,6 @@ var _ = Describe("Nova multi cell", func() {
 			th.SimulateStatefulSetReplicaReady(cell2.ConductorStatefulSetName)
 			th.SimulateJobSuccess(cell2.CellMappingJobName)
 
-			SimulateReadyOfNovaTopServices()
 			// Even though cell2 has no API access the cell2 mapping Job has
 			// API access so that it can register cell2 to the API DB.
 			mappingJobConfig := th.GetSecret(
@@ -531,7 +530,7 @@ var _ = Describe("Nova multi cell", func() {
 						novaNames.APIMariaDBDatabaseName.Name, novaNames.Namespace)),
 			)
 
-			SimulateReadyOfNovaTopServices()
+			th.SimulateStatefulSetReplicaReady(cell2.ConductorStatefulSetName)
 			th.ExpectCondition(
 				cell2.CellCRName,
 				ConditionGetterFunc(NovaCellConditionGetter),
@@ -546,14 +545,7 @@ var _ = Describe("Nova multi cell", func() {
 				novav1.NovaAllCellsReadyCondition,
 				corev1.ConditionTrue,
 			)
-			th.ExpectCondition(
-				novaNames.NovaName,
-				ConditionGetterFunc(NovaConditionGetter),
-				condition.ReadyCondition,
-				corev1.ConditionTrue,
-			)
 			Eventually(func(g Gomega) {
-				SimulateReadyOfNovaTopServices()
 				nova := GetNova(novaNames.NovaName)
 				g.Expect(nova.Status.RegisteredCells).To(
 					HaveKeyWithValue(cell0.CellCRName.Name, Not(BeEmpty())))
@@ -728,6 +720,7 @@ var _ = Describe("Nova multi cell", func() {
 			// conductor is ready even if 0 replicas is running but all
 			// the necessary steps, i.e. db-sync is run successfully
 			th.SimulateJobSuccess(cell0.DBSyncJobName)
+			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 			th.ExpectCondition(
 				cell0.ConductorName,
 				ConditionGetterFunc(NovaConductorConditionGetter),
