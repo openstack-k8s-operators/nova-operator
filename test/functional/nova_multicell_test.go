@@ -255,7 +255,7 @@ var _ = Describe("Nova multi cell", func() {
 
 			Expect(configData).To(ContainSubstring("transport_url=rabbit://cell0/fake"))
 
-			th.SimulateStatefulSetReplicaReady(novaNames.APIStatefulSetName)
+			SimulateReadyOfNovaTopServices()
 
 			th.ExpectCondition(
 				novaNames.APIName,
@@ -264,7 +264,6 @@ var _ = Describe("Nova multi cell", func() {
 				corev1.ConditionTrue,
 			)
 
-			keystone.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
 			th.ExpectCondition(
 				novaNames.NovaName,
 				ConditionGetterFunc(NovaConditionGetter),
@@ -502,6 +501,7 @@ var _ = Describe("Nova multi cell", func() {
 			th.SimulateStatefulSetReplicaReady(cell2.ConductorStatefulSetName)
 			th.SimulateJobSuccess(cell2.CellMappingJobName)
 
+			SimulateReadyOfNovaTopServices()
 			// Even though cell2 has no API access the cell2 mapping Job has
 			// API access so that it can register cell2 to the API DB.
 			mappingJobConfig := th.GetSecret(
@@ -531,6 +531,7 @@ var _ = Describe("Nova multi cell", func() {
 						novaNames.APIMariaDBDatabaseName.Name, novaNames.Namespace)),
 			)
 
+			SimulateReadyOfNovaTopServices()
 			th.ExpectCondition(
 				cell2.CellCRName,
 				ConditionGetterFunc(NovaCellConditionGetter),
@@ -552,6 +553,7 @@ var _ = Describe("Nova multi cell", func() {
 				corev1.ConditionTrue,
 			)
 			Eventually(func(g Gomega) {
+				SimulateReadyOfNovaTopServices()
 				nova := GetNova(novaNames.NovaName)
 				g.Expect(nova.Status.RegisteredCells).To(
 					HaveKeyWithValue(cell0.CellCRName.Name, Not(BeEmpty())))
@@ -758,19 +760,13 @@ var _ = Describe("Nova multi cell", func() {
 				corev1.ConditionTrue,
 			)
 
-			th.SimulateStatefulSetReplicaReady(novaNames.MetadataStatefulSetName)
-			// As cell0 is ready API is deployed
-			th.SimulateStatefulSetReplicaReady(novaNames.APIStatefulSetName)
-			keystone.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
+			SimulateReadyOfNovaTopServices()
 			th.ExpectCondition(
 				novaNames.NovaName,
 				ConditionGetterFunc(NovaConditionGetter),
 				novav1.NovaAPIReadyCondition,
 				corev1.ConditionTrue,
 			)
-
-			// As cell0 is ready scheduler is deployed
-			th.SimulateStatefulSetReplicaReady(novaNames.SchedulerStatefulSetName)
 			th.ExpectCondition(
 				novaNames.NovaName,
 				ConditionGetterFunc(NovaConditionGetter),

@@ -19,7 +19,8 @@ import (
 	"fmt"
 	"time"
 
-	. "github.com/onsi/gomega" //revive:disable:dot-imports
+	. "github.com/onsi/gomega"                                                    //revive:disable:dot-imports
+	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers" //revive:disable:dot-imports
 
 	"golang.org/x/exp/maps"
 	batchv1 "k8s.io/api/batch/v1"
@@ -820,4 +821,27 @@ func GetCronJob(name types.NamespacedName) *batchv1.CronJob {
 	}, timeout, interval).Should(Succeed())
 
 	return cron
+}
+
+func SimulateReadyOfNovaTopServices() {
+	keystone.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
+	th.SimulateStatefulSetReplicaReady(novaNames.APIStatefulSetName)
+	keystone.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
+
+	th.SimulateStatefulSetReplicaReady(novaNames.SchedulerStatefulSetName)
+	th.SimulateStatefulSetReplicaReady(novaNames.MetadataStatefulSetName)
+	keystone.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
+	th.SimulateStatefulSetReplicaReady(novaNames.APIStatefulSetName)
+	th.ExpectCondition(
+		novaNames.APIStatefulSetName,
+		ConditionGetterFunc(NovaAPIConditionGetter),
+		condition.ReadyCondition,
+		corev1.ConditionTrue,
+	)
+	th.ExpectCondition(
+		novaNames.MetadataName,
+		ConditionGetterFunc(NovaMetadataConditionGetter),
+		condition.DeploymentReadyCondition,
+		corev1.ConditionTrue,
+	)
 }

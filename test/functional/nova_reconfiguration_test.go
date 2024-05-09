@@ -131,9 +131,6 @@ func CreateNovaWith3CellsAndEnsureReady(novaNames NovaNames) {
 	th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 	th.SimulateJobSuccess(cell0.CellMappingJobName)
 
-	th.SimulateStatefulSetReplicaReady(novaNames.APIStatefulSetName)
-	keystone.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
-
 	th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
 	th.SimulateJobSuccess(cell1.DBSyncJobName)
 	th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
@@ -145,8 +142,6 @@ func CreateNovaWith3CellsAndEnsureReady(novaNames NovaNames) {
 	th.SimulateJobSuccess(cell2.DBSyncJobName)
 	th.SimulateStatefulSetReplicaReady(cell2.ConductorStatefulSetName)
 	th.SimulateJobSuccess(cell2.CellMappingJobName)
-	th.SimulateStatefulSetReplicaReady(novaNames.SchedulerStatefulSetName)
-	th.SimulateStatefulSetReplicaReady(novaNames.MetadataStatefulSetName)
 
 	th.ExpectCondition(
 		novaNames.NovaName,
@@ -154,6 +149,8 @@ func CreateNovaWith3CellsAndEnsureReady(novaNames NovaNames) {
 		novav1.NovaAllCellsReadyCondition,
 		corev1.ConditionTrue,
 	)
+	SimulateReadyOfNovaTopServices()
+	th.SimulateStatefulSetReplicaReady(novaNames.MetadataStatefulSetName)
 	th.ExpectCondition(
 		novaNames.NovaName,
 		ConditionGetterFunc(NovaConditionGetter),

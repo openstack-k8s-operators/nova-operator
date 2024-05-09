@@ -804,6 +804,7 @@ var _ = Describe("NovaMetadata controller", func() {
 		It("and deployment is Ready", func() {
 			ss := th.GetStatefulSet(novaNames.MetadataStatefulSetName)
 			Expect(int(*ss.Spec.Replicas)).To(Equal(0))
+			th.SimulateStatefulSetReplicaReady(novaNames.MetadataStatefulSetName)
 			th.ExpectCondition(
 				novaNames.MetadataName,
 				ConditionGetterFunc(NovaMetadataConditionGetter),

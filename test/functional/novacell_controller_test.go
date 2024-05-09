@@ -1043,6 +1043,7 @@ var _ = Describe("NovaCell controller", func() {
 			Eventually(func(g Gomega) {
 				ss := th.GetStatefulSet(cell1.MetadataStatefulSetName)
 				g.Expect(ss.Spec.Replicas).To(Equal(ptr.To[int32](0)))
+				th.SimulateStatefulSetReplicaReady(cell1.MetadataStatefulSetName)
 			}, timeout, interval).Should(Succeed())
 			th.ExpectCondition(
 				cell1.CellCRName,
