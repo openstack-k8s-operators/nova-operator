@@ -975,9 +975,7 @@ var _ = Describe("Nova controller", func() {
 				novaNames.MetadataStatefulSetName,
 				map[string][]string{novaNames.NovaName.Namespace + "/internalapi": {"10.0.0.1"}},
 			)
-			keystone.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
-			th.SimulateStatefulSetReplicaReady(novaNames.SchedulerStatefulSetName)
-			th.SimulateStatefulSetReplicaReady(novaNames.MetadataStatefulSetName)
+			SimulateReadyOfNovaTopServices()
 
 			nova := GetNova(novaNames.NovaName)
 
@@ -1151,6 +1149,10 @@ var _ = Describe("Nova controller", func() {
 			}, timeout, interval).Should(Succeed())
 
 		},
+		SwitchToNewAccount: func() {
+			SimulateReadyOfNovaTopServices()
+
+		},
 		// delete the CR, allowing tests that exercise finalizer removal
 		DeleteCR: func() {
 			th.DeleteInstance(GetNova(novaNames.NovaName))
@@ -1233,10 +1235,7 @@ var _ = Describe("Nova controller", func() {
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 			th.SimulateJobSuccess(cell0.CellMappingJobName)
 
-			th.SimulateStatefulSetReplicaReady(novaNames.APIStatefulSetName)
-			keystone.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
-			th.SimulateStatefulSetReplicaReady(novaNames.SchedulerStatefulSetName)
-			th.SimulateStatefulSetReplicaReady(novaNames.MetadataStatefulSetName)
+			SimulateReadyOfNovaTopServices()
 
 			// ensure api/scheduler/metadata all complete so that the Nova
 			// CR is not expected to have subsequent status changes from the controller
@@ -1246,6 +1245,18 @@ var _ = Describe("Nova controller", func() {
 				g.Expect(nova.Status.SchedulerServiceReadyCount).To(Equal(int32(1)))
 				g.Expect(nova.Status.MetadataServiceReadyCount).To(Equal(int32(1)))
 			}, timeout, interval).Should(Succeed())
+			th.ExpectCondition(
+				novaNames.NovaName,
+				ConditionGetterFunc(NovaConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+			th.ExpectCondition(
+				cell0.ConductorName,
+				ConditionGetterFunc(NovaConductorConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
 		},
 		// update to a new account name
 		UpdateAccount: func(accountName types.NamespacedName) {
@@ -1259,6 +1270,21 @@ var _ = Describe("Nova controller", func() {
 				}
 
 				g.Expect(th.K8sClient.Update(ctx, nova)).Should(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+		},
+		SwitchToNewAccount: func() {
+			SimulateReadyOfNovaTopServices()
+			Eventually(func(g Gomega) {
+				th.SimulateJobSuccess(cell0.DBSyncJobName)
+				th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
+				th.SimulateJobSuccess(cell0.CellMappingJobName)
+				nova := GetNova(novaNames.NovaName)
+				g.Expect(nova.Status.APIServiceReadyCount).To(Equal(int32(1)))
+				g.Expect(nova.Status.SchedulerServiceReadyCount).To(Equal(int32(1)))
+				g.Expect(nova.Status.MetadataServiceReadyCount).To(Equal(int32(1)))
+				cell := GetNovaCell(cell0.CellCRName)
+				g.Expect(cell.Status.ConductorServiceReadyCount).To(Equal(int32(1)))
 			}, timeout, interval).Should(Succeed())
 
 		},

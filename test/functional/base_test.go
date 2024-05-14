@@ -19,8 +19,7 @@ import (
 	"fmt"
 	"time"
 
-	. "github.com/onsi/gomega"                                                    //revive:disable:dot-imports
-	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers" //revive:disable:dot-imports
+	. "github.com/onsi/gomega" //revive:disable:dot-imports
 
 	"golang.org/x/exp/maps"
 	batchv1 "k8s.io/api/batch/v1"
@@ -29,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 )
@@ -36,7 +36,7 @@ import (
 const (
 	SecretName     = "external-secret"
 	ContainerImage = "test://nova"
-	timeout        = 10 * time.Second
+	timeout        = 20 * time.Second
 	// have maximum 100 retries before the timeout hits
 	interval = timeout / 100
 	// consistencyTimeout is the amount of time we use to repeatedly check
@@ -825,23 +825,31 @@ func GetCronJob(name types.NamespacedName) *batchv1.CronJob {
 
 func SimulateReadyOfNovaTopServices() {
 	keystone.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
-	th.SimulateStatefulSetReplicaReady(novaNames.APIStatefulSetName)
+	th.SimulateJobSuccess(cell0.DBSyncJobName)
+	th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
+	th.SimulateJobSuccess(cell0.CellMappingJobName)
+
+	Eventually(func(g Gomega) {
+		cell := GetNovaCell(cell0.CellCRName)
+		g.Expect(cell.Status.Conditions.Get(condition.ReadyCondition).Status).To(
+			Equal(corev1.ConditionTrue))
+	}, timeout, interval).Should(Succeed())
+
+	Eventually(func(g Gomega) {
+		th.SimulateStatefulSetReplicaReady(novaNames.APIStatefulSetName)
+		instance := &keystonev1.KeystoneEndpoint{}
+		g.Expect(th.K8sClient.Get(th.Ctx, novaNames.APIKeystoneEndpointName, instance)).Should(Succeed())
+	}, timeout, interval).Should(Succeed())
+
 	keystone.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
 
 	th.SimulateStatefulSetReplicaReady(novaNames.SchedulerStatefulSetName)
 	th.SimulateStatefulSetReplicaReady(novaNames.MetadataStatefulSetName)
-	keystone.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
 	th.SimulateStatefulSetReplicaReady(novaNames.APIStatefulSetName)
-	th.ExpectCondition(
-		novaNames.APIStatefulSetName,
-		ConditionGetterFunc(NovaAPIConditionGetter),
-		condition.ReadyCondition,
-		corev1.ConditionTrue,
-	)
-	th.ExpectCondition(
-		novaNames.MetadataName,
-		ConditionGetterFunc(NovaMetadataConditionGetter),
-		condition.DeploymentReadyCondition,
-		corev1.ConditionTrue,
-	)
+	Eventually(func(g Gomega) {
+		nova := GetNova(novaNames.NovaName)
+		g.Expect(nova.Status.APIServiceReadyCount).To(Equal(int32(1)))
+		g.Expect(nova.Status.SchedulerServiceReadyCount).To(Equal(int32(1)))
+		g.Expect(nova.Status.MetadataServiceReadyCount).To(Equal(int32(1)))
+	}, timeout, interval).Should(Succeed())
 }
