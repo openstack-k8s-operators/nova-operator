@@ -150,7 +150,6 @@ func CreateNovaWith3CellsAndEnsureReady(novaNames NovaNames) {
 		corev1.ConditionTrue,
 	)
 	SimulateReadyOfNovaTopServices()
-	th.SimulateStatefulSetReplicaReady(novaNames.MetadataStatefulSetName)
 	th.ExpectCondition(
 		novaNames.NovaName,
 		ConditionGetterFunc(NovaConditionGetter),
@@ -366,7 +365,6 @@ var _ = Describe("Nova reconfiguration", func() {
 				th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 				th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
 				th.SimulateStatefulSetReplicaReady(cell2.ConductorStatefulSetName)
-				SimulateReadyOfNovaTopServices()
 
 				apiDeployment := th.GetStatefulSet(novaNames.APIStatefulSetName)
 				g.Expect(apiDeployment.Spec.Template.Spec.NodeSelector).To(Equal(serviceSelector))
@@ -382,6 +380,7 @@ var _ = Describe("Nova reconfiguration", func() {
 				conductorDeployment = th.GetStatefulSet(cell2.ConductorStatefulSetName)
 				g.Expect(conductorDeployment.Spec.Template.Spec.NodeSelector).To(Equal(conductorSelector))
 			}, timeout, interval).Should(Succeed())
+			SimulateReadyOfNovaTopServices()
 
 			// Set the global NodeSelector and assert that it is propagated
 			// except to the NovaService's
