@@ -433,6 +433,21 @@ func (r *PlacementAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, err
 	}
 
+	result, err = r.ensureDbSync(ctx, instance, h, serviceAnnotations)
+	if (err != nil || result != ctrl.Result{}) {
+		return result, err
+	}
+
+	result, err = r.ensureDeployment(ctx, h, instance, inputHash, serviceAnnotations)
+	if (err != nil || result != ctrl.Result{}) {
+		return result, err
+	}
+
+	// Only expose the service is the deployment succeeded
+	if !instance.Status.Conditions.IsTrue(condition.DeploymentReadyCondition) {
+		Log.Info("Waiting for the Deployment to become Ready before exposing the sevice in Keystone")
+		return ctrl.Result{}, nil
+	}
 	err = r.ensureKeystoneServiceUser(ctx, h, instance)
 	if err != nil {
 		return ctrl.Result{}, err
@@ -442,16 +457,6 @@ func (r *PlacementAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	if (err != nil || result != ctrl.Result{}) {
 		// We can ignore RequeueAfter as we are watching the KeystoneEndpoint resource
 		return ctrl.Result{}, err
-	}
-
-	result, err = r.ensureDbSync(ctx, instance, h, serviceAnnotations)
-	if (err != nil || result != ctrl.Result{}) {
-		return result, err
-	}
-
-	result, err = r.ensureDeployment(ctx, h, instance, inputHash, serviceAnnotations)
-	if (err != nil || result != ctrl.Result{}) {
-		return result, err
 	}
 
 	// remove finalizers from unused MariaDBAccount records

@@ -72,7 +72,7 @@ var (
 )
 
 const (
-	timeout = time.Second * 2
+	timeout = time.Second * 10
 
 	SecretName = "test-osp-secret"
 

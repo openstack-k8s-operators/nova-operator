@@ -403,6 +403,8 @@ var _ = Describe("PlacementAPI controller", func() {
 			mariadb.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
 			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBAccount)
 
+			th.SimulateJobSuccess(names.DBSyncJobName)
+			th.SimulateDeploymentReplicaReady(names.DeploymentName)
 			keystone.SimulateKeystoneServiceReady(names.KeystoneServiceName)
 
 			th.ExpectCondition(
@@ -428,6 +430,9 @@ var _ = Describe("PlacementAPI controller", func() {
 			mariadb.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
 			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBAccount)
 
+			th.SimulateJobSuccess(names.DBSyncJobName)
+			th.SimulateDeploymentReplicaReady(names.DeploymentName)
+			keystone.SimulateKeystoneServiceReady(names.KeystoneServiceName)
 			keystone.SimulateKeystoneEndpointReady(names.KeystoneEndpointName)
 
 			th.ExpectCondition(
@@ -548,11 +553,11 @@ var _ = Describe("PlacementAPI controller", func() {
 			)
 			mariadb.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
 			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBAccount)
-			keystone.SimulateKeystoneServiceReady(names.KeystoneServiceName)
-			keystone.SimulateKeystoneEndpointReady(names.KeystoneEndpointName)
+
 			th.SimulateJobSuccess(names.DBSyncJobName)
 			th.SimulateDeploymentReplicaReady(names.DeploymentName)
-
+			keystone.SimulateKeystoneServiceReady(names.KeystoneServiceName)
+			keystone.SimulateKeystoneEndpointReady(names.KeystoneEndpointName)
 			th.ExpectCondition(
 				names.PlacementAPIName,
 				ConditionGetterFunc(PlacementConditionGetter),
@@ -713,10 +718,11 @@ var _ = Describe("PlacementAPI controller", func() {
 			)
 			mariadb.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
 			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBAccount)
-			keystone.SimulateKeystoneServiceReady(names.KeystoneServiceName)
-			keystone.SimulateKeystoneEndpointReady(names.KeystoneEndpointName)
+
 			th.SimulateJobSuccess(names.DBSyncJobName)
 			th.SimulateDeploymentReplicaReady(names.DeploymentName)
+			keystone.SimulateKeystoneServiceReady(names.KeystoneServiceName)
+			keystone.SimulateKeystoneEndpointReady(names.KeystoneEndpointName)
 
 			th.ExpectCondition(
 				names.PlacementAPIName,
@@ -817,9 +823,11 @@ var _ = Describe("PlacementAPI controller", func() {
 			)
 			mariadb.SimulateMariaDBTLSDatabaseCompleted(names.MariaDBDatabaseName)
 			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBAccount)
+
+			th.SimulateJobSuccess(names.DBSyncJobName)
+			th.SimulateDeploymentReplicaReady(names.DeploymentName)
 			keystone.SimulateKeystoneServiceReady(names.KeystoneServiceName)
 			keystone.SimulateKeystoneEndpointReady(names.KeystoneEndpointName)
-			th.SimulateJobSuccess(names.DBSyncJobName)
 			DeferCleanup(th.DeleteInstance, placement)
 		})
 
@@ -907,11 +915,17 @@ var _ = Describe("PlacementAPI controller", func() {
 
 			mariadb.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
 			mariadb.SimulateMariaDBAccountCompleted(accountName)
-			keystone.SimulateKeystoneServiceReady(names.KeystoneServiceName)
-			keystone.SimulateKeystoneEndpointReady(names.KeystoneEndpointName)
+
 			th.SimulateJobSuccess(names.DBSyncJobName)
 			th.SimulateDeploymentReplicaReady(names.DeploymentName)
-
+			keystone.SimulateKeystoneServiceReady(names.KeystoneServiceName)
+			keystone.SimulateKeystoneEndpointReady(names.KeystoneEndpointName)
+			th.ExpectCondition(
+				names.PlacementAPIName,
+				ConditionGetterFunc(PlacementConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
 		},
 		// Change the account name in the service to a new name
 		UpdateAccount: func(newAccountName types.NamespacedName) {
@@ -922,6 +936,25 @@ var _ = Describe("PlacementAPI controller", func() {
 				g.Expect(th.K8sClient.Update(ctx, placementapi)).Should(Succeed())
 			}, timeout, interval).Should(Succeed())
 
+		},
+		SwitchToNewAccount: func() {
+			th.SimulateJobSuccess(names.DBSyncJobName)
+
+			Eventually(func(g Gomega) {
+				th.SimulateDeploymentReplicaReady(names.DeploymentName)
+				placementapi := GetPlacementAPI(names.PlacementAPIName)
+				g.Expect(placementapi.Status.Conditions.Get(condition.DeploymentReadyCondition).Status).To(
+					Equal(corev1.ConditionTrue))
+
+			}, timeout, interval).Should(Succeed())
+			keystone.SimulateKeystoneServiceReady(names.KeystoneServiceName)
+			keystone.SimulateKeystoneEndpointReady(names.KeystoneEndpointName)
+			th.ExpectCondition(
+				names.PlacementAPIName,
+				ConditionGetterFunc(PlacementConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
 		},
 		// delete the CR instance to exercise finalizer removal
 		DeleteCR: func() {
@@ -977,12 +1010,13 @@ var _ = Describe("PlacementAPI reconfiguration", func() {
 			)
 			mariadb.SimulateMariaDBTLSDatabaseCompleted(names.MariaDBDatabaseName)
 			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBAccount)
-			keystone.SimulateKeystoneServiceReady(names.KeystoneServiceName)
-			keystone.SimulateKeystoneEndpointReady(names.KeystoneEndpointName)
+
 			th.SimulateJobSuccess(names.DBSyncJobName)
 			DeferCleanup(th.DeleteInstance, placement)
 			th.SimulateDeploymentReplicaReady(names.DeploymentName)
 
+			keystone.SimulateKeystoneServiceReady(names.KeystoneServiceName)
+			keystone.SimulateKeystoneEndpointReady(names.KeystoneEndpointName)
 			th.ExpectCondition(
 				names.PlacementAPIName,
 				ConditionGetterFunc(PlacementConditionGetter),
