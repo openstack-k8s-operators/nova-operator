@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 
+	common_secret "github.com/openstack-k8s-operators/lib-common/modules/common/secret"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
@@ -169,7 +170,7 @@ func (r *NovaSchedulerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	// detect if something is changed.
 	hashes := make(map[string]env.Setter)
 
-	secretHash, result, secret, err := ensureSecret(
+	secretHash, result, secret, err := common_secret.EnsureSecret(
 		ctx,
 		types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.Secret},
 		// TODO(gibi): add keystoneAuthURL here is that is also passed via

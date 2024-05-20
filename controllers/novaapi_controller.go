@@ -51,6 +51,7 @@ import (
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
+	common_secret "github.com/openstack-k8s-operators/lib-common/modules/common/secret"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/nova-operator/pkg/nova"
 	"github.com/openstack-k8s-operators/nova-operator/pkg/novaapi"
@@ -175,7 +176,7 @@ func (r *NovaAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (re
 	// detect if something is changed.
 	hashes := make(map[string]env.Setter)
 
-	secretHash, result, secret, err := ensureSecret(
+	secretHash, result, secret, err := common_secret.EnsureSecret(
 		ctx,
 		types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.Secret},
 		// TODO(gibi): add keystoneAuthURL here is that is also passed via

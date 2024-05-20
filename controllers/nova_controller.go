@@ -46,7 +46,7 @@ import (
 	job "github.com/openstack-k8s-operators/lib-common/modules/common/job"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/labels"
 	common_rbac "github.com/openstack-k8s-operators/lib-common/modules/common/rbac"
-	"github.com/openstack-k8s-operators/lib-common/modules/common/secret"
+	common_secret "github.com/openstack-k8s-operators/lib-common/modules/common/secret"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 
@@ -240,7 +240,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		instance.Spec.PasswordSelectors.MetadataSecret,
 	}
 
-	_, result, secret, err := ensureSecret(
+	_, result, secret, err := common_secret.EnsureSecret(
 		ctx,
 		types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.Secret},
 		expectedSelectors,
@@ -798,7 +798,7 @@ func (r *NovaReconciler) ensureNovaManageJobSecret(
 	}
 
 	configHash := make(map[string]env.Setter)
-	err = secret.EnsureSecrets(ctx, h, instance, cms, &configHash)
+	err = common_secret.EnsureSecrets(ctx, h, instance, cms, &configHash)
 
 	return configHash, scriptName, configName, err
 }
@@ -1662,7 +1662,7 @@ func (r *NovaReconciler) ensureCellSecret(
 		CustomData:   data,
 	}
 
-	err := secret.EnsureSecrets(ctx, h, instance, []util.Template{template}, nil)
+	err := common_secret.EnsureSecrets(ctx, h, instance, []util.Template{template}, nil)
 
 	return secretName, err
 }
@@ -1702,7 +1702,7 @@ func (r *NovaReconciler) ensureTopLevelSecret(
 		CustomData:   data,
 	}
 
-	err := secret.EnsureSecrets(ctx, h, instance, []util.Template{template}, nil)
+	err := common_secret.EnsureSecrets(ctx, h, instance, []util.Template{template}, nil)
 
 	return secretName, err
 }
