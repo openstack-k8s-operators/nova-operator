@@ -174,7 +174,7 @@ func (r *NovaMetadataReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		TransportURLSelector,
 	}
 
-	secretHash, result, secret, err := ensureSecret(
+	secretHash, result, secret, err := common_secret.EnsureSecret(
 		ctx,
 		types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.Secret},
 		expectedSelectors,

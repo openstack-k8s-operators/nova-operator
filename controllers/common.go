@@ -26,7 +26,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -43,6 +42,7 @@ import (
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 	nad "github.com/openstack-k8s-operators/lib-common/modules/common/networkattachment"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/secret"
+	common_secret "github.com/openstack-k8s-operators/lib-common/modules/common/secret"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	"github.com/openstack-k8s-operators/lib-common/modules/openstack"
 )
@@ -148,84 +148,13 @@ func allSubConditionIsTrue(conditionsGetter conditionsGetter) bool {
 	return true
 }
 
-type conditionUpdater interface {
-	Set(c *condition.Condition)
-	MarkTrue(t condition.Type, messageFormat string, messageArgs ...interface{})
-}
-
-// ensureSecret - ensures that the Secret object exists and the expected fields
-// are in the Secret. It returns a hash of the values of the expected fields.
-func ensureSecret(
-	ctx context.Context,
-	secretName types.NamespacedName,
-	expectedFields []string,
-	reader client.Reader,
-	conditionUpdater conditionUpdater,
-	requeueTimeout time.Duration,
-) (string, ctrl.Result, corev1.Secret, error) {
-	secret := &corev1.Secret{}
-	err := reader.Get(ctx, secretName, secret)
-	if err != nil {
-		if k8s_errors.IsNotFound(err) {
-			conditionUpdater.Set(condition.FalseCondition(
-				condition.InputReadyCondition,
-				condition.RequestedReason,
-				condition.SeverityInfo,
-				fmt.Sprintf(novav1.InputReadyWaitingMessage, "secret/"+secretName.Name)))
-			return "",
-				ctrl.Result{RequeueAfter: requeueTimeout},
-				*secret,
-				fmt.Errorf("secret %s not found", secretName)
-		}
-		conditionUpdater.Set(condition.FalseCondition(
-			condition.InputReadyCondition,
-			condition.ErrorReason,
-			condition.SeverityWarning,
-			condition.InputReadyErrorMessage,
-			err.Error()))
-		return "", ctrl.Result{}, *secret, err
-	}
-
-	// collect the secret values the caller expects to exist
-	values := [][]byte{}
-	for _, field := range expectedFields {
-		val, ok := secret.Data[field]
-		if !ok {
-			err := fmt.Errorf("field '%s' not found in secret/%s", field, secretName.Name)
-			conditionUpdater.Set(condition.FalseCondition(
-				condition.InputReadyCondition,
-				condition.ErrorReason,
-				condition.SeverityWarning,
-				condition.InputReadyErrorMessage,
-				err.Error()))
-			return "", ctrl.Result{}, *secret, err
-		}
-		values = append(values, val)
-	}
-
-	// TODO(gibi): Do we need to watch the Secret for changes?
-
-	hash, err := util.ObjectHash(values)
-	if err != nil {
-		conditionUpdater.Set(condition.FalseCondition(
-			condition.InputReadyCondition,
-			condition.ErrorReason,
-			condition.SeverityWarning,
-			condition.InputReadyErrorMessage,
-			err.Error()))
-		return "", ctrl.Result{}, *secret, err
-	}
-
-	return hash, ctrl.Result{}, *secret, nil
-}
-
 // ensureNetworkAttachments - checks the requested network attachments exists and
 // returns the annotation to be set on the deployment objects.
 func ensureNetworkAttachments(
 	ctx context.Context,
 	h *helper.Helper,
 	networkAttachments []string,
-	conditionUpdater conditionUpdater,
+	conditionUpdater common_secret.ConditionUpdater,
 	requeueTimeout time.Duration,
 ) (map[string]string, ctrl.Result, error) {
 	var nadAnnotations map[string]string
@@ -550,7 +479,7 @@ func ensureMemcached(
 	h *helper.Helper,
 	namespaceName string,
 	memcachedName string,
-	conditionUpdater conditionUpdater,
+	conditionUpdater common_secret.ConditionUpdater,
 ) (*memcachedv1.Memcached, error) {
 	memcached, err := memcachedv1.GetMemcachedByName(ctx, h, memcachedName, namespaceName)
 	if err != nil {
