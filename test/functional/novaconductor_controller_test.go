@@ -298,7 +298,7 @@ var _ = Describe("NovaConductor controller", func() {
 					condition.DBSyncReadyCondition,
 					corev1.ConditionFalse,
 					condition.ErrorReason,
-					"DBsync job error occurred Internal error occurred: Job Failed. Check job logs",
+					"DBsync job error occurred Internal error occurred: Job Attempt #1 Failed. Check job logs",
 				)
 				// This would fail the test case if the job does not exists
 				th.GetJob(cell0.DBSyncJobName)
@@ -428,7 +428,7 @@ var _ = Describe("NovaConductor controller", func() {
 				condition.DBSyncReadyCondition,
 				corev1.ConditionFalse,
 				condition.ErrorReason,
-				"DBsync job error occurred Internal error occurred: Job Failed. Check job logs",
+				"DBsync job error occurred Internal error occurred: Job Attempt #1 Failed. Check job logs",
 			)
 			Expect(th.GetJob(cell0.DBSyncJobName).Spec.TTLSecondsAfterFinished).To(BeNil())
 		})
