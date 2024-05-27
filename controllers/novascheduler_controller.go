@@ -278,6 +278,11 @@ func (r *NovaSchedulerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return result, err
 	}
 
+	if *instance.Spec.Replicas != instance.Status.ReadyCount {
+		Log.Info("Waiting for the ReadyCount to become equal to Replicas before doing service cleanup in nova database.")
+		return ctrl.Result{}, nil
+	}
+
 	// clean up nova services from nova db should be always a last step in reconcile
 	// to make sure that
 	err = r.cleanServiceFromNovaDb(ctx, h, instance, secret, Log)
@@ -668,6 +673,7 @@ func (r *NovaSchedulerReconciler) cleanServiceFromNovaDb(
 	if err != nil {
 		return err
 	}
+	replicaCount := instance.Spec.Replicas
 
-	return cleanNovaServiceFromNovaDb(computeClient, "nova-scheduler", l)
+	return cleanNovaServiceFromNovaDb(computeClient, "nova-scheduler", l, *replicaCount, "")
 }

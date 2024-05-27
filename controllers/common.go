@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"net/url"
 	"sort"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -115,6 +117,8 @@ func cleanNovaServiceFromNovaDb(
 	computeClient *gophercloud.ServiceClient,
 	serviceName string,
 	l logr.Logger,
+	replicaCount int32,
+	cellName string,
 ) error {
 	opts := services.ListOpts{
 		Binary: serviceName,
@@ -131,7 +135,26 @@ func cleanNovaServiceFromNovaDb(
 	}
 
 	for _, service := range allServices {
-		if service.State == "down" {
+		// delete only if serviceHost is for our cell. If no cell is
+		// provided (e.g. scheduler cleanup case) then this check is
+		// non-operational (noop)
+		if !strings.Contains(service.Host, cellName) {
+			continue
+		}
+
+		// extract 0 (suffix) from hostname nova-scheduler-0
+		hostSplits := strings.Split(service.Host, "-")
+		hostIndexStr := hostSplits[len(hostSplits)-1]
+
+		hostIndex, err := strconv.Atoi(hostIndexStr)
+		if err != nil {
+			return err
+		}
+
+		// name index start from 0
+		// which means if replicaCount is 1, only nova-scheduler-0 is valid case
+		// so delete >= 1
+		if hostIndex >= int(replicaCount) {
 			rsp := services.Delete(computeClient, service.ID)
 			if rsp.Err != nil {
 				l.Error(rsp.Err, "Failed to delete service", "service", service, "response", rsp)
