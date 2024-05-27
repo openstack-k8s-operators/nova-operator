@@ -82,7 +82,7 @@ func AddNovaAPIFixture(log logr.Logger, server *api.FakeAPIServer) *NovaAPIFixtu
 			{
 				ID:         "1",
 				Binary:     "nova-scheduler",
-				Host:       "host1",
+				Host:       "nova-scheduler-0",
 				State:      "up",
 				Status:     "disabled",
 				ForcedDown: false,
@@ -90,7 +90,7 @@ func AddNovaAPIFixture(log logr.Logger, server *api.FakeAPIServer) *NovaAPIFixtu
 			{
 				ID:         "2",
 				Binary:     "nova-compute",
-				Host:       "host1",
+				Host:       "nova-compute-0",
 				State:      "up",
 				Status:     "disabled",
 				ForcedDown: false,
@@ -98,7 +98,7 @@ func AddNovaAPIFixture(log logr.Logger, server *api.FakeAPIServer) *NovaAPIFixtu
 			{
 				ID:         "3",
 				Binary:     "nova-scheduler",
-				Host:       "host2",
+				Host:       "nova-scheduler-1",
 				State:      "down",
 				Status:     "enabled",
 				ForcedDown: false,
@@ -106,7 +106,7 @@ func AddNovaAPIFixture(log logr.Logger, server *api.FakeAPIServer) *NovaAPIFixtu
 			{
 				ID:         "4",
 				Binary:     "nova-compute",
-				Host:       "host2",
+				Host:       "nova-compute-1",
 				State:      "down",
 				Status:     "disabled",
 				ForcedDown: false,
@@ -114,7 +114,31 @@ func AddNovaAPIFixture(log logr.Logger, server *api.FakeAPIServer) *NovaAPIFixtu
 			{
 				ID:         "5",
 				Binary:     "nova-conductor",
-				Host:       "host2",
+				Host:       "nova-cell0-conductor-0",
+				State:      "up",
+				Status:     "disabled",
+				ForcedDown: false,
+			},
+			{
+				ID:         "6",
+				Binary:     "nova-conductor",
+				Host:       "nova-cell1-conductor-0",
+				State:      "down",
+				Status:     "disabled",
+				ForcedDown: false,
+			},
+			{
+				ID:         "7",
+				Binary:     "nova-conductor",
+				Host:       "nova-cell1-conductor-1",
+				State:      "up",
+				Status:     "disabled",
+				ForcedDown: false,
+			},
+			{
+				ID:         "8",
+				Binary:     "nova-conductor",
+				Host:       "nova-cell0-conductor-1",
 				State:      "down",
 				Status:     "disabled",
 				ForcedDown: false,

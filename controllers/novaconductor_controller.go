@@ -280,6 +280,10 @@ func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, err
 	}
 
+	if *instance.Spec.Replicas != instance.Status.ReadyCount {
+		Log.Info("Waiting for the ReadyCount to become equal to Replicas before doing service cleanup in nova database.")
+		return ctrl.Result{}, nil
+	}
 	// clean up nova services from nova db should be always a last step in reconcile
 	err = r.cleanServiceFromNovaDb(ctx, h, instance, secret, Log)
 	if err != nil {
@@ -614,8 +618,10 @@ func (r *NovaConductorReconciler) cleanServiceFromNovaDb(
 	if err != nil {
 		return err
 	}
+	replicaCount := instance.Spec.Replicas
+	cellName := instance.Spec.CellName
 
-	return cleanNovaServiceFromNovaDb(computeClient, "nova-conductor", l)
+	return cleanNovaServiceFromNovaDb(computeClient, "nova-conductor", l, *replicaCount, cellName)
 }
 
 func (r *NovaConductorReconciler) findObjectsForSrc(ctx context.Context, src client.Object) []reconcile.Request {
