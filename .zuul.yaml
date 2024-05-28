@@ -129,7 +129,6 @@
     name: nova-operator-tempest-multinode-ceph
     parent: podified-multinode-hci-deployment-crc-3comp
     dependencies: ["openstack-k8s-operators-content-provider"]
-    voting: false
     # Note:  When inheriting from a job (or creating a variant of a job) vars are merged with previous definitions
     vars:
       cifmw_extras:
