@@ -319,7 +319,6 @@ var _ = Describe("Nova controller", func() {
 					cell0Account.Spec.UserName, cell0Secret.Data[mariadbv1.DatabasePasswordSelector],
 					novaNames.Namespace)),
 			)
-
 			apiAccount := mariadb.GetMariaDBAccount(novaNames.APIMariaDBDatabaseAccount)
 			apiSecret := th.GetSecret(types.NamespacedName{Name: apiAccount.Spec.Secret, Namespace: novaNames.APIMariaDBDatabaseAccount.Namespace})
 
@@ -327,6 +326,9 @@ var _ = Describe("Nova controller", func() {
 				ContainSubstring(fmt.Sprintf("[api_database]\nconnection = mysql+pymysql://%s:%s@hostname-for-openstack.%s.svc/nova_api?read_default_file=/etc/my.cnf",
 					apiAccount.Spec.UserName, apiSecret.Data[mariadbv1.DatabasePasswordSelector], novaNames.Namespace)),
 			)
+
+			Expect(configData).To(ContainSubstring("mysql_wsrep_sync_wait = 1"))
+
 			// NOTE(gibi): cell mapping for cell0 should not have transport_url
 			// configured. As the nova-manage command used to create the mapping
 			// uses the transport_url from the nova.conf provided to the job
