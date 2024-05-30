@@ -118,11 +118,6 @@
       cifmw_test_operator_tempest_include_list: |
           tempest.api.compute
           tempest.scenario
-      # ide tests cannot be used with our default machine type.
-      # test_live_block_migration_paused is currently blocked by
-      # https://issues.redhat.com/browse/RHEL-33754
-      cifmw_test_operator_tempest_exclude_list: |
-          test_live_block_migration_paused
       # We need to use a custom cpu model to allow live migrating between
       # slightly different computes coming from the node pool
       cifmw_edpm_deploy_nova_compute_extra_config: |
