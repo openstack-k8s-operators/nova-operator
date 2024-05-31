@@ -16,8 +16,10 @@ limitations under the License.
 package functional_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/go-logr/logr"
 
@@ -27,9 +29,43 @@ import (
 	api "github.com/openstack-k8s-operators/lib-common/modules/test/apis"
 )
 
+// Service represents a Compute service in the OpenStack cloud.
+// NOTE(gibi): When we are on golang 1.22 and gophercloud v2 is released we can
+// use the "github.com/gophercloud/gophercloud/openstack/compute/v2/services"
+// structs directly.
+type Service struct {
+	// The binary name of the service.
+	Binary string `json:"binary"`
+
+	// The reason for disabling a service.
+	DisabledReason string `json:"disabled_reason"`
+
+	// Whether or not service was forced down manually.
+	ForcedDown bool `json:"forced_down"`
+
+	// The name of the host.
+	Host string `json:"host"`
+
+	// The id of the service.
+	ID string `json:"id"`
+
+	// The state of the service. One of up or down.
+	State string `json:"state"`
+
+	// The status of the service. One of enabled or disabled.
+	Status string `json:"status"`
+
+	// The date and time when the resource was updated.
+	UpdatedAt time.Time `json:"-"`
+
+	// The availability zone name.
+	Zone string `json:"zone"`
+}
+
 type NovaAPIFixture struct {
 	api.APIFixture
 	APIRequests []http.Request
+	Services    []Service
 }
 
 func AddNovaAPIFixture(log logr.Logger, server *api.FakeAPIServer) *NovaAPIFixture {
@@ -41,6 +77,48 @@ func AddNovaAPIFixture(log logr.Logger, server *api.FakeAPIServer) *NovaAPIFixtu
 			OwnsServer: false,
 		},
 		APIRequests: []http.Request{},
+		Services: []Service{
+			{
+				ID:         "1",
+				Binary:     "nova-scheduler",
+				Host:       "host1",
+				State:      "up",
+				Status:     "disabled",
+				ForcedDown: false,
+			},
+			{
+				ID:         "2",
+				Binary:     "nova-compute",
+				Host:       "host1",
+				State:      "up",
+				Status:     "disabled",
+				ForcedDown: false,
+			},
+			{
+				ID:         "3",
+				Binary:     "nova-scheduler",
+				Host:       "host2",
+				State:      "down",
+				Status:     "enabled",
+				ForcedDown: false,
+			},
+			{
+				ID:         "4",
+				Binary:     "nova-compute",
+				Host:       "host2",
+				State:      "down",
+				Status:     "disabled",
+				ForcedDown: false,
+			},
+			{
+				ID:         "5",
+				Binary:     "nova-conductor",
+				Host:       "host2",
+				State:      "down",
+				Status:     "disabled",
+				ForcedDown: false,
+			},
+		},
 	}
 	return fixture
 }
@@ -93,78 +171,15 @@ func (f *NovaAPIFixture) registerHandler(handler api.Handler) {
 }
 
 func (f *NovaAPIFixture) registerNormalHandlers() {
-	f.registerHandler(api.Handler{Pattern: "/os-services/", Func: f.ServicesList})
+	f.registerHandler(api.Handler{Pattern: "/os-services/", Func: f.ServicesHandler})
 }
 
-func (f *NovaAPIFixture) ServicesList(w http.ResponseWriter, r *http.Request) {
+func (f *NovaAPIFixture) ServicesHandler(w http.ResponseWriter, r *http.Request) {
 	f.LogRequest(r)
 	f.RecordRequest(r)
 	switch r.Method {
 	case "GET":
-		w.Header().Add("Content-Type", "application/json")
-		w.WriteHeader(200)
-		fmt.Fprintf(w,
-			`
-			{
-				"services": [
-					{
-						"id": 1,
-						"binary": "nova-scheduler",
-						"disabled_reason": "test1",
-						"host": "host1",
-						"state": "up",
-						"status": "disabled",
-						"updated_at": "2012-10-29T13:42:02.000000",
-						"forced_down": false,
-						"zone": "internal"
-					},
-					{
-						"id": 2,
-						"binary": "nova-compute",
-						"disabled_reason": "test2",
-						"host": "host1",
-						"state": "up",
-						"status": "disabled",
-						"updated_at": "2012-10-29T13:42:05.000000",
-						"forced_down": false,
-						"zone": "nova"
-					},
-					{
-						"id": 3,
-						"binary": "nova-scheduler",
-						"disabled_reason": null,
-						"host": "host2",
-						"state": "down",
-						"status": "enabled",
-						"updated_at": "2012-09-19T06:55:34.000000",
-						"forced_down": false,
-						"zone": "internal"
-					},
-					{
-						"id": 4,
-						"binary": "nova-compute",
-						"disabled_reason": "test4",
-						"host": "host2",
-						"state": "down",
-						"status": "disabled",
-						"updated_at": "2012-09-18T08:03:38.000000",
-						"forced_down": false,
-						"zone": "nova"
-					},
-					{
-						"id": 4,
-						"binary": "nova-conductor",
-						"disabled_reason": "test4",
-						"host": "host2",
-						"state": "down",
-						"status": "disabled",
-						"updated_at": "2012-09-18T08:03:38.000000",
-						"forced_down": false,
-						"zone": "nova"
-					}
-				]
-			}
-			`)
+		f.getServices(w, r)
 	case "DELETE":
 		w.Header().Add("Content-Type", "application/json")
 		w.WriteHeader(204)
@@ -172,6 +187,30 @@ func (f *NovaAPIFixture) ServicesList(w http.ResponseWriter, r *http.Request) {
 		f.UnexpectedRequest(w, r)
 		return
 	}
+}
+
+func (f *NovaAPIFixture) getServices(w http.ResponseWriter, r *http.Request) {
+	services := []Service{}
+	for _, service := range f.Services {
+		binaryFilter := r.URL.Query().Get("binary")
+		if binaryFilter == "" || service.Binary == binaryFilter {
+			services = append(services, service)
+		}
+	}
+
+	var s struct {
+		Services []Service `json:"services"`
+	}
+	s.Services = services
+
+	bytes, err := json.Marshal(&s)
+	if err != nil {
+		f.InternalError(err, "Error during marshalling response", w, r)
+		return
+	}
+	w.Header().Add("Content-Type", "application/json")
+	w.WriteHeader(200)
+	fmt.Fprint(w, string(bytes))
 }
 
 // ResponseHandleToken responds with a valid keystone token and the computeURL in the catalog
@@ -247,5 +286,4 @@ func SetupAPIFixtures(logger logr.Logger) (*keystone_helper.KeystoneAPIFixture, 
 	DeferCleanup(keystone.Cleanup)
 
 	return keystone, novaAPIServer
-
 }
