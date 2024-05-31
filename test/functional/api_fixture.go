@@ -21,6 +21,9 @@ import (
 
 	"github.com/go-logr/logr"
 
+	. "github.com/onsi/ginkgo/v2" //revive:disable:dot-imports
+
+	keystone_helper "github.com/openstack-k8s-operators/keystone-operator/api/test/helpers"
 	api "github.com/openstack-k8s-operators/lib-common/modules/test/apis"
 )
 
@@ -219,4 +222,30 @@ func ResponseHandleToken(keystoneURL string, computeURL string) string {
 				}
 			 }
 			`, keystoneURL, computeURL, computeURL)
+}
+
+// SetupAPIFixture creates both keystone and nova API server simulators
+func SetupAPIFixtures(logger logr.Logger) (*keystone_helper.KeystoneAPIFixture, *NovaAPIFixture) {
+	novaAPIServer := NewNovaAPIFixtureWithServer(logger)
+	novaAPIServer.Setup()
+	DeferCleanup(novaAPIServer.Cleanup)
+
+	keystone := keystone_helper.NewKeystoneAPIFixtureWithServer(logger)
+	keystone.Setup(
+		api.Handler{Pattern: "/", Func: keystone.HandleVersion},
+		api.Handler{Pattern: "/v3/users", Func: keystone.HandleUsers},
+		api.Handler{Pattern: "/v3/domains", Func: keystone.HandleDomains},
+		api.Handler{Pattern: "/v3/auth/tokens", Func: func(w http.ResponseWriter, r *http.Request) {
+			switch r.Method {
+			case "POST":
+				w.Header().Add("Content-Type", "application/json")
+				w.WriteHeader(202)
+				// ensure keystone returns the simulator endpoints in its catalog
+				fmt.Fprint(w, ResponseHandleToken(keystone.Endpoint(), novaAPIServer.Endpoint()))
+			}
+		}})
+	DeferCleanup(keystone.Cleanup)
+
+	return keystone, novaAPIServer
+
 }

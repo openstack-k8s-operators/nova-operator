@@ -16,7 +16,6 @@ package functional_test
 import (
 	"encoding/json"
 	"fmt"
-	"net/http"
 
 	. "github.com/onsi/ginkgo/v2" //revive:disable:dot-imports
 	. "github.com/onsi/gomega"    //revive:disable:dot-imports
@@ -26,10 +25,8 @@ import (
 
 	networkv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
-	keystone_helper "github.com/openstack-k8s-operators/keystone-operator/api/test/helpers"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
-	api "github.com/openstack-k8s-operators/lib-common/modules/test/apis"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
@@ -754,34 +751,20 @@ var _ = Describe("NovaConductor controller cleaning", func() {
 		mariadb.CreateMariaDBDatabase(cell0.MariaDBDatabaseName.Namespace, cell0.MariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
 		DeferCleanup(k8sClient.Delete, ctx, mariadb.GetMariaDBDatabase(cell0.MariaDBDatabaseName))
 
-		novaAPIServer = NewNovaAPIFixtureWithServer(logger)
-		novaAPIServer.Setup()
-		f := keystone_helper.NewKeystoneAPIFixtureWithServer(logger)
-		text := ResponseHandleToken(f.Endpoint(), novaAPIServer.Endpoint())
-		f.Setup(
-			api.Handler{Pattern: "/", Func: f.HandleVersion},
-			api.Handler{Pattern: "/v3/users", Func: f.HandleUsers},
-			api.Handler{Pattern: "/v3/domains", Func: f.HandleDomains},
-			api.Handler{Pattern: "/v3/auth/tokens", Func: func(w http.ResponseWriter, r *http.Request) {
-				switch r.Method {
-				case "POST":
-					w.Header().Add("Content-Type", "application/json")
-					w.WriteHeader(202)
-					fmt.Fprint(w, text)
-				}
-			}})
-		DeferCleanup(f.Cleanup)
-
 		memcachedSpec := memcachedv1.MemcachedSpec{
 			MemcachedSpecCore: memcachedv1.MemcachedSpecCore{
 				Replicas: ptr.To(int32(3)),
 			},
 		}
-
 		DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 		infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
+
 		spec := GetDefaultNovaConductorSpec(cell0)
-		spec["keystoneAuthURL"] = f.Endpoint()
+		// wire up the api simulator by using its endpoint as the keystone
+		// URL used by the conductor controller.
+		keystoneFixture, f := SetupAPIFixtures(logger)
+		novaAPIServer = f
+		spec["keystoneAuthURL"] = keystoneFixture.Endpoint()
 		DeferCleanup(th.DeleteInstance, CreateNovaConductor(cell0.ConductorName, spec))
 		DeferCleanup(
 			k8sClient.Delete, ctx, CreateDefaultCellInternalSecret(cell0))

@@ -16,7 +16,6 @@ package functional_test
 import (
 	"encoding/json"
 	"fmt"
-	"net/http"
 
 	. "github.com/onsi/ginkgo/v2" //revive:disable:dot-imports
 	. "github.com/onsi/gomega"    //revive:disable:dot-imports
@@ -26,11 +25,8 @@ import (
 
 	networkv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
-	keystone_helper "github.com/openstack-k8s-operators/keystone-operator/api/test/helpers"
-	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
-	api "github.com/openstack-k8s-operators/lib-common/modules/test/apis"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
@@ -63,41 +59,15 @@ var _ = Describe("NovaScheduler controller", func() {
 		}
 		DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 		infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
-
-		novaAPIServer := NewNovaAPIFixtureWithServer(logger)
-		novaAPIServer.Setup()
-		DeferCleanup(novaAPIServer.Cleanup)
-		f := keystone_helper.NewKeystoneAPIFixtureWithServer(logger)
-		text := ResponseHandleToken(f.Endpoint(), novaAPIServer.Endpoint())
-		f.Setup(
-			api.Handler{Pattern: "/", Func: f.HandleVersion},
-			api.Handler{Pattern: "/v3/users", Func: f.HandleUsers},
-			api.Handler{Pattern: "/v3/domains", Func: f.HandleDomains},
-			api.Handler{Pattern: "/v3/auth/tokens", Func: func(w http.ResponseWriter, r *http.Request) {
-				switch r.Method {
-				case "POST":
-					w.Header().Add("Content-Type", "application/json")
-					w.WriteHeader(202)
-					fmt.Fprint(w, text)
-				}
-			}})
-		DeferCleanup(f.Cleanup)
-		keystoneName := keystone.CreateKeystoneAPIWithFixture(novaNames.NovaName.Namespace, f)
-		keystoneInstance := keystone.GetKeystoneAPI(keystoneName)
-		keystoneInstance.Status = keystonev1.KeystoneAPIStatus{
-			APIEndpoints: map[string]string{
-				"public":   f.Endpoint(),
-				"internal": f.Endpoint(),
-			},
-		}
-		Expect(th.K8sClient.Status().Update(th.Ctx, keystoneInstance.DeepCopy())).Should(Succeed())
-
-		DeferCleanup(keystone.DeleteKeystoneAPI, keystoneName)
 		DeferCleanup(
 			k8sClient.Delete, ctx, CreateNovaSecret(novaNames.NovaName.Namespace, SecretName))
 
 		spec := GetDefaultNovaSchedulerSpec(novaNames)
 		spec["customServiceConfig"] = "foo=bar"
+		// wire up the api simulator by using its endpoint as the keystone
+		// URL used by the scheduler controller.
+		keystoneFixture, _ := SetupAPIFixtures(logger)
+		spec["keystoneAuthURL"] = keystoneFixture.Endpoint()
 		DeferCleanup(th.DeleteInstance, CreateNovaScheduler(novaNames.SchedulerName, spec))
 	})
 
@@ -635,30 +605,15 @@ var _ = Describe("NovaScheduler controller cleaning", func() {
 		}
 		DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 		infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
-
-		DeferCleanup(
-			k8sClient.Delete, ctx, CreateNovaSecret(novaNames.NovaName.Namespace, SecretName))
-		novaAPIFixture = NewNovaAPIFixtureWithServer(logger)
-		novaAPIFixture.Setup()
-		f := keystone_helper.NewKeystoneAPIFixtureWithServer(logger)
-		text := ResponseHandleToken(f.Endpoint(), novaAPIFixture.Endpoint())
-		f.Setup(
-			api.Handler{Pattern: "/", Func: f.HandleVersion},
-			api.Handler{Pattern: "/v3/users", Func: f.HandleUsers},
-			api.Handler{Pattern: "/v3/domains", Func: f.HandleDomains},
-			api.Handler{Pattern: "/v3/auth/tokens", Func: func(w http.ResponseWriter, r *http.Request) {
-				switch r.Method {
-				case "POST":
-					w.Header().Add("Content-Type", "application/json")
-					w.WriteHeader(202)
-					fmt.Fprint(w, text)
-				}
-			}})
-		DeferCleanup(f.Cleanup)
 		DeferCleanup(
 			k8sClient.Delete, ctx, CreateInternalTopLevelSecret(novaNames))
+
 		spec := GetDefaultNovaSchedulerSpec(novaNames)
-		spec["keystoneAuthURL"] = f.Endpoint()
+		// wire up the api simulator by using its endpoint as the keystone
+		// URL used by the scheduler controller.
+		keystoneFixture, f := SetupAPIFixtures(logger)
+		novaAPIFixture = f
+		spec["keystoneAuthURL"] = keystoneFixture.Endpoint()
 		DeferCleanup(
 			th.DeleteInstance, CreateNovaScheduler(novaNames.SchedulerName, spec))
 		DeferCleanup(novaAPIFixture.Cleanup)
@@ -676,10 +631,10 @@ var _ = Describe("NovaScheduler controller cleaning", func() {
 				condition.ReadyCondition,
 				corev1.ConditionTrue,
 			)
+			Expect(novaAPIFixture.HasRequest("GET", "/compute/os-services/", "binary=nova-scheduler")).To(BeTrue())
 			Expect(novaAPIFixture.HasRequest("DELETE", "/compute/os-services/3", "")).To(BeTrue())
 			req := novaAPIFixture.FindRequest("DELETE", "/compute/os-services/3", "")
 			Expect(req.Header.Get("X-OpenStack-Nova-API-Version")).To(Equal("2.95"))
-
 		})
 	})
 })
