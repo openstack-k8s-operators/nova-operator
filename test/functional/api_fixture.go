@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -181,8 +182,7 @@ func (f *NovaAPIFixture) ServicesHandler(w http.ResponseWriter, r *http.Request)
 	case "GET":
 		f.getServices(w, r)
 	case "DELETE":
-		w.Header().Add("Content-Type", "application/json")
-		w.WriteHeader(204)
+		f.deleteService(w, r)
 	default:
 		f.UnexpectedRequest(w, r)
 		return
@@ -211,6 +211,23 @@ func (f *NovaAPIFixture) getServices(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(200)
 	fmt.Fprint(w, string(bytes))
+}
+
+func (f *NovaAPIFixture) deleteService(w http.ResponseWriter, r *http.Request) {
+	w.Header().Add("Content-Type", "application/json")
+
+	items := strings.Split(r.URL.Path, "/")
+	id := items[len(items)-1]
+
+	for i, service := range f.Services {
+		if service.ID == id {
+			w.WriteHeader(204)
+			// remove the deleted item from the fixtures internal state
+			f.Services = append(f.Services[:i], f.Services[i+1:]...)
+			return
+		}
+	}
+	w.WriteHeader(404)
 }
 
 // ResponseHandleToken responds with a valid keystone token and the computeURL in the catalog
