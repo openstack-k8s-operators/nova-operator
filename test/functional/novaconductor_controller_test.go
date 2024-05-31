@@ -781,8 +781,8 @@ var _ = Describe("NovaConductor controller cleaning", func() {
 				corev1.ConditionTrue,
 			)
 			Expect(novaAPIServer.HasRequest("GET", "/compute/os-services/", "binary=nova-conductor")).To(BeTrue())
-			Expect(novaAPIServer.HasRequest("DELETE", "/compute/os-services/3", "")).To(BeTrue())
-			req := novaAPIServer.FindRequest("DELETE", "/compute/os-services/3", "")
+			Expect(novaAPIServer.HasRequest("DELETE", "/compute/os-services/5", "")).To(BeTrue())
+			req := novaAPIServer.FindRequest("DELETE", "/compute/os-services/5", "")
 			Expect(req.Header.Get("X-OpenStack-Nova-API-Version")).To(Equal("2.95"))
 		})
 	})
