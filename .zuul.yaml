@@ -113,11 +113,9 @@
           tempest.api.compute
           tempest.scenario
       # ide tests cannot be used with our default machine type.
-      # auto allocate network is blocked by https://issues.redhat.com/browse/OSPRH-6541
       # test_live_block_migration_paused is currently blocked by
       # https://issues.redhat.com/browse/RHEL-33754
       cifmw_test_operator_tempest_exclude_list: |
-          tempest.api.compute.admin.test_auto_allocate_network.AutoAllocateNetworkTest.test_server_multi_create_auto_allocate
           test_live_block_migration_paused
       # We need to use a custom cpu model to allow live migrating between
       # slightly different computes coming from the node pool
@@ -170,7 +168,6 @@
           tempest.api.compute
           tempest.scenario
       # ide tests cannot be used with our default machine type.
-      # auto allocate network is blocked by https://issues.redhat.com/browse/OSPRH-6541
       # test_server_detach_rules and test_old_versions_reject are blocked by the requirement
       # to use service tokens to authenticate with cinder when a volume is attached to a server
       # as such the tests are not valid following CVE-2023-2088
@@ -178,7 +175,6 @@
       # not supported by ceph or a volume type that supprots it is not available.
       # luks support is enabled and we are testing encrypted volumes with luks.
       cifmw_test_operator_tempest_exclude_list: |
-          tempest.api.compute.admin.test_auto_allocate_network.AutoAllocateNetworkTest.test_server_multi_create_auto_allocate
           tempest.scenario.test_server_volume_attachment.TestServerVolumeAttachmentScenario.test_server_detach_rules
           tempest.scenario.test_server_volume_attachment.TestServerVolumeAttachScenarioOldVersion.test_old_versions_reject
           tempest.scenario.test_encrypted_cinder_volumes.TestEncryptedCinderVolumes.test_encrypted_cinder_volumes_cryptsetup
