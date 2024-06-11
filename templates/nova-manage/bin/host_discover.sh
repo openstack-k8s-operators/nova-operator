@@ -15,4 +15,4 @@
 
 set -xe
 
-nova-manage cell_v2 discover_hosts --by-service
+nova-manage cell_v2 discover_hosts --by-service --verbose
