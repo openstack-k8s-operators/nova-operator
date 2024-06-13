@@ -17,7 +17,9 @@ package functional_test
 
 import (
 	"fmt"
+	"time"
 
+	"github.com/google/go-cmp/cmp"
 	. "github.com/onsi/ginkgo/v2" //revive:disable:dot-imports
 	. "github.com/onsi/gomega"    //revive:disable:dot-imports
 
@@ -764,6 +766,28 @@ var _ = Describe("Nova reconfiguration", func() {
 			jobEnv := cron.Spec.JobTemplate.Spec.Template.Spec.Containers[0].Env
 			g.Expect(GetEnvVarValue(jobEnv, "ARCHIVE_AGE", "")).To(Equal("33"))
 			g.Expect(GetEnvVarValue(jobEnv, "PURGE_AGE", "")).To(Equal("99"))
+		}, timeout, interval).Should(Succeed())
+	})
+	It("does not change status if label is added", func() {
+		// ensure that any newly generated timestamp i.e. in the condition list
+		// will result in a different string representation
+		time.Sleep(time.Second)
+
+		var oldStatus *novav1.NovaStatus
+		Eventually(func(g Gomega) {
+			nova := GetNova(novaNames.NovaName)
+			oldStatus = nova.Status.DeepCopy()
+
+			nova.Labels = map[string]string{
+				"foo": "bar",
+			}
+			g.Expect(k8sClient.Update(ctx, nova)).To(Succeed())
+		}, timeout, interval).Should(Succeed())
+
+		Consistently(func(g Gomega) {
+			newStatus := &GetNova(novaNames.NovaName).Status
+			diff := cmp.Diff(oldStatus, newStatus)
+			g.Expect(diff).To(BeEmpty())
 		}, timeout, interval).Should(Succeed())
 	})
 })

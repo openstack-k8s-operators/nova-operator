@@ -159,8 +159,8 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 			instance.Status.Conditions.Set(
 				instance.Status.Conditions.Mirror(condition.ReadyCondition))
 		}
-		err := h.PatchInstance(ctx, instance)
 		condition.RestoreLastTransitionTimes(&instance.Status.Conditions, savedConditions)
+		err := h.PatchInstance(ctx, instance)
 		if err != nil {
 			_err = err
 			return
