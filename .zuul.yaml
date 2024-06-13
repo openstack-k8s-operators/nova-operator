@@ -79,6 +79,9 @@
     post-run:
       - ci/nova-operator-base/playbooks/collect-logs.yaml
     vars:
+      cifmw_extras:
+        - "@scenarios/centos-9/multinode-ci.yml"
+        - "@{{ ansible_user_dir }}/{{ zuul.projects['github.com/openstack-k8s-operators/nova-operator'].src_dir }}/ci/nova-operator-tempest-multinode/ci_fw_vars.yaml"
       cifmw_run_test_role: test_operator
       cifmw_test_operator_concurrency: 4
       cifmw_test_operator_timeout: 7200
@@ -130,6 +133,7 @@
     name: nova-operator-tempest-multinode-ceph
     parent: podified-multinode-hci-deployment-crc-3comp
     dependencies: ["openstack-k8s-operators-content-provider"]
+    nodeset: centos-9-medium-3x-centos-9-crc-extracted-2-36-0-3xl
     # Note:  When inheriting from a job (or creating a variant of a job) vars are merged with previous definitions
     post-run:
       - ci/nova-operator-base/playbooks/collect-logs.yaml
