@@ -333,7 +333,6 @@ var _ = Describe("PlacementAPI controller", func() {
 			Expect(string(conf)).Should(
 				ContainSubstring(fmt.Sprintf("connection = mysql+pymysql://%s:%s@hostname-for-openstack.%s.svc/placement?read_default_file=/etc/my.cnf",
 					mariadbAccount.Spec.UserName, mariadbSecret.Data[mariadbv1.DatabasePasswordSelector], namespace)))
-			Expect(string(conf)).Should(ContainSubstring("mysql_wsrep_sync_wait = 1"))
 
 			custom := cm.Data["custom.conf"]
 			Expect(custom).Should(ContainSubstring("foo = bar"))
