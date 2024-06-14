@@ -279,8 +279,9 @@ func (r *NovaSchedulerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return result, err
 	}
 
-	if *instance.Spec.Replicas != instance.Status.ReadyCount {
-		Log.Info("Waiting for the ReadyCount to become equal to Replicas before doing service cleanup in nova database.")
+	if !instance.Status.Conditions.IsTrue(condition.DeploymentReadyCondition) {
+		Log.Info("Waiting for the deployment to be ready before doing service cleanup in the nova database.")
+
 		return ctrl.Result{}, nil
 	}
 
