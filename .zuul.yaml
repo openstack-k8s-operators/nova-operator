@@ -76,6 +76,8 @@
     name: nova-operator-tempest-multinode
     parent: podified-multinode-edpm-deployment-crc-3comp
     dependencies: ["openstack-k8s-operators-content-provider"]
+    post-run:
+      - ci/nova-operator-base/playbooks/collect-logs.yaml
     vars:
       cifmw_run_test_role: test_operator
       cifmw_test_operator_concurrency: 4
@@ -128,6 +130,8 @@
     parent: podified-multinode-hci-deployment-crc-3comp
     dependencies: ["openstack-k8s-operators-content-provider"]
     # Note:  When inheriting from a job (or creating a variant of a job) vars are merged with previous definitions
+    post-run:
+      - ci/nova-operator-base/playbooks/collect-logs.yaml
     vars:
       cifmw_extras:
         - "@scenarios/centos-9/multinode-ci.yml"
