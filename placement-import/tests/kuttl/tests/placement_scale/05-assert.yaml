@@ -10,7 +10,7 @@ apiVersion: placement.openstack.org/v1beta1
 kind: PlacementAPI
 metadata:
   finalizers:
-  - PlacementAPI
+  - openstack.org/placementapi
   name: placement
 spec:
   replicas: 0

@@ -73,7 +73,7 @@ var _ = Describe("PlacementAPI controller", func() {
 			// it to run
 			Eventually(func() []string {
 				return GetPlacementAPI(names.PlacementAPIName).Finalizers
-			}, timeout, interval).Should(ContainElement("PlacementAPI"))
+			}, timeout, interval).Should(ContainElement("openstack.org/placementapi"))
 		})
 
 		It("should not create a config map", func() {
@@ -733,26 +733,26 @@ var _ = Describe("PlacementAPI controller", func() {
 
 		It("removes the finalizers when deleted", func() {
 			placement := GetPlacementAPI(names.PlacementAPIName)
-			Expect(placement.Finalizers).To(ContainElement("PlacementAPI"))
+			Expect(placement.Finalizers).To(ContainElement("openstack.org/placementapi"))
 			keystoneService := keystone.GetKeystoneService(names.KeystoneServiceName)
-			Expect(keystoneService.Finalizers).To(ContainElement("PlacementAPI"))
+			Expect(keystoneService.Finalizers).To(ContainElement("openstack.org/placementapi"))
 			keystoneEndpoint := keystone.GetKeystoneService(names.KeystoneEndpointName)
-			Expect(keystoneEndpoint.Finalizers).To(ContainElement("PlacementAPI"))
+			Expect(keystoneEndpoint.Finalizers).To(ContainElement("openstack.org/placementapi"))
 			db := mariadb.GetMariaDBDatabase(names.MariaDBDatabaseName)
-			Expect(db.Finalizers).To(ContainElement("PlacementAPI"))
+			Expect(db.Finalizers).To(ContainElement("openstack.org/placementapi"))
 			acc := mariadb.GetMariaDBAccount(names.MariaDBAccount)
-			Expect(acc.Finalizers).To(ContainElement("PlacementAPI"))
+			Expect(acc.Finalizers).To(ContainElement("openstack.org/placementapi"))
 
 			th.DeleteInstance(GetPlacementAPI(names.PlacementAPIName))
 
 			keystoneService = keystone.GetKeystoneService(names.KeystoneServiceName)
-			Expect(keystoneService.Finalizers).NotTo(ContainElement("PlacementAPI"))
+			Expect(keystoneService.Finalizers).NotTo(ContainElement("openstack.org/placementapi"))
 			keystoneEndpoint = keystone.GetKeystoneService(names.KeystoneEndpointName)
-			Expect(keystoneEndpoint.Finalizers).NotTo(ContainElement("PlacementAPI"))
+			Expect(keystoneEndpoint.Finalizers).NotTo(ContainElement("openstack.org/placementapi"))
 			db = mariadb.GetMariaDBDatabase(names.MariaDBDatabaseName)
-			Expect(db.Finalizers).NotTo(ContainElement("PlacementAPI"))
+			Expect(db.Finalizers).NotTo(ContainElement("openstack.org/placementapi"))
 			acc = mariadb.GetMariaDBAccount(names.MariaDBAccount)
-			Expect(acc.Finalizers).NotTo(ContainElement("PlacementAPI"))
+			Expect(acc.Finalizers).NotTo(ContainElement("openstack.org/placementapi"))
 		})
 
 		It("updates the deployment if configuration changes", func() {
@@ -884,7 +884,7 @@ var _ = Describe("PlacementAPI controller", func() {
 				"Placement",
 				names.PlacementAPIName.Namespace,
 				placement.DatabaseName,
-				"PlacementAPI",
+				"openstack.org/placementapi",
 				mariadb, timeout, interval,
 			)
 		},
