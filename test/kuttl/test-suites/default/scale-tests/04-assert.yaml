@@ -10,7 +10,7 @@ apiVersion: nova.openstack.org/v1beta1
 kind: Nova
 metadata:
   finalizers:
-  - Nova
+  - openstack.org/nova
   name: nova-kuttl
 spec:
   apiDatabaseInstance: openstack
@@ -53,7 +53,7 @@ apiVersion: nova.openstack.org/v1beta1
 kind: NovaAPI
 metadata:
   finalizers:
-  - NovaAPI
+  - openstack.org/novaapi
   name: nova-kuttl-api
   namespace: nova-kuttl-default
 spec:

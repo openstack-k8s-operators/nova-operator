@@ -833,12 +833,12 @@ var _ = Describe("NovaConductor controller", func() {
 				corev1.ConditionTrue,
 			)
 			memcached := infra.GetMemcached(novaNames.MemcachedNamespace)
-			Expect(memcached.Finalizers).To(ContainElement("NovaConductor"))
+			Expect(memcached.Finalizers).To(ContainElement("openstack.org/novaconductor"))
 
 			Eventually(func(g Gomega) {
 				th.DeleteInstance(GetNovaConductor(cell0.ConductorName))
 				memcached := infra.GetMemcached(novaNames.MemcachedNamespace)
-				g.Expect(memcached.Finalizers).NotTo(ContainElement("NovaConductor"))
+				g.Expect(memcached.Finalizers).NotTo(ContainElement("openstack.org/novaconductor"))
 			}, timeout, interval).Should(Succeed())
 		})
 	})

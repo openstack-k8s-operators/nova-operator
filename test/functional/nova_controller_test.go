@@ -846,37 +846,37 @@ var _ = Describe("Nova controller", func() {
 			)
 
 			service := keystone.GetKeystoneService(novaNames.KeystoneServiceName)
-			Expect(service.Finalizers).To(ContainElement("Nova"))
+			Expect(service.Finalizers).To(ContainElement("openstack.org/nova"))
 
 			th.DeleteInstance(GetNova(novaNames.NovaName))
 			service = keystone.GetKeystoneService(novaNames.KeystoneServiceName)
-			Expect(service.Finalizers).NotTo(ContainElement("Nova"))
+			Expect(service.Finalizers).NotTo(ContainElement("openstack.org/nova"))
 		})
 
 		It("removes the finalizers from the nova dbs", func() {
 			keystone.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
 
 			apiDB := mariadb.GetMariaDBDatabase(novaNames.APIMariaDBDatabaseName)
-			Expect(apiDB.Finalizers).To(ContainElement("Nova"))
+			Expect(apiDB.Finalizers).To(ContainElement("openstack.org/nova"))
 			cell0DB := mariadb.GetMariaDBDatabase(cell0.MariaDBDatabaseName)
-			Expect(cell0DB.Finalizers).To(ContainElement("Nova"))
+			Expect(cell0DB.Finalizers).To(ContainElement("openstack.org/nova"))
 
 			apiAcc := mariadb.GetMariaDBAccount(novaNames.APIMariaDBDatabaseAccount)
-			Expect(apiAcc.Finalizers).To(ContainElement("Nova"))
+			Expect(apiAcc.Finalizers).To(ContainElement("openstack.org/nova"))
 			cell0Acc := mariadb.GetMariaDBAccount(cell0.MariaDBAccountName)
-			Expect(cell0Acc.Finalizers).To(ContainElement("Nova"))
+			Expect(cell0Acc.Finalizers).To(ContainElement("openstack.org/nova"))
 
 			th.DeleteInstance(GetNova(novaNames.NovaName))
 
 			apiDB = mariadb.GetMariaDBDatabase(novaNames.APIMariaDBDatabaseName)
-			Expect(apiDB.Finalizers).NotTo(ContainElement("Nova"))
+			Expect(apiDB.Finalizers).NotTo(ContainElement("openstack.org/nova"))
 			cell0DB = mariadb.GetMariaDBDatabase(cell0.MariaDBDatabaseName)
-			Expect(cell0DB.Finalizers).NotTo(ContainElement("Nova"))
+			Expect(cell0DB.Finalizers).NotTo(ContainElement("openstack.org/nova"))
 
 			apiAcc = mariadb.GetMariaDBAccount(novaNames.APIMariaDBDatabaseAccount)
-			Expect(apiAcc.Finalizers).NotTo(ContainElement("Nova"))
+			Expect(apiAcc.Finalizers).NotTo(ContainElement("openstack.org/nova"))
 			cell0Acc = mariadb.GetMariaDBAccount(cell0.MariaDBAccountName)
-			Expect(cell0Acc.Finalizers).NotTo(ContainElement("Nova"))
+			Expect(cell0Acc.Finalizers).NotTo(ContainElement("openstack.org/nova"))
 
 		})
 	})
@@ -1060,7 +1060,7 @@ var _ = Describe("Nova controller", func() {
 				"Nova API",
 				novaNames.Namespace,
 				novaNames.APIMariaDBDatabaseName.Name,
-				"Nova",
+				"openstack.org/nova",
 				mariadb,
 				timeout,
 				interval,
@@ -1168,7 +1168,7 @@ var _ = Describe("Nova controller", func() {
 				"Nova Cell",
 				novaNames.Namespace,
 				cell0.MariaDBDatabaseName.Name,
-				"Nova",
+				"openstack.org/nova",
 				mariadb,
 				timeout,
 				interval,

@@ -831,12 +831,12 @@ var _ = Describe("NovaMetadata controller", func() {
 				corev1.ConditionTrue,
 			)
 			memcached := infra.GetMemcached(novaNames.MemcachedNamespace)
-			Expect(memcached.Finalizers).To(ContainElement("NovaMetadata"))
+			Expect(memcached.Finalizers).To(ContainElement("openstack.org/novametadata"))
 
 			Eventually(func(g Gomega) {
 				th.DeleteInstance(GetNovaMetadata(novaNames.MetadataName))
 				memcached := infra.GetMemcached(novaNames.MemcachedNamespace)
-				g.Expect(memcached.Finalizers).NotTo(ContainElement("NovaMetadata"))
+				g.Expect(memcached.Finalizers).NotTo(ContainElement("openstack.org/novametadata"))
 			}, timeout, interval).Should(Succeed())
 		})
 	})
