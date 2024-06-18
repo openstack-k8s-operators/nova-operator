@@ -678,12 +678,12 @@ var _ = Describe("NovaScheduler controller", func() {
 				corev1.ConditionTrue,
 			)
 			memcached := infra.GetMemcached(novaNames.MemcachedNamespace)
-			Expect(memcached.Finalizers).To(ContainElement("NovaScheduler"))
+			Expect(memcached.Finalizers).To(ContainElement("openstack.org/novascheduler"))
 
 			Eventually(func(g Gomega) {
 				th.DeleteInstance(GetNovaScheduler(novaNames.SchedulerName))
 				memcached := infra.GetMemcached(novaNames.MemcachedNamespace)
-				g.Expect(memcached.Finalizers).NotTo(ContainElement("NovaScheduler"))
+				g.Expect(memcached.Finalizers).NotTo(ContainElement("openstack.org/novascheduler"))
 			}, timeout, interval).Should(Succeed())
 		})
 	})

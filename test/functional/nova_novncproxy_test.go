@@ -731,12 +731,12 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 				corev1.ConditionTrue,
 			)
 			memcached := infra.GetMemcached(novaNames.MemcachedNamespace)
-			Expect(memcached.Finalizers).To(ContainElement("NovaNoVNCProxy"))
+			Expect(memcached.Finalizers).To(ContainElement("openstack.org/novanovncproxy"))
 
 			Eventually(func(g Gomega) {
 				th.DeleteInstance(GetNovaNoVNCProxy(cell1.NoVNCProxyStatefulSetName))
 				memcached := infra.GetMemcached(novaNames.MemcachedNamespace)
-				g.Expect(memcached.Finalizers).NotTo(ContainElement("NovaNoVNCProxy"))
+				g.Expect(memcached.Finalizers).NotTo(ContainElement("openstack.org/novanovncproxy"))
 			}, timeout, interval).Should(Succeed())
 		})
 	})

@@ -2,7 +2,7 @@ apiVersion: nova.openstack.org/v1beta1
 kind: Nova
 metadata:
   finalizers:
-  - Nova
+  - openstack.org/nova
   name: nova-kuttl
   namespace: nova-kuttl-default
 status:
