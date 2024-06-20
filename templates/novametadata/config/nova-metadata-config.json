@@ -29,8 +29,8 @@
     {
       "source": "/var/lib/openstack/config/ssl.conf",
       "dest": "/etc/httpd/conf.d/ssl.conf",
-      "owner": "root",
-      "perm": "0644"
+      "owner": "apache",
+      "perm": "0444"
     },
     {
       "source": "/var/lib/config-data/tls/certs/*",
