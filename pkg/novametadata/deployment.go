@@ -142,10 +142,9 @@ func StatefulSet(
 							Args: []string{
 								"--single-child",
 								"--",
-								"/usr/bin/tail",
-								"-n+1",
-								"-F",
-								"/var/log/nova/nova-metadata.log",
+								"/bin/sh",
+								"-c",
+								"/usr/bin/tail -n+1 -F /var/log/nova/nova-metadata.log 2>/dev/null",
 							},
 							Image: instance.Spec.ContainerImage,
 							SecurityContext: &corev1.SecurityContext{
