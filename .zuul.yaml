@@ -180,10 +180,14 @@
       # test_encrypted_cinder_volumes_cryptsetup use encyption format plain which is either
       # not supported by ceph or a volume type that supprots it is not available.
       # luks support is enabled and we are testing encrypted volumes with luks.
+      # tempest.scenario.test_network_v6 is disabled as it is 8 slow test case
+      # that does not cover nova functionality. Also we keep running it in
+      # the non ceph job.
       cifmw_test_operator_tempest_exclude_list: |
           tempest.scenario.test_server_volume_attachment.TestServerVolumeAttachmentScenario.test_server_detach_rules
           tempest.scenario.test_server_volume_attachment.TestServerVolumeAttachScenarioOldVersion.test_old_versions_reject
           tempest.scenario.test_encrypted_cinder_volumes.TestEncryptedCinderVolumes.test_encrypted_cinder_volumes_cryptsetup
+          tempest.scenario.test_network_v6
       # We need to use a custom cpu model to allow live migrating between
       # slightly different computes coming from the node pool
       # for ceph i might need to add https://github.com/openstack-k8s-operators/docs/blob/main/ceph.md#configure-nova
