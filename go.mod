@@ -10,11 +10,11 @@ require (
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.4.0
 	github.com/onsi/ginkgo/v2 v2.19.0
 	github.com/onsi/gomega v1.33.1
-	github.com/openstack-k8s-operators/infra-operator/apis v0.3.1-0.20240617061457-9ce4f0e12b76
-	github.com/openstack-k8s-operators/keystone-operator/api v0.3.1-0.20240617061212-21a80bc3d1fa
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.3.1-0.20240618142732-ec81334ac10d
-	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.3.1-0.20240615134235-24529fcff658
-	github.com/openstack-k8s-operators/lib-common/modules/test v0.3.1-0.20240615134235-24529fcff658
+	github.com/openstack-k8s-operators/infra-operator/apis v0.3.1-0.20240619095729-12880d8dcd1a
+	github.com/openstack-k8s-operators/keystone-operator/api v0.3.1-0.20240619130146-b17a4c95ef7d
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.3.1-0.20240621132334-5d50a334416d
+	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.3.1-0.20240621132334-5d50a334416d
+	github.com/openstack-k8s-operators/lib-common/modules/test v0.3.1-0.20240621132334-5d50a334416d
 	github.com/openstack-k8s-operators/mariadb-operator/api v0.3.1-0.20240618160206-098a347e0f61
 	github.com/openstack-k8s-operators/nova-operator/api v0.0.0-20221209164002-f9e6b9363961
 	go.uber.org/zap v1.27.0
