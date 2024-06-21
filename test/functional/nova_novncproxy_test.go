@@ -566,6 +566,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 		})
 
 		It("creates LoadBalancer service", func() {
+			th.SimulateLoadBalancerServiceIP(types.NamespacedName{Namespace: cell1.NoVNCProxyName.Namespace, Name: "nova-novncproxy-cell1-public"})
 			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
 
 			// As the endpoint has service override configured it

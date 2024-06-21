@@ -608,6 +608,7 @@ var _ = Describe("NovaAPI controller", func() {
 
 		It("creates LoadBalancer services", func() {
 			th.SimulateStatefulSetReplicaReady(novaNames.APIStatefulSetName)
+			th.SimulateLoadBalancerServiceIP(novaNames.InternalNovaServiceName)
 
 			keystone.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
 
@@ -634,9 +635,6 @@ var _ = Describe("NovaAPI controller", func() {
 			Expect(service.Labels).To(
 				HaveKeyWithValue("service", "nova-api"))
 			Expect(service.Spec.Type).To(Equal(corev1.ServiceTypeClusterIP))
-
-			th.SimulateStatefulSetReplicaReady(novaNames.APIStatefulSetName)
-			keystone.SimulateKeystoneEndpointReady(types.NamespacedName{Namespace: novaNames.APIName.Namespace, Name: "nova"})
 
 			// it registers the endpointURL as the public endpoint and svc
 			// for the internal
@@ -703,6 +701,8 @@ var _ = Describe("NovaAPI controller", func() {
 
 		It("creates LoadBalancer services", func() {
 			th.SimulateStatefulSetReplicaReady(novaNames.APIStatefulSetName)
+			th.SimulateLoadBalancerServiceIP(novaNames.PublicNovaServiceName)
+			th.SimulateLoadBalancerServiceIP(novaNames.InternalNovaServiceName)
 
 			keystone.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
 
@@ -732,9 +732,6 @@ var _ = Describe("NovaAPI controller", func() {
 			Expect(service.Annotations).To(
 				HaveKeyWithValue("core.openstack.org/ingress_create", "false"))
 			Expect(service.Spec.Type).To(Equal(corev1.ServiceTypeLoadBalancer))
-
-			th.SimulateStatefulSetReplicaReady(novaNames.APIStatefulSetName)
-			keystone.SimulateKeystoneEndpointReady(types.NamespacedName{Namespace: novaNames.APIName.Namespace, Name: "nova"})
 
 			// it registers the endpointURL as the public endpoint and svc
 			// for the internal

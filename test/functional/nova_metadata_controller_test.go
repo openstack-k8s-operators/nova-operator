@@ -650,6 +650,7 @@ var _ = Describe("NovaMetadata controller", func() {
 
 		It("creates LoadBalancer service", func() {
 			th.SimulateStatefulSetReplicaReady(novaNames.MetadataStatefulSetName)
+			th.SimulateLoadBalancerServiceIP(novaNames.InternalNovaMetadataServiceName)
 
 			// As the internal endpoint is configured via service override to
 			// be a LoadBalancer Service with MetalLB annotations
