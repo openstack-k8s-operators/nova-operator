@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/google/go-cmp v0.6.0
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.3.1-0.20240621132334-5d50a334416d
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.3.1-0.20240621144804-4b3c1fd10960
 	github.com/robfig/cron/v3 v3.0.1
 	k8s.io/api v0.28.11
 	k8s.io/apimachinery v0.28.11
