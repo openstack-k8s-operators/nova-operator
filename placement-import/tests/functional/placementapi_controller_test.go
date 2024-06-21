@@ -609,6 +609,7 @@ var _ = Describe("PlacementAPI controller", func() {
 
 			mariadb.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
 			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBAccount)
+			th.SimulateLoadBalancerServiceIP(types.NamespacedName{Namespace: namespace, Name: "placement-internal"})
 			th.SimulateJobSuccess(names.DBSyncJobName)
 			th.SimulateDeploymentReplicaReady(names.DeploymentName)
 			keystone.SimulateKeystoneServiceReady(names.KeystoneServiceName)
