@@ -216,6 +216,20 @@ var _ = Describe("NovaScheduler controller", func() {
 				ContainSubstring("[client]\nssl=0"))
 			extraConfigData := string(configDataMap.Data["02-nova-override.conf"])
 			Expect(extraConfigData).To(Equal("foo=bar"))
+			// ensure that sepcific non default filters we expect are present
+			// the AggregateInstanceExtraSpecsFilter is enabled by default as it is
+			// one of the most common non default filters used by customers
+			Expect(configData).Should(
+				ContainSubstring("enabled_filters = AggregateInstanceExtraSpecsFilter"))
+			//  the pci_passthrough and numa_topology filters are enabled by default to
+			//  ensure numa aware schduleing works correctly out of the box
+			Expect(configData).Should(
+				ContainSubstring("PciPassthroughFilter,NUMATopologyFilter"))
+			//  the ServerGroupAntiAffinityFilter and ServerGroupAffinityFilter are enabled
+			//  by default to ensure server group aware schduleing is supported.
+			Expect(configData).Should(
+				ContainSubstring("ServerGroupAntiAffinityFilter,ServerGroupAffinityFilter"))
+
 		})
 
 		It("stored the input hash in the Status", func() {
