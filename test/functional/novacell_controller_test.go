@@ -312,6 +312,8 @@ var _ = Describe("NovaCell controller", func() {
 			Expect(computeConfigData).ShouldNot(BeNil())
 			Expect(computeConfigData.Data).Should(HaveKey("01-nova.conf"))
 			configData := string(computeConfigData.Data["01-nova.conf"])
+			// ensure we maintain the tripleo default for backwards compatibility
+			Expect(configData).Should(ContainSubstring("dhcp_domain = ''"))
 			Expect(configData).To(ContainSubstring("transport_url=rabbit://cell1/fake"))
 			Expect(configData).To(ContainSubstring("username = nova\npassword = service-password\n"))
 			vncURLConfig := fmt.Sprintf("novncproxy_base_url = http://%s/vnc_lite.html",

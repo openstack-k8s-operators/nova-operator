@@ -215,6 +215,8 @@ var _ = Describe("NovaMetadata controller", func() {
 							apiAccount.Spec.UserName, apiSecret.Data[mariadbv1.DatabasePasswordSelector])),
 				)
 
+				// ensure we maintain the tripleo default for backwards compatibility
+				Expect(configData).Should(ContainSubstring("dhcp_domain = ''"))
 				Expect(configData).Should(
 					ContainSubstring("[upgrade_levels]\ncompute = auto"))
 				Expect(configData).Should(
