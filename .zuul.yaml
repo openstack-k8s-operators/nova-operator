@@ -13,7 +13,7 @@
     parent: cifmw-podified-multinode-edpm-base-crc
     abstract: true
     attempts: 1
-    dependencies: ["openstack-k8s-operators-content-provider"]
+    dependencies: ["openstack-meta-content-provider"]
     required-projects:
       - github.com/openstack-k8s-operators/ci-framework
       - github.com/openstack-k8s-operators/install_yamls
@@ -27,7 +27,7 @@
 - job:
     name: nova-operator-kuttl
     parent:  nova-operator-base
-    dependencies: ["openstack-k8s-operators-content-provider"]
+    dependencies: ["openstack-meta-content-provider"]
     roles:
       - zuul: github.com/openstack-k8s-operators/ci-framework
     description: |
@@ -75,7 +75,7 @@
 - job:
     name: nova-operator-tempest-multinode
     parent: podified-multinode-edpm-deployment-crc-3comp
-    dependencies: ["openstack-k8s-operators-content-provider"]
+    dependencies: ["openstack-meta-content-provider"]
     post-run:
       - ci/nova-operator-base/playbooks/collect-logs.yaml
     vars:
@@ -128,7 +128,7 @@
 - job:
     name: nova-operator-tempest-multinode-ceph
     parent: podified-multinode-hci-deployment-crc-3comp
-    dependencies: ["openstack-k8s-operators-content-provider"]
+    dependencies: ["openstack-meta-content-provider"]
     # Note:  When inheriting from a job (or creating a variant of a job) vars are merged with previous definitions
     post-run:
       - ci/nova-operator-base/playbooks/collect-logs.yaml
@@ -195,7 +195,17 @@
     name: openstack-k8s-operators/nova-operator
     github-check:
       jobs:
-        - openstack-k8s-operators-content-provider
-        - nova-operator-kuttl
-        - nova-operator-tempest-multinode
-        - nova-operator-tempest-multinode-ceph
+        - openstack-meta-content-provider:
+            vars:
+              cifmw_bop_openstack_release: master
+              cifmw_bop_dlrn_baseurl: "https://trunk.rdoproject.org/centos9-master"
+              cifmw_repo_setup_branch: master
+        - nova-operator-kuttl:
+            vars:
+              cifmw_repo_setup_branch: master
+        - nova-operator-tempest-multinode:
+            vars:
+              cifmw_repo_setup_branch: master
+        - nova-operator-tempest-multinode-ceph:
+            vars:
+              cifmw_repo_setup_branch: master
