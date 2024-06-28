@@ -34,7 +34,6 @@ func HostDiscoveryJob(
 	args := []string{"-c", KollaServiceCommand}
 
 	envVars := map[string]env.Setter{}
-	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
 	envVars["KOLLA_BOOTSTRAP"] = env.SetValue("true")
 
 	// This is stored in the Job so that if the input of the job changes
