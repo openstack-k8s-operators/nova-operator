@@ -849,6 +849,18 @@ var _ = Describe("Nova multi cell", func() {
 			DeferCleanup(mariadb.DeleteDBService, mariadb.CreateDBService(cell0.MariaDBDatabaseName.Namespace, cell0.MariaDBDatabaseName.Name, serviceSpec))
 			DeferCleanup(mariadb.DeleteDBService, mariadb.CreateDBService(cell1.MariaDBDatabaseName.Namespace, cell1.MariaDBDatabaseName.Name, serviceSpec))
 
+			secretMap := map[string][]byte{
+				"MetadataSecret": []byte("metadata-secret-cell1"),
+			}
+			cell1Metadata := types.NamespacedName{
+				Namespace: novaNames.NovaName.Namespace,
+				Name:      novaNames.NovaName.Name + "-" + cell1.CellName + "-metadata",
+			}
+			secretMetadataCell1 := th.CreateSecret(
+				cell1Metadata,
+				secretMap,
+			)
+			DeferCleanup(k8sClient.Delete, ctx, secretMetadataCell1)
 			spec := GetDefaultNovaSpec()
 			cell0Template := GetDefaultNovaCellTemplate()
 			cell0Template["cellDatabaseInstance"] = cell0.MariaDBDatabaseName.Name
@@ -859,7 +871,8 @@ var _ = Describe("Nova multi cell", func() {
 			cell1Template["cellDatabaseAccount"] = cell1.MariaDBAccountName.Name
 			cell1Template["cellMessageBusInstance"] = cell1.TransportURLName.Name
 			cell1Template["metadataServiceTemplate"] = map[string]interface{}{
-				"enabled": true,
+				"enabled":        true,
+				"metadataSecret": secretMetadataCell1.Name,
 			}
 
 			spec["cellTemplates"] = map[string]interface{}{
@@ -935,10 +948,12 @@ var _ = Describe("Nova multi cell", func() {
 
 			cell1Secret := th.GetSecret(cell1.InternalCellSecretName)
 			Expect(cell1Secret.Data).To(
-				HaveKeyWithValue(controllers.MetadataSecretSelector, []byte("metadata-secret")))
+				HaveKeyWithValue(controllers.MetadataSecretSelector, []byte("metadata-secret-cell1")))
 			cell0Secret := th.GetSecret(cell0.InternalCellSecretName)
 			Expect(cell0Secret.Data).NotTo(
 				HaveKeyWithValue(controllers.MetadataSecretSelector, []byte("metadata-secret")))
+			Expect(cell0Secret.Data).NotTo(
+				HaveKeyWithValue(controllers.MetadataSecretSelector, []byte("metadata-secret-cell1")))
 		})
 	})
 })

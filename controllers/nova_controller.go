@@ -1647,7 +1647,26 @@ func (r *NovaReconciler) ensureCellSecret(
 	// If metadata is enabled in the cell then the cell secret needs the
 	// metadata shared secret
 	if *cellTemplate.MetadataServiceTemplate.Enabled {
-		data[MetadataSecretSelector] = string(externalSecret.Data[instance.Spec.PasswordSelectors.MetadataSecret])
+		if *&cellTemplate.MetadataServiceTemplate.MetadataSecret != "" {
+			expectedSelectors := []string{
+				instance.Spec.PasswordSelectors.MetadataSecret,
+			}
+
+			_, _, metadataSecret, err := ensureSecret(
+				ctx,
+				types.NamespacedName{Namespace: instance.Namespace, Name: cellTemplate.MetadataServiceTemplate.MetadataSecret},
+				expectedSelectors,
+				h.GetClient(),
+				&instance.Status.Conditions,
+				r.RequeueTimeout,
+			)
+			if err != nil {
+				return "", err
+			}
+			data[MetadataSecretSelector] = string(metadataSecret.Data[instance.Spec.PasswordSelectors.MetadataSecret])
+		} else {
+			data[MetadataSecretSelector] = string(externalSecret.Data[instance.Spec.PasswordSelectors.MetadataSecret])
+		}
 	}
 
 	// NOTE(gibi): When we switch to immutable secrets then we need to include

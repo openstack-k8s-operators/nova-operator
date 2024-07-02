@@ -84,6 +84,14 @@ type NovaMetadataTemplate struct {
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	// TLS - Parameters related to the TLS
 	TLS tls.SimpleService `json:"tls,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// Secret is the name of the Secret instance containing metadata_proxy_shared_secret
+	// information for the nova-metadata service. This secret is shared
+	// between nova and neutron ovn-metadata inside selected cell
+	// and if this is not defined the global metadata_proxy_shared_secret
+	// secret will be used
+	MetadataSecret string `json:"metadataSecret"`
 }
 
 // MetadataOverrideSpec to override the generated manifest of several child resources.
