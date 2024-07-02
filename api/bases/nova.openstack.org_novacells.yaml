@@ -212,6 +212,13 @@ spec:
                       error state until the manually create NovaMetadata CR is deleted
                       manually.
                     type: boolean
+                  metadataSecret:
+                    description: Secret is the name of the Secret instance containing
+                      metadata_proxy_shared_secret information for the nova-metadata
+                      service. This secret is shared between nova and neutron ovn-metadata
+                      inside selected cell and if this is not defined the global metadata_proxy_shared_secret
+                      secret will be used
+                    type: string
                   networkAttachments:
                     description: NetworkAttachments is a list of NetworkAttachment
                       resource names to expose the services to the given network
