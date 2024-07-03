@@ -87,6 +87,15 @@ type PasswordSelector struct {
 	// MetadataSecret - the name of the field to get the metadata secret from the
 	// Secret
 	MetadataSecret string `json:"metadataSecret"`
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default="MetadataCellsSecret"
+	// prefixMetadataCellsSecret - the prefix name of the field to get the metadata secret from the
+	// Secret for cells. Vale of metadata_proxy_shared_secret
+	// information for the nova-metadata service. This secret is shared
+	// between nova and neutron ovn-metadata inside selected cell
+	// and if this is not defined the global metadata_proxy_shared_secret
+	// secret will be used
+	PrefixMetadataCellsSecret string `json:"prefixMetadataCellsSecret"`
 }
 
 type NovaImages struct {
