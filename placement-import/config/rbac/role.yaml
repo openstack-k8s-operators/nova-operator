@@ -25,6 +25,7 @@ rules:
   - create
   - get
   - list
+  - patch
   - update
   - watch
 - apiGroups:
@@ -151,6 +152,7 @@ rules:
   resources:
   - mariadbaccounts/finalizers
   verbs:
+  - patch
   - update
 - apiGroups:
   - mariadb.openstack.org
@@ -169,6 +171,7 @@ rules:
   resources:
   - mariadbdatabases/finalizers
   verbs:
+  - patch
   - update
 - apiGroups:
   - placement.openstack.org
@@ -187,6 +190,7 @@ rules:
   resources:
   - placementapis/finalizers
   verbs:
+  - patch
   - update
 - apiGroups:
   - placement.openstack.org
@@ -204,6 +208,7 @@ rules:
   - create
   - get
   - list
+  - patch
   - update
   - watch
 - apiGroups:
@@ -214,6 +219,7 @@ rules:
   - create
   - get
   - list
+  - patch
   - update
   - watch
 - apiGroups:
