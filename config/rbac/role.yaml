@@ -25,6 +25,7 @@ rules:
   - create
   - get
   - list
+  - patch
   - update
   - watch
 - apiGroups:
@@ -151,6 +152,7 @@ rules:
   resources:
   - mariadbaccounts/finalizers
   verbs:
+  - patch
   - update
 - apiGroups:
   - mariadb.openstack.org
@@ -169,6 +171,7 @@ rules:
   resources:
   - mariadbdatabases/finalizers
   verbs:
+  - patch
   - update
 - apiGroups:
   - memcached.openstack.org
@@ -177,6 +180,7 @@ rules:
   verbs:
   - get
   - list
+  - patch
   - update
   - watch
 - apiGroups:
@@ -184,6 +188,7 @@ rules:
   resources:
   - memcacheds/finalizers
   verbs:
+  - patch
   - update
 - apiGroups:
   - nova.openstack.org
@@ -202,6 +207,7 @@ rules:
   resources:
   - nova/finalizers
   verbs:
+  - patch
   - update
 - apiGroups:
   - nova.openstack.org
@@ -228,6 +234,7 @@ rules:
   resources:
   - novaapis/finalizers
   verbs:
+  - patch
   - update
 - apiGroups:
   - nova.openstack.org
@@ -254,6 +261,7 @@ rules:
   resources:
   - novacells/finalizers
   verbs:
+  - patch
   - update
 - apiGroups:
   - nova.openstack.org
@@ -280,6 +288,7 @@ rules:
   resources:
   - novacomputes/finalizers
   verbs:
+  - patch
   - update
 - apiGroups:
   - nova.openstack.org
@@ -306,6 +315,7 @@ rules:
   resources:
   - novaconductors/finalizers
   verbs:
+  - patch
   - update
 - apiGroups:
   - nova.openstack.org
@@ -332,6 +342,7 @@ rules:
   resources:
   - novametadata/finalizers
   verbs:
+  - patch
   - update
 - apiGroups:
   - nova.openstack.org
@@ -358,6 +369,7 @@ rules:
   resources:
   - novanovncproxies/finalizers
   verbs:
+  - patch
   - update
 - apiGroups:
   - nova.openstack.org
@@ -384,6 +396,7 @@ rules:
   resources:
   - novaschedulers/finalizers
   verbs:
+  - patch
   - update
 - apiGroups:
   - nova.openstack.org
@@ -413,6 +426,7 @@ rules:
   - create
   - get
   - list
+  - patch
   - update
   - watch
 - apiGroups:
@@ -423,6 +437,7 @@ rules:
   - create
   - get
   - list
+  - patch
   - update
   - watch
 - apiGroups:
