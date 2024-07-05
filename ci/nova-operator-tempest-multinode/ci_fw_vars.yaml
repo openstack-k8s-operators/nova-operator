@@ -9,17 +9,22 @@ cifmw_cls_pv_count: 20
 
 cifmw_services_swift_enabled: false
 
+
 # note by default the source for the playbook specified
 # in the hooks is relative to
 # https://github.com/openstack-k8s-operators/ci-framework/tree/main/hooks/playbooks
 # if you want to use a different source you can use the full path on the ansible controller
-post_deploy:
+post_ctlplane_deploy:
   - name: 71 Kustomize control plane to scale openstack services
     type: playbook
     source: "{{ ansible_user_dir }}/{{ zuul.projects['github.com/openstack-k8s-operators/nova-operator'].src_dir }}/ci/nova-operator-tempest-multinode/control_plane_hook.yaml"
   - name: 82 Kustomize and update Control Plane
     type: playbook
     source: control_plane_kustomize_deploy.yml
+  - name: 85 Create neutron-metadata-custom
+    type: playbook
+    source: "{{ ansible_user_dir }}/{{ zuul.projects['github.com/openstack-k8s-operators/nova-operator'].src_dir }}/ci/nova-operator-tempest-multinode/pre_deploy_hook.yml"
+
 
 
 cifmw_run_tests: true
@@ -28,3 +33,33 @@ cifmw_tempest_container: openstack-tempest-extras
 # tempest groups by default we will manage all tempest execution
 # via the job definition.
 cifmw_tempest_default_groups: []
+
+
+cifmw_edpm_kustomize_content: |-
+    apiVersion: kustomize.config.k8s.io/v1beta1
+    kind: Kustomization
+    resources:
+    namespace: {{ cifmw_install_yamls_defaults.NAMESPACE }}
+    patches:
+    - target:
+        kind: OpenStackDataPlaneNodeSet
+      patch: |-
+        - op: replace
+          path: /spec/services
+          value:
+            - repo-setup
+            - bootstrap
+            - download-cache
+            - configure-network
+            - validate-network
+            - install-os
+            - configure-os
+            - ssh-known-hosts
+            - run-os
+            - reboot-os
+            - install-certs
+            - ovn
+            - neutron-metadata-custom
+            - libvirt
+            - nova
+            - telemetry
