@@ -1,0 +1,71 @@
+- name: Create custom service
+  hosts: "{{ cifmw_target_hook_host | default('localhost') }}"
+  gather_facts: false
+  tasks:
+    - name: Create kustomization
+      ansible.builtin.copy:
+        dest: "{{ cifmw_basedir }}/artifacts/manifests/kustomizations/dataplane/98-kustomization.yaml"
+        content: |-
+          apiVersion: kustomize.config.k8s.io/v1beta1
+          kind: Kustomization
+          resources:
+            namespace: {{ cifmw_install_yamls_defaults.NAMESPACE }}
+          patches:
+          - target:
+              kind: OpenStackDataPlaneNodeSet
+            patch: |-
+              - op: replace
+                path: /spec/services
+                value:
+                  - repo-setup
+                  - bootstrap
+                  - download-cache
+                  - configure-network
+                  - validate-network
+                  - install-os
+                  - configure-os
+                  - ssh-known-hosts
+                  - run-os
+                  - reboot-os
+                  - install-certs
+                  - ovn
+                  - neutron-metadata-custom
+                  - libvirt
+                  - nova
+                  - telemetry
+    - name: Create neutron-metadata-custom service
+      environment:
+        KUBECONFIG: "{{ cifmw_openshift_kubeconfig }}"
+        PATH: "{{ cifmw_path }}"
+      ansible.builtin.shell: |
+        oc apply -f - <<EOF
+        apiVersion: dataplane.openstack.org/v1beta1
+        kind: OpenStackDataPlaneService
+        metadata:
+          name: neutron-metadata-custom
+          namespace: {{ cifmw_install_yamls_defaults['NAMESPACE'] }}
+        spec:
+          addCertMounts: false
+          caCerts: combined-ca-bundle
+          containerImageFields:
+          - EdpmNeutronMetadataAgentImage
+          dataSources:
+          - secretRef:
+              name: neutron-ovn-metadata-agent-neutron-config
+          - secretRef:
+              name: nova-cell1-metadata-neutron-config
+          edpmServiceType: neutron-metadata
+          playbook: osp.edpm.neutron_metadata
+          tlsCerts:
+            default:
+              contents:
+              - dnsnames
+              - ips
+              issuer: osp-rootca-issuer-ovn
+              keyUsages:
+              - digital signature
+              - key encipherment
+              - client auth
+              networks:
+              - ctlplane
+        EOF
