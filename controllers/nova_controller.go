@@ -591,6 +591,28 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		}
 	}
 
+	// We need to check and delete cells
+	novaCellList := &novav1.NovaCellList{}
+	listOpts := []client.ListOption{
+		client.InNamespace(instance.Namespace),
+	}
+	r.Client.List(ctx, novaCellList, listOpts...)
+
+	for _, cr := range novaCellList.Items {
+		_, ok := instance.Spec.CellTemplates[cr.Spec.CellName]
+		if !ok {
+			err = r.Client.Delete(ctx, &cr)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+			err = mariadbv1.DeleteUnusedMariaDBAccountFinalizers(ctx, h, "nova-"+cr.Spec.CellName, cr.Spec.CellDatabaseAccount, instance.Namespace)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+			delete(instance.Status.RegisteredCells, cr.Name)
+		}
+	}
+
 	Log.Info("Successfully reconciled")
 	return ctrl.Result{}, nil
 }
