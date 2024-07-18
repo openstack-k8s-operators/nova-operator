@@ -325,7 +325,7 @@ var _ = Describe("NovaCell controller", func() {
 			Expect(configData).To(
 				ContainSubstring(
 					"live_migration_uri = qemu+ssh://nova@%s/system?keyfile=/var/lib/nova/.ssh/ssh-privatekey"))
-			Expect(configData).To(ContainSubstring("cpu_power_management=true"))
+			Expect(configData).To(ContainSubstring("cpu_power_management=false"))
 			// The nova compute agent is expected to log to stdout. On edpm nodes this allows podman to
 			// capture the logs and make them available via `podman logs` while also redirecting the logs
 			// to the systemd journal. For openshift compute services, the logs are captured by the openshift
