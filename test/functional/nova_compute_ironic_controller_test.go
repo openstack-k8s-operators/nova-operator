@@ -165,7 +165,6 @@ var _ = Describe("NovaCompute controller", func() {
 				Expect(configDataMap).ShouldNot(BeNil())
 				Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
 				configData := string(configDataMap.Data["01-nova.conf"])
-				Expect(configData).Should(ContainSubstring("hw_machine_type=x86_64=q35"))
 				Expect(configData).Should(
 					ContainSubstring("transport_url=rabbit://cell1/fake"))
 				Expect(configData).Should(

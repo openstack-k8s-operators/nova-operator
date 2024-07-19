@@ -331,6 +331,7 @@ var _ = Describe("NovaCell controller", func() {
 			// to the systemd journal. For openshift compute services, the logs are captured by the openshift
 			// logging infrastructure.
 			Expect(configData).To(Not(ContainSubstring("log_file = /var/log/nova/nova-compute.log")))
+			Expect(configData).Should(ContainSubstring("hw_machine_type=x86_64=q35"))
 
 			th.ExpectCondition(
 				cell1.CellCRName,
