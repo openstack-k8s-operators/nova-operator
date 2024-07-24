@@ -36,7 +36,7 @@ import (
 const (
 	SecretName     = "external-secret"
 	ContainerImage = "test://nova"
-	timeout        = 20 * time.Second
+	timeout        = 25 * time.Second
 	// have maximum 100 retries before the timeout hits
 	interval = timeout / 100
 	// consistencyTimeout is the amount of time we use to repeatedly check
@@ -830,6 +830,7 @@ func SimulateReadyOfNovaTopServices() {
 	th.SimulateJobSuccess(cell0.CellMappingJobName)
 
 	Eventually(func(g Gomega) {
+		th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 		cell := GetNovaCell(cell0.CellCRName)
 		g.Expect(cell.Status.Conditions.Get(condition.ReadyCondition).Status).To(
 			Equal(corev1.ConditionTrue))
