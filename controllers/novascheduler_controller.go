@@ -184,7 +184,7 @@ func (r *NovaSchedulerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		&instance.Status.Conditions,
 		r.RequeueTimeout,
 	)
-	if err != nil {
+	if (err != nil || result != ctrl.Result{}) {
 		return result, err
 	}
 

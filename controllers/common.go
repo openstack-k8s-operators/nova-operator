@@ -199,6 +199,7 @@ func ensureSecret(
 	err := reader.Get(ctx, secretName, secret)
 	if err != nil {
 		if k8s_errors.IsNotFound(err) {
+			log.FromContext(ctx).Info(fmt.Sprintf("secret %s not found", secretName))
 			conditionUpdater.Set(condition.FalseCondition(
 				condition.InputReadyCondition,
 				condition.RequestedReason,
@@ -207,7 +208,7 @@ func ensureSecret(
 			return "",
 				ctrl.Result{RequeueAfter: requeueTimeout},
 				*secret,
-				fmt.Errorf("secret %s not found", secretName)
+				nil
 		}
 		conditionUpdater.Set(condition.FalseCondition(
 			condition.InputReadyCondition,
@@ -268,13 +269,14 @@ func ensureNetworkAttachments(
 		_, err := nad.GetNADWithName(ctx, h, netAtt, h.GetBeforeObject().GetNamespace())
 		if err != nil {
 			if k8s_errors.IsNotFound(err) {
+				log.FromContext(ctx).Info(fmt.Sprintf("network-attachment-definition %s not found", netAtt))
 				conditionUpdater.Set(condition.FalseCondition(
 					condition.NetworkAttachmentsReadyCondition,
 					condition.RequestedReason,
 					condition.SeverityInfo,
 					condition.NetworkAttachmentsReadyWaitingMessage,
 					netAtt))
-				return nadAnnotations, ctrl.Result{RequeueAfter: requeueTimeout}, fmt.Errorf("network-attachment-definition %s not found", netAtt)
+				return nadAnnotations, ctrl.Result{RequeueAfter: requeueTimeout}, nil
 			}
 			conditionUpdater.Set(condition.FalseCondition(
 				condition.NetworkAttachmentsReadyCondition,
