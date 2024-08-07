@@ -180,7 +180,7 @@ func (r *NovaNoVNCProxyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		&instance.Status.Conditions,
 		r.RequeueTimeout,
 	)
-	if err != nil {
+	if (err != nil || result != ctrl.Result{}) {
 		return result, err
 	}
 

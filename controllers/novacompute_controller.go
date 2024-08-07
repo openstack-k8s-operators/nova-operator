@@ -162,7 +162,7 @@ func (r *NovaComputeReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		&instance.Status.Conditions,
 		r.RequeueTimeout,
 	)
-	if err != nil {
+	if (err != nil || result != ctrl.Result{}) {
 		return result, err
 	}
 
