@@ -1567,6 +1567,15 @@ spec:
                     description: MetadataSecret - the name of the field to get the
                       metadata secret from the Secret
                     type: string
+                  prefixMetadataCellsSecret:
+                    default: MetadataCellsSecret
+                    description: prefixMetadataCellsSecret - the prefix name of the
+                      field to get the metadata secret from the Secret for cells.
+                      Vale of metadata_proxy_shared_secret information for the nova-metadata
+                      service. This secret is shared between nova and neutron ovn-metadata
+                      inside selected cell and if this is not defined the global metadata_proxy_shared_secret
+                      secret will be used
+                    type: string
                   service:
                     default: NovaPassword
                     description: Service - Selector to get the keystone service user

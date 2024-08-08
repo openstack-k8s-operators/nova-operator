@@ -840,7 +840,15 @@ var _ = Describe("Nova multi cell", func() {
 	})
 	When("Nova CR instance is created with metadata per cell", func() {
 		BeforeEach(func() {
-			DeferCleanup(k8sClient.Delete, ctx, CreateNovaSecret(novaNames.NovaName.Namespace, SecretName))
+			novaSecret := th.CreateSecret(
+				types.NamespacedName{Namespace: novaNames.NovaName.Namespace, Name: SecretName},
+				map[string][]byte{
+					"NovaPassword":                         []byte("service-password"),
+					"MetadataSecret":                       []byte("metadata-secret"),
+					"MetadataCellsSecret" + cell1.CellName: []byte("metadata-secret-cell1"),
+				},
+			)
+			DeferCleanup(k8sClient.Delete, ctx, novaSecret)
 			DeferCleanup(k8sClient.Delete, ctx, CreateNovaMessageBusSecret(cell0))
 			DeferCleanup(k8sClient.Delete, ctx, CreateNovaMessageBusSecret(cell1))
 
@@ -935,10 +943,12 @@ var _ = Describe("Nova multi cell", func() {
 
 			cell1Secret := th.GetSecret(cell1.InternalCellSecretName)
 			Expect(cell1Secret.Data).To(
-				HaveKeyWithValue(controllers.MetadataSecretSelector, []byte("metadata-secret")))
+				HaveKeyWithValue(controllers.MetadataSecretSelector, []byte("metadata-secret-cell1")))
 			cell0Secret := th.GetSecret(cell0.InternalCellSecretName)
 			Expect(cell0Secret.Data).NotTo(
 				HaveKeyWithValue(controllers.MetadataSecretSelector, []byte("metadata-secret")))
+			Expect(cell0Secret.Data).NotTo(
+				HaveKeyWithValue(controllers.MetadataSecretSelector, []byte("metadata-secret-cell1")))
 		})
 	})
 })
