@@ -37,7 +37,6 @@ func CellDBSyncJob(
 	args := []string{"-c", nova.KollaServiceCommand}
 
 	envVars := map[string]env.Setter{}
-	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
 	envVars["KOLLA_BOOTSTRAP"] = env.SetValue("true")
 
 	envVars["CELL_NAME"] = env.SetValue(instance.Spec.CellName)
