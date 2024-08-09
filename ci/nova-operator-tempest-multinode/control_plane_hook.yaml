@@ -37,3 +37,32 @@
               - op: replace
                 path: /spec/keystone/template/replicas
                 value: 2
+
+              - op: add
+                path: /spec/nova/template/cellTemplates
+                value:
+                  cell0:
+                    cellDatabaseAccount: nova-cell0
+                    hasAPIAccess: true
+                    metadataServiceTemplate:
+                      enabled: false
+                  cell1:
+                    cellDatabaseAccount: nova-cell1
+                    hasAPIAccess: true
+                    cellMessageBusInstance: rabbitmq-cell1
+                    cellDatabaseInstance: openstack-cell1
+                    metadataServiceTemplate:
+                      enabled: true
+                      override:
+                        service:
+                          metadata:
+                            annotations:
+                              metallb.universe.tf/address-pool: internalapi
+                              metallb.universe.tf/allow-shared-ip: internalapi
+                              metallb.universe.tf/loadBalancerIPs: 172.17.0.80
+                          spec:
+                            type: LoadBalancer
+
+              - op: add
+                path: /spec/nova/template/metadataServiceTemplate/enabled
+                value: false
