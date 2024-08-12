@@ -72,6 +72,9 @@
                 ip: 172.18.0.5
               tenant:
                 ip: 172.19.0.5
+
+# test https://github.com/openstack-k8s-operators/test-operator/pull/167
+
 - job:
     name: nova-operator-tempest-multinode
     parent: podified-multinode-edpm-deployment-crc-3comp
