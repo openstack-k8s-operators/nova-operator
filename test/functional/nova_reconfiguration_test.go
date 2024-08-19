@@ -22,11 +22,13 @@ import (
 	"github.com/google/go-cmp/cmp"
 	. "github.com/onsi/ginkgo/v2" //revive:disable:dot-imports
 	. "github.com/onsi/gomega"    //revive:disable:dot-imports
+	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 
 	//revive:disable-next-line:dot-imports
 	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
 
 	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
+	rabbitmqv1 "github.com/openstack-k8s-operators/infra-operator/apis/rabbitmq/v1beta1"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 
@@ -168,24 +170,34 @@ var _ = Describe("Nova reconfiguration", func() {
 
 		CreateNovaWith3CellsAndEnsureReady(novaNames)
 	})
-	When("cell2 is deleted", func() {
+	When("cell1 is deleted", func() {
 		It("cell cr is deleted", func() {
 			Eventually(func(g Gomega) {
 				nova := GetNova(novaNames.NovaName)
 
-				delete(nova.Spec.CellTemplates, "cell2")
+				delete(nova.Spec.CellTemplates, "cell1")
 
 				g.Expect(k8sClient.Update(ctx, nova)).To(Succeed())
 			}, timeout, interval).Should(Succeed())
 
 			Eventually(func(g Gomega) {
 				nova := GetNova(novaNames.NovaName)
-				g.Expect(nova.Status.RegisteredCells).NotTo(HaveKey(cell2.CellCRName.Name))
+				g.Expect(nova.Status.RegisteredCells).NotTo(HaveKey(cell1.CellCRName.Name))
 			}, timeout, interval).Should(Succeed())
 
+			NovaCellNotExists(cell1.CellCRName)
 			Eventually(func(g Gomega) {
-				instance := &novav1.NovaCell{}
-				g.Expect(k8sClient.Get(ctx, cell2.CellCRName, instance)).ShouldNot(Succeed())
+				mappingJob := th.GetJob(cell1.CellDeleteJobName)
+				newJobInputHash := GetEnvVarValue(
+					mappingJob.Spec.Template.Spec.Containers[0].Env, "INPUT_HASH", "")
+				g.Expect(newJobInputHash).NotTo(BeNil())
+			}, timeout, interval).Should(Succeed())
+			th.AssertSecretDoesNotExist(cell1.InternalCellSecretName)
+
+			Eventually(func(g Gomega) {
+				instance := &rabbitmqv1.TransportURL{}
+				err := k8sClient.Get(ctx, cell1.TransportURLName, instance)
+				g.Expect(k8s_errors.IsNotFound(err)).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 		})
 	})

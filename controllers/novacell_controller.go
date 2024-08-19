@@ -44,6 +44,8 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/labels"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
+	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
+	"github.com/openstack-k8s-operators/nova-operator/pkg/novaapi"
 
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 )
@@ -312,6 +314,16 @@ func (r *NovaCellReconciler) reconcileDelete(
 		}
 	}
 
+	dbName, accountName := novaapi.ServiceName+"-"+instance.Spec.CellName, instance.Spec.CellDatabaseAccount
+	db, err := mariadbv1.GetDatabaseByNameAndAccount(ctx, h, dbName, accountName, instance.ObjectMeta.Namespace)
+	if err != nil && !k8s_errors.IsNotFound(err) {
+		return err
+	}
+	if !k8s_errors.IsNotFound(err) {
+		if err := db.DeleteFinalizer(ctx, h); err != nil {
+			return err
+		}
+	}
 	Log.Info("Reconciled delete successfully")
 	return nil
 }
