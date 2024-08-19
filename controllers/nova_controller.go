@@ -596,25 +596,129 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	listOpts := []client.ListOption{
 		client.InNamespace(instance.Namespace),
 	}
-	r.Client.List(ctx, novaCellList, listOpts...)
+	if err := r.Client.List(ctx, novaCellList, listOpts...); err != nil {
+		return ctrl.Result{}, err
+	}
 
 	for _, cr := range novaCellList.Items {
+		cellDbs := [][]string{}
 		_, ok := instance.Spec.CellTemplates[cr.Spec.CellName]
 		if !ok {
-			err = r.Client.Delete(ctx, &cr)
+			err := r.ensureCellDeleted(ctx, h, instance,
+				cr.Spec.CellName, apiTransportURL,
+				secret, apiDB, cellDBs[novav1.Cell0Name].Database.GetDatabaseHostname(), cells[novav1.Cell0Name])
 			if err != nil {
 				return ctrl.Result{}, err
 			}
-			err = mariadbv1.DeleteUnusedMariaDBAccountFinalizers(ctx, h, "nova-"+cr.Spec.CellName, cr.Spec.CellDatabaseAccount, instance.Namespace)
-			if err != nil {
-				return ctrl.Result{}, err
-			}
+			cellDbs = append(cellDbs, []string{novaapi.ServiceName + "-" + cr.Spec.CellName, instance.Spec.CellTemplates[cr.Spec.CellName].CellDatabaseAccount})
 			delete(instance.Status.RegisteredCells, cr.Name)
+		}
+		// iterate over novaDbs and remove finalizers
+		for _, novaDb := range cellDbs {
+			dbName, accountName := novaDb[0], novaDb[1]
+			db, err := mariadbv1.GetDatabaseByNameAndAccount(ctx, h, dbName, accountName, instance.ObjectMeta.Namespace)
+			if err != nil && !k8s_errors.IsNotFound(err) {
+				return ctrl.Result{}, err
+			}
+			if !k8s_errors.IsNotFound(err) {
+				if err := db.DeleteFinalizer(ctx, h); err != nil {
+					return ctrl.Result{}, err
+				}
+			}
 		}
 	}
 
 	Log.Info("Successfully reconciled")
 	return ctrl.Result{}, nil
+}
+
+func (r *NovaReconciler) ensureCellDeleted(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *novav1.Nova,
+	cellName string,
+	apiTransportURL string,
+	topLevelSecret corev1.Secret,
+	apiDB *mariadbv1.Database,
+	APIDatabaseHostname string,
+	cell0 *novav1.NovaCell,
+) error {
+	Log := r.GetLogger(ctx)
+	cell := &novav1.NovaCell{}
+	fullCellName := types.NamespacedName{
+		Name:      getNovaCellCRName(instance.Name, cellName),
+		Namespace: instance.GetNamespace(),
+	}
+
+	err := r.Client.Get(ctx, fullCellName, cell)
+	if k8s_errors.IsNotFound(err) {
+		// Nothing to do as it does not exists
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	// If it is not created by us, we don't touch it
+	if !OwnedBy(cell, instance) {
+		Log.Info("CellName isn't defined in the nova, but there is a  "+
+			"Cell CR not owned by us. Not deleting it.",
+			"cell", cell)
+		return nil
+	}
+	err = r.Client.Delete(ctx, cell)
+	if err != nil && k8s_errors.IsNotFound(err) {
+		return err
+	}
+
+	configHash, scriptName, configName, err := r.ensureNovaManageJobSecret(ctx, h, instance,
+		cell0, topLevelSecret, APIDatabaseHostname, apiTransportURL, apiDB)
+	if err != nil {
+		return err
+	}
+	inputHash, err := util.HashOfInputHashes(configHash)
+	if err != nil {
+		return err
+	}
+
+	labels := map[string]string{
+		common.AppSelector: NovaLabelPrefix,
+	}
+	jobDef := nova.CellDeleteJob(instance, cell, configName, scriptName, inputHash, labels)
+	job := job.NewJob(
+		jobDef, cell.Name+"-cell-delete",
+		instance.Spec.PreserveJobs, r.RequeueTimeout,
+		instance.Status.RegisteredCells[cell.Name])
+
+	_, err = job.DoJob(ctx, h)
+	if err != nil {
+		return err
+	}
+
+	// Delete secrets
+	dbSecret := fmt.Sprintf("%s-db-secret", cell.Name)
+	err = secret.DeleteSecretsWithName(ctx, h, dbSecret, instance.Namespace)
+	if err != nil {
+		return err
+	}
+	secretName := getNovaCellCRName(instance.Name, cellName)
+	err = secret.DeleteSecretsWithName(ctx, h, secretName, instance.Namespace)
+	if err != nil {
+		return err
+	}
+
+	// Delete transportURL cr
+	transportURL := &rabbitmqv1.TransportURL{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      instance.Name + "-" + cellName + "-transport",
+			Namespace: instance.Namespace,
+		},
+	}
+	err = r.Client.Delete(ctx, transportURL)
+	if err != nil {
+		return err
+	}
+	Log.Info("Cell isn't defined in the nova, so deleted cell", "cell", cell)
+	return nil
 }
 
 func (r *NovaReconciler) initStatus(
