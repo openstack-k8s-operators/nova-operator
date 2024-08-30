@@ -210,3 +210,28 @@
         - nova-operator-kuttl
         - nova-operator-tempest-multinode
         - nova-operator-tempest-multinode-ceph
+
+##########################################################
+#                                                        #
+#               Project Template                         #
+#                                                        #
+##########################################################
+- project-template:
+    name: opendev-nova-edpm-pipeline
+    description: |
+      Project template to run meta content provider and
+      EDPM job with master opendev and github operator content in
+      openstack-experimental pipeline.
+    openstack-experimental:
+      jobs:
+        - openstack-meta-content-provider:
+            vars:
+              cifmw_bop_openstack_release: master
+              cifmw_bop_dlrn_baseurl: "https://trunk.rdoproject.org/centos9-master"
+              cifmw_repo_setup_branch: master
+        - nova-operator-tempest-multinode: &job_vars
+            vars:
+              cifmw_repo_setup_branch: master
+            dependencies:
+              - openstack-meta-content-provider
+        - nova-operator-tempest-multinode-ceph: *job_vars
