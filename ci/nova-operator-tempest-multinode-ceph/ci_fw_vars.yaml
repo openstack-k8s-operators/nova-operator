@@ -8,16 +8,15 @@ cifmw_edpm_prepare_skip_crc_storage_creation: true
 cifmw_cls_pv_count: 20
 
 cifmw_services_swift_enabled: false
-pre_deploy:
-  - name: 61 HCI pre deploy kustomizations
-    type: playbook
-    source: control_plane_hci_pre_deploy.yml
 
 # note by defualt the source for the playbook specified
 # in the hooks is relative to
 # https://github.com/openstack-k8s-operators/ci-framework/tree/main/hooks/playbooks
 # if you want to use a different source you can use the full path on the ansible controller
 post_deploy:
+  - name: 61 HCI pre deploy kustomizations
+    type: playbook
+    source: control_plane_hci_pre_deploy.yml
   - name: 71 Kustomize control plane to scale openstack services
     type: playbook
     source: "{{ ansible_user_dir }}/{{ zuul.projects['github.com/openstack-k8s-operators/nova-operator'].src_dir }}/ci/nova-operator-tempest-multinode-ceph/control_plane_hook.yaml"
