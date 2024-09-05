@@ -910,8 +910,8 @@ var _ = Describe("NovaMetadata controller", func() {
 				ConditionGetterFunc(NovaMetadataConditionGetter),
 				condition.TLSInputReadyCondition,
 				corev1.ConditionFalse,
-				condition.ErrorReason,
-				fmt.Sprintf("TLSInput error occured in TLS sources Secret %s/combined-ca-bundle not found", novaNames.Namespace),
+				condition.RequestedReason,
+				fmt.Sprintf("TLSInput is missing: %s", novaNames.CaBundleSecretName.Name),
 			)
 			th.ExpectCondition(
 				novaNames.MetadataName,
@@ -929,8 +929,9 @@ var _ = Describe("NovaMetadata controller", func() {
 				ConditionGetterFunc(NovaMetadataConditionGetter),
 				condition.TLSInputReadyCondition,
 				corev1.ConditionFalse,
-				condition.ErrorReason,
-				fmt.Sprintf("TLSInput error occured in TLS sources Secret %s/internal-tls-certs not found", novaNames.Namespace),
+				condition.RequestedReason,
+				fmt.Sprintf("TLSInput is missing: secrets \"%s in namespace %s\" not found",
+					novaNames.InternalCertSecretName.Name, novaNames.InternalCertSecretName.Namespace),
 			)
 			th.ExpectCondition(
 				novaNames.MetadataName,

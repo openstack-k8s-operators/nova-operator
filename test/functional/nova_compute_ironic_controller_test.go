@@ -576,8 +576,8 @@ var _ = Describe("NovaCompute with ironic diver controller", func() {
 				ConditionGetterFunc(NovaComputeConditionGetter),
 				condition.TLSInputReadyCondition,
 				corev1.ConditionFalse,
-				condition.ErrorReason,
-				fmt.Sprintf("TLSInput error occured in TLS sources Secret %s/combined-ca-bundle not found", novaNames.Namespace),
+				condition.RequestedReason,
+				fmt.Sprintf("TLSInput is missing: %s", novaNames.CaBundleSecretName.Name),
 			)
 			th.ExpectCondition(
 				cell1.NovaComputeName,
