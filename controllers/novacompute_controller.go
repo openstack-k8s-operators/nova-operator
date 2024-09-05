@@ -176,7 +176,7 @@ func (r *NovaComputeReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	//
 	// Validate the CA cert secret if provided
 	if instance.Spec.TLS.CaBundleSecretName != "" {
-		hash, ctrlResult, err := tls.ValidateCACertSecret(
+		hash, err := tls.ValidateCACertSecret(
 			ctx,
 			h.GetClient(),
 			types.NamespacedName{
@@ -185,15 +185,21 @@ func (r *NovaComputeReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			},
 		)
 		if err != nil {
+			if k8s_errors.IsNotFound(err) {
+				instance.Status.Conditions.Set(condition.FalseCondition(
+					condition.TLSInputReadyCondition,
+					condition.RequestedReason,
+					condition.SeverityInfo,
+					fmt.Sprintf(condition.TLSInputReadyWaitingMessage, instance.Spec.TLS.CaBundleSecretName)))
+				return ctrl.Result{}, nil
+			}
 			instance.Status.Conditions.Set(condition.FalseCondition(
 				condition.TLSInputReadyCondition,
 				condition.ErrorReason,
 				condition.SeverityWarning,
 				condition.TLSInputErrorMessage,
 				err.Error()))
-			return ctrlResult, err
-		} else if (ctrlResult != ctrl.Result{}) {
-			return ctrlResult, nil
+			return ctrl.Result{}, err
 		}
 
 		if hash != "" {
