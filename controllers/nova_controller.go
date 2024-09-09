@@ -1705,12 +1705,13 @@ func (r *NovaReconciler) ensureTopLevelSecret(
 	)
 
 	template := util.Template{
-		Name:         secretName,
-		Namespace:    instance.Namespace,
-		Type:         util.TemplateTypeNone,
-		InstanceType: instance.GetObjectKind().GroupVersionKind().Kind,
-		Labels:       labels,
-		CustomData:   data,
+		Name:                        secretName,
+		Namespace:                   instance.Namespace,
+		Type:                        util.TemplateTypeNone,
+		InstanceType:                instance.GetObjectKind().GroupVersionKind().Kind,
+		Labels:                      labels,
+		CustomData:                  data,
+		PostProcessConfFilesCleanup: true,
 	}
 
 	err := secret.EnsureSecrets(ctx, h, instance, []util.Template{template}, nil)

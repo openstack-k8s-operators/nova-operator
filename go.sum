@@ -1,3 +1,5 @@
+github.com/auniyal61/lib-common/modules/common v0.0.0-20240917072433-a7150d4fcb60 h1:s/isToyL74e30rpcm048bnq07rRwynna2tkG5flFiUk=
+github.com/auniyal61/lib-common/modules/common v0.0.0-20240917072433-a7150d4fcb60/go.mod h1:6zxa5xg9uvpObVKFSJa/SA+vDDlgh0Q1aswxDB2XbxU=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
 github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6rlkpw=
 github.com/cespare/xxhash/v2 v2.2.0 h1:DC2CZ1Ep5Y4k3ZQ899DldepgrayRUGE6BBZ/cd9Cj44=
@@ -78,8 +80,6 @@ github.com/openstack-k8s-operators/infra-operator/apis v0.4.1-0.20240730162859-9
 github.com/openstack-k8s-operators/infra-operator/apis v0.4.1-0.20240730162859-91b64b2d2de7/go.mod h1:OamtaW9c7aCtfUmxc/r+/XJS7XRI7s5iR//SZ8ilSwk=
 github.com/openstack-k8s-operators/keystone-operator/api v0.4.1-0.20240730210414-ba2309d261a2 h1:F5NZmK9Gr12bHmNCJDRy7ad3I5j97adJ5Gm9HjSwV5g=
 github.com/openstack-k8s-operators/keystone-operator/api v0.4.1-0.20240730210414-ba2309d261a2/go.mod h1:cSNSeN7+pXC/DLwtGoT9HsbdUYzbAnLHGtXN9/uugk8=
-github.com/openstack-k8s-operators/lib-common/modules/common v0.4.1-0.20240905123813-174296c09ec6 h1:VSbVNzUa41hybq/lZi0L8bNv/yzYyNylc8yKSEO+ZCA=
-github.com/openstack-k8s-operators/lib-common/modules/common v0.4.1-0.20240905123813-174296c09ec6/go.mod h1:6zxa5xg9uvpObVKFSJa/SA+vDDlgh0Q1aswxDB2XbxU=
 github.com/openstack-k8s-operators/lib-common/modules/openstack v0.4.1-0.20240730142703-7fd3da600c9d h1:SRB1rCIVpaVhKxJPkSXE9CNN+xHSrdgXzrRV9ed/hIc=
 github.com/openstack-k8s-operators/lib-common/modules/openstack v0.4.1-0.20240730142703-7fd3da600c9d/go.mod h1:TyZh5+Uwxb1vcyY44H5GJVulvlQxU05TTAPQ4tSmbzY=
 github.com/openstack-k8s-operators/lib-common/modules/test v0.4.1-0.20240730142703-7fd3da600c9d h1:P5tF3/shBcQf0HkPHWcr5Ri+jsRStMPbGOPQw4qRHRI=

@@ -409,15 +409,16 @@ func (r *ReconcilerBase) generateConfigsGeneric(
 	}
 	cms := []util.Template{
 		{
-			Name:               configName,
-			Namespace:          instance.GetNamespace(),
-			Type:               util.TemplateTypeConfig,
-			InstanceType:       instance.GetObjectKind().GroupVersionKind().Kind,
-			ConfigOptions:      templateParameters,
-			Labels:             cmLabels,
-			CustomData:         extraData,
-			Annotations:        map[string]string{},
-			AdditionalTemplate: extraTemplates,
+			Name:                        configName,
+			Namespace:                   instance.GetNamespace(),
+			Type:                        util.TemplateTypeConfig,
+			InstanceType:                instance.GetObjectKind().GroupVersionKind().Kind,
+			ConfigOptions:               templateParameters,
+			Labels:                      cmLabels,
+			CustomData:                  extraData,
+			Annotations:                 map[string]string{},
+			AdditionalTemplate:          extraTemplates,
+			PostProcessConfFilesCleanup: true,
 		},
 	}
 	if withScripts {
