@@ -206,32 +206,6 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		return rbacResult, nil
 	}
 
-	// ensure MariaDBAccount exists.  This account record may be created by
-	// openstack-operator or the cloud operator up front without a specific
-	// MariaDBDatabase configured yet.   Otherwise, a MariaDBAccount CR is
-	// created here with a generated username as well as a secret with
-	// generated password.   The MariaDBAccount is created without being
-	// yet associated with any MariaDBDatabase.
-	_, _, err = mariadbv1.EnsureMariaDBAccount(
-		ctx, h, instance.Spec.APIDatabaseAccount,
-		instance.Namespace, false, "nova_api",
-	)
-
-	if err != nil {
-		instance.Status.Conditions.Set(condition.FalseCondition(
-			mariadbv1.MariaDBAccountReadyCondition,
-			condition.ErrorReason,
-			condition.SeverityWarning,
-			mariadbv1.MariaDBAccountNotReadyMessage,
-			err.Error()))
-
-		return ctrl.Result{}, err
-	}
-	instance.Status.Conditions.MarkTrue(
-		mariadbv1.MariaDBAccountReadyCondition,
-		mariadbv1.MariaDBAccountReadyMessage,
-	)
-
 	// There is a webhook validation that ensures that there is always cell0 in
 	// the cellTemplates
 	cell0Template := instance.Spec.CellTemplates[novav1.Cell0Name]
@@ -274,6 +248,32 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	if err != nil {
 		return ctrl.Result{}, err
 	}
+
+	// ensure MariaDBAccount exists.  This account record may be created by
+	// openstack-operator or the cloud operator up front without a specific
+	// MariaDBDatabase configured yet.   Otherwise, a MariaDBAccount CR is
+	// created here with a generated username as well as a secret with
+	// generated password.   The MariaDBAccount is created without being
+	// yet associated with any MariaDBDatabase.
+	_, _, err = mariadbv1.EnsureMariaDBAccount(
+		ctx, h, instance.Spec.APIDatabaseAccount,
+		instance.Namespace, false, "nova_api",
+	)
+
+	if err != nil {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			mariadbv1.MariaDBAccountReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			mariadbv1.MariaDBAccountNotReadyMessage,
+			err.Error()))
+
+		return ctrl.Result{}, err
+	}
+	instance.Status.Conditions.MarkTrue(
+		mariadbv1.MariaDBAccountReadyCondition,
+		mariadbv1.MariaDBAccountReadyMessage,
+	)
 
 	// We create the API DB separately from the Cell DBs as we want to report
 	// its status separately and we need to pass the API DB around for Cells
