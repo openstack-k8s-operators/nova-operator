@@ -71,7 +71,7 @@ repos:
       # E012: here doc didn't end before EOF
 
 - repo: https://github.com/golangci/golangci-lint
-  rev: v1.55.2
+  rev: v1.59.1
   hooks:
     - id: golangci-lint-full
       args: ["-v"]
