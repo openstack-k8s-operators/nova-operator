@@ -21,11 +21,11 @@ import (
 
 	. "github.com/onsi/gomega" //revive:disable:dot-imports
 
-	"golang.org/x/exp/maps"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+	"maps"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"

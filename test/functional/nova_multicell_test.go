@@ -824,7 +824,7 @@ var _ = Describe("Nova multi cell", func() {
 			keystone.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
 		})
 
-		It("waits for cell0 DB to be created", func(ctx SpecContext) {
+		It("waits for cell0 DB to be created", func() {
 			mariadb.SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
 			mariadb.SimulateMariaDBAccountCompleted(cell1.MariaDBAccountName)
 			infra.SimulateTransportURLReady(cell1.TransportURLName)
