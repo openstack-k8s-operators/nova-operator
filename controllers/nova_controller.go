@@ -1269,14 +1269,10 @@ func (r *NovaReconciler) ensureDBDeletion(
 	// iterate over novaDbs and remove finalizers
 	for _, novaDb := range novaDbs {
 		dbName, accountName := novaDb[0], novaDb[1]
-		db, err := mariadbv1.GetDatabaseByNameAndAccount(ctx, h, dbName, accountName, instance.ObjectMeta.Namespace)
-		if err != nil && !k8s_errors.IsNotFound(err) {
+
+		err := mariadbv1.DeleteDatabaseAndAccountFinalizers(ctx, h, dbName, accountName, instance.ObjectMeta.Namespace)
+		if err != nil {
 			return err
-		}
-		if !k8s_errors.IsNotFound(err) {
-			if err := db.DeleteFinalizer(ctx, h); err != nil {
-				return err
-			}
 		}
 	}
 
