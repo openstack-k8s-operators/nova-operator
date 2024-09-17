@@ -819,13 +819,14 @@ func (r *NovaMetadataReconciler) generateNeutronConfigs(
 
 	cms := []util.Template{
 		{
-			Name:               configName,
-			Namespace:          instance.GetNamespace(),
-			Type:               util.TemplateTypeNone,
-			InstanceType:       instance.GetObjectKind().GroupVersionKind().Kind,
-			ConfigOptions:      templateParameters,
-			Labels:             labels,
-			AdditionalTemplate: templates,
+			Name:                        configName,
+			Namespace:                   instance.GetNamespace(),
+			Type:                        util.TemplateTypeNone,
+			InstanceType:                instance.GetObjectKind().GroupVersionKind().Kind,
+			ConfigOptions:               templateParameters,
+			Labels:                      labels,
+			AdditionalTemplate:          templates,
+			PostProcessConfFilesCleanup: true,
 		},
 	}
 
