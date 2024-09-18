@@ -68,6 +68,8 @@ endif
 SHELL = /usr/bin/env bash -o pipefail
 .SHELLFLAGS = -ec
 
+GOTOOLCHAIN_VERSION ?= go1.21.0
+
 .PHONY: all
 all: build
 
@@ -356,7 +358,7 @@ operator-lint: $(LOCALBIN) gowork ## Runs operator-lint
 
 .PHONY: gowork
 gowork: ## Generate go.work file
-	test -f go.work || go work init
+	test -f go.work || GOTOOLCHAIN=$(GOTOOLCHAIN_VERSION) go work init
 	go work use .
 	go work use ./api
 	go work sync
