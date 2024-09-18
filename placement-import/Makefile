@@ -68,6 +68,8 @@ endif
 SHELL = /usr/bin/env bash -o pipefail
 .SHELLFLAGS = -ec
 
+GOTOOLCHAIN_VERSION ?= go1.21.0
+
 .PHONY: all
 all: build
 
@@ -334,7 +336,7 @@ golint: get-ci-tools
 
 .PHONY: gowork
 gowork: ## Generate go.work file to support our multi module repository
-	test -f go.work || go work init
+	test -f go.work || GOTOOLCHAIN=$(GOTOOLCHAIN_VERSION) go work init
 	go work use .
 	go work use ./api
 	go work sync
