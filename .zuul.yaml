@@ -112,9 +112,9 @@
             service_available.swift false
             service_available.cinder false
             validation.image_ssh_user cirros
-            validation.image_ssh_password cubswin:)
+            validation.image_ssh_password cubswin:\)
             validation.image_alt_ssh_user cirros
-            validation.image_alt_ssh_password cubswin:)
+            validation.image_alt_ssh_password cubswin:\)
             validation.allowed_network_downtime 10
       cifmw_test_operator_tempest_include_list: |
           tempest.api.compute
@@ -171,9 +171,9 @@
             service_available.swift false
             service_available.cinder true
             validation.image_ssh_user cirros
-            validation.image_ssh_password cubswin:)
+            validation.image_ssh_password cubswin:\)
             validation.image_alt_ssh_user cirros
-            validation.image_alt_ssh_password cubswin:)
+            validation.image_alt_ssh_password cubswin:\)
             validation.allowed_network_downtime 10
       cifmw_test_operator_tempest_include_list: |
           tempest.api.compute
