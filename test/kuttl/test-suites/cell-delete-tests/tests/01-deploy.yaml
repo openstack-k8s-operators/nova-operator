@@ -1,0 +1,6 @@
+apiVersion: nova.openstack.org/v1beta1
+kind: Nova
+metadata:
+  name: nova-kuttl-cell
+spec:
+  secret: osp-secret

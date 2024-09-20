@@ -1,0 +1,21 @@
+apiVersion: core.openstack.org/v1beta1
+kind: OpenStackControlPlane
+metadata:
+  name: openstack
+spec:
+  storageClass: "crc-csi-hostpath-provisioner"
+  tls:
+    ingress:
+      enabled: true
+    podLevel:
+      enabled: false
+  ironic:
+    enabled: false
+    template:
+      ironicConductors: []
+  manila:
+    enabled: false
+    template:
+      manilaShares: {}
+  horizon:
+    enabled: false

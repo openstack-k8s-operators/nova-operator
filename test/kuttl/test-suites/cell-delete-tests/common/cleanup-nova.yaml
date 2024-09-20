@@ -1,0 +1,7 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+delete:
+- apiVersion: nova.openstack.org/v1beta1
+  kind: Nova
+  name: nova-kuttl-cell
+  namespace: nova-kuttl-cell-delete-tests

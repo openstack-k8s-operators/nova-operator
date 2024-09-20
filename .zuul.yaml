@@ -73,6 +73,54 @@
               tenant:
                 ip: 172.19.0.5
 - job:
+    name: nova-operator-kuttl-cell-delete
+    parent:  nova-operator-base
+    dependencies: ["openstack-meta-content-provider"]
+    roles:
+      - zuul: github.com/openstack-k8s-operators/ci-framework
+    description: |
+      This job deploy a basic "Compute Starter Kit" topology
+      https://www.openstack.org/software/sample-configs#compute-starter-kit
+      that is the minium set of openstack services required to boot a vm.
+    pre-run:
+      - ci/nova-operator-kuttl-cell-delete/playbooks/deploy-deps.yaml
+    run:
+      - ci/nova-operator-kuttl-cell-delete/playbooks/run-kuttl.yaml
+    nodeset: centos-9-medium-crc-extracted-2-39-0-3xl
+    vars:
+      collection_namespace_override: "nova-kuttl-cell-delete-tests"
+      zuul_log_collection: true
+    extra-vars:
+      crc_ci_bootstrap_networking:
+        networks:
+          default:
+            range: 192.168.122.0/24
+            mtu: 1500
+          internal-api:
+            vlan: 20
+            range: 172.17.0.0/24
+          storage:
+            vlan: 21
+            range: 172.18.0.0/24
+          tenant:
+            vlan: 22
+            range: 172.19.0.0/24
+        instances:
+          controller:
+            networks:
+              default:
+                ip: 192.168.122.11
+          crc:
+            networks:
+              default:
+                ip: 192.168.122.10
+              internal-api:
+                ip: 172.17.0.5
+              storage:
+                ip: 172.18.0.5
+              tenant:
+                ip: 172.19.0.5
+- job:
     name: nova-operator-tempest-multinode
     parent: podified-multinode-edpm-deployment-crc-3comp
     dependencies: ["openstack-meta-content-provider"]
@@ -211,6 +259,7 @@
         - nova-operator-kuttl
         - nova-operator-tempest-multinode
         - nova-operator-tempest-multinode-ceph
+        - nova-operator-kuttl-cell-delete
 
 - pragma:
     implied-branch-matchers: True
