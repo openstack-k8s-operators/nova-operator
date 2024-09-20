@@ -1,0 +1,14 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestSuite
+reportFormat: JSON
+reportName: kuttl-default-results
+namespace: nova-kuttl-cell-delete-tests
+# we could set this lower, but the initial image pull can take a while
+timeout: 300
+parallel: 1
+skipDelete: true
+testDirs:
+  - test/kuttl/test-suites/cell-delete-tests/
+suppress:
+  - events
+artifactsDir: test/kuttl/test-suites/cell-delete-tests/output
