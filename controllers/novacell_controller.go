@@ -44,8 +44,6 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/labels"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
-	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
-	"github.com/openstack-k8s-operators/nova-operator/pkg/novaapi"
 
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 )
@@ -138,10 +136,6 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 			return
 		}
 	}()
-
-	if !instance.DeletionTimestamp.IsZero() {
-		return ctrl.Result{}, r.reconcileDelete(ctx, h, instance)
-	}
 
 	// For the compute config generation we need to read the input secrets
 	_, result, secret, err := ensureSecret(
@@ -289,44 +283,6 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 	Log.Info("Successfully reconciled")
 	return ctrl.Result{}, nil
 }
-func (r *NovaCellReconciler) reconcileDelete(
-	ctx context.Context,
-	h *helper.Helper,
-	instance *novav1.NovaCell,
-) error {
-	Log := r.GetLogger(ctx)
-	err := r.ensureNoVNCProxyDeleted(ctx, instance)
-	if err != nil {
-		return err
-	}
-	err = r.ensureMetadataDeleted(ctx, instance)
-	if err != nil {
-		return err
-	}
-	err = r.ensureConductorDeleted(ctx, instance)
-	if err != nil {
-		return err
-	}
-	for computeName := range instance.Status.NovaComputesStatus {
-		err = r.ensureNovaComputeDeleted(ctx, instance, computeName)
-		if err != nil {
-			return err
-		}
-	}
-
-	dbName, accountName := novaapi.ServiceName+"-"+instance.Spec.CellName, instance.Spec.CellDatabaseAccount
-	db, err := mariadbv1.GetDatabaseByNameAndAccount(ctx, h, dbName, accountName, instance.ObjectMeta.Namespace)
-	if err != nil && !k8s_errors.IsNotFound(err) {
-		return err
-	}
-	if !k8s_errors.IsNotFound(err) {
-		if err := db.DeleteFinalizer(ctx, h); err != nil {
-			return err
-		}
-	}
-	Log.Info("Reconciled delete successfully")
-	return nil
-}
 
 func (r *NovaCellReconciler) initStatus(
 	instance *novav1.NovaCell,
@@ -441,36 +397,6 @@ func (r *NovaCellReconciler) ensureConductor(
 	}
 
 	return ctrl.Result{}, nil
-}
-
-func (r *NovaCellReconciler) ensureConductorDeleted(
-	ctx context.Context,
-	instance *novav1.NovaCell,
-) error {
-	Log := r.GetLogger(ctx)
-	conductorName := types.NamespacedName{
-		Name:      instance.Name + "-conductor",
-		Namespace: instance.GetNamespace(),
-	}
-
-	conductor := &novav1.NovaConductor{}
-	err := r.Client.Get(ctx, conductorName, conductor)
-	if k8s_errors.IsNotFound(err) {
-		// Nothing to do as it does not exists
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-
-	err = r.Client.Delete(ctx, conductor)
-	if err != nil && k8s_errors.IsNotFound(err) {
-		return nil
-	}
-	Log.Info("Cell is deleted, so cell Conductoris deleted",
-		"Conductor", conductor)
-
-	return nil
 }
 
 func getNoVNCProxyName(instance *novav1.NovaCell) types.NamespacedName {

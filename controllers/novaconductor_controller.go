@@ -730,23 +730,6 @@ func (r *NovaConductorReconciler) reconcileDelete(
 		Log.Info("Removed finalizer from ourselves")
 	}
 
-	_, result, secret, err := ensureSecret(
-		ctx,
-		types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.Secret},
-		nil,
-		h.GetClient(),
-		&instance.Status.Conditions,
-		r.RequeueTimeout,
-	)
-	if (err != nil || result != ctrl.Result{}) {
-		return err
-	}
-
-	err = r.cleanServiceFromNovaDb(ctx, h, instance, secret, Log)
-	if err != nil {
-		return err
-	}
-
 	Log.Info("Reconciled delete successfully")
 	return nil
 }
