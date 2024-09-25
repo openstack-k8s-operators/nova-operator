@@ -214,14 +214,6 @@ func NovaConductorConditionGetter(name types.NamespacedName) condition.Condition
 	return instance.Status.Conditions
 }
 
-func AssertConductorDoesNotExist(name types.NamespacedName) {
-	instance := &novav1.NovaConductor{}
-	Eventually(func(g Gomega) {
-		err := k8sClient.Get(ctx, name, instance)
-		g.Expect(k8s_errors.IsNotFound(err)).To(BeTrue())
-	}, timeout, interval).Should(Succeed())
-}
-
 func CreateNovaMessageBusSecret(cell CellNames) *corev1.Secret {
 	s := th.CreateSecret(
 		types.NamespacedName{Namespace: cell.CellCRName.Namespace, Name: fmt.Sprintf("%s-secret", cell.TransportURLName.Name)},

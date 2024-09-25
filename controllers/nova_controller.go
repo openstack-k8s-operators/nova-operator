@@ -601,7 +601,6 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	}
 
 	for _, cr := range novaCellList.Items {
-		cellDbs := [][]string{}
 		_, ok := instance.Spec.CellTemplates[cr.Spec.CellName]
 		if !ok {
 			err := r.ensureCellDeleted(ctx, h, instance,
@@ -610,26 +609,93 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 			if err != nil {
 				return ctrl.Result{}, err
 			}
-			cellDbs = append(cellDbs, []string{novaapi.ServiceName + "-" + cr.Spec.CellName, instance.Spec.CellTemplates[cr.Spec.CellName].CellDatabaseAccount})
+			Log.Info("Cell deleted", "cell", cr.Spec.CellName)
 			delete(instance.Status.RegisteredCells, cr.Name)
 		}
-		// iterate over novaDbs and remove finalizers
-		for _, novaDb := range cellDbs {
-			dbName, accountName := novaDb[0], novaDb[1]
-			db, err := mariadbv1.GetDatabaseByNameAndAccount(ctx, h, dbName, accountName, instance.ObjectMeta.Namespace)
-			if err != nil && !k8s_errors.IsNotFound(err) {
-				return ctrl.Result{}, err
-			}
-			if !k8s_errors.IsNotFound(err) {
-				if err := db.DeleteFinalizer(ctx, h); err != nil {
-					return ctrl.Result{}, err
-				}
-			}
-		}
+
 	}
 
 	Log.Info("Successfully reconciled")
 	return ctrl.Result{}, nil
+}
+
+// GetDatabase returns an existing MariaDBDatabase object from the cluster
+func GetDatabase(ctx context.Context,
+	h *helper.Helper,
+	name string, namespace string,
+) (*mariadbv1.MariaDBDatabase, error) {
+	mariaDBDatabase := &mariadbv1.MariaDBDatabase{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+	}
+	objectKey := client.ObjectKeyFromObject(mariaDBDatabase)
+
+	err := h.GetClient().Get(ctx, objectKey, mariaDBDatabase)
+	if err != nil {
+		return nil, err
+	}
+	return mariaDBDatabase, err
+}
+
+func DeleteDatabaseAndAccountFinalizers(
+	ctx context.Context,
+	h *helper.Helper,
+	name string,
+	accountName string,
+	namespace string,
+) error {
+
+	databaseAccount, err := mariadbv1.GetAccount(ctx, h, accountName, namespace)
+	if err != nil && !k8s_errors.IsNotFound(err) {
+		return err
+	} else if err == nil {
+		if databaseAccount.Spec.Secret != "" {
+			dbSecret, _, err := secret.GetSecret(ctx, h, databaseAccount.Spec.Secret, namespace)
+			if err != nil && !k8s_errors.IsNotFound(err) {
+				return err
+			}
+
+			if err == nil && controllerutil.RemoveFinalizer(dbSecret, h.GetFinalizer()) {
+				err := h.GetClient().Update(ctx, dbSecret)
+				if err != nil && !k8s_errors.IsNotFound(err) {
+					return err
+				}
+				util.LogForObject(h, fmt.Sprintf("Removed finalizer %s from Secret %s", h.GetFinalizer(), dbSecret.Name), dbSecret)
+			}
+		}
+
+		if controllerutil.RemoveFinalizer(databaseAccount, h.GetFinalizer()) {
+			err := h.GetClient().Update(ctx, databaseAccount)
+			if err != nil && !k8s_errors.IsNotFound(err) {
+				return err
+			}
+			util.LogForObject(h, fmt.Sprintf("Removed finalizer %s from MariaDBAccount %s", h.GetFinalizer(), databaseAccount.Name), databaseAccount)
+		}
+	}
+
+	// also do a delete for "unused" MariaDBAccounts, associated with
+	// this MariaDBDatabase.
+	err = mariadbv1.DeleteUnusedMariaDBAccountFinalizers(
+		ctx, h, name, accountName, namespace,
+	)
+	if err != nil && !k8s_errors.IsNotFound(err) {
+		return err
+	}
+
+	mariaDBDatabase, err := GetDatabase(ctx, h, name, namespace)
+	if err != nil && !k8s_errors.IsNotFound(err) {
+		return err
+	} else if err == nil && controllerutil.RemoveFinalizer(mariaDBDatabase, h.GetFinalizer()) {
+		err := h.GetClient().Update(ctx, mariaDBDatabase)
+		if err != nil && !k8s_errors.IsNotFound(err) {
+			return err
+		}
+		util.LogForObject(h, fmt.Sprintf("Removed finalizer %s from MariaDBDatabase %s", h.GetFinalizer(), mariaDBDatabase.Spec.Name), mariaDBDatabase)
+	}
+
+	return nil
 }
 
 func (r *NovaReconciler) ensureCellDeleted(
@@ -665,10 +731,13 @@ func (r *NovaReconciler) ensureCellDeleted(
 			"cell", cell)
 		return nil
 	}
+
 	err = r.Client.Delete(ctx, cell)
 	if err != nil && k8s_errors.IsNotFound(err) {
 		return err
 	}
+
+	dbName, accountName := novaapi.ServiceName+"-"+cell.Spec.CellName, cell.Spec.CellDatabaseAccount
 
 	configHash, scriptName, configName, err := r.ensureNovaManageJobSecret(ctx, h, instance,
 		cell0, topLevelSecret, APIDatabaseHostname, apiTransportURL, apiDB)
@@ -687,7 +756,7 @@ func (r *NovaReconciler) ensureCellDeleted(
 	job := job.NewJob(
 		jobDef, cell.Name+"-cell-delete",
 		instance.Spec.PreserveJobs, r.RequeueTimeout,
-		instance.Status.RegisteredCells[cell.Name])
+		inputHash)
 
 	_, err = job.DoJob(ctx, h)
 	if err != nil {
@@ -714,6 +783,9 @@ func (r *NovaReconciler) ensureCellDeleted(
 		},
 	}
 	err = r.Client.Delete(ctx, transportURL)
+
+	err = DeleteDatabaseAndAccountFinalizers(ctx, h, dbName, accountName, instance.ObjectMeta.Namespace)
+
 	if err != nil {
 		return err
 	}
