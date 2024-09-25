@@ -1,0 +1,5 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+  - script: |
+      oc patch -n nova-kuttl-default nova/nova-kuttl --type='json' -p='[{"op": "remove", "path": "/spec/cellTemplates/cell1"}]'
