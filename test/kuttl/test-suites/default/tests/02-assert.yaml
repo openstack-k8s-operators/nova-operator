@@ -1,0 +1,125 @@
+apiVersion: nova.openstack.org/v1beta1
+kind: Nova
+metadata:
+  finalizers:
+  - openstack.org/nova
+  name: nova-kuttl
+  namespace: nova-kuttl-default
+status:
+  apiServiceReadyCount: 1
+  metadataServiceReadyCount: 1
+  schedulerServiceReadyCount: 1
+  conditions:
+  - message: Setup complete
+    reason: Ready
+    status: "True"
+    type: Ready
+  - message: Input data complete
+    reason: Ready
+    status: "True"
+    type: InputReady
+  - message: Setup complete
+    reason: Ready
+    status: "True"
+    type: KeystoneServiceReady
+  - message: MariaDBAccount creation complete
+    reason: Ready
+    status: "True"
+    type: MariaDBAccountReady
+  - message: ' Memcached instance has been provisioned'
+    reason: Ready
+    status: "True"
+    type: MemcachedReady
+  - message: DB create completed
+    reason: Ready
+    status: "True"
+    type: NovaAPIDBReady
+  - message: API message bus creation successfully
+    reason: Ready
+    status: "True"
+    type: NovaAPIMQReady
+  - message: Setup complete
+    reason: Ready
+    status: "True"
+    type: NovaAPIReady
+  - message: All DBs created successfully
+    reason: Ready
+    status: "True"
+    type: NovaAllCellDBReady
+  - message: All NovaCells are ready
+    reason: Ready
+    status: "True"
+    type: NovaAllCellReady
+  - message: All message busses created successfully
+    reason: Ready
+    status: "True"
+    type: NovaAllCellsMQReady
+  - message: Setup complete
+    reason: Ready
+    status: "True"
+    type: NovaMetadataReady
+  - message: Setup complete
+    reason: Ready
+    status: "True"
+    type: NovaSchedulerReady
+  - message: RoleBinding created
+    reason: Ready
+    status: "True"
+    type: RoleBindingReady
+  - message: Role created
+    reason: Ready
+    status: "True"
+    type: RoleReady
+  - message: ServiceAccount created
+    reason: Ready
+    status: "True"
+    type: ServiceAccountReady
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  annotations:
+    openshift.io/scc: anyuid
+  labels:
+    service: nova-api
+  name: nova-kuttl-api-0
+status:
+  containerStatuses:
+  - name: nova-kuttl-api-api
+    ready: true
+    started: true
+  - name: nova-kuttl-api-log
+    ready: true
+    started: true
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  annotations:
+    openshift.io/scc: anyuid
+  labels:
+    service: nova-metadata
+    statefulset.kubernetes.io/pod-name: nova-kuttl-metadata-0
+  name: nova-kuttl-metadata-0
+  ownerReferences:
+  - apiVersion: apps/v1
+    blockOwnerDeletion: true
+    controller: true
+    kind: StatefulSet
+    name: nova-kuttl-metadata
+status:
+  containerStatuses:
+  - name: nova-kuttl-metadata-log
+    ready: true
+    started: true
+  - name: nova-kuttl-metadata-metadata
+    ready: true
+    started: true
+
+---
+apiVersion: kuttl.dev/v1beta1
+kind: TestAssert
+namespaced: true
+commands:
+  - command: echo oc get -n $NAMESPACE pod/nova-kuttl-cell1-novncproxy-0 --ignore-not-found
+  - command: echo oc get -n $NAMESPACE pod/nova-kuttl-cell1-conductor-0--ignore-not-found
