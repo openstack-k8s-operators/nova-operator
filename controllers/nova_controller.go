@@ -763,12 +763,6 @@ func (r *NovaReconciler) ensureCellDeleted(
 		return err
 	}
 
-	// Delete secrets
-	dbSecret := fmt.Sprintf("%s-db-secret", cell.Name)
-	err = secret.DeleteSecretsWithName(ctx, h, dbSecret, instance.Namespace)
-	if err != nil {
-		return err
-	}
 	secretName := getNovaCellCRName(instance.Name, cellName)
 	err = secret.DeleteSecretsWithName(ctx, h, secretName, instance.Namespace)
 	if err != nil {
@@ -783,6 +777,10 @@ func (r *NovaReconciler) ensureCellDeleted(
 		},
 	}
 	err = r.Client.Delete(ctx, transportURL)
+
+	if err != nil {
+		return err
+	}
 
 	err = DeleteDatabaseAndAccountFinalizers(ctx, h, dbName, accountName, instance.ObjectMeta.Namespace)
 
