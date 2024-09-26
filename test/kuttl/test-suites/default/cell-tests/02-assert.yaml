@@ -119,7 +119,10 @@ status:
 ---
 apiVersion: kuttl.dev/v1beta1
 kind: TestAssert
-namespaced: true
 commands:
-  - command: echo oc get -n $NAMESPACE pod/nova-kuttl-cell1-novncproxy-0 --ignore-not-found
-  - command: echo oc get -n $NAMESPACE pod/nova-kuttl-cell1-conductor-0--ignore-not-found
+  - script: |
+      oc get -n nova-kuttl-default pod/nova-kuttl-cell1-novncproxy-0 || exit 0
+      exit 1
+  - script: |
+      oc get -n nova-kuttl-default pod/nova-kuttl-cell1-conductor-0 || exit 0
+      exit 1
