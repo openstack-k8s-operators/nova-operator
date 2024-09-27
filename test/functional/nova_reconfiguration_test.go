@@ -69,8 +69,10 @@ func CreateNovaWith3CellsAndEnsureReady(novaNames NovaNames) {
 
 	cell1Account, cell1Secret := mariadb.CreateMariaDBAccountAndSecret(
 		cell1.MariaDBAccountName, mariadbv1.MariaDBAccountSpec{})
-	DeferCleanup(k8sClient.Delete, ctx, cell1Account)
-	DeferCleanup(k8sClient.Delete, ctx, cell1Secret)
+	DeferCleanup(th.DeleteInstance, cell1Account)
+	DeferCleanup(
+		th.DeleteSecret,
+		types.NamespacedName{Name: cell1Secret.Name, Namespace: cell1Secret.Namespace})
 
 	cell2Account, cell2Secret := mariadb.CreateMariaDBAccountAndSecret(
 		cell2.MariaDBAccountName, mariadbv1.MariaDBAccountSpec{})
