@@ -234,12 +234,20 @@
       jobs:
         - openstack-meta-content-provider:
             override-checkout: main
+            # when run from nova we need to ensure we list the nova-operator
+            # so that it will be built by the meta content provider
+            required-projects:
+              - github.com/openstack-k8s-operators/nova-operator
             vars:
               cifmw_bop_openstack_release: master
               cifmw_bop_dlrn_baseurl: "https://trunk.rdoproject.org/centos9-master"
               cifmw_repo_setup_branch: master
         - nova-operator-tempest-multinode: &job_vars
             override-checkout: main
+            # when run from nova we need to ensure we list the nova-operator
+            # so that it will be built by the meta content provider
+            required-projects:
+              - github.com/openstack-k8s-operators/nova-operator
             vars:
               cifmw_repo_setup_branch: master
         - nova-operator-tempest-multinode-ceph: *job_vars
