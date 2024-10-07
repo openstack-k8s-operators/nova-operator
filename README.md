@@ -2,6 +2,12 @@
 
 A golang operator for openstack nova lifecycle management
 
+## nova-operator Goal
+
+The goal of nova-operator is to manage custom resource that define a nova control plane (CRD).
+Nova operator continuously monitors the state of Nova CR and takes actions to ensure that the desired state is applied and reflected in nova pods. These pods run actual nova services, nova-operators ensure they are deployed, scaled, and configured correctly.
+**Note:** Nova CR is created by openstack-operator as per user intial deployment.
+
 ## Description
 
 This operator is built using the operator-sdk framework to provide day one and day two
