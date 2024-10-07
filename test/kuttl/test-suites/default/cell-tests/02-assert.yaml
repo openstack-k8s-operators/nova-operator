@@ -126,3 +126,32 @@ commands:
   - script: |
       oc get -n nova-kuttl-default pod/nova-kuttl-cell1-conductor-0 || exit 0
       exit 1
+  - script: |
+      oc get -n nova-kuttl-default NovaCell/nova-cell1 || exit 0
+      exit 1
+  - script: |
+      oc get -n nova-kuttl-default MariaDBAccount/nova-cell1 || exit 0
+      exit 1
+  - script: |
+      oc get -n nova-kuttl-default MariaDBDatabase/nova-cell1 || exit 0
+      exit 1
+  - script: |
+      oc get -n nova-kuttl-default TransportUrl/nova-cell1-transport || exit 0
+      exit 1
+  - script: |
+      oc get -n nova-kuttl-default Secret/nova-cell1 || exit 0
+      exit 1
+  - script: |
+      oc get -n nova-kuttl-default Secret/nova-cell1-db-secret || exit 0
+      exit 1
+  - script: |
+      oc get -n nova-kuttl-default Secret/nova-cell1-compute-config || exit 0
+      exit 1
+  - script: |
+      oc get -n nova-kuttl-default Secret/nova-cell1-manage-config-data || exit 0
+      exit 1
+  # TODO(gibi): this needs an openstack-operator change to clean up the cell1
+  # cert secrets
+  #- script: |
+  #    oc get -n nova-kuttl-default Secret/cert-nova-novncproxy-cell1-public-svc || exit 0
+  #    exit 1
