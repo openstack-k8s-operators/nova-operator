@@ -61,7 +61,8 @@ defined configuration always override the default config.
 #### nova-compute
 The main nova service running on the EDP node is nova-compute. However the
 nova-operator is not responsible to deploy or manage such service. It is
-managed by the dataplane-operator via the generic OpenStackDataPlaneService CR.
+managed by the dataplane controller that runs in the openstack-operator. Users
+interact with this via the generic OpenStackDataPlaneService CR.
 The only responsibility of nova-operator in regards of nova-compute is to
 generate the basic control plane configuration needed for the nova-compute
 service to connect to the control plane properly. It is done by generating a
