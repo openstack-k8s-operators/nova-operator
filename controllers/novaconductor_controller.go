@@ -646,7 +646,8 @@ func (r *NovaConductorReconciler) findObjectsForSrc(ctx context.Context, src cli
 		}
 		err := r.Client.List(ctx, crList, listOps)
 		if err != nil {
-			return []reconcile.Request{}
+			l.Error(err, fmt.Sprintf("listing %s for field: %s - %s", crList.GroupVersionKind().Kind, field, src.GetNamespace()))
+			return requests
 		}
 
 		for _, item := range crList.Items {
