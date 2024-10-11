@@ -81,8 +81,6 @@ github.com/openstack-k8s-operators/infra-operator/apis v0.4.1-0.20241012224554-1
 github.com/openstack-k8s-operators/infra-operator/apis v0.4.1-0.20241012224554-129bf9e5a534/go.mod h1:wCgTvuqqepsWIwRB5jMQzc9WvsnpOmNnYa+4NvUhW2w=
 github.com/openstack-k8s-operators/keystone-operator/api v0.4.1-0.20241012223740-74d3342ebc4b h1:mT+EZlcXRPpEcUh/cCPT/bsyFmgHJzDsoy6JoncuBOg=
 github.com/openstack-k8s-operators/keystone-operator/api v0.4.1-0.20241012223740-74d3342ebc4b/go.mod h1:E8azRt+pUzZCAxq2YRWwILorodLbojKBlniPP5qkcQc=
-github.com/openstack-k8s-operators/lib-common/modules/common v0.4.1-0.20241007071524-66e6544525a3 h1:uPyxfs2VRWpaaDfPZJfGZbUci1EYfTjiQF4krjrE88A=
-github.com/openstack-k8s-operators/lib-common/modules/common v0.4.1-0.20241007071524-66e6544525a3/go.mod h1:EKfyFMU2brJYqR4M2Hwfo5ZLBQxAJXAYfHjpdqX6N5g=
 github.com/openstack-k8s-operators/lib-common/modules/openstack v0.4.1-0.20241007071524-66e6544525a3 h1:xvu7XQzVFA6C89SFmgEj84MPrmCekyQZh2uSDRgQL4I=
 github.com/openstack-k8s-operators/lib-common/modules/openstack v0.4.1-0.20241007071524-66e6544525a3/go.mod h1:djfljx3jfHqywhY3oDvPg/GLKwiFVkds6v7P7/Yg+8g=
 github.com/openstack-k8s-operators/lib-common/modules/test v0.4.1-0.20241007071524-66e6544525a3 h1:0kaIceX1QJzMDuJjtJVcdXXa/3X43cNJBMd16672YAQ=
@@ -111,6 +109,8 @@ github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+
 github.com/stretchr/testify v1.3.0/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UVUgZn+9EI=
 github.com/stretchr/testify v1.8.4 h1:CcVxjf3Q8PM0mHUKJCdn+eZZtm5yQwehR5yeSVQQcUk=
 github.com/stretchr/testify v1.8.4/go.mod h1:sz/lmYIOXD/1dqDmKjjqLyZ2RngseejIcXlSw2iwfAo=
+github.com/stuggi/lib-common/modules/common v0.0.0-20241014092607-6ddfd6216521 h1:IKg7DYXYSW1by+XTthy8wPFgKydreB46o5aNoVg0Mx0=
+github.com/stuggi/lib-common/modules/common v0.0.0-20241014092607-6ddfd6216521/go.mod h1:EKfyFMU2brJYqR4M2Hwfo5ZLBQxAJXAYfHjpdqX6N5g=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.4.13/go.mod h1:6yULJ656Px+3vBD8DxQVa3kxgyrAnzto9xy5taEt/CY=
