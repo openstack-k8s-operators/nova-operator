@@ -10,12 +10,12 @@ require (
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.7.4
 	github.com/onsi/ginkgo/v2 v2.20.1
 	github.com/onsi/gomega v1.34.1
-	github.com/openstack-k8s-operators/infra-operator/apis v0.4.1-0.20241012224554-129bf9e5a534
-	github.com/openstack-k8s-operators/keystone-operator/api v0.4.1-0.20241012223740-74d3342ebc4b
+	github.com/openstack-k8s-operators/infra-operator/apis v0.4.1-0.20241015142911-4fc474b2f29c
+	github.com/openstack-k8s-operators/keystone-operator/api v0.4.1-0.20241013092400-3f9337945472
 	github.com/openstack-k8s-operators/lib-common/modules/common v0.4.1-0.20241014140317-e5c35d28f3af
 	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.4.1-0.20241014140317-e5c35d28f3af
 	github.com/openstack-k8s-operators/lib-common/modules/test v0.4.1-0.20241014140317-e5c35d28f3af
-	github.com/openstack-k8s-operators/mariadb-operator/api v0.4.1-0.20241012153655-4666731b845c
+	github.com/openstack-k8s-operators/mariadb-operator/api v0.4.1-0.20241015090956-b0954ab72dcd
 	github.com/openstack-k8s-operators/nova-operator/api v0.0.0-20221209164002-f9e6b9363961
 	go.uber.org/zap v1.27.0
 	gopkg.in/yaml.v3 v3.0.1
