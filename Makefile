@@ -376,6 +376,11 @@ update-nova-csv:
 	fi
 
 # Used for webhook testing
+# The configure_local_webhooks.sh script below will remove any OLM webhooks
+# for the operator and also scale its deployment replicas down to 0 so that
+# the operator can run locally.
+# Make sure to cleanup the webhook configuration for local testing by running
+# ./hack/clean_local_webhook.sh before deplying with OLM again.
 SKIP_CERT ?=false
 .PHONY: run-with-webhook
 run-with-webhook: export METRICS_PORT?=24600
