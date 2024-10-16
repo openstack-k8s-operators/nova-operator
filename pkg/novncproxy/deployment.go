@@ -81,7 +81,6 @@ func StatefulSet(
 	}
 
 	envVars := map[string]env.Setter{}
-	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
 	// NOTE(gibi): The statefulset does not use this hash directly. We store it
 	// in the environment to trigger a Pod restart if any input of the
 	// statefulset has changed. The k8s will trigger a restart automatically if
