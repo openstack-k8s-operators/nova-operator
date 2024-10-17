@@ -14,13 +14,6 @@
             "perm": "0600"
         },
         {
-            "source": "/var/lib/openstack/config/02-nova-override.conf",
-            "dest": "/etc/nova/nova.conf.d/02-nova-override.conf",
-            "owner": "nova",
-            "perm": "0600",
-            "optional": true
-        },
-        {
             "source": "/var/lib/openstack/bin/ensure_cell_mapping.sh",
             "dest": "/bin/",
             "owner": "nova",
