@@ -114,7 +114,7 @@ var _ = Describe("PlacementAPI controller", func() {
 			unknownConditions := []condition.Type{
 				condition.DBReadyCondition,
 				condition.DBSyncReadyCondition,
-				condition.ExposeServiceReadyCondition,
+				condition.CreateServiceReadyCondition,
 				condition.ServiceConfigReadyCondition,
 				condition.DeploymentReadyCondition,
 				condition.KeystoneServiceReadyCondition,
@@ -510,7 +510,7 @@ var _ = Describe("PlacementAPI controller", func() {
 			th.ExpectCondition(
 				names.PlacementAPIName,
 				ConditionGetterFunc(PlacementConditionGetter),
-				condition.ExposeServiceReadyCondition,
+				condition.CreateServiceReadyCondition,
 				corev1.ConditionUnknown,
 			)
 
@@ -532,7 +532,7 @@ var _ = Describe("PlacementAPI controller", func() {
 			th.ExpectCondition(
 				names.PlacementAPIName,
 				ConditionGetterFunc(PlacementConditionGetter),
-				condition.ExposeServiceReadyCondition,
+				condition.CreateServiceReadyCondition,
 				corev1.ConditionTrue,
 			)
 		})

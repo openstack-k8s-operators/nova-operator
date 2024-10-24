@@ -24,6 +24,10 @@ status:
     reason: Ready
     status: "True"
     type: Ready
+  - message: Create service completed
+    reason: Ready
+    status: "True"
+    type: CreateServiceReady
   - message: DB create completed
     reason: Ready
     status: "True"
@@ -36,10 +40,6 @@ status:
     reason: Ready
     status: "True"
     type: DeploymentReady
-  - message: Exposing service completed
-    reason: Ready
-    status: "True"
-    type: ExposeServiceReady
   - message: Input data complete
     reason: Ready
     status: "True"

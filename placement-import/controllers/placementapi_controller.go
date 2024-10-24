@@ -534,10 +534,10 @@ func (r *PlacementAPIReconciler) ensureServiceExposed(
 		)
 		if err != nil {
 			instance.Status.Conditions.Set(condition.FalseCondition(
-				condition.ExposeServiceReadyCondition,
+				condition.CreateServiceReadyCondition,
 				condition.ErrorReason,
 				condition.SeverityWarning,
-				condition.ExposeServiceReadyErrorMessage,
+				condition.CreateServiceReadyErrorMessage,
 				err.Error()))
 
 			return apiEndpoints, ctrl.Result{}, err
@@ -566,19 +566,19 @@ func (r *PlacementAPIReconciler) ensureServiceExposed(
 		ctrlResult, err := svc.CreateOrPatch(ctx, h)
 		if err != nil {
 			instance.Status.Conditions.Set(condition.FalseCondition(
-				condition.ExposeServiceReadyCondition,
+				condition.CreateServiceReadyCondition,
 				condition.ErrorReason,
 				condition.SeverityWarning,
-				condition.ExposeServiceReadyErrorMessage,
+				condition.CreateServiceReadyErrorMessage,
 				err.Error()))
 
 			return apiEndpoints, ctrlResult, err
 		} else if (ctrlResult != ctrl.Result{}) {
 			instance.Status.Conditions.Set(condition.FalseCondition(
-				condition.ExposeServiceReadyCondition,
+				condition.CreateServiceReadyCondition,
 				condition.RequestedReason,
 				condition.SeverityInfo,
-				condition.ExposeServiceReadyRunningMessage))
+				condition.CreateServiceReadyRunningMessage))
 			return apiEndpoints, ctrlResult, nil
 		}
 		// create service - end
@@ -596,7 +596,7 @@ func (r *PlacementAPIReconciler) ensureServiceExposed(
 		}
 	}
 
-	instance.Status.Conditions.MarkTrue(condition.ExposeServiceReadyCondition, condition.ExposeServiceReadyMessage)
+	instance.Status.Conditions.MarkTrue(condition.CreateServiceReadyCondition, condition.CreateServiceReadyMessage)
 	return apiEndpoints, ctrl.Result{}, nil
 }
 
@@ -747,9 +747,9 @@ func (r *PlacementAPIReconciler) initConditions(
 			condition.DBSyncReadyInitMessage,
 		),
 		condition.UnknownCondition(
-			condition.ExposeServiceReadyCondition,
+			condition.CreateServiceReadyCondition,
 			condition.InitReason,
-			condition.ExposeServiceReadyInitMessage,
+			condition.CreateServiceReadyInitMessage,
 		),
 		condition.UnknownCondition(
 			condition.InputReadyCondition,
