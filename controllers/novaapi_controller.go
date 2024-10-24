@@ -381,9 +381,9 @@ func (r *NovaAPIReconciler) initConditions(
 			condition.DeploymentReadyInitMessage,
 		),
 		condition.UnknownCondition(
-			condition.ExposeServiceReadyCondition,
+			condition.CreateServiceReadyCondition,
 			condition.InitReason,
-			condition.ExposeServiceReadyInitMessage,
+			condition.CreateServiceReadyInitMessage,
 		),
 		condition.UnknownCondition(
 			condition.KeystoneEndpointReadyCondition,
@@ -664,10 +664,10 @@ func (r *NovaAPIReconciler) ensureServiceExposed(
 		)
 		if err != nil {
 			instance.Status.Conditions.Set(condition.FalseCondition(
-				condition.ExposeServiceReadyCondition,
+				condition.CreateServiceReadyCondition,
 				condition.ErrorReason,
 				condition.SeverityWarning,
-				condition.ExposeServiceReadyErrorMessage,
+				condition.CreateServiceReadyErrorMessage,
 				err.Error()))
 
 			return nil, ctrl.Result{}, err
@@ -696,19 +696,19 @@ func (r *NovaAPIReconciler) ensureServiceExposed(
 		ctrlResult, err := svc.CreateOrPatch(ctx, h)
 		if err != nil {
 			instance.Status.Conditions.Set(condition.FalseCondition(
-				condition.ExposeServiceReadyCondition,
+				condition.CreateServiceReadyCondition,
 				condition.ErrorReason,
 				condition.SeverityWarning,
-				condition.ExposeServiceReadyErrorMessage,
+				condition.CreateServiceReadyErrorMessage,
 				err.Error()))
 
 			return nil, ctrlResult, err
 		} else if (ctrlResult != ctrl.Result{}) {
 			instance.Status.Conditions.Set(condition.FalseCondition(
-				condition.ExposeServiceReadyCondition,
+				condition.CreateServiceReadyCondition,
 				condition.RequestedReason,
 				condition.SeverityInfo,
-				condition.ExposeServiceReadyRunningMessage))
+				condition.CreateServiceReadyRunningMessage))
 			return nil, ctrlResult, nil
 		}
 		// create service - end
@@ -725,7 +725,7 @@ func (r *NovaAPIReconciler) ensureServiceExposed(
 			return nil, ctrl.Result{}, err
 		}
 	}
-	instance.Status.Conditions.MarkTrue(condition.ExposeServiceReadyCondition, condition.ExposeServiceReadyMessage)
+	instance.Status.Conditions.MarkTrue(condition.CreateServiceReadyCondition, condition.CreateServiceReadyMessage)
 
 	return apiEndpoints, ctrl.Result{}, nil
 }
