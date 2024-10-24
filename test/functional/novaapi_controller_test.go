@@ -346,7 +346,7 @@ var _ = Describe("NovaAPI controller", func() {
 			th.ExpectCondition(
 				novaNames.APIName,
 				ConditionGetterFunc(NovaAPIConditionGetter),
-				condition.ExposeServiceReadyCondition,
+				condition.CreateServiceReadyCondition,
 				corev1.ConditionTrue,
 			)
 			public := th.GetService(novaNames.PublicNovaServiceName)

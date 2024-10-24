@@ -297,7 +297,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 				th.ExpectCondition(
 					cell1.NoVNCProxyName,
 					ConditionGetterFunc(NoVNCProxyConditionGetter),
-					condition.ExposeServiceReadyCondition,
+					condition.CreateServiceReadyCondition,
 					corev1.ConditionTrue,
 				)
 				service := th.GetService(types.NamespacedName{Namespace: cell1.NoVNCProxyName.Namespace, Name: "nova-novncproxy-cell1-public"})
