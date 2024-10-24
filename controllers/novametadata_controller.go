@@ -315,7 +315,7 @@ func (r *NovaMetadataReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	// We have to wait until our service is fully exposed so that we can
 	// generate the compute config containing the metadata host
-	if !instance.Status.Conditions.IsTrue(condition.ExposeServiceReadyCondition) {
+	if !instance.Status.Conditions.IsTrue(condition.CreateServiceReadyCondition) {
 		Log.Info("Waiting for the service to be exposed before generating compute configuration")
 		return ctrl.Result{}, nil
 	}
@@ -375,9 +375,9 @@ func (r *NovaMetadataReconciler) initConditions(
 			condition.DeploymentReadyInitMessage,
 		),
 		condition.UnknownCondition(
-			condition.ExposeServiceReadyCondition,
+			condition.CreateServiceReadyCondition,
 			condition.InitReason,
-			condition.ExposeServiceReadyInitMessage,
+			condition.CreateServiceReadyInitMessage,
 		),
 		condition.UnknownCondition(
 			condition.NetworkAttachmentsReadyCondition,
@@ -669,10 +669,10 @@ func (r *NovaMetadataReconciler) ensureServiceExposed(
 	)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
-			condition.ExposeServiceReadyCondition,
+			condition.CreateServiceReadyCondition,
 			condition.ErrorReason,
 			condition.SeverityWarning,
-			condition.ExposeServiceReadyErrorMessage,
+			condition.CreateServiceReadyErrorMessage,
 			err.Error()))
 		return "", ctrl.Result{}, err
 	}
@@ -686,19 +686,19 @@ func (r *NovaMetadataReconciler) ensureServiceExposed(
 	ctrlResult, err := svc.CreateOrPatch(ctx, h)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
-			condition.ExposeServiceReadyCondition,
+			condition.CreateServiceReadyCondition,
 			condition.ErrorReason,
 			condition.SeverityWarning,
-			condition.ExposeServiceReadyErrorMessage,
+			condition.CreateServiceReadyErrorMessage,
 			err.Error()))
 
 		return "", ctrlResult, err
 	} else if (ctrlResult != ctrl.Result{}) {
 		instance.Status.Conditions.Set(condition.FalseCondition(
-			condition.ExposeServiceReadyCondition,
+			condition.CreateServiceReadyCondition,
 			condition.RequestedReason,
 			condition.SeverityInfo,
-			condition.ExposeServiceReadyRunningMessage))
+			condition.CreateServiceReadyRunningMessage))
 		return "", ctrlResult, err
 	}
 	// create service - end
@@ -715,7 +715,7 @@ func (r *NovaMetadataReconciler) ensureServiceExposed(
 		return "", ctrl.Result{}, err
 	}
 
-	instance.Status.Conditions.MarkTrue(condition.ExposeServiceReadyCondition, condition.ExposeServiceReadyMessage)
+	instance.Status.Conditions.MarkTrue(condition.CreateServiceReadyCondition, condition.CreateServiceReadyMessage)
 
 	return apiEndpoint, ctrl.Result{}, nil
 }

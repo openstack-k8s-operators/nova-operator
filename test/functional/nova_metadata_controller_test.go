@@ -327,7 +327,7 @@ var _ = Describe("NovaMetadata controller", func() {
 				th.ExpectCondition(
 					novaNames.MetadataName,
 					ConditionGetterFunc(NovaMetadataConditionGetter),
-					condition.ExposeServiceReadyCondition,
+					condition.CreateServiceReadyCondition,
 					corev1.ConditionTrue,
 				)
 				service := th.GetService(novaNames.InternalNovaMetadataServiceName)
@@ -445,7 +445,7 @@ var _ = Describe("NovaMetadata controller", func() {
 			th.ExpectCondition(
 				cell1.MetadataName,
 				ConditionGetterFunc(NovaMetadataConditionGetter),
-				condition.ExposeServiceReadyCondition,
+				condition.CreateServiceReadyCondition,
 				corev1.ConditionTrue,
 			)
 			service := th.GetService(types.NamespacedName{Namespace: cell1.MetadataName.Namespace, Name: "nova-metadata-cell1-internal"})
