@@ -384,8 +384,8 @@ update-nova-csv:
 # before deploying with OLM again for other untrappable signals.
 SKIP_CERT ?=false
 .PHONY: run-with-webhook
-run-with-webhook: export METRICS_PORT?=8080
-run-with-webhook: export HEALTH_PORT?=8081
+run-with-webhook: export METRICS_PORT?=24600
+run-with-webhook: export HEALTH_PORT?=24601
 run-with-webhook: manifests generate fmt vet ## Run a controller from your host.
 	/bin/bash hack/clean_local_webhook.sh
 	/bin/bash hack/run_with_local_webhook.sh
