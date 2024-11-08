@@ -949,6 +949,14 @@ var _ = Describe("Nova multi cell", func() {
 				HaveKeyWithValue(controllers.MetadataSecretSelector, []byte("metadata-secret")))
 			Expect(cell0Secret.Data).NotTo(
 				HaveKeyWithValue(controllers.MetadataSecretSelector, []byte("metadata-secret-cell1")))
+			configDataMap := th.GetSecret(cell1.MetadataConfigDataName)
+			Expect(configDataMap).ShouldNot(BeNil())
+			Expect(configDataMap.Data).Should(HaveKey("httpd.conf"))
+			Expect(configDataMap.Data).Should(HaveKey("ssl.conf"))
+			configData := string(configDataMap.Data["httpd.conf"])
+			Expect(configData).Should(
+				ContainSubstring("TimeOut 60"))
+
 		})
 	})
 })

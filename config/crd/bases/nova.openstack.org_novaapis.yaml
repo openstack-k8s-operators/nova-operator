@@ -57,6 +57,11 @@ spec:
                 description: APIDatabaseHostname - hostname to use when accessing
                   the API DB
                 type: string
+              apiTimeout:
+                default: 60
+                description: APITimeout for Route and Apache
+                minimum: 10
+                type: integer
               cell0DatabaseAccount:
                 default: nova-cell0
                 description: APIDatabaseAccount - MariaDBAccount to use when accessing
