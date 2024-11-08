@@ -1037,6 +1037,8 @@ var _ = Describe("NovaAPI controller", func() {
 			Expect(configData).Should(ContainSubstring("SSLCertificateKeyFile   \"/etc/pki/tls/private/internal.key\""))
 			Expect(configData).Should(ContainSubstring("SSLCertificateFile      \"/etc/pki/tls/certs/public.crt\""))
 			Expect(configData).Should(ContainSubstring("SSLCertificateKeyFile   \"/etc/pki/tls/private/public.key\""))
+			Expect(configData).Should(
+				ContainSubstring("TimeOut 60"))
 
 			configData = string(configDataMap.Data["01-nova.conf"])
 			Expect(configData).Should(

@@ -343,6 +343,11 @@ spec:
                         type: string
                     type: object
                 type: object
+              apiTimeout:
+                default: 60
+                description: APITimeout for Route and Apache
+                minimum: 10
+                type: integer
               cellTemplates:
                 additionalProperties:
                   description: |-

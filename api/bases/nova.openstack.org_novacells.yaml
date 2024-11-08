@@ -51,6 +51,11 @@ spec:
                   cell0.
                   TODO(gibi): Add a webhook to validate cell0 constraint
                 type: string
+              apiTimeout:
+                default: 60
+                description: APITimeout for Route and Apache
+                minimum: 10
+                type: integer
               cellDatabaseAccount:
                 default: nova
                 description: CellDatabaseAccount - MariaDBAccount to use when accessing

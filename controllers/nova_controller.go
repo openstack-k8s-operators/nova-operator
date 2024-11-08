@@ -1108,6 +1108,7 @@ func (r *NovaReconciler) ensureCell(
 		ServiceUser:     instance.Spec.ServiceUser,
 		KeystoneAuthURL: keystoneAuthURL,
 		ServiceAccount:  instance.RbacResourceName(),
+		APITimeout:      instance.Spec.APITimeout,
 		// The assumption is that the CA bundle for ironic compute in the cell
 		// and the conductor in the cell always the same as the NovaAPI
 		TLS:               instance.Spec.APIServiceTemplate.TLS.Ca,
@@ -1280,6 +1281,7 @@ func (r *NovaReconciler) ensureAPI(
 		TLS:                    instance.Spec.APIServiceTemplate.TLS,
 		DefaultConfigOverwrite: instance.Spec.APIServiceTemplate.DefaultConfigOverwrite,
 		MemcachedInstance:      getMemcachedInstance(instance, cell0Template),
+		APITimeout:             instance.Spec.APITimeout,
 	}
 	api := &novav1.NovaAPI{
 		ObjectMeta: metav1.ObjectMeta{
@@ -1711,6 +1713,7 @@ func (r *NovaReconciler) ensureMetadata(
 		TLS:                    instance.Spec.MetadataServiceTemplate.TLS,
 		DefaultConfigOverwrite: instance.Spec.MetadataServiceTemplate.DefaultConfigOverwrite,
 		MemcachedInstance:      getMemcachedInstance(instance, cell0Template),
+		APITimeout:             instance.Spec.APITimeout,
 	}
 	metadata = &novav1.NovaMetadata{
 		ObjectMeta: metav1.ObjectMeta{
