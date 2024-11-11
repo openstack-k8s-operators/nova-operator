@@ -38,6 +38,7 @@ import (
 	"github.com/go-logr/logr"
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 
+	networkv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	deployment "github.com/openstack-k8s-operators/lib-common/modules/common/deployment"
@@ -609,8 +610,9 @@ func (r *PlacementAPIReconciler) ensureNetworkAttachments(
 	var err error
 
 	// networks to attach to
+	nadList := []networkv1.NetworkAttachmentDefinition{}
 	for _, netAtt := range instance.Spec.NetworkAttachments {
-		_, err := nad.GetNADWithName(ctx, h, netAtt, instance.Namespace)
+		nad, err := nad.GetNADWithName(ctx, h, netAtt, instance.Namespace)
 		if err != nil {
 			if k8s_errors.IsNotFound(err) {
 				r.GetLogger(ctx).Info(fmt.Sprintf("network-attachment-definition %s not found", netAtt))
@@ -630,9 +632,13 @@ func (r *PlacementAPIReconciler) ensureNetworkAttachments(
 				err.Error()))
 			return nadAnnotations, ctrl.Result{}, err
 		}
+
+		if nad != nil {
+			nadList = append(nadList, *nad)
+		}
 	}
 
-	nadAnnotations, err = nad.CreateNetworksAnnotation(instance.Namespace, instance.Spec.NetworkAttachments)
+	nadAnnotations, err = nad.EnsureNetworksAnnotation(nadList)
 	if err != nil {
 		return nadAnnotations, ctrl.Result{}, fmt.Errorf("failed create network annotation from %s: %w",
 			instance.Spec.NetworkAttachments, err)
