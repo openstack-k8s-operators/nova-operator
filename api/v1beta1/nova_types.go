@@ -81,7 +81,7 @@ type NovaSpecCore struct {
 	// NodeSelector to target subset of worker nodes running this service. Setting
 	// NodeSelector here acts as a default value and can be overridden by service
 	// specific NodeSelector Settings.
-	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+	NodeSelector *map[string]string `json:"nodeSelector,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=false

@@ -1128,13 +1128,14 @@ func (r *NovaReconciler) ensureCell(
 		},
 	}
 
+	if cellSpec.NodeSelector == nil {
+		cellSpec.NodeSelector = instance.Spec.NodeSelector
+	}
+
 	op, err := controllerutil.CreateOrPatch(ctx, r.Client, cell, func() error {
 		// TODO(gibi): Pass down a narrowed secret that only hold
 		// specific information but also holds user names
 		cell.Spec = cellSpec
-		if len(cell.Spec.NodeSelector) == 0 {
-			cell.Spec.NodeSelector = instance.Spec.NodeSelector
-		}
 
 		err := controllerutil.SetControllerReference(instance, cell, r.Scheme)
 		if err != nil {
@@ -1287,11 +1288,12 @@ func (r *NovaReconciler) ensureAPI(
 		},
 	}
 
+	if apiSpec.NodeSelector == nil {
+		apiSpec.NodeSelector = instance.Spec.NodeSelector
+	}
+
 	op, err := controllerutil.CreateOrPatch(ctx, r.Client, api, func() error {
 		api.Spec = apiSpec
-		if len(api.Spec.NodeSelector) == 0 {
-			api.Spec.NodeSelector = instance.Spec.NodeSelector
-		}
 		err := controllerutil.SetControllerReference(instance, api, r.Scheme)
 		if err != nil {
 			return err
@@ -1338,7 +1340,7 @@ func (r *NovaReconciler) ensureScheduler(
 	Log := r.GetLogger(ctx)
 	// TODO(gibi): Pass down a narrowed secret that only hold
 	// specific information but also holds user names
-	spec := novav1.NovaSchedulerSpec{
+	schedulerSpec := novav1.NovaSchedulerSpec{
 		Secret:                secretName,
 		APIDatabaseHostname:   apiDB.GetDatabaseHostname(),
 		APIDatabaseAccount:    instance.Spec.APIDatabaseAccount,
@@ -1371,11 +1373,12 @@ func (r *NovaReconciler) ensureScheduler(
 		},
 	}
 
+	if schedulerSpec.NodeSelector == nil {
+		schedulerSpec.NodeSelector = instance.Spec.NodeSelector
+	}
+
 	op, err := controllerutil.CreateOrPatch(ctx, r.Client, scheduler, func() error {
-		scheduler.Spec = spec
-		if len(scheduler.Spec.NodeSelector) == 0 {
-			scheduler.Spec.NodeSelector = instance.Spec.NodeSelector
-		}
+		scheduler.Spec = schedulerSpec
 		err := controllerutil.SetControllerReference(instance, scheduler, r.Scheme)
 		if err != nil {
 			return err
@@ -1686,7 +1689,7 @@ func (r *NovaReconciler) ensureMetadata(
 
 	// TODO(gibi): Pass down a narrowed secret that only hold
 	// specific information but also holds user names
-	apiSpec := novav1.NovaMetadataSpec{
+	metadataSpec := novav1.NovaMetadataSpec{
 		Secret:               secretName,
 		APIDatabaseHostname:  apiDB.GetDatabaseHostname(),
 		APIDatabaseAccount:   instance.Spec.APIDatabaseAccount,
@@ -1716,12 +1719,13 @@ func (r *NovaReconciler) ensureMetadata(
 		},
 	}
 
-	op, err := controllerutil.CreateOrPatch(ctx, r.Client, metadata, func() error {
-		metadata.Spec = apiSpec
+	if metadataSpec.NodeSelector == nil {
+		metadataSpec.NodeSelector = instance.Spec.NodeSelector
+	}
 
-		if len(metadata.Spec.NodeSelector) == 0 {
-			metadata.Spec.NodeSelector = instance.Spec.NodeSelector
-		}
+	op, err := controllerutil.CreateOrPatch(ctx, r.Client, metadata, func() error {
+		metadata.Spec = metadataSpec
+
 		err := controllerutil.SetControllerReference(instance, metadata, r.Scheme)
 		if err != nil {
 			return err
