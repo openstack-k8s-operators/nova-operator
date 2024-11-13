@@ -330,7 +330,7 @@ var _ = Describe("Nova reconfiguration", func() {
 				nova := GetNova(novaNames.NovaName)
 
 				newSelector := map[string]string{"foo": "bar"}
-				nova.Spec.NodeSelector = newSelector
+				nova.Spec.NodeSelector = &newSelector
 
 				g.Expect(k8sClient.Update(ctx, nova)).To(Succeed())
 				novaDeploymentName := serviceNameFunc()
@@ -348,7 +348,7 @@ var _ = Describe("Nova reconfiguration", func() {
 				nova := GetNova(novaNames.NovaName)
 
 				newSelector := map[string]string{}
-				nova.Spec.NodeSelector = newSelector
+				nova.Spec.NodeSelector = &newSelector
 
 				g.Expect(k8sClient.Update(ctx, nova)).To(Succeed())
 
@@ -380,21 +380,25 @@ var _ = Describe("Nova reconfiguration", func() {
 			}),
 		)
 
-		It("does not override non empty NodeSelector defined in the service template", func() {
+		It("does not override NodeSelector defined in the service template", func() {
 			serviceSelector := map[string]string{"foo": "api"}
 			conductorSelector := map[string]string{"foo": "conductor"}
 			globalSelector := map[string]string{"foo": "global"}
+			emptySelector := map[string]string{}
 
 			// Set the service specific NodeSelector first
 			Eventually(func(g Gomega) {
 				nova := GetNova(novaNames.NovaName)
 
-				nova.Spec.APIServiceTemplate.NodeSelector = serviceSelector
-				nova.Spec.MetadataServiceTemplate.NodeSelector = serviceSelector
-				nova.Spec.SchedulerServiceTemplate.NodeSelector = serviceSelector
+				nova.Spec.APIServiceTemplate.NodeSelector = &serviceSelector
+				nova.Spec.MetadataServiceTemplate.NodeSelector = &serviceSelector
+				nova.Spec.SchedulerServiceTemplate.NodeSelector = &serviceSelector
 				for _, cell := range []string{"cell0", "cell1", "cell2"} {
 					cellTemplate := nova.Spec.CellTemplates[cell]
-					cellTemplate.ConductorServiceTemplate.NodeSelector = conductorSelector
+					cellTemplate.ConductorServiceTemplate.NodeSelector = &conductorSelector
+					if cell == "cell2" {
+						cellTemplate.ConductorServiceTemplate.NodeSelector = &emptySelector
+					}
 					nova.Spec.CellTemplates[cell] = cellTemplate
 
 				}
@@ -415,7 +419,7 @@ var _ = Describe("Nova reconfiguration", func() {
 				conductorDeployment = th.GetStatefulSet(cell1.ConductorStatefulSetName)
 				g.Expect(conductorDeployment.Spec.Template.Spec.NodeSelector).To(Equal(conductorSelector))
 				conductorDeployment = th.GetStatefulSet(cell2.ConductorStatefulSetName)
-				g.Expect(conductorDeployment.Spec.Template.Spec.NodeSelector).To(Equal(conductorSelector))
+				g.Expect(conductorDeployment.Spec.Template.Spec.NodeSelector).To(BeNil())
 			}, timeout, interval).Should(Succeed())
 			SimulateReadyOfNovaTopServices()
 
@@ -423,7 +427,7 @@ var _ = Describe("Nova reconfiguration", func() {
 			// except to the NovaService's
 			Eventually(func(g Gomega) {
 				nova := GetNova(novaNames.NovaName)
-				nova.Spec.NodeSelector = globalSelector
+				nova.Spec.NodeSelector = &globalSelector
 
 				g.Expect(k8sClient.Update(ctx, nova)).To(Succeed())
 
@@ -441,7 +445,7 @@ var _ = Describe("Nova reconfiguration", func() {
 				conductorDeployment = th.GetStatefulSet(cell1.ConductorStatefulSetName)
 				g.Expect(conductorDeployment.Spec.Template.Spec.NodeSelector).To(Equal(conductorSelector))
 				conductorDeployment = th.GetStatefulSet(cell2.ConductorStatefulSetName)
-				g.Expect(conductorDeployment.Spec.Template.Spec.NodeSelector).To(Equal(conductorSelector))
+				g.Expect(conductorDeployment.Spec.Template.Spec.NodeSelector).To(BeNil())
 			}, timeout, interval).Should(Succeed())
 		})
 	})
