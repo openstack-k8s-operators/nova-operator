@@ -82,5 +82,9 @@ func CellMappingJob(
 		},
 	}
 
+	if cell.Spec.NodeSelector != nil && len(*cell.Spec.NodeSelector) > 0 {
+		job.Spec.Template.Spec.NodeSelector = *cell.Spec.NodeSelector
+	}
+
 	return job
 }

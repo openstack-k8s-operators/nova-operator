@@ -333,13 +333,16 @@ var _ = Describe("Nova reconfiguration", func() {
 				nova.Spec.NodeSelector = &newSelector
 
 				g.Expect(k8sClient.Update(ctx, nova)).To(Succeed())
-				novaDeploymentName := serviceNameFunc()
-				th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
-				th.SimulateStatefulSetReplicaReady(novaDeploymentName)
 				SimulateReadyOfNovaTopServices()
+				th.SimulateJobSuccess(cell1.DBSyncJobName)
+				th.SimulateJobSuccess(cell2.DBSyncJobName)
 
-				serviceDeployment := th.GetStatefulSet(novaDeploymentName)
+				serviceDeployment := th.GetStatefulSet(serviceNameFunc())
 				g.Expect(serviceDeployment.Spec.Template.Spec.NodeSelector).To(Equal(newSelector))
+
+				g.Expect(th.GetJob(cell0.DBSyncJobName).Spec.Template.Spec.NodeSelector).To(Equal(newSelector))
+				g.Expect(th.GetJob(cell1.DBSyncJobName).Spec.Template.Spec.NodeSelector).To(Equal(newSelector))
+				g.Expect(th.GetJob(cell2.DBSyncJobName).Spec.Template.Spec.NodeSelector).To(Equal(newSelector))
 
 			}, timeout, interval).Should(Succeed())
 
@@ -353,10 +356,17 @@ var _ = Describe("Nova reconfiguration", func() {
 				g.Expect(k8sClient.Update(ctx, nova)).To(Succeed())
 
 				serviceDeploymentName := serviceNameFunc()
+				th.SimulateJobSuccess(cell0.DBSyncJobName)
+				th.SimulateJobSuccess(cell1.DBSyncJobName)
+				th.SimulateJobSuccess(cell2.DBSyncJobName)
 				th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 				th.SimulateStatefulSetReplicaReady(serviceDeploymentName)
 				serviceDeployment := th.GetStatefulSet(serviceDeploymentName)
 				g.Expect(serviceDeployment.Spec.Template.Spec.NodeSelector).To(BeNil())
+
+				g.Expect(th.GetJob(cell0.DBSyncJobName).Spec.Template.Spec.NodeSelector).To(BeNil())
+				g.Expect(th.GetJob(cell1.DBSyncJobName).Spec.Template.Spec.NodeSelector).To(BeNil())
+				g.Expect(th.GetJob(cell2.DBSyncJobName).Spec.Template.Spec.NodeSelector).To(BeNil())
 			}, timeout, interval).Should(Succeed())
 		},
 			Entry("the nova api pods",
@@ -403,8 +413,11 @@ var _ = Describe("Nova reconfiguration", func() {
 
 				}
 				g.Expect(k8sClient.Update(ctx, nova)).To(Succeed())
+				th.SimulateJobSuccess(cell0.DBSyncJobName)
 				th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
+				th.SimulateJobSuccess(cell1.DBSyncJobName)
 				th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
+				th.SimulateJobSuccess(cell2.DBSyncJobName)
 				th.SimulateStatefulSetReplicaReady(cell2.ConductorStatefulSetName)
 
 				apiDeployment := th.GetStatefulSet(novaNames.APIStatefulSetName)
@@ -420,6 +433,10 @@ var _ = Describe("Nova reconfiguration", func() {
 				g.Expect(conductorDeployment.Spec.Template.Spec.NodeSelector).To(Equal(conductorSelector))
 				conductorDeployment = th.GetStatefulSet(cell2.ConductorStatefulSetName)
 				g.Expect(conductorDeployment.Spec.Template.Spec.NodeSelector).To(BeNil())
+
+				g.Expect(th.GetJob(cell0.DBSyncJobName).Spec.Template.Spec.NodeSelector).To(Equal(conductorSelector))
+				g.Expect(th.GetJob(cell1.DBSyncJobName).Spec.Template.Spec.NodeSelector).To(Equal(conductorSelector))
+				g.Expect(th.GetJob(cell2.DBSyncJobName).Spec.Template.Spec.NodeSelector).To(BeNil())
 			}, timeout, interval).Should(Succeed())
 			SimulateReadyOfNovaTopServices()
 
@@ -446,6 +463,10 @@ var _ = Describe("Nova reconfiguration", func() {
 				g.Expect(conductorDeployment.Spec.Template.Spec.NodeSelector).To(Equal(conductorSelector))
 				conductorDeployment = th.GetStatefulSet(cell2.ConductorStatefulSetName)
 				g.Expect(conductorDeployment.Spec.Template.Spec.NodeSelector).To(BeNil())
+
+				g.Expect(th.GetJob(cell0.DBSyncJobName).Spec.Template.Spec.NodeSelector).To(Equal(conductorSelector))
+				g.Expect(th.GetJob(cell1.DBSyncJobName).Spec.Template.Spec.NodeSelector).To(Equal(conductorSelector))
+				g.Expect(th.GetJob(cell2.DBSyncJobName).Spec.Template.Spec.NodeSelector).To(BeNil())
 			}, timeout, interval).Should(Succeed())
 		})
 	})
