@@ -362,9 +362,6 @@ func (r *NovaCellReconciler) ensureConductor(
 
 	op, err := controllerutil.CreateOrPatch(ctx, r.Client, conductor, func() error {
 		conductor.Spec = conductorSpec
-		if len(conductor.Spec.NodeSelector) == 0 {
-			conductor.Spec.NodeSelector = instance.Spec.NodeSelector
-		}
 		err := controllerutil.SetControllerReference(instance, conductor, r.Scheme)
 		if err != nil {
 			return err
@@ -457,9 +454,6 @@ func (r *NovaCellReconciler) ensureNoVNCProxy(
 
 	op, err := controllerutil.CreateOrPatch(ctx, r.Client, novncproxy, func() error {
 		novncproxy.Spec = novncproxySpec
-		if len(novncproxy.Spec.NodeSelector) == 0 {
-			novncproxy.Spec.NodeSelector = instance.Spec.NodeSelector
-		}
 		err := controllerutil.SetControllerReference(instance, novncproxy, r.Scheme)
 		if err != nil {
 			return err
@@ -581,9 +575,6 @@ func (r *NovaCellReconciler) ensureMetadata(
 
 	op, err := controllerutil.CreateOrPatch(ctx, r.Client, metadata, func() error {
 		metadata.Spec = metadataSpec
-		if len(metadata.Spec.NodeSelector) == 0 {
-			metadata.Spec.NodeSelector = instance.Spec.NodeSelector
-		}
 		err := controllerutil.SetControllerReference(instance, metadata, r.Scheme)
 		if err != nil {
 			return err
@@ -739,9 +730,6 @@ func (r *NovaCellReconciler) ensureNovaCompute(
 
 	op, err := controllerutil.CreateOrPatch(ctx, r.Client, novacompute, func() error {
 		novacompute.Spec = novacomputeSpec
-		if len(novacompute.Spec.NodeSelector) == 0 {
-			novacompute.Spec.NodeSelector = instance.Spec.NodeSelector
-		}
 		err := controllerutil.SetControllerReference(instance, novacompute, r.Scheme)
 		if err != nil {
 			return err

@@ -57,7 +57,7 @@ type NovaCellTemplate struct {
 
 	// +kubebuilder:validation:Optional
 	// NodeSelector to target subset of worker nodes running cell.
-	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+	NodeSelector *map[string]string `json:"nodeSelector,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	// ConductorServiceTemplate - defines the cell conductor deployment for the cell.
@@ -116,7 +116,7 @@ type NovaCellSpec struct {
 
 	// +kubebuilder:validation:Optional
 	// NodeSelector to target subset of worker nodes running this services.
-	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+	NodeSelector *map[string]string `json:"nodeSelector,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=nova

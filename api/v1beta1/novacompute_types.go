@@ -40,7 +40,7 @@ type NovaComputeTemplate struct {
 	// +kubebuilder:validation:Optional
 	// NodeSelector to target subset of worker nodes running this service. Setting here overrides
 	// any global NodeSelector settings within the Nova CR.
-	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+	NodeSelector *map[string]string `json:"nodeSelector,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	// CustomServiceConfig - customize the service config using this parameter to change service defaults,
@@ -219,5 +219,10 @@ func NewNovaComputeSpec(
 		TLS:                    novaCell.TLS,
 		DefaultConfigOverwrite: computeTemplate.DefaultConfigOverwrite,
 	}
+
+	if novaComputeSpec.NodeSelector == nil {
+		novaComputeSpec.NodeSelector = novaCell.NodeSelector
+	}
+
 	return novaComputeSpec
 }

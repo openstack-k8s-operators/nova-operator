@@ -68,9 +68,6 @@ func StatefulSet(
 	}
 
 	nodeSelector := map[string]string{}
-	if instance.Spec.NodeSelector != nil {
-		nodeSelector = instance.Spec.NodeSelector
-	}
 
 	envVars := map[string]env.Setter{}
 	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
@@ -147,6 +144,10 @@ func StatefulSet(
 				},
 			},
 		},
+	}
+
+	if instance.Spec.NodeSelector != nil && len(*instance.Spec.NodeSelector) > 0 {
+		statefulset.Spec.Template.Spec.NodeSelector = *instance.Spec.NodeSelector
 	}
 
 	return statefulset
