@@ -256,9 +256,13 @@ func (in *NovaAPITemplate) DeepCopyInto(out *NovaAPITemplate) {
 	}
 	if in.NodeSelector != nil {
 		in, out := &in.NodeSelector, &out.NodeSelector
-		*out = make(map[string]string, len(*in))
-		for key, val := range *in {
-			(*out)[key] = val
+		*out = new(map[string]string)
+		if **in != nil {
+			in, out := *in, *out
+			*out = make(map[string]string, len(*in))
+			for key, val := range *in {
+				(*out)[key] = val
+			}
 		}
 	}
 	if in.DefaultConfigOverwrite != nil {
@@ -412,9 +416,13 @@ func (in *NovaCellSpec) DeepCopyInto(out *NovaCellSpec) {
 	*out = *in
 	if in.NodeSelector != nil {
 		in, out := &in.NodeSelector, &out.NodeSelector
-		*out = make(map[string]string, len(*in))
-		for key, val := range *in {
-			(*out)[key] = val
+		*out = new(map[string]string)
+		if **in != nil {
+			in, out := *in, *out
+			*out = make(map[string]string, len(*in))
+			for key, val := range *in {
+				(*out)[key] = val
+			}
 		}
 	}
 	in.ConductorServiceTemplate.DeepCopyInto(&out.ConductorServiceTemplate)
@@ -483,9 +491,13 @@ func (in *NovaCellTemplate) DeepCopyInto(out *NovaCellTemplate) {
 	*out = *in
 	if in.NodeSelector != nil {
 		in, out := &in.NodeSelector, &out.NodeSelector
-		*out = make(map[string]string, len(*in))
-		for key, val := range *in {
-			(*out)[key] = val
+		*out = new(map[string]string)
+		if **in != nil {
+			in, out := *in, *out
+			*out = make(map[string]string, len(*in))
+			for key, val := range *in {
+				(*out)[key] = val
+			}
 		}
 	}
 	in.ConductorServiceTemplate.DeepCopyInto(&out.ConductorServiceTemplate)
@@ -678,9 +690,13 @@ func (in *NovaComputeTemplate) DeepCopyInto(out *NovaComputeTemplate) {
 	}
 	if in.NodeSelector != nil {
 		in, out := &in.NodeSelector, &out.NodeSelector
-		*out = make(map[string]string, len(*in))
-		for key, val := range *in {
-			(*out)[key] = val
+		*out = new(map[string]string)
+		if **in != nil {
+			in, out := *in, *out
+			*out = make(map[string]string, len(*in))
+			for key, val := range *in {
+				(*out)[key] = val
+			}
 		}
 	}
 	if in.DefaultConfigOverwrite != nil {
@@ -854,9 +870,13 @@ func (in *NovaConductorTemplate) DeepCopyInto(out *NovaConductorTemplate) {
 	}
 	if in.NodeSelector != nil {
 		in, out := &in.NodeSelector, &out.NodeSelector
-		*out = make(map[string]string, len(*in))
-		for key, val := range *in {
-			(*out)[key] = val
+		*out = new(map[string]string)
+		if **in != nil {
+			in, out := *in, *out
+			*out = make(map[string]string, len(*in))
+			for key, val := range *in {
+				(*out)[key] = val
+			}
 		}
 	}
 	in.Resources.DeepCopyInto(&out.Resources)
@@ -1106,9 +1126,13 @@ func (in *NovaMetadataTemplate) DeepCopyInto(out *NovaMetadataTemplate) {
 	}
 	if in.NodeSelector != nil {
 		in, out := &in.NodeSelector, &out.NodeSelector
-		*out = make(map[string]string, len(*in))
-		for key, val := range *in {
-			(*out)[key] = val
+		*out = new(map[string]string)
+		if **in != nil {
+			in, out := *in, *out
+			*out = make(map[string]string, len(*in))
+			for key, val := range *in {
+				(*out)[key] = val
+			}
 		}
 	}
 	if in.DefaultConfigOverwrite != nil {
@@ -1289,9 +1313,13 @@ func (in *NovaNoVNCProxyTemplate) DeepCopyInto(out *NovaNoVNCProxyTemplate) {
 	}
 	if in.NodeSelector != nil {
 		in, out := &in.NodeSelector, &out.NodeSelector
-		*out = make(map[string]string, len(*in))
-		for key, val := range *in {
-			(*out)[key] = val
+		*out = new(map[string]string)
+		if **in != nil {
+			in, out := *in, *out
+			*out = make(map[string]string, len(*in))
+			for key, val := range *in {
+				(*out)[key] = val
+			}
 		}
 	}
 	in.Resources.DeepCopyInto(&out.Resources)
@@ -1466,9 +1494,13 @@ func (in *NovaSchedulerTemplate) DeepCopyInto(out *NovaSchedulerTemplate) {
 	}
 	if in.NodeSelector != nil {
 		in, out := &in.NodeSelector, &out.NodeSelector
-		*out = make(map[string]string, len(*in))
-		for key, val := range *in {
-			(*out)[key] = val
+		*out = new(map[string]string)
+		if **in != nil {
+			in, out := *in, *out
+			*out = make(map[string]string, len(*in))
+			for key, val := range *in {
+				(*out)[key] = val
+			}
 		}
 	}
 	in.Resources.DeepCopyInto(&out.Resources)
@@ -1499,9 +1531,13 @@ func (in *NovaServiceBase) DeepCopyInto(out *NovaServiceBase) {
 	}
 	if in.NodeSelector != nil {
 		in, out := &in.NodeSelector, &out.NodeSelector
-		*out = make(map[string]string, len(*in))
-		for key, val := range *in {
-			(*out)[key] = val
+		*out = new(map[string]string)
+		if **in != nil {
+			in, out := *in, *out
+			*out = make(map[string]string, len(*in))
+			for key, val := range *in {
+				(*out)[key] = val
+			}
 		}
 	}
 	in.Resources.DeepCopyInto(&out.Resources)
@@ -1552,9 +1588,13 @@ func (in *NovaSpecCore) DeepCopyInto(out *NovaSpecCore) {
 	out.PasswordSelectors = in.PasswordSelectors
 	if in.NodeSelector != nil {
 		in, out := &in.NodeSelector, &out.NodeSelector
-		*out = make(map[string]string, len(*in))
-		for key, val := range *in {
-			(*out)[key] = val
+		*out = new(map[string]string)
+		if **in != nil {
+			in, out := *in, *out
+			*out = make(map[string]string, len(*in))
+			for key, val := range *in {
+				(*out)[key] = val
+			}
 		}
 	}
 	in.APIServiceTemplate.DeepCopyInto(&out.APIServiceTemplate)
