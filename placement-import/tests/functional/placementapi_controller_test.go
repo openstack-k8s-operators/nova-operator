@@ -875,6 +875,105 @@ var _ = Describe("PlacementAPI controller", func() {
 		})
 	})
 
+	When("A PlacementAPI is created with nodeSelector", func() {
+		BeforeEach(func() {
+			spec := GetDefaultPlacementAPISpec()
+			spec["nodeSelector"] = map[string]interface{}{
+				"foo": "bar",
+			}
+
+			placement := CreatePlacementAPI(names.PlacementAPIName, spec)
+			DeferCleanup(th.DeleteInstance, placement)
+
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(namespace))
+			DeferCleanup(k8sClient.Delete, ctx, CreatePlacementAPISecret(namespace, SecretName))
+
+			serviceSpec := corev1.ServiceSpec{Ports: []corev1.ServicePort{{Port: 3306}}}
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(namespace, "openstack", serviceSpec),
+			)
+			mariadb.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBAccount)
+
+			th.SimulateJobSuccess(names.DBSyncJobName)
+			th.SimulateDeploymentReplicaReady(names.DeploymentName)
+			keystone.SimulateKeystoneServiceReady(names.KeystoneServiceName)
+			keystone.SimulateKeystoneEndpointReady(names.KeystoneEndpointName)
+			DeferCleanup(th.DeleteInstance, placement)
+		})
+
+		It("sets nodeSelector in resource specs", func() {
+			Eventually(func(g Gomega) {
+				g.Expect(th.GetDeployment(names.DeploymentName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
+				g.Expect(th.GetJob(names.DBSyncJobName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("updates nodeSelector in resource specs when changed", func() {
+			Eventually(func(g Gomega) {
+				g.Expect(th.GetDeployment(names.DeploymentName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
+				g.Expect(th.GetJob(names.DBSyncJobName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				placement := GetPlacementAPI(names.PlacementAPIName)
+				newNodeSelector := map[string]string{
+					"foo2": "bar2",
+				}
+				placement.Spec.NodeSelector = &newNodeSelector
+				g.Expect(k8sClient.Update(ctx, placement)).Should(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				th.SimulateJobSuccess(names.DBSyncJobName)
+				th.SimulateDeploymentReplicaReady(names.DeploymentName)
+				g.Expect(th.GetDeployment(names.DeploymentName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo2": "bar2"}))
+				g.Expect(th.GetJob(names.DBSyncJobName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo2": "bar2"}))
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("removes nodeSelector from resource specs when cleared", func() {
+			Eventually(func(g Gomega) {
+				g.Expect(th.GetDeployment(names.DeploymentName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
+				g.Expect(th.GetJob(names.DBSyncJobName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				placement := GetPlacementAPI(names.PlacementAPIName)
+				emptyNodeSelector := map[string]string{}
+				placement.Spec.NodeSelector = &emptyNodeSelector
+				g.Expect(k8sClient.Update(ctx, placement)).Should(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				th.SimulateJobSuccess(names.DBSyncJobName)
+				th.SimulateDeploymentReplicaReady(names.DeploymentName)
+				g.Expect(th.GetDeployment(names.DeploymentName).Spec.Template.Spec.NodeSelector).To(BeNil())
+				g.Expect(th.GetJob(names.DBSyncJobName).Spec.Template.Spec.NodeSelector).To(BeNil())
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("removes nodeSelector from resource specs when nilled", func() {
+			Eventually(func(g Gomega) {
+				g.Expect(th.GetDeployment(names.DeploymentName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
+				g.Expect(th.GetJob(names.DBSyncJobName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				placement := GetPlacementAPI(names.PlacementAPIName)
+				placement.Spec.NodeSelector = nil
+				g.Expect(k8sClient.Update(ctx, placement)).Should(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				th.SimulateJobSuccess(names.DBSyncJobName)
+				th.SimulateDeploymentReplicaReady(names.DeploymentName)
+				g.Expect(th.GetDeployment(names.DeploymentName).Spec.Template.Spec.NodeSelector).To(BeNil())
+				g.Expect(th.GetJob(names.DBSyncJobName).Spec.Template.Spec.NodeSelector).To(BeNil())
+			}, timeout, interval).Should(Succeed())
+		})
+	})
 	// Run MariaDBAccount suite tests.  these are pre-packaged ginkgo tests
 	// that exercise standard account create / update patterns that should be
 	// common to all controllers that ensure MariaDBAccount CRs.
