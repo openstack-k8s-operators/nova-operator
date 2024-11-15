@@ -41,6 +41,7 @@ import (
 
 	gophercloud "github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/services"
+	networkv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
@@ -265,8 +266,9 @@ func ensureNetworkAttachments(
 	var err error
 
 	// networks to attach to
+	nadList := []networkv1.NetworkAttachmentDefinition{}
 	for _, netAtt := range networkAttachments {
-		_, err := nad.GetNADWithName(ctx, h, netAtt, h.GetBeforeObject().GetNamespace())
+		nad, err := nad.GetNADWithName(ctx, h, netAtt, h.GetBeforeObject().GetNamespace())
 		if err != nil {
 			if k8s_errors.IsNotFound(err) {
 				log.FromContext(ctx).Info(fmt.Sprintf("network-attachment-definition %s not found", netAtt))
@@ -286,9 +288,13 @@ func ensureNetworkAttachments(
 				err.Error()))
 			return nadAnnotations, ctrl.Result{}, err
 		}
+
+		if nad != nil {
+			nadList = append(nadList, *nad)
+		}
 	}
 
-	nadAnnotations, err = nad.CreateNetworksAnnotation(h.GetBeforeObject().GetNamespace(), networkAttachments)
+	nadAnnotations, err = nad.EnsureNetworksAnnotation(nadList)
 	if err != nil {
 		return nadAnnotations, ctrl.Result{}, fmt.Errorf("failed create network annotation from %s: %w",
 			networkAttachments, err)
