@@ -249,6 +249,8 @@ var _ = Describe("NovaConductor controller", func() {
 				k8sClient.Delete, ctx, CreateDefaultCellInternalSecret(cell0))
 
 			spec := GetDefaultNovaConductorSpec(cell0)
+			newSelector := map[string]string{"foo": "bar"}
+			spec["nodeSelector"] = &newSelector
 			DeferCleanup(th.DeleteInstance, CreateNovaConductor(cell0.ConductorName, spec))
 
 			th.ExpectCondition(
@@ -376,6 +378,11 @@ var _ = Describe("NovaConductor controller", func() {
 					Equal(fmt.Sprintf("%d", *conductor.Spec.DBPurge.ArchiveAge)))
 				Expect(GetEnvVarValue(jobEnv, "PURGE_AGE", "")).To(
 					Equal(fmt.Sprintf("%d", *conductor.Spec.DBPurge.PurgeAge)))
+				service := cron.Spec.JobTemplate.Labels["service"]
+				Expect(service).To(Equal("nova-conductor"))
+				nodeSelector := cron.Spec.JobTemplate.Spec.Template.Spec.NodeSelector
+				Expect(nodeSelector).NotTo(BeNil())
+				Expect(nodeSelector).To(Equal(map[string]string{"foo": "bar"}))
 
 				th.ExpectCondition(
 					cell0.ConductorName,
