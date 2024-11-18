@@ -82,7 +82,7 @@ func CellDeleteJob(
 		},
 	}
 
-	if cell.Spec.NodeSelector != nil && len(*cell.Spec.NodeSelector) > 0 {
+	if cell.Spec.NodeSelector != nil {
 		job.Spec.Template.Spec.NodeSelector = *cell.Spec.NodeSelector
 	}
 
