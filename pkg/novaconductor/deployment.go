@@ -67,8 +67,6 @@ func StatefulSet(
 		},
 	}
 
-	nodeSelector := map[string]string{}
-
 	envVars := map[string]env.Setter{}
 	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
 	// NOTE(gibi): The statefulset does not use this hash directly. We store it
@@ -130,7 +128,6 @@ func StatefulSet(
 							LivenessProbe:  livenessProbe,
 						},
 					},
-					NodeSelector: nodeSelector,
 					// If possible two pods of the same service should not
 					// run on the same worker node. If this is not possible
 					// the get still created on the same worker node.
@@ -146,7 +143,7 @@ func StatefulSet(
 		},
 	}
 
-	if instance.Spec.NodeSelector != nil && len(*instance.Spec.NodeSelector) > 0 {
+	if instance.Spec.NodeSelector != nil {
 		statefulset.Spec.Template.Spec.NodeSelector = *instance.Spec.NodeSelector
 	}
 
