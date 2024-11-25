@@ -52,6 +52,11 @@ spec:
           spec:
             description: PlacementAPISpec defines the desired state of PlacementAPI
             properties:
+              apiTimeout:
+                default: 60
+                description: APITimeout for HAProxy, Apache
+                minimum: 10
+                type: integer
               containerImage:
                 description: PlacementAPI Container Image URL (will be set to environmental
                   default if empty)

@@ -1265,6 +1265,7 @@ func (r *PlacementAPIReconciler) generateServiceConfigMaps(
 		httpdVhostConfig[endpt.String()] = endptConfig
 	}
 	templateParameters["VHosts"] = httpdVhostConfig
+	templateParameters["TimeOut"] = instance.Spec.APITimeout
 
 	extraTemplates := map[string]string{
 		"placement.conf": "placementapi/config/placement.conf",

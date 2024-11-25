@@ -344,6 +344,9 @@ var _ = Describe("PlacementAPI controller", func() {
 			myCnf := cm.Data["my.cnf"]
 			Expect(myCnf).To(
 				ContainSubstring("[client]\nssl=0"))
+			configData := cm.Data["httpd.conf"]
+			Expect(configData).Should(
+				ContainSubstring("TimeOut 60"))
 		})
 
 		It("creates service account, role and rolebindig", func() {

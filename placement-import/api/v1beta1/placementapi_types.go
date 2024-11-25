@@ -51,6 +51,12 @@ type PlacementAPISpec struct {
 // PlacementAPISpecCore -
 type PlacementAPISpecCore struct {
 	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=60
+	// +kubebuilder:validation:Minimum=10
+	// APITimeout for HAProxy, Apache
+	APITimeout int `json:"apiTimeout"`
+
+	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=placement
 	// ServiceUser - optional username used for this service to register in keystone
 	ServiceUser string `json:"serviceUser"`
