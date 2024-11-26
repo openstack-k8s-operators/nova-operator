@@ -376,3 +376,11 @@ scale-down-placement-controller-csv:
 	if [ "$(has_webhooks)" != "null" ]; then \
 	    oc patch csv -n $(OPERATOR_NAMESPACE) placement-operator.v0.0.1 --type json -p='[{"op": "remove", "path": "/spec/webhookdefinitions"}]'; \
 	fi
+
+CRD_SCHEMA_CHECKER_VERSION ?= release-4.16
+BRANCH=main
+
+PHONY: crd-schema-check
+crd-schema-check: manifests
+	INSTALL_DIR=$(LOCALBIN) CRD_SCHEMA_CHECKER_VERSION=$(CRD_SCHEMA_CHECKER_VERSION) hack/build-crd-schema-checker.sh
+	INSTALL_DIR=$(LOCALBIN) BASE_REF="$${PULL_BASE_SHA:-$(BRANCH)}" hack/crd-schema-checker.sh

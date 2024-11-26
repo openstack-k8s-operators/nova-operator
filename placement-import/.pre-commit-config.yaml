@@ -25,6 +25,12 @@ repos:
       entry: make
       args: ['bundle', 'VERSION=0.0.1']
       pass_filenames: false
+    - id: make-crd-schema-check
+      name: make-crd-schema-check
+      language: system
+      entry: make
+      args: ['crd-schema-check']
+      pass_filenames: false
 
 - repo: https://github.com/dnephin/pre-commit-golang
   rev: v0.5.1
