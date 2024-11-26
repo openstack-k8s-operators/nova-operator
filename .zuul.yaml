@@ -72,7 +72,7 @@
       # TODO(sean-k-mooney): we are currently using cirros 0.5.2 we should be using 0.6.2
       # for now we need to use the old password cubswin:) but we should update this to gocubsgo!
       # once we update the image
-      cifmw_tempest_tempestconf_config:
+      cifmw_test_operator_tempest_tempestconf_config:
           overrides: |
             identity.v3_endpoint_type public
             compute-feature-enabled.vnc_console true
@@ -127,7 +127,7 @@
       # TODO(sean-k-mooney): we are currently using cirros 0.5.2 we should be using 0.6.2
       # for now we need to use the old password cubswin:) but we should update this to gocubsgo!
       # once we update the image
-      cifmw_tempest_tempestconf_config:
+      cifmw_test_operator_tempest_tempestconf_config:
           overrides: |
             identity.v3_endpoint_type public
             compute-feature-enabled.vnc_console true
