@@ -18,7 +18,9 @@ package controllers
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"sort"
 	"strings"
 
 	batchv1 "k8s.io/api/batch/v1"
@@ -600,6 +602,16 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		return ctrl.Result{}, err
 	}
 
+	sortNovaCellListByName := func(cellList *novav1.NovaCellList) {
+		sort.SliceStable(cellList.Items, func(i, j int) bool {
+			return cellList.Items[i].Name < cellList.Items[j].Name
+		})
+	}
+
+	sortNovaCellListByName(novaCellList)
+
+	var deleteErrs []error
+
 	for _, cr := range novaCellList.Items {
 		_, ok := instance.Spec.CellTemplates[cr.Spec.CellName]
 		if !ok {
@@ -607,12 +619,18 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 				cr.Spec.CellName, apiTransportURL,
 				secret, apiDB, cellDBs[novav1.Cell0Name].Database.GetDatabaseHostname(), cells[novav1.Cell0Name])
 			if err != nil {
-				return ctrl.Result{}, err
-			}
-			Log.Info("Cell deleted", "cell", cr.Spec.CellName)
-			delete(instance.Status.RegisteredCells, cr.Name)
-		}
+				deleteErrs = append(deleteErrs, fmt.Errorf("Cell '%s' deletion failed, because: %w", cr.Spec.CellName, err))
 
+			} else {
+				Log.Info("Cell deleted", "cell", cr.Spec.CellName)
+				delete(instance.Status.RegisteredCells, cr.Name)
+			}
+		}
+	}
+
+	if len(deleteErrs) > 0 {
+		delErrs := errors.Join(deleteErrs...)
+		return ctrl.Result{}, delErrs
 	}
 
 	Log.Info("Successfully reconciled")
