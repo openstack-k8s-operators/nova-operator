@@ -84,6 +84,7 @@ var (
 	cell0     CellNames
 	cell1     CellNames
 	cell2     CellNames
+	cell3     CellNames
 )
 
 func TestAPIs(t *testing.T) {
@@ -283,8 +284,9 @@ var _ = BeforeEach(func() {
 		Name:      uuid.New().String()[:25],
 	}
 
-	novaNames = GetNovaNames(novaName, []string{"cell0", "cell1", "cell2"})
+	novaNames = GetNovaNames(novaName, []string{"cell0", "cell1", "cell2", "cell3"})
 	cell0 = novaNames.Cells["cell0"]
 	cell1 = novaNames.Cells["cell1"]
 	cell2 = novaNames.Cells["cell2"]
+	cell3 = novaNames.Cells["cell3"]
 })
