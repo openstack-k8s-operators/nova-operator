@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 
 	batchv1 "k8s.io/api/batch/v1"
@@ -305,15 +306,19 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		return ctrl.Result{}, fmt.Errorf("invalid DatabaseStatus from ensureAPIDB: %d", apiDBStatus)
 	}
 
-	// We need to create a list of cellNames to iterate on and as the map
-	// iteration order is undefined we need to make sure that cell0 is the
-	// first to allow dependency handling during ensureCell calls.
-	orderedCellNames := []string{novav1.Cell0Name}
+	orderedCellNames := []string{}
 	for cellName := range instance.Spec.CellTemplates {
 		if cellName != novav1.Cell0Name {
 			orderedCellNames = append(orderedCellNames, cellName)
 		}
 	}
+
+	// We need to sort the list of cellNames to iterate on to avoid
+	// unnecessary reconcile loop runs, as the map iteration order is undefined.
+	sort.Strings(orderedCellNames)
+	// Also we need to make sure that cell0 is the first to allow dependency
+	// handling during ensureCell calls.
+	orderedCellNames = append([]string{novav1.Cell0Name}, orderedCellNames...)
 
 	// Create the Cell DBs. Note that we are not returning on error or if the
 	// DB creation is still in progress. We move forward with whatever we can
