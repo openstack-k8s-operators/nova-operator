@@ -1,30 +1,5 @@
 ---
 - job:
-    name: nova-operator-base
-    description: |
-      This is the base job for all nova-operator tests that will deploy
-      openstack. the base job does not deploy openstack but it does use
-      the nova-operator-content-provider job to provide a registry with
-      built operators and installs them on a crc environment. Child jobs
-      should take this deployed crc and use the installed operators to
-      deploy openstack and then test it. This job will fetch the job
-      output directory so child jobs can just add additional logs to that
-      in there post-playbooks.
-    parent: cifmw-podified-multinode-edpm-base-crc
-    abstract: true
-    attempts: 1
-    dependencies: ["openstack-meta-content-provider"]
-    required-projects:
-      - github.com/openstack-k8s-operators/ci-framework
-      - github.com/openstack-k8s-operators/install_yamls
-    roles:
-      - zuul: github.com/openstack-k8s-operators/ci-framework
-    pre-run:
-      - ci/nova-operator-base/playbooks/pre-wrapper.yaml
-    post-run:
-      - ci/nova-operator-base/playbooks/collect-logs.yaml
-
-- job:
     name: nova-operator-kuttl
     parent: cifmw-multinode-kuttl-operator-target
     dependencies: ["openstack-meta-content-provider"]
