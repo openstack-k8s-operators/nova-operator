@@ -58,6 +58,11 @@ spec:
                   the API DB. This filed is Required if the CellName is not provided
                   TODO(gibi): Add a webhook to validate the CellName constraint'
                 type: string
+              apiTimeout:
+                default: 60
+                description: APITimeout for Route and Apache
+                minimum: 10
+                type: integer
               cellDatabaseAccount:
                 default: nova
                 description: CellDatabaseAccount - MariaDBAccount to use when accessing

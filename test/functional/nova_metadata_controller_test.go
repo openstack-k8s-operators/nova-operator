@@ -985,6 +985,8 @@ var _ = Describe("NovaMetadata controller", func() {
 			Expect(configData).Should(ContainSubstring("SSLEngine on"))
 			Expect(configData).Should(ContainSubstring("SSLCertificateFile      \"/etc/pki/tls/certs/nova-metadata.crt\""))
 			Expect(configData).Should(ContainSubstring("SSLCertificateKeyFile   \"/etc/pki/tls/private/nova-metadata.key\""))
+			Expect(configData).Should(
+				ContainSubstring("TimeOut 60"))
 
 			configData = string(configDataMap.Data["01-nova.conf"])
 			Expect(configData).Should(
