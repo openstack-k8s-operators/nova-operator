@@ -87,6 +87,12 @@ type NovaAPISpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=60
+	// +kubebuilder:validation:Minimum=10
+	// APITimeout for Route and Apache
+	APITimeout int `json:"apiTimeout"`
+
 	// +kubebuilder:validation:Required
 	// Secret is the name of the Secret instance containing password
 	// information for the nova-api service. This secret is expected to be

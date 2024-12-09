@@ -487,6 +487,7 @@ func (r *NovaAPIReconciler) generateConfigs(
 		endptConfig := map[string]interface{}{}
 		endptConfig["ServerName"] = fmt.Sprintf("nova-%s.%s.svc", endpt.String(), instance.Namespace)
 		endptConfig["tls"] = false // default TLS to false, and set it bellow to true if enabled
+		endptConfig["TimeOut"] = instance.Spec.APITimeout
 		if instance.Spec.TLS.API.Enabled(endpt) {
 			templateParameters["tls"] = true
 			endptConfig["tls"] = true
@@ -494,6 +495,7 @@ func (r *NovaAPIReconciler) generateConfigs(
 			endptConfig["SSLCertificateKeyFile"] = fmt.Sprintf("/etc/pki/tls/private/%s.key", endpt.String())
 		}
 		httpdVhostConfig[endpt.String()] = endptConfig
+
 	}
 	templateParameters["VHosts"] = httpdVhostConfig
 

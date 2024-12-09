@@ -476,6 +476,7 @@ func (r *NovaMetadataReconciler) generateConfigs(
 		"MemcachedServers":         memcachedInstance.GetMemcachedServerListString(),
 		"MemcachedServersWithInet": memcachedInstance.GetMemcachedServerListWithInetString(),
 		"MemcachedTLS":             memcachedInstance.GetMemcachedTLSSupport(),
+		"TimeOut":                  instance.Spec.APITimeout,
 	}
 
 	var db *mariadbv1.Database

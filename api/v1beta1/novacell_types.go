@@ -107,6 +107,12 @@ type NovaCellSpec struct {
 	// the deployment.
 	CellName string `json:"cellName"`
 
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=60
+	// +kubebuilder:validation:Minimum=10
+	// APITimeout for Route and Apache
+	APITimeout int `json:"apiTimeout"`
+
 	// +kubebuilder:validation:Required
 	// Secret is the name of the Secret instance containing password
 	// information for the nova cell. This secret is expected to be

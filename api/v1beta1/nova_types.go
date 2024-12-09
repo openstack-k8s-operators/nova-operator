@@ -66,6 +66,12 @@ type NovaSpecCore struct {
 	// APIDatabaseAccount - MariaDBAccount to use when accessing the API DB
 	APIDatabaseAccount string `json:"apiDatabaseAccount"`
 
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=60
+	// +kubebuilder:validation:Minimum=10
+	// APITimeout for Route and Apache
+	APITimeout int `json:"apiTimeout"`
+
 	// +kubebuilder:validation:Required
 	// Secret is the name of the Secret instance containing password
 	// information for nova like the keystone service password and DB passwords

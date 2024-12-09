@@ -103,6 +103,12 @@ type NovaMetadataSpec struct {
 	// If not provided then the metadata serving every cells in the deployment
 	CellName string `json:"cellName,omitempty"`
 
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=60
+	// +kubebuilder:validation:Minimum=10
+	// APITimeout for Route and Apache
+	APITimeout int `json:"apiTimeout"`
+
 	// +kubebuilder:validation:Required
 	// Secret is the name of the Secret instance containing password
 	// information for the nova-conductor service. This secret is expected to
@@ -265,6 +271,7 @@ func NewNovaMetadataSpec(
 		TLS:                    novaCell.MetadataServiceTemplate.TLS,
 		DefaultConfigOverwrite: novaCell.MetadataServiceTemplate.DefaultConfigOverwrite,
 		MemcachedInstance:      novaCell.MemcachedInstance,
+		APITimeout:             novaCell.APITimeout,
 	}
 
 	if metadataSpec.NodeSelector == nil {
