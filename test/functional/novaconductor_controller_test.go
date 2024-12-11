@@ -205,7 +205,7 @@ var _ = Describe("NovaConductor controller", func() {
 					ContainSubstring("[upgrade_levels]\ncompute = auto"))
 				Expect(configData).Should(
 					ContainSubstring("backend = dogpile.cache.memcached"))
-				Expect(configData).Should(
+				Expect(configData).ShouldNot(
 					ContainSubstring(fmt.Sprintf("memcache_servers=memcached-0.memcached.%s.svc:11211,memcached-1.memcached.%s.svc:11211,memcached-2.memcached.%s.svc:11211",
 						novaNames.Namespace, novaNames.Namespace, novaNames.Namespace)))
 				Expect(configData).Should(

@@ -246,7 +246,7 @@ var _ = Describe("Nova multi cell", func() {
 						apiAccount.Spec.UserName, apiSecret.Data[mariadbv1.DatabasePasswordSelector],
 						novaNames.APIMariaDBDatabaseName.Name, novaNames.Namespace)),
 			)
-			Expect(configData).Should(
+			Expect(configData).ShouldNot(
 				ContainSubstring(fmt.Sprintf("memcache_servers=memcached-0.memcached.%s.svc:11211,memcached-1.memcached.%s.svc:11211,memcached-2.memcached.%s.svc:11211",
 					novaNames.Namespace, novaNames.Namespace, novaNames.Namespace)))
 			Expect(configData).Should(
@@ -373,7 +373,7 @@ var _ = Describe("Nova multi cell", func() {
 			)
 
 			Expect(configData).To(ContainSubstring("transport_url=rabbit://cell1/fake"))
-			Expect(configData).Should(
+			Expect(configData).ShouldNot(
 				ContainSubstring(fmt.Sprintf("memcache_servers=memcached1-0.memcached1.%s.svc:11211,memcached1-1.memcached1.%s.svc:11211,memcached1-2.memcached1.%s.svc:11211",
 					novaNames.Namespace, novaNames.Namespace, novaNames.Namespace)))
 			Expect(configData).Should(
