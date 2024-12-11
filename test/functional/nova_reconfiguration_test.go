@@ -780,7 +780,7 @@ var _ = Describe("Nova reconfiguration", func() {
 		Expect(configDataMap).ShouldNot(BeNil())
 		Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
 		configData := string(configDataMap.Data["01-nova.conf"])
-		Expect(configData).Should(
+		Expect(configData).ShouldNot(
 			ContainSubstring(fmt.Sprintf("memcache_servers=memcached-0.memcached.%s.svc:11211,memcached-1.memcached.%s.svc:11211,memcached-2.memcached.%s.svc:11211",
 				novaNames.Namespace, novaNames.Namespace, novaNames.Namespace)))
 		Expect(configData).Should(
@@ -801,7 +801,7 @@ var _ = Describe("Nova reconfiguration", func() {
 			g.Expect(configDataMap).ShouldNot(BeNil())
 			g.Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
 			configData = string(configDataMap.Data["01-nova.conf"])
-			g.Expect(configData).To(ContainSubstring("memcache_servers=new"))
+			g.Expect(configData).ToNot(ContainSubstring("memcache_servers=new"))
 			g.Expect(configData).To(ContainSubstring("memcached_servers=inet_new"))
 		}, timeout, interval).Should(Succeed())
 	})
