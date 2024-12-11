@@ -197,9 +197,11 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 				Expect(configData).Should(ContainSubstring("password = service-password"))
 				Expect(configData).Should(
 					ContainSubstring("backend = dogpile.cache.memcached"))
+				memcacheInstance := infra.GetMemcached(novaNames.MemcachedNamespace)
 				Expect(configData).Should(
-					ContainSubstring(fmt.Sprintf("memcache_servers=memcached-0.memcached.%s.svc:11211,memcached-1.memcached.%s.svc:11211,memcached-2.memcached.%s.svc:11211",
-						novaNames.Namespace, novaNames.Namespace, novaNames.Namespace)))
+					ContainSubstring("backend = dogpile.cache.memcached"))
+				Expect(configData).Should(
+					ContainSubstring(fmt.Sprintf("memcache_servers=%s", memcacheInstance.GetMemcachedServerListWithInetString())))
 				Expect(configData).Should(
 					ContainSubstring(fmt.Sprintf("memcached_servers=inet:[memcached-0.memcached.%s.svc]:11211,inet:[memcached-1.memcached.%s.svc]:11211,inet:[memcached-2.memcached.%s.svc]:11211",
 						novaNames.Namespace, novaNames.Namespace, novaNames.Namespace)))
