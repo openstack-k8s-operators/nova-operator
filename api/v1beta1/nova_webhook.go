@@ -307,6 +307,33 @@ func (r *Nova) ValidateDelete() (admission.Warnings, error) {
 	return nil, nil
 }
 
+// SetDefaultRouteAnnotations sets HAProxy timeout values of the route
+// NOTE: it is used by ctlplane webhook on openstack-operator
+func (r *NovaSpec) SetDefaultRouteAnnotations(annotations map[string]string) {
+	const haProxyAnno = "haproxy.router.openshift.io/timeout"
+	// Use a custom annotation to flag when the operator has set the default HAProxy timeout
+	// With the annotation func determines when to overwrite existing HAProxy timeout with the APITimeout
+	const novaAnno = "api.nova.openstack.org/timeout"
+
+	valNova, okNova := annotations[novaAnno]
+	valHAProxy, okHAProxy := annotations[haProxyAnno]
+
+	// Human operator set the HAProxy timeout manually
+	if !okNova && okHAProxy {
+		return
+	}
+
+	// Human operator modified the HAProxy timeout manually without removing the Nova flag
+	if okNova && okHAProxy && valNova != valHAProxy {
+		delete(annotations, novaAnno)
+		return
+	}
+
+	timeout := fmt.Sprintf("%ds", r.APITimeout)
+	annotations[novaAnno] = timeout
+	annotations[haProxyAnno] = timeout
+}
+
 // Validate the field values
 func (r *NovaCellDBPurge) Validate(basePath *field.Path) field.ErrorList {
 	var errors field.ErrorList
