@@ -51,14 +51,191 @@ var _ = Describe("Nova multi cell", func() {
 		DeferCleanup(k8sClient.Delete, ctx, cell1Account)
 		DeferCleanup(k8sClient.Delete, ctx, cell1Secret)
 
-		cell2Account, cell2Secret := mariadb.CreateMariaDBAccountAndSecret(
-			cell2.MariaDBAccountName, mariadbv1.MariaDBAccountSpec{})
-		DeferCleanup(k8sClient.Delete, ctx, cell2Account)
-		DeferCleanup(k8sClient.Delete, ctx, cell2Secret)
+	})
+
+	When("Nova CR instance is created with 4 cells", func() {
+		BeforeEach(func() {
+
+			mariadb.CreateMariaDBAccountAndSecret(
+				cell2.MariaDBAccountName, mariadbv1.MariaDBAccountSpec{})
+
+			mariadb.CreateMariaDBAccountAndSecret(
+				cell3.MariaDBAccountName, mariadbv1.MariaDBAccountSpec{})
+
+			// TODO(bogdando): deduplicate this into CreateNovaWith3CellsAndEnsureReady()
+			DeferCleanup(k8sClient.Delete, ctx, CreateNovaSecretFor3Cells(novaNames.NovaName.Namespace, SecretName))
+			DeferCleanup(k8sClient.Delete, ctx, CreateNovaMessageBusSecret(cell0))
+			DeferCleanup(k8sClient.Delete, ctx, CreateNovaMessageBusSecret(cell1))
+			DeferCleanup(k8sClient.Delete, ctx, CreateNovaMessageBusSecret(cell2))
+			DeferCleanup(k8sClient.Delete, ctx, CreateNovaMessageBusSecret(cell3))
+
+			serviceSpec := corev1.ServiceSpec{Ports: []corev1.ServicePort{{Port: 3306}}}
+			DeferCleanup(mariadb.DeleteDBService, mariadb.CreateDBService(novaNames.APIMariaDBDatabaseName.Namespace, novaNames.APIMariaDBDatabaseName.Name, serviceSpec))
+			DeferCleanup(mariadb.DeleteDBService, mariadb.CreateDBService(cell0.MariaDBDatabaseName.Namespace, cell0.MariaDBDatabaseName.Name, serviceSpec))
+			DeferCleanup(mariadb.DeleteDBService, mariadb.CreateDBService(cell1.MariaDBDatabaseName.Namespace, cell1.MariaDBDatabaseName.Name, serviceSpec))
+			DeferCleanup(mariadb.DeleteDBService, mariadb.CreateDBService(cell2.MariaDBDatabaseName.Namespace, cell2.MariaDBDatabaseName.Name, serviceSpec))
+			DeferCleanup(mariadb.DeleteDBService, mariadb.CreateDBService(cell3.MariaDBDatabaseName.Namespace, cell3.MariaDBDatabaseName.Name, serviceSpec))
+
+			spec := GetDefaultNovaSpec()
+			cell0Template := GetDefaultNovaCellTemplate()
+			cell0Template["cellDatabaseInstance"] = cell0.MariaDBDatabaseName.Name
+			cell0Template["cellDatabaseAccount"] = cell0.MariaDBAccountName.Name
+
+			cell1Template := GetDefaultNovaCellTemplate()
+			cell1Template["cellDatabaseInstance"] = cell1.MariaDBDatabaseName.Name
+			cell1Template["cellDatabaseAccount"] = cell1.MariaDBAccountName.Name
+			cell1Template["cellMessageBusInstance"] = cell1.TransportURLName.Name
+			cell1Template["passwordSelectors"] = map[string]interface{}{
+				"database": "NovaCell1DatabasePassword",
+			}
+			cell1Template["novaComputeTemplates"] = map[string]interface{}{
+				ironicComputeName: GetDefaultNovaComputeTemplate(),
+			}
+			cell1Memcached := "memcached1"
+			cell1Template["memcachedInstance"] = cell1Memcached
+
+			cell2Template := GetDefaultNovaCellTemplate()
+			cell2Template["cellDatabaseInstance"] = cell2.MariaDBDatabaseName.Name
+			cell2Template["cellDatabaseAccount"] = cell2.MariaDBAccountName.Name
+			cell2Template["cellMessageBusInstance"] = cell2.TransportURLName.Name
+			cell2Template["hasAPIAccess"] = false
+			cell2Template["passwordSelectors"] = map[string]interface{}{
+				"database": "NovaCell2DatabasePassword",
+			}
+
+			cell3Template := GetDefaultNovaCellTemplate()
+			cell3Template["cellDatabaseInstance"] = cell3.MariaDBDatabaseName.Name
+			cell3Template["cellDatabaseAccount"] = cell3.MariaDBAccountName.Name
+			cell3Template["cellMessageBusInstance"] = cell3.TransportURLName.Name
+			cell3Template["hasAPIAccess"] = false
+			// cell3Template["passwordSelectors"] = map[string]interface{}{
+			// 	"database": "NovaCell3DatabasePassword",
+			// }
+			// cell3Template["novaComputeTemplates"] = map[string]interface{}{
+			// 	ironicComputeName: GetDefaultNovaComputeTemplate(),
+			// }
+
+			spec["cellTemplates"] = map[string]interface{}{
+				"cell0": cell0Template,
+				"cell1": cell1Template,
+				"cell2": cell2Template,
+				"cell3": cell3Template,
+			}
+
+			spec["apiDatabaseInstance"] = novaNames.APIMariaDBDatabaseName.Name
+			spec["apiMessageBusInstance"] = cell0.TransportURLName.Name
+
+			DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace))
+			memcachedSpecCell1 := memcachedv1.MemcachedSpec{
+				MemcachedSpecCore: memcachedv1.MemcachedSpecCore{
+					Replicas: ptr.To(int32(3)),
+				},
+			}
+			memcachedNamespace := types.NamespacedName{
+				Name:      cell1Memcached,
+				Namespace: novaNames.NovaName.Namespace,
+			}
+			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, cell1Memcached, memcachedSpecCell1))
+			infra.SimulateMemcachedReady(memcachedNamespace)
+
+			memcachedSpec := memcachedv1.MemcachedSpec{
+				MemcachedSpecCore: memcachedv1.MemcachedSpecCore{
+					Replicas: ptr.To(int32(3)),
+				},
+			}
+
+			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
+			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
+			keystone.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
+
+			// Pre-requisite simulation
+			mariadb.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(novaNames.APIMariaDBDatabaseAccount)
+			mariadb.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(cell0.MariaDBAccountName)
+			infra.SimulateTransportURLReady(cell0.TransportURLName)
+			th.SimulateJobSuccess(cell0.DBSyncJobName)
+			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
+			th.SimulateJobSuccess(cell0.CellMappingJobName)
+
+			th.SimulateStatefulSetReplicaReady(novaNames.APIStatefulSetName)
+			keystone.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
+			th.SimulateStatefulSetReplicaReady(novaNames.SchedulerStatefulSetName)
+			th.SimulateStatefulSetReplicaReady(novaNames.MetadataStatefulSetName)
+
+			// cell1
+			mariadb.SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(cell1.MariaDBAccountName)
+			infra.SimulateTransportURLReady(cell1.TransportURLName)
+			th.SimulateStatefulSetReplicaReady(cell1.NovaComputeStatefulSetName)
+			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
+			th.SimulateJobSuccess(cell1.DBSyncJobName)
+			th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
+			th.SimulateJobSuccess(cell1.CellMappingJobName)
+			th.SimulateJobSuccess(cell1.HostDiscoveryJobName)
+
+			// Create/Simulate DB for cell2 and cell3
+			mariadb.SimulateMariaDBDatabaseCompleted(cell2.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(cell2.MariaDBAccountName)
+			infra.SimulateTransportURLReady(cell2.TransportURLName)
+			th.SimulateStatefulSetReplicaReady(cell2.NoVNCProxyStatefulSetName)
+			th.SimulateJobSuccess(cell2.DBSyncJobName)
+			th.SimulateStatefulSetReplicaReady(cell2.ConductorStatefulSetName)
+			th.SimulateJobSuccess(cell2.CellMappingJobName)
+
+			mariadb.SimulateMariaDBDatabaseCompleted(cell3.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(cell3.MariaDBAccountName)
+			infra.SimulateTransportURLReady(cell3.TransportURLName)
+			th.SimulateStatefulSetReplicaReady(cell3.NoVNCProxyStatefulSetName)
+			th.SimulateJobSuccess(cell3.DBSyncJobName)
+			th.SimulateStatefulSetReplicaReady(cell3.ConductorStatefulSetName)
+			th.SimulateJobSuccess(cell3.CellMappingJobName)
+
+		})
+
+		It("deletes cell3 and verifies error for cell2 because its DB deleted already", func() {
+
+			// manually delete DB for cell2, to reproduce the error in cell2 deletion
+			Expect(k8sClient.Delete(ctx, mariadb.GetMariaDBDatabase(cell2.MariaDBDatabaseName))).To(Succeed())
+
+			// delete cell2 and then cell3,
+			// the overall call should succeed
+			Eventually(func(g Gomega) {
+				nova := GetNova(novaNames.NovaName)
+				delete(nova.Spec.CellTemplates, "cell2")
+				delete(nova.Spec.CellTemplates, "cell3")
+				g.Expect(k8sClient.Update(ctx, nova)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				nova := GetNova(novaNames.NovaName)
+				g.Expect(nova.Status.RegisteredCells).NotTo(HaveKey(cell3.CellCRName.Name))
+			}, timeout, interval).Should(Succeed())
+
+			// NovaCellNotExists(cell3.CellCRName)
+			GetNovaCell(cell2.CellCRName)
+
+			// cell2 deletion should have failed
+			Eventually(func(g Gomega) {
+				mappingJob := th.GetJob(cell2.CellDeleteJobName)
+				newJobInputHash := GetEnvVarValue(
+					mappingJob.Spec.Template.Spec.Containers[0].Env, "INPUT_HASH", "")
+				g.Expect(newJobInputHash).NotTo(BeEmpty())
+			}, timeout, interval).Should(Succeed())
+
+		})
 
 	})
+
 	When("Nova CR instance is created with 3 cells", func() {
 		BeforeEach(func() {
+
+			cell2Account, cell2Secret := mariadb.CreateMariaDBAccountAndSecret(
+				cell2.MariaDBAccountName, mariadbv1.MariaDBAccountSpec{})
+			DeferCleanup(k8sClient.Delete, ctx, cell2Account)
+			DeferCleanup(k8sClient.Delete, ctx, cell2Secret)
+
 			// TODO(bogdando): deduplicate this into CreateNovaWith3CellsAndEnsureReady()
 			DeferCleanup(k8sClient.Delete, ctx, CreateNovaSecretFor3Cells(novaNames.NovaName.Namespace, SecretName))
 			DeferCleanup(k8sClient.Delete, ctx, CreateNovaMessageBusSecret(cell0))
