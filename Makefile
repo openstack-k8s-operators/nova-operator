@@ -136,7 +136,7 @@ tidy: ## Run go mod tidy on every mod file in the repo
 .PHONY: golangci-lint
 golangci-lint:
 	# NOTE this will install golangci-lint in to local bin dir
-	test -s $(LOCALBIN)/golangci-lint || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s v1.51.2
+	test -s $(LOCALBIN)/golangci-lint || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s v1.59.1
 	$(LOCALBIN)/golangci-lint run --fix
 
 PROCS?=$(shell expr $(shell nproc --ignore 2) / 2)
