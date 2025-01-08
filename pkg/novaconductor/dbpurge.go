@@ -22,7 +22,6 @@ func DBPurgeCronJob(
 	args := []string{"-c", nova.KollaServiceCommand}
 
 	envVars := map[string]env.Setter{}
-	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
 	envVars["KOLLA_BOOTSTRAP"] = env.SetValue("true")
 
 	envVars["ARCHIVE_AGE"] = env.SetValue(fmt.Sprintf("%d", *instance.Spec.DBPurge.ArchiveAge))
