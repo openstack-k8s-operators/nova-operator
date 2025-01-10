@@ -56,6 +56,9 @@ const (
 
 // Common Messages used by API objects.
 const (
+	//NovaNetworkAttachmentsReadyInitMessage
+	NovaNetworkAttachmentsReadyErrorMessage = "NetworkAttachments error occurred not all pods have interfaces with ips as configured in NetworkAttachments: %s"
+
 	// NovaAPIReadyInitMessage
 	NovaAPIReadyInitMessage = "NovaAPI not started"
 
@@ -172,4 +175,7 @@ const (
 
 	//CellHostDiscoverErrorMessage
 	CellHostDiscoverErrorMessage = "CellHostDiscover error occurred %s"
+
+	//InputReadyErrorMessage
+	InputReadyErrorMessage = "Input data error occurred %s"
 )
