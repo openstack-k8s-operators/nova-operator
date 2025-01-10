@@ -157,7 +157,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 					condition.InputReadyCondition,
 					corev1.ConditionFalse,
 					condition.ErrorReason,
-					fmt.Sprintf("Input data error occurred field 'ServicePassword' not found in secret/%s", cell1.InternalCellSecretName.Name),
+					fmt.Sprintf("Input data error occurred field not found in Secret: 'ServicePassword' not found in secret/%s", cell1.InternalCellSecretName.Name),
 				)
 			})
 		})
