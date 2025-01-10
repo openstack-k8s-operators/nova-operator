@@ -95,7 +95,7 @@ const (
 
 	// fields to index to reconcile when change
 	passwordSecretField        = ".spec.secret"
-	caBundleSecretNameField    = ".spec.tls.caBundleSecretName"
+	caBundleSecretNameField    = ".spec.tls.caBundleSecretName" // #nosec G101
 	tlsAPIInternalField        = ".spec.tls.api.internal.secretName"
 	tlsAPIPublicField          = ".spec.tls.api.public.secretName"
 	tlsMetadataField           = ".spec.tls.secretName"
@@ -186,8 +186,6 @@ type conditionUpdater interface {
 	MarkTrue(t condition.Type, messageFormat string, messageArgs ...interface{})
 }
 
-// ensureSecret - ensures that the Secret object exists and the expected fields
-// are in the Secret. It returns a hash of the values of the expected fields.
 func ensureSecret(
 	ctx context.Context,
 	secretName types.NamespacedName,
@@ -225,7 +223,10 @@ func ensureSecret(
 	for _, field := range expectedFields {
 		val, ok := secret.Data[field]
 		if !ok {
-			err := fmt.Errorf("field '%s' not found in secret/%s", field, secretName.Name)
+			// Usage in the code
+			err := k8s_errors.NewBadRequest(fmt.Sprintf("field '%s' not found in secret/%s", field, secretName.Name))
+			// ensureSecret - ensures that the Secret object exists and the expected fields
+			// are in the Secret. It returns a hash of the values of the expected fields.
 			conditionUpdater.Set(condition.FalseCondition(
 				condition.InputReadyCondition,
 				condition.ErrorReason,
@@ -579,7 +580,7 @@ func getNovaClient(
 			return nil, err
 		}
 		if (ctrlResult != ctrl.Result{}) {
-			return nil, fmt.Errorf("the CABundleSecret %s not found", auth.GetCABundleSecretName())
+			return nil, fmt.Errorf("the CABundleSecret %s not found: %w", auth.GetCABundleSecretName(), err)
 		}
 
 		tlsConfig = &openstack.TLSConfig{
@@ -641,7 +642,7 @@ func ensureMemcached(
 				condition.RequestedReason,
 				condition.SeverityInfo,
 				condition.MemcachedReadyWaitingMessage))
-			return nil, fmt.Errorf("memcached %s not found", memcachedName)
+			return nil, fmt.Errorf("%w: memcached %s not found", err, memcachedName)
 		}
 		conditionUpdater.Set(condition.FalseCondition(
 			condition.MemcachedReadyCondition,
@@ -658,7 +659,7 @@ func ensureMemcached(
 			condition.RequestedReason,
 			condition.SeverityInfo,
 			condition.MemcachedReadyWaitingMessage))
-		return nil, fmt.Errorf("memcached %s is not ready", memcachedName)
+		return nil, fmt.Errorf("%w: memcached %s is not ready", ErrResourceIsNotReady, memcachedName)
 	}
 	conditionUpdater.MarkTrue(condition.MemcachedReadyCondition, condition.MemcachedReadyMessage)
 
