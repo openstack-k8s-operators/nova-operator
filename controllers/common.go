@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -95,7 +96,7 @@ const (
 
 	// fields to index to reconcile when change
 	passwordSecretField        = ".spec.secret"
-	caBundleSecretNameField    = ".spec.tls.caBundleSecretName"
+	caBundleSecretNameField    = ".spec.tls.caBundleSecretName" // #nosec G101
 	tlsAPIInternalField        = ".spec.tls.api.internal.secretName"
 	tlsAPIPublicField          = ".spec.tls.api.public.secretName"
 	tlsMetadataField           = ".spec.tls.secretName"
@@ -186,8 +187,6 @@ type conditionUpdater interface {
 	MarkTrue(t condition.Type, messageFormat string, messageArgs ...interface{})
 }
 
-// ensureSecret - ensures that the Secret object exists and the expected fields
-// are in the Secret. It returns a hash of the values of the expected fields.
 func ensureSecret(
 	ctx context.Context,
 	secretName types.NamespacedName,
@@ -225,7 +224,7 @@ func ensureSecret(
 	for _, field := range expectedFields {
 		val, ok := secret.Data[field]
 		if !ok {
-			err := fmt.Errorf("field '%s' not found in secret/%s", field, secretName.Name)
+			err := fmt.Errorf("%w: '%s' not found in secret/%s", util.ErrFieldNotFound, field, secretName.Name)
 			conditionUpdater.Set(condition.FalseCondition(
 				condition.InputReadyCondition,
 				condition.ErrorReason,
@@ -284,7 +283,7 @@ func ensureNetworkAttachments(
 				condition.NetworkAttachmentsReadyCondition,
 				condition.ErrorReason,
 				condition.SeverityWarning,
-				condition.NetworkAttachmentsReadyErrorMessage,
+				condition.NetworkAttachmentsErrorMessage,
 				err.Error()))
 			return nadAnnotations, ctrl.Result{}, err
 		}
@@ -579,7 +578,10 @@ func getNovaClient(
 			return nil, err
 		}
 		if (ctrlResult != ctrl.Result{}) {
-			return nil, fmt.Errorf("the CABundleSecret %s not found", auth.GetCABundleSecretName())
+			err = k8s_errors.NewNotFound(
+				appsv1.Resource("Secret"),
+				fmt.Sprintf("the CABundleSecret %s not found", auth.GetCABundleSecretName()))
+			return nil, err
 		}
 
 		tlsConfig = &openstack.TLSConfig{
@@ -641,7 +643,7 @@ func ensureMemcached(
 				condition.RequestedReason,
 				condition.SeverityInfo,
 				condition.MemcachedReadyWaitingMessage))
-			return nil, fmt.Errorf("memcached %s not found", memcachedName)
+			return nil, fmt.Errorf("%w: memcached %s not found", err, memcachedName)
 		}
 		conditionUpdater.Set(condition.FalseCondition(
 			condition.MemcachedReadyCondition,
@@ -658,7 +660,7 @@ func ensureMemcached(
 			condition.RequestedReason,
 			condition.SeverityInfo,
 			condition.MemcachedReadyWaitingMessage))
-		return nil, fmt.Errorf("memcached %s is not ready", memcachedName)
+		return nil, fmt.Errorf("%w: memcached %s is not ready", util.ErrResourceIsNotReady, memcachedName)
 	}
 	conditionUpdater.MarkTrue(condition.MemcachedReadyCondition, condition.MemcachedReadyMessage)
 
