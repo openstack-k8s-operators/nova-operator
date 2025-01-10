@@ -696,7 +696,7 @@ var _ = Describe("NovaCell controller", func() {
 				corev1.ConditionFalse,
 				condition.ErrorReason,
 				fmt.Sprintf(
-					"NovaNoVNCProxy error occurred cannot update "+
+					"NovaNoVNCProxy error occurred cannot update object "+
 						"NovaNoVNCProxy/%s as the cell is not owning it",
 					cell2.NoVNCProxyName.Name,
 				),
@@ -833,7 +833,7 @@ var _ = Describe("NovaCell controller", func() {
 				corev1.ConditionFalse,
 				condition.ErrorReason,
 				fmt.Sprintf(
-					"NovaMetadata error occurred cannot update "+
+					"NovaMetadata error occurred cannot update object "+
 						"NovaMetadata/%s as the cell is not owning it",
 					cell2.MetadataName.Name,
 				),

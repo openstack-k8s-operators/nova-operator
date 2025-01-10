@@ -426,7 +426,7 @@ func (r *NovaCellReconciler) ensureNoVNCProxy(
 	// If it is not created by us, we don't touch it
 	if !k8s_errors.IsNotFound(err) && !OwnedBy(novncproxy, instance) {
 		err := fmt.Errorf(
-			"cannot update NovaNoVNCProxy/%s as the cell is not owning it", novncproxyName.Name)
+			"%w NovaNoVNCProxy/%s as the cell is not owning it", util.ErrCannotUpdateObject, novncproxyName.Name)
 		Log.Error(err,
 			"NovaNoVNCProxy is enabled in this cell, but there is a "+
 				"NovaNoVNCProxy CR not owned by the cell. We cannot update it. "+
@@ -548,7 +548,7 @@ func (r *NovaCellReconciler) ensureMetadata(
 	// If it is not created by us, we don't touch it
 	if !k8s_errors.IsNotFound(err) && !OwnedBy(metadata, instance) {
 		err := fmt.Errorf(
-			"cannot update NovaMetadata/%s as the cell is not owning it", metadata.Name)
+			"%w NovaMetadata/%s as the cell is not owning it", util.ErrCannotUpdateObject, metadata.Name)
 		Log.Error(err,
 			"NovaMetadata is enabled, but there is a "+
 				"NovaMetadata CR not owned by us. We cannot update it. "+
@@ -708,7 +708,7 @@ func (r *NovaCellReconciler) ensureNovaCompute(
 	// If it is not created by us, we don't touch it
 	if !k8s_errors.IsNotFound(err) && !OwnedBy(novacompute, instance) {
 		err := fmt.Errorf(
-			"cannot update NovaCompute/%s as the cell is not owning it", novacompute.Name)
+			"%w NovaCompute/%s as the cell is not owning it", util.ErrCannotUpdateObject, novacompute.Name)
 		Log.Error(err,
 			"NovaCompute is defined in the cell, but there is a "+
 				"NovaCompute CR not owned by us. We cannot update it. "+

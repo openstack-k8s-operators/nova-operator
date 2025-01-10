@@ -302,7 +302,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	case nova.DBCompleted:
 		instance.Status.Conditions.MarkTrue(novav1.NovaAPIDBReadyCondition, condition.DBReadyMessage)
 	default:
-		return ctrl.Result{}, fmt.Errorf("invalid DatabaseStatus from ensureAPIDB: %d", apiDBStatus)
+		return ctrl.Result{}, fmt.Errorf("%w from ensureAPIDB: %d", util.ErrInvalidStatus, apiDBStatus)
 	}
 
 	// We need to create a list of cellNames to iterate on and as the map
@@ -332,7 +332,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 			creatingDBs = append(creatingDBs, cellName)
 		case nova.DBCompleted:
 		default:
-			return ctrl.Result{}, fmt.Errorf("invalid DatabaseStatus from ensureCellDB: %d for cell %s", status, cellName)
+			return ctrl.Result{}, fmt.Errorf("%w from ensureCellDB: %d for cell %s", util.ErrInvalidStatus, status, cellName)
 		}
 		cellDBs[cellName] = &nova.Database{Database: cellDB, Status: status}
 	}
@@ -380,7 +380,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		instance.Status.Conditions.MarkTrue(
 			novav1.NovaAPIMQReadyCondition, novav1.NovaAPIMQReadyMessage)
 	default:
-		return ctrl.Result{}, fmt.Errorf("invalid MessageBusStatus from  for the API MQ: %d", apiMQStatus)
+		return ctrl.Result{}, fmt.Errorf("%w from  for the API MQ: %d", util.ErrInvalidStatus, apiMQStatus)
 	}
 
 	cellMQs := map[string]*nova.MessageBus{}
@@ -408,7 +408,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 			creatingMQs = append(creatingMQs, cellName)
 		case nova.MQCompleted:
 		default:
-			return ctrl.Result{}, fmt.Errorf("invalid MessageBusStatus from ensureMQ: %d for cell %s", status, cellName)
+			return ctrl.Result{}, fmt.Errorf("%w from ensureMQ: %d for cell %s", util.ErrInvalidStatus, status, cellName)
 		}
 		cellMQs[cellName] = &nova.MessageBus{TransportURL: cellTransportURL, Status: status}
 	}
@@ -1632,7 +1632,7 @@ func (r *NovaReconciler) ensureMQ(
 	url, ok := secret.Data[TransportURLSelector]
 	if !ok {
 		return "", nova.MQFailed, fmt.Errorf(
-			"the TransportURL secret %s does not have 'transport_url' field", transportURL.Status.SecretName)
+			"%w: the TransportURL secret %s does not have 'transport_url' field", util.ErrFieldNotFound, transportURL.Status.SecretName)
 	}
 
 	return string(url), nova.MQCompleted, nil
@@ -1673,7 +1673,7 @@ func (r *NovaReconciler) ensureMetadata(
 	// If it is not created by us, we don't touch it
 	if !k8s_errors.IsNotFound(err) && !OwnedBy(metadata, instance) {
 		err := fmt.Errorf(
-			"cannot update NovaMetadata/%s as the cell is not owning it", metadata.Name)
+			"%w NovaMetadata/%s as the cell is not owning it", util.ErrCannotUpdateObject, metadata.Name)
 		Log.Error(err,
 			"NovaMetadata is enabled, but there is a "+
 				"NovaMetadata CR not owned by us. We cannot update it. "+
