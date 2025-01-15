@@ -183,17 +183,19 @@ var _ = Describe("Nova reconfiguration", func() {
 			}, timeout, interval).Should(Succeed())
 
 			Eventually(func(g Gomega) {
-				nova := GetNova(novaNames.NovaName)
-				g.Expect(nova.Status.RegisteredCells).NotTo(HaveKey(cell1.CellCRName.Name))
-			}, timeout, interval).Should(Succeed())
-
-			NovaCellNotExists(cell1.CellCRName)
-			Eventually(func(g Gomega) {
 				mappingJob := th.GetJob(cell1.CellDeleteJobName)
 				newJobInputHash := GetEnvVarValue(
 					mappingJob.Spec.Template.Spec.Containers[0].Env, "INPUT_HASH", "")
 				g.Expect(newJobInputHash).NotTo(BeNil())
 			}, timeout, interval).Should(Succeed())
+			th.SimulateJobSuccess(cell1.CellDeleteJobName)
+			Eventually(func(g Gomega) {
+				nova := GetNova(novaNames.NovaName)
+				g.Expect(nova.Status.RegisteredCells).NotTo(HaveKey(cell1.CellCRName.Name))
+			}, timeout, interval).Should(Succeed())
+
+			NovaCellNotExists(cell1.CellCRName)
+
 			th.AssertSecretDoesNotExist(cell1.InternalCellSecretName)
 
 			Eventually(func(g Gomega) {
