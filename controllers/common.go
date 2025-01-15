@@ -732,3 +732,9 @@ func ensureMemcached(
 
 	return memcached, err
 }
+
+func sortNovaCellListByName(cellList *novav1.NovaCellList) {
+	sort.SliceStable(cellList.Items, func(i, j int) bool {
+		return cellList.Items[i].Name < cellList.Items[j].Name
+	})
+}
