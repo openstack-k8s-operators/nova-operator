@@ -96,6 +96,12 @@ const (
 	// CellComputeDiscoveryReady indicates that all NovaComputes in cell reached the Ready status and
 	// the hosts in the cell have been successfully discovered
 	CellComputeDiscoveryReady CellDeploymentStatus = iota
+	// CellDeleteInProgress indicates that the NovaCell deletion is in progress
+	CellDeleteInProgress CellDeploymentStatus = iota
+	// CellDeleteFailed indicates that the NovaCell deletion failed
+	CellDeleteFailed CellDeploymentStatus = iota
+	// CellDeleteComplete indicates that the NovaCell deletion is complete
+	CellDeleteComplete CellDeploymentStatus = iota
 )
 
 // Database -
