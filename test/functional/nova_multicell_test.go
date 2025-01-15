@@ -1113,6 +1113,8 @@ var _ = Describe("Nova multi cell deletion", func() {
 				g.Expect(k8sClient.Update(ctx, nova)).To(Succeed())
 			}, timeout, interval).Should(Succeed())
 
+			th.SimulateJobSuccess(cell2.CellDeleteJobName)
+			th.SimulateJobSuccess(cell3.CellDeleteJobName)
 			Eventually(func(g Gomega) {
 				nova := GetNova(novaNames.NovaName)
 				g.Expect(nova.Status.RegisteredCells).To(HaveKey(cell2.CellCRName.Name))
