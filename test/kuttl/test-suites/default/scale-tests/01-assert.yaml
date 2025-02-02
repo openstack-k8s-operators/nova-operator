@@ -533,8 +533,6 @@ spec:
               value: "30"
             - name: KOLLA_BOOTSTRAP
               value: "true"
-            - name: KOLLA_CONFIG_STRATEGY
-              value: COPY_ALWAYS
             - name: PURGE_AGE
               value: "90"
             image: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
@@ -591,8 +589,6 @@ spec:
               value: "30"
             - name: KOLLA_BOOTSTRAP
               value: "true"
-            - name: KOLLA_CONFIG_STRATEGY
-              value: COPY_ALWAYS
             - name: PURGE_AGE
               value: "90"
             image: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
