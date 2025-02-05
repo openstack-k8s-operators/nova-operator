@@ -19,3 +19,5 @@ spec:
       manilaShares: {}
   horizon:
     enabled: false
+  nova:
+    enabled: true

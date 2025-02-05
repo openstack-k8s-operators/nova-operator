@@ -40,4 +40,3 @@ patches:
 - path: infra.yaml
 - path: keystone.yaml
 - path: placement.yaml
-- path: nova.yaml
