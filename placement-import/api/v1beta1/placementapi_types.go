@@ -213,6 +213,7 @@ func SetupDefaults() {
 	// Acquire environmental defaults and initialize Placement defaults with them
 	placementDefaults := PlacementAPIDefaults{
 		ContainerImageURL: util.GetEnvVar("RELATED_IMAGE_PLACEMENT_API_IMAGE_URL_DEFAULT", PlacementAPIContainerImage),
+		APITimeout:        60,
 	}
 
 	SetupPlacementAPIDefaults(placementDefaults)

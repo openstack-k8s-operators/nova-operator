@@ -38,6 +38,7 @@ import (
 // PlacementAPIDefaults -
 type PlacementAPIDefaults struct {
 	ContainerImageURL string
+	APITimeout        int
 }
 
 var placementAPIDefaults PlacementAPIDefaults
@@ -74,6 +75,10 @@ func (spec *PlacementAPISpec) Default() {
 	if spec.ContainerImage == "" {
 		spec.ContainerImage = placementAPIDefaults.ContainerImageURL
 	}
+	if spec.APITimeout == 0 {
+		spec.APITimeout = placementAPIDefaults.APITimeout
+	}
+
 }
 
 // Default - set defaults for this PlacementAPI core spec (this version is used by the OpenStackControlplane webhook)
