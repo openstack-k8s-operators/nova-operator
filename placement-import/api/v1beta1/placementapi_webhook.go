@@ -33,6 +33,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
+	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 )
 
 // PlacementAPIDefaults -
@@ -95,7 +96,7 @@ var _ webhook.Validator = &PlacementAPI{}
 func (r *PlacementAPI) ValidateCreate() (admission.Warnings, error) {
 	placementapilog.Info("validate create", "name", r.Name)
 
-	errors := r.Spec.ValidateCreate(field.NewPath("spec"))
+	errors := r.Spec.ValidateCreate(field.NewPath("spec"), r.Namespace)
 	if len(errors) != 0 {
 		placementapilog.Info("validation failed", "name", r.Name)
 		return nil, apierrors.NewInvalid(
@@ -113,7 +114,7 @@ func (r *PlacementAPI) ValidateUpdate(old runtime.Object) (admission.Warnings, e
 		return nil, apierrors.NewInternalError(fmt.Errorf("unable to convert existing object"))
 	}
 
-	errors := r.Spec.ValidateUpdate(oldPlacement.Spec, field.NewPath("spec"))
+	errors := r.Spec.ValidateUpdate(oldPlacement.Spec, field.NewPath("spec"), r.Namespace)
 	if len(errors) != 0 {
 		placementapilog.Info("validation failed", "name", r.Name)
 		return nil, apierrors.NewInvalid(
@@ -131,32 +132,48 @@ func (r *PlacementAPI) ValidateDelete() (admission.Warnings, error) {
 	return nil, nil
 }
 
-func (r PlacementAPISpec) ValidateCreate(basePath *field.Path) field.ErrorList {
-	return r.PlacementAPISpecCore.ValidateCreate(basePath)
+func (r PlacementAPISpec) ValidateCreate(basePath *field.Path, namespace string) field.ErrorList {
+	return r.PlacementAPISpecCore.ValidateCreate(basePath, namespace)
 }
 
-func (r PlacementAPISpec) ValidateUpdate(old PlacementAPISpec, basePath *field.Path) field.ErrorList {
-	return r.PlacementAPISpecCore.ValidateCreate(basePath)
+func (r PlacementAPISpec) ValidateUpdate(old PlacementAPISpec, basePath *field.Path, namespace string) field.ErrorList {
+	return r.PlacementAPISpecCore.ValidateCreate(basePath, namespace)
 }
 
-func (r PlacementAPISpecCore) ValidateCreate(basePath *field.Path) field.ErrorList {
+func (r PlacementAPISpecCore) ValidateCreate(basePath *field.Path, namespace string) field.ErrorList {
 	var allErrs field.ErrorList
 
 	// validate the service override key is valid
 	allErrs = append(allErrs, service.ValidateRoutedOverrides(basePath.Child("override").Child("service"), r.Override.Service)...)
 
 	allErrs = append(allErrs, ValidateDefaultConfigOverwrite(basePath, r.DefaultConfigOverwrite)...)
+
+	// When a TopologyRef CR is referenced, fail if a different Namespace is
+	// referenced because is not supported
+	if r.TopologyRef != nil {
+		if err := topologyv1.ValidateTopologyNamespace(r.TopologyRef.Namespace, *basePath, namespace); err != nil {
+			allErrs = append(allErrs, err)
+		}
+	}
 
 	return allErrs
 }
 
-func (r PlacementAPISpecCore) ValidateUpdate(old PlacementAPISpecCore, basePath *field.Path) field.ErrorList {
+func (r PlacementAPISpecCore) ValidateUpdate(old PlacementAPISpecCore, basePath *field.Path, namespace string) field.ErrorList {
 	var allErrs field.ErrorList
 
 	// validate the service override key is valid
 	allErrs = append(allErrs, service.ValidateRoutedOverrides(basePath.Child("override").Child("service"), r.Override.Service)...)
 
 	allErrs = append(allErrs, ValidateDefaultConfigOverwrite(basePath, r.DefaultConfigOverwrite)...)
+
+	// When a TopologyRef CR is referenced, fail if a different Namespace is
+	// referenced because is not supported
+	if r.TopologyRef != nil {
+		if err := topologyv1.ValidateTopologyNamespace(r.TopologyRef.Namespace, *basePath, namespace); err != nil {
+			allErrs = append(allErrs, err)
+		}
+	}
 
 	return allErrs
 }

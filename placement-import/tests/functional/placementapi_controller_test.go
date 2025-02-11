@@ -878,6 +878,134 @@ var _ = Describe("PlacementAPI controller", func() {
 		})
 	})
 
+	When("A PlacementAPI is created with a wrong topologyref", func() {
+		BeforeEach(func() {
+			// Build the topology Spec
+			topologySpec := GetSampleTopologySpec()
+			// Create Test Topologies
+			for _, t := range names.PlacementAPITopologies {
+				CreateTopology(t, topologySpec)
+			}
+			spec := GetDefaultPlacementAPISpec()
+			spec["topologyRef"] = map[string]interface{}{
+				"name": "foo",
+			}
+			placement := CreatePlacementAPI(names.PlacementAPIName, spec)
+			DeferCleanup(th.DeleteInstance, placement)
+		})
+
+		It("points to a non existing topology CR", func() {
+			// Reconciliation does not succeed because TopologyReadyCondition
+			// is not marked as True
+			th.ExpectCondition(
+				names.PlacementAPIName,
+				ConditionGetterFunc(PlacementConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+			)
+			// TopologyReadyCondition is Unknown as it waits for the Topology
+			// CR to be available
+			th.ExpectCondition(
+				names.PlacementAPIName,
+				ConditionGetterFunc(PlacementConditionGetter),
+				condition.TopologyReadyCondition,
+				corev1.ConditionUnknown,
+			)
+		})
+	})
+	When("A PlacementAPI is created with topologyref", func() {
+		BeforeEach(func() {
+			// Build the topology Spec
+			topologySpec := GetSampleTopologySpec()
+			// Create Test Topologies
+			for _, t := range names.PlacementAPITopologies {
+				CreateTopology(t, topologySpec)
+			}
+			spec := GetDefaultPlacementAPISpec()
+			spec["topologyRef"] = map[string]interface{}{
+				"name": names.PlacementAPITopologies[0].Name,
+			}
+			placement := CreatePlacementAPI(names.PlacementAPIName, spec)
+			DeferCleanup(th.DeleteInstance, placement)
+
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(namespace))
+			DeferCleanup(k8sClient.Delete, ctx, CreatePlacementAPISecret(namespace, SecretName))
+
+			serviceSpec := corev1.ServiceSpec{Ports: []corev1.ServicePort{{Port: 3306}}}
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(namespace, "openstack", serviceSpec),
+			)
+			mariadb.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBAccount)
+
+			th.SimulateJobSuccess(names.DBSyncJobName)
+			th.SimulateDeploymentReplicaReady(names.DeploymentName)
+			keystone.SimulateKeystoneServiceReady(names.KeystoneServiceName)
+			keystone.SimulateKeystoneEndpointReady(names.KeystoneEndpointName)
+			DeferCleanup(th.DeleteInstance, placement)
+		})
+
+		It("sets topology in CR status", func() {
+			Eventually(func(g Gomega) {
+				placement := GetPlacementAPI(names.PlacementAPIName)
+				g.Expect(placement.Status.LastAppliedTopology).To(Equal(names.PlacementAPITopologies[0].Name))
+			}, timeout, interval).Should(Succeed())
+
+			th.ExpectCondition(
+				names.PlacementAPIName,
+				ConditionGetterFunc(PlacementConditionGetter),
+				condition.TopologyReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
+
+		It("sets topology in resource specs", func() {
+			Eventually(func(g Gomega) {
+				g.Expect(th.GetDeployment(names.DeploymentName).Spec.Template.Spec.TopologySpreadConstraints).ToNot(BeNil())
+				g.Expect(th.GetDeployment(names.DeploymentName).Spec.Template.Spec.Affinity).To(BeNil())
+			}, timeout, interval).Should(Succeed())
+		})
+		It("updates topology when the reference changes", func() {
+			Eventually(func(g Gomega) {
+				placement := GetPlacementAPI(names.PlacementAPIName)
+				g.Expect(placement.Status.LastAppliedTopology).To(Equal(names.PlacementAPITopologies[0].Name))
+				placement.Spec.TopologyRef.Name = names.PlacementAPITopologies[1].Name
+				g.Expect(k8sClient.Update(ctx, placement)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				placement := GetPlacementAPI(names.PlacementAPIName)
+				g.Expect(placement.Status.LastAppliedTopology).To(Equal(names.PlacementAPITopologies[1].Name))
+			}, timeout, interval).Should(Succeed())
+
+			th.ExpectCondition(
+				names.PlacementAPIName,
+				ConditionGetterFunc(PlacementConditionGetter),
+				condition.TopologyReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
+		It("removes topologyRef from the spec", func() {
+			Eventually(func(g Gomega) {
+				placement := GetPlacementAPI(names.PlacementAPIName)
+				// Remove the TopologyRef from the existing Placement .Spec
+				placement.Spec.TopologyRef = nil
+				g.Expect(k8sClient.Update(ctx, placement)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				placement := GetPlacementAPI(names.PlacementAPIName)
+				g.Expect(placement.Status.LastAppliedTopology).Should(BeEmpty())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				g.Expect(th.GetDeployment(names.DeploymentName).Spec.Template.Spec.TopologySpreadConstraints).To(BeNil())
+				g.Expect(th.GetDeployment(names.DeploymentName).Spec.Template.Spec.Affinity).ToNot(BeNil())
+			}, timeout, interval).Should(Succeed())
+		})
+	})
+
 	When("A PlacementAPI is created with nodeSelector", func() {
 		BeforeEach(func() {
 			spec := GetDefaultPlacementAPISpec()
@@ -1142,7 +1270,6 @@ var _ = Describe("PlacementAPI reconfiguration", func() {
 
 			// Change the content of the CA secret
 			th.UpdateSecret(names.CaBundleSecretName, "tls-ca-bundle.pem", []byte("DifferentCAData"))
-
 			// Assert that the deployment is updated
 			Eventually(func(g Gomega) {
 				newHash := GetEnvVarValue(

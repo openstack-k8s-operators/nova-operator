@@ -17,6 +17,7 @@ limitations under the License.
 package functional_test
 
 import (
+	"fmt"
 	. "github.com/onsi/gomega" //revive:disable:dot-imports
 
 	corev1 "k8s.io/api/core/v1"
@@ -46,6 +47,7 @@ type Names struct {
 	CaBundleSecretName     types.NamespacedName
 	InternalCertSecretName types.NamespacedName
 	PublicCertSecretName   types.NamespacedName
+	PlacementAPITopologies []types.NamespacedName
 }
 
 func CreateNames(placementAPIName types.NamespacedName) Names {
@@ -97,6 +99,16 @@ func CreateNames(placementAPIName types.NamespacedName) Names {
 		PublicCertSecretName: types.NamespacedName{
 			Namespace: placementAPIName.Namespace,
 			Name:      PublicCertSecretName},
+		PlacementAPITopologies: []types.NamespacedName{
+			{
+				Namespace: namespace,
+				Name:      fmt.Sprintf("%s-topology", placementAPIName.Name),
+			},
+			{
+				Namespace: namespace,
+				Name:      fmt.Sprintf("%s-topology-alt", placementAPIName.Name),
+			},
+		},
 	}
 }
 
@@ -163,4 +175,45 @@ func CreatePlacementAPISecret(namespace string, name string) *corev1.Secret {
 func PlacementConditionGetter(name types.NamespacedName) condition.Conditions {
 	instance := GetPlacementAPI(name)
 	return instance.Status.Conditions
+}
+
+// GetSampleTopologySpec - A sample (and opinionated) Topology Spec used to
+// test PlacementAPI
+// Note this is just an example that should not be used in production for
+// multiple reasons:
+// 1. It uses ScheduleAnyway as strategy, which is something we might
+// want to avoid by default
+// 2. Usually a topologySpreadConstraints is used to take care about
+// multi AZ, which is not applicable in this context
+func GetSampleTopologySpec() map[string]interface{} {
+	// Build the topology Spec
+	topologySpec := map[string]interface{}{
+		"topologySpreadConstraints": []map[string]interface{}{
+			{
+				"maxSkew":           1,
+				"topologyKey":       corev1.LabelHostname,
+				"whenUnsatisfiable": "ScheduleAnyway",
+				"labelSelector": map[string]interface{}{
+					"matchLabels": map[string]interface{}{
+						"service": placement.ServiceName,
+					},
+				},
+			},
+		},
+	}
+	return topologySpec
+}
+
+// CreateTopology - Creates a Topology CR based on the spec passed as input
+func CreateTopology(topology types.NamespacedName, spec map[string]interface{}) client.Object {
+	raw := map[string]interface{}{
+		"apiVersion": "topology.openstack.org/v1beta1",
+		"kind":       "Topology",
+		"metadata": map[string]interface{}{
+			"name":      topology.Name,
+			"namespace": topology.Namespace,
+		},
+		"spec": spec,
+	}
+	return th.CreateUnstructured(raw)
 }

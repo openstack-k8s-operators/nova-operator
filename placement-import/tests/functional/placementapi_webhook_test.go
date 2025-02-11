@@ -190,4 +190,30 @@ var _ = Describe("PlacementAPI Webhook", func() {
 			)
 		})
 	})
+
+	It("rejects a wrong TopologyRef on a different namespace", func() {
+		spec := GetDefaultPlacementAPISpec()
+		// Inject a topologyRef that points to a different namespace
+		spec["topologyRef"] = map[string]interface{}{
+			"name":      "foo",
+			"namespace": "bar",
+		}
+		raw := map[string]interface{}{
+			"apiVersion": "placement.openstack.org/v1beta1",
+			"kind":       "PlacementAPI",
+			"metadata": map[string]interface{}{
+				"name":      placementAPIName.Name,
+				"namespace": placementAPIName.Namespace,
+			},
+			"spec": spec,
+		}
+		unstructuredObj := &unstructured.Unstructured{Object: raw}
+		_, err := controllerutil.CreateOrPatch(
+			th.Ctx, th.K8sClient, unstructuredObj, func() error { return nil })
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(
+			ContainSubstring(
+				"Invalid value: \"namespace\": Customizing namespace field is not supported"),
+		)
+	})
 })
