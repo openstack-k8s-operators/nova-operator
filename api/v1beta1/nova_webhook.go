@@ -44,6 +44,7 @@ import (
 type NovaDefaults struct {
 	APIContainerImageURL       string
 	SchedulerContainerImageURL string
+	APITimeout                 int
 	NovaCellDefaults
 }
 
@@ -90,6 +91,10 @@ func (spec *NovaSpecCore) Default() {
 	// NovaSpec but we need different defaults in the two places
 	if spec.MetadataServiceTemplate.Enabled == nil {
 		spec.MetadataServiceTemplate.Enabled = ptr.To(true)
+	}
+
+	if spec.APITimeout == 0 {
+		spec.APITimeout = novaDefaults.APITimeout
 	}
 
 	for cellName, cellTemplate := range spec.CellTemplates {

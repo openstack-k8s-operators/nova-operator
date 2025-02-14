@@ -1,0 +1,25 @@
+---
+- name: Deploy Nova service
+  hosts: "{{ cifmw_target_hook_host | default('localhost') }}"
+  gather_facts: false
+  environment:
+    KUBECONFIG: "{{ cifmw_openshift_kubeconfig }}"
+    PATH: "{{ cifmw_path }}"
+  tasks:
+    - name: Collect general openshift cr info
+      ansible.builtin.shell: |
+        oc patch csv -n openstack-operators openstack-operator.v0.0.1 --type json -p="[{"op": "replace", "path": "/spec/install/spec/deployments/0/spec/replicas", "value": "0"}]"
+    - name: Install Nova Operator
+      cifmw.general.ci_script:
+        output_dir: "{{ cifmw_basedir }}/artifacts"
+        chdir: "{{ ansible_user_dir }}/src/github.com/openstack-k8s-operators/nova-operator"
+        script: make nova
+        extra_args:
+          CATALOG_IMAGE: "{{ nova_catalog_image | default('quay.io/openstack-k8s-operators/nova-operator-index:latest') }}"
+
+    # - name: Deploy nova service
+    #   when: deploy_nova_service | default('true') | bool
+    #   cifmw.general.ci_script:
+    #     output_dir: "{{ cifmw_basedir }}/artifacts"
+    #     chdir: "{{ ansible_user_dir }}/src/github.com/openstack-k8s-operators/nova-operator"
+    #     script: make nova_deploy
