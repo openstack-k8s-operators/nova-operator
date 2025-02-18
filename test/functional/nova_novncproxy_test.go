@@ -1293,4 +1293,125 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 			}, timeout, interval).Should(Succeed())
 		})
 	})
+
+	When("NovaNoVNCProxy is created with a wrong topologyRef", func() {
+		BeforeEach(func() {
+			spec := GetDefaultNovaNoVNCProxySpec(cell1)
+			spec["topologyRef"] = map[string]interface{}{"name": novaNames.NovaTopologies[5].Name}
+
+			memcachedSpec := memcachedv1.MemcachedSpec{
+				MemcachedSpecCore: memcachedv1.MemcachedSpecCore{
+					Replicas: ptr.To(int32(3)),
+				},
+			}
+			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
+			DeferCleanup(th.DeleteInstance, CreateNovaNoVNCProxy(cell1.NoVNCProxyName, spec))
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateDefaultCellInternalSecret(cell1))
+			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
+		})
+		It("points to a non existing topology CR", func() {
+			th.ExpectCondition(
+				cell1.NoVNCProxyName,
+				ConditionGetterFunc(NoVNCProxyConditionGetter),
+				condition.TopologyReadyCondition,
+				corev1.ConditionFalse,
+			)
+			th.ExpectCondition(
+				cell1.NoVNCProxyName,
+				ConditionGetterFunc(NoVNCProxyConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+			)
+		})
+	})
+
+	When("NovaNoVNCProxy is created with topology", func() {
+		BeforeEach(func() {
+			spec := GetDefaultNovaNoVNCProxySpec(cell1)
+			spec["topologyRef"] = map[string]interface{}{"name": novaNames.NovaTopologies[5].Name}
+
+			// Build the topology Spec
+			topologySpec := GetSampleTopologySpec()
+
+			// Create Test Topologies
+			for _, t := range novaNames.NovaTopologies {
+				CreateTopology(t, topologySpec)
+			}
+
+			memcachedSpec := memcachedv1.MemcachedSpec{
+				MemcachedSpecCore: memcachedv1.MemcachedSpecCore{
+					Replicas: ptr.To(int32(3)),
+				},
+			}
+			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
+			DeferCleanup(th.DeleteInstance, CreateNovaNoVNCProxy(cell1.NoVNCProxyName, spec))
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateDefaultCellInternalSecret(cell1))
+			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
+		})
+		It("sets lastAppliedTopology field in NovaNoVNCProxy topology .Status", func() {
+			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
+			instance := GetNovaNoVNCProxy(cell1.NoVNCProxyName)
+			Expect(instance.Status.LastAppliedTopology).ToNot(BeEmpty())
+			Expect(instance.Status.LastAppliedTopology).To(Equal(novaNames.NovaTopologies[5].Name))
+
+			th.ExpectCondition(
+				cell1.NoVNCProxyName,
+				ConditionGetterFunc(NoVNCProxyConditionGetter),
+				condition.TopologyReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			Eventually(func(g Gomega) {
+				g.Expect(
+					th.GetStatefulSet(cell1.NoVNCProxyName).Spec.Template.Spec.TopologySpreadConstraints).ToNot(BeNil())
+			}, timeout, interval).Should(Succeed())
+		})
+		It("updates lastAppliedTopology in NovaNoVNCProxy .Status", func() {
+			Eventually(func(g Gomega) {
+				instance := GetNovaNoVNCProxy(cell1.NoVNCProxyName)
+				instance.Spec.TopologyRef.Name = novaNames.NovaTopologies[0].Name
+				g.Expect(k8sClient.Update(ctx, instance)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
+			Eventually(func(g Gomega) {
+				instance := GetNovaNoVNCProxy(cell1.NoVNCProxyName)
+				g.Expect(instance.Status.LastAppliedTopology).ToNot(BeEmpty())
+			}, timeout, interval).Should(Succeed())
+
+			th.ExpectCondition(
+				cell1.NoVNCProxyName,
+				ConditionGetterFunc(NoVNCProxyConditionGetter),
+				condition.TopologyReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			Eventually(func(g Gomega) {
+				g.Expect(th.GetStatefulSet(
+					cell1.NoVNCProxyName).Spec.Template.Spec.TopologySpreadConstraints).ToNot(BeNil())
+			}, timeout, interval).Should(Succeed())
+		})
+		It("removes topologyRef from NovaNoVNCProxy spec", func() {
+			Eventually(func(g Gomega) {
+				instance := GetNovaNoVNCProxy(cell1.NoVNCProxyName)
+				instance.Spec.TopologyRef = nil
+				g.Expect(k8sClient.Update(ctx, instance)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				instance := GetNovaNoVNCProxy(cell1.NoVNCProxyName)
+				g.Expect(instance.Status.LastAppliedTopology).Should(BeEmpty())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				g.Expect(th.GetStatefulSet(
+					cell1.NoVNCProxyName).Spec.Template.Spec.TopologySpreadConstraints).To(BeNil())
+				// Default Pod AntiAffinity is applied
+				g.Expect(th.GetStatefulSet(
+					cell1.NoVNCProxyName).Spec.Template.Spec.Affinity).ToNot(BeNil())
+			}, timeout, interval).Should(Succeed())
+		})
+	})
 })

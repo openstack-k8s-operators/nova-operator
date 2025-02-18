@@ -29,6 +29,7 @@ import (
 
 	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
 	rabbitmqv1 "github.com/openstack-k8s-operators/infra-operator/apis/rabbitmq/v1beta1"
+	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 
@@ -318,6 +319,146 @@ var _ = Describe("Nova reconfiguration", func() {
 				condition.NetworkAttachmentsReadyCondition,
 				corev1.ConditionTrue,
 			)
+		})
+	})
+
+	When("Nova CR instance is created with topology and it's later removed", func() {
+		BeforeEach(func() {
+			// Build the topology Spec
+			topologySpec := GetSampleTopologySpec()
+			// Create Test Topologies
+			for _, t := range novaNames.NovaTopologies {
+				CreateTopology(t, topologySpec)
+			}
+		})
+		It("updates topologyRef", func() {
+			Eventually(func(g Gomega) {
+				nova := GetNova(novaNames.NovaName)
+				nova.Spec.TopologyRef = &topologyv1.TopoRef{
+					Name:      novaNames.NovaTopologies[1].Name,
+					Namespace: novaNames.Namespace,
+				}
+				g.Expect(k8sClient.Update(ctx, nova)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			SimulateReadyOfNovaTopServices()
+			Eventually(func(g Gomega) {
+				api := GetNovaAPI(novaNames.APIName)
+				g.Expect(api.Status.LastAppliedTopology).ToNot(BeEmpty())
+				g.Expect(api.Status.LastAppliedTopology).To(Equal(novaNames.NovaTopologies[1].Name))
+			}, timeout, interval).Should(Succeed())
+
+			th.ExpectCondition(
+				novaNames.APIName,
+				ConditionGetterFunc(NovaAPIConditionGetter),
+				condition.TopologyReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			Eventually(func(g Gomega) {
+				sch := GetNovaScheduler(novaNames.SchedulerName)
+				g.Expect(sch.Status.LastAppliedTopology).ToNot(BeEmpty())
+				g.Expect(sch.Status.LastAppliedTopology).To(Equal(novaNames.NovaTopologies[1].Name))
+			}, timeout, interval).Should(Succeed())
+
+			th.ExpectCondition(
+				novaNames.SchedulerName,
+				ConditionGetterFunc(NovaSchedulerConditionGetter),
+				condition.TopologyReadyCondition,
+				corev1.ConditionTrue,
+			)
+			Eventually(func(g Gomega) {
+				metadata := GetNovaMetadata(novaNames.MetadataName)
+				g.Expect(metadata.Status.LastAppliedTopology).ToNot(BeEmpty())
+				g.Expect(metadata.Status.LastAppliedTopology).To(Equal(novaNames.NovaTopologies[1].Name))
+			}, timeout, interval).Should(Succeed())
+
+			th.ExpectCondition(
+				novaNames.MetadataName,
+				ConditionGetterFunc(NovaMetadataConditionGetter),
+				condition.TopologyReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
+		It("overrides topology when the reference changes", func() {
+			Eventually(func(g Gomega) {
+				nova := GetNova(novaNames.NovaName)
+				//Patch API Spec
+				newAPI := GetNovaAPI(novaNames.APIName)
+				newAPI.Spec.TopologyRef = &topologyv1.TopoRef{
+					Name:      novaNames.NovaTopologies[1].Name,
+					Namespace: novaNames.Namespace,
+				}
+				nova.Spec.APIServiceTemplate = novav1.NovaAPITemplate{
+					TopologyRef: newAPI.Spec.TopologyRef,
+				}
+				//Patch Scheduler Spec
+				newSch := GetNovaScheduler(novaNames.SchedulerName)
+				newSch.Spec.TopologyRef = &topologyv1.TopoRef{
+					Name:      novaNames.NovaTopologies[2].Name,
+					Namespace: novaNames.Namespace,
+				}
+				nova.Spec.SchedulerServiceTemplate = novav1.NovaSchedulerTemplate{
+					TopologyRef: newSch.Spec.TopologyRef,
+				}
+				//Patch Metadata Spec
+				newMeta := GetNovaMetadata(novaNames.MetadataName)
+				newMeta.Spec.TopologyRef = &topologyv1.TopoRef{
+					Name:      novaNames.NovaTopologies[3].Name,
+					Namespace: novaNames.Namespace,
+				}
+				nova.Spec.MetadataServiceTemplate = novav1.NovaMetadataTemplate{
+					TopologyRef: newMeta.Spec.TopologyRef,
+				}
+				g.Expect(k8sClient.Update(ctx, nova)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			SimulateReadyOfNovaTopServices()
+			Eventually(func(g Gomega) {
+				api := GetNovaAPI(novaNames.APIName)
+				g.Expect(api.Status.LastAppliedTopology).ToNot(BeEmpty())
+				g.Expect(api.Status.LastAppliedTopology).To(Equal(novaNames.NovaTopologies[1].Name))
+				sch := GetNovaScheduler(novaNames.SchedulerName)
+				g.Expect(sch.Status.LastAppliedTopology).ToNot(BeEmpty())
+				g.Expect(sch.Status.LastAppliedTopology).To(Equal(novaNames.NovaTopologies[2].Name))
+				metadata := GetNovaMetadata(novaNames.MetadataName)
+				g.Expect(metadata.Status.LastAppliedTopology).ToNot(BeEmpty())
+				g.Expect(metadata.Status.LastAppliedTopology).To(Equal(novaNames.NovaTopologies[3].Name))
+			}, timeout, interval).Should(Succeed())
+		})
+		It("removes topologyRef from the spec", func() {
+			Eventually(func(g Gomega) {
+				nova := GetNova(novaNames.NovaName)
+				// Remove the TopologyRef from the existing Nova .Spec
+				nova.Spec.TopologyRef = nil
+				g.Expect(k8sClient.Update(ctx, nova)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				api := GetNovaAPI(novaNames.APIName)
+				g.Expect(api.Status.LastAppliedTopology).Should(BeEmpty())
+				scheduler := GetNovaScheduler(novaNames.SchedulerName)
+				g.Expect(scheduler.Status.LastAppliedTopology).Should(BeEmpty())
+				metadata := GetNovaMetadata(novaNames.MetadataName)
+				g.Expect(metadata.Status.LastAppliedTopology).Should(BeEmpty())
+				cond := GetNovaConductor(cell0.ConductorName)
+				g.Expect(cond.Status.LastAppliedTopology).Should(BeEmpty())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				g.Expect(th.GetStatefulSet(novaNames.APIName).Spec.Template.Spec.TopologySpreadConstraints).To(BeNil())
+				// Default Pod AntiAffinity is applied
+				g.Expect(th.GetStatefulSet(novaNames.APIName).Spec.Template.Spec.Affinity).ToNot(BeNil())
+				g.Expect(th.GetStatefulSet(novaNames.SchedulerName).Spec.Template.Spec.TopologySpreadConstraints).To(BeNil())
+				// Default Pod AntiAffinity is applied
+				g.Expect(th.GetStatefulSet(novaNames.SchedulerName).Spec.Template.Spec.Affinity).ToNot(BeNil())
+				g.Expect(th.GetStatefulSet(novaNames.MetadataName).Spec.Template.Spec.TopologySpreadConstraints).To(BeNil())
+				// Default Pod AntiAffinity is applied
+				g.Expect(th.GetStatefulSet(novaNames.MetadataName).Spec.Template.Spec.Affinity).ToNot(BeNil())
+				g.Expect(th.GetStatefulSet(cell0.ConductorName).Spec.Template.Spec.TopologySpreadConstraints).To(BeNil())
+				// Default Pod AntiAffinity is applied
+				g.Expect(th.GetStatefulSet(cell0.ConductorName).Spec.Template.Spec.Affinity).ToNot(BeNil())
+			}, timeout, interval).Should(Succeed())
 		})
 	})
 

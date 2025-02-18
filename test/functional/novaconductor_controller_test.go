@@ -737,6 +737,116 @@ var _ = Describe("NovaConductor controller", func() {
 			Expect(novaConductorDefault.Spec.ContainerImage).To(Equal(util.GetEnvVar("RELATED_IMAGE_NOVA_CONDUCTOR_IMAGE_URL_DEFAULT", novav1.NovaConductorContainerImage)))
 		})
 	})
+
+	When("NovaConductor is created with a wrong topologyRef", func() {
+		BeforeEach(func() {
+			spec := GetDefaultNovaConductorSpec(cell0)
+			spec["topologyRef"] = map[string]interface{}{"name": novaNames.NovaTopologies[4].Name}
+			conductor := CreateNovaConductor(cell0.ConductorName, spec)
+			DeferCleanup(th.DeleteInstance, conductor)
+		})
+		It("points to a non existing topology CR", func() {
+			th.ExpectCondition(
+				cell0.ConductorName,
+				ConditionGetterFunc(NovaConductorConditionGetter),
+				condition.TopologyReadyCondition,
+				corev1.ConditionUnknown,
+			)
+			th.ExpectCondition(
+				cell0.ConductorName,
+				ConditionGetterFunc(NovaConductorConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+			)
+		})
+	})
+
+	When("NovaConductor is created with topology", func() {
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateDefaultCellInternalSecret(cell0))
+
+			spec := GetDefaultNovaConductorSpec(cell0)
+			spec["topologyRef"] = map[string]interface{}{"name": novaNames.NovaTopologies[4].Name}
+
+			// Build the topology Spec
+			topologySpec := GetSampleTopologySpec()
+
+			// Create Test Topologies
+			for _, t := range novaNames.NovaTopologies {
+				CreateTopology(t, topologySpec)
+			}
+
+			DeferCleanup(th.DeleteInstance, CreateNovaConductor(cell0.ConductorName, spec))
+		})
+		It("sets lastAppliedTopology field in NovaConductor topology .Status", func() {
+			th.SimulateJobSuccess(cell0.DBSyncJobName)
+			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
+			cnd := GetNovaConductor(cell0.ConductorName)
+
+			Expect(cnd.Status.LastAppliedTopology).ToNot(BeEmpty())
+			Expect(cnd.Status.LastAppliedTopology).To(Equal(novaNames.NovaTopologies[4].Name))
+
+			th.ExpectCondition(
+				cell0.ConductorName,
+				ConditionGetterFunc(NovaConductorConditionGetter),
+				condition.TopologyReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			Eventually(func(g Gomega) {
+				g.Expect(th.GetStatefulSet(cell0.ConductorName).Spec.Template.Spec.TopologySpreadConstraints).ToNot(BeNil())
+				// No default Pod Antiaffinity is applied
+				g.Expect(th.GetStatefulSet(cell0.ConductorName).Spec.Template.Spec.Affinity).To(BeNil())
+			}, timeout, interval).Should(Succeed())
+		})
+		It("updates lastAppliedTopology in NovaConductor .Status", func() {
+			Eventually(func(g Gomega) {
+				cnd := GetNovaConductor(cell0.ConductorName)
+				cnd.Spec.TopologyRef.Name = novaNames.NovaTopologies[0].Name
+				g.Expect(k8sClient.Update(ctx, cnd)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			th.SimulateJobSuccess(cell0.DBSyncJobName)
+			Eventually(func(g Gomega) {
+				cnd := GetNovaConductor(cell0.ConductorName)
+				g.Expect(cnd.Status.LastAppliedTopology).ToNot(BeEmpty())
+				g.Expect(cnd.Status.LastAppliedTopology).To(Equal(novaNames.NovaTopologies[0].Name))
+			}, timeout, interval).Should(Succeed())
+
+			th.ExpectCondition(
+				cell0.ConductorName,
+				ConditionGetterFunc(NovaConductorConditionGetter),
+				condition.TopologyReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			Eventually(func(g Gomega) {
+				g.Expect(th.GetStatefulSet(cell0.ConductorName).Spec.Template.Spec.TopologySpreadConstraints).ToNot(BeNil())
+				// No default Pod Antiaffinity is applied
+				g.Expect(th.GetStatefulSet(cell0.ConductorName).Spec.Template.Spec.Affinity).To(BeNil())
+			}, timeout, interval).Should(Succeed())
+		})
+		It("removes topologyRef from NovaConductor spec", func() {
+			Eventually(func(g Gomega) {
+				cnd := GetNovaConductor(cell0.ConductorName)
+				cnd.Spec.TopologyRef = nil
+				g.Expect(k8sClient.Update(ctx, cnd)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			th.SimulateJobSuccess(cell0.DBSyncJobName)
+			Eventually(func(g Gomega) {
+				cnd := GetNovaConductor(cell0.ConductorName)
+				g.Expect(cnd.Status.LastAppliedTopology).Should(BeEmpty())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				g.Expect(th.GetStatefulSet(cell0.ConductorName).Spec.Template.Spec.TopologySpreadConstraints).To(BeNil())
+				// Default Pod AntiAffinity is applied
+				g.Expect(th.GetStatefulSet(cell0.ConductorName).Spec.Template.Spec.Affinity).ToNot(BeNil())
+			}, timeout, interval).Should(Succeed())
+		})
+	})
 })
 
 var _ = Describe("NovaConductor controller cleaning", func() {

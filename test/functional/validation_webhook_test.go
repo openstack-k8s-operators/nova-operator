@@ -1095,4 +1095,49 @@ var _ = Describe("Nova validation", func() {
 					"Invalid value: \"wrooong\": invalid endpoint type: wrooong"),
 		)
 	})
+	It("rejects Nova with wrong topologyRef", func() {
+		spec := GetDefaultNovaSpec()
+		cell0 := GetDefaultNovaCellTemplate()
+		spec["cellTemplates"] = map[string]interface{}{"cell0": cell0}
+		spec["topologyRef"] = map[string]interface{}{"name": "foo", "namespace": "bar"}
+		raw := map[string]interface{}{
+			"apiVersion": "nova.openstack.org/v1beta1",
+			"kind":       "Nova",
+			"metadata": map[string]interface{}{
+				"name":      novaNames.NovaName.Name,
+				"namespace": novaNames.Namespace,
+			},
+			"spec": spec,
+		}
+		unstructuredObj := &unstructured.Unstructured{Object: raw}
+		_, err := controllerutil.CreateOrPatch(
+			ctx, k8sClient, unstructuredObj, func() error { return nil })
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(
+			ContainSubstring(
+				"Invalid value: \"namespace\": Customizing namespace field is not supported"),
+		)
+	})
+	It("rejects NovaAPI with wrong topologyRef", func() {
+		spec := GetDefaultNovaAPISpec(novaNames)
+		spec["topologyRef"] = map[string]interface{}{"name": "foo", "namespace": "bar"}
+		raw := map[string]interface{}{
+			"apiVersion": "nova.openstack.org/v1beta1",
+			"kind":       "NovaAPI",
+			"metadata": map[string]interface{}{
+				"name":      novaNames.APIName.Name,
+				"namespace": novaNames.Namespace,
+			},
+			"spec": spec,
+		}
+
+		unstructuredObj := &unstructured.Unstructured{Object: raw}
+		_, err := controllerutil.CreateOrPatch(
+			ctx, k8sClient, unstructuredObj, func() error { return nil })
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(
+			ContainSubstring(
+				"Invalid value: \"namespace\": Customizing namespace field is not supported"),
+		)
+	})
 })

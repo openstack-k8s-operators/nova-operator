@@ -17,6 +17,7 @@ limitations under the License.
 package novaapi
 
 import (
+	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	affinity "github.com/openstack-k8s-operators/lib-common/modules/common/affinity"
 	env "github.com/openstack-k8s-operators/lib-common/modules/common/env"
@@ -38,6 +39,7 @@ func StatefulSet(
 	configHash string,
 	labels map[string]string,
 	annotations map[string]string,
+	topology *topologyv1.Topology,
 ) (*appsv1.StatefulSet, error) {
 	// This allows the pod to start up slowly. The pod will only be killed
 	// if it does not succeed a probe in 60 seconds.
@@ -182,16 +184,6 @@ func StatefulSet(
 							LivenessProbe:  livenessProbe,
 						},
 					},
-					// If possible two pods of the same service should not
-					// run on the same worker node. If this is not possible
-					// the get still created on the same worker node.
-					Affinity: affinity.DistributePods(
-						common.AppSelector,
-						[]string{
-							instance.Name,
-						},
-						corev1.LabelHostname,
-					),
 				},
 			},
 		},
@@ -199,6 +191,29 @@ func StatefulSet(
 
 	if instance.Spec.NodeSelector != nil {
 		statefulset.Spec.Template.Spec.NodeSelector = *instance.Spec.NodeSelector
+	}
+	if topology != nil {
+		// Get the Topology .Spec
+		ts := topology.Spec
+		// Process TopologySpreadConstraints if defined in the referenced Topology
+		if ts.TopologySpreadConstraints != nil {
+			statefulset.Spec.Template.Spec.TopologySpreadConstraints = *topology.Spec.TopologySpreadConstraints
+		}
+		// Process Affinity if defined in the referenced Topology
+		if ts.Affinity != nil {
+			statefulset.Spec.Template.Spec.Affinity = ts.Affinity
+		}
+	} else {
+		// If possible two pods of the same service should not
+		// run on the same worker node. If this is not possible
+		// the get still created on the same worker node.
+		statefulset.Spec.Template.Spec.Affinity = affinity.DistributePods(
+			common.AppSelector,
+			[]string{
+				instance.Name,
+			},
+			corev1.LabelHostname,
+		)
 	}
 
 	return statefulset, nil
