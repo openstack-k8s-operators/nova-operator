@@ -50,6 +50,7 @@ import (
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 
+	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/nova-operator/pkg/nova"
@@ -80,6 +81,7 @@ func (r *NovaAPIReconciler) GetLogger(ctx context.Context) logr.Logger {
 // +kubebuilder:rbac:groups=k8s.cni.cncf.io,resources=network-attachment-definitions,verbs=get;list;watch
 // +kubebuilder:rbac:groups=memcached.openstack.org,resources=memcacheds,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=memcached.openstack.org,resources=memcacheds/finalizers,verbs=update;patch
+// +kubebuilder:rbac:groups=topology.openstack.org,resources=topologies,verbs=get;list;watch;update
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -406,7 +408,15 @@ func (r *NovaAPIReconciler) initConditions(
 			condition.MemcachedReadyInitMessage,
 		),
 	)
-
+	// Init Topology condition if there's a reference
+	if instance.Spec.TopologyRef != nil {
+		c := condition.UnknownCondition(
+			condition.TopologyReadyCondition,
+			condition.InitReason,
+			condition.TopologyReadyInitMessage,
+		)
+		cl.Set(c)
+	}
 	instance.Status.Conditions.Init(&cl)
 	return nil
 }
@@ -535,7 +545,45 @@ func (r *NovaAPIReconciler) ensureDeployment(
 ) (ctrl.Result, error) {
 	Log := r.GetLogger(ctx)
 
-	ssSpec, err := novaapi.StatefulSet(instance, inputHash, getAPIServiceLabels(), annotations)
+	//
+	// Handle Topology
+	//
+	lastTopologyRef := topologyv1.TopoRef{
+		Name:      instance.Status.LastAppliedTopology,
+		Namespace: instance.Namespace,
+	}
+	topology, err := ensureNovaTopology(
+		ctx,
+		h,
+		instance.Spec.TopologyRef,
+		&lastTopologyRef,
+		instance.Name,
+		NovaAPILabelPrefix,
+	)
+	if err != nil {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.TopologyReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.TopologyReadyErrorMessage,
+			err.Error()))
+		return ctrl.Result{}, fmt.Errorf("waiting for Topology requirements: %w", err)
+	}
+
+	// If TopologyRef is present and ensureNovaTopology returned a valid
+	// topology object, set .Status.LastAppliedTopology to the referenced one
+	// and mark the condition as true
+	if instance.Spec.TopologyRef != nil {
+		// update the Status with the last retrieved Topology name
+		instance.Status.LastAppliedTopology = instance.Spec.TopologyRef.Name
+		// update the TopologyRef associated condition
+		instance.Status.Conditions.MarkTrue(condition.TopologyReadyCondition, condition.TopologyReadyMessage)
+	} else {
+		// remove LastAppliedTopology from the .Status
+		instance.Status.LastAppliedTopology = ""
+	}
+
+	ssSpec, err := novaapi.StatefulSet(instance, inputHash, getAPIServiceLabels(), annotations, topology)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.DeploymentReadyCondition,
@@ -827,6 +875,19 @@ func (r *NovaAPIReconciler) reconcileDelete(
 		}
 	}
 
+	// Remove finalizer from the referenced Topology CR
+	if _, err := topologyv1.EnsureDeletedTopologyRef(
+		ctx,
+		h,
+		&topologyv1.TopoRef{
+			Name:      instance.Status.LastAppliedTopology,
+			Namespace: instance.Namespace,
+		},
+		instance.Name,
+	); err != nil {
+		return err
+	}
+
 	// Successfully cleaned up everything. So as the final step let's remove the
 	// finalizer from ourselves to allow the deletion of NovaAPI CR itself
 	updated := controllerutil.RemoveFinalizer(instance, h.GetFinalizer())
@@ -885,6 +946,7 @@ var (
 		caBundleSecretNameField,
 		tlsAPIInternalField,
 		tlsAPIPublicField,
+		topologyField,
 	}
 )
 
@@ -966,6 +1028,18 @@ func (r *NovaAPIReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		return err
 	}
 
+	// index topologyField
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &novav1.NovaAPI{}, topologyField, func(rawObj client.Object) []string {
+		// Extract the topology name from the spec, if one is provided
+		cr := rawObj.(*novav1.NovaAPI)
+		if cr.Spec.TopologyRef == nil {
+			return nil
+		}
+		return []string{cr.Spec.TopologyRef.Name}
+	}); err != nil {
+		return err
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&novav1.NovaAPI{}).
 		Owns(&v1.StatefulSet{}).
@@ -982,5 +1056,8 @@ func (r *NovaAPIReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			&memcachedv1.Memcached{},
 			handler.EnqueueRequestsFromMapFunc(r.memcachedNamespaceMapFunc),
 		).
+		Watches(&topologyv1.Topology{},
+			handler.EnqueueRequestsFromMapFunc(r.findObjectsForSrc),
+			builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Complete(r)
 }

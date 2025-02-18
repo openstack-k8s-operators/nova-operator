@@ -165,6 +165,24 @@ spec:
                           More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                         type: object
                     type: object
+                  topologyRef:
+                    description: |-
+                      TopologyRef to apply the Topology defined by the associated CR referenced
+                      by name
+                    properties:
+                      name:
+                        description: Name - The Topology CR name that the Service
+                          references
+                        type: string
+                      namespace:
+                        description: |-
+                          Namespace - The Namespace to fetch the Topology CR referenced
+                          NOTE: Namespace currently points by default to the same namespace where
+                          the Service is deployed. Customizing the namespace is not supported and
+                          webhooks prevent editing this field to a value different from the
+                          current project
+                        type: string
+                    type: object
                 type: object
               dbPurge:
                 description: DBPurge defines the parameters for the DB archiving and
@@ -472,6 +490,24 @@ spec:
                         description: SecretName - holding the cert, key for the service
                         type: string
                     type: object
+                  topologyRef:
+                    description: |-
+                      TopologyRef to apply the Topology defined by the associated CR referenced
+                      by name
+                    properties:
+                      name:
+                        description: Name - The Topology CR name that the Service
+                          references
+                        type: string
+                      namespace:
+                        description: |-
+                          Namespace - The Namespace to fetch the Topology CR referenced
+                          NOTE: Namespace currently points by default to the same namespace where
+                          the Service is deployed. Customizing the namespace is not supported and
+                          webhooks prevent editing this field to a value different from the
+                          current project
+                        type: string
+                    type: object
                 type: object
               noVNCProxyServiceTemplate:
                 description: |-
@@ -754,6 +790,24 @@ spec:
                             type: string
                         type: object
                     type: object
+                  topologyRef:
+                    description: |-
+                      TopologyRef to apply the Topology defined by the associated CR referenced
+                      by name
+                    properties:
+                      name:
+                        description: Name - The Topology CR name that the Service
+                          references
+                        type: string
+                      namespace:
+                        description: |-
+                          Namespace - The Namespace to fetch the Topology CR referenced
+                          NOTE: Namespace currently points by default to the same namespace where
+                          the Service is deployed. Customizing the namespace is not supported and
+                          webhooks prevent editing this field to a value different from the
+                          current project
+                        type: string
+                    type: object
                 type: object
               nodeSelector:
                 additionalProperties:
@@ -864,6 +918,24 @@ spec:
                             More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                           type: object
                       type: object
+                    topologyRef:
+                      description: |-
+                        TopologyRef to apply the Topology defined by the associated CR referenced
+                        by name
+                      properties:
+                        name:
+                          description: Name - The Topology CR name that the Service
+                            references
+                          type: string
+                        namespace:
+                          description: |-
+                            Namespace - The Namespace to fetch the Topology CR referenced
+                            NOTE: Namespace currently points by default to the same namespace where
+                            the Service is deployed. Customizing the namespace is not supported and
+                            webhooks prevent editing this field to a value different from the
+                            current project
+                          type: string
+                      type: object
                   required:
                   - computeDriver
                   type: object
@@ -903,6 +975,23 @@ spec:
                   caBundleSecretName:
                     description: CaBundleSecretName - holding the CA certs in a pre-created
                       bundle file
+                    type: string
+                type: object
+              topologyRef:
+                description: |-
+                  TopologyRef to apply the Topology defined by the associated CR referenced
+                  by name
+                properties:
+                  name:
+                    description: Name - The Topology CR name that the Service references
+                    type: string
+                  namespace:
+                    description: |-
+                      Namespace - The Namespace to fetch the Topology CR referenced
+                      NOTE: Namespace currently points by default to the same namespace where
+                      the Service is deployed. Customizing the namespace is not supported and
+                      webhooks prevent editing this field to a value different from the
+                      current project
                     type: string
                 type: object
             required:

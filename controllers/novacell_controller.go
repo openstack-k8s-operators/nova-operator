@@ -45,6 +45,7 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 
+	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 )
 
@@ -63,6 +64,7 @@ func (r *NovaCellReconciler) GetLogger(ctx context.Context) logr.Logger {
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=novacells/finalizers,verbs=update;patch
 // +kubebuilder:rbac:groups=memcached.openstack.org,resources=memcacheds,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=memcached.openstack.org,resources=memcacheds/finalizers,verbs=update;patch
+// +kubebuilder:rbac:groups=topology.openstack.org,resources=topologies,verbs=get;list;watch;update
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -342,6 +344,15 @@ func (r *NovaCellReconciler) initConditions(
 			novav1.NovaComputeReadyInitMessage,
 		),
 	)
+	// Init Topology condition if there's a reference
+	if instance.Spec.TopologyRef != nil {
+		c := condition.UnknownCondition(
+			condition.TopologyReadyCondition,
+			condition.InitReason,
+			condition.TopologyReadyInitMessage,
+		)
+		cl.Set(c)
+	}
 	instance.Status.Conditions.Init(&cl)
 	return nil
 }
@@ -874,6 +885,7 @@ func (r *NovaCellReconciler) findObjectsForSrc(ctx context.Context, src client.O
 var (
 	cellWatchFields = []string{
 		passwordSecretField,
+		topologyField,
 	}
 )
 
@@ -919,6 +931,18 @@ func (r *NovaCellReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		return err
 	}
 
+	// index topologyField
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &novav1.NovaCell{}, topologyField, func(rawObj client.Object) []string {
+		// Extract the topology name from the spec, if one is provided
+		cr := rawObj.(*novav1.NovaCell)
+		if cr.Spec.TopologyRef == nil {
+			return nil
+		}
+		return []string{cr.Spec.TopologyRef.Name}
+	}); err != nil {
+		return err
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&novav1.NovaCell{}).
 		Owns(&novav1.NovaConductor{}).
@@ -937,5 +961,8 @@ func (r *NovaCellReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			&memcachedv1.Memcached{},
 			handler.EnqueueRequestsFromMapFunc(r.memcachedNamespaceMapFunc),
 		).
+		Watches(&topologyv1.Topology{},
+			handler.EnqueueRequestsFromMapFunc(r.findObjectsForSrc),
+			builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Complete(r)
 }

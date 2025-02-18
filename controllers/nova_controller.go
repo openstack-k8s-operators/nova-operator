@@ -1104,6 +1104,7 @@ func (r *NovaReconciler) ensureCell(
 		NoVNCProxyServiceTemplate: cellTemplate.NoVNCProxyServiceTemplate,
 		NovaComputeTemplates:      cellTemplate.NovaComputeTemplates,
 		NodeSelector:              cellTemplate.NodeSelector,
+		TopologyRef:               cellTemplate.TopologyRef,
 		// TODO(gibi): this should be part of the secret
 		ServiceUser:     instance.Spec.ServiceUser,
 		KeystoneAuthURL: keystoneAuthURL,
@@ -1271,6 +1272,7 @@ func (r *NovaReconciler) ensureAPI(
 			CustomServiceConfig: instance.Spec.APIServiceTemplate.CustomServiceConfig,
 			Resources:           instance.Spec.APIServiceTemplate.Resources,
 			NetworkAttachments:  instance.Spec.APIServiceTemplate.NetworkAttachments,
+			TopologyRef:         instance.Spec.APIServiceTemplate.TopologyRef,
 		},
 		Override:               instance.Spec.APIServiceTemplate.Override,
 		KeystoneAuthURL:        keystoneInternalAuthURL,
@@ -1292,6 +1294,10 @@ func (r *NovaReconciler) ensureAPI(
 
 	if apiSpec.NodeSelector == nil {
 		apiSpec.NodeSelector = instance.Spec.NodeSelector
+	}
+
+	if apiSpec.TopologyRef == nil {
+		apiSpec.TopologyRef = instance.Spec.TopologyRef
 	}
 
 	op, err := controllerutil.CreateOrPatch(ctx, r.Client, api, func() error {
@@ -1359,6 +1365,7 @@ func (r *NovaReconciler) ensureScheduler(
 			CustomServiceConfig: instance.Spec.SchedulerServiceTemplate.CustomServiceConfig,
 			Resources:           instance.Spec.SchedulerServiceTemplate.Resources,
 			NetworkAttachments:  instance.Spec.SchedulerServiceTemplate.NetworkAttachments,
+			TopologyRef:         instance.Spec.SchedulerServiceTemplate.TopologyRef,
 		},
 		KeystoneAuthURL: keystoneAuthURL,
 		ServiceUser:     instance.Spec.ServiceUser,
@@ -1377,6 +1384,10 @@ func (r *NovaReconciler) ensureScheduler(
 
 	if schedulerSpec.NodeSelector == nil {
 		schedulerSpec.NodeSelector = instance.Spec.NodeSelector
+	}
+
+	if schedulerSpec.TopologyRef == nil {
+		schedulerSpec.TopologyRef = instance.Spec.TopologyRef
 	}
 
 	op, err := controllerutil.CreateOrPatch(ctx, r.Client, scheduler, func() error {
@@ -1704,6 +1715,7 @@ func (r *NovaReconciler) ensureMetadata(
 			CustomServiceConfig: instance.Spec.MetadataServiceTemplate.CustomServiceConfig,
 			Resources:           instance.Spec.MetadataServiceTemplate.Resources,
 			NetworkAttachments:  instance.Spec.MetadataServiceTemplate.NetworkAttachments,
+			TopologyRef:         instance.Spec.MetadataServiceTemplate.TopologyRef,
 		},
 		Override:               instance.Spec.MetadataServiceTemplate.Override,
 		ServiceUser:            instance.Spec.ServiceUser,
@@ -1724,6 +1736,10 @@ func (r *NovaReconciler) ensureMetadata(
 
 	if metadataSpec.NodeSelector == nil {
 		metadataSpec.NodeSelector = instance.Spec.NodeSelector
+	}
+
+	if metadataSpec.TopologyRef == nil {
+		metadataSpec.TopologyRef = instance.Spec.TopologyRef
 	}
 
 	op, err := controllerutil.CreateOrPatch(ctx, r.Client, metadata, func() error {

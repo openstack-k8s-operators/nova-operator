@@ -38,6 +38,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
+	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 )
 
 // NovaDefaults -
@@ -120,7 +121,7 @@ func (spec *NovaSpecCore) Default() {
 
 var _ webhook.Validator = &Nova{}
 
-func (r *NovaSpecCore) ValidateCellTemplates(basePath *field.Path) field.ErrorList {
+func (r *NovaSpecCore) ValidateCellTemplates(basePath *field.Path, namespace string) field.ErrorList {
 	var errors field.ErrorList
 
 	if _, ok := r.CellTemplates[Cell0Name]; !ok {
@@ -139,6 +140,11 @@ func (r *NovaSpecCore) ValidateCellTemplates(basePath *field.Path) field.ErrorLi
 			errors,
 			ValidateCellName(cellPath, name)...,
 		)
+		if cell.TopologyRef != nil {
+			if err := topologyv1.ValidateTopologyNamespace(cell.TopologyRef.Namespace, *cellPath, namespace); err != nil {
+				errors = append(errors, err)
+			}
+		}
 		if name != Cell0Name {
 			if dupName, ok := cellMessageBusNames[cell.CellMessageBusInstance]; ok {
 				errors = append(errors, field.Invalid(
@@ -163,6 +169,25 @@ func (r *NovaSpecCore) ValidateCellTemplates(basePath *field.Path) field.ErrorLi
 						"The metadata service can be either enabled on top "+
 						"or in the cells but not in both places at the same time."),
 			)
+		}
+		if cell.MetadataServiceTemplate.TopologyRef != nil {
+			if err := topologyv1.ValidateTopologyNamespace(
+				cell.MetadataServiceTemplate.TopologyRef.Namespace,
+				*cellPath.Child("metadataServiceTemplate"),
+				namespace,
+			); err != nil {
+				errors = append(errors, err)
+			}
+		}
+
+		if cell.NoVNCProxyServiceTemplate.TopologyRef != nil {
+			if err := topologyv1.ValidateTopologyNamespace(
+				cell.NoVNCProxyServiceTemplate.TopologyRef.Namespace,
+				*cellPath.Child("noVNCProxyServiceTemplate"),
+				namespace,
+			); err != nil {
+				errors = append(errors, err)
+			}
 		}
 
 		errors = append(
@@ -228,21 +253,22 @@ func (r *NovaSpecCore) ValidateAPIServiceTemplate(basePath *field.Path) field.Er
 }
 
 // ValidateCreate validates the NovaSpec during the webhook invocation.
-func (r *NovaSpec) ValidateCreate(basePath *field.Path) field.ErrorList {
-	return r.NovaSpecCore.ValidateCreate(basePath)
+func (r *NovaSpec) ValidateCreate(basePath *field.Path, namespace string) field.ErrorList {
+	return r.NovaSpecCore.ValidateCreate(basePath, namespace)
 }
 
 // ValidateCreate validates the NovaSpecCore during the webhook invocation. It is
 // expected to be called by the validation webhook in the higher level meta
 // operator
-func (r *NovaSpecCore) ValidateCreate(basePath *field.Path) field.ErrorList {
-	errors := r.ValidateCellTemplates(basePath)
+func (r *NovaSpecCore) ValidateCreate(basePath *field.Path, namespace string) field.ErrorList {
+	errors := r.ValidateCellTemplates(basePath, namespace)
 	errors = append(errors, r.ValidateAPIServiceTemplate(basePath)...)
 	errors = append(
 		errors,
 		r.MetadataServiceTemplate.ValidateDefaultConfigOverwrite(
 			basePath.Child("metadataServiceTemplate"))...)
 
+	errors = append(errors, r.ValidateNovaSpecTopology(basePath, namespace)...)
 	return errors
 }
 
@@ -250,7 +276,7 @@ func (r *NovaSpecCore) ValidateCreate(basePath *field.Path) field.ErrorList {
 func (r *Nova) ValidateCreate() (admission.Warnings, error) {
 	novalog.Info("validate create", "name", r.Name)
 
-	errors := r.Spec.ValidateCreate(field.NewPath("spec"))
+	errors := r.Spec.ValidateCreate(field.NewPath("spec"), r.Namespace)
 	if len(errors) != 0 {
 		novalog.Info("validation failed", "name", r.Name)
 		return nil, apierrors.NewInvalid(
@@ -261,21 +287,22 @@ func (r *Nova) ValidateCreate() (admission.Warnings, error) {
 }
 
 // ValidateUpdate validates the NovaSpec during the webhook invocation.
-func (r *NovaSpec) ValidateUpdate(old NovaSpec, basePath *field.Path) field.ErrorList {
-	return r.NovaSpecCore.ValidateUpdate(old.NovaSpecCore, basePath)
+func (r *NovaSpec) ValidateUpdate(old NovaSpec, basePath *field.Path, namespace string) field.ErrorList {
+	return r.NovaSpecCore.ValidateUpdate(old.NovaSpecCore, basePath, namespace)
 }
 
 // ValidateUpdate validates the NovaSpecCore during the webhook invocation. It is
 // expected to be called by the validation webhook in the higher level meta
 // operator
-func (r *NovaSpecCore) ValidateUpdate(old NovaSpecCore, basePath *field.Path) field.ErrorList {
-	errors := r.ValidateCellTemplates(basePath)
+func (r *NovaSpecCore) ValidateUpdate(old NovaSpecCore, basePath *field.Path, namespace string) field.ErrorList {
+	errors := r.ValidateCellTemplates(basePath, namespace)
 	errors = append(errors, r.ValidateAPIServiceTemplate(basePath)...)
 	errors = append(
 		errors,
 		r.MetadataServiceTemplate.ValidateDefaultConfigOverwrite(
 			basePath.Child("metadataServiceTemplate"))...)
 
+	errors = append(errors, r.ValidateNovaSpecTopology(basePath, namespace)...)
 	return errors
 }
 
@@ -289,7 +316,7 @@ func (r *Nova) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 
 	novalog.Info("validate update", "diff", cmp.Diff(oldNova, r))
 
-	errors := r.Spec.ValidateUpdate(oldNova.Spec, field.NewPath("spec"))
+	errors := r.Spec.ValidateUpdate(oldNova.Spec, field.NewPath("spec"), r.Namespace)
 	if len(errors) != 0 {
 		novalog.Info("validation failed", "name", r.Name)
 		return nil, apierrors.NewInvalid(
@@ -345,6 +372,33 @@ func (r *NovaCellDBPurge) Validate(basePath *field.Path) field.ErrorList {
 			field.Invalid(
 				basePath.Child("schedule"), r.Schedule, err.Error()),
 		)
+	}
+	return errors
+}
+
+func (r *NovaSpecCore) ValidateNovaSpecTopology(basePath *field.Path, namespace string) field.ErrorList {
+	var errors field.ErrorList
+	// When a TopologyRef CR is referenced, fail if a different Namespace is
+	// referenced because is not supported
+	if r.TopologyRef != nil {
+		if err := topologyv1.ValidateTopologyNamespace(r.TopologyRef.Namespace, *basePath, namespace); err != nil {
+			errors = append(errors, err)
+		}
+	}
+	if r.APIServiceTemplate.TopologyRef != nil {
+		if err := topologyv1.ValidateTopologyNamespace(r.APIServiceTemplate.TopologyRef.Namespace, *basePath.Child("apiServiceTemplate"), namespace); err != nil {
+			errors = append(errors, err)
+		}
+	}
+	if r.SchedulerServiceTemplate.TopologyRef != nil {
+		if err := topologyv1.ValidateTopologyNamespace(r.SchedulerServiceTemplate.TopologyRef.Namespace, *basePath.Child("schedulerServiceTemplate"), namespace); err != nil {
+			errors = append(errors, err)
+		}
+	}
+	if r.MetadataServiceTemplate.TopologyRef != nil {
+		if err := topologyv1.ValidateTopologyNamespace(r.MetadataServiceTemplate.TopologyRef.Namespace, *basePath.Child("metadataServiceTemplate"), namespace); err != nil {
+			errors = append(errors, err)
+		}
 	}
 	return errors
 }
