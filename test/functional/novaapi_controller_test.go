@@ -1122,4 +1122,113 @@ var _ = Describe("NovaAPI controller", func() {
 			}, timeout, interval).Should(Succeed())
 		})
 	})
+	When("NovaAPI is created with a wrong topologyRef", func() {
+		BeforeEach(func() {
+			spec := GetDefaultNovaAPISpec(novaNames)
+			spec["topologyRef"] = map[string]interface{}{"name": novaNames.NovaTopologies[1].Name}
+
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateInternalTopLevelSecret(novaNames))
+			DeferCleanup(th.DeleteInstance, CreateNovaAPI(novaNames.APIName, spec))
+		})
+		It("points to a non existing topology CR", func() {
+			th.ExpectCondition(
+				novaNames.APIName,
+				ConditionGetterFunc(NovaAPIConditionGetter),
+				condition.TopologyReadyCondition,
+				corev1.ConditionFalse,
+			)
+			th.ExpectCondition(
+				novaNames.APIName,
+				ConditionGetterFunc(NovaAPIConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+			)
+		})
+	})
+	When("NovaAPI is created with topology", func() {
+		BeforeEach(func() {
+			spec := GetDefaultNovaAPISpec(novaNames)
+			spec["topologyRef"] = map[string]interface{}{"name": novaNames.NovaTopologies[1].Name}
+
+			// Build the topology Spec
+			topologySpec := GetSampleTopologySpec()
+
+			// Create Test Topologies
+			for _, t := range novaNames.NovaTopologies {
+				CreateTopology(t, topologySpec)
+			}
+
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateInternalTopLevelSecret(novaNames))
+			DeferCleanup(th.DeleteInstance, CreateNovaAPI(novaNames.APIName, spec))
+			th.SimulateStatefulSetReplicaReady(novaNames.APIStatefulSetName)
+		})
+		It("sets lastAppliedTopology field in NovaAPI topology .Status", func() {
+			keystone.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
+			api := GetNovaAPI(novaNames.APIName)
+			Expect(api.Status.LastAppliedTopology).ToNot(BeEmpty())
+			Expect(api.Status.LastAppliedTopology).To(Equal(novaNames.NovaTopologies[1].Name))
+
+			th.ExpectCondition(
+				novaNames.APIName,
+				ConditionGetterFunc(NovaAPIConditionGetter),
+				condition.TopologyReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			Eventually(func(g Gomega) {
+				g.Expect(th.GetStatefulSet(novaNames.APIName).Spec.Template.Spec.TopologySpreadConstraints).ToNot(BeNil())
+				// No default Pod Antiaffinity is applied
+				g.Expect(th.GetStatefulSet(novaNames.APIName).Spec.Template.Spec.Affinity).To(BeNil())
+			}, timeout, interval).Should(Succeed())
+		})
+		It("updates lastAppliedTopology in NovaAPI .Status", func() {
+			Eventually(func(g Gomega) {
+				api := GetNovaAPI(novaNames.APIName)
+				api.Spec.TopologyRef.Name = novaNames.NovaTopologies[0].Name
+				g.Expect(k8sClient.Update(ctx, api)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			th.SimulateStatefulSetReplicaReady(novaNames.APIStatefulSetName)
+			keystone.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
+
+			Eventually(func(g Gomega) {
+				api := GetNovaAPI(novaNames.APIName)
+				g.Expect(api.Status.LastAppliedTopology).ToNot(BeEmpty())
+				g.Expect(api.Status.LastAppliedTopology).To(Equal(novaNames.NovaTopologies[0].Name))
+			}, timeout, interval).Should(Succeed())
+
+			th.ExpectCondition(
+				novaNames.APIName,
+				ConditionGetterFunc(NovaAPIConditionGetter),
+				condition.TopologyReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			Eventually(func(g Gomega) {
+				g.Expect(th.GetStatefulSet(novaNames.APIName).Spec.Template.Spec.TopologySpreadConstraints).ToNot(BeNil())
+				// No default Pod Antiaffinity is applied
+				g.Expect(th.GetStatefulSet(novaNames.APIName).Spec.Template.Spec.Affinity).To(BeNil())
+			}, timeout, interval).Should(Succeed())
+		})
+		It("removes topologyRef from NovaAPI spec", func() {
+			Eventually(func(g Gomega) {
+				api := GetNovaAPI(novaNames.APIName)
+				api.Spec.TopologyRef = nil
+				g.Expect(k8sClient.Update(ctx, api)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				api := GetNovaAPI(novaNames.APIName)
+				g.Expect(api.Status.LastAppliedTopology).Should(BeEmpty())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				g.Expect(th.GetStatefulSet(novaNames.APIName).Spec.Template.Spec.TopologySpreadConstraints).To(BeNil())
+				// Default Pod AntiAffinity is applied
+				g.Expect(th.GetStatefulSet(novaNames.APIName).Spec.Template.Spec.Affinity).ToNot(BeNil())
+			}, timeout, interval).Should(Succeed())
+		})
+	})
 })

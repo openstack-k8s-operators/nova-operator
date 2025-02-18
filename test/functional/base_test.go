@@ -485,6 +485,7 @@ func GetCellNames(novaName types.NamespacedName, cell string) CellNames {
 type NovaNames struct {
 	Namespace                      string
 	NovaName                       types.NamespacedName
+	StaticName                     types.NamespacedName
 	InternalNovaServiceName        types.NamespacedName
 	PublicNovaServiceName          types.NamespacedName
 	AdminNovaServiceName           types.NamespacedName
@@ -515,6 +516,7 @@ type NovaNames struct {
 	InternalTopLevelSecretName      types.NamespacedName
 	MemcachedNamespace              types.NamespacedName
 	Cells                           map[string]CellNames
+	NovaTopologies                  []types.NamespacedName
 }
 
 func GetNovaNames(novaName types.NamespacedName, cellNames []string) NovaNames {
@@ -543,6 +545,10 @@ func GetNovaNames(novaName types.NamespacedName, cellNames []string) NovaNames {
 	return NovaNames{
 		Namespace: novaName.Namespace,
 		NovaName:  novaName,
+		StaticName: types.NamespacedName{
+			Name:      "nova",
+			Namespace: novaName.Namespace,
+		},
 		InternalNovaServiceName: types.NamespacedName{
 			Namespace: novaName.Namespace,
 			Name:      "nova-internal",
@@ -627,6 +633,32 @@ func GetNovaNames(novaName types.NamespacedName, cellNames []string) NovaNames {
 			Namespace: novaName.Namespace,
 		},
 		Cells: cells,
+		NovaTopologies: []types.NamespacedName{
+			{
+				Namespace: novaName.Namespace,
+				Name:      "nova-global-topology",
+			},
+			{
+				Namespace: novaName.Namespace,
+				Name:      "nova-api-topology",
+			},
+			{
+				Namespace: novaName.Namespace,
+				Name:      "nova-scheduler-topology",
+			},
+			{
+				Namespace: novaName.Namespace,
+				Name:      "nova-metadata-topology",
+			},
+			{
+				Namespace: novaName.Namespace,
+				Name:      "nova-cell0-topology",
+			},
+			{
+				Namespace: novaName.Namespace,
+				Name:      "nova-cell1-topology",
+			},
+		},
 	}
 }
 
@@ -858,4 +890,39 @@ func SimulateReadyOfNovaTopServices() {
 		g.Expect(nova.Status.SchedulerServiceReadyCount).To(Equal(int32(1)))
 		g.Expect(nova.Status.MetadataServiceReadyCount).To(Equal(int32(1)))
 	}, timeout, interval).Should(Succeed())
+}
+
+// GetSampleTopologySpec - A sample (and opinionated) Topology Spec used to
+// test Nova components
+func GetSampleTopologySpec() map[string]interface{} {
+	// Build the topology Spec
+	topologySpec := map[string]interface{}{
+		"topologySpreadConstraints": []map[string]interface{}{
+			{
+				"maxSkew":           1,
+				"topologyKey":       corev1.LabelHostname,
+				"whenUnsatisfiable": "ScheduleAnyway",
+				"labelSelector": map[string]interface{}{
+					"matchLabels": map[string]interface{}{
+						"service": "nova",
+					},
+				},
+			},
+		},
+	}
+	return topologySpec
+}
+
+// CreateTopology - Creates a Topology CR based on the spec passed as input
+func CreateTopology(topology types.NamespacedName, spec map[string]interface{}) client.Object {
+	raw := map[string]interface{}{
+		"apiVersion": "topology.openstack.org/v1beta1",
+		"kind":       "Topology",
+		"metadata": map[string]interface{}{
+			"name":      topology.Name,
+			"namespace": topology.Namespace,
+		},
+		"spec": spec,
+	}
+	return th.CreateUnstructured(raw)
 }
