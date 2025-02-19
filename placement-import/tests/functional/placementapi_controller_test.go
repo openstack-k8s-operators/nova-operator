@@ -949,7 +949,7 @@ var _ = Describe("PlacementAPI controller", func() {
 		It("sets topology in CR status", func() {
 			Eventually(func(g Gomega) {
 				placement := GetPlacementAPI(names.PlacementAPIName)
-				g.Expect(placement.Status.LastAppliedTopology).To(Equal(names.PlacementAPITopologies[0].Name))
+				g.Expect(placement.Status.LastAppliedTopology.Name).To(Equal(names.PlacementAPITopologies[0].Name))
 			}, timeout, interval).Should(Succeed())
 
 			th.ExpectCondition(
@@ -969,14 +969,14 @@ var _ = Describe("PlacementAPI controller", func() {
 		It("updates topology when the reference changes", func() {
 			Eventually(func(g Gomega) {
 				placement := GetPlacementAPI(names.PlacementAPIName)
-				g.Expect(placement.Status.LastAppliedTopology).To(Equal(names.PlacementAPITopologies[0].Name))
+				g.Expect(placement.Status.LastAppliedTopology.Name).To(Equal(names.PlacementAPITopologies[0].Name))
 				placement.Spec.TopologyRef.Name = names.PlacementAPITopologies[1].Name
 				g.Expect(k8sClient.Update(ctx, placement)).To(Succeed())
 			}, timeout, interval).Should(Succeed())
 
 			Eventually(func(g Gomega) {
 				placement := GetPlacementAPI(names.PlacementAPIName)
-				g.Expect(placement.Status.LastAppliedTopology).To(Equal(names.PlacementAPITopologies[1].Name))
+				g.Expect(placement.Status.LastAppliedTopology.Name).To(Equal(names.PlacementAPITopologies[1].Name))
 			}, timeout, interval).Should(Succeed())
 
 			th.ExpectCondition(
@@ -996,7 +996,7 @@ var _ = Describe("PlacementAPI controller", func() {
 
 			Eventually(func(g Gomega) {
 				placement := GetPlacementAPI(names.PlacementAPIName)
-				g.Expect(placement.Status.LastAppliedTopology).Should(BeEmpty())
+				g.Expect(placement.Status.LastAppliedTopology).Should(BeNil())
 			}, timeout, interval).Should(Succeed())
 
 			Eventually(func(g Gomega) {
