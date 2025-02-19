@@ -957,7 +957,6 @@ func (r *NovaReconciler) ensureNovaManageJobSecret(
 		"cell_db_password":       string(cellDbSecret.Data[mariadbv1.DatabasePasswordSelector]),
 		"cell_db_address":        cell.Spec.CellDatabaseHostname,
 		"cell_db_port":           3306,
-		"openstack_cacert":       "",          // fixme
 		"openstack_region_name":  "regionOne", // fixme
 		"default_project_domain": "Default",   // fixme
 		"default_user_domain":    "Default",   // fixme
