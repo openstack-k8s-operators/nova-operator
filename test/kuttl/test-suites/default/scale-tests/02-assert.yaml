@@ -68,7 +68,6 @@ spec:
   cellDatabaseHostname: openstack.nova-kuttl-default.svc
   cellDatabaseAccount: nova-cell0
   cellName: cell0
-  containerImage: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
   replicas: 3
 status:
   readyCount: 3
@@ -90,7 +89,6 @@ spec:
   cellDatabaseHostname: openstack-cell1.nova-kuttl-default.svc
   cellDatabaseAccount: nova-cell1
   cellName: cell1
-  containerImage: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
   replicas: 3
 status:
   readyCount: 3
@@ -240,12 +238,10 @@ metadata:
   name: nova-kuttl-api-0
 status:
   containerStatuses:
-  - image: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
-    name: nova-kuttl-api-api
+  - name: nova-kuttl-api-api
     ready: true
     started: true
-  - image: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
-    name: nova-kuttl-api-log
+  - name: nova-kuttl-api-log
     ready: true
     started: true
 ---
@@ -260,12 +256,10 @@ metadata:
   name: nova-kuttl-api-1
 status:
   containerStatuses:
-  - image: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
-    name: nova-kuttl-api-api
+  - name: nova-kuttl-api-api
     ready: true
     started: true
-  - image: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
-    name: nova-kuttl-api-log
+  - name: nova-kuttl-api-log
     ready: true
     started: true
 ---
@@ -280,12 +274,10 @@ metadata:
   name: nova-kuttl-api-2
 status:
   containerStatuses:
-  - image: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
-    name: nova-kuttl-api-api
+  - name: nova-kuttl-api-api
     ready: true
     started: true
-  - image: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
-    name: nova-kuttl-api-log
+  - name: nova-kuttl-api-log
     ready: true
     started: true
 ---
@@ -303,8 +295,7 @@ metadata:
     name: nova-kuttl-scheduler
 status:
   containerStatuses:
-  - image: quay.io/podified-antelope-centos9/openstack-nova-scheduler:current-podified
-    name: nova-kuttl-scheduler-scheduler
+  - name: nova-kuttl-scheduler-scheduler
     ready: true
     started: true
 ---
@@ -323,8 +314,7 @@ metadata:
     name: nova-kuttl-scheduler
 status:
   containerStatuses:
-  - image: quay.io/podified-antelope-centos9/openstack-nova-scheduler:current-podified
-    name: nova-kuttl-scheduler-scheduler
+  - name: nova-kuttl-scheduler-scheduler
     ready: true
     started: true
 ---
@@ -343,8 +333,7 @@ metadata:
     name: nova-kuttl-scheduler
 status:
   containerStatuses:
-  - image: quay.io/podified-antelope-centos9/openstack-nova-scheduler:current-podified
-    name: nova-kuttl-scheduler-scheduler
+  - name: nova-kuttl-scheduler-scheduler
     ready: true
     started: true
 ---
@@ -365,12 +354,10 @@ metadata:
     name: nova-kuttl-metadata
 status:
   containerStatuses:
-  - image: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
-    name: nova-kuttl-metadata-log
+  - name: nova-kuttl-metadata-log
     ready: true
     started: true
-  - image: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
-    name: nova-kuttl-metadata-metadata
+  - name: nova-kuttl-metadata-metadata
     ready: true
     started: true
 ---
@@ -391,12 +378,10 @@ metadata:
     name: nova-kuttl-metadata
 status:
   containerStatuses:
-  - image: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
-    name: nova-kuttl-metadata-log
+  - name: nova-kuttl-metadata-log
     ready: true
     started: true
-  - image: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
-    name: nova-kuttl-metadata-metadata
+  - name: nova-kuttl-metadata-metadata
     ready: true
     started: true
 ---
@@ -417,12 +402,10 @@ metadata:
     name: nova-kuttl-metadata
 status:
   containerStatuses:
-  - image: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
-    name: nova-kuttl-metadata-log
+  - name: nova-kuttl-metadata-log
     ready: true
     started: true
-  - image: quay.io/podified-antelope-centos9/openstack-nova-api:current-podified
-    name: nova-kuttl-metadata-metadata
+  - name: nova-kuttl-metadata-metadata
     ready: true
     started: true
 ---
@@ -444,8 +427,7 @@ metadata:
     name: nova-kuttl-cell0-conductor
 status:
   containerStatuses:
-  - image: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
-    name: nova-kuttl-cell0-conductor-conductor
+  - name: nova-kuttl-cell0-conductor-conductor
     ready: true
     started: true
 ---
@@ -467,8 +449,7 @@ metadata:
     name: nova-kuttl-cell0-conductor
 status:
   containerStatuses:
-  - image: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
-    name: nova-kuttl-cell0-conductor-conductor
+  - name: nova-kuttl-cell0-conductor-conductor
     ready: true
     started: true
 ---
@@ -490,8 +471,7 @@ metadata:
     name: nova-kuttl-cell0-conductor
 status:
   containerStatuses:
-  - image: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
-    name: nova-kuttl-cell0-conductor-conductor
+  - name: nova-kuttl-cell0-conductor-conductor
     ready: true
     started: true
 ---
@@ -512,8 +492,7 @@ metadata:
     name: nova-kuttl-cell1-conductor
 status:
   containerStatuses:
-  - image: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
-    name: nova-kuttl-cell1-conductor-conductor
+  - name: nova-kuttl-cell1-conductor-conductor
     ready: true
     started: true
 ---
@@ -534,8 +513,7 @@ metadata:
     name: nova-kuttl-cell1-conductor
 status:
   containerStatuses:
-  - image: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
-    name: nova-kuttl-cell1-conductor-conductor
+  - name: nova-kuttl-cell1-conductor-conductor
     ready: true
     started: true
 ---
@@ -556,8 +534,7 @@ metadata:
     name: nova-kuttl-cell1-conductor
 status:
   containerStatuses:
-  - image: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
-    name: nova-kuttl-cell1-conductor-conductor
+  - name: nova-kuttl-cell1-conductor-conductor
     ready: true
     started: true
 ---

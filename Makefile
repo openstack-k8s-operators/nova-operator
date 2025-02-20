@@ -55,6 +55,7 @@ DEFAULT_IMG ?= quay.io/openstack-k8s-operators/nova-operator:latest
 IMG ?= $(DEFAULT_IMG)
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.29
+CATALOG_IMAGE ?= quay.io/openstack-k8s-operators/nova-operator-index:latest
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -428,3 +429,11 @@ PHONY: crd-schema-check
 crd-schema-check: manifests
 	INSTALL_DIR=$(LOCALBIN) CRD_SCHEMA_CHECKER_VERSION=$(CRD_SCHEMA_CHECKER_VERSION) hack/build-crd-schema-checker.sh
 	INSTALL_DIR=$(LOCALBIN) BASE_REF="$${PULL_BASE_SHA:-$(BRANCH)}" hack/crd-schema-checker.sh
+
+
+.PHONY: run_with_olm
+run_with_olm: export CATALOG_IMG=${CATALOG_IMAGE}
+run_with_olm: ## Install nova operator via olm
+	bash ci/olm.sh
+	oc apply -f ci/olm.yaml
+	timeout 300s bash -c "while ! (oc get csv -n openstack-operators -l operators.coreos.com/nova-operator.openstack-operators -o jsonpath='{.items[*].status.phase}' | grep Succeeded); do sleep 1; done"
