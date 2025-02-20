@@ -9,12 +9,20 @@
       This job deploy a basic "Compute Starter Kit" topology
       https://www.openstack.org/software/sample-configs#compute-starter-kit
       that is the minium set of openstack services required to boot a vm.
+    post-run:
+      - ci/nova-operator-base/playbooks/collect-logs.yaml
     vars:
       collection_namespace_override: "nova-kuttl-default"
       operator_name: nova-operator
+      nova_repo: "{{ ansible_user_dir }}/src/github.com/openstack-k8s-operators/nova-operator"
       zuul_log_collection: true
-    post-run:
-      - ci/nova-operator-base/playbooks/collect-logs.yaml
+      nova_hook: "{{ ansible_user_dir }}/{{ zuul.projects['github.com/openstack-k8s-operators/nova-operator'].src_dir }}/ci/nova-operator-kuttl/deploy_webhooks.yaml"
+      pre_kuttl_from_operator:
+        - name: 70 Create nova webhooks
+          type: playbook
+          source: "{{ nova_hook }}"
+          extra_vars:
+            nova_catalog_image: "{{ content_provider_registry_ip }}:5001/openstack-k8s-operators/nova-operator-index:{{ zuul.patchset }}"
     extra-vars:
       crc_ci_bootstrap_networking:
         networks:

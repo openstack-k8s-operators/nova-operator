@@ -68,7 +68,6 @@ spec:
   cellDatabaseHostname: openstack.nova-kuttl-default.svc
   cellDatabaseAccount: nova-cell0
   cellName: cell0
-  containerImage: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
   replicas: 1
 status:
   readyCount: 1
@@ -90,7 +89,6 @@ spec:
   cellDatabaseHostname: openstack-cell1.nova-kuttl-default.svc
   cellDatabaseAccount: nova-cell1
   cellName: cell1
-  containerImage: quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified
   replicas: 1
 status:
   readyCount: 1

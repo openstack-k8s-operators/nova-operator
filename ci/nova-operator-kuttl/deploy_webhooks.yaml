@@ -1,0 +1,17 @@
+- name: Create custom service
+  hosts: "{{ cifmw_target_hook_host | default('localhost') }}"
+  environment:
+    KUBECONFIG: "{{ cifmw_openshift_kubeconfig }}"
+    PATH: "{{ cifmw_path }}"
+  gather_facts: false
+  tasks:
+    - name: Scale down deployment
+      ansible.builtin.shell: |
+        oc patch csv -n openstack-operators openstack-operator.v0.0.1 --type json -p="[{"op": "replace", "path": "/spec/install/spec/deployments/0/spec/replicas", "value": "0"}]"
+    - name: Install Nova Operator
+      cifmw.general.ci_script:
+        output_dir: "{{ cifmw_basedir }}/artifacts"
+        chdir: "{{ ansible_user_dir }}/src/github.com/openstack-k8s-operators/nova-operator"
+        script: make run_with_olm
+        extra_args:
+          CATALOG_IMAGE: "{{ nova_catalog_image }}"
