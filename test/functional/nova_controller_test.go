@@ -1057,16 +1057,16 @@ var _ = Describe("Nova controller", func() {
 			SimulateReadyOfNovaTopServices()
 
 			api := GetNovaAPI(novaNames.APIName)
-			Expect(api.Status.LastAppliedTopology).ToNot(BeEmpty())
-			Expect(api.Status.LastAppliedTopology).To(Equal(novaNames.NovaTopologies[0].Name))
+			Expect(api.Status.LastAppliedTopology).ToNot(BeNil())
+			Expect(api.Status.LastAppliedTopology.Name).To(Equal(novaNames.NovaTopologies[0].Name))
 
 			scheduler := GetNovaScheduler(novaNames.SchedulerName)
-			Expect(scheduler.Status.LastAppliedTopology).ToNot(BeEmpty())
-			Expect(scheduler.Status.LastAppliedTopology).To(Equal(novaNames.NovaTopologies[0].Name))
+			Expect(scheduler.Status.LastAppliedTopology).ToNot(BeNil())
+			Expect(scheduler.Status.LastAppliedTopology.Name).To(Equal(novaNames.NovaTopologies[0].Name))
 
 			metadata := GetNovaMetadata(novaNames.MetadataName)
-			Expect(metadata.Status.LastAppliedTopology).ToNot(BeEmpty())
-			Expect(metadata.Status.LastAppliedTopology).To(Equal(novaNames.NovaTopologies[0].Name))
+			Expect(metadata.Status.LastAppliedTopology).ToNot(BeNil())
+			Expect(metadata.Status.LastAppliedTopology.Name).To(Equal(novaNames.NovaTopologies[0].Name))
 
 			th.ExpectCondition(
 				novaNames.APIName,

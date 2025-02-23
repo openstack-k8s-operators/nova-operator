@@ -344,8 +344,8 @@ var _ = Describe("Nova reconfiguration", func() {
 			SimulateReadyOfNovaTopServices()
 			Eventually(func(g Gomega) {
 				api := GetNovaAPI(novaNames.APIName)
-				g.Expect(api.Status.LastAppliedTopology).ToNot(BeEmpty())
-				g.Expect(api.Status.LastAppliedTopology).To(Equal(novaNames.NovaTopologies[1].Name))
+				g.Expect(api.Status.LastAppliedTopology).ToNot(BeNil())
+				g.Expect(api.Status.LastAppliedTopology.Name).To(Equal(novaNames.NovaTopologies[1].Name))
 			}, timeout, interval).Should(Succeed())
 
 			th.ExpectCondition(
@@ -357,8 +357,8 @@ var _ = Describe("Nova reconfiguration", func() {
 
 			Eventually(func(g Gomega) {
 				sch := GetNovaScheduler(novaNames.SchedulerName)
-				g.Expect(sch.Status.LastAppliedTopology).ToNot(BeEmpty())
-				g.Expect(sch.Status.LastAppliedTopology).To(Equal(novaNames.NovaTopologies[1].Name))
+				g.Expect(sch.Status.LastAppliedTopology).ToNot(BeNil())
+				g.Expect(sch.Status.LastAppliedTopology.Name).To(Equal(novaNames.NovaTopologies[1].Name))
 			}, timeout, interval).Should(Succeed())
 
 			th.ExpectCondition(
@@ -369,8 +369,8 @@ var _ = Describe("Nova reconfiguration", func() {
 			)
 			Eventually(func(g Gomega) {
 				metadata := GetNovaMetadata(novaNames.MetadataName)
-				g.Expect(metadata.Status.LastAppliedTopology).ToNot(BeEmpty())
-				g.Expect(metadata.Status.LastAppliedTopology).To(Equal(novaNames.NovaTopologies[1].Name))
+				g.Expect(metadata.Status.LastAppliedTopology).ToNot(BeNil())
+				g.Expect(metadata.Status.LastAppliedTopology.Name).To(Equal(novaNames.NovaTopologies[1].Name))
 			}, timeout, interval).Should(Succeed())
 
 			th.ExpectCondition(
@@ -416,14 +416,14 @@ var _ = Describe("Nova reconfiguration", func() {
 			SimulateReadyOfNovaTopServices()
 			Eventually(func(g Gomega) {
 				api := GetNovaAPI(novaNames.APIName)
-				g.Expect(api.Status.LastAppliedTopology).ToNot(BeEmpty())
-				g.Expect(api.Status.LastAppliedTopology).To(Equal(novaNames.NovaTopologies[1].Name))
+				g.Expect(api.Status.LastAppliedTopology).ToNot(BeNil())
+				g.Expect(api.Status.LastAppliedTopology.Name).To(Equal(novaNames.NovaTopologies[1].Name))
 				sch := GetNovaScheduler(novaNames.SchedulerName)
-				g.Expect(sch.Status.LastAppliedTopology).ToNot(BeEmpty())
-				g.Expect(sch.Status.LastAppliedTopology).To(Equal(novaNames.NovaTopologies[2].Name))
+				g.Expect(sch.Status.LastAppliedTopology).ToNot(BeNil())
+				g.Expect(sch.Status.LastAppliedTopology.Name).To(Equal(novaNames.NovaTopologies[2].Name))
 				metadata := GetNovaMetadata(novaNames.MetadataName)
-				g.Expect(metadata.Status.LastAppliedTopology).ToNot(BeEmpty())
-				g.Expect(metadata.Status.LastAppliedTopology).To(Equal(novaNames.NovaTopologies[3].Name))
+				g.Expect(metadata.Status.LastAppliedTopology).ToNot(BeNil())
+				g.Expect(metadata.Status.LastAppliedTopology.Name).To(Equal(novaNames.NovaTopologies[3].Name))
 			}, timeout, interval).Should(Succeed())
 		})
 		It("removes topologyRef from the spec", func() {
@@ -436,13 +436,13 @@ var _ = Describe("Nova reconfiguration", func() {
 
 			Eventually(func(g Gomega) {
 				api := GetNovaAPI(novaNames.APIName)
-				g.Expect(api.Status.LastAppliedTopology).Should(BeEmpty())
+				g.Expect(api.Status.LastAppliedTopology).Should(BeNil())
 				scheduler := GetNovaScheduler(novaNames.SchedulerName)
-				g.Expect(scheduler.Status.LastAppliedTopology).Should(BeEmpty())
+				g.Expect(scheduler.Status.LastAppliedTopology).Should(BeNil())
 				metadata := GetNovaMetadata(novaNames.MetadataName)
-				g.Expect(metadata.Status.LastAppliedTopology).Should(BeEmpty())
+				g.Expect(metadata.Status.LastAppliedTopology).Should(BeNil())
 				cond := GetNovaConductor(cell0.ConductorName)
-				g.Expect(cond.Status.LastAppliedTopology).Should(BeEmpty())
+				g.Expect(cond.Status.LastAppliedTopology).Should(BeNil())
 			}, timeout, interval).Should(Succeed())
 
 			Eventually(func(g Gomega) {

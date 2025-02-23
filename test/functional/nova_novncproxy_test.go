@@ -1353,8 +1353,8 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 		It("sets lastAppliedTopology field in NovaNoVNCProxy topology .Status", func() {
 			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
 			instance := GetNovaNoVNCProxy(cell1.NoVNCProxyName)
-			Expect(instance.Status.LastAppliedTopology).ToNot(BeEmpty())
-			Expect(instance.Status.LastAppliedTopology).To(Equal(novaNames.NovaTopologies[5].Name))
+			Expect(instance.Status.LastAppliedTopology).ToNot(BeNil())
+			Expect(instance.Status.LastAppliedTopology.Name).To(Equal(novaNames.NovaTopologies[5].Name))
 
 			th.ExpectCondition(
 				cell1.NoVNCProxyName,
@@ -1366,6 +1366,8 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 			Eventually(func(g Gomega) {
 				g.Expect(
 					th.GetStatefulSet(cell1.NoVNCProxyName).Spec.Template.Spec.TopologySpreadConstraints).ToNot(BeNil())
+				g.Expect(
+					th.GetStatefulSet(cell1.NoVNCProxyName).Spec.Template.Spec.Affinity).To(BeNil())
 			}, timeout, interval).Should(Succeed())
 		})
 		It("updates lastAppliedTopology in NovaNoVNCProxy .Status", func() {
@@ -1378,7 +1380,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
 			Eventually(func(g Gomega) {
 				instance := GetNovaNoVNCProxy(cell1.NoVNCProxyName)
-				g.Expect(instance.Status.LastAppliedTopology).ToNot(BeEmpty())
+				g.Expect(instance.Status.LastAppliedTopology).ToNot(BeNil())
 			}, timeout, interval).Should(Succeed())
 
 			th.ExpectCondition(
@@ -1391,6 +1393,8 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 			Eventually(func(g Gomega) {
 				g.Expect(th.GetStatefulSet(
 					cell1.NoVNCProxyName).Spec.Template.Spec.TopologySpreadConstraints).ToNot(BeNil())
+				g.Expect(th.GetStatefulSet(
+					cell1.NoVNCProxyName).Spec.Template.Spec.Affinity).To(BeNil())
 			}, timeout, interval).Should(Succeed())
 		})
 		It("removes topologyRef from NovaNoVNCProxy spec", func() {
@@ -1402,13 +1406,13 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 
 			Eventually(func(g Gomega) {
 				instance := GetNovaNoVNCProxy(cell1.NoVNCProxyName)
-				g.Expect(instance.Status.LastAppliedTopology).Should(BeEmpty())
+				g.Expect(instance.Status.LastAppliedTopology).Should(BeNil())
 			}, timeout, interval).Should(Succeed())
 
 			Eventually(func(g Gomega) {
 				g.Expect(th.GetStatefulSet(
 					cell1.NoVNCProxyName).Spec.Template.Spec.TopologySpreadConstraints).To(BeNil())
-				// Default Pod AntiAffinity is applied
+				// Default Pod AntiAffinity is applied in this case
 				g.Expect(th.GetStatefulSet(
 					cell1.NoVNCProxyName).Spec.Template.Spec.Affinity).ToNot(BeNil())
 			}, timeout, interval).Should(Succeed())
