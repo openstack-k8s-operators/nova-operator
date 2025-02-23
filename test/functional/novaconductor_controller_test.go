@@ -784,8 +784,8 @@ var _ = Describe("NovaConductor controller", func() {
 			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 			cnd := GetNovaConductor(cell0.ConductorName)
 
-			Expect(cnd.Status.LastAppliedTopology).ToNot(BeEmpty())
-			Expect(cnd.Status.LastAppliedTopology).To(Equal(novaNames.NovaTopologies[4].Name))
+			Expect(cnd.Status.LastAppliedTopology).ToNot(BeNil())
+			Expect(cnd.Status.LastAppliedTopology.Name).To(Equal(novaNames.NovaTopologies[4].Name))
 
 			th.ExpectCondition(
 				cell0.ConductorName,
@@ -810,8 +810,8 @@ var _ = Describe("NovaConductor controller", func() {
 			th.SimulateJobSuccess(cell0.DBSyncJobName)
 			Eventually(func(g Gomega) {
 				cnd := GetNovaConductor(cell0.ConductorName)
-				g.Expect(cnd.Status.LastAppliedTopology).ToNot(BeEmpty())
-				g.Expect(cnd.Status.LastAppliedTopology).To(Equal(novaNames.NovaTopologies[0].Name))
+				g.Expect(cnd.Status.LastAppliedTopology).ToNot(BeNil())
+				g.Expect(cnd.Status.LastAppliedTopology.Name).To(Equal(novaNames.NovaTopologies[0].Name))
 			}, timeout, interval).Should(Succeed())
 
 			th.ExpectCondition(
@@ -837,7 +837,7 @@ var _ = Describe("NovaConductor controller", func() {
 			th.SimulateJobSuccess(cell0.DBSyncJobName)
 			Eventually(func(g Gomega) {
 				cnd := GetNovaConductor(cell0.ConductorName)
-				g.Expect(cnd.Status.LastAppliedTopology).Should(BeEmpty())
+				g.Expect(cnd.Status.LastAppliedTopology).Should(BeNil())
 			}, timeout, interval).Should(Succeed())
 
 			Eventually(func(g Gomega) {

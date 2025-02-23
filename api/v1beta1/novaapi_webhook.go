@@ -168,3 +168,15 @@ func ValidateAPIDefaultConfigOverwrite(
 		defaultConfigOverwrite,
 		[]string{"policy.yaml", "api-paste.ini"})
 }
+
+// Validate validates the referenced TopoRef.Namespace.
+func (r *NovaAPITemplate) ValidateAPITopology(
+	basePath *field.Path,
+	namespace string,
+) *field.Error {
+	if err := topologyv1.ValidateTopologyNamespace(
+		r.TopologyRef.Namespace, *basePath, namespace); err != nil {
+		return err
+	}
+	return nil
+}

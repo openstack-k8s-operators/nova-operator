@@ -171,23 +171,21 @@ func (r *NovaSpecCore) ValidateCellTemplates(basePath *field.Path, namespace str
 			)
 		}
 		if cell.MetadataServiceTemplate.TopologyRef != nil {
-			if err := topologyv1.ValidateTopologyNamespace(
-				cell.MetadataServiceTemplate.TopologyRef.Namespace,
-				*cellPath.Child("metadataServiceTemplate"),
-				namespace,
-			); err != nil {
-				errors = append(errors, err)
-			}
+			errors = append(
+				errors,
+				cell.MetadataServiceTemplate.ValidateMetadataTopology(
+					cellPath.Child("metadataServiceTemplate"),
+					namespace,
+			))
 		}
 
 		if cell.NoVNCProxyServiceTemplate.TopologyRef != nil {
-			if err := topologyv1.ValidateTopologyNamespace(
-				cell.NoVNCProxyServiceTemplate.TopologyRef.Namespace,
-				*cellPath.Child("noVNCProxyServiceTemplate"),
-				namespace,
-			); err != nil {
-				errors = append(errors, err)
-			}
+			errors = append(
+				errors,
+				cell.NoVNCProxyServiceTemplate.ValidateNoVNCProxyTopology(
+					cellPath.Child("noVNCProxyServiceTemplate"),
+					namespace,
+			))
 		}
 
 		errors = append(
@@ -229,6 +227,12 @@ func (r *NovaSpecCore) ValidateCellTemplates(basePath *field.Path, namespace str
 				errors, computeTemplate.ValidateDefaultConfigOverwrite(
 					cellPath.Child("novaComputeTemplates").Key(computeName))...,
 			)
+			if computeTemplate.TopologyRef != nil {
+				errors = append(
+					errors, computeTemplate.ValidateComputeTopology(
+					cellPath.Child("novaComputeTemplates").Key(computeName),
+					namespace))
+			}
 		}
 	}
 
@@ -301,7 +305,7 @@ func (r *NovaSpecCore) ValidateUpdate(old NovaSpecCore, basePath *field.Path, na
 		errors,
 		r.MetadataServiceTemplate.ValidateDefaultConfigOverwrite(
 			basePath.Child("metadataServiceTemplate"))...)
-
+	// Validate referenced topology for top-level services
 	errors = append(errors, r.ValidateNovaSpecTopology(basePath, namespace)...)
 	return errors
 }

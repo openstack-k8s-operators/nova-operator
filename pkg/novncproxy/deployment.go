@@ -159,16 +159,6 @@ func StatefulSet(
 							LivenessProbe:  livenessProbe,
 						},
 					},
-					// If possible two pods of the same service should not
-					// run on the same worker node. If this is not possible
-					// the get still created on the same worker node.
-					Affinity: affinity.DistributePods(
-						common.AppSelector,
-						[]string{
-							instance.Name,
-						},
-						corev1.LabelHostname,
-					),
 				},
 			},
 		},
@@ -179,16 +169,7 @@ func StatefulSet(
 	}
 
 	if topology != nil {
-		// Get the Topology .Spec
-		ts := topology.Spec
-		// Process TopologySpreadConstraints if defined in the referenced Topology
-		if ts.TopologySpreadConstraints != nil {
-			statefulset.Spec.Template.Spec.TopologySpreadConstraints = *topology.Spec.TopologySpreadConstraints
-		}
-		// Process Affinity if defined in the referenced Topology
-		if ts.Affinity != nil {
-			statefulset.Spec.Template.Spec.Affinity = ts.Affinity
-		}
+		topology.ApplyTo(&statefulset.Spec.Template)
 	} else {
 		// If possible two pods of the same service should not
 		// run on the same worker node. If this is not possible

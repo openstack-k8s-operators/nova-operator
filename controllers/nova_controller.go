@@ -1134,6 +1134,10 @@ func (r *NovaReconciler) ensureCell(
 		cellSpec.NodeSelector = instance.Spec.NodeSelector
 	}
 
+	if cellSpec.TopologyRef == nil {
+		cellSpec.TopologyRef = instance.Spec.TopologyRef
+	}
+
 	op, err := controllerutil.CreateOrPatch(ctx, r.Client, cell, func() error {
 		// TODO(gibi): Pass down a narrowed secret that only hold
 		// specific information but also holds user names

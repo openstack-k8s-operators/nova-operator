@@ -1167,8 +1167,8 @@ var _ = Describe("NovaAPI controller", func() {
 		It("sets lastAppliedTopology field in NovaAPI topology .Status", func() {
 			keystone.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
 			api := GetNovaAPI(novaNames.APIName)
-			Expect(api.Status.LastAppliedTopology).ToNot(BeEmpty())
-			Expect(api.Status.LastAppliedTopology).To(Equal(novaNames.NovaTopologies[1].Name))
+			Expect(api.Status.LastAppliedTopology).ToNot(BeNil())
+			Expect(api.Status.LastAppliedTopology.Name).To(Equal(novaNames.NovaTopologies[1].Name))
 
 			th.ExpectCondition(
 				novaNames.APIName,
@@ -1195,8 +1195,8 @@ var _ = Describe("NovaAPI controller", func() {
 
 			Eventually(func(g Gomega) {
 				api := GetNovaAPI(novaNames.APIName)
-				g.Expect(api.Status.LastAppliedTopology).ToNot(BeEmpty())
-				g.Expect(api.Status.LastAppliedTopology).To(Equal(novaNames.NovaTopologies[0].Name))
+				g.Expect(api.Status.LastAppliedTopology).ToNot(BeNil())
+				g.Expect(api.Status.LastAppliedTopology.Name).To(Equal(novaNames.NovaTopologies[0].Name))
 			}, timeout, interval).Should(Succeed())
 
 			th.ExpectCondition(
@@ -1221,7 +1221,7 @@ var _ = Describe("NovaAPI controller", func() {
 
 			Eventually(func(g Gomega) {
 				api := GetNovaAPI(novaNames.APIName)
-				g.Expect(api.Status.LastAppliedTopology).Should(BeEmpty())
+				g.Expect(api.Status.LastAppliedTopology).Should(BeNil())
 			}, timeout, interval).Should(Succeed())
 
 			Eventually(func(g Gomega) {
