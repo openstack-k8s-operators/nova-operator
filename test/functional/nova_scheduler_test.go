@@ -858,8 +858,8 @@ var _ = Describe("NovaScheduler controller", func() {
 		})
 		It("sets lastAppliedTopology field in NovaScheduler topology .Status", func() {
 			sch := GetNovaScheduler(novaNames.SchedulerName)
-			Expect(sch.Status.LastAppliedTopology).ToNot(BeEmpty())
-			Expect(sch.Status.LastAppliedTopology).To(Equal(novaNames.NovaTopologies[2].Name))
+			Expect(sch.Status.LastAppliedTopology).ToNot(BeNil())
+			Expect(sch.Status.LastAppliedTopology.Name).To(Equal(novaNames.NovaTopologies[2].Name))
 
 			th.ExpectCondition(
 				novaNames.SchedulerName,
@@ -885,8 +885,8 @@ var _ = Describe("NovaScheduler controller", func() {
 
 			Eventually(func(g Gomega) {
 				sch := GetNovaScheduler(novaNames.SchedulerName)
-				g.Expect(sch.Status.LastAppliedTopology).ToNot(BeEmpty())
-				g.Expect(sch.Status.LastAppliedTopology).To(Equal(novaNames.NovaTopologies[0].Name))
+				g.Expect(sch.Status.LastAppliedTopology).ToNot(BeNil())
+				g.Expect(sch.Status.LastAppliedTopology.Name).To(Equal(novaNames.NovaTopologies[0].Name))
 			}, timeout, interval).Should(Succeed())
 
 			th.ExpectCondition(
@@ -911,7 +911,7 @@ var _ = Describe("NovaScheduler controller", func() {
 
 			Eventually(func(g Gomega) {
 				sch := GetNovaScheduler(novaNames.SchedulerName)
-				g.Expect(sch.Status.LastAppliedTopology).Should(BeEmpty())
+				g.Expect(sch.Status.LastAppliedTopology).Should(BeNil())
 			}, timeout, interval).Should(Succeed())
 
 			Eventually(func(g Gomega) {

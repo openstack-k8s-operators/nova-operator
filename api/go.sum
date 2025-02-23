@@ -73,6 +73,8 @@ github.com/onsi/ginkgo/v2 v2.20.1 h1:YlVIbqct+ZmnEph770q9Q7NVAz4wwIiVNahee6JyUzo
 github.com/onsi/ginkgo/v2 v2.20.1/go.mod h1:lG9ey2Z29hR41WMVthyJBGUBcBhGOtoPF2VFMvBXFCI=
 github.com/onsi/gomega v1.34.1 h1:EUMJIKUjM8sKjYbtxQI9A4z2o+rruxnzNvpknOXie6k=
 github.com/onsi/gomega v1.34.1/go.mod h1:kU1QgUvBDLXBJq618Xvm2LUX6rSAfRaFRTcdOeDLwwY=
+github.com/openstack-k8s-operators/infra-operator/apis v0.5.1-0.20250226120707-ee102640a845 h1:18Si6z23Spv94fEkJZRC3Pzjk6UmkzzaiVdaqoAVc3o=
+github.com/openstack-k8s-operators/infra-operator/apis v0.5.1-0.20250226120707-ee102640a845/go.mod h1:jZ74v7V5JcKjSIgGWyrunPVMTuyw6SBBfp7f74RDrSo=
 github.com/openstack-k8s-operators/lib-common/modules/common v0.5.1-0.20250225220922-3ead38b7284f h1:3JVxp1FhQw62xYc/tnA04uPn9WCUTYupWucRQJeTy54=
 github.com/openstack-k8s-operators/lib-common/modules/common v0.5.1-0.20250225220922-3ead38b7284f/go.mod h1:rgpcv2tLD+/vudXx/gpIQSTuRpk4GOxHx84xwfvQalM=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=

@@ -1088,8 +1088,8 @@ var _ = Describe("NovaMetadata controller", func() {
 		})
 		It("sets lastAppliedTopology field in NovaMetadata topology .Status", func() {
 			meta := GetNovaMetadata(novaNames.MetadataName)
-			Expect(meta.Status.LastAppliedTopology).ToNot(BeEmpty())
-			Expect(meta.Status.LastAppliedTopology).To(Equal(novaNames.NovaTopologies[3].Name))
+			Expect(meta.Status.LastAppliedTopology).ToNot(BeNil())
+			Expect(meta.Status.LastAppliedTopology.Name).To(Equal(novaNames.NovaTopologies[3].Name))
 
 			th.ExpectCondition(
 				novaNames.MetadataName,
@@ -1115,8 +1115,8 @@ var _ = Describe("NovaMetadata controller", func() {
 
 			Eventually(func(g Gomega) {
 				meta := GetNovaMetadata(novaNames.MetadataName)
-				g.Expect(meta.Status.LastAppliedTopology).ToNot(BeEmpty())
-				g.Expect(meta.Status.LastAppliedTopology).To(Equal(novaNames.NovaTopologies[0].Name))
+				g.Expect(meta.Status.LastAppliedTopology).ToNot(BeNil())
+				g.Expect(meta.Status.LastAppliedTopology.Name).To(Equal(novaNames.NovaTopologies[0].Name))
 			}, timeout, interval).Should(Succeed())
 
 			th.ExpectCondition(
@@ -1141,7 +1141,7 @@ var _ = Describe("NovaMetadata controller", func() {
 
 			Eventually(func(g Gomega) {
 				meta := GetNovaMetadata(novaNames.MetadataName)
-				g.Expect(meta.Status.LastAppliedTopology).Should(BeEmpty())
+				g.Expect(meta.Status.LastAppliedTopology).Should(BeNil())
 			}, timeout, interval).Should(Succeed())
 
 			Eventually(func(g Gomega) {

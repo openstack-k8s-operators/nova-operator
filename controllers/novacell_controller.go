@@ -344,15 +344,6 @@ func (r *NovaCellReconciler) initConditions(
 			novav1.NovaComputeReadyInitMessage,
 		),
 	)
-	// Init Topology condition if there's a reference
-	if instance.Spec.TopologyRef != nil {
-		c := condition.UnknownCondition(
-			condition.TopologyReadyCondition,
-			condition.InitReason,
-			condition.TopologyReadyInitMessage,
-		)
-		cl.Set(c)
-	}
 	instance.Status.Conditions.Init(&cl)
 	return nil
 }
