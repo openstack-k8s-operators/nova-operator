@@ -36,6 +36,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
+	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 )
 
 // NovaAPIDefaults -
@@ -99,6 +100,12 @@ func (r *NovaAPI) ValidateCreate() (admission.Warnings, error) {
 			basePath.Child("defaultConfigOverwrite"),
 			r.Spec.DefaultConfigOverwrite)...)
 
+	if r.Spec.TopologyRef != nil {
+		if err := topologyv1.ValidateTopologyNamespace(r.Spec.TopologyRef.Namespace, *basePath, r.Namespace); err != nil {
+			errors = append(errors, err)
+		}
+	}
+
 	if len(errors) != 0 {
 		novaapilog.Info("validation failed", "name", r.Name)
 		return nil, apierrors.NewInvalid(
@@ -128,6 +135,12 @@ func (r *NovaAPI) ValidateUpdate(old runtime.Object) (admission.Warnings, error)
 		ValidateAPIDefaultConfigOverwrite(
 			basePath.Child("defaultConfigOverwrite"),
 			r.Spec.DefaultConfigOverwrite)...)
+
+	if r.Spec.TopologyRef != nil {
+		if err := topologyv1.ValidateTopologyNamespace(r.Spec.TopologyRef.Namespace, *basePath, r.Namespace); err != nil {
+			errors = append(errors, err)
+		}
+	}
 
 	if len(errors) != 0 {
 		novaapilog.Info("validation failed", "name", r.Name)

@@ -35,6 +35,7 @@ import (
 
 	"github.com/go-logr/logr"
 	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
+	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
@@ -73,6 +74,7 @@ func (r *NovaNoVNCProxyReconciler) GetLogger(ctx context.Context) logr.Logger {
 // +kubebuilder:rbac:groups=k8s.cni.cncf.io,resources=network-attachment-definitions,verbs=get;list;watch
 // +kubebuilder:rbac:groups=memcached.openstack.org,resources=memcacheds,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=memcached.openstack.org,resources=memcacheds/finalizers,verbs=update;patch
+// +kubebuilder:rbac:groups=topology.openstack.org,resources=topologies,verbs=get;list;watch;update
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -414,7 +416,15 @@ func (r *NovaNoVNCProxyReconciler) initConditions(
 			condition.MemcachedReadyInitMessage,
 		),
 	)
-
+	// Init Topology condition if there's a reference
+	if instance.Spec.TopologyRef != nil {
+		c := condition.UnknownCondition(
+			condition.TopologyReadyCondition,
+			condition.InitReason,
+			condition.TopologyReadyInitMessage,
+		)
+		cl.Set(c)
+	}
 	instance.Status.Conditions.Init(&cl)
 	return nil
 }
@@ -491,9 +501,33 @@ func (r *NovaNoVNCProxyReconciler) ensureDeployment(
 	annotations map[string]string,
 ) (ctrl.Result, error) {
 	Log := r.GetLogger(ctx)
-
 	serviceLabels := getNoVNCProxyServiceLabels(instance.Spec.CellName)
-	ssSpec, err := novncproxy.StatefulSet(instance, inputHash, serviceLabels, annotations)
+
+	//
+	// Handle Topology
+	//
+	topology, err := ensureTopology(
+		ctx,
+		h,
+		instance,      // topologyHandler
+		instance.Name, // finalizer
+		&instance.Status.Conditions,
+		labels.GetSingleLabelSelector(
+			common.ComponentSelector,
+			NovaNoVNCProxyLabelPrefix,
+		),
+	)
+	if err != nil {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.TopologyReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.TopologyReadyErrorMessage,
+			err.Error()))
+		return ctrl.Result{}, fmt.Errorf("waiting for Topology requirements: %w", err)
+	}
+
+	ssSpec, err := novncproxy.StatefulSet(instance, inputHash, serviceLabels, annotations, topology)
 	if err != nil {
 		Log.Info("Deployment failed")
 		instance.Status.Conditions.Set(condition.FalseCondition(
@@ -686,6 +720,16 @@ func (r *NovaNoVNCProxyReconciler) reconcileDelete(
 		}
 	}
 
+	// Remove finalizer from the referenced Topology CR
+	if _, err := topologyv1.EnsureDeletedTopologyRef(
+		ctx,
+		h,
+		instance.Status.LastAppliedTopology,
+		instance.Name,
+	); err != nil {
+		return err
+	}
+
 	// Successfully cleaned up everything. So as the final step let's remove the
 	// finalizer from ourselves to allow the deletion of NovaNoVNCProxy CR itself
 	updated := controllerutil.RemoveFinalizer(instance, h.GetFinalizer())
@@ -745,6 +789,7 @@ var (
 		caBundleSecretNameField,
 		tlsNoVNCProxyServiceField,
 		tlsNoVNCProxyVencryptField,
+		topologyField,
 	}
 )
 
@@ -826,6 +871,18 @@ func (r *NovaNoVNCProxyReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		return err
 	}
 
+	// index topologyField
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &novav1.NovaNoVNCProxy{}, topologyField, func(rawObj client.Object) []string {
+		// Extract the topology name from the spec, if one is provided
+		cr := rawObj.(*novav1.NovaNoVNCProxy)
+		if cr.Spec.TopologyRef == nil {
+			return nil
+		}
+		return []string{cr.Spec.TopologyRef.Name}
+	}); err != nil {
+		return err
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&novav1.NovaNoVNCProxy{}).
 		Owns(&v1.StatefulSet{}).
@@ -841,5 +898,8 @@ func (r *NovaNoVNCProxyReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			&memcachedv1.Memcached{},
 			handler.EnqueueRequestsFromMapFunc(r.memcachedNamespaceMapFunc),
 		).
+		Watches(&topologyv1.Topology{},
+			handler.EnqueueRequestsFromMapFunc(r.findObjectsForSrc),
+			builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Complete(r)
 }

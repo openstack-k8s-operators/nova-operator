@@ -4,10 +4,11 @@ go 1.21
 
 require (
 	github.com/google/go-cmp v0.6.0
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.5.1-0.20241216113837-d172b3ac0f4e
+	github.com/openstack-k8s-operators/infra-operator/apis v0.5.1-0.20250217200602-c0664aaeca74
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.5.1-0.20250205143454-43504d7ad19a
 	github.com/robfig/cron/v3 v3.0.1
-	k8s.io/api v0.29.12
-	k8s.io/apimachinery v0.29.12
+	k8s.io/api v0.29.13
+	k8s.io/apimachinery v0.29.13
 	k8s.io/utils v0.0.0-20240711033017-18e509b52bc8
 	sigs.k8s.io/controller-runtime v0.17.6
 )
@@ -17,7 +18,6 @@ require (
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/emicklei/go-restful/v3 v3.12.0 // indirect
-	github.com/evanphx/json-patch v5.7.0+incompatible // indirect
 	github.com/evanphx/json-patch/v5 v5.9.0 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
@@ -56,9 +56,9 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/apiextensions-apiserver v0.29.12 // indirect
-	k8s.io/client-go v0.29.12 // indirect
-	k8s.io/component-base v0.29.12 // indirect
+	k8s.io/apiextensions-apiserver v0.29.13 // indirect
+	k8s.io/client-go v0.29.13 // indirect
+	k8s.io/component-base v0.29.13 // indirect
 	k8s.io/klog/v2 v2.120.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20240322212309-b815d8309940 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
