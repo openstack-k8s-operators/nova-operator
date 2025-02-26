@@ -34,6 +34,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
+	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 )
 
 // NovaMetadataDefaults -
@@ -157,4 +158,15 @@ func ValidateMetadataDefaultConfigOverwrite(
 ) field.ErrorList {
 	return ValidateDefaultConfigOverwrite(
 		basePath, defaultConfigOverwrite, []string{"api-paste.ini"})
+}
+
+func (r *NovaMetadataTemplate) ValidateMetadataTopology(
+	basePath *field.Path,
+	namespace string,
+) *field.Error {
+	if err := topologyv1.ValidateTopologyNamespace(
+		r.TopologyRef.Namespace, *basePath, namespace); err != nil {
+		return err
+	}
+	return nil
 }

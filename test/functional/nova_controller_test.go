@@ -990,6 +990,190 @@ var _ = Describe("Nova controller", func() {
 		})
 
 	})
+	When("Nova CR instance is created with a wrong topology", func() {
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateNovaSecret(novaNames.NovaName.Namespace, SecretName))
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(cell0))
+
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
+					cell0.MariaDBDatabaseName.Namespace,
+					cell0.MariaDBDatabaseName.Name,
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
+					novaNames.APIMariaDBDatabaseName.Namespace,
+					novaNames.APIMariaDBDatabaseName.Name,
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+
+			memcachedSpec := memcachedv1.MemcachedSpec{
+				MemcachedSpecCore: memcachedv1.MemcachedSpecCore{
+					Replicas: ptr.To(int32(3)),
+				},
+			}
+			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
+			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
+
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace))
+
+			spec := GetDefaultNovaSpec()
+			cell0template := GetDefaultNovaCellTemplate()
+			cell0template["cellDatabaseInstance"] = cell0.MariaDBDatabaseName.Name
+			spec["cellTemplates"] = map[string]interface{}{"cell0": cell0template}
+			spec["apiDatabaseInstance"] = novaNames.APIMariaDBDatabaseName.Name
+			spec["apiDatabaseAccount"] = novaNames.APIMariaDBDatabaseAccount.Name
+			spec["topologyRef"] = map[string]interface{}{"name": "foo"}
+
+			DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
+
+			keystone.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
+			mariadb.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(novaNames.APIMariaDBDatabaseAccount)
+			mariadb.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(cell0.MariaDBAccountName)
+			infra.SimulateTransportURLReady(cell0.TransportURLName)
+			th.SimulateJobSuccess(cell0.DBSyncJobName)
+		})
+		It("points to a non existing topology CR", func() {
+			// Reconciliation does not succeed because TopologyReadyCondition
+			// is not marked as True for cell0 conductor.
+			// Top level resources are therefore not created because nova
+			//controller waits for cell0 to be ready first
+			th.ExpectCondition(
+				cell0.ConductorName,
+				ConditionGetterFunc(NovaConductorConditionGetter),
+				condition.TopologyReadyCondition,
+				corev1.ConditionFalse,
+			)
+			th.ExpectCondition(
+				novaNames.NovaName,
+				ConditionGetterFunc(NovaConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+			)
+		})
+	})
+	When("Nova CR instance is created with topology", func() {
+
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateNovaSecret(novaNames.NovaName.Namespace, SecretName))
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(cell0))
+
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
+					cell0.MariaDBDatabaseName.Namespace,
+					cell0.MariaDBDatabaseName.Name,
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
+					novaNames.APIMariaDBDatabaseName.Namespace,
+					novaNames.APIMariaDBDatabaseName.Name,
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+
+			memcachedSpec := memcachedv1.MemcachedSpec{
+				MemcachedSpecCore: memcachedv1.MemcachedSpecCore{
+					Replicas: ptr.To(int32(3)),
+				},
+			}
+			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
+			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
+
+			// Build the topology Spec
+			topologySpec := GetSampleTopologySpec()
+			// Create Test Topologies
+			for _, t := range novaNames.NovaTopologies {
+				CreateTopology(t, topologySpec)
+			}
+
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace))
+
+			spec := GetDefaultNovaSpec()
+			cell0template := GetDefaultNovaCellTemplate()
+			cell0template["cellDatabaseInstance"] = cell0.MariaDBDatabaseName.Name
+			spec["cellTemplates"] = map[string]interface{}{"cell0": cell0template}
+			spec["apiDatabaseInstance"] = novaNames.APIMariaDBDatabaseName.Name
+			spec["apiDatabaseAccount"] = novaNames.APIMariaDBDatabaseAccount.Name
+			spec["topologyRef"] = map[string]interface{}{"name": novaNames.NovaTopologies[0].Name}
+
+			DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
+
+			keystone.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
+			mariadb.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(novaNames.APIMariaDBDatabaseAccount)
+			mariadb.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(cell0.MariaDBAccountName)
+			infra.SimulateTransportURLReady(cell0.TransportURLName)
+			th.SimulateJobSuccess(cell0.DBSyncJobName)
+		})
+		It("propagates topology to the Nova components", func() {
+			SimulateReadyOfNovaTopServices()
+
+			api := GetNovaAPI(novaNames.APIName)
+			Expect(api.Status.LastAppliedTopology).ToNot(BeNil())
+			Expect(api.Status.LastAppliedTopology.Name).To(Equal(novaNames.NovaTopologies[0].Name))
+
+			scheduler := GetNovaScheduler(novaNames.SchedulerName)
+			Expect(scheduler.Status.LastAppliedTopology).ToNot(BeNil())
+			Expect(scheduler.Status.LastAppliedTopology.Name).To(Equal(novaNames.NovaTopologies[0].Name))
+
+			metadata := GetNovaMetadata(novaNames.MetadataName)
+			Expect(metadata.Status.LastAppliedTopology).ToNot(BeNil())
+			Expect(metadata.Status.LastAppliedTopology.Name).To(Equal(novaNames.NovaTopologies[0].Name))
+
+			cond := GetNovaConductor(cell0.ConductorName)
+			Expect(cond.Status.LastAppliedTopology).ToNot(BeNil())
+			Expect(cond.Status.LastAppliedTopology.Name).To(Equal(novaNames.NovaTopologies[0].Name))
+
+			th.ExpectCondition(
+				novaNames.APIName,
+				ConditionGetterFunc(NovaAPIConditionGetter),
+				condition.TopologyReadyCondition,
+				corev1.ConditionTrue,
+			)
+			th.ExpectCondition(
+				novaNames.SchedulerName,
+				ConditionGetterFunc(NovaSchedulerConditionGetter),
+				condition.TopologyReadyCondition,
+				corev1.ConditionTrue,
+			)
+			th.ExpectCondition(
+				novaNames.MetadataName,
+				ConditionGetterFunc(NovaMetadataConditionGetter),
+				condition.TopologyReadyCondition,
+				corev1.ConditionTrue,
+			)
+			th.ExpectCondition(
+				cell0.ConductorName,
+				ConditionGetterFunc(NovaConductorConditionGetter),
+				condition.TopologyReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
+	})
 
 	When("Nova CR is created without container images defined", func() {
 		BeforeEach(func() {

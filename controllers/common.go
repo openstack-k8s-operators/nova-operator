@@ -43,6 +43,7 @@ import (
 	gophercloud "github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/services"
 	networkv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
+	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
@@ -51,6 +52,7 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	"github.com/openstack-k8s-operators/lib-common/modules/openstack"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -102,6 +104,7 @@ const (
 	tlsMetadataField           = ".spec.tls.secretName"
 	tlsNoVNCProxyServiceField  = ".spec.tls.service.secretName"
 	tlsNoVNCProxyVencryptField = ".spec.tls.vencrypt.secretName"
+	topologyField              = ".spec.topologyRef.Name"
 
 	// NovaAPIDatabaseName is the name of the DB schema created for the
 	// top level nova DB
@@ -113,6 +116,69 @@ const (
 
 type conditionsGetter interface {
 	GetConditions() condition.Conditions
+}
+
+type topologyHandler interface {
+	GetSpecTopologyRef() *topologyv1.TopoRef
+	GetLastAppliedTopology() *topologyv1.TopoRef
+	SetLastAppliedTopology(t *topologyv1.TopoRef)
+}
+
+// GetLastAppliedTopologyRef - Returns a TopoRef object that can be passed to the
+// Handle topology logic
+func GetLastAppliedTopologyRef(t topologyHandler, ns string) *topologyv1.TopoRef {
+	lastAppliedTopologyName := ""
+	if l := t.GetLastAppliedTopology(); l != nil {
+		lastAppliedTopologyName = l.Name
+	}
+	return &topologyv1.TopoRef{
+		Name:      lastAppliedTopologyName,
+		Namespace: ns,
+	}
+}
+
+// ensureTopology - when a Topology CR is referenced, remove the
+// finalizer from a previous referenced Topology (if any), and retrieve the
+// newly referenced topology object
+func ensureTopology(
+	ctx context.Context,
+	helper *helper.Helper,
+	instance topologyHandler,
+	finalizer string,
+	conditionUpdater conditionUpdater,
+	defaultLabelSelector metav1.LabelSelector,
+) (*topologyv1.Topology, error) {
+
+	topology, err := topologyv1.EnsureServiceTopology(
+		ctx,
+		helper,
+		instance.GetSpecTopologyRef(),
+		GetLastAppliedTopologyRef(instance, helper.GetBefore().GetNamespace()),
+		finalizer,
+		defaultLabelSelector,
+	)
+	if err != nil {
+		conditionUpdater.Set(condition.FalseCondition(
+			condition.TopologyReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.TopologyReadyErrorMessage,
+			err.Error()))
+		return nil, fmt.Errorf("waiting for Topology requirements: %w", err)
+	}
+	// update the Status with the last retrieved Topology (or set it to nil)
+	tr := instance.GetSpecTopologyRef()
+	instance.SetLastAppliedTopology(tr)
+	// update the Topology condition only when a Topology is referenced and has
+	// been retrieved (err == nil)
+	if tr != nil {
+		// update the TopologyRef associated condition
+		conditionUpdater.MarkTrue(
+			condition.TopologyReadyCondition,
+			condition.TopologyReadyMessage,
+		)
+	}
+	return topology, nil
 }
 
 func cleanNovaServiceFromNovaDb(

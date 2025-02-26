@@ -33,6 +33,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
+	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 )
 
 // NovaNoVNCProxyDefaults -
@@ -124,4 +125,16 @@ func (r *NovaNoVNCProxyTemplate) ValidateCell0(basePath *field.Path) field.Error
 		)
 	}
 	return errors
+}
+
+// ValidateNoVNCProxyTopology validates the referenced TopoRef.Namespace.
+func (r *NovaNoVNCProxyTemplate) ValidateNoVNCProxyTopology(
+	basePath *field.Path,
+	namespace string,
+) *field.Error {
+	if err := topologyv1.ValidateTopologyNamespace(
+		r.TopologyRef.Namespace, *basePath, namespace); err != nil {
+		return err
+	}
+	return nil
 }
