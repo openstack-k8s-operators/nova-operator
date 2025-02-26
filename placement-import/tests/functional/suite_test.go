@@ -79,11 +79,11 @@ const (
 
 	AccountName = "test-placement-account"
 
-	PublicCertSecretName = "public-tls-certs"
+	PublicCertSecretName = "public-tls-certs" // #nosec G101
 
-	InternalCertSecretName = "internal-tls-certs"
+	InternalCertSecretName = "internal-tls-certs" // #nosec G101
 
-	CABundleSecretName = "combined-ca-bundle"
+	CABundleSecretName = "combined-ca-bundle" // #nosec G101
 
 	interval = time.Millisecond * 200
 )
@@ -201,7 +201,7 @@ var _ = BeforeSuite(func() {
 	dialer := &net.Dialer{Timeout: time.Duration(10) * time.Second}
 	addrPort := fmt.Sprintf("%s:%d", webhookInstallOptions.LocalServingHost, webhookInstallOptions.LocalServingPort)
 	Eventually(func() error {
-		conn, err := tls.DialWithDialer(dialer, "tcp", addrPort, &tls.Config{InsecureSkipVerify: true})
+		conn, err := tls.DialWithDialer(dialer, "tcp", addrPort, &tls.Config{InsecureSkipVerify: true}) // #nosec G402
 		if err != nil {
 			return err
 		}
