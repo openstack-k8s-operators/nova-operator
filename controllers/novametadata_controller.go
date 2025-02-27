@@ -564,10 +564,7 @@ func (r *NovaMetadataReconciler) ensureDeployment(
 		instance,      // topologyHandler
 		instance.Name, // finalizer
 		&instance.Status.Conditions,
-		labels.GetSingleLabelSelector(
-			common.ComponentSelector,
-			NovaMetadataLabelPrefix,
-		),
+		labels.GetLabelSelector(serviceLabels),
 	)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("waiting for Topology requirements: %w", err)
