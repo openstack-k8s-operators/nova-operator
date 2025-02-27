@@ -4,7 +4,7 @@ go 1.21
 
 require (
 	github.com/openstack-k8s-operators/infra-operator/apis v0.5.1-0.20250225210325-92c2416febbe
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.5.1-0.20250225220922-3ead38b7284f
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.5.1-0.20250227072032-4046ee8c6a91
 	k8s.io/api v0.29.14
 	k8s.io/apimachinery v0.29.14
 	sigs.k8s.io/controller-runtime v0.17.6

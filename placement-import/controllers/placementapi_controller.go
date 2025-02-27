@@ -1154,7 +1154,7 @@ func (r *PlacementAPIReconciler) ensureDeployment(
 		instance.Spec.TopologyRef,
 		instance.GetLastAppliedTopologyRef(),
 		instance.Name,
-		labels.GetAppLabelSelector(placement.ServiceName),
+		labels.GetLabelSelector(serviceLabels),
 	)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
