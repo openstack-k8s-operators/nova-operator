@@ -538,10 +538,7 @@ func (r *NovaConductorReconciler) ensureDeployment(
 		instance,      // topologyHandler
 		instance.Name, // finalizer
 		&instance.Status.Conditions,
-		labels.GetSingleLabelSelector(
-			common.ComponentSelector,
-			NovaConductorLabelPrefix,
-		),
+		labels.GetLabelSelector(serviceLabels),
 	)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("waiting for Topology requirements: %w", err)

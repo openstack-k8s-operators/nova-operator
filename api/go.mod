@@ -5,7 +5,7 @@ go 1.21
 require (
 	github.com/google/go-cmp v0.6.0
 	github.com/openstack-k8s-operators/infra-operator/apis v0.5.1-0.20250226120707-ee102640a845
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.5.1-0.20250225220922-3ead38b7284f
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.5.1-0.20250227072032-4046ee8c6a91
 	github.com/robfig/cron/v3 v3.0.1
 	k8s.io/api v0.29.14
 	k8s.io/apimachinery v0.29.14

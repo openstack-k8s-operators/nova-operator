@@ -544,6 +544,7 @@ func (r *NovaAPIReconciler) ensureDeployment(
 	annotations map[string]string,
 ) (ctrl.Result, error) {
 	Log := r.GetLogger(ctx)
+	serviceLabels := getAPIServiceLabels()
 
 	//
 	// Handle Topology
@@ -554,16 +555,13 @@ func (r *NovaAPIReconciler) ensureDeployment(
 		instance,      // topologyHandler
 		instance.Name, // finalizer
 		&instance.Status.Conditions,
-		labels.GetSingleLabelSelector(
-			common.ComponentSelector,
-			NovaAPILabelPrefix,
-		),
+		labels.GetLabelSelector(serviceLabels),
 	)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("waiting for Topology requirements: %w", err)
 	}
 
-	ssSpec, err := novaapi.StatefulSet(instance, inputHash, getAPIServiceLabels(), annotations, topology)
+	ssSpec, err := novaapi.StatefulSet(instance, inputHash, serviceLabels, annotations, topology)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.DeploymentReadyCondition,
@@ -606,7 +604,7 @@ func (r *NovaAPIReconciler) ensureDeployment(
 		ctx,
 		h,
 		instance.Spec.NetworkAttachments,
-		getAPIServiceLabels(),
+		serviceLabels,
 		instance.Status.ReadyCount)
 	if err != nil {
 		return ctrl.Result{}, err
