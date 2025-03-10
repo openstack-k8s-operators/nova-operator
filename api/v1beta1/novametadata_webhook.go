@@ -86,10 +86,15 @@ var _ webhook.Validator = &NovaMetadata{}
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (r *NovaMetadata) ValidateCreate() (admission.Warnings, error) {
 	novametadatalog.Info("validate create", "name", r.Name)
+	errors := field.ErrorList{}
+	basePath := field.NewPath("spec")
 
-	errors := ValidateMetadataDefaultConfigOverwrite(
-		field.NewPath("spec").Child("defaultConfigOverwrite"),
-		r.Spec.DefaultConfigOverwrite)
+	errors = append(errors, ValidateMetadataDefaultConfigOverwrite(
+		basePath.Child("defaultConfigOverwrite"),
+		r.Spec.DefaultConfigOverwrite)...)
+
+	errors = append(errors, topologyv1.ValidateTopologyRef(
+		r.Spec.TopologyRef, *basePath.Child("topologyRef"), r.Namespace)...)
 
 	if len(errors) != 0 {
 		novametadatalog.Info("validation failed", "name", r.Name)
@@ -103,6 +108,8 @@ func (r *NovaMetadata) ValidateCreate() (admission.Warnings, error) {
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
 func (r *NovaMetadata) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	novametadatalog.Info("validate update", "name", r.Name)
+	errors := field.ErrorList{}
+	basePath := field.NewPath("spec")
 
 	oldMetadata, ok := old.(*NovaMetadata)
 	if !ok || oldMetadata == nil {
@@ -111,9 +118,12 @@ func (r *NovaMetadata) ValidateUpdate(old runtime.Object) (admission.Warnings, e
 
 	novametadatalog.Info("validate update", "diff", cmp.Diff(oldMetadata, r))
 
-	errors := ValidateMetadataDefaultConfigOverwrite(
-		field.NewPath("spec").Child("defaultConfigOverwrite"),
-		r.Spec.DefaultConfigOverwrite)
+	errors = append(errors, ValidateMetadataDefaultConfigOverwrite(
+		basePath.Child("defaultConfigOverwrite"),
+		r.Spec.DefaultConfigOverwrite)...)
+
+	errors = append(errors, topologyv1.ValidateTopologyRef(
+		r.Spec.TopologyRef, *basePath.Child("topologyRef"), r.Namespace)...)
 
 	if len(errors) != 0 {
 		novametadatalog.Info("validation failed", "name", r.Name)
@@ -160,13 +170,14 @@ func ValidateMetadataDefaultConfigOverwrite(
 		basePath, defaultConfigOverwrite, []string{"api-paste.ini"})
 }
 
-func (r *NovaMetadataTemplate) ValidateMetadataTopology(
+// ValidateTopology validates the referenced TopoRef.Namespace.
+func (r *NovaMetadataTemplate) ValidateTopology(
 	basePath *field.Path,
 	namespace string,
-) *field.Error {
-	if err := topologyv1.ValidateTopologyNamespace(
-		r.TopologyRef.Namespace, *basePath, namespace); err != nil {
-		return err
-	}
-	return nil
+) field.ErrorList {
+	return topologyv1.ValidateTopologyRef(
+		r.TopologyRef,
+		*basePath.Child("topologyRef"),
+		namespace,
+	)
 }

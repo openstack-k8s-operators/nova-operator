@@ -36,6 +36,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
+	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 )
 
 const CRDNameRegex = "^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$"
@@ -103,7 +104,7 @@ func (spec *NovaCellSpec) Default() {
 
 var _ webhook.Validator = &NovaCell{}
 
-func (r *NovaCellSpec) validate(basePath *field.Path) field.ErrorList {
+func (r *NovaCellSpec) validate(basePath *field.Path, namespace string) field.ErrorList {
 	var errors field.ErrorList
 
 	if r.CellName == Cell0Name {
@@ -121,6 +122,28 @@ func (r *NovaCellSpec) validate(basePath *field.Path) field.ErrorList {
 				basePath.Child("novaComputeTemplates"), len(r.NovaComputeTemplates))...)
 	}
 
+	// validate topology if passed to the CellSpec (regardless of CellName).
+	// because a NovaCell CR can be created independently, TopologyRef should
+	// be validated for the underlying components (metadata, conductor,
+	// novncproxy, compute templates).
+	errors = append(errors, topologyv1.ValidateTopologyRef(
+		r.TopologyRef, *basePath.Child("topologyRef"), namespace)...)
+
+	errors = append(errors,
+		r.MetadataServiceTemplate.ValidateTopology(
+			basePath.Child("metadataServiceTemplate"),
+			namespace)...)
+
+	errors = append(errors,
+		r.NoVNCProxyServiceTemplate.ValidateTopology(
+			basePath.Child("noVNCProxyServiceTemplate"),
+			namespace)...)
+
+	errors = append(errors,
+		r.ConductorServiceTemplate.ValidateTopology(
+			basePath.Child("conductorServiceTemplate"),
+			namespace)...)
+
 	for computeName, computeTemplate := range r.NovaComputeTemplates {
 		if computeTemplate.ComputeDriver == IronicDriver {
 			errors = append(
@@ -137,6 +160,10 @@ func (r *NovaCellSpec) validate(basePath *field.Path) field.ErrorList {
 				basePath.Child("novaComputeTemplates").Key(computeName))...,
 		)
 
+		errors = append(
+			errors, computeTemplate.ValidateTopology(
+				basePath.Child("novaComputeTemplates").Key(computeName), namespace)...,
+		)
 	}
 
 	errors = append(
@@ -151,15 +178,17 @@ func (r *NovaCellSpec) validate(basePath *field.Path) field.ErrorList {
 	return errors
 }
 
-func (r *NovaCellSpec) ValidateCreate(basePath *field.Path) field.ErrorList {
-	return r.validate(basePath)
+func (r *NovaCellSpec) ValidateCreate(basePath *field.Path, namespace string) field.ErrorList {
+	return r.validate(basePath, namespace)
 }
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (r *NovaCell) ValidateCreate() (admission.Warnings, error) {
 	novacelllog.Info("validate create", "name", r.Name)
+	errors := field.ErrorList{}
+	basePath := field.NewPath("spec")
 
-	errors := r.Spec.ValidateCreate(field.NewPath("spec"))
+	errors = r.Spec.ValidateCreate(basePath, r.Namespace)
 
 	if len(errors) != 0 {
 		novacelllog.Info("validation failed", "name", r.Name)
@@ -170,13 +199,16 @@ func (r *NovaCell) ValidateCreate() (admission.Warnings, error) {
 	return nil, nil
 }
 
-func (r *NovaCellSpec) ValidateUpdate(old NovaCellSpec, basePath *field.Path) field.ErrorList {
-	return r.validate(basePath)
+func (r *NovaCellSpec) ValidateUpdate(old NovaCellSpec, basePath *field.Path, namespace string) field.ErrorList {
+	return r.validate(basePath, namespace)
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
 func (r *NovaCell) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	novacelllog.Info("validate update", "name", r.Name)
+	errors := field.ErrorList{}
+	basePath := field.NewPath("spec")
+
 	oldCell, ok := old.(*NovaCell)
 	if !ok || oldCell == nil {
 		return nil, apierrors.NewInternalError(fmt.Errorf("unable to convert existing object"))
@@ -184,7 +216,7 @@ func (r *NovaCell) ValidateUpdate(old runtime.Object) (admission.Warnings, error
 
 	novacelllog.Info("validate update", "diff", cmp.Diff(oldCell, r))
 
-	errors := r.Spec.ValidateUpdate(oldCell.Spec, field.NewPath("spec"))
+	errors = r.Spec.ValidateUpdate(oldCell.Spec, basePath, r.Namespace)
 
 	if len(errors) != 0 {
 		novacelllog.Info("validation failed", "name", r.Name)
