@@ -29,6 +29,57 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
+// Entries used to test topology validation webhook at different levels
+var (
+	topLevelEntry = Entry("top-level topologyRef", func() (
+		map[string]interface{}, string, string) {
+		spec := GetDefaultNovaSpec()
+		cell0 := GetDefaultNovaCellTemplate()
+		spec["cellTemplates"] = map[string]interface{}{"cell0": cell0}
+		return spec, "Nova", novaNames.NovaName.Name
+	})
+	apiEntry = Entry("api sub CR", func() (
+		map[string]interface{}, string, string) {
+		spec := GetDefaultNovaAPISpec(novaNames)
+		return spec, "NovaAPI", novaNames.APIName.Name
+	})
+	schedulerEntry = Entry("scheduler sub CR", func() (
+		map[string]interface{}, string, string) {
+		spec := GetDefaultNovaSchedulerSpec(novaNames)
+		return spec, "NovaScheduler", novaNames.SchedulerName.Name
+	})
+	metadataEntry = Entry("metadata sub CR", func() (
+		map[string]interface{}, string, string) {
+		spec := GetDefaultNovaMetadataSpec(novaNames.MetadataName)
+		return spec, "NovaMetadata", novaNames.MetadataName.Name
+	})
+	cellEntry = Entry("cell0 topologyRef", func() (
+		map[string]interface{}, string, string) {
+		spec := GetDefaultNovaCellTemplate()
+		return spec, "NovaCell", cell0.CellName
+	})
+	cell0MetadataEntry = Entry("cell0 metadata topologyRef", func() (
+		map[string]interface{}, string, string) {
+		spec := GetDefaultNovaMetadataSpec(cell0.MetadataName)
+		return spec, "NovaMetadata", cell0.ConductorName.Name
+	})
+	cell0ConductorEntry = Entry("cell0 conductor topologyRef", func() (
+		map[string]interface{}, string, string) {
+		spec := GetDefaultNovaConductorSpec(cell0)
+		return spec, "NovaConductor", cell0.ConductorName.Name
+	})
+	cell0NoVNCProxyEntry = Entry("cell0 NoVNCProxy topologyRef", func() (
+		map[string]interface{}, string, string) {
+		spec := GetDefaultNovaNoVNCProxySpec(cell0)
+		return spec, "NovaNoVNCProxy", cell0.NoVNCProxyName.Name
+	})
+	cell0ComputeEntry = Entry("cell0 compute topologyRef", func() (
+		map[string]interface{}, string, string) {
+		spec := GetDefaultNovaComputeSpec(cell0)
+		return spec, "NovaCompute", cell0.NovaComputeName.Name
+	})
+)
+
 var _ = Describe("Nova validation", func() {
 	It("rejects Nova with metadata in cell0", func() {
 		spec := GetDefaultNovaSpec()
@@ -1095,49 +1146,35 @@ var _ = Describe("Nova validation", func() {
 					"Invalid value: \"wrooong\": invalid endpoint type: wrooong"),
 		)
 	})
-	It("rejects Nova with wrong topologyRef", func() {
-		spec := GetDefaultNovaSpec()
-		cell0 := GetDefaultNovaCellTemplate()
-		spec["cellTemplates"] = map[string]interface{}{"cell0": cell0}
-		spec["topologyRef"] = map[string]interface{}{"name": "foo", "namespace": "bar"}
-		raw := map[string]interface{}{
-			"apiVersion": "nova.openstack.org/v1beta1",
-			"kind":       "Nova",
-			"metadata": map[string]interface{}{
-				"name":      novaNames.NovaName.Name,
-				"namespace": novaNames.Namespace,
-			},
-			"spec": spec,
-		}
-		unstructuredObj := &unstructured.Unstructured{Object: raw}
-		_, err := controllerutil.CreateOrPatch(
-			ctx, k8sClient, unstructuredObj, func() error { return nil })
-		Expect(err).To(HaveOccurred())
-		Expect(err.Error()).To(
-			ContainSubstring(
-				"Invalid value: \"namespace\": Customizing namespace field is not supported"),
-		)
-	})
-	It("rejects NovaAPI with wrong topologyRef", func() {
-		spec := GetDefaultNovaAPISpec(novaNames)
-		spec["topologyRef"] = map[string]interface{}{"name": "foo", "namespace": "bar"}
-		raw := map[string]interface{}{
-			"apiVersion": "nova.openstack.org/v1beta1",
-			"kind":       "NovaAPI",
-			"metadata": map[string]interface{}{
-				"name":      novaNames.APIName.Name,
-				"namespace": novaNames.Namespace,
-			},
-			"spec": spec,
-		}
+	DescribeTable("rejects wrong topology for",
+		func(serviceNameFunc func() (map[string]interface{}, string, string)) {
+			expectedErrorMessage := "spec.topologyRef[namespace]: Invalid value: \"namespace\": Customizing namespace field is not supported"
 
-		unstructuredObj := &unstructured.Unstructured{Object: raw}
-		_, err := controllerutil.CreateOrPatch(
-			ctx, k8sClient, unstructuredObj, func() error { return nil })
-		Expect(err).To(HaveOccurred())
-		Expect(err.Error()).To(
-			ContainSubstring(
-				"Invalid value: \"namespace\": Customizing namespace field is not supported"),
-		)
-	})
+			spec, kind, name := serviceNameFunc()
+			spec["topologyRef"] = map[string]interface{}{"name": "foo", "namespace": "bar"}
+			raw := map[string]interface{}{
+				"apiVersion": "nova.openstack.org/v1beta1",
+				"kind":       kind,
+				"metadata": map[string]interface{}{
+					"name":      name,
+					"namespace": novaNames.Namespace,
+				},
+				"spec": spec,
+			}
+			unstructuredObj := &unstructured.Unstructured{Object: raw}
+			_, err := controllerutil.CreateOrPatch(
+				ctx, k8sClient, unstructuredObj, func() error { return nil })
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring(expectedErrorMessage))
+		},
+		topLevelEntry,
+		apiEntry,
+		schedulerEntry,
+		metadataEntry,
+		cellEntry,
+		cell0MetadataEntry,
+		cell0ConductorEntry,
+		cell0NoVNCProxyEntry,
+		cell0ComputeEntry,
+	)
 })
