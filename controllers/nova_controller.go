@@ -49,6 +49,7 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/labels"
 	common_rbac "github.com/openstack-k8s-operators/lib-common/modules/common/rbac"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/secret"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 
@@ -2062,4 +2063,15 @@ func (r *NovaReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			handler.EnqueueRequestsFromMapFunc(r.memcachedNamespaceMapFunc),
 		).
 		Complete(r)
+}
+
+// getEndpointID - returns the endpointID associated with the Nova keystone Endpoint
+func (r *ReconcilerBase) getEndpointID(ctx context.Context, h *helper.Helper, ns string) string {
+	Log := r.GetLogger(ctx)
+	endpoint, err := keystonev1.GetKeystoneEndpointWithName(ctx, h, novaapi.ServiceName, ns)
+	if err != nil {
+		Log.Error(err, "Failed to retreive the Nova service endpoint ID")
+		return ""
+	}
+	return endpoint.Status.EndpointIDs[string(service.EndpointPublic)]
 }
