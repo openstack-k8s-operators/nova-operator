@@ -100,11 +100,8 @@ func (r *NovaAPI) ValidateCreate() (admission.Warnings, error) {
 			basePath.Child("defaultConfigOverwrite"),
 			r.Spec.DefaultConfigOverwrite)...)
 
-	if r.Spec.TopologyRef != nil {
-		if err := topologyv1.ValidateTopologyNamespace(r.Spec.TopologyRef.Namespace, *basePath, r.Namespace); err != nil {
-			errors = append(errors, err)
-		}
-	}
+	errors = append(errors, topologyv1.ValidateTopologyRef(
+		r.Spec.TopologyRef, *basePath.Child("topologyRef"), r.Namespace)...)
 
 	if len(errors) != 0 {
 		novaapilog.Info("validation failed", "name", r.Name)
@@ -136,11 +133,8 @@ func (r *NovaAPI) ValidateUpdate(old runtime.Object) (admission.Warnings, error)
 			basePath.Child("defaultConfigOverwrite"),
 			r.Spec.DefaultConfigOverwrite)...)
 
-	if r.Spec.TopologyRef != nil {
-		if err := topologyv1.ValidateTopologyNamespace(r.Spec.TopologyRef.Namespace, *basePath, r.Namespace); err != nil {
-			errors = append(errors, err)
-		}
-	}
+	errors = append(errors, topologyv1.ValidateTopologyRef(
+		r.Spec.TopologyRef, *basePath.Child("topologyRef"), r.Namespace)...)
 
 	if len(errors) != 0 {
 		novaapilog.Info("validation failed", "name", r.Name)
@@ -169,14 +163,14 @@ func ValidateAPIDefaultConfigOverwrite(
 		[]string{"policy.yaml", "api-paste.ini"})
 }
 
-// Validate validates the referenced TopoRef.Namespace.
-func (r *NovaAPITemplate) ValidateAPITopology(
+// ValidateTopology validates the referenced TopoRef.Namespace.
+func (r *NovaAPITemplate) ValidateTopology(
 	basePath *field.Path,
 	namespace string,
-) *field.Error {
-	if err := topologyv1.ValidateTopologyNamespace(
-		r.TopologyRef.Namespace, *basePath, namespace); err != nil {
-		return err
-	}
-	return nil
+) field.ErrorList {
+	return topologyv1.ValidateTopologyRef(
+		r.TopologyRef,
+		*basePath.Child("topologyRef"),
+		namespace,
+	)
 }

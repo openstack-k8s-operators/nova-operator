@@ -34,6 +34,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
+	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 )
 
 // NovaConductorDefaults -
@@ -85,9 +86,14 @@ var _ webhook.Validator = &NovaConductor{}
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (r *NovaConductor) ValidateCreate() (admission.Warnings, error) {
 	novaconductorlog.Info("validate create", "name", r.Name)
+	errors := field.ErrorList{}
+	basePath := field.NewPath("spec")
 
-	errors := r.Spec.DBPurge.Validate(
-		field.NewPath("spec").Child("dbPurge"))
+	errors = append(errors,r.Spec.DBPurge.Validate(
+		basePath.Child("dbPurge"))...)
+
+	errors = append(errors, topologyv1.ValidateTopologyRef(
+		r.Spec.TopologyRef, *basePath.Child("topologyRef"), r.Namespace)...)
 
 	if len(errors) != 0 {
 		novaconductorlog.Info("validation failed", "name", r.Name)
@@ -101,6 +107,9 @@ func (r *NovaConductor) ValidateCreate() (admission.Warnings, error) {
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
 func (r *NovaConductor) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	novaconductorlog.Info("validate update", "name", r.Name)
+	errors := field.ErrorList{}
+	basePath := field.NewPath("spec")
+
 	oldConductor, ok := old.(*NovaConductor)
 	if !ok || oldConductor == nil {
 		return nil, apierrors.NewInternalError(fmt.Errorf("unable to convert existing object"))
@@ -108,8 +117,11 @@ func (r *NovaConductor) ValidateUpdate(old runtime.Object) (admission.Warnings, 
 
 	novaconductorlog.Info("validate update", "diff", cmp.Diff(oldConductor, r))
 
-	errors := r.Spec.DBPurge.Validate(
-		field.NewPath("spec").Child("dbPurge"))
+	errors = append(errors, r.Spec.DBPurge.Validate(
+		basePath.Child("dbPurge"))...)
+
+	errors = append(errors, topologyv1.ValidateTopologyRef(
+		r.Spec.TopologyRef, *basePath.Child("topologyRef"), r.Namespace)...)
 
 	if len(errors) != 0 {
 		novaconductorlog.Info("validation failed", "name", r.Name)
@@ -126,4 +138,16 @@ func (r *NovaConductor) ValidateDelete() (admission.Warnings, error) {
 
 	// TODO(user): fill in your validation logic upon object deletion.
 	return nil, nil
+}
+
+// ValidateTopology validates the referenced TopoRef.Namespace.
+func (r *NovaConductorTemplate) ValidateTopology(
+	basePath *field.Path,
+	namespace string,
+) field.ErrorList {
+	return topologyv1.ValidateTopologyRef(
+		r.TopologyRef,
+		*basePath.Child("topologyRef"),
+		namespace,
+	)
 }

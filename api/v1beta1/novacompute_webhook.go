@@ -88,7 +88,7 @@ var _ webhook.Validator = &NovaCompute{}
 func (r *NovaCompute) ValidateCreate() (admission.Warnings, error) {
 	novacomputelog.Info("validate create", "name", r.Name)
 
-	errors := r.Spec.ValidateCreate(field.NewPath("spec"))
+	errors := r.Spec.ValidateCreate(field.NewPath("spec"), r.Namespace)
 
 	if len(errors) != 0 {
 		novacomputelog.Info("validation failed", "name", r.Name)
@@ -109,7 +109,7 @@ func (r *NovaCompute) ValidateUpdate(old runtime.Object) (admission.Warnings, er
 
 	novacomputelog.Info("validate update", "diff", cmp.Diff(oldNovaCompute, r))
 
-	errors := r.Spec.ValidateUpdate(oldNovaCompute.Spec, field.NewPath("spec"))
+	errors := r.Spec.ValidateUpdate(oldNovaCompute.Spec, field.NewPath("spec"), r.Namespace)
 
 	if len(errors) != 0 {
 		novacomputelog.Info("validation failed", "name", r.Name)
@@ -121,12 +121,12 @@ func (r *NovaCompute) ValidateUpdate(old runtime.Object) (admission.Warnings, er
 	return nil, nil
 }
 
-func (r *NovaComputeSpec) ValidateCreate(basePath *field.Path) field.ErrorList {
-	return r.validate(basePath)
+func (r *NovaComputeSpec) ValidateCreate(basePath *field.Path, namespace string) field.ErrorList {
+	return r.validate(basePath, namespace)
 }
 
-func (r *NovaComputeSpec) ValidateUpdate(old NovaComputeSpec, basePath *field.Path) field.ErrorList {
-	return r.validate(basePath)
+func (r *NovaComputeSpec) ValidateUpdate(old NovaComputeSpec, basePath *field.Path, namespace string) field.ErrorList {
+	return r.validate(basePath, namespace)
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
@@ -137,7 +137,7 @@ func (r *NovaCompute) ValidateDelete() (admission.Warnings, error) {
 	return nil, nil
 }
 
-func (r *NovaComputeSpec) validate(basePath *field.Path) field.ErrorList {
+func (r *NovaComputeSpec) validate(basePath *field.Path, namespace string) field.ErrorList {
 	var errors field.ErrorList
 
 	if r.ComputeDriver == IronicDriver && *r.NovaServiceBase.Replicas > 1 {
@@ -151,6 +151,9 @@ func (r *NovaComputeSpec) validate(basePath *field.Path) field.ErrorList {
 		errors,
 		ValidateComputeDefaultConfigOverwrite(
 			basePath.Child("defaultConfigOverwrite"), r.DefaultConfigOverwrite)...)
+
+	errors = append(errors, topologyv1.ValidateTopologyRef(
+		r.TopologyRef, *basePath.Child("topologyRef"), namespace)...)
 
 	return errors
 }
@@ -218,13 +221,15 @@ func ValidateNovaComputeCell0(basePath *field.Path, mapLength int) field.ErrorLi
 	return errors
 }
 
-func (r *NovaComputeTemplate) ValidateComputeTopology(
+
+// ValidateTopology validates the referenced TopoRef.Namespace.
+func (r *NovaComputeTemplate) ValidateTopology(
 	basePath *field.Path,
 	namespace string,
-) *field.Error {
-	if err := topologyv1.ValidateTopologyNamespace(
-		r.TopologyRef.Namespace, *basePath, namespace); err != nil {
-		return err
-	}
-	return nil
+) field.ErrorList {
+	return topologyv1.ValidateTopologyRef(
+		r.TopologyRef,
+		*basePath.Child("topologyRef"),
+		namespace,
+	)
 }

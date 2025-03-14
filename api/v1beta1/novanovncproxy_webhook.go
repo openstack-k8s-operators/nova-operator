@@ -32,6 +32,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 )
@@ -86,13 +87,27 @@ var _ webhook.Validator = &NovaNoVNCProxy{}
 func (r *NovaNoVNCProxy) ValidateCreate() (admission.Warnings, error) {
 	novanovncproxylog.Info("validate create", "name", r.Name)
 
-	// TODO(user): fill in your validation logic upon object creation.
+	errors := field.ErrorList{}
+	basePath := field.NewPath("spec")
+
+	errors = append(errors, topologyv1.ValidateTopologyRef(
+		r.Spec.TopologyRef, *basePath.Child("topologyRef"), r.Namespace)...)
+
+	if len(errors) != 0 {
+		novanovncproxylog.Info("validation failed", "name", r.Name)
+		return nil, apierrors.NewInvalid(
+			schema.GroupKind{Group: "nova.openstack.org", Kind: "NovaNoVNCProxy"},
+			r.Name, errors)
+	}
 	return nil, nil
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
 func (r *NovaNoVNCProxy) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	novanovncproxylog.Info("validate update", "name", r.Name)
+	errors := field.ErrorList{}
+	basePath := field.NewPath("spec")
+
 
 	oldProxy, ok := old.(*NovaNoVNCProxy)
 	if !ok || oldProxy == nil {
@@ -101,7 +116,15 @@ func (r *NovaNoVNCProxy) ValidateUpdate(old runtime.Object) (admission.Warnings,
 
 	novanovncproxylog.Info("validate update", "diff", cmp.Diff(oldProxy, r))
 
-	// TODO(user): fill in your validation logic upon object update.
+	errors = append(errors, topologyv1.ValidateTopologyRef(
+		r.Spec.TopologyRef, *basePath.Child("topologyRef"), r.Namespace)...)
+
+	if len(errors) != 0 {
+		novanovncproxylog.Info("validation failed", "name", r.Name)
+		return nil, apierrors.NewInvalid(
+			schema.GroupKind{Group: "nova.openstack.org", Kind: "NovaNoVNCProxy"},
+			r.Name, errors)
+	}
 	return nil, nil
 }
 
@@ -127,14 +150,14 @@ func (r *NovaNoVNCProxyTemplate) ValidateCell0(basePath *field.Path) field.Error
 	return errors
 }
 
-// ValidateNoVNCProxyTopology validates the referenced TopoRef.Namespace.
-func (r *NovaNoVNCProxyTemplate) ValidateNoVNCProxyTopology(
+// ValidateTopology validates the referenced TopoRef.Namespace.
+func (r *NovaNoVNCProxyTemplate) ValidateTopology(
 	basePath *field.Path,
 	namespace string,
-) *field.Error {
-	if err := topologyv1.ValidateTopologyNamespace(
-		r.TopologyRef.Namespace, *basePath, namespace); err != nil {
-		return err
-	}
-	return nil
+) field.ErrorList {
+	return topologyv1.ValidateTopologyRef(
+		r.TopologyRef,
+		*basePath.Child("topologyRef"),
+		namespace,
+	)
 }

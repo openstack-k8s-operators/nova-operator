@@ -32,6 +32,9 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
+	"k8s.io/apimachinery/pkg/util/validation/field"
+	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 // NovaSchedulerDefaults -
@@ -83,14 +86,26 @@ var _ webhook.Validator = &NovaScheduler{}
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (r *NovaScheduler) ValidateCreate() (admission.Warnings, error) {
 	novaschedulerlog.Info("validate create", "name", r.Name)
+	errors := field.ErrorList{}
+	basePath := field.NewPath("spec")
 
-	// TODO(user): fill in your validation logic upon object creation.
+	errors = append(errors, topologyv1.ValidateTopologyRef(
+		r.Spec.TopologyRef, *basePath.Child("topologyRef"), r.Namespace)...)
+
+	if len(errors) != 0 {
+		novaschedulerlog.Info("validation failed", "name", r.Name)
+		return nil, apierrors.NewInvalid(
+			schema.GroupKind{Group: "nova.openstack.org", Kind: "NovaScheduler"},
+			r.Name, errors)
+	}
 	return nil, nil
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
 func (r *NovaScheduler) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	novaschedulerlog.Info("validate update", "name", r.Name)
+	errors := field.ErrorList{}
+	basePath := field.NewPath("spec")
 
 	oldScheduler, ok := old.(*NovaScheduler)
 	if !ok || oldScheduler == nil {
@@ -99,7 +114,15 @@ func (r *NovaScheduler) ValidateUpdate(old runtime.Object) (admission.Warnings, 
 
 	novaschedulerlog.Info("validate update", "diff", cmp.Diff(oldScheduler, r))
 
-	// TODO(user): fill in your validation logic upon object update.
+	errors = append(errors, topologyv1.ValidateTopologyRef(
+		r.Spec.TopologyRef, *basePath.Child("topologyRef"), r.Namespace)...)
+
+	if len(errors) != 0 {
+		novaschedulerlog.Info("validation failed", "name", r.Name)
+		return nil, apierrors.NewInvalid(
+			schema.GroupKind{Group: "nova.openstack.org", Kind: "NovaScheduler"},
+			r.Name, errors)
+	}
 	return nil, nil
 }
 
@@ -109,4 +132,16 @@ func (r *NovaScheduler) ValidateDelete() (admission.Warnings, error) {
 
 	// TODO(user): fill in your validation logic upon object deletion.
 	return nil, nil
+}
+
+// ValidateTopology validates the referenced TopoRef.Namespace.
+func (r *NovaSchedulerTemplate) ValidateTopology(
+	basePath *field.Path,
+	namespace string,
+) field.ErrorList {
+	return topologyv1.ValidateTopologyRef(
+		r.TopologyRef,
+		*basePath.Child("topologyRef"),
+		namespace,
+	)
 }
