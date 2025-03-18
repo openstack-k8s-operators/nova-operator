@@ -25,6 +25,7 @@ import (
 
 	networkv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
+	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
@@ -1297,7 +1298,8 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 	When("NovaNoVNCProxy is created with a wrong topologyRef", func() {
 		BeforeEach(func() {
 			spec := GetDefaultNovaNoVNCProxySpec(cell1)
-			spec["topologyRef"] = map[string]interface{}{"name": novaNames.NovaTopologies[5].Name}
+			// We reference a topology that does not exist in the current namespace
+			spec["topologyRef"] = map[string]interface{}{"name": "foo"}
 
 			memcachedSpec := memcachedv1.MemcachedSpec{
 				MemcachedSpecCore: memcachedv1.MemcachedSpecCore{
@@ -1327,17 +1329,20 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 	})
 
 	When("NovaNoVNCProxy is created with topology", func() {
+		var topologyRefNoVNC topologyv1.TopoRef
+		var topologyRefAlt topologyv1.TopoRef
+		var expectedTopologySpec []corev1.TopologySpreadConstraint
 		BeforeEach(func() {
-			spec := GetDefaultNovaNoVNCProxySpec(cell1)
-			spec["topologyRef"] = map[string]interface{}{"name": novaNames.NovaTopologies[5].Name}
-
 			// Build the topology Spec
-			topologySpec := GetSampleTopologySpec()
+			var topologySpec map[string]interface{}
+			topologySpec, expectedTopologySpec = GetSampleTopologySpec(cell1.NoVNCProxyName.Name)
 
 			// Create Test Topologies
-			for _, t := range novaNames.NovaTopologies {
-				CreateTopology(t, topologySpec)
-			}
+			_, topologyRefAlt = CreateTopology(novaNames.NovaTopologies[0], topologySpec)
+			_, topologyRefNoVNC = CreateTopology(novaNames.NovaTopologies[5], topologySpec)
+
+			spec := GetDefaultNovaNoVNCProxySpec(cell1)
+			spec["topologyRef"] = map[string]interface{}{"name": topologyRefNoVNC.Name}
 
 			memcachedSpec := memcachedv1.MemcachedSpec{
 				MemcachedSpecCore: memcachedv1.MemcachedSpecCore{
@@ -1354,7 +1359,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
 			instance := GetNovaNoVNCProxy(cell1.NoVNCProxyName)
 			Expect(instance.Status.LastAppliedTopology).ToNot(BeNil())
-			Expect(instance.Status.LastAppliedTopology.Name).To(Equal(novaNames.NovaTopologies[5].Name))
+			Expect(instance.Status.LastAppliedTopology).To(Equal(&topologyRefNoVNC))
 
 			th.ExpectCondition(
 				cell1.NoVNCProxyName,
@@ -1364,24 +1369,41 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 			)
 
 			Eventually(func(g Gomega) {
-				g.Expect(
-					th.GetStatefulSet(cell1.NoVNCProxyName).Spec.Template.Spec.TopologySpreadConstraints).ToNot(BeNil())
-				g.Expect(
-					th.GetStatefulSet(cell1.NoVNCProxyName).Spec.Template.Spec.Affinity).To(BeNil())
+				ss := th.GetStatefulSet(cell1.NoVNCProxyName)
+				podTemplate := ss.Spec.Template.Spec
+				g.Expect(podTemplate.TopologySpreadConstraints).ToNot(BeNil())
+				g.Expect(podTemplate.Affinity).To(BeNil())
+			}, timeout, interval).Should(Succeed())
+
+			// Check finalizer is set to topologyRefNoVNC
+			Eventually(func(g Gomega) {
+				tp := GetTopology(types.NamespacedName{
+					Name:      topologyRefNoVNC.Name,
+					Namespace: topologyRefNoVNC.Namespace,
+				})
+				finalizers := tp.GetFinalizers()
+				g.Expect(finalizers).To(ContainElement(
+					fmt.Sprintf("openstack.org/novanovncproxy-%s", cell1.NoVNCProxyName.Name)))
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				tpAlt := GetTopology(types.NamespacedName{
+					Name:      topologyRefAlt.Name,
+					Namespace: topologyRefAlt.Namespace,
+				})
+				finalizers := tpAlt.GetFinalizers()
+				g.Expect(finalizers).ToNot(ContainElement(
+					fmt.Sprintf("openstack.org/novanovncproxy-%s", cell1.NoVNCProxyName.Name)))
 			}, timeout, interval).Should(Succeed())
 		})
 		It("updates lastAppliedTopology in NovaNoVNCProxy .Status", func() {
 			Eventually(func(g Gomega) {
 				instance := GetNovaNoVNCProxy(cell1.NoVNCProxyName)
-				instance.Spec.TopologyRef.Name = novaNames.NovaTopologies[0].Name
+				instance.Spec.TopologyRef = &topologyRefAlt
 				g.Expect(k8sClient.Update(ctx, instance)).To(Succeed())
 			}, timeout, interval).Should(Succeed())
 
 			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
-			Eventually(func(g Gomega) {
-				instance := GetNovaNoVNCProxy(cell1.NoVNCProxyName)
-				g.Expect(instance.Status.LastAppliedTopology).ToNot(BeNil())
-			}, timeout, interval).Should(Succeed())
 
 			th.ExpectCondition(
 				cell1.NoVNCProxyName,
@@ -1390,12 +1412,53 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 				corev1.ConditionTrue,
 			)
 
+			th.ExpectCondition(
+				cell1.NoVNCProxyName,
+				ConditionGetterFunc(NoVNCProxyConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+
 			Eventually(func(g Gomega) {
-				g.Expect(th.GetStatefulSet(
-					cell1.NoVNCProxyName).Spec.Template.Spec.TopologySpreadConstraints).ToNot(BeNil())
-				g.Expect(th.GetStatefulSet(
-					cell1.NoVNCProxyName).Spec.Template.Spec.Affinity).To(BeNil())
+				instance := GetNovaNoVNCProxy(cell1.NoVNCProxyName)
+				g.Expect(instance.Status.LastAppliedTopology).ToNot(BeNil())
+				g.Expect(instance.Status.LastAppliedTopology).To(Equal(&topologyRefAlt))
 			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				ss := th.GetStatefulSet(cell1.NoVNCProxyName)
+				podTemplate := ss.Spec.Template.Spec
+				g.Expect(podTemplate.TopologySpreadConstraints).ToNot(BeNil())
+				g.Expect(podTemplate.Affinity).To(BeNil())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				ss := th.GetStatefulSet(cell1.NoVNCProxyName)
+				podTemplate := ss.Spec.Template.Spec
+				g.Expect(podTemplate.TopologySpreadConstraints).To(Equal(expectedTopologySpec))
+			}, timeout, interval).Should(Succeed())
+
+			// Check finalizer is set to topologyRefAlt and is not set to
+			// topologyRef
+			Eventually(func(g Gomega) {
+				tpAlt := GetTopology(types.NamespacedName{
+					Name:      topologyRefAlt.Name,
+					Namespace: topologyRefAlt.Namespace,
+				})
+				finalizers := tpAlt.GetFinalizers()
+				g.Expect(finalizers).To(ContainElement(
+					fmt.Sprintf("openstack.org/novanovncproxy-%s", cell1.NoVNCProxyName.Name)))
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				tp := GetTopology(types.NamespacedName{
+					Name:      topologyRefNoVNC.Name,
+					Namespace: topologyRefNoVNC.Namespace,
+				})
+				finalizers := tp.GetFinalizers()
+				g.Expect(finalizers).ToNot(ContainElement(
+					fmt.Sprintf("openstack.org/novanovncproxy-%s", cell1.NoVNCProxyName.Name)))
+			}, timeout*10, interval).Should(Succeed())
 		})
 		It("removes topologyRef from NovaNoVNCProxy spec", func() {
 			Eventually(func(g Gomega) {
@@ -1410,11 +1473,32 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 			}, timeout, interval).Should(Succeed())
 
 			Eventually(func(g Gomega) {
-				g.Expect(th.GetStatefulSet(
-					cell1.NoVNCProxyName).Spec.Template.Spec.TopologySpreadConstraints).To(BeNil())
+				ss := th.GetStatefulSet(cell1.NoVNCProxyName)
+				podTemplate := ss.Spec.Template.Spec
+				g.Expect(podTemplate.TopologySpreadConstraints).To(BeNil())
 				// Default Pod AntiAffinity is applied in this case
-				g.Expect(th.GetStatefulSet(
-					cell1.NoVNCProxyName).Spec.Template.Spec.Affinity).ToNot(BeNil())
+				g.Expect(podTemplate.Affinity).ToNot(BeNil())
+			}, timeout, interval).Should(Succeed())
+
+			// Check finalizer is not set anymore
+			Eventually(func(g Gomega) {
+				tp := GetTopology(types.NamespacedName{
+					Name:      topologyRefNoVNC.Name,
+					Namespace: topologyRefNoVNC.Namespace,
+				})
+				finalizers := tp.GetFinalizers()
+				g.Expect(finalizers).ToNot(ContainElement(
+					fmt.Sprintf("openstack.org/novanovncproxy-%s", cell1.NoVNCProxyName.Name)))
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				tpAlt := GetTopology(types.NamespacedName{
+					Name:      topologyRefAlt.Name,
+					Namespace: topologyRefAlt.Namespace,
+				})
+				finalizers := tpAlt.GetFinalizers()
+				g.Expect(finalizers).ToNot(ContainElement(
+					fmt.Sprintf("openstack.org/novanovncproxy-%s", cell1.NoVNCProxyName.Name)))
 			}, timeout, interval).Should(Succeed())
 		})
 	})

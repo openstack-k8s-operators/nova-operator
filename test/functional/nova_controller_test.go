@@ -29,6 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 
+	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	mariadb_test "github.com/openstack-k8s-operators/mariadb-operator/api/test/helpers"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 
@@ -1066,13 +1067,12 @@ var _ = Describe("Nova controller", func() {
 		})
 	})
 	When("Nova CR instance is created with topology", func() {
-
+		var topologyRef topologyv1.TopoRef
 		BeforeEach(func() {
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreateNovaSecret(novaNames.NovaName.Namespace, SecretName))
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(cell0))
-
 			DeferCleanup(
 				mariadb.DeleteDBService,
 				mariadb.CreateDBService(
@@ -1103,11 +1103,9 @@ var _ = Describe("Nova controller", func() {
 			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
 
 			// Build the topology Spec
-			topologySpec := GetSampleTopologySpec()
-			// Create Test Topologies
-			for _, t := range novaNames.NovaTopologies {
-				CreateTopology(t, topologySpec)
-			}
+			topologySpec, _ := GetSampleTopologySpec(novaNames.NovaName.Name)
+			// Create a global Test Topology
+			_, topologyRef = CreateTopology(novaNames.NovaTopologies[0], topologySpec)
 
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace))
 
@@ -1117,7 +1115,9 @@ var _ = Describe("Nova controller", func() {
 			spec["cellTemplates"] = map[string]interface{}{"cell0": cell0template}
 			spec["apiDatabaseInstance"] = novaNames.APIMariaDBDatabaseName.Name
 			spec["apiDatabaseAccount"] = novaNames.APIMariaDBDatabaseAccount.Name
-			spec["topologyRef"] = map[string]interface{}{"name": novaNames.NovaTopologies[0].Name}
+
+			// We reference the global topology and is inherited by the sub components
+			spec["topologyRef"] = map[string]interface{}{"name": topologyRef.Name}
 
 			DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
 
@@ -1131,22 +1131,36 @@ var _ = Describe("Nova controller", func() {
 		})
 		It("propagates topology to the Nova components", func() {
 			SimulateReadyOfNovaTopServices()
+			tp := GetTopology(types.NamespacedName{
+				Name:      topologyRef.Name,
+				Namespace: topologyRef.Namespace,
+			})
+			Expect(tp.GetFinalizers()).To(HaveLen(4))
+			finalizers := tp.GetFinalizers()
 
 			api := GetNovaAPI(novaNames.APIName)
 			Expect(api.Status.LastAppliedTopology).ToNot(BeNil())
-			Expect(api.Status.LastAppliedTopology.Name).To(Equal(novaNames.NovaTopologies[0].Name))
+			Expect(api.Status.LastAppliedTopology).To(Equal(&topologyRef))
+			Expect(finalizers).To(ContainElement(
+				fmt.Sprintf("openstack.org/novaapi-%s", novaNames.APIName.Name)))
 
 			scheduler := GetNovaScheduler(novaNames.SchedulerName)
 			Expect(scheduler.Status.LastAppliedTopology).ToNot(BeNil())
-			Expect(scheduler.Status.LastAppliedTopology.Name).To(Equal(novaNames.NovaTopologies[0].Name))
+			Expect(scheduler.Status.LastAppliedTopology).To(Equal(&topologyRef))
+			Expect(finalizers).To(ContainElement(
+				fmt.Sprintf("openstack.org/novascheduler-%s", novaNames.SchedulerName.Name)))
 
 			metadata := GetNovaMetadata(novaNames.MetadataName)
 			Expect(metadata.Status.LastAppliedTopology).ToNot(BeNil())
-			Expect(metadata.Status.LastAppliedTopology.Name).To(Equal(novaNames.NovaTopologies[0].Name))
+			Expect(metadata.Status.LastAppliedTopology).To(Equal(&topologyRef))
+			Expect(finalizers).To(ContainElement(
+				fmt.Sprintf("openstack.org/novametadata-%s", novaNames.MetadataName.Name)))
 
 			cond := GetNovaConductor(cell0.ConductorName)
 			Expect(cond.Status.LastAppliedTopology).ToNot(BeNil())
-			Expect(cond.Status.LastAppliedTopology.Name).To(Equal(novaNames.NovaTopologies[0].Name))
+			Expect(cond.Status.LastAppliedTopology).To(Equal(&topologyRef))
+			Expect(finalizers).To(ContainElement(
+				fmt.Sprintf("openstack.org/novaconductor-%s", cell0.ConductorName.Name)))
 
 			th.ExpectCondition(
 				novaNames.APIName,
@@ -1172,6 +1186,180 @@ var _ = Describe("Nova controller", func() {
 				condition.TopologyReadyCondition,
 				corev1.ConditionTrue,
 			)
+		})
+	})
+	When("Nova CR instance is created with topology and cell1", func() {
+		var topologyRefCell topologyv1.TopoRef
+		var topologyRefTopLevel topologyv1.TopoRef
+		BeforeEach(func() {
+			novaSecret := th.CreateSecret(
+				types.NamespacedName{Namespace: novaNames.NovaName.Namespace, Name: SecretName},
+				map[string][]byte{
+					"NovaPassword":                         []byte("service-password"),
+					"MetadataSecret":                       []byte("metadata-secret"),
+					"MetadataCellsSecret" + cell1.CellName: []byte("metadata-secret-cell1"),
+				},
+			)
+			// Build two topologies with the same content (the content of
+			// TopologySpec is not relevant for this test
+			topologySpec, _ := GetSampleTopologySpec(novaNames.NovaName.Name)
+			// Create a global Test Topology
+			_, topologyRefTopLevel = CreateTopology(novaNames.NovaTopologies[0], topologySpec)
+			_, topologyRefCell = CreateTopology(novaNames.NovaTopologies[5], topologySpec)
+
+			DeferCleanup(k8sClient.Delete, ctx, novaSecret)
+			DeferCleanup(k8sClient.Delete, ctx, CreateNovaMessageBusSecret(cell0))
+			DeferCleanup(k8sClient.Delete, ctx, CreateNovaMessageBusSecret(cell1))
+
+			serviceSpec := corev1.ServiceSpec{Ports: []corev1.ServicePort{{Port: 3306}}}
+			DeferCleanup(mariadb.DeleteDBService, mariadb.CreateDBService(novaNames.APIMariaDBDatabaseName.Namespace, novaNames.APIMariaDBDatabaseName.Name, serviceSpec))
+			DeferCleanup(mariadb.DeleteDBService, mariadb.CreateDBService(cell0.MariaDBDatabaseName.Namespace, cell0.MariaDBDatabaseName.Name, serviceSpec))
+			DeferCleanup(mariadb.DeleteDBService, mariadb.CreateDBService(cell1.MariaDBDatabaseName.Namespace, cell1.MariaDBDatabaseName.Name, serviceSpec))
+			// cell0
+			spec := GetDefaultNovaSpec()
+			cell0Template := GetDefaultNovaCellTemplate()
+			cell0Template["cellDatabaseInstance"] = cell0.MariaDBDatabaseName.Name
+			cell0Template["cellDatabaseAccount"] = cell0.MariaDBAccountName.Name
+			// cell1
+			cell1Template := GetDefaultNovaCellTemplate()
+			cell1Template["cellDatabaseInstance"] = cell1.MariaDBDatabaseName.Name
+			cell1Template["cellDatabaseAccount"] = cell1.MariaDBAccountName.Name
+			cell1Template["cellMessageBusInstance"] = cell1.TransportURLName.Name
+			// We reference the cell1 topology that is inherited by the cell1 conductor,
+			// metadata, and novncproxy
+			cell1Template["topologyRef"] = map[string]interface{}{"name": topologyRefCell.Name}
+			cell1Template["metadataServiceTemplate"] = map[string]interface{}{
+				"enabled": true,
+			}
+			spec["cellTemplates"] = map[string]interface{}{
+				"cell0": cell0Template,
+				"cell1": cell1Template,
+			}
+			// disable top-level metatadata as we enabled the instance in cell1
+			spec["metadataServiceTemplate"] = map[string]interface{}{
+				"enabled": false,
+			}
+			spec["apiDatabaseInstance"] = novaNames.APIMariaDBDatabaseName.Name
+			spec["apiMessageBusInstance"] = cell0.TransportURLName.Name
+			// We reference the global topology and is inherited by the sub components
+			// except cell1 that has an override
+			spec["topologyRef"] = map[string]interface{}{"name": topologyRefTopLevel.Name}
+			DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
+			memcachedSpec := memcachedv1.MemcachedSpec{
+				MemcachedSpecCore: memcachedv1.MemcachedSpecCore{
+					Replicas: ptr.To(int32(3)),
+				},
+			}
+			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
+			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
+			keystoneAPIName := keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace)
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystoneAPIName)
+			keystoneAPI := keystone.GetKeystoneAPI(keystoneAPIName)
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Status().Update(ctx, keystoneAPI.DeepCopy())).Should(Succeed())
+			}, timeout, interval).Should(Succeed())
+			keystone.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
+		})
+		It("propagates topology to the Nova components except cell1 that has an override", func() {
+			mariadb.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(novaNames.APIMariaDBDatabaseAccount)
+			mariadb.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(cell0.MariaDBAccountName)
+			mariadb.SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(cell1.MariaDBAccountName)
+			infra.SimulateTransportURLReady(cell0.TransportURLName)
+			infra.SimulateTransportURLReady(cell1.TransportURLName)
+			th.SimulateJobSuccess(cell0.DBSyncJobName)
+			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
+			th.SimulateJobSuccess(cell0.CellMappingJobName)
+
+			// As cell0 is ready cell1 is deployed
+			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
+			th.SimulateJobSuccess(cell1.DBSyncJobName)
+			th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
+			th.SimulateStatefulSetReplicaReady(cell1.MetadataStatefulSetName)
+			th.SimulateJobSuccess(cell1.CellMappingJobName)
+
+			th.ExpectCondition(
+				cell1.CellCRName,
+				ConditionGetterFunc(NovaCellConditionGetter),
+				novav1.NovaMetadataReadyCondition,
+				corev1.ConditionTrue,
+			)
+			AssertMetadataDoesNotExist(cell0.MetadataName)
+			th.ExpectCondition(
+				novaNames.APIName,
+				ConditionGetterFunc(NovaAPIConditionGetter),
+				condition.TopologyReadyCondition,
+				corev1.ConditionTrue,
+			)
+			th.ExpectCondition(
+				novaNames.SchedulerName,
+				ConditionGetterFunc(NovaSchedulerConditionGetter),
+				condition.TopologyReadyCondition,
+				corev1.ConditionTrue,
+			)
+			th.ExpectCondition(
+				cell1.MetadataName,
+				ConditionGetterFunc(NovaMetadataConditionGetter),
+				condition.TopologyReadyCondition,
+				corev1.ConditionTrue,
+			)
+			th.ExpectCondition(
+				cell1.ConductorName,
+				ConditionGetterFunc(NovaConductorConditionGetter),
+				condition.TopologyReadyCondition,
+				corev1.ConditionTrue,
+			)
+			th.ExpectCondition(
+				cell1.NoVNCProxyName,
+				ConditionGetterFunc(NoVNCProxyConditionGetter),
+				condition.TopologyReadyCondition,
+				corev1.ConditionTrue,
+			)
+			// Retrieve topology and check finalizers
+			tpCell := GetTopology(types.NamespacedName{
+				Name:      topologyRefCell.Name,
+				Namespace: topologyRefCell.Namespace,
+			})
+			tpTopTLevel := GetTopology(types.NamespacedName{
+				Name:      topologyRefTopLevel.Name,
+				Namespace: topologyRefTopLevel.Namespace,
+			})
+			Expect(tpCell.GetFinalizers()).To(HaveLen(3))
+			Expect(tpTopTLevel.GetFinalizers()).To(HaveLen(3))
+			finalizers := tpCell.GetFinalizers()
+
+			metadata := GetNovaMetadata(cell1.MetadataName)
+			Expect(metadata.Status.LastAppliedTopology).ToNot(BeNil())
+			Expect(metadata.Status.LastAppliedTopology).To(Equal(&topologyRefCell))
+			Expect(finalizers).To(ContainElement(
+				fmt.Sprintf("openstack.org/novametadata-%s", cell1.MetadataName.Name)))
+
+			cond := GetNovaConductor(cell1.ConductorName)
+			Expect(cond.Status.LastAppliedTopology).ToNot(BeNil())
+			Expect(cond.Status.LastAppliedTopology).To(Equal(&topologyRefCell))
+			Expect(finalizers).To(ContainElement(
+				fmt.Sprintf("openstack.org/novaconductor-%s", cell1.ConductorName.Name)))
+
+			novnc := GetNovaNoVNCProxy(cell1.NoVNCProxyName)
+			Expect(novnc.Status.LastAppliedTopology).ToNot(BeNil())
+			Expect(novnc.Status.LastAppliedTopology).To(Equal(&topologyRefCell))
+			Expect(finalizers).To(ContainElement(
+				fmt.Sprintf("openstack.org/novanovncproxy-%s", cell1.NoVNCProxyName.Name)))
+
+			finalizers = tpTopTLevel.GetFinalizers()
+			api := GetNovaAPI(novaNames.APIName)
+			Expect(api.Status.LastAppliedTopology).ToNot(BeNil())
+			Expect(api.Status.LastAppliedTopology).To(Equal(&topologyRefTopLevel))
+			Expect(finalizers).To(ContainElement(
+				fmt.Sprintf("openstack.org/novaapi-%s", novaNames.APIName.Name)))
+
+			scheduler := GetNovaScheduler(novaNames.SchedulerName)
+			Expect(scheduler.Status.LastAppliedTopology).ToNot(BeNil())
+			Expect(scheduler.Status.LastAppliedTopology).To(Equal(&topologyRefTopLevel))
+			Expect(finalizers).To(ContainElement(
+				fmt.Sprintf("openstack.org/novascheduler-%s", novaNames.SchedulerName.Name)))
 		})
 	})
 
