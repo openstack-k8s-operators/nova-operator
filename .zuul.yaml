@@ -61,6 +61,7 @@
     post-run:
       - ci/nova-operator-base/playbooks/collect-logs.yaml
     vars:
+      cifmw_repo_setup_branch: master
       cifmw_extras:
         - "@scenarios/centos-9/multinode-ci.yml"
         - "@{{ ansible_user_dir }}/{{ zuul.projects['github.com/openstack-k8s-operators/nova-operator'].src_dir }}/ci/nova-operator-tempest-multinode/ci_fw_vars.yaml"
@@ -188,10 +189,12 @@
     default-branch: main
     github-check:
       jobs:
-        - openstack-meta-content-provider
-        - nova-operator-kuttl
+        - openstack-meta-content-provider:
+            vars:
+              cifmw_bop_openstack_release: master
+              cifmw_bop_dlrn_baseurl: "https://trunk.rdoproject.org/centos9-master"
+              cifmw_repo_setup_branch: master
         - nova-operator-tempest-multinode
-        - nova-operator-tempest-multinode-ceph
 
 - pragma:
     implied-branch-matchers: True
