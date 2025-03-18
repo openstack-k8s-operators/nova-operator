@@ -27,6 +27,7 @@ import (
 
 	networkv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
+	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
@@ -1125,7 +1126,8 @@ var _ = Describe("NovaAPI controller", func() {
 	When("NovaAPI is created with a wrong topologyRef", func() {
 		BeforeEach(func() {
 			spec := GetDefaultNovaAPISpec(novaNames)
-			spec["topologyRef"] = map[string]interface{}{"name": novaNames.NovaTopologies[1].Name}
+			// We reference a topology that does not exist in the current namespace
+			spec["topologyRef"] = map[string]interface{}{"name": "foo"}
 
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreateInternalTopLevelSecret(novaNames))
@@ -1147,17 +1149,20 @@ var _ = Describe("NovaAPI controller", func() {
 		})
 	})
 	When("NovaAPI is created with topology", func() {
+		var topologyRefAPI topologyv1.TopoRef
+		var topologyRefAlt topologyv1.TopoRef
+		var expectedTopologySpec []corev1.TopologySpreadConstraint
 		BeforeEach(func() {
-			spec := GetDefaultNovaAPISpec(novaNames)
-			spec["topologyRef"] = map[string]interface{}{"name": novaNames.NovaTopologies[1].Name}
-
 			// Build the topology Spec
-			topologySpec := GetSampleTopologySpec()
+			var topologySpec map[string]interface{}
+			topologySpec, expectedTopologySpec = GetSampleTopologySpec(novaNames.APIName.Name)
 
 			// Create Test Topologies
-			for _, t := range novaNames.NovaTopologies {
-				CreateTopology(t, topologySpec)
-			}
+			_, topologyRefAlt = CreateTopology(novaNames.NovaTopologies[0], topologySpec)
+			_, topologyRefAPI = CreateTopology(novaNames.NovaTopologies[1], topologySpec)
+
+			spec := GetDefaultNovaAPISpec(novaNames)
+			spec["topologyRef"] = map[string]interface{}{"name": topologyRefAPI.Name}
 
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreateInternalTopLevelSecret(novaNames))
@@ -1168,7 +1173,7 @@ var _ = Describe("NovaAPI controller", func() {
 			keystone.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
 			api := GetNovaAPI(novaNames.APIName)
 			Expect(api.Status.LastAppliedTopology).ToNot(BeNil())
-			Expect(api.Status.LastAppliedTopology.Name).To(Equal(novaNames.NovaTopologies[1].Name))
+			Expect(api.Status.LastAppliedTopology).To(Equal(&topologyRefAPI))
 
 			th.ExpectCondition(
 				novaNames.APIName,
@@ -1178,15 +1183,38 @@ var _ = Describe("NovaAPI controller", func() {
 			)
 
 			Eventually(func(g Gomega) {
-				g.Expect(th.GetStatefulSet(novaNames.APIName).Spec.Template.Spec.TopologySpreadConstraints).ToNot(BeNil())
+				ss := th.GetStatefulSet(novaNames.APIName)
+				podTemplate := ss.Spec.Template.Spec
+				g.Expect(podTemplate.TopologySpreadConstraints).ToNot(BeNil())
 				// No default Pod Antiaffinity is applied
-				g.Expect(th.GetStatefulSet(novaNames.APIName).Spec.Template.Spec.Affinity).To(BeNil())
+				g.Expect(podTemplate.Affinity).To(BeNil())
+			}, timeout, interval).Should(Succeed())
+
+			// Check finalizer
+			Eventually(func(g Gomega) {
+				tp := GetTopology(types.NamespacedName{
+					Name:      topologyRefAPI.Name,
+					Namespace: topologyRefAPI.Namespace,
+				})
+				finalizers := tp.GetFinalizers()
+				g.Expect(finalizers).To(ContainElement(
+					fmt.Sprintf("openstack.org/novaapi-%s", novaNames.APIName.Name)))
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				tpAlt := GetTopology(types.NamespacedName{
+					Name:      topologyRefAlt.Name,
+					Namespace: topologyRefAlt.Namespace,
+				})
+				finalizers := tpAlt.GetFinalizers()
+				g.Expect(finalizers).ToNot(ContainElement(
+					fmt.Sprintf("openstack.org/novaapi-%s", novaNames.APIName.Name)))
 			}, timeout, interval).Should(Succeed())
 		})
 		It("updates lastAppliedTopology in NovaAPI .Status", func() {
 			Eventually(func(g Gomega) {
 				api := GetNovaAPI(novaNames.APIName)
-				api.Spec.TopologyRef.Name = novaNames.NovaTopologies[0].Name
+				api.Spec.TopologyRef.Name = topologyRefAlt.Name
 				g.Expect(k8sClient.Update(ctx, api)).To(Succeed())
 			}, timeout, interval).Should(Succeed())
 
@@ -1196,7 +1224,7 @@ var _ = Describe("NovaAPI controller", func() {
 			Eventually(func(g Gomega) {
 				api := GetNovaAPI(novaNames.APIName)
 				g.Expect(api.Status.LastAppliedTopology).ToNot(BeNil())
-				g.Expect(api.Status.LastAppliedTopology.Name).To(Equal(novaNames.NovaTopologies[0].Name))
+				g.Expect(api.Status.LastAppliedTopology).To(Equal(&topologyRefAlt))
 			}, timeout, interval).Should(Succeed())
 
 			th.ExpectCondition(
@@ -1207,9 +1235,39 @@ var _ = Describe("NovaAPI controller", func() {
 			)
 
 			Eventually(func(g Gomega) {
-				g.Expect(th.GetStatefulSet(novaNames.APIName).Spec.Template.Spec.TopologySpreadConstraints).ToNot(BeNil())
+				ss := th.GetStatefulSet(novaNames.APIName)
+				podTemplate := ss.Spec.Template.Spec
+				g.Expect(podTemplate.TopologySpreadConstraints).ToNot(BeNil())
 				// No default Pod Antiaffinity is applied
-				g.Expect(th.GetStatefulSet(novaNames.APIName).Spec.Template.Spec.Affinity).To(BeNil())
+				g.Expect(podTemplate.Affinity).To(BeNil())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				ss := th.GetStatefulSet(novaNames.APIName)
+				podTemplate := ss.Spec.Template.Spec
+				g.Expect(podTemplate.TopologySpreadConstraints).To(Equal(expectedTopologySpec))
+			}, timeout, interval).Should(Succeed())
+
+			// Check finalizer is set to topologyRefAlt and is not set to
+			// topologyRef
+			Eventually(func(g Gomega) {
+				tp := GetTopology(types.NamespacedName{
+					Name:      topologyRefAPI.Name,
+					Namespace: topologyRefAPI.Namespace,
+				})
+				finalizers := tp.GetFinalizers()
+				g.Expect(finalizers).ToNot(ContainElement(
+					fmt.Sprintf("openstack.org/novaapi-%s", novaNames.APIName.Name)))
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				tpAlt := GetTopology(types.NamespacedName{
+					Name:      topologyRefAlt.Name,
+					Namespace: topologyRefAlt.Namespace,
+				})
+				finalizers := tpAlt.GetFinalizers()
+				g.Expect(finalizers).To(ContainElement(
+					fmt.Sprintf("openstack.org/novaapi-%s", novaNames.APIName.Name)))
 			}, timeout, interval).Should(Succeed())
 		})
 		It("removes topologyRef from NovaAPI spec", func() {
@@ -1225,9 +1283,32 @@ var _ = Describe("NovaAPI controller", func() {
 			}, timeout, interval).Should(Succeed())
 
 			Eventually(func(g Gomega) {
-				g.Expect(th.GetStatefulSet(novaNames.APIName).Spec.Template.Spec.TopologySpreadConstraints).To(BeNil())
+				ss := th.GetStatefulSet(novaNames.APIName)
+				podTemplate := ss.Spec.Template.Spec
+				g.Expect(podTemplate.TopologySpreadConstraints).To(BeNil())
 				// Default Pod AntiAffinity is applied
-				g.Expect(th.GetStatefulSet(novaNames.APIName).Spec.Template.Spec.Affinity).ToNot(BeNil())
+				g.Expect(podTemplate.Affinity).ToNot(BeNil())
+			}, timeout, interval).Should(Succeed())
+
+			// Check finalizer is not present anymore
+			Eventually(func(g Gomega) {
+				tp := GetTopology(types.NamespacedName{
+					Name:      topologyRefAPI.Name,
+					Namespace: topologyRefAPI.Namespace,
+				})
+				finalizers := tp.GetFinalizers()
+				g.Expect(finalizers).ToNot(ContainElement(
+					fmt.Sprintf("openstack.org/novaapi-%s", novaNames.APIName.Name)))
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				tpAlt := GetTopology(types.NamespacedName{
+					Name:      topologyRefAlt.Name,
+					Namespace: topologyRefAlt.Namespace,
+				})
+				finalizers := tpAlt.GetFinalizers()
+				g.Expect(finalizers).ToNot(ContainElement(
+					fmt.Sprintf("openstack.org/novaapi-%s", novaNames.APIName.Name)))
 			}, timeout, interval).Should(Succeed())
 		})
 	})
