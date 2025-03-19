@@ -601,7 +601,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		return ctrl.Result{}, err
 	}
 
-	sortNovaCellListByName(novaCellList)
+	SortNovaCellListByName(novaCellList)
 
 	var deleteErrs []error
 
