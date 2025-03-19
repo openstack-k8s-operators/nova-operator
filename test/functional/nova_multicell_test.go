@@ -29,6 +29,7 @@ import (
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/nova-operator/controllers"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -1126,6 +1127,29 @@ var _ = Describe("Nova multi cell deletion", func() {
 
 		})
 
-	})
+		It("retrieve sorted cells", func() {
+			cellList := &novav1.NovaCellList{
+				Items: []novav1.NovaCell{
+					{ObjectMeta: metav1.ObjectMeta{Name: "cell-3"}},
+					{ObjectMeta: metav1.ObjectMeta{Name: "cell-2"}},
+					{ObjectMeta: metav1.ObjectMeta{Name: "cell-1"}},
+				},
+			}
 
+			expectedList := []string{
+				"cell-1",
+				"cell-2",
+				"cell-3",
+			}
+
+			controllers.SortNovaCellListByName(cellList)
+
+			actualList := []string{}
+			for _, cell := range cellList.Items {
+				actualList = append(actualList, cell.ObjectMeta.Name)
+			}
+
+			Expect(actualList).To(Equal(expectedList))
+		})
+	})
 })
