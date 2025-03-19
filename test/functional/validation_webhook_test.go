@@ -1148,7 +1148,7 @@ var _ = Describe("Nova validation", func() {
 	})
 	DescribeTable("rejects wrong topology for",
 		func(serviceNameFunc func() (map[string]interface{}, string, string)) {
-			expectedErrorMessage := "spec.topologyRef[namespace]: Invalid value: \"namespace\": Customizing namespace field is not supported"
+			expectedErrorMessage := "spec.topologyRef.namespace: Invalid value: \"namespace\": Customizing namespace field is not supported"
 
 			spec, kind, name := serviceNameFunc()
 			spec["topologyRef"] = map[string]interface{}{"name": "foo", "namespace": "bar"}
