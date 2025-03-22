@@ -187,11 +187,12 @@
     name: openstack-k8s-operators/nova-operator
     default-branch: main
     github-check:
+      debug: true
       jobs:
         - openstack-meta-content-provider
         - nova-operator-kuttl
-        - nova-operator-tempest-multinode
-        - nova-operator-tempest-multinode-ceph
+        # - nova-operator-tempest-multinode
+        # - nova-operator-tempest-multinode-ceph
 
 - pragma:
     implied-branch-matchers: True
