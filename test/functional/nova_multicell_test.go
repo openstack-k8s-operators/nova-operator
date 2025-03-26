@@ -24,14 +24,12 @@ import (
 	//revive:disable-next-line:dot-imports
 	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
 
-	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/nova-operator/controllers"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/ptr"
 )
 
 var _ = Describe("Nova multi cell", func() {
@@ -108,11 +106,7 @@ var _ = Describe("Nova multi cell", func() {
 
 			DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace))
-			memcachedSpecCell1 := memcachedv1.MemcachedSpec{
-				MemcachedSpecCore: memcachedv1.MemcachedSpecCore{
-					Replicas: ptr.To(int32(3)),
-				},
-			}
+			memcachedSpecCell1 := GetDefaultMemcachedSpec()
 			memcachedNamespace := types.NamespacedName{
 				Name:      cell1Memcached,
 				Namespace: novaNames.NovaName.Namespace,
@@ -120,11 +114,7 @@ var _ = Describe("Nova multi cell", func() {
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, cell1Memcached, memcachedSpecCell1))
 			infra.SimulateMemcachedReady(memcachedNamespace)
 
-			memcachedSpec := memcachedv1.MemcachedSpec{
-				MemcachedSpecCore: memcachedv1.MemcachedSpecCore{
-					Replicas: ptr.To(int32(3)),
-				},
-			}
+			memcachedSpec := GetDefaultMemcachedSpec()
 
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
@@ -694,11 +684,7 @@ var _ = Describe("Nova multi cell", func() {
 			spec["apiMessageBusInstance"] = cell0.TransportURLName.Name
 
 			DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
-			memcachedSpec := memcachedv1.MemcachedSpec{
-				MemcachedSpecCore: memcachedv1.MemcachedSpecCore{
-					Replicas: ptr.To(int32(3)),
-				},
-			}
+			memcachedSpec := GetDefaultMemcachedSpec()
 
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
@@ -812,11 +798,7 @@ var _ = Describe("Nova multi cell", func() {
 			spec["apiMessageBusInstance"] = cell0.TransportURLName.Name
 
 			DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
-			memcachedSpec := memcachedv1.MemcachedSpec{
-				MemcachedSpecCore: memcachedv1.MemcachedSpecCore{
-					Replicas: ptr.To(int32(3)),
-				},
-			}
+			memcachedSpec := GetDefaultMemcachedSpec()
 
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
@@ -881,11 +863,7 @@ var _ = Describe("Nova multi cell", func() {
 			spec["apiMessageBusInstance"] = cell0.TransportURLName.Name
 
 			DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
-			memcachedSpec := memcachedv1.MemcachedSpec{
-				MemcachedSpecCore: memcachedv1.MemcachedSpecCore{
-					Replicas: ptr.To(int32(3)),
-				},
-			}
+			memcachedSpec := GetDefaultMemcachedSpec()
 
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
@@ -1047,11 +1025,7 @@ func CreateNovaWith4CellsAndEnsureReady(novaNames NovaNames) {
 
 	DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
 	DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace))
-	memcachedSpec := memcachedv1.MemcachedSpec{
-		MemcachedSpecCore: memcachedv1.MemcachedSpecCore{
-			Replicas: ptr.To(int32(3)),
-		},
-	}
+	memcachedSpec := GetDefaultMemcachedSpec()
 
 	DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 	infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)

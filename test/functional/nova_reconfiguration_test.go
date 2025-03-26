@@ -27,7 +27,6 @@ import (
 	//revive:disable-next-line:dot-imports
 	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
 
-	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
 	rabbitmqv1 "github.com/openstack-k8s-operators/infra-operator/apis/rabbitmq/v1beta1"
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
@@ -109,11 +108,7 @@ func CreateNovaWith3CellsAndEnsureReady(novaNames NovaNames) {
 
 	DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
 	DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace))
-	memcachedSpec := memcachedv1.MemcachedSpec{
-		MemcachedSpecCore: memcachedv1.MemcachedSpecCore{
-			Replicas: ptr.To(int32(3)),
-		},
-	}
+	memcachedSpec := GetDefaultMemcachedSpec()
 
 	DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 	infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)

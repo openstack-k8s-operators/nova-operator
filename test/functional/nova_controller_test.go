@@ -24,7 +24,6 @@ import (
 	//revive:disable-next-line:dot-imports
 	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
 
-	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
@@ -99,11 +98,7 @@ var _ = Describe("Nova controller", func() {
 					},
 				),
 			)
-			memcachedSpec := memcachedv1.MemcachedSpec{
-				MemcachedSpecCore: memcachedv1.MemcachedSpecCore{
-					Replicas: ptr.To(int32(3)),
-				},
-			}
+			memcachedSpec := GetDefaultMemcachedSpec()
 
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
@@ -522,11 +517,7 @@ var _ = Describe("Nova controller", func() {
 				),
 			)
 
-			memcachedSpec := memcachedv1.MemcachedSpec{
-				MemcachedSpecCore: memcachedv1.MemcachedSpecCore{
-					Replicas: ptr.To(int32(3)),
-				},
-			}
+			memcachedSpec := GetDefaultMemcachedSpec()
 
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
@@ -598,11 +589,7 @@ var _ = Describe("Nova controller", func() {
 					},
 				),
 			)
-			memcachedSpec := memcachedv1.MemcachedSpec{
-				MemcachedSpecCore: memcachedv1.MemcachedSpecCore{
-					Replicas: ptr.To(int32(3)),
-				},
-			}
+			memcachedSpec := GetDefaultMemcachedSpec()
 
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
@@ -666,11 +653,7 @@ var _ = Describe("Nova controller", func() {
 					},
 				),
 			)
-			memcachedSpec := memcachedv1.MemcachedSpec{
-				MemcachedSpecCore: memcachedv1.MemcachedSpecCore{
-					Replicas: ptr.To(int32(3)),
-				},
-			}
+			memcachedSpec := GetDefaultMemcachedSpec()
 
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
@@ -823,11 +806,7 @@ var _ = Describe("Nova controller", func() {
 					},
 				),
 			)
-			memcachedSpec := memcachedv1.MemcachedSpec{
-				MemcachedSpecCore: memcachedv1.MemcachedSpecCore{
-					Replicas: ptr.To(int32(3)),
-				},
-			}
+			memcachedSpec := GetDefaultMemcachedSpec()
 
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
@@ -898,11 +877,7 @@ var _ = Describe("Nova controller", func() {
 					},
 				),
 			)
-			memcachedSpec := memcachedv1.MemcachedSpec{
-				MemcachedSpecCore: memcachedv1.MemcachedSpecCore{
-					Replicas: ptr.To(int32(3)),
-				},
-			}
+			memcachedSpec := GetDefaultMemcachedSpec()
 
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
@@ -1019,11 +994,7 @@ var _ = Describe("Nova controller", func() {
 				),
 			)
 
-			memcachedSpec := memcachedv1.MemcachedSpec{
-				MemcachedSpecCore: memcachedv1.MemcachedSpecCore{
-					Replicas: ptr.To(int32(3)),
-				},
-			}
+			memcachedSpec := GetDefaultMemcachedSpec()
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
 
@@ -1094,11 +1065,7 @@ var _ = Describe("Nova controller", func() {
 				),
 			)
 
-			memcachedSpec := memcachedv1.MemcachedSpec{
-				MemcachedSpecCore: memcachedv1.MemcachedSpecCore{
-					Replicas: ptr.To(int32(3)),
-				},
-			}
+			memcachedSpec := GetDefaultMemcachedSpec()
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
 
@@ -1245,11 +1212,7 @@ var _ = Describe("Nova controller", func() {
 			// except cell1 that has an override
 			spec["topologyRef"] = map[string]interface{}{"name": topologyRefTopLevel.Name}
 			DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
-			memcachedSpec := memcachedv1.MemcachedSpec{
-				MemcachedSpecCore: memcachedv1.MemcachedSpecCore{
-					Replicas: ptr.To(int32(3)),
-				},
-			}
+			memcachedSpec := GetDefaultMemcachedSpec()
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
 			keystoneAPIName := keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace)
@@ -1379,11 +1342,7 @@ var _ = Describe("Nova controller", func() {
 					},
 				),
 			)
-			memcachedSpec := memcachedv1.MemcachedSpec{
-				MemcachedSpecCore: memcachedv1.MemcachedSpecCore{
-					Replicas: ptr.To(int32(3)),
-				},
-			}
+			memcachedSpec := GetDefaultMemcachedSpec()
 
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
@@ -1468,11 +1427,7 @@ var _ = Describe("Nova controller", func() {
 				),
 			)
 
-			memcachedSpec := memcachedv1.MemcachedSpec{
-				MemcachedSpecCore: memcachedv1.MemcachedSpecCore{
-					Replicas: ptr.To(int32(3)),
-				},
-			}
+			memcachedSpec := GetDefaultMemcachedSpec()
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
 
@@ -1576,11 +1531,7 @@ var _ = Describe("Nova controller", func() {
 				),
 			)
 
-			memcachedSpec := memcachedv1.MemcachedSpec{
-				MemcachedSpecCore: memcachedv1.MemcachedSpecCore{
-					Replicas: ptr.To(int32(3)),
-				},
-			}
+			memcachedSpec := GetDefaultMemcachedSpec()
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
 

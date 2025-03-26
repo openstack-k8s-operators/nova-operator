@@ -26,7 +26,6 @@ import (
 	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
 
 	networkv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
-	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -57,11 +56,7 @@ var _ = Describe("NovaMetadata controller", func() {
 		DeferCleanup(k8sClient.Delete, ctx, cell1Secret)
 
 		mariadb.CreateMariaDBDatabase(novaNames.APIMariaDBDatabaseName.Namespace, novaNames.APIMariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
-		memcachedSpec := memcachedv1.MemcachedSpec{
-			MemcachedSpecCore: memcachedv1.MemcachedSpecCore{
-				Replicas: ptr.To(int32(3)),
-			},
-		}
+		memcachedSpec := GetDefaultMemcachedSpec()
 		DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 		infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
 		DeferCleanup(k8sClient.Delete, ctx, mariadb.GetMariaDBDatabase(novaNames.APIMariaDBDatabaseName))
@@ -400,11 +395,7 @@ var _ = Describe("NovaMetadata controller", func() {
 		DeferCleanup(k8sClient.Delete, ctx, cell1Account)
 		DeferCleanup(k8sClient.Delete, ctx, cell1Secret)
 
-		memcachedSpec := memcachedv1.MemcachedSpec{
-			MemcachedSpecCore: memcachedv1.MemcachedSpecCore{
-				Replicas: ptr.To(int32(3)),
-			},
-		}
+		memcachedSpec := GetDefaultMemcachedSpec()
 		DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 		infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
 
@@ -877,11 +868,7 @@ var _ = Describe("NovaMetadata controller", func() {
 
 		mariadb.SimulateMariaDBTLSDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
 		mariadb.SimulateMariaDBAccountCompleted(novaNames.APIMariaDBDatabaseAccount)
-		memcachedSpec := memcachedv1.MemcachedSpec{
-			MemcachedSpecCore: memcachedv1.MemcachedSpecCore{
-				Replicas: ptr.To(int32(3)),
-			},
-		}
+		memcachedSpec := GetDefaultMemcachedSpec()
 		DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 		infra.SimulateTLSMemcachedReady(novaNames.MemcachedNamespace)
 
