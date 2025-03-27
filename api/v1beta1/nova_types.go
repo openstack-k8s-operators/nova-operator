@@ -17,16 +17,17 @@ limitations under the License.
 package v1beta1
 
 import (
+	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// NovaSpecCore defines the template for NovaSpec used in OpenStackControlPlane
-type NovaSpecCore struct {
+// NovaSpecBase defines common data fields of the same type
+// which may be submitted by the openstack-operator for us and also overriden by users.
+type NovaSpecBase struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
@@ -124,13 +125,41 @@ type NovaSpecCore struct {
 	TopologyRef *topologyv1.TopoRef `json:"topologyRef,omitempty"`
 }
 
+// NOTE(bogdnado): The below leaks into user facing CRD docs and should not contain code specifics.
+
+// NovaSpecCore defines the template for NovaSpec used in OpenStackControlPlane
+type NovaSpecCore struct {
+	// +kubebuilder:validation:Required
+	NovaSpecBase `json:",inline"`
+
+	// +kubebuilder:validation:Optional
+	// NotificationsBusInstance is the name of the RabbitMqCluster CR to select
+	// the Message Bus Service instance used by the Nova top level services and all cells to publish notifications.
+	// If undefined, the value will be inherited from OpenStackControlPlane.
+	// An empty value "" leaves the notification drivers unconfigured and emitting no notifications at all.
+	// Avoid colocating it with APIMessageBusInstance or CellMessageBusInstance used for PRC.
+	// For particular Nova cells, notifications cannot be disabled, nor configured differently.
+	NotificationsBusInstance *string `json:"notificationsBusInstance,omitempty"`
+}
+
 // NovaSpec defines the desired state of Nova
 type NovaSpec struct {
+	// NOTE(bogdando): Anything that is only submitted by opentack-operator should be in NovaSpec but not in NovaSpecCore.
+
 	// +kubebuilder:validation:Required
-	NovaSpecCore `json:",inline"`
+	NovaSpecBase `json:",inline"`
 
 	// +kubebuilder:validation:Required
 	NovaImages `json:",inline"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=""
+	// NotificationsBusInstance is the name of the RabbitMqCluster CR to select
+	// the Message Bus Service instance used by the Nova top level services and all cells to publish notifications.
+	// An empty value "" leaves the notification drivers unconfigured and emitting no notifications at all.
+	// Avoid colocating it with APIMessageBusInstance or CellMessageBusInstance used for PRC.
+	// For particular Nova cells, notifications cannot be disabled, nor configured differently.
+	NotificationsBusInstance string `json:"notificationsBusInstance"` // this either contains an inherited value, or an override value from NovaSpecCore.
 }
 
 // NovaStatus defines the observed state of Nova

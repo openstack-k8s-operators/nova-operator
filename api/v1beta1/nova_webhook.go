@@ -29,6 +29,7 @@ import (
 	service "github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	"github.com/robfig/cron/v3"
 
+	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -38,7 +39,6 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
-	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 )
 
 // NovaDefaults -
@@ -80,12 +80,12 @@ func (r *Nova) Default() {
 // Default - set defaults for this NovaCore spec.
 func (spec *NovaSpec) Default() {
 	spec.NovaImages.Default(novaDefaults)
-	spec.NovaSpecCore.Default()
+	spec.NovaSpecBase.Default()
 }
 
 // Default - set defaults for this Nova spec. Expected to be called from
 // the higher level meta operator.
-func (spec *NovaSpecCore) Default() {
+func (spec *NovaSpecBase) Default() {
 	// NOTE(gibi): this cannot be expressed as kubebuilder defaults as the
 	// MetadataServiceTemplate is used both in the cellTemplate and in the
 	// NovaSpec but we need different defaults in the two places
@@ -121,7 +121,7 @@ func (spec *NovaSpecCore) Default() {
 
 var _ webhook.Validator = &Nova{}
 
-func (r *NovaSpecCore) ValidateCellTemplates(basePath *field.Path, namespace string) field.ErrorList {
+func (r *NovaSpecBase) ValidateCellTemplates(basePath *field.Path, namespace string) field.ErrorList {
 	var errors field.ErrorList
 
 	if _, ok := r.CellTemplates[Cell0Name]; !ok {
@@ -234,7 +234,7 @@ func (r *NovaSpecCore) ValidateCellTemplates(basePath *field.Path, namespace str
 }
 
 // ValidateAPIServiceTemplate -
-func (r *NovaSpecCore) ValidateAPIServiceTemplate(basePath *field.Path, namespace string) field.ErrorList {
+func (r *NovaSpecBase) ValidateAPIServiceTemplate(basePath *field.Path, namespace string) field.ErrorList {
 	errors := field.ErrorList{}
 
 	// validate the service override key is valid
@@ -257,7 +257,7 @@ func (r *NovaSpecCore) ValidateAPIServiceTemplate(basePath *field.Path, namespac
 }
 
 // ValidateSchedulerServiceTemplate -
-func (r *NovaSpecCore) ValidateSchedulerServiceTemplate(basePath *field.Path, namespace string) field.ErrorList {
+func (r *NovaSpecBase) ValidateSchedulerServiceTemplate(basePath *field.Path, namespace string) field.ErrorList {
 	errors := field.ErrorList{}
 	// validate the referenced TopologyRef
 	errors = append(errors,
@@ -267,16 +267,15 @@ func (r *NovaSpecCore) ValidateSchedulerServiceTemplate(basePath *field.Path, na
 	return errors
 }
 
-
 // ValidateCreate validates the NovaSpec during the webhook invocation.
 func (r *NovaSpec) ValidateCreate(basePath *field.Path, namespace string) field.ErrorList {
-	return r.NovaSpecCore.ValidateCreate(basePath, namespace)
+	return r.NovaSpecBase.ValidateCreate(basePath, namespace)
 }
 
-// ValidateCreate validates the NovaSpecCore during the webhook invocation. It is
+// ValidateCreate validates the NovaSpecBase during the webhook invocation. It is
 // expected to be called by the validation webhook in the higher level meta
 // operator
-func (r *NovaSpecCore) ValidateCreate(basePath *field.Path, namespace string) field.ErrorList {
+func (r *NovaSpecBase) ValidateCreate(basePath *field.Path, namespace string) field.ErrorList {
 	errors := r.ValidateCellTemplates(basePath, namespace)
 	errors = append(errors, r.ValidateAPIServiceTemplate(basePath, namespace)...)
 	errors = append(errors, r.ValidateSchedulerServiceTemplate(basePath, namespace)...)
@@ -316,13 +315,13 @@ func (r *Nova) ValidateCreate() (admission.Warnings, error) {
 
 // ValidateUpdate validates the NovaSpec during the webhook invocation.
 func (r *NovaSpec) ValidateUpdate(old NovaSpec, basePath *field.Path, namespace string) field.ErrorList {
-	return r.NovaSpecCore.ValidateUpdate(old.NovaSpecCore, basePath, namespace)
+	return r.NovaSpecBase.ValidateUpdate(old.NovaSpecBase, basePath, namespace)
 }
 
-// ValidateUpdate validates the NovaSpecCore during the webhook invocation. It is
+// ValidateUpdate validates the NovaSpecBase during the webhook invocation. It is
 // expected to be called by the validation webhook in the higher level meta
 // operator
-func (r *NovaSpecCore) ValidateUpdate(old NovaSpecCore, basePath *field.Path, namespace string) field.ErrorList {
+func (r *NovaSpecBase) ValidateUpdate(old NovaSpecBase, basePath *field.Path, namespace string) field.ErrorList {
 	errors := r.ValidateCellTemplates(basePath, namespace)
 	// Validate top-level TopologyRef
 	errors = append(errors, topologyv1.ValidateTopologyRef(
