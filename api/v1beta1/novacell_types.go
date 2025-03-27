@@ -17,10 +17,10 @@ limitations under the License.
 package v1beta1
 
 import (
+	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -50,6 +50,17 @@ type NovaCellTemplate struct {
 	// the Message Bus Service instance used by the nova services to
 	// communicate in this cell. For cell0 it is unused.
 	CellMessageBusInstance string `json:"cellMessageBusInstance"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=""
+	// NotificationsBusInstance is the name of the RabbitMqCluster CR to select
+	// the Message Bus Service instance used by the nova cell services to publish notifications.
+	// An empty value inherits the top scope notification driver configuration for a cell.
+	// Avoid colocating it with APIMessageBusInstance or CellMessageBusInstance used for PRC.
+	// Overriding a top scope NotificationsBusInstance for cells implies that consumers of
+	// notifications can maintain simultanous AMQP connections via multiple transport_url endpoints.
+	// Notifications cannot be disabled for a particular cell, it is all or nothing.
+	NotificationsBusInstance string `json:"notificationsBusInstance"`
 
 	// +kubebuilder:validation:Required
 	// HasAPIAccess defines if this Cell is configured to have access to the

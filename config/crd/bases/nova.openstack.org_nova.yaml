@@ -1136,6 +1136,17 @@ spec:
                       description: NodeSelector to target subset of worker nodes running
                         cell.
                       type: object
+                    notificationsBusInstance:
+                      default: ""
+                      description: |-
+                        NotificationsBusInstance is the name of the RabbitMqCluster CR to select
+                        the Message Bus Service instance used by the nova cell services to publish notifications.
+                        An empty value inherits the top scope notification driver configuration for a cell.
+                        Avoid colocating it with APIMessageBusInstance or CellMessageBusInstance used for PRC.
+                        Overriding a top scope NotificationsBusInstance for cells implies that consumers of
+                        notifications can maintain simultanous AMQP connections via multiple transport_url endpoints.
+                        Notifications cannot be disabled for a particular cell, it is all or nothing.
+                      type: string
                     novaComputeTemplates:
                       additionalProperties:
                         description: |-
@@ -1624,6 +1635,17 @@ spec:
                   NodeSelector here acts as a default value and can be overridden by service
                   specific NodeSelector Settings.
                 type: object
+              notificationsBusInstance:
+                default: ""
+                description: |-
+                  NotificationsBusInstance is the name of the RabbitMqCluster CR to select
+                  the Message Bus Service instance used by the Nova top level services and all cells to publish notifications.
+                  An empty value leaves the notification drivers unconfigured and emitting no notifications at all.
+                  Avoid colocating it with APIMessageBusInstance or CellMessageBusInstance used for PRC.
+                  Overriding it with NotificationsBusInstance for cells implies that consumers of notifications
+                  can maintain simultanous AMQP connections via multiple transport_url endpoints.
+                  Notifications cannot be disabled for a particular cell, it is all or nothing.
+                type: string
               novncproxyContainerImageURL:
                 description: NoVNCContainerImageURL
                 type: string
