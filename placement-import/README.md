@@ -162,9 +162,6 @@ either by DNS or via /etc/hosts:
 +--------------+-----------+------------------------------------------------------------------+
 ```
 
-# Design
-*TBD*
-
 # Testing
 The repository uses [EnvTest](https://book.kubebuilder.io/reference/envtest.html) to validate the operator in a self
 contained environment.
