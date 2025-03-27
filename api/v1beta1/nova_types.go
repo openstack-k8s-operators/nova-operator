@@ -17,9 +17,9 @@ limitations under the License.
 package v1beta1
 
 import (
+	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -122,10 +122,21 @@ type NovaSpecCore struct {
 	// TopologyRef to apply the Topology defined by the associated CR referenced
 	// by name
 	TopologyRef *topologyv1.TopoRef `json:"topologyRef,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// NotificationsBusInstance is the name of the RabbitMqCluster CR to select
+	// the Message Bus Service instance used by the Nova top level services and all cells to publish notifications.
+	// If undefined, the value will be inherited from OpenStackControlPlane.
+	// An empty value "" leaves the notification drivers unconfigured and emitting no notifications at all.
+	// Avoid colocating it with RabbitMqClusterName, APIMessageBusInstance or CellMessageBusInstance used for RPC.
+	// For particular Nova cells, notifications cannot be disabled, nor configured differently.
+	NotificationsBusInstance *string `json:"notificationsBusInstance,omitempty"`
 }
 
 // NovaSpec defines the desired state of Nova
 type NovaSpec struct {
+	// NOTE(bogdando): Anything that is only submitted by opentack-operator should be in NovaSpec but not in NovaSpecCore.
+
 	// +kubebuilder:validation:Required
 	NovaSpecCore `json:",inline"`
 
