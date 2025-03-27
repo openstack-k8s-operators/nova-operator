@@ -186,6 +186,7 @@
 - project:
     name: openstack-k8s-operators/nova-operator
     default-branch: main
+    merge-mode: rebase
     github-check:
       jobs:
         - openstack-meta-content-provider
