@@ -208,10 +208,9 @@
 
 - project-template:
     name: opendev-nova-edpm-pipeline
-    description: |
-      Project template to run meta content provider and
-      EDPM job with master opendev and github operator content in
-      openstack-experimental pipeline.
+    # Project template to run meta content provider and
+    # EDPM job with master opendev and github operator content in
+    # openstack-experimental pipeline.
     openstack-experimental: &experimentalJobs
       jobs:
         - openstack-meta-content-provider:
