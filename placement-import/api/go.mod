@@ -3,8 +3,8 @@ module github.com/openstack-k8s-operators/placement-operator/api
 go 1.21
 
 require (
-	github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20250319162810-463dd75a4cc4
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.6.1-0.20250315090821-34e570d2d5fb
+	github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20250328101744-699b0b8f418d
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.6.1-0.20250324161140-e9964a1b2266
 	k8s.io/api v0.29.15
 	k8s.io/apimachinery v0.29.15
 	sigs.k8s.io/controller-runtime v0.17.6
