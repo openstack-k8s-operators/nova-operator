@@ -24,15 +24,15 @@ import (
 	. "github.com/onsi/gomega"    //revive:disable:dot-imports
 
 	//revive:disable-next-line:dot-imports
+	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
+	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
+	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
+	mariadb_test "github.com/openstack-k8s-operators/mariadb-operator/api/test/helpers"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/placement-operator/pkg/placement"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
-
-	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
-	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
-	mariadb_test "github.com/openstack-k8s-operators/mariadb-operator/api/test/helpers"
 )
 
 var _ = Describe("PlacementAPI controller", func() {
@@ -880,12 +880,6 @@ var _ = Describe("PlacementAPI controller", func() {
 
 	When("A PlacementAPI is created with a wrong topologyref", func() {
 		BeforeEach(func() {
-			// Build the topology Spec
-			topologySpec := GetSampleTopologySpec()
-			// Create Test Topologies
-			for _, t := range names.PlacementAPITopologies {
-				CreateTopology(t, topologySpec)
-			}
 			spec := GetDefaultPlacementAPISpec()
 			spec["topologyRef"] = map[string]interface{}{
 				"name": "foo",
@@ -914,16 +908,26 @@ var _ = Describe("PlacementAPI controller", func() {
 		})
 	})
 	When("A PlacementAPI is created with topologyref", func() {
+		var topologyRef, topologyRefAlt *topologyv1.TopoRef
 		BeforeEach(func() {
-			// Build the topology Spec
-			topologySpec := GetSampleTopologySpec()
+			// Define the two topology references used in this test
+			topologyRef = &topologyv1.TopoRef{
+				Name:      names.PlacementAPITopologies[0].Name,
+				Namespace: names.PlacementAPITopologies[0].Namespace,
+			}
+			topologyRefAlt = &topologyv1.TopoRef{
+				Name:      names.PlacementAPITopologies[1].Name,
+				Namespace: names.PlacementAPITopologies[1].Namespace,
+			}
 			// Create Test Topologies
 			for _, t := range names.PlacementAPITopologies {
+				// Build the topology Spec
+				topologySpec, _ := GetSampleTopologySpec(t.Name)
 				CreateTopology(t, topologySpec)
 			}
 			spec := GetDefaultPlacementAPISpec()
 			spec["topologyRef"] = map[string]interface{}{
-				"name": names.PlacementAPITopologies[0].Name,
+				"name": topologyRef.Name,
 			}
 			placement := CreatePlacementAPI(names.PlacementAPIName, spec)
 			DeferCleanup(th.DeleteInstance, placement)
@@ -948,9 +952,17 @@ var _ = Describe("PlacementAPI controller", func() {
 
 		It("sets topology in CR status", func() {
 			Eventually(func(g Gomega) {
+				tp := GetTopology(types.NamespacedName{
+					Name:      topologyRef.Name,
+					Namespace: topologyRef.Namespace,
+				})
+				finalizers := tp.GetFinalizers()
+				g.Expect(finalizers).To(HaveLen(1))
 				placement := GetPlacementAPI(names.PlacementAPIName)
 				g.Expect(placement.Status.LastAppliedTopology).ToNot(BeNil())
-				g.Expect(placement.Status.LastAppliedTopology.Name).To(Equal(names.PlacementAPITopologies[0].Name))
+				g.Expect(placement.Status.LastAppliedTopology).To(Equal(topologyRef))
+				g.Expect(finalizers).To(ContainElement(
+					fmt.Sprintf("openstack.org/placementapi-%s", names.PlacementAPIName.Name)))
 			}, timeout, interval).Should(Succeed())
 
 			th.ExpectCondition(
@@ -963,23 +975,38 @@ var _ = Describe("PlacementAPI controller", func() {
 
 		It("sets topology in resource specs", func() {
 			Eventually(func(g Gomega) {
-				g.Expect(th.GetDeployment(names.DeploymentName).Spec.Template.Spec.TopologySpreadConstraints).ToNot(BeNil())
+				_, topologySpecObj := GetSampleTopologySpec(topologyRef.Name)
 				g.Expect(th.GetDeployment(names.DeploymentName).Spec.Template.Spec.Affinity).To(BeNil())
+				g.Expect(th.GetDeployment(names.DeploymentName).Spec.Template.Spec.TopologySpreadConstraints).ToNot(BeNil())
+				g.Expect(th.GetDeployment(names.DeploymentName).Spec.Template.Spec.TopologySpreadConstraints).To(Equal(topologySpecObj))
 			}, timeout, interval).Should(Succeed())
 		})
 		It("updates topology when the reference changes", func() {
 			Eventually(func(g Gomega) {
 				placement := GetPlacementAPI(names.PlacementAPIName)
-				g.Expect(placement.Status.LastAppliedTopology).ToNot(BeNil())
-				g.Expect(placement.Status.LastAppliedTopology.Name).To(Equal(names.PlacementAPITopologies[0].Name))
-				placement.Spec.TopologyRef.Name = names.PlacementAPITopologies[1].Name
+				placement.Spec.TopologyRef.Name = topologyRefAlt.Name
 				g.Expect(k8sClient.Update(ctx, placement)).To(Succeed())
 			}, timeout, interval).Should(Succeed())
 
 			Eventually(func(g Gomega) {
+				tp := GetTopology(types.NamespacedName{
+					Name:      topologyRefAlt.Name,
+					Namespace: topologyRefAlt.Namespace,
+				})
+				finalizers := tp.GetFinalizers()
+				g.Expect(finalizers).To(HaveLen(1))
 				placement := GetPlacementAPI(names.PlacementAPIName)
 				g.Expect(placement.Status.LastAppliedTopology).ToNot(BeNil())
-				g.Expect(placement.Status.LastAppliedTopology.Name).To(Equal(names.PlacementAPITopologies[1].Name))
+				g.Expect(placement.Status.LastAppliedTopology).To(Equal(topologyRefAlt))
+				g.Expect(finalizers).To(ContainElement(
+					fmt.Sprintf("openstack.org/placementapi-%s", names.PlacementAPIName.Name)))
+				// Verify the previous referenced topology has no finalizers
+				tp = GetTopology(types.NamespacedName{
+					Name:      topologyRef.Name,
+					Namespace: topologyRef.Namespace,
+				})
+				finalizers = tp.GetFinalizers()
+				g.Expect(finalizers).To(BeEmpty())
 			}, timeout, interval).Should(Succeed())
 
 			th.ExpectCondition(
@@ -1005,6 +1032,18 @@ var _ = Describe("PlacementAPI controller", func() {
 			Eventually(func(g Gomega) {
 				g.Expect(th.GetDeployment(names.DeploymentName).Spec.Template.Spec.TopologySpreadConstraints).To(BeNil())
 				g.Expect(th.GetDeployment(names.DeploymentName).Spec.Template.Spec.Affinity).ToNot(BeNil())
+			}, timeout, interval).Should(Succeed())
+
+			// Verify the existing topologies have no finalizer anymore
+			Eventually(func(g Gomega) {
+				for _, topology := range names.PlacementAPITopologies {
+					tp := GetTopology(types.NamespacedName{
+						Name:      topology.Name,
+						Namespace: topology.Namespace,
+					})
+					finalizers := tp.GetFinalizers()
+					g.Expect(finalizers).To(BeEmpty())
+				}
 			}, timeout, interval).Should(Succeed())
 		})
 	})
