@@ -109,3 +109,9 @@ type MessageBus struct {
 	TransportURL string
 	Status       MessageBusStatus
 }
+
+// NotificationsBus -
+type NotificationsBus struct {
+	NotificationsTransportURL string
+	Status                    MessageBusStatus
+}

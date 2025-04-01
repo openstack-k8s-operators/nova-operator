@@ -468,28 +468,30 @@ func (r *NovaAPIReconciler) generateConfigs(
 		"keystone_internal_url": instance.Spec.KeystoneAuthURL,
 		// NOTE(gibi): As per the definition of www_authenticate_uri this
 		// always needs to point to the public keystone endpoint.
-		"www_authenticate_uri":     instance.Spec.KeystonePublicAuthURL,
-		"nova_keystone_user":       instance.Spec.ServiceUser,
-		"nova_keystone_password":   string(secret.Data[ServicePasswordSelector]),
-		"api_db_name":              NovaAPIDatabaseName,
-		"api_db_user":              apiDatabaseAccount.Spec.UserName,
-		"api_db_password":          string(apiDbSecret.Data[mariadbv1.DatabasePasswordSelector]),
-		"api_db_address":           instance.Spec.APIDatabaseHostname,
-		"api_db_port":              3306,
-		"cell_db_name":             NovaCell0DatabaseName,
-		"cell_db_user":             cellDatabaseAccount.Spec.UserName,
-		"cell_db_password":         string(cellDbSecret.Data[mariadbv1.DatabasePasswordSelector]),
-		"cell_db_address":          instance.Spec.Cell0DatabaseHostname,
-		"cell_db_port":             3306,
-		"openstack_region_name":    "regionOne", // fixme
-		"default_project_domain":   "Default",   // fixme
-		"default_user_domain":      "Default",   // fixme
-		"transport_url":            string(secret.Data[TransportURLSelector]),
-		"log_file":                 "/var/log/nova/nova-api.log",
-		"tls":                      false,
-		"MemcachedServers":         memcachedInstance.GetMemcachedServerListString(),
-		"MemcachedServersWithInet": memcachedInstance.GetMemcachedServerListWithInetString(),
-		"MemcachedTLS":             memcachedInstance.GetMemcachedTLSSupport(),
+		"www_authenticate_uri":           instance.Spec.KeystonePublicAuthURL,
+		"nova_keystone_user":             instance.Spec.ServiceUser,
+		"nova_keystone_password":         string(secret.Data[ServicePasswordSelector]),
+		"api_db_name":                    NovaAPIDatabaseName,
+		"api_db_user":                    apiDatabaseAccount.Spec.UserName,
+		"api_db_password":                string(apiDbSecret.Data[mariadbv1.DatabasePasswordSelector]),
+		"api_db_address":                 instance.Spec.APIDatabaseHostname,
+		"api_db_port":                    3306,
+		"cell_db_name":                   NovaCell0DatabaseName,
+		"cell_db_user":                   cellDatabaseAccount.Spec.UserName,
+		"cell_db_password":               string(cellDbSecret.Data[mariadbv1.DatabasePasswordSelector]),
+		"cell_db_address":                instance.Spec.Cell0DatabaseHostname,
+		"cell_db_port":                   3306,
+		"openstack_region_name":          "regionOne", // fixme
+		"default_project_domain":         "Default",   // fixme
+		"default_user_domain":            "Default",   // fixme
+		"transport_url":                  string(secret.Data[TransportURLSelector]),
+		"nova_cell_notify_transport_url": string(secret.Data[NotificationsTransportURLSelector]),
+		"nova_enabled_notification":      nil, // false if instance.spec.NotificationsBusInstance == "", or true
+		"log_file":                       "/var/log/nova/nova-api.log",
+		"tls":                            false,
+		"MemcachedServers":               memcachedInstance.GetMemcachedServerListString(),
+		"MemcachedServersWithInet":       memcachedInstance.GetMemcachedServerListWithInetString(),
+		"MemcachedTLS":                   memcachedInstance.GetMemcachedTLSSupport(),
 	}
 	// create httpd  vhost template parameters
 	httpdVhostConfig := map[string]interface{}{}
