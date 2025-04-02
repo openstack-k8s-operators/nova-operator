@@ -335,7 +335,7 @@ var _ = Describe("Nova reconfiguration", func() {
 			for _, t := range novaNames.NovaTopologies {
 				// Build the topology Spec
 				topologySpec, _ = GetSampleTopologySpec(t.Name)
-				CreateTopology(t, topologySpec)
+				infra.CreateTopology(t, topologySpec)
 			}
 			keystone.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
 			mariadb.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
@@ -409,7 +409,7 @@ var _ = Describe("Nova reconfiguration", func() {
 				corev1.ConditionTrue,
 			)
 			// Get the referenced topology
-			tp := GetTopology(types.NamespacedName{
+			tp := infra.GetTopology(types.NamespacedName{
 				Name:      defaultTopologyRef.Name,
 				Namespace: defaultTopologyRef.Namespace,
 			})
@@ -538,7 +538,7 @@ var _ = Describe("Nova reconfiguration", func() {
 			}
 
 			// Check the updated finalizers for top-level resources
-			previousTopology := GetTopology(types.NamespacedName{
+			previousTopology := infra.GetTopology(types.NamespacedName{
 				Name:      novaNames.NovaTopologies[0].Name,
 				Namespace: novaNames.Namespace,
 			})
@@ -548,7 +548,7 @@ var _ = Describe("Nova reconfiguration", func() {
 				novaNames.NovaTopologies[3].Name: novaNames.MetadataName,
 			} {
 				Eventually(func(g Gomega) {
-					tp := GetTopology(types.NamespacedName{
+					tp := infra.GetTopology(types.NamespacedName{
 						Name:      topology,
 						Namespace: novaNames.Namespace,
 					})
@@ -563,7 +563,7 @@ var _ = Describe("Nova reconfiguration", func() {
 			}
 			// Check finalizers for cell Conductors
 			Eventually(func(g Gomega) {
-				cell0Topology := GetTopology(types.NamespacedName{
+				cell0Topology := infra.GetTopology(types.NamespacedName{
 					Name:      novaNames.NovaTopologies[4].Name,
 					Namespace: novaNames.NovaTopologies[4].Namespace,
 				})
@@ -611,7 +611,7 @@ var _ = Describe("Nova reconfiguration", func() {
 		It("removes all finalizers from the referenced topologies", func() {
 			for _, topologyName := range novaNames.NovaTopologies {
 				Eventually(func(g Gomega) {
-					tp := GetTopology(topologyName)
+					tp := infra.GetTopology(topologyName)
 					finalizers := tp.GetFinalizers()
 					g.Expect(finalizers).To(BeEmpty())
 				}, timeout, interval).Should(Succeed())
