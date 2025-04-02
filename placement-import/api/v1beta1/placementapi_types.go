@@ -233,19 +233,6 @@ func (instance PlacementAPI) GetSecret() string {
 	return instance.Spec.Secret
 }
 
-// GetLastAppliedTopologyRef - Returns the lastAppliedTopologyName that can be
-// processed by the handle topology logic
-func (instance PlacementAPI) GetLastAppliedTopologyRef() *topologyv1.TopoRef {
-	lastAppliedTopologyName := ""
-	if instance.Status.LastAppliedTopology != nil {
-		lastAppliedTopologyName = instance.Status.LastAppliedTopology.Name
-	}
-	return &topologyv1.TopoRef{
-		Name:      lastAppliedTopologyName,
-		Namespace: instance.Namespace,
-	}
-}
-
 // ValidateTopology -
 func (instance *PlacementAPISpecCore) ValidateTopology(
 	basePath *field.Path,

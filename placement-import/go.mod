@@ -8,7 +8,7 @@ require (
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.7.6
 	github.com/onsi/ginkgo/v2 v2.20.1
 	github.com/onsi/gomega v1.34.1
-	github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20250403063905-eb287d52f38d
+	github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20250414173555-d17cbc245462
 	github.com/openstack-k8s-operators/keystone-operator/api v0.6.1-0.20250406092234-10f5f7e5b5a9
 	github.com/openstack-k8s-operators/lib-common/modules/common v0.6.1-0.20250408123225-0d9e9b82c41b
 	github.com/openstack-k8s-operators/lib-common/modules/test v0.6.1-0.20250402133843-5a4c5f4fb4f1
@@ -57,6 +57,7 @@ require (
 	github.com/prometheus/client_model v0.6.0 // indirect
 	github.com/prometheus/common v0.51.1 // indirect
 	github.com/prometheus/procfs v0.13.0 // indirect
+	github.com/rabbitmq/cluster-operator/v2 v2.9.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56 // indirect
@@ -88,3 +89,6 @@ replace github.com/openstack-k8s-operators/placement-operator/api => ./api
 // mschuppert: map to latest commit from release-4.16 tag
 // must consistent within modules and service operators
 replace github.com/openshift/api => github.com/openshift/api v0.0.0-20240830023148-b7d0481c9094 //allow-merging
+
+// custom RabbitmqClusterSpecCore for OpenStackControlplane (v2.6.0_patches_tag)
+replace github.com/rabbitmq/cluster-operator/v2 => github.com/openstack-k8s-operators/rabbitmq-cluster-operator/v2 v2.6.1-0.20241017142550-a3524acedd49 //allow-merging

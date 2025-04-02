@@ -40,6 +40,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
+	infra_test "github.com/openstack-k8s-operators/infra-operator/apis/test/helpers"
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
@@ -68,6 +69,7 @@ var (
 	th        *common_test.TestHelper
 	keystone  *keystone_test.TestHelper
 	mariadb   *mariadb_test.TestHelper
+	infra     *infra_test.TestHelper
 	namespace string
 	names     Names
 )
@@ -158,6 +160,8 @@ var _ = BeforeSuite(func() {
 	Expect(keystone).NotTo(BeNil())
 	mariadb = mariadb_test.NewTestHelper(ctx, k8sClient, timeout, interval, logger)
 	Expect(mariadb).NotTo(BeNil())
+	infra = infra_test.NewTestHelper(ctx, k8sClient, timeout, interval, logger)
+	Expect(infra).NotTo(BeNil())
 
 	// Start the controller-manager if goroutine
 	webhookInstallOptions := &testEnv.WebhookInstallOptions

@@ -1152,7 +1152,7 @@ func (r *PlacementAPIReconciler) ensureDeployment(
 		ctx,
 		h,
 		instance.Spec.TopologyRef,
-		instance.GetLastAppliedTopologyRef(),
+		instance.Status.LastAppliedTopology,
 		instance.Name,
 		labels.GetLabelSelector(serviceLabels),
 	)

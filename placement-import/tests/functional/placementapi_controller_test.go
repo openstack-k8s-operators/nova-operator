@@ -1015,7 +1015,7 @@ var _ = Describe("PlacementAPI controller", func() {
 			for _, t := range names.PlacementAPITopologies {
 				// Build the topology Spec
 				topologySpec, _ := GetSampleTopologySpec(t.Name)
-				CreateTopology(t, topologySpec)
+				infra.CreateTopology(t, topologySpec)
 			}
 			spec := GetDefaultPlacementAPISpec()
 			spec["topologyRef"] = map[string]interface{}{
@@ -1044,7 +1044,7 @@ var _ = Describe("PlacementAPI controller", func() {
 
 		It("sets topology in CR status", func() {
 			Eventually(func(g Gomega) {
-				tp := GetTopology(types.NamespacedName{
+				tp := infra.GetTopology(types.NamespacedName{
 					Name:      topologyRef.Name,
 					Namespace: topologyRef.Namespace,
 				})
@@ -1081,7 +1081,7 @@ var _ = Describe("PlacementAPI controller", func() {
 			}, timeout, interval).Should(Succeed())
 
 			Eventually(func(g Gomega) {
-				tp := GetTopology(types.NamespacedName{
+				tp := infra.GetTopology(types.NamespacedName{
 					Name:      topologyRefAlt.Name,
 					Namespace: topologyRefAlt.Namespace,
 				})
@@ -1093,7 +1093,7 @@ var _ = Describe("PlacementAPI controller", func() {
 				g.Expect(finalizers).To(ContainElement(
 					fmt.Sprintf("openstack.org/placementapi-%s", names.PlacementAPIName.Name)))
 				// Verify the previous referenced topology has no finalizers
-				tp = GetTopology(types.NamespacedName{
+				tp = infra.GetTopology(types.NamespacedName{
 					Name:      topologyRef.Name,
 					Namespace: topologyRef.Namespace,
 				})
@@ -1129,7 +1129,7 @@ var _ = Describe("PlacementAPI controller", func() {
 			// Verify the existing topologies have no finalizer anymore
 			Eventually(func(g Gomega) {
 				for _, topology := range names.PlacementAPITopologies {
-					tp := GetTopology(types.NamespacedName{
+					tp := infra.GetTopology(types.NamespacedName{
 						Name:      topology.Name,
 						Namespace: topology.Namespace,
 					})
