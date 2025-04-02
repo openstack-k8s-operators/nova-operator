@@ -4,7 +4,7 @@ go 1.21
 
 require (
 	github.com/google/go-cmp v0.7.0
-	github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20250411133346-82683c873656
+	github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20250414173555-d17cbc245462
 	github.com/openstack-k8s-operators/lib-common/modules/common v0.6.1-0.20250408123225-0d9e9b82c41b
 	github.com/robfig/cron/v3 v3.0.1
 	k8s.io/api v0.29.15
@@ -72,5 +72,3 @@ replace github.com/openshift/api => github.com/openshift/api v0.0.0-202408300231
 
 // custom RabbitmqClusterSpecCore for OpenStackControlplane (v2.6.0_patches_tag)
 replace github.com/rabbitmq/cluster-operator/v2 => github.com/openstack-k8s-operators/rabbitmq-cluster-operator/v2 v2.6.1-0.20241017142550-a3524acedd49 //allow-merging
-
-replace github.com/openstack-k8s-operators/infra-operator/apis => github.com/fmount/infra-operator/apis v0.0.0-20250402083257-db4235dced83
