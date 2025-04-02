@@ -12,6 +12,8 @@ github.com/evanphx/json-patch v5.7.0+incompatible h1:vgGkfT/9f8zE6tvSCe74nfpAVDQ
 github.com/evanphx/json-patch v5.7.0+incompatible/go.mod h1:50XU6AFN0ol/bzJsmQLiYLvXMP4fmwYFNcr97nuDLSk=
 github.com/evanphx/json-patch/v5 v5.9.0 h1:kcBlZQbplgElYIlo/n1hJbls2z/1awpXxpRi0/FOJfg=
 github.com/evanphx/json-patch/v5 v5.9.0/go.mod h1:VNkHZ/282BpEyt/tObQO8s5CMPmYYq14uClGH4abBuQ=
+github.com/fmount/infra-operator/apis v0.0.0-20250402083257-db4235dced83 h1:oS9jNkbf8Hs5JkqI5+hxh3MkNDAZbXyMIuwWLWPSQoE=
+github.com/fmount/infra-operator/apis v0.0.0-20250402083257-db4235dced83/go.mod h1:n5DV/lGE9DHryAJ+JLJSgUXI2QHTj+aN4KoeSNC3PfU=
 github.com/fsnotify/fsnotify v1.7.0 h1:8JEhPFa5W2WU7YfeZzPNqzMP6Lwt7L2715Ggo0nosvA=
 github.com/fsnotify/fsnotify v1.7.0/go.mod h1:40Bi/Hjc2AVfZrqy+aj+yEI+/bRxZnMJyTJwOpGvigM=
 github.com/go-logr/logr v1.4.2 h1:6pFjapn8bFcIbiKo3XT4j/BhANplGihG6tvd+8rYgrY=
@@ -73,8 +75,6 @@ github.com/onsi/ginkgo/v2 v2.20.1 h1:YlVIbqct+ZmnEph770q9Q7NVAz4wwIiVNahee6JyUzo
 github.com/onsi/ginkgo/v2 v2.20.1/go.mod h1:lG9ey2Z29hR41WMVthyJBGUBcBhGOtoPF2VFMvBXFCI=
 github.com/onsi/gomega v1.34.1 h1:EUMJIKUjM8sKjYbtxQI9A4z2o+rruxnzNvpknOXie6k=
 github.com/onsi/gomega v1.34.1/go.mod h1:kU1QgUvBDLXBJq618Xvm2LUX6rSAfRaFRTcdOeDLwwY=
-github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20250319162810-463dd75a4cc4 h1:wb2zsr9x9LantNLN/9dmYM42c3yLq3QuzsoOlGpDUxM=
-github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20250319162810-463dd75a4cc4/go.mod h1:n5DV/lGE9DHryAJ+JLJSgUXI2QHTj+aN4KoeSNC3PfU=
 github.com/openstack-k8s-operators/lib-common/modules/common v0.6.1-0.20250315090821-34e570d2d5fb h1:UAFYEHnbyhO0+yymquFmIqxc9QGji9mzreuYrDS1Ev4=
 github.com/openstack-k8s-operators/lib-common/modules/common v0.6.1-0.20250315090821-34e570d2d5fb/go.mod h1:1CtBP0MQffdjE6buOv5jP2rB3+h7WH0a11lcyrpmxOk=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
