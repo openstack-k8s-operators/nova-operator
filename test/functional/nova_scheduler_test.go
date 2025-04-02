@@ -850,8 +850,8 @@ var _ = Describe("NovaScheduler controller", func() {
 			topologySpec, expectedTopologySpec = GetSampleTopologySpec(novaNames.SchedulerName.Name)
 
 			// Create Test Topologies
-			_, topologyRefAlt = CreateTopology(novaNames.NovaTopologies[0], topologySpec)
-			_, topologyRefSch = CreateTopology(novaNames.NovaTopologies[2], topologySpec)
+			_, topologyRefAlt = infra.CreateTopology(novaNames.NovaTopologies[0], topologySpec)
+			_, topologyRefSch = infra.CreateTopology(novaNames.NovaTopologies[2], topologySpec)
 
 			spec := GetDefaultNovaSchedulerSpec(novaNames)
 			spec["topologyRef"] = map[string]interface{}{"name": topologyRefSch.Name}
@@ -884,7 +884,7 @@ var _ = Describe("NovaScheduler controller", func() {
 			// Check finalizer is set to topologyRefAlt and is not set to
 			// topologyRef
 			Eventually(func(g Gomega) {
-				tp := GetTopology(types.NamespacedName{
+				tp := infra.GetTopology(types.NamespacedName{
 					Name:      topologyRefSch.Name,
 					Namespace: topologyRefSch.Namespace,
 				})
@@ -894,7 +894,7 @@ var _ = Describe("NovaScheduler controller", func() {
 			}, timeout, interval).Should(Succeed())
 
 			Eventually(func(g Gomega) {
-				tpAlt := GetTopology(types.NamespacedName{
+				tpAlt := infra.GetTopology(types.NamespacedName{
 					Name:      topologyRefAlt.Name,
 					Namespace: topologyRefAlt.Namespace,
 				})
@@ -941,7 +941,7 @@ var _ = Describe("NovaScheduler controller", func() {
 
 			// Check finalizer is set to topologyRefAlt
 			Eventually(func(g Gomega) {
-				tp := GetTopology(types.NamespacedName{
+				tp := infra.GetTopology(types.NamespacedName{
 					Name:      topologyRefSch.Name,
 					Namespace: topologyRefSch.Namespace,
 				})
@@ -951,7 +951,7 @@ var _ = Describe("NovaScheduler controller", func() {
 			}, timeout, interval).Should(Succeed())
 
 			Eventually(func(g Gomega) {
-				tpAlt := GetTopology(types.NamespacedName{
+				tpAlt := infra.GetTopology(types.NamespacedName{
 					Name:      topologyRefAlt.Name,
 					Namespace: topologyRefAlt.Namespace,
 				})
@@ -982,7 +982,7 @@ var _ = Describe("NovaScheduler controller", func() {
 
 			// Check finalizer is not present anymore
 			Eventually(func(g Gomega) {
-				tp := GetTopology(types.NamespacedName{
+				tp := infra.GetTopology(types.NamespacedName{
 					Name:      topologyRefSch.Name,
 					Namespace: topologyRefSch.Namespace,
 				})
@@ -992,7 +992,7 @@ var _ = Describe("NovaScheduler controller", func() {
 			}, timeout, interval).Should(Succeed())
 
 			Eventually(func(g Gomega) {
-				tpAlt := GetTopology(types.NamespacedName{
+				tpAlt := infra.GetTopology(types.NamespacedName{
 					Name:      topologyRefAlt.Name,
 					Namespace: topologyRefAlt.Namespace,
 				})

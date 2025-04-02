@@ -1158,8 +1158,8 @@ var _ = Describe("NovaAPI controller", func() {
 			topologySpec, expectedTopologySpec = GetSampleTopologySpec(novaNames.APIName.Name)
 
 			// Create Test Topologies
-			_, topologyRefAlt = CreateTopology(novaNames.NovaTopologies[0], topologySpec)
-			_, topologyRefAPI = CreateTopology(novaNames.NovaTopologies[1], topologySpec)
+			_, topologyRefAlt = infra.CreateTopology(novaNames.NovaTopologies[0], topologySpec)
+			_, topologyRefAPI = infra.CreateTopology(novaNames.NovaTopologies[1], topologySpec)
 
 			spec := GetDefaultNovaAPISpec(novaNames)
 			spec["topologyRef"] = map[string]interface{}{"name": topologyRefAPI.Name}
@@ -1192,7 +1192,7 @@ var _ = Describe("NovaAPI controller", func() {
 
 			// Check finalizer
 			Eventually(func(g Gomega) {
-				tp := GetTopology(types.NamespacedName{
+				tp := infra.GetTopology(types.NamespacedName{
 					Name:      topologyRefAPI.Name,
 					Namespace: topologyRefAPI.Namespace,
 				})
@@ -1202,7 +1202,7 @@ var _ = Describe("NovaAPI controller", func() {
 			}, timeout, interval).Should(Succeed())
 
 			Eventually(func(g Gomega) {
-				tpAlt := GetTopology(types.NamespacedName{
+				tpAlt := infra.GetTopology(types.NamespacedName{
 					Name:      topologyRefAlt.Name,
 					Namespace: topologyRefAlt.Namespace,
 				})
@@ -1251,7 +1251,7 @@ var _ = Describe("NovaAPI controller", func() {
 			// Check finalizer is set to topologyRefAlt and is not set to
 			// topologyRef
 			Eventually(func(g Gomega) {
-				tp := GetTopology(types.NamespacedName{
+				tp := infra.GetTopology(types.NamespacedName{
 					Name:      topologyRefAPI.Name,
 					Namespace: topologyRefAPI.Namespace,
 				})
@@ -1261,7 +1261,7 @@ var _ = Describe("NovaAPI controller", func() {
 			}, timeout, interval).Should(Succeed())
 
 			Eventually(func(g Gomega) {
-				tpAlt := GetTopology(types.NamespacedName{
+				tpAlt := infra.GetTopology(types.NamespacedName{
 					Name:      topologyRefAlt.Name,
 					Namespace: topologyRefAlt.Namespace,
 				})
@@ -1292,7 +1292,7 @@ var _ = Describe("NovaAPI controller", func() {
 
 			// Check finalizer is not present anymore
 			Eventually(func(g Gomega) {
-				tp := GetTopology(types.NamespacedName{
+				tp := infra.GetTopology(types.NamespacedName{
 					Name:      topologyRefAPI.Name,
 					Namespace: topologyRefAPI.Namespace,
 				})
@@ -1302,7 +1302,7 @@ var _ = Describe("NovaAPI controller", func() {
 			}, timeout, interval).Should(Succeed())
 
 			Eventually(func(g Gomega) {
-				tpAlt := GetTopology(types.NamespacedName{
+				tpAlt := infra.GetTopology(types.NamespacedName{
 					Name:      topologyRefAlt.Name,
 					Namespace: topologyRefAlt.Namespace,
 				})
