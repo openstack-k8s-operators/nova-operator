@@ -254,6 +254,8 @@ var _ = Describe("Nova multi cell", func() {
 					novaNames.Namespace, novaNames.Namespace, novaNames.Namespace)))
 
 			Expect(configData).To(ContainSubstring("transport_url=rabbit://cell0/fake"))
+			Expect(configData).To(ContainSubstring("rabbit_quorum_queue = true"))
+			Expect(configData).To(ContainSubstring("heartbeat_in_pthread = false"))
 
 			SimulateReadyOfNovaTopServices()
 
@@ -381,6 +383,9 @@ var _ = Describe("Nova multi cell", func() {
 					novaNames.Namespace, novaNames.Namespace, novaNames.Namespace)))
 			Expect(configData).Should(
 				ContainSubstring("tls_enabled=false"))
+
+			Expect(configData).To(ContainSubstring("rabbit_quorum_queue = true"))
+			Expect(configData).To(ContainSubstring("heartbeat_in_pthread = false"))
 
 			myCnf := configDataMap.Data["my.cnf"]
 			Expect(myCnf).To(
