@@ -107,6 +107,10 @@ status:
     reason: Ready
     status: "True"
     type: NovaAllCellsMQReady
+  - message: There is no more NovaCells to delete
+    reason: Ready
+    status: "True"
+    type: NovaCellsDeletion
   - message: Setup complete
     reason: Ready
     status: "True"

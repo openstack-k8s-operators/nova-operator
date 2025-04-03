@@ -1114,6 +1114,14 @@ var _ = Describe("Nova multi cell deletion", func() {
 				g.Expect(k8sClient.Update(ctx, nova)).To(Succeed())
 			}, timeout, interval).Should(Succeed())
 
+			th.ExpectConditionWithDetails(
+				novaNames.NovaName,
+				ConditionGetterFunc(NovaConditionGetter),
+				novav1.NovaCellsDeletionCondition,
+				corev1.ConditionFalse,
+				condition.RequestedReason,
+				"NovaCells deletion in progress: cell2, cell3",
+			)
 			th.SimulateJobSuccess(cell2.CellDeleteJobName)
 			th.SimulateJobSuccess(cell3.CellDeleteJobName)
 			Eventually(func(g Gomega) {
@@ -1124,6 +1132,14 @@ var _ = Describe("Nova multi cell deletion", func() {
 
 			GetNovaCell(cell2.CellCRName)
 			NovaCellNotExists(cell3.CellCRName)
+			th.ExpectConditionWithDetails(
+				novaNames.NovaName,
+				ConditionGetterFunc(NovaConditionGetter),
+				novav1.NovaCellsDeletionCondition,
+				corev1.ConditionFalse,
+				condition.RequestedReason,
+				"NovaCells deletion in progress: cell2",
+			)
 
 		})
 

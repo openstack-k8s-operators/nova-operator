@@ -38,6 +38,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"golang.org/x/exp/maps"
+
 	"github.com/go-logr/logr"
 	"github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
@@ -604,10 +606,13 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	SortNovaCellListByName(novaCellList)
 
 	var deleteErrs []error
+	toDeletCells := map[string]string{}
 
 	for _, cr := range novaCellList.Items {
 		_, ok := instance.Spec.CellTemplates[cr.Spec.CellName]
 		if !ok {
+
+			toDeletCells[cr.Spec.CellName] = cr.Spec.CellName
 			result, err := r.ensureCellDeleted(ctx, h, instance,
 				cr.Spec.CellName, apiTransportURL,
 				secret, apiDB, cellDBs[novav1.Cell0Name].Database.GetDatabaseHostname(), cells[novav1.Cell0Name])
@@ -617,13 +622,31 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 			if result == nova.CellDeleteComplete {
 				Log.Info("Cell deleted", "cell", cr.Spec.CellName)
 				delete(instance.Status.RegisteredCells, cr.Name)
+				delete(toDeletCells, cr.Spec.CellName)
 			}
+		}
+		if len(toDeletCells) > 0 {
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				novav1.NovaCellsDeletionCondition,
+				condition.RequestedReason,
+				condition.SeverityInfo,
+				novav1.NovaCellsDeletionMessage,
+				strings.Join(maps.Keys(toDeletCells), ", "),
+			))
 		}
 	}
 
 	if len(deleteErrs) > 0 {
 		delErrs := errors.Join(deleteErrs...)
 		return ctrl.Result{}, delErrs
+	}
+
+	if len(toDeletCells) == 0 {
+		Log.Info("All cells marked for deletion have been successfully deleted.")
+		instance.Status.Conditions.MarkTrue(
+			novav1.NovaCellsDeletionCondition,
+			novav1.NovaCellsDeletionConditionReadyMessage,
+		)
 	}
 
 	Log.Info("Successfully reconciled")
@@ -856,6 +879,11 @@ func (r *NovaReconciler) initConditions(
 			novav1.NovaAllCellsReadyCondition,
 			condition.InitReason,
 			novav1.NovaAllCellsReadyInitMessage,
+		),
+		condition.UnknownCondition(
+			novav1.NovaCellsDeletionCondition,
+			condition.InitReason,
+			novav1.NovaCellsDeletionConditionInitMessage,
 		),
 		condition.UnknownCondition(
 			condition.KeystoneServiceReadyCondition,
