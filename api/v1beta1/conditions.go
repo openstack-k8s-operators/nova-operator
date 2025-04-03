@@ -52,6 +52,8 @@ const (
 	NovaComputeServiceConfigReady condition.Type = "NovaComputeServiceConfigReady"
 	// NovaAllControlPlaneComputesReadyCondition indicates that every defined NovaCompute is ready but undiscovered
 	NovaAllControlPlaneComputesReadyCondition condition.Type = "NovaAllControlPlaneComputesReady"
+	//NovaCellsDeletionCondition indicates that the NovaCells deletion is in progress
+	NovaCellsDeletionCondition condition.Type = "NovaCellsDeletion"
 )
 
 // Common Messages used by API objects.
@@ -172,4 +174,13 @@ const (
 
 	//CellHostDiscoverErrorMessage
 	CellHostDiscoverErrorMessage = "CellHostDiscover error occurred %s"
+
+	// NovaCellsDeletionConditionInitMessage
+	NovaCellsDeletionConditionInitMessage = "NovaCells deletion not started"
+
+	// NovaCellsDeletionMessage
+	NovaCellsDeletionMessage = "NovaCells deletion in progress: %s"
+
+	// NovaCellsDeletionConditionReadyMessage
+	NovaCellsDeletionConditionReadyMessage = "There is no more NovaCells to delete"
 )
