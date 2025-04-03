@@ -191,6 +191,12 @@ var _ = Describe("Nova reconfiguration", func() {
 				g.Expect(nova.Status.RegisteredCells).To(HaveKey(cell1.CellCRName.Name))
 			}, timeout, interval).Should(Succeed())
 
+			th.ExpectCondition(
+				novaNames.NovaName,
+				ConditionGetterFunc(NovaConditionGetter),
+				novav1.NovaCellsDeletionCondition,
+				corev1.ConditionFalse,
+			)
 			// Simulate the cell delete job success
 			th.SimulateJobSuccess(cell1.CellDeleteJobName)
 			Eventually(func(g Gomega) {
@@ -207,6 +213,12 @@ var _ = Describe("Nova reconfiguration", func() {
 				err := k8sClient.Get(ctx, cell1.TransportURLName, instance)
 				g.Expect(k8s_errors.IsNotFound(err)).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
+			th.ExpectCondition(
+				novaNames.NovaName,
+				ConditionGetterFunc(NovaConditionGetter),
+				novav1.NovaCellsDeletionCondition,
+				corev1.ConditionTrue,
+			)
 		})
 	})
 	When("cell0 conductor replicas is set to 0", func() {
