@@ -569,6 +569,98 @@ var _ = Describe("PlacementAPI controller", func() {
 		})
 	})
 
+	When("Deployment rollout is progressing", func() {
+		BeforeEach(func() {
+			spec := GetDefaultPlacementAPISpec()
+			DeferCleanup(th.DeleteInstance, CreatePlacementAPI(names.PlacementAPIName, spec))
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreatePlacementAPISecret(namespace, SecretName))
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(namespace))
+
+			serviceSpec := corev1.ServiceSpec{Ports: []corev1.ServicePort{{Port: 3306}}}
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(namespace, "openstack", serviceSpec),
+			)
+			mariadb.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBAccount)
+
+			th.SimulateJobSuccess(names.DBSyncJobName)
+			th.SimulateDeploymentProgressing(names.DeploymentName)
+		})
+
+		It("shows the deployment progressing in DeploymentReadyCondition", func() {
+			th.ExpectConditionWithDetails(
+				names.PlacementAPIName,
+				ConditionGetterFunc(PlacementConditionGetter),
+				condition.DeploymentReadyCondition,
+				corev1.ConditionFalse,
+				condition.RequestedReason,
+				condition.DeploymentReadyRunningMessage,
+			)
+
+			th.ExpectCondition(
+				names.PlacementAPIName,
+				ConditionGetterFunc(PlacementConditionGetter),
+				condition.DeploymentReadyCondition,
+				corev1.ConditionFalse,
+			)
+		})
+
+		It("still shows the deployment progressing in DeploymentReadyCondition when rollout hits ProgressDeadlineExceeded", func() {
+			th.SimulateDeploymentProgressDeadlineExceeded(names.DeploymentName)
+			th.ExpectConditionWithDetails(
+				names.PlacementAPIName,
+				ConditionGetterFunc(PlacementConditionGetter),
+				condition.DeploymentReadyCondition,
+				corev1.ConditionFalse,
+				condition.RequestedReason,
+				condition.DeploymentReadyRunningMessage,
+			)
+
+			th.ExpectCondition(
+				names.PlacementAPIName,
+				ConditionGetterFunc(PlacementConditionGetter),
+				condition.DeploymentReadyCondition,
+				corev1.ConditionFalse,
+			)
+		})
+
+		It("reaches Ready when deployment rollout finished", func() {
+			th.ExpectConditionWithDetails(
+				names.PlacementAPIName,
+				ConditionGetterFunc(PlacementConditionGetter),
+				condition.DeploymentReadyCondition,
+				corev1.ConditionFalse,
+				condition.RequestedReason,
+				condition.DeploymentReadyRunningMessage,
+			)
+
+			th.ExpectCondition(
+				names.PlacementAPIName,
+				ConditionGetterFunc(PlacementConditionGetter),
+				condition.DeploymentReadyCondition,
+				corev1.ConditionFalse,
+			)
+
+			th.SimulateDeploymentReplicaReady(names.DeploymentName)
+
+			th.ExpectCondition(
+				names.PlacementAPIName,
+				ConditionGetterFunc(PlacementConditionGetter),
+				condition.DeploymentReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			th.ExpectCondition(
+				names.PlacementAPIName,
+				ConditionGetterFunc(PlacementConditionGetter),
+				condition.DeploymentReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
+	})
+
 	When("A PlacementAPI is created with service override", func() {
 		BeforeEach(func() {
 			DeferCleanup(k8sClient.Delete, ctx, CreatePlacementAPISecret(namespace, SecretName))
