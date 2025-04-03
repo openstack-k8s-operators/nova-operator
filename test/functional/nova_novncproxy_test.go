@@ -1338,8 +1338,8 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 			topologySpec, expectedTopologySpec = GetSampleTopologySpec(cell1.NoVNCProxyName.Name)
 
 			// Create Test Topologies
-			_, topologyRefAlt = CreateTopology(novaNames.NovaTopologies[0], topologySpec)
-			_, topologyRefNoVNC = CreateTopology(novaNames.NovaTopologies[5], topologySpec)
+			_, topologyRefAlt = infra.CreateTopology(novaNames.NovaTopologies[0], topologySpec)
+			_, topologyRefNoVNC = infra.CreateTopology(novaNames.NovaTopologies[5], topologySpec)
 
 			spec := GetDefaultNovaNoVNCProxySpec(cell1)
 			spec["topologyRef"] = map[string]interface{}{"name": topologyRefNoVNC.Name}
@@ -1377,7 +1377,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 
 			// Check finalizer is set to topologyRefNoVNC
 			Eventually(func(g Gomega) {
-				tp := GetTopology(types.NamespacedName{
+				tp := infra.GetTopology(types.NamespacedName{
 					Name:      topologyRefNoVNC.Name,
 					Namespace: topologyRefNoVNC.Namespace,
 				})
@@ -1387,7 +1387,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 			}, timeout, interval).Should(Succeed())
 
 			Eventually(func(g Gomega) {
-				tpAlt := GetTopology(types.NamespacedName{
+				tpAlt := infra.GetTopology(types.NamespacedName{
 					Name:      topologyRefAlt.Name,
 					Namespace: topologyRefAlt.Namespace,
 				})
@@ -1441,7 +1441,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 			// Check finalizer is set to topologyRefAlt and is not set to
 			// topologyRef
 			Eventually(func(g Gomega) {
-				tpAlt := GetTopology(types.NamespacedName{
+				tpAlt := infra.GetTopology(types.NamespacedName{
 					Name:      topologyRefAlt.Name,
 					Namespace: topologyRefAlt.Namespace,
 				})
@@ -1451,7 +1451,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 			}, timeout, interval).Should(Succeed())
 
 			Eventually(func(g Gomega) {
-				tp := GetTopology(types.NamespacedName{
+				tp := infra.GetTopology(types.NamespacedName{
 					Name:      topologyRefNoVNC.Name,
 					Namespace: topologyRefNoVNC.Namespace,
 				})
@@ -1482,7 +1482,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 
 			// Check finalizer is not set anymore
 			Eventually(func(g Gomega) {
-				tp := GetTopology(types.NamespacedName{
+				tp := infra.GetTopology(types.NamespacedName{
 					Name:      topologyRefNoVNC.Name,
 					Namespace: topologyRefNoVNC.Namespace,
 				})
@@ -1492,7 +1492,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 			}, timeout, interval).Should(Succeed())
 
 			Eventually(func(g Gomega) {
-				tpAlt := GetTopology(types.NamespacedName{
+				tpAlt := infra.GetTopology(types.NamespacedName{
 					Name:      topologyRefAlt.Name,
 					Namespace: topologyRefAlt.Namespace,
 				})
