@@ -604,10 +604,19 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	sortNovaCellListByName(novaCellList)
 
 	var deleteErrs []error
+	toDeletCells := []string{}
+	deletedCells := []string{}
 
 	for _, cr := range novaCellList.Items {
 		_, ok := instance.Spec.CellTemplates[cr.Spec.CellName]
 		if !ok {
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				novav1.NovaCellsDeletionCondition,
+				condition.InitReason,
+				condition.SeverityInfo,
+				novav1.NovaCellsDeletionConditionInitMessage,
+			))
+			toDeletCells = append(toDeletCells, cr.Spec.CellName)
 			result, err := r.ensureCellDeleted(ctx, h, instance,
 				cr.Spec.CellName, apiTransportURL,
 				secret, apiDB, cellDBs[novav1.Cell0Name].Database.GetDatabaseHostname(), cells[novav1.Cell0Name])
@@ -617,6 +626,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 			if result == nova.CellDeleteComplete {
 				Log.Info("Cell deleted", "cell", cr.Spec.CellName)
 				delete(instance.Status.RegisteredCells, cr.Name)
+				deletedCells = append(deletedCells, cr.Spec.CellName)
 			}
 		}
 	}
@@ -625,7 +635,13 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		delErrs := errors.Join(deleteErrs...)
 		return ctrl.Result{}, delErrs
 	}
-
+	if len(toDeletCells) == len(deletedCells) {
+		Log.Info("All cells marked for deletion have been successfully deleted.")
+		instance.Status.Conditions.MarkTrue(
+			novav1.NovaCellsDeletionCondition,
+			novav1.NovaCellsDeletionConditionReadyMessage,
+		)
+	}
 	Log.Info("Successfully reconciled")
 	return ctrl.Result{}, nil
 }
@@ -856,6 +872,11 @@ func (r *NovaReconciler) initConditions(
 			novav1.NovaAllCellsReadyCondition,
 			condition.InitReason,
 			novav1.NovaAllCellsReadyInitMessage,
+		),
+		condition.UnknownCondition(
+			novav1.NovaCellsDeletionCondition,
+			condition.InitReason,
+			novav1.NovaCellsDeletionConditionInitMessage,
 		),
 		condition.UnknownCondition(
 			condition.KeystoneServiceReadyCondition,
