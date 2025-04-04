@@ -25,7 +25,6 @@ import (
 	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
 
 	networkv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
-	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
@@ -51,11 +50,7 @@ var _ = Describe("NovaConductor controller", func() {
 		DeferCleanup(k8sClient.Delete, ctx, cell0Account)
 		DeferCleanup(k8sClient.Delete, ctx, cell0Secret)
 
-		memcachedSpec := memcachedv1.MemcachedSpec{
-			MemcachedSpecCore: memcachedv1.MemcachedSpecCore{
-				Replicas: ptr.To(int32(3)),
-			},
-		}
+		memcachedSpec := GetDefaultMemcachedSpec()
 		DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 		infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
 
@@ -493,11 +488,7 @@ var _ = Describe("NovaConductor controller", func() {
 		DeferCleanup(k8sClient.Delete, ctx, cell0Account)
 		DeferCleanup(k8sClient.Delete, ctx, cell0Secret)
 
-		memcachedSpec := memcachedv1.MemcachedSpec{
-			MemcachedSpecCore: memcachedv1.MemcachedSpecCore{
-				Replicas: ptr.To(int32(3)),
-			},
-		}
+		memcachedSpec := GetDefaultMemcachedSpec()
 		DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 		infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
 	})
@@ -948,11 +939,7 @@ var _ = Describe("NovaConductor controller cleaning", func() {
 		mariadb.CreateMariaDBDatabase(cell0.MariaDBDatabaseName.Namespace, cell0.MariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
 		DeferCleanup(k8sClient.Delete, ctx, mariadb.GetMariaDBDatabase(cell0.MariaDBDatabaseName))
 
-		memcachedSpec := memcachedv1.MemcachedSpec{
-			MemcachedSpecCore: memcachedv1.MemcachedSpecCore{
-				Replicas: ptr.To(int32(3)),
-			},
-		}
+		memcachedSpec := GetDefaultMemcachedSpec()
 		DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 		infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
 
@@ -1003,11 +990,7 @@ var _ = Describe("NovaConductor controller", func() {
 
 		mariadb.CreateMariaDBDatabase(cell0.MariaDBDatabaseName.Namespace, cell0.MariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
 		mariadb.SimulateMariaDBTLSDatabaseCompleted(cell0.MariaDBDatabaseName)
-		memcachedSpec := memcachedv1.MemcachedSpec{
-			MemcachedSpecCore: memcachedv1.MemcachedSpecCore{
-				Replicas: ptr.To(int32(3)),
-			},
-		}
+		memcachedSpec := GetDefaultMemcachedSpec()
 		DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 		infra.SimulateTLSMemcachedReady(novaNames.MemcachedNamespace)
 	})
