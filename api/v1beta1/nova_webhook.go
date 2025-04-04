@@ -80,6 +80,13 @@ func (r *Nova) Default() {
 // Default - set defaults for this NovaCore spec.
 func (spec *NovaSpec) Default() {
 	spec.NovaImages.Default(novaDefaults)
+	// If we ever need to default the NotificationsBusInstance field in NovaSpec then this would be the place
+	spec.NovaSpecBase.Default()
+}
+
+// Default - set defaults for this Nova spec core
+func (spec *NovaSpecCore) Default() {
+	// If ever we need to default the NotificationsBusInstance in NovaSpecCore then this would be the place
 	spec.NovaSpecBase.Default()
 }
 
@@ -269,13 +276,17 @@ func (r *NovaSpecBase) ValidateSchedulerServiceTemplate(basePath *field.Path, na
 
 // ValidateCreate validates the NovaSpec during the webhook invocation.
 func (r *NovaSpec) ValidateCreate(basePath *field.Path, namespace string) field.ErrorList {
+	// If we would need any additional validation on the NovaSpec.NotificationsBusInstance then we could do it here
 	return r.NovaSpecBase.ValidateCreate(basePath, namespace)
 }
 
 // ValidateCreate validates the NovaSpecBase during the webhook invocation. It is
 // expected to be called by the validation webhook in the higher level meta
-// operator
+// operator on its NovaSpecCore instance as it embeds a NovaSpecBase
 func (r *NovaSpecBase) ValidateCreate(basePath *field.Path, namespace string) field.ErrorList {
+	// NOTE(bogdando): If we ever need to validate NotificationsBusInstance in
+	// NovaSpecCore, then add a ValidateCreate for it also, and call it in the meta operator.
+
 	errors := r.ValidateCellTemplates(basePath, namespace)
 	errors = append(errors, r.ValidateAPIServiceTemplate(basePath, namespace)...)
 	errors = append(errors, r.ValidateSchedulerServiceTemplate(basePath, namespace)...)
