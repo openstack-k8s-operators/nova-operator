@@ -25,12 +25,14 @@ import (
 
 	networkv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
+	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 )
 
@@ -817,7 +819,7 @@ var _ = Describe("NovaScheduler controller", func() {
 	When("NovaScheduler is created with a wrong topologyRef", func() {
 		BeforeEach(func() {
 			spec := GetDefaultNovaSchedulerSpec(novaNames)
-			spec["topologyRef"] = map[string]interface{}{"name": novaNames.NovaTopologies[2].Name}
+			spec["topologyRef"] = map[string]interface{}{"name": "foo"}
 
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreateInternalTopLevelSecret(novaNames))
@@ -839,17 +841,20 @@ var _ = Describe("NovaScheduler controller", func() {
 		})
 	})
 	When("NovaScheduler is created with topology", func() {
+		var topologyRefSch topologyv1.TopoRef
+		var topologyRefAlt topologyv1.TopoRef
+		var expectedTopologySpec []corev1.TopologySpreadConstraint
 		BeforeEach(func() {
-			spec := GetDefaultNovaSchedulerSpec(novaNames)
-			spec["topologyRef"] = map[string]interface{}{"name": novaNames.NovaTopologies[2].Name}
-
 			// Build the topology Spec
-			topologySpec := GetSampleTopologySpec()
+			var topologySpec map[string]interface{}
+			topologySpec, expectedTopologySpec = GetSampleTopologySpec(novaNames.SchedulerName.Name)
 
 			// Create Test Topologies
-			for _, t := range novaNames.NovaTopologies {
-				CreateTopology(t, topologySpec)
-			}
+			_, topologyRefAlt = CreateTopology(novaNames.NovaTopologies[0], topologySpec)
+			_, topologyRefSch = CreateTopology(novaNames.NovaTopologies[2], topologySpec)
+
+			spec := GetDefaultNovaSchedulerSpec(novaNames)
+			spec["topologyRef"] = map[string]interface{}{"name": topologyRefSch.Name}
 
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreateInternalTopLevelSecret(novaNames))
@@ -859,7 +864,7 @@ var _ = Describe("NovaScheduler controller", func() {
 		It("sets lastAppliedTopology field in NovaScheduler topology .Status", func() {
 			sch := GetNovaScheduler(novaNames.SchedulerName)
 			Expect(sch.Status.LastAppliedTopology).ToNot(BeNil())
-			Expect(sch.Status.LastAppliedTopology.Name).To(Equal(novaNames.NovaTopologies[2].Name))
+			Expect(sch.Status.LastAppliedTopology).To(Equal(&topologyRefSch))
 
 			th.ExpectCondition(
 				novaNames.SchedulerName,
@@ -869,15 +874,39 @@ var _ = Describe("NovaScheduler controller", func() {
 			)
 
 			Eventually(func(g Gomega) {
-				g.Expect(th.GetStatefulSet(novaNames.SchedulerName).Spec.Template.Spec.TopologySpreadConstraints).ToNot(BeNil())
+				ss := th.GetStatefulSet(novaNames.SchedulerName)
+				podTemplate := ss.Spec.Template.Spec
+				g.Expect(podTemplate.TopologySpreadConstraints).ToNot(BeNil())
 				// No default Pod Antiaffinity is applied
-				g.Expect(th.GetStatefulSet(novaNames.SchedulerName).Spec.Template.Spec.Affinity).To(BeNil())
+				g.Expect(podTemplate.Affinity).To(BeNil())
+			}, timeout, interval).Should(Succeed())
+
+			// Check finalizer is set to topologyRefAlt and is not set to
+			// topologyRef
+			Eventually(func(g Gomega) {
+				tp := GetTopology(types.NamespacedName{
+					Name:      topologyRefSch.Name,
+					Namespace: topologyRefSch.Namespace,
+				})
+				finalizers := tp.GetFinalizers()
+				g.Expect(finalizers).To(ContainElement(
+					fmt.Sprintf("openstack.org/novascheduler-%s", novaNames.SchedulerName.Name)))
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				tpAlt := GetTopology(types.NamespacedName{
+					Name:      topologyRefAlt.Name,
+					Namespace: topologyRefAlt.Namespace,
+				})
+				finalizers := tpAlt.GetFinalizers()
+				g.Expect(finalizers).ToNot(ContainElement(
+					fmt.Sprintf("openstack.org/novascheduler-%s", novaNames.SchedulerName.Name)))
 			}, timeout, interval).Should(Succeed())
 		})
 		It("updates lastAppliedTopology in NovaScheduler .Status", func() {
 			Eventually(func(g Gomega) {
 				sch := GetNovaScheduler(novaNames.SchedulerName)
-				sch.Spec.TopologyRef.Name = novaNames.NovaTopologies[0].Name
+				sch.Spec.TopologyRef = &topologyRefAlt
 				g.Expect(k8sClient.Update(ctx, sch)).To(Succeed())
 			}, timeout, interval).Should(Succeed())
 
@@ -886,7 +915,7 @@ var _ = Describe("NovaScheduler controller", func() {
 			Eventually(func(g Gomega) {
 				sch := GetNovaScheduler(novaNames.SchedulerName)
 				g.Expect(sch.Status.LastAppliedTopology).ToNot(BeNil())
-				g.Expect(sch.Status.LastAppliedTopology.Name).To(Equal(novaNames.NovaTopologies[0].Name))
+				g.Expect(sch.Status.LastAppliedTopology).To(Equal(&topologyRefAlt))
 			}, timeout, interval).Should(Succeed())
 
 			th.ExpectCondition(
@@ -897,9 +926,38 @@ var _ = Describe("NovaScheduler controller", func() {
 			)
 
 			Eventually(func(g Gomega) {
-				g.Expect(th.GetStatefulSet(novaNames.SchedulerName).Spec.Template.Spec.TopologySpreadConstraints).ToNot(BeNil())
+				ss := th.GetStatefulSet(novaNames.SchedulerName)
+				podTemplate := ss.Spec.Template.Spec
+				g.Expect(podTemplate.TopologySpreadConstraints).ToNot(BeNil())
 				// No default Pod Antiaffinity is applied
-				g.Expect(th.GetStatefulSet(novaNames.SchedulerName).Spec.Template.Spec.Affinity).To(BeNil())
+				g.Expect(podTemplate.Affinity).To(BeNil())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				ss := th.GetStatefulSet(novaNames.SchedulerName)
+				podTemplate := ss.Spec.Template.Spec
+				g.Expect(podTemplate.TopologySpreadConstraints).To(Equal(expectedTopologySpec))
+			}, timeout, interval).Should(Succeed())
+
+			// Check finalizer is set to topologyRefAlt
+			Eventually(func(g Gomega) {
+				tp := GetTopology(types.NamespacedName{
+					Name:      topologyRefSch.Name,
+					Namespace: topologyRefSch.Namespace,
+				})
+				finalizers := tp.GetFinalizers()
+				g.Expect(finalizers).ToNot(ContainElement(
+					fmt.Sprintf("openstack.org/novascheduler-%s", novaNames.SchedulerName.Name)))
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				tpAlt := GetTopology(types.NamespacedName{
+					Name:      topologyRefAlt.Name,
+					Namespace: topologyRefAlt.Namespace,
+				})
+				finalizers := tpAlt.GetFinalizers()
+				g.Expect(finalizers).To(ContainElement(
+					fmt.Sprintf("openstack.org/novascheduler-%s", novaNames.SchedulerName.Name)))
 			}, timeout, interval).Should(Succeed())
 		})
 		It("removes topologyRef from NovaScheduler spec", func() {
@@ -915,9 +973,32 @@ var _ = Describe("NovaScheduler controller", func() {
 			}, timeout, interval).Should(Succeed())
 
 			Eventually(func(g Gomega) {
-				g.Expect(th.GetStatefulSet(novaNames.SchedulerName).Spec.Template.Spec.TopologySpreadConstraints).To(BeNil())
+				ss := th.GetStatefulSet(novaNames.SchedulerName)
+				podTemplate := ss.Spec.Template.Spec
+				g.Expect(podTemplate.TopologySpreadConstraints).To(BeNil())
 				// Default Pod AntiAffinity is applied
-				g.Expect(th.GetStatefulSet(novaNames.SchedulerName).Spec.Template.Spec.Affinity).ToNot(BeNil())
+				g.Expect(podTemplate.Affinity).ToNot(BeNil())
+			}, timeout, interval).Should(Succeed())
+
+			// Check finalizer is not present anymore
+			Eventually(func(g Gomega) {
+				tp := GetTopology(types.NamespacedName{
+					Name:      topologyRefSch.Name,
+					Namespace: topologyRefSch.Namespace,
+				})
+				finalizers := tp.GetFinalizers()
+				g.Expect(finalizers).ToNot(ContainElement(
+					fmt.Sprintf("openstack.org/novascheduler-%s", novaNames.SchedulerName.Name)))
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				tpAlt := GetTopology(types.NamespacedName{
+					Name:      topologyRefAlt.Name,
+					Namespace: topologyRefAlt.Namespace,
+				})
+				finalizers := tpAlt.GetFinalizers()
+				g.Expect(finalizers).ToNot(ContainElement(
+					fmt.Sprintf("openstack.org/novascheduler-%s", novaNames.SchedulerName.Name)))
 			}, timeout, interval).Should(Succeed())
 		})
 	})

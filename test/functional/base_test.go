@@ -21,6 +21,7 @@ import (
 
 	. "github.com/onsi/gomega" //revive:disable:dot-imports
 
+	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
@@ -31,6 +32,7 @@ import (
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -485,7 +487,6 @@ func GetCellNames(novaName types.NamespacedName, cell string) CellNames {
 type NovaNames struct {
 	Namespace                      string
 	NovaName                       types.NamespacedName
-	StaticName                     types.NamespacedName
 	InternalNovaServiceName        types.NamespacedName
 	PublicNovaServiceName          types.NamespacedName
 	AdminNovaServiceName           types.NamespacedName
@@ -545,10 +546,6 @@ func GetNovaNames(novaName types.NamespacedName, cellNames []string) NovaNames {
 	return NovaNames{
 		Namespace: novaName.Namespace,
 		NovaName:  novaName,
-		StaticName: types.NamespacedName{
-			Name:      "nova",
-			Namespace: novaName.Namespace,
-		},
 		InternalNovaServiceName: types.NamespacedName{
 			Namespace: novaName.Namespace,
 			Name:      "nova-internal",
@@ -636,27 +633,27 @@ func GetNovaNames(novaName types.NamespacedName, cellNames []string) NovaNames {
 		NovaTopologies: []types.NamespacedName{
 			{
 				Namespace: novaName.Namespace,
-				Name:      "nova-global-topology",
+				Name:      "nova",
 			},
 			{
 				Namespace: novaName.Namespace,
-				Name:      "nova-api-topology",
+				Name:      "novaapi",
 			},
 			{
 				Namespace: novaName.Namespace,
-				Name:      "nova-scheduler-topology",
+				Name:      "novascheduler",
 			},
 			{
 				Namespace: novaName.Namespace,
-				Name:      "nova-metadata-topology",
+				Name:      "novametadata",
 			},
 			{
 				Namespace: novaName.Namespace,
-				Name:      "nova-cell0-topology",
+				Name:      "nova-cell0",
 			},
 			{
 				Namespace: novaName.Namespace,
-				Name:      "nova-cell1-topology",
+				Name:      "nova-cell1",
 			},
 		},
 	}
@@ -892,10 +889,12 @@ func SimulateReadyOfNovaTopServices() {
 	}, timeout, interval).Should(Succeed())
 }
 
-// GetSampleTopologySpec - A sample (and opinionated) Topology Spec used to
-// test Nova components
-func GetSampleTopologySpec() map[string]interface{} {
-	// Build the topology Spec
+// GetSampleTopologySpec - An opinionated Topology Spec sample used to
+// test Nova components. It returns both the user input representation
+// in the form of map[string]string, and the Golang expected representation
+// used in the test asserts.
+func GetSampleTopologySpec(label string) (map[string]interface{}, []corev1.TopologySpreadConstraint) {
+	// Build the topology Spec yaml representation
 	topologySpec := map[string]interface{}{
 		"topologySpreadConstraints": []map[string]interface{}{
 			{
@@ -904,17 +903,30 @@ func GetSampleTopologySpec() map[string]interface{} {
 				"whenUnsatisfiable": "ScheduleAnyway",
 				"labelSelector": map[string]interface{}{
 					"matchLabels": map[string]interface{}{
-						"service": "nova",
+						"service": label,
 					},
 				},
 			},
 		},
 	}
-	return topologySpec
+	// Build the topologyObj representation
+	topologySpecObj := []corev1.TopologySpreadConstraint{
+		{
+			MaxSkew:           1,
+			TopologyKey:       corev1.LabelHostname,
+			WhenUnsatisfiable: corev1.ScheduleAnyway,
+			LabelSelector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"service": label,
+				},
+			},
+		},
+	}
+	return topologySpec, topologySpecObj
 }
 
 // CreateTopology - Creates a Topology CR based on the spec passed as input
-func CreateTopology(topology types.NamespacedName, spec map[string]interface{}) client.Object {
+func CreateTopology(topology types.NamespacedName, spec map[string]interface{}) (client.Object, topologyv1.TopoRef) {
 	raw := map[string]interface{}{
 		"apiVersion": "topology.openstack.org/v1beta1",
 		"kind":       "Topology",
@@ -924,5 +936,20 @@ func CreateTopology(topology types.NamespacedName, spec map[string]interface{}) 
 		},
 		"spec": spec,
 	}
-	return th.CreateUnstructured(raw)
+	// other than creating the topology based on the raw spec, we return the
+	// TopoRef that can be referenced
+	topologyRef := topologyv1.TopoRef{
+		Name:      topology.Name,
+		Namespace: topology.Namespace,
+	}
+	return th.CreateUnstructured(raw), topologyRef
+}
+
+// GetTopology - Returns the referenced Topology
+func GetTopology(name types.NamespacedName) *topologyv1.Topology {
+	instance := &topologyv1.Topology{}
+	Eventually(func(g Gomega) {
+		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
+	}, timeout, interval).Should(Succeed())
+	return instance
 }

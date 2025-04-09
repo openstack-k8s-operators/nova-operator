@@ -178,6 +178,7 @@ func SetupDefaults() {
 		APIContainerImageURL:       util.GetEnvVar("RELATED_IMAGE_NOVA_API_IMAGE_URL_DEFAULT", NovaAPIContainerImage),
 		SchedulerContainerImageURL: util.GetEnvVar("RELATED_IMAGE_NOVA_SCHEDULER_IMAGE_URL_DEFAULT", NovaSchedulerContainerImage),
 		NovaCellDefaults:           novaCellDefaults,
+		APITimeout:                 60,
 	}
 
 	SetupNovaDefaults(novaDefaults)
