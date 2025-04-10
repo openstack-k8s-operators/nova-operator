@@ -20,7 +20,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sort"
 	"strings"
 
 	batchv1 "k8s.io/api/batch/v1"
@@ -602,28 +601,32 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		return ctrl.Result{}, err
 	}
 
-	sortNovaCellListByName := func(cellList *novav1.NovaCellList) {
-		sort.SliceStable(cellList.Items, func(i, j int) bool {
-			return cellList.Items[i].Name < cellList.Items[j].Name
-		})
-	}
-
 	sortNovaCellListByName(novaCellList)
 
 	var deleteErrs []error
+	toDeletCells := []string{}
+	deletedCells := []string{}
 
 	for _, cr := range novaCellList.Items {
 		_, ok := instance.Spec.CellTemplates[cr.Spec.CellName]
 		if !ok {
-			err := r.ensureCellDeleted(ctx, h, instance,
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				novav1.NovaCellsDeletionCondition,
+				condition.InitReason,
+				condition.SeverityInfo,
+				novav1.NovaCellsDeletionConditionInitMessage,
+			))
+			toDeletCells = append(toDeletCells, cr.Spec.CellName)
+			result, err := r.ensureCellDeleted(ctx, h, instance,
 				cr.Spec.CellName, apiTransportURL,
 				secret, apiDB, cellDBs[novav1.Cell0Name].Database.GetDatabaseHostname(), cells[novav1.Cell0Name])
 			if err != nil {
 				deleteErrs = append(deleteErrs, fmt.Errorf("Cell '%s' deletion failed, because: %w", cr.Spec.CellName, err))
-
-			} else {
+			}
+			if result == nova.CellDeleteComplete {
 				Log.Info("Cell deleted", "cell", cr.Spec.CellName)
 				delete(instance.Status.RegisteredCells, cr.Name)
+				deletedCells = append(deletedCells, cr.Spec.CellName)
 			}
 		}
 	}
@@ -632,7 +635,13 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		delErrs := errors.Join(deleteErrs...)
 		return ctrl.Result{}, delErrs
 	}
-
+	if len(toDeletCells) == len(deletedCells) {
+		Log.Info("All cells marked for deletion have been successfully deleted.")
+		instance.Status.Conditions.MarkTrue(
+			novav1.NovaCellsDeletionCondition,
+			novav1.NovaCellsDeletionConditionReadyMessage,
+		)
+	}
 	Log.Info("Successfully reconciled")
 	return ctrl.Result{}, nil
 }
@@ -687,7 +696,7 @@ func (r *NovaReconciler) ensureCellDeleted(
 	apiDB *mariadbv1.Database,
 	APIDatabaseHostname string,
 	cell0 *novav1.NovaCell,
-) error {
+) (nova.CellDeploymentStatus, error) {
 	Log := r.GetLogger(ctx)
 	cell := &novav1.NovaCell{}
 	fullCellName := types.NamespacedName{
@@ -700,17 +709,17 @@ func (r *NovaReconciler) ensureCellDeleted(
 		// We cannot do further cleanup of the MariaDBDatabase and
 		// MariaDBAccount as their name is only available in the NovaCell CR
 		// since the cell definition is removed from the Nova CR already.
-		return nil
+		return nova.CellDeleteComplete, nil
 	}
 	if err != nil {
-		return err
+		return nova.CellDeleteFailed, err
 	}
 	// If it is not created by us, we don't touch it
 	if !OwnedBy(cell, instance) {
 		Log.Info("Cell isn't defined in the Nova, but there is a  "+
 			"Cell CR not owned by us. Not deleting it.",
 			"cell", cell)
-		return nil
+		return nova.CellDeleteComplete, nil
 	}
 
 	dbName, accountName := novaapi.ServiceName+"-"+cell.Spec.CellName, cell.Spec.CellDatabaseAccount
@@ -718,11 +727,11 @@ func (r *NovaReconciler) ensureCellDeleted(
 	configHash, scriptName, configName, err := r.ensureNovaManageJobSecret(ctx, h, instance,
 		cell0, topLevelSecret, APIDatabaseHostname, apiTransportURL, apiDB)
 	if err != nil {
-		return err
+		return nova.CellDeleteFailed, err
 	}
 	inputHash, err := util.HashOfInputHashes(configHash)
 	if err != nil {
-		return err
+		return nova.CellDeleteFailed, err
 	}
 
 	labels := map[string]string{
@@ -734,24 +743,30 @@ func (r *NovaReconciler) ensureCellDeleted(
 		instance.Spec.PreserveJobs, r.RequeueTimeout,
 		inputHash)
 
-	_, err = job.DoJob(ctx, h)
+	result, err := job.DoJob(ctx, h)
 	if err != nil {
-		return err
+		return nova.CellDeleteFailed, err
+	}
+
+	if (result != ctrl.Result{}) {
+		// Job is still running. We can simply return as we will be reconciled
+		// when the Job status changes
+		return nova.CellDeleteInProgress, nil
 	}
 
 	secretName := getNovaCellCRName(instance.Name, cellName)
 	err = secret.DeleteSecretsWithName(ctx, h, secretName, instance.Namespace)
 	if err != nil && !k8s_errors.IsNotFound(err) {
-		return err
+		return nova.CellDeleteFailed, err
 	}
 	configSecret, scriptSecret := r.getNovaManageJobSecretNames(cell)
 	err = secret.DeleteSecretsWithName(ctx, h, configSecret, instance.Namespace)
 	if err != nil && !k8s_errors.IsNotFound(err) {
-		return err
+		return nova.CellDeleteFailed, err
 	}
 	err = secret.DeleteSecretsWithName(ctx, h, scriptSecret, instance.Namespace)
 	if err != nil && !k8s_errors.IsNotFound(err) {
-		return err
+		return nova.CellDeleteFailed, err
 	}
 
 	// Delete transportURL cr
@@ -763,18 +778,18 @@ func (r *NovaReconciler) ensureCellDeleted(
 	}
 	err = r.Client.Delete(ctx, transportURL)
 	if err != nil && !k8s_errors.IsNotFound(err) {
-		return err
+		return nova.CellDeleteFailed, err
 	}
 
 	err = mariadbv1.DeleteDatabaseAndAccountFinalizers(
 		ctx, h, dbName, accountName, instance.Namespace)
 	if err != nil {
-		return err
+		return nova.CellDeleteFailed, err
 	}
 
 	err = r.ensureAccountDeletedIfOwned(ctx, h, instance, accountName)
 	if err != nil {
-		return err
+		return nova.CellDeleteFailed, err
 	}
 
 	database := &mariadbv1.MariaDBDatabase{
@@ -785,7 +800,7 @@ func (r *NovaReconciler) ensureCellDeleted(
 	}
 	err = r.Client.Delete(ctx, database)
 	if err != nil && !k8s_errors.IsNotFound(err) {
-		return err
+		return nova.CellDeleteFailed, err
 	}
 	Log.Info("Deleted MariaDBDatabase", "database", database)
 
@@ -794,11 +809,11 @@ func (r *NovaReconciler) ensureCellDeleted(
 	// what to clean up.
 	err = r.Client.Delete(ctx, cell)
 	if err != nil && k8s_errors.IsNotFound(err) {
-		return err
+		return nova.CellDeleteFailed, err
 	}
 
 	Log.Info("Cell isn't defined in the Nova CR, so it is deleted", "cell", cell)
-	return nil
+	return nova.CellDeleteComplete, nil
 }
 
 func (r *NovaReconciler) initStatus(
@@ -857,6 +872,11 @@ func (r *NovaReconciler) initConditions(
 			novav1.NovaAllCellsReadyCondition,
 			condition.InitReason,
 			novav1.NovaAllCellsReadyInitMessage,
+		),
+		condition.UnknownCondition(
+			novav1.NovaCellsDeletionCondition,
+			condition.InitReason,
+			novav1.NovaCellsDeletionConditionInitMessage,
 		),
 		condition.UnknownCondition(
 			condition.KeystoneServiceReadyCondition,
