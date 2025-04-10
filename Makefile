@@ -424,6 +424,14 @@ kuttl-test-cleanup:
 
 CRD_SCHEMA_CHECKER_VERSION ?= release-4.16
 BRANCH ?= main
+.PHONY: force-bump
+force-bump: ## Force bump operator and lib-common dependencies
+	for dep in $$(cat go.mod | grep openstack-k8s-operators | grep -vE -- 'indirect|nova-operator|^replace' | awk '{print $$1}'); do \
+		go get $$dep@$(BRANCH) ; \
+	done
+	for dep in $$(cat api/go.mod | grep openstack-k8s-operators | grep -vE -- 'indirect|nova-operator|^replace' | awk '{print $$1}'); do \
+		cd ./api && go get $$dep@$(BRANCH) && cd .. ; \
+	done
 
 PHONY: crd-schema-check
 crd-schema-check: manifests
