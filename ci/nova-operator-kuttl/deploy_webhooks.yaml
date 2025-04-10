@@ -5,9 +5,13 @@
     PATH: "{{ cifmw_path }}"
   gather_facts: false
   tasks:
+    - name: Get the CSV name for openstack-operator
+      ansible.builtin.shell: |
+        oc get csv -n openstack-operators -o jsonpath="{.items[?(@.spec.displayName=='OpenStack')].metadata.name}"
+      register: csv_name
     - name: Scale down deployment
       ansible.builtin.shell: |
-        oc patch csv -n openstack-operators openstack-operator.v0.0.1 --type json -p="[{"op": "replace", "path": "/spec/install/spec/deployments/0/spec/replicas", "value": "0"}]"
+        oc patch csv -n openstack-operators {{ csv_name.stdout }} --type json -p="[{"op": "replace", "path": "/spec/install/spec/deployments/0/spec/replicas", "value": "0"}]"
     - name: Install Nova Operator
       cifmw.general.ci_script:
         output_dir: "{{ cifmw_basedir }}/artifacts"
