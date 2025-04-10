@@ -149,6 +149,11 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	// Always update the instance status when exiting this function so we can
 	// persist any changes happened during the current reconciliation.
 	defer func() {
+		// Don't update the status, if Reconciler Panics
+		if r := recover(); r != nil {
+			Log.Error(err, "Panic during reconcile: %s", r)
+			return
+		}
 		// update the Ready condition based on the sub conditions
 		if allSubConditionIsTrue(instance.Status) {
 			instance.Status.Conditions.MarkTrue(
