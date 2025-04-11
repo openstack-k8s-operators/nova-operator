@@ -17,9 +17,9 @@ limitations under the License.
 package v1beta1
 
 import (
+	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -48,6 +48,17 @@ type NovaSpecCore struct {
 	// the Message Bus Service instance used by the Nova top level services to
 	// communicate.
 	APIMessageBusInstance string `json:"apiMessageBusInstance"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=""
+	// NotificationsBusInstance is the name of the RabbitMqCluster CR to select
+	// the Message Bus Service instance used by the Nova top level services and all cells to publish notifications.
+	// An empty value leaves the notification drivers unconfigured and emitting no notifications at all.
+	// Avoid colocating it with APIMessageBusInstance or CellMessageBusInstance used for PRC.
+	// Overriding it with NotificationsBusInstance for cells implies that consumers of notifications
+	// can maintain simultanous AMQP connections via multiple transport_url endpoints.
+	// Notifications cannot be disabled for a particular cell, it is all or nothing.
+	NotificationsBusInstance string `json:"notificationsBusInstance"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default={cell0: {cellDatabaseAccount: nova-cell0, hasAPIAccess: true}, cell1: {cellDatabaseAccount: nova-cell1, cellDatabaseInstance: openstack-cell1, cellMessageBusInstance: rabbitmq-cell1, hasAPIAccess: true}}
