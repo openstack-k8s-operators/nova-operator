@@ -1072,7 +1072,7 @@ var _ = Describe("Nova controller", func() {
 			// Build the topology Spec
 			topologySpec, _ := GetSampleTopologySpec(novaNames.NovaName.Name)
 			// Create a global Test Topology
-			_, topologyRef = CreateTopology(novaNames.NovaTopologies[0], topologySpec)
+			_, topologyRef = infra.CreateTopology(novaNames.NovaTopologies[0], topologySpec)
 
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace))
 
@@ -1098,7 +1098,7 @@ var _ = Describe("Nova controller", func() {
 		})
 		It("propagates topology to the Nova components", func() {
 			SimulateReadyOfNovaTopServices()
-			tp := GetTopology(types.NamespacedName{
+			tp := infra.GetTopology(types.NamespacedName{
 				Name:      topologyRef.Name,
 				Namespace: topologyRef.Namespace,
 			})
@@ -1171,8 +1171,8 @@ var _ = Describe("Nova controller", func() {
 			// TopologySpec is not relevant for this test
 			topologySpec, _ := GetSampleTopologySpec(novaNames.NovaName.Name)
 			// Create a global Test Topology
-			_, topologyRefTopLevel = CreateTopology(novaNames.NovaTopologies[0], topologySpec)
-			_, topologyRefCell = CreateTopology(novaNames.NovaTopologies[5], topologySpec)
+			_, topologyRefTopLevel = infra.CreateTopology(novaNames.NovaTopologies[0], topologySpec)
+			_, topologyRefCell = infra.CreateTopology(novaNames.NovaTopologies[5], topologySpec)
 
 			DeferCleanup(k8sClient.Delete, ctx, novaSecret)
 			DeferCleanup(k8sClient.Delete, ctx, CreateNovaMessageBusSecret(cell0))
@@ -1281,11 +1281,11 @@ var _ = Describe("Nova controller", func() {
 				corev1.ConditionTrue,
 			)
 			// Retrieve topology and check finalizers
-			tpCell := GetTopology(types.NamespacedName{
+			tpCell := infra.GetTopology(types.NamespacedName{
 				Name:      topologyRefCell.Name,
 				Namespace: topologyRefCell.Namespace,
 			})
-			tpTopTLevel := GetTopology(types.NamespacedName{
+			tpTopTLevel := infra.GetTopology(types.NamespacedName{
 				Name:      topologyRefTopLevel.Name,
 				Namespace: topologyRefTopLevel.Namespace,
 			})

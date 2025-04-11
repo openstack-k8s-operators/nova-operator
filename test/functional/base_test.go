@@ -21,7 +21,6 @@ import (
 
 	. "github.com/onsi/gomega" //revive:disable:dot-imports
 
-	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
@@ -933,33 +932,4 @@ func GetSampleTopologySpec(label string) (map[string]interface{}, []corev1.Topol
 		},
 	}
 	return topologySpec, topologySpecObj
-}
-
-// CreateTopology - Creates a Topology CR based on the spec passed as input
-func CreateTopology(topology types.NamespacedName, spec map[string]interface{}) (client.Object, topologyv1.TopoRef) {
-	raw := map[string]interface{}{
-		"apiVersion": "topology.openstack.org/v1beta1",
-		"kind":       "Topology",
-		"metadata": map[string]interface{}{
-			"name":      topology.Name,
-			"namespace": topology.Namespace,
-		},
-		"spec": spec,
-	}
-	// other than creating the topology based on the raw spec, we return the
-	// TopoRef that can be referenced
-	topologyRef := topologyv1.TopoRef{
-		Name:      topology.Name,
-		Namespace: topology.Namespace,
-	}
-	return th.CreateUnstructured(raw), topologyRef
-}
-
-// GetTopology - Returns the referenced Topology
-func GetTopology(name types.NamespacedName) *topologyv1.Topology {
-	instance := &topologyv1.Topology{}
-	Eventually(func(g Gomega) {
-		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
-	}, timeout, interval).Should(Succeed())
-	return instance
 }
