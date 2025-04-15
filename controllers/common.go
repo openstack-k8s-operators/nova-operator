@@ -95,6 +95,9 @@ const (
 	// TransportURLSelector is the name of key in the internal cell
 	// Secret for the cell message bus transport URL
 	TransportURLSelector = "transport_url"
+	// NotificationsTransportURLSelector is the name of key in the internal cell
+	// Secret for the cell notifications bus transport URL
+	NotificationsTransportURLSelector = "notifications_transport_url"
 
 	// fields to index to reconcile when change
 	passwordSecretField        = ".spec.secret"

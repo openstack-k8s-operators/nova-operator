@@ -36,6 +36,8 @@ const (
 	NovaAllCellsReadyCondition condition.Type = "NovaAllCellReady"
 	// NovaAPIMQReadyCondition indicated that the top level message bus is ready
 	NovaAPIMQReadyCondition condition.Type = "NovaAPIMQReady"
+	// NovaNotificationsMQReadyCondition indicated that the top level notifications message bus is ready (it is also used by cells services)
+	NovaNotificationsMQReadyCondition condition.Type = "NovaNotificationsMQReady"
 	// NovaAllCellsMQReadyCondition indicates that the message bus for each
 	// configured Cell is created successfully
 	NovaAllCellsMQReadyCondition condition.Type = "NovaAllCellsMQReady"
@@ -98,14 +100,26 @@ const (
 	// NovaAPIMQReadyInitMessage
 	NovaAPIMQReadyInitMessage = "API message bus not started"
 
+	// NovaNotificationsReadyInitMessage
+	NovaNotificationsReadyInitMessage = "Notifications message bus not started"
+
 	// NovaAPIMQReadyErrorMessage
 	NovaAPIMQReadyErrorMessage = "API message bus creation failed: %s"
+
+	// NovaNotificationsReadyErrorMessage
+	NovaNotificationsReadyErrorMessage = "Notifications message bus creation failed: %s"
 
 	// NovaAPIMQReadyMessage
 	NovaAPIMQReadyMessage = "API message bus creation successfully"
 
+	// NovaNotificationsReadyMessage
+	NovaNotificationsReadyMessage = "Notifications message bus creation successfully"
+
 	// NovaAPIMQReadyCreatingMessage
 	NovaAPIMQReadyCreatingMessage = "API message bus creation ongoing"
+
+	// NovaNotificationsReadyCreatingMessage
+	NovaNotificationsReadyCreatingMessage = "Notifications message bus creation ongoing"
 
 	// NovaAllCellsMQReadyInitMessage
 	NovaAllCellsMQReadyInitMessage = "Message bus creation not started"
