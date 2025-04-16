@@ -167,6 +167,44 @@ var _ = Describe("NovaAPI controller", func() {
 			})
 		})
 
+		When("the Secret is created but notification_transport_url field is missing", func() {
+			BeforeEach(func() {
+				secret := &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      novaNames.InternalTopLevelSecretName.Name,
+						Namespace: novaNames.InternalTopLevelSecretName.Namespace,
+					},
+					Data: map[string][]byte{
+						"ServicePassword": []byte("12345678"),
+						"transport_url":   []byte("rabbit://api/fake"),
+						// notification_transport_url is missing
+					},
+				}
+				Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
+				DeferCleanup(k8sClient.Delete, ctx, secret)
+			})
+
+			It("is not Ready", func() {
+				th.ExpectCondition(
+					novaNames.APIName,
+					ConditionGetterFunc(NovaAPIConditionGetter),
+					condition.ReadyCondition,
+					corev1.ConditionFalse,
+				)
+			})
+
+			It("reports that the inputs are not ready", func() {
+				th.ExpectConditionWithDetails(
+					novaNames.APIName,
+					ConditionGetterFunc(NovaAPIConditionGetter),
+					condition.InputReadyCondition,
+					corev1.ConditionFalse,
+					condition.ErrorReason,
+					fmt.Sprintf("Input data error occurred field not found in Secret: 'notification_transport_url' not found in secret/%s", novaNames.InternalTopLevelSecretName.Name),
+				)
+			})
+		})
+
 		When("the Secret is created with all the expected fields", func() {
 			BeforeEach(func() {
 				DeferCleanup(
@@ -197,6 +235,8 @@ var _ = Describe("NovaAPI controller", func() {
 				Expect(configDataMap).ShouldNot(BeNil())
 				Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
 				configData := string(configDataMap.Data["01-nova.conf"])
+				AssertHaveNotificationTransportURL("notifications", configData)
+
 				Expect(configData).Should(ContainSubstring("transport_url=rabbit://api/fake"))
 				// as of I3629b84d3255a8fe9d8a7cea8c6131d7c40899e8 nova now requires
 				// service_user configuration to work to address Bug: #2004555
