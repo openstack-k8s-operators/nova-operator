@@ -70,21 +70,22 @@ import (
 // http://onsi.github.io/ginkgo/ to learn more about Ginkgo.
 
 var (
-	cfg       *rest.Config
-	k8sClient client.Client
-	testEnv   *envtest.Environment
-	ctx       context.Context
-	cancel    context.CancelFunc
-	logger    logr.Logger
-	th        *common_test.TestHelper
-	keystone  *keystone_test.TestHelper
-	mariadb   *mariadb_test.TestHelper
-	infra     *infra_test.TestHelper
-	novaNames NovaNames
-	cell0     CellNames
-	cell1     CellNames
-	cell2     CellNames
-	cell3     CellNames
+	cfg              *rest.Config
+	k8sClient        client.Client
+	testEnv          *envtest.Environment
+	ctx              context.Context
+	cancel           context.CancelFunc
+	logger           logr.Logger
+	th               *common_test.TestHelper
+	keystone         *keystone_test.TestHelper
+	mariadb          *mariadb_test.TestHelper
+	infra            *infra_test.TestHelper
+	novaNames        NovaNames
+	cell0            CellNames
+	cell1            CellNames
+	cell2            CellNames
+	cell3            CellNames
+	notificationsBus NotificationsBusNames
 )
 
 func TestAPIs(t *testing.T) {

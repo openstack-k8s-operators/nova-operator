@@ -38,6 +38,57 @@ import (
 	"github.com/openstack-k8s-operators/nova-operator/controllers"
 )
 
+var _ = Describe("Nova controller - notifications broadcaster", func() {
+
+	When("Nova CR instance is created", func() {
+		BeforeEach(func() {
+			notificationsBus := GetNotificationsBusNames(novaNames.NovaName)
+
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateNovaSecret(novaNames.NovaName.Namespace, SecretName))
+
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateNovaNotificationBusSecret(notificationsBus))
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
+					novaNames.NovaName.Namespace,
+					"openstack",
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+			memcachedSpec := GetDefaultMemcachedSpec()
+
+			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
+			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
+
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace))
+
+			DeferCleanup(th.DeleteInstance, CreateNovaWithNotificationBus(novaNames.NovaName, notificationsBus))
+
+		})
+
+		It("should create notificationsBusInstance secret with transport url", func() {
+
+			nova := GetNova(novaNames.NovaName)
+
+			Expect(nova.Spec.NotificationsBusInstance).ToNot(BeNil())
+			Expect(*nova.Spec.NotificationsBusInstance).To(Equal("rabbitmq-broadcaster"))
+
+			secretName := types.NamespacedName{
+				Namespace: novaNames.NovaName.Namespace,
+				Name:      fmt.Sprintf("%s-secret", *nova.Spec.NotificationsBusInstance),
+			}
+			secret := th.GetSecret(secretName)
+			Expect(secret).NotTo(BeNil())
+			Expect(secret.Data).To(HaveKey("transport_url"))
+			logger.Info("", "rabbit-url", secret.Data["transport_url"])
+		})
+	})
+})
+
 var _ = Describe("Nova controller", func() {
 	When("Nova CR instance is created without a proper secret", func() {
 		BeforeEach(func() {

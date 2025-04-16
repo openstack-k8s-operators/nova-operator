@@ -21,12 +21,13 @@ import (
 
 	. "github.com/onsi/gomega" //revive:disable:dot-imports
 
+	"maps"
+
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
-	"maps"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
@@ -164,6 +165,30 @@ func CreateNovaWithCell0(name types.NamespacedName) client.Object {
 	return th.CreateUnstructured(rawNova)
 }
 
+func CreateNovaWithNotificationBus(
+	name types.NamespacedName,
+	notificationsBus NotificationsBusNames) client.Object {
+
+	rawNova := map[string]interface{}{
+		"apiVersion": "nova.openstack.org/v1beta1",
+		"kind":       "Nova",
+		"metadata": map[string]interface{}{
+			"name":      name.Name,
+			"namespace": name.Namespace,
+		},
+		"spec": map[string]interface{}{
+			"secret":             SecretName,
+			"apiDatabaseAccount": novaNames.APIMariaDBDatabaseAccount.Name,
+			// I think we don't need cell0.transport-url here
+			// but its in CR.
+			"apiMessageBusInstance":    cell0.TransportURLName.Name,
+			"notificationsBusInstance": notificationsBus.TransportURLName.Name,
+		},
+	}
+
+	return th.CreateUnstructured(rawNova)
+}
+
 func GetNova(name types.NamespacedName) *novav1.Nova {
 	instance := &novav1.Nova{}
 	Eventually(func(g Gomega) {
@@ -222,6 +247,20 @@ func CreateNovaMessageBusSecret(cell CellNames) *corev1.Secret {
 		types.NamespacedName{Namespace: cell.CellCRName.Namespace, Name: fmt.Sprintf("%s-secret", cell.TransportURLName.Name)},
 		map[string][]byte{
 			"transport_url": []byte(fmt.Sprintf("rabbit://%s/fake", cell.CellName)),
+		},
+	)
+	logger.Info("Secret created", "name", s.Name)
+	return s
+}
+
+func CreateNovaNotificationBusSecret(notificationsBus NotificationsBusNames) *corev1.Secret {
+	logger.Info("", "rabbit-notification", notificationsBus)
+	s := th.CreateSecret(
+		types.NamespacedName{
+			Namespace: novaNames.NovaName.Namespace,
+			Name:      fmt.Sprintf("%s-secret", notificationsBus.TransportURLName.Name)},
+		map[string][]byte{
+			"transport_url": []byte(fmt.Sprintf("rabbit://%s/fake", novaNames.notificationsBusName)),
 		},
 	)
 	logger.Info("Secret created", "name", s.Name)
@@ -485,6 +524,47 @@ func GetCellNames(novaName types.NamespacedName, cell string) CellNames {
 	return c
 }
 
+type NotificationsBusNames struct {
+	notificationsBusName   string
+	notificationsBusCRName types.NamespacedName
+	TransportURLName       types.NamespacedName
+
+	// MariaDBDatabaseName              types.NamespacedName
+	// MariaDBAccountName               types.NamespacedName
+	// APIDatabaseAccountName           types.NamespacedName
+	// ConductorName                    types.NamespacedName
+	// DBSyncJobName                    types.NamespacedName
+	// ConductorConfigDataName          types.NamespacedName
+	// ConductorScriptDataName          types.NamespacedName
+	// ConductorStatefulSetName         types.NamespacedName
+	// CellMappingJobName               types.NamespacedName
+	// CellDeleteJobName                types.NamespacedName
+	// MetadataName                     types.NamespacedName
+	// MetadataStatefulSetName          types.NamespacedName
+	// MetadataConfigDataName           types.NamespacedName
+	// MetadataNeutronConfigDataName    types.NamespacedName
+	// NoVNCProxyName                   types.NamespacedName
+	// NoVNCProxyStatefulSetName        types.NamespacedName
+	// CellNoVNCProxyNameConfigDataName types.NamespacedName
+	// InternalCellSecretName           types.NamespacedName
+	// InternalAPINetworkNADName        types.NamespacedName
+	// ComputeConfigSecretName          types.NamespacedName
+	// NovaComputeName                  types.NamespacedName
+	// NovaComputeStatefulSetName       types.NamespacedName
+	// NovaComputeConfigDataName        types.NamespacedName
+	// HostDiscoveryJobName             types.NamespacedName
+	// DBPurgeCronJobName               types.NamespacedName
+}
+
+func GetNotificationsBusNames(novaName types.NamespacedName) NotificationsBusNames {
+	busName := "rabbitmq-broadcaster"
+	return NotificationsBusNames{
+		notificationsBusName:   busName,
+		notificationsBusCRName: types.NamespacedName{Namespace: novaName.Namespace, Name: busName},
+		TransportURLName:       types.NamespacedName{Namespace: novaName.Namespace, Name: busName},
+	}
+}
+
 type NovaNames struct {
 	Namespace                      string
 	NovaName                       types.NamespacedName
@@ -519,6 +599,7 @@ type NovaNames struct {
 	MemcachedNamespace              types.NamespacedName
 	Cells                           map[string]CellNames
 	NovaTopologies                  []types.NamespacedName
+	notificationsBusName            types.NamespacedName
 }
 
 func GetNovaNames(novaName types.NamespacedName, cellNames []string) NovaNames {
