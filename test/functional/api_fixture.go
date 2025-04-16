@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package functional_test
 
 import (
@@ -24,7 +25,7 @@ import (
 
 	"github.com/go-logr/logr"
 
-	. "github.com/onsi/ginkgo/v2" //revive:disable:dot-imports
+	. "github.com/onsi/ginkgo/v2" //nolint:staticcheck,revive // ST1001,dot-imports: dot imports are standard practice for Ginkgo tests
 
 	keystone_helper "github.com/openstack-k8s-operators/keystone-operator/api/test/helpers"
 	api "github.com/openstack-k8s-operators/lib-common/modules/test/apis"
@@ -63,12 +64,14 @@ type Service struct {
 	Zone string `json:"zone"`
 }
 
+// NovaAPIFixture provides a fake Nova API server for testing
 type NovaAPIFixture struct {
 	api.APIFixture
 	APIRequests []http.Request
 	Services    []Service
 }
 
+// AddNovaAPIFixture creates and configures a new NovaAPIFixture for testing
 func AddNovaAPIFixture(log logr.Logger, server *api.FakeAPIServer) *NovaAPIFixture {
 	fixture := &NovaAPIFixture{
 		APIFixture: api.APIFixture{
@@ -158,10 +161,12 @@ func NewNovaAPIFixtureWithServer(log logr.Logger) *NovaAPIFixture {
 	return fixture
 }
 
+// RecordRequest stores an HTTP request for later verification in tests
 func (f *NovaAPIFixture) RecordRequest(r *http.Request) {
 	f.APIRequests = append(f.APIRequests, *r)
 }
 
+// FindRequest searches for a recorded HTTP request matching the given criteria
 func (f *NovaAPIFixture) FindRequest(method string, path string, query string) *http.Request {
 	for _, request := range f.APIRequests {
 		if request.Method == method && request.URL.Path == path {
@@ -173,6 +178,7 @@ func (f *NovaAPIFixture) FindRequest(method string, path string, query string) *
 	return nil
 }
 
+// HasRequest checks if a request matching the given criteria was recorded
 func (f *NovaAPIFixture) HasRequest(method string, path string, query string) bool {
 	return f.FindRequest(method, path, query) != nil
 }
@@ -199,6 +205,7 @@ func (f *NovaAPIFixture) registerNormalHandlers() {
 	f.registerHandler(api.Handler{Pattern: "/os-services/", Func: f.ServicesHandler})
 }
 
+// ServicesHandler handles requests to the Nova services API endpoint
 func (f *NovaAPIFixture) ServicesHandler(w http.ResponseWriter, r *http.Request) {
 	f.LogRequest(r)
 	f.RecordRequest(r)
@@ -234,7 +241,7 @@ func (f *NovaAPIFixture) getServices(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(200)
-	fmt.Fprint(w, string(bytes))
+	_, _ = fmt.Fprint(w, string(bytes)) // Ignore write error in test
 }
 
 func (f *NovaAPIFixture) deleteService(w http.ResponseWriter, r *http.Request) {
@@ -304,7 +311,7 @@ func ResponseHandleToken(keystoneURL string, computeURL string) string {
 			`, keystoneURL, computeURL, computeURL)
 }
 
-// SetupAPIFixture creates both keystone and nova API server simulators
+// SetupAPIFixtures creates both keystone and nova API server simulators
 func SetupAPIFixtures(logger logr.Logger) (*keystone_helper.KeystoneAPIFixture, *NovaAPIFixture) {
 	novaAPIServer := NewNovaAPIFixtureWithServer(logger)
 	novaAPIServer.Setup()
@@ -321,7 +328,7 @@ func SetupAPIFixtures(logger logr.Logger) (*keystone_helper.KeystoneAPIFixture, 
 				w.Header().Add("Content-Type", "application/json")
 				w.WriteHeader(202)
 				// ensure keystone returns the simulator endpoints in its catalog
-				fmt.Fprint(w, ResponseHandleToken(keystone.Endpoint(), novaAPIServer.Endpoint()))
+				_, _ = fmt.Fprint(w, ResponseHandleToken(keystone.Endpoint(), novaAPIServer.Endpoint())) // Ignore write error in test
 			}
 		}})
 	DeferCleanup(keystone.Cleanup)
