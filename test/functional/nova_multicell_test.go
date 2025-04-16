@@ -1015,7 +1015,7 @@ var _ = Describe("Nova multi cell deletion", func() {
 
 			actualList := []string{}
 			for _, cell := range cellList.Items {
-				actualList = append(actualList, cell.ObjectMeta.Name)
+				actualList = append(actualList, cell.Name)
 			}
 
 			Expect(actualList).To(Equal(expectedList))

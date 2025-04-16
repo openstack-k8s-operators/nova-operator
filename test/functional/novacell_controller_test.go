@@ -100,7 +100,7 @@ var _ = Describe("NovaCell controller", func() {
 			Expect(instance.Status.ConductorServiceReadyCount).To(Equal(int32(0)))
 			Expect(instance.Status.MetadataServiceReadyCount).To(Equal(int32(0)))
 			Expect(instance.Status.NoVNCPRoxyServiceReadyCount).To(Equal(int32(0)))
-			Expect(instance.Status.NovaComputesStatus).To(HaveLen(int(0)))
+			Expect(instance.Status.NovaComputesStatus).To(BeEmpty())
 		})
 	})
 

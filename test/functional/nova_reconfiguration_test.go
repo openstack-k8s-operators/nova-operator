@@ -850,7 +850,7 @@ var _ = Describe("Nova reconfiguration", func() {
 				novaNames.SchedulerStatefulSetName,
 				novaNames.MetadataStatefulSetName,
 			}
-			var originalHashes []string = []string{}
+			var originalHashes = []string{}
 
 			// Grab the current statefulset config hashes
 			for _, ss := range ssNames {

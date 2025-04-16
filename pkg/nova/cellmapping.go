@@ -10,6 +10,7 @@ import (
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 )
 
+// CellMappingJob creates a Kubernetes job to create Nova cell mappings
 func CellMappingJob(
 	instance *novav1.Nova,
 	cell *novav1.NovaCell,
