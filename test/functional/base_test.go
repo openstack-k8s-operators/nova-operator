@@ -21,12 +21,13 @@ import (
 
 	. "github.com/onsi/gomega" //revive:disable:dot-imports
 
+	"maps"
+
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
-	"maps"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
@@ -219,9 +220,24 @@ func NovaConductorConditionGetter(name types.NamespacedName) condition.Condition
 
 func CreateNovaMessageBusSecret(cell CellNames) *corev1.Secret {
 	s := th.CreateSecret(
-		types.NamespacedName{Namespace: cell.CellCRName.Namespace, Name: fmt.Sprintf("%s-secret", cell.TransportURLName.Name)},
+		types.NamespacedName{
+			Namespace: cell.CellCRName.Namespace,
+			Name:      fmt.Sprintf("%s-secret", cell.TransportURLName.Name)},
 		map[string][]byte{
 			"transport_url": []byte(fmt.Sprintf("rabbit://%s/fake", cell.CellName)),
+		},
+	)
+	logger.Info("Secret created", "name", s.Name)
+	return s
+}
+
+func CreateNotificiationTransportURLSecret(notificationsBus NotificationsBusNames) *corev1.Secret {
+	s := th.CreateSecret(
+		types.NamespacedName{
+			Namespace: novaNames.NovaName.Namespace,
+			Name:      fmt.Sprintf("%s-secret", notificationsBus.TransportURLName.Name)},
+		map[string][]byte{
+			"transport_url": []byte(fmt.Sprintf("rabbit://%s/fake", notificationsBus.TransportURLName.Name)),
 		},
 	)
 	logger.Info("Secret created", "name", s.Name)
@@ -483,6 +499,21 @@ func GetCellNames(novaName types.NamespacedName, cell string) CellNames {
 	}
 
 	return c
+}
+
+type NotificationsBusNames struct {
+	BusName          string
+	TransportURLName types.NamespacedName
+}
+
+func GetNotificationsBusNames(novaName types.NamespacedName) NotificationsBusNames {
+	return NotificationsBusNames{
+		// notificationsBusName: novaName.Name,
+		BusName: "rabbitmq-broadcaster",
+		TransportURLName: types.NamespacedName{
+			Namespace: novaName.Namespace,
+			Name:      novaName.Name + "-notification-transport"},
+	}
 }
 
 type NovaNames struct {
