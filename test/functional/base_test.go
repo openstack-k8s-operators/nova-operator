@@ -218,9 +218,24 @@ func NovaConductorConditionGetter(name types.NamespacedName) condition.Condition
 
 func CreateNovaMessageBusSecret(cell CellNames) *corev1.Secret {
 	s := th.CreateSecret(
-		types.NamespacedName{Namespace: cell.CellCRName.Namespace, Name: fmt.Sprintf("%s-secret", cell.TransportURLName.Name)},
+		types.NamespacedName{
+			Namespace: cell.CellCRName.Namespace,
+			Name:      fmt.Sprintf("%s-secret", cell.TransportURLName.Name)},
 		map[string][]byte{
 			"transport_url": []byte(fmt.Sprintf("rabbit://%s/fake", cell.CellName)),
+		},
+	)
+	logger.Info("Secret created", "name", s.Name)
+	return s
+}
+
+func CreateNotificiationTransportURLSecret(notificationsBus NotificationsBusNames) *corev1.Secret {
+	s := th.CreateSecret(
+		types.NamespacedName{
+			Namespace: novaNames.NovaName.Namespace,
+			Name:      fmt.Sprintf("%s-secret", notificationsBus.BusName)},
+		map[string][]byte{
+			"transport_url": []byte(fmt.Sprintf("rabbit://%s/fake", notificationsBus.TransportURLName.Name)),
 		},
 	)
 	logger.Info("Secret created", "name", s.Name)
@@ -472,6 +487,20 @@ func GetCellNames(novaName types.NamespacedName, cell string) CellNames {
 	}
 
 	return c
+}
+
+type NotificationsBusNames struct {
+	BusName          string
+	TransportURLName types.NamespacedName
+}
+
+func GetNotificationsBusNames(novaName types.NamespacedName) NotificationsBusNames {
+	return NotificationsBusNames{
+		BusName: "rabbitmq-broadcaster",
+		TransportURLName: types.NamespacedName{
+			Namespace: novaName.Namespace,
+			Name:      novaName.Name + "-notification-transport"},
+	}
 }
 
 type NovaNames struct {
@@ -915,4 +944,30 @@ func GetSampleTopologySpec(label string) (map[string]interface{}, []corev1.Topol
 		},
 	}
 	return topologySpec, topologySpecObj
+}
+
+func AssertNotHaveNotificationTransportURL(configData string) {
+
+	Expect(configData).ToNot(
+		ContainSubstring("[notifications]"))
+
+	Expect(configData).To(
+		ContainSubstring("[oslo_messaging_notifications]\ndriver = noop"))
+
+}
+
+func AssertHaveNotificationTransportURL(notificationsTransportURLName string, configData string) {
+
+	expectedConf1 := "[notifications]\nnotify_on_state_change = vm_and_task_state\nnotification_format=both"
+
+	expectedConf2 := fmt.Sprintf(
+		"[oslo_messaging_notifications]\ntransport_url = rabbit://%s/fake\ndriver = messagingv2",
+		notificationsTransportURLName)
+
+	Expect(configData).To(
+		ContainSubstring(expectedConf1))
+
+	Expect(configData).To(
+		ContainSubstring(expectedConf2))
+
 }
