@@ -30,7 +30,7 @@ const SamplesDir = "../../config/samples/"
 func ReadSample(sampleFileName string) map[string]interface{} {
 	rawSample := make(map[string]interface{})
 
-	bytes, err := os.ReadFile(filepath.Join(SamplesDir, sampleFileName))
+	bytes, err := os.ReadFile(filepath.Join(SamplesDir, sampleFileName)) // #nosec G304 -- Reading test sample files from controlled directory
 	Expect(err).ShouldNot(HaveOccurred())
 	Expect(yaml.Unmarshal(bytes, rawSample)).Should(Succeed())
 

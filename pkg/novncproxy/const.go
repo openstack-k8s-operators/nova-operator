@@ -14,13 +14,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package novncproxy contains Nova noVNC proxy service configuration and deployment functionality.
 package novncproxy
 
 const (
 	//NoVNCProxyPort - The port the nova-noVNCProxyPort service is exposed on
 	NoVNCProxyPort = 6080
 	// ServiceName - The name of the service exposed to k8s
-	ServiceName  = "nova-novncproxy"
-	Host         = "::0"
+	ServiceName = "nova-novncproxy"
+	// Host is the default host address for noVNC proxy to bind to
+	Host = "::0"
+	// VencryptName is the name used for VeNCrypt encryption
 	VencryptName = "vencrypt"
 )
