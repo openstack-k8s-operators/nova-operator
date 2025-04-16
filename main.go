@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package main implements the nova-operator controller manager.
 package main
 
 import (

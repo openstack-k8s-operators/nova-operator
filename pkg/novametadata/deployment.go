@@ -70,7 +70,7 @@ func StatefulSet(
 		Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(APIServicePort)},
 	}
 
-	if instance.Spec.TLS.GenericService.Enabled() {
+	if instance.Spec.TLS.Enabled() {
 		livenessProbe.HTTPGet.Scheme = corev1.URISchemeHTTPS
 		readinessProbe.HTTPGet.Scheme = corev1.URISchemeHTTPS
 		startupProbe.HTTPGet.Scheme = corev1.URISchemeHTTPS
@@ -108,8 +108,8 @@ func StatefulSet(
 		volumeMounts = append(volumeMounts, memcached.CreateMTLSVolumeMounts(nil, nil)...)
 	}
 
-	if instance.Spec.TLS.GenericService.Enabled() {
-		svc, err := instance.Spec.TLS.GenericService.ToService()
+	if instance.Spec.TLS.Enabled() {
+		svc, err := instance.Spec.TLS.ToService()
 		if err != nil {
 			return nil, err
 		}

@@ -31,6 +31,7 @@ var (
 	scriptMode int32 = 0740
 )
 
+// GetConfigVolumeMount returns a volume mount for Nova configuration files
 func GetConfigVolumeMount() corev1.VolumeMount {
 	return corev1.VolumeMount{
 		Name:      configVolume,
@@ -39,6 +40,7 @@ func GetConfigVolumeMount() corev1.VolumeMount {
 	}
 }
 
+// GetKollaConfigVolumeMount returns a volume mount for Kolla configuration files
 func GetKollaConfigVolumeMount(serviceName string) corev1.VolumeMount {
 	return corev1.VolumeMount{
 		Name:      configVolume,
@@ -48,6 +50,7 @@ func GetKollaConfigVolumeMount(serviceName string) corev1.VolumeMount {
 	}
 }
 
+// GetConfigVolume returns a volume for Nova configuration files from a secret
 func GetConfigVolume(secretName string) corev1.Volume {
 	return corev1.Volume{
 		Name: configVolume,
@@ -60,6 +63,7 @@ func GetConfigVolume(secretName string) corev1.Volume {
 	}
 }
 
+// GetLogVolumeMount returns a volume mount for Nova log files
 func GetLogVolumeMount() corev1.VolumeMount {
 	return corev1.VolumeMount{
 		Name:      logVolume,
@@ -68,6 +72,7 @@ func GetLogVolumeMount() corev1.VolumeMount {
 	}
 }
 
+// GetLogVolume returns an empty directory volume for Nova log files
 func GetLogVolume() corev1.Volume {
 	return corev1.Volume{
 		Name: logVolume,
@@ -77,6 +82,7 @@ func GetLogVolume() corev1.Volume {
 	}
 }
 
+// GetScriptVolumeMount returns a volume mount for Nova script files
 func GetScriptVolumeMount() corev1.VolumeMount {
 	return corev1.VolumeMount{
 		Name:      scriptVolume,
@@ -85,6 +91,7 @@ func GetScriptVolumeMount() corev1.VolumeMount {
 	}
 }
 
+// GetScriptVolume returns a volume for Nova script files from a secret
 func GetScriptVolume(secretName string) corev1.Volume {
 	return corev1.Volume{
 		Name: scriptVolume,
