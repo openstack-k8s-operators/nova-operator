@@ -1,6 +1,6 @@
 module github.com/openstack-k8s-operators/placement-operator/api
 
-go 1.21
+go 1.24
 
 require (
 	github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20250821143610-c8ef7b9a21ec

@@ -13,6 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package placement provides constants and utilities for managing OpenStack Placement service
 package placement
 
 const (
@@ -21,7 +22,7 @@ const (
 	// DatabaseName -
 	DatabaseName = "placement"
 
-	//config secret name
+	// ConfigSecretName is the name of the secret containing placement configuration
 	ConfigSecretName = "placement-config-data"
 
 	// PlacementPublicPort -
@@ -29,6 +30,7 @@ const (
 	// PlacementInternalPort -
 	PlacementInternalPort int32 = 8778
 
+	// KollaServiceCommand is the command used to start the placement service in Kolla containers
 	KollaServiceCommand = "/usr/local/bin/kolla_start"
 
 	// PlacementUserID is the linux user ID used by Kolla for the placement

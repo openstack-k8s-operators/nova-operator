@@ -209,7 +209,7 @@ var _ = BeforeSuite(func() {
 		if err != nil {
 			return err
 		}
-		conn.Close()
+		_ = conn.Close() // Ignore close error in tests
 		return nil
 	}).Should(Succeed())
 })

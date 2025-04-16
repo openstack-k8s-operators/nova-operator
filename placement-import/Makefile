@@ -68,7 +68,7 @@ endif
 SHELL = /usr/bin/env bash -o pipefail
 .SHELLFLAGS = -ec
 
-GOTOOLCHAIN_VERSION ?= go1.21.0
+GOTOOLCHAIN_VERSION ?= go1.24.0
 
 .PHONY: all
 all: build

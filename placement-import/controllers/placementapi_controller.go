@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package controllers contains the Kubernetes controllers for managing Placement API components
 package controllers
 
 import (
@@ -71,6 +72,7 @@ type conditionUpdater interface {
 	MarkTrue(t condition.Type, messageFormat string, messageArgs ...interface{})
 }
 
+// GetSecret interface defines methods for objects that can provide secret names
 type GetSecret interface {
 	GetSecret() string
 	client.Object
@@ -93,7 +95,7 @@ func ensureSecret(
 				condition.InputReadyCondition,
 				condition.RequestedReason,
 				condition.SeverityInfo,
-				fmt.Sprintf("Input data resources missing: %s", "secret/"+secretName.Name)))
+				"%s", fmt.Sprintf("Input data resources missing: %s", "secret/"+secretName.Name)))
 			return "",
 				ctrl.Result{},
 				*secret,
@@ -141,7 +143,7 @@ func ensureSecret(
 	return hash, ctrl.Result{}, *secret, nil
 }
 
-// GetLog returns a logger object with a prefix of "controller.name" and additional controller context fields
+// GetLogger returns a logger object with a prefix of "controller.name" and additional controller context fields
 func (r *PlacementAPIReconciler) GetLogger(ctx context.Context) logr.Logger {
 	return log.FromContext(ctx).WithName("Controllers").WithName("PlacementAPI")
 }
@@ -186,7 +188,7 @@ func (r *PlacementAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	// Fetch the PlacementAPI instance
 	instance := &placementv1.PlacementAPI{}
-	err := r.Client.Get(ctx, req.NamespacedName, instance)
+	err := r.Get(ctx, req.NamespacedName, instance)
 	if err != nil {
 		if k8s_errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
@@ -386,7 +388,7 @@ func (r *PlacementAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request
 					condition.TLSInputReadyCondition,
 					condition.RequestedReason,
 					condition.SeverityInfo,
-					fmt.Sprintf(condition.TLSInputReadyWaitingMessage, instance.Spec.TLS.CaBundleSecretName)))
+					condition.TLSInputReadyWaitingMessage, instance.Spec.TLS.CaBundleSecretName))
 				return ctrl.Result{}, nil
 			}
 			instance.Status.Conditions.Set(condition.FalseCondition(
@@ -411,7 +413,7 @@ func (r *PlacementAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request
 				condition.TLSInputReadyCondition,
 				condition.RequestedReason,
 				condition.SeverityInfo,
-				fmt.Sprintf(condition.TLSInputReadyWaitingMessage, err.Error())))
+				condition.TLSInputReadyWaitingMessage, err.Error()))
 			return ctrl.Result{}, nil
 		}
 		instance.Status.Conditions.Set(condition.FalseCondition(
@@ -980,7 +982,7 @@ func (r *PlacementAPIReconciler) findObjectForSrc(ctx context.Context, src clien
 	listOps := &client.ListOptions{
 		Namespace: src.GetNamespace(),
 	}
-	err := r.Client.List(ctx, crList, listOps)
+	err := r.List(ctx, crList, listOps)
 	if err != nil {
 		Log.Error(err, fmt.Sprintf("listing %s for namespace: %s", crList.GroupVersionKind().Kind, src.GetNamespace()))
 		return requests
@@ -1322,7 +1324,7 @@ func (r *PlacementAPIReconciler) generateServiceConfigMaps(
 	cmLabels := labels.GetLabels(instance, labels.GetGroupLabel(placement.ServiceName), map[string]string{})
 
 	var tlsCfg *tls.Service
-	if instance.Spec.TLS.Ca.CaBundleSecretName != "" {
+	if instance.Spec.TLS.CaBundleSecretName != "" {
 		tlsCfg = &tls.Service{}
 	}
 
