@@ -16,10 +16,11 @@ SKIP_CERT=${SKIP_CERT:-false}
 CRC_IP=${CRC_IP:-$(/sbin/ip -o -4 addr list crc | awk '{print $4}' | cut -d/ -f1)}
 FIREWALL_ZONE=${FIREWALL_ZONE:-"libvirt"}
 SKIP_FIREWALL=${SKIP_FIREWALL:-false}
+WEBHOOK_PORT=9444
 
 if [ "$SKIP_FIREWALL" = false ] ; then
-    #Open 9443
-    sudo firewall-cmd --zone=${FIREWALL_ZONE} --add-port=9443/tcp
+    #Open ${WEBHOOK_PORT}
+    sudo firewall-cmd --zone=${FIREWALL_ZONE} --add-port=${WEBHOOK_PORT}/tcp
     sudo firewall-cmd --runtime-to-permanent
 fi
 
@@ -51,7 +52,7 @@ webhooks:
   - v1
   clientConfig:
     caBundle: ${CA_BUNDLE}
-    url: https://${CRC_IP}:9443/validate-nova-openstack-org-v1beta1-nova
+    url: https://${CRC_IP}:${WEBHOOK_PORT}/validate-nova-openstack-org-v1beta1-nova
   failurePolicy: Fail
   matchPolicy: Equivalent
   name: vnova.kb.io
@@ -79,7 +80,7 @@ webhooks:
   - v1
   clientConfig:
     caBundle: ${CA_BUNDLE}
-    url: https://${CRC_IP}:9443/mutate-nova-openstack-org-v1beta1-nova
+    url: https://${CRC_IP}:${WEBHOOK_PORT}/mutate-nova-openstack-org-v1beta1-nova
   failurePolicy: Fail
   matchPolicy: Equivalent
   name: mnova.kb.io
@@ -107,7 +108,7 @@ webhooks:
   - v1
   clientConfig:
     caBundle: ${CA_BUNDLE}
-    url: https://${CRC_IP}:9443/validate-nova-openstack-org-v1beta1-novaapi
+    url: https://${CRC_IP}:${WEBHOOK_PORT}/validate-nova-openstack-org-v1beta1-novaapi
   failurePolicy: Fail
   matchPolicy: Equivalent
   name: vnovaapi.kb.io
@@ -135,7 +136,7 @@ webhooks:
   - v1
   clientConfig:
     caBundle: ${CA_BUNDLE}
-    url: https://${CRC_IP}:9443/mutate-nova-openstack-org-v1beta1-novaapi
+    url: https://${CRC_IP}:${WEBHOOK_PORT}/mutate-nova-openstack-org-v1beta1-novaapi
   failurePolicy: Fail
   matchPolicy: Equivalent
   name: mnovaapi.kb.io
@@ -163,7 +164,7 @@ webhooks:
   - v1
   clientConfig:
     caBundle: ${CA_BUNDLE}
-    url: https://${CRC_IP}:9443/validate-nova-openstack-org-v1beta1-novacell
+    url: https://${CRC_IP}:${WEBHOOK_PORT}/validate-nova-openstack-org-v1beta1-novacell
   failurePolicy: Fail
   matchPolicy: Equivalent
   name: vnovacell.kb.io
@@ -191,7 +192,7 @@ webhooks:
   - v1
   clientConfig:
     caBundle: ${CA_BUNDLE}
-    url: https://${CRC_IP}:9443/mutate-nova-openstack-org-v1beta1-novacell
+    url: https://${CRC_IP}:${WEBHOOK_PORT}/mutate-nova-openstack-org-v1beta1-novacell
   failurePolicy: Fail
   matchPolicy: Equivalent
   name: mnovacell.kb.io
@@ -219,7 +220,7 @@ webhooks:
   - v1
   clientConfig:
     caBundle: ${CA_BUNDLE}
-    url: https://${CRC_IP}:9443/validate-nova-openstack-org-v1beta1-novaconductor
+    url: https://${CRC_IP}:${WEBHOOK_PORT}/validate-nova-openstack-org-v1beta1-novaconductor
   failurePolicy: Fail
   matchPolicy: Equivalent
   name: vnovaconductor.kb.io
@@ -247,7 +248,7 @@ webhooks:
   - v1
   clientConfig:
     caBundle: ${CA_BUNDLE}
-    url: https://${CRC_IP}:9443/mutate-nova-openstack-org-v1beta1-novaconductor
+    url: https://${CRC_IP}:${WEBHOOK_PORT}/mutate-nova-openstack-org-v1beta1-novaconductor
   failurePolicy: Fail
   matchPolicy: Equivalent
   name: mnovaconductor.kb.io
@@ -275,7 +276,7 @@ webhooks:
   - v1
   clientConfig:
     caBundle: ${CA_BUNDLE}
-    url: https://${CRC_IP}:9443/validate-nova-openstack-org-v1beta1-novametadata
+    url: https://${CRC_IP}:${WEBHOOK_PORT}/validate-nova-openstack-org-v1beta1-novametadata
   failurePolicy: Fail
   matchPolicy: Equivalent
   name: vnovametadata.kb.io
@@ -303,7 +304,7 @@ webhooks:
   - v1
   clientConfig:
     caBundle: ${CA_BUNDLE}
-    url: https://${CRC_IP}:9443/mutate-nova-openstack-org-v1beta1-novametadata
+    url: https://${CRC_IP}:${WEBHOOK_PORT}/mutate-nova-openstack-org-v1beta1-novametadata
   failurePolicy: Fail
   matchPolicy: Equivalent
   name: mnovametadata.kb.io
@@ -331,7 +332,7 @@ webhooks:
   - v1
   clientConfig:
     caBundle: ${CA_BUNDLE}
-    url: https://${CRC_IP}:9443/validate-nova-openstack-org-v1beta1-novanovncproxy
+    url: https://${CRC_IP}:${WEBHOOK_PORT}/validate-nova-openstack-org-v1beta1-novanovncproxy
   failurePolicy: Fail
   matchPolicy: Equivalent
   name: vnovanovncproxy.kb.io
@@ -359,7 +360,7 @@ webhooks:
   - v1
   clientConfig:
     caBundle: ${CA_BUNDLE}
-    url: https://${CRC_IP}:9443/mutate-nova-openstack-org-v1beta1-novanovncproxy
+    url: https://${CRC_IP}:${WEBHOOK_PORT}/mutate-nova-openstack-org-v1beta1-novanovncproxy
   failurePolicy: Fail
   matchPolicy: Equivalent
   name: mnovanovncproxy.kb.io
@@ -387,7 +388,7 @@ webhooks:
   - v1
   clientConfig:
     caBundle: ${CA_BUNDLE}
-    url: https://${CRC_IP}:9443/validate-nova-openstack-org-v1beta1-novascheduler
+    url: https://${CRC_IP}:${WEBHOOK_PORT}/validate-nova-openstack-org-v1beta1-novascheduler
   failurePolicy: Fail
   matchPolicy: Equivalent
   name: vnovascheduler.kb.io
@@ -415,7 +416,7 @@ webhooks:
   - v1
   clientConfig:
     caBundle: ${CA_BUNDLE}
-    url: https://${CRC_IP}:9443/mutate-nova-openstack-org-v1beta1-novascheduler
+    url: https://${CRC_IP}:${WEBHOOK_PORT}/mutate-nova-openstack-org-v1beta1-novascheduler
   failurePolicy: Fail
   matchPolicy: Equivalent
   name: mnovascheduler.kb.io
@@ -443,7 +444,7 @@ webhooks:
   - v1
   clientConfig:
     caBundle: ${CA_BUNDLE}
-    url: https://${CRC_IP}:9443/validate-nova-openstack-org-v1beta1-novacompute
+    url: https://${CRC_IP}:${WEBHOOK_PORT}/validate-nova-openstack-org-v1beta1-novacompute
   failurePolicy: Fail
   matchPolicy: Equivalent
   name: vnovacompute.kb.io
@@ -471,7 +472,7 @@ webhooks:
   - v1
   clientConfig:
     caBundle: ${CA_BUNDLE}
-    url: https://${CRC_IP}:9443/mutate-nova-openstack-org-v1beta1-novacompute
+    url: https://${CRC_IP}:${WEBHOOK_PORT}/mutate-nova-openstack-org-v1beta1-novacompute
   failurePolicy: Fail
   matchPolicy: Equivalent
   name: mnovacompute.kb.io
