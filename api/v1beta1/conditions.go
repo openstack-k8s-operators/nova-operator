@@ -54,6 +54,10 @@ const (
 	NovaAllControlPlaneComputesReadyCondition condition.Type = "NovaAllControlPlaneComputesReady"
 	//NovaCellsDeletionCondition indicates that the NovaCells deletion is in progress
 	NovaCellsDeletionCondition condition.Type = "NovaCellsDeletion"
+
+	// notifications
+	// NovaNotificationMQReadyCondition indicated that the top level notification message bus is ready
+	NovaNotificationMQReadyCondition condition.Type = "NovaNotificationMQReady"
 )
 
 // Common Messages used by API objects.
@@ -183,4 +187,16 @@ const (
 
 	// NovaCellsDeletionConditionReadyMessage
 	NovaCellsDeletionConditionReadyMessage = "There is no more NovaCells to delete"
+	// notifications
+	// NovaNotificationMQReadyInitMessage
+	NovaNotificationMQReadyInitMessage = "Notification message bus not started"
+
+	// NovaNotificationMQReadyErrorMessage
+	NovaNotificationMQReadyErrorMessage = "Notification message bus creation failed: %s"
+
+	// NovaNotificationMQReadyCreatingMessage
+	NovaNotificationMQReadyCreatingMessage = "Notification message bus creation ongoing"
+
+	// NovaNotificationMQReadyMessage
+	NovaNotificationMQReadyMessage = "Notification message bus created successfully"
 )
