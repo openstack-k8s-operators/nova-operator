@@ -96,6 +96,10 @@ const (
 	// Secret for the cell message bus transport URL
 	TransportURLSelector = "transport_url"
 
+	// NotificationTransportURLSelector is the name of
+	// top level notification message bus transport URL
+	NotificationTransportURLSelector = "notification_transport_url"
+
 	// fields to index to reconcile when change
 	passwordSecretField        = ".spec.secret"
 	caBundleSecretNameField    = ".spec.tls.caBundleSecretName" // #nosec G101
