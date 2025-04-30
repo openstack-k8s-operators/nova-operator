@@ -264,7 +264,7 @@ var _ = Describe("Nova controller", func() {
 			// proper content and the cell subCRs are configured to use the
 			// internal secret
 			internalCellSecret := th.GetSecret(cell0.InternalCellSecretName)
-			Expect(internalCellSecret.Data).To(HaveLen(2))
+			Expect(internalCellSecret.Data).To(HaveLen(3))
 			Expect(internalCellSecret.Data).To(
 				HaveKeyWithValue(controllers.ServicePasswordSelector, []byte("service-password")))
 			Expect(internalCellSecret.Data).To(
@@ -378,7 +378,7 @@ var _ = Describe("Nova controller", func() {
 			// assert that a the top level internal internal secret is created
 			// with the proper data
 			internalTopLevelSecret := th.GetSecret(novaNames.InternalTopLevelSecretName)
-			Expect(internalTopLevelSecret.Data).To(HaveLen(3))
+			Expect(internalTopLevelSecret.Data).To(HaveLen(4))
 			Expect(internalTopLevelSecret.Data).To(
 				HaveKeyWithValue(controllers.ServicePasswordSelector, []byte("service-password")))
 			Expect(internalTopLevelSecret.Data).To(

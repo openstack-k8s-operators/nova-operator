@@ -139,14 +139,17 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 		}
 	}()
 
+	requiredSecretFields := []string{
+		ServicePasswordSelector,
+		TransportURLSelector,
+		NotificationTransportURLSelector,
+	}
+
 	// For the compute config generation we need to read the input secrets
 	_, result, secret, err := ensureSecret(
 		ctx,
 		types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.Secret},
-		[]string{
-			ServicePasswordSelector,
-			TransportURLSelector,
-		},
+		requiredSecretFields,
 		h.GetClient(),
 		&instance.Status.Conditions,
 		r.RequeueTimeout,
@@ -762,15 +765,16 @@ func (r *NovaCellReconciler) generateComputeConfigs(
 	secret corev1.Secret, vncProxyURL *string,
 ) error {
 	templateParameters := map[string]interface{}{
-		"service_name":           "nova-compute",
-		"keystone_internal_url":  instance.Spec.KeystoneAuthURL,
-		"nova_keystone_user":     instance.Spec.ServiceUser,
-		"nova_keystone_password": string(secret.Data[ServicePasswordSelector]),
-		"openstack_region_name":  "regionOne", // fixme
-		"default_project_domain": "Default",   // fixme
-		"default_user_domain":    "Default",   // fixme
-		"compute_driver":         "libvirt.LibvirtDriver",
-		"transport_url":          string(secret.Data[TransportURLSelector]),
+		"service_name":               "nova-compute",
+		"keystone_internal_url":      instance.Spec.KeystoneAuthURL,
+		"nova_keystone_user":         instance.Spec.ServiceUser,
+		"nova_keystone_password":     string(secret.Data[ServicePasswordSelector]),
+		"openstack_region_name":      "regionOne", // fixme
+		"default_project_domain":     "Default",   // fixme
+		"default_user_domain":        "Default",   // fixme
+		"compute_driver":             "libvirt.LibvirtDriver",
+		"transport_url":              string(secret.Data[TransportURLSelector]),
+		"notification_transport_url": string(secret.Data[NotificationTransportURLSelector]),
 	}
 	// vnc is optional so we only need to configure it for the compute
 	// if the proxy service is deployed in the cell

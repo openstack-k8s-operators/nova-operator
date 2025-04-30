@@ -172,16 +172,19 @@ func (r *NovaSchedulerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	// detect if something is changed.
 	hashes := make(map[string]env.Setter)
 
-	secretHash, result, secret, err := ensureSecret(
-		ctx,
-		types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.Secret},
+	requiredSecretFields := []string{
 		// TODO(gibi): add keystoneAuthURL here is that is also passed via
 		// the Secret. Also add DB and MQ user name here too if those are
 		// passed via the Secret
-		[]string{
-			ServicePasswordSelector,
-			TransportURLSelector,
-		},
+		ServicePasswordSelector,
+		TransportURLSelector,
+		NotificationTransportURLSelector,
+	}
+
+	secretHash, result, secret, err := ensureSecret(
+		ctx,
+		types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.Secret},
+		requiredSecretFields,
 		h.GetClient(),
 		&instance.Status.Conditions,
 		r.RequeueTimeout,
@@ -513,27 +516,28 @@ func (r *NovaSchedulerReconciler) generateConfigs(
 	}
 
 	templateParameters := map[string]interface{}{
-		"service_name":             "nova-scheduler",
-		"keystone_internal_url":    instance.Spec.KeystoneAuthURL,
-		"nova_keystone_user":       instance.Spec.ServiceUser,
-		"nova_keystone_password":   string(secret.Data[ServicePasswordSelector]),
-		"api_db_name":              NovaAPIDatabaseName,
-		"api_db_user":              apiDatabaseAccount.Spec.UserName,
-		"api_db_password":          string(apiDbSecret.Data[mariadbv1.DatabasePasswordSelector]),
-		"api_db_address":           instance.Spec.APIDatabaseHostname,
-		"api_db_port":              3306,
-		"cell_db_name":             NovaCell0DatabaseName,
-		"cell_db_user":             cellDatabaseAccount.Spec.UserName,
-		"cell_db_password":         string(cellDbSecret.Data[mariadbv1.DatabasePasswordSelector]),
-		"cell_db_address":          instance.Spec.Cell0DatabaseHostname,
-		"cell_db_port":             3306,
-		"openstack_region_name":    "regionOne", // fixme
-		"default_project_domain":   "Default",   // fixme
-		"default_user_domain":      "Default",   // fixme
-		"transport_url":            string(secret.Data[TransportURLSelector]),
-		"MemcachedServers":         memcachedInstance.GetMemcachedServerListString(),
-		"MemcachedServersWithInet": memcachedInstance.GetMemcachedServerListWithInetString(),
-		"MemcachedTLS":             memcachedInstance.GetMemcachedTLSSupport(),
+		"service_name":               "nova-scheduler",
+		"keystone_internal_url":      instance.Spec.KeystoneAuthURL,
+		"nova_keystone_user":         instance.Spec.ServiceUser,
+		"nova_keystone_password":     string(secret.Data[ServicePasswordSelector]),
+		"api_db_name":                NovaAPIDatabaseName,
+		"api_db_user":                apiDatabaseAccount.Spec.UserName,
+		"api_db_password":            string(apiDbSecret.Data[mariadbv1.DatabasePasswordSelector]),
+		"api_db_address":             instance.Spec.APIDatabaseHostname,
+		"api_db_port":                3306,
+		"cell_db_name":               NovaCell0DatabaseName,
+		"cell_db_user":               cellDatabaseAccount.Spec.UserName,
+		"cell_db_password":           string(cellDbSecret.Data[mariadbv1.DatabasePasswordSelector]),
+		"cell_db_address":            instance.Spec.Cell0DatabaseHostname,
+		"cell_db_port":               3306,
+		"openstack_region_name":      "regionOne", // fixme
+		"default_project_domain":     "Default",   // fixme
+		"default_user_domain":        "Default",   // fixme
+		"transport_url":              string(secret.Data[TransportURLSelector]),
+		"notification_transport_url": string(secret.Data[NotificationTransportURLSelector]),
+		"MemcachedServers":           memcachedInstance.GetMemcachedServerListString(),
+		"MemcachedServersWithInet":   memcachedInstance.GetMemcachedServerListWithInetString(),
+		"MemcachedTLS":               memcachedInstance.GetMemcachedTLSSupport(),
 	}
 
 	var tlsCfg *tls.Service

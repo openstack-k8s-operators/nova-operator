@@ -52,6 +52,10 @@ const (
 	NovaComputeServiceConfigReady condition.Type = "NovaComputeServiceConfigReady"
 	// NovaAllControlPlaneComputesReadyCondition indicates that every defined NovaCompute is ready but undiscovered
 	NovaAllControlPlaneComputesReadyCondition condition.Type = "NovaAllControlPlaneComputesReady"
+
+	// notifications
+	// NovaNotificationMQReadyCondition indicated that the top level notification message bus is ready
+	NovaNotificationMQReadyCondition condition.Type = "NovaNotificationMQReady"
 )
 
 // Common Messages used by API objects.
@@ -172,4 +176,17 @@ const (
 
 	//CellHostDiscoverErrorMessage
 	CellHostDiscoverErrorMessage = "CellHostDiscover error occurred %s"
+
+	// notifications
+	// NovaNotificationMQReadyInitMessage
+	NovaNotificationMQReadyInitMessage = "Notification message bus not started"
+
+	// NovaNotificationMQReadyErrorMessage
+	NovaNotificationMQReadyErrorMessage = "Notification message bus creation failed: %s"
+
+	// NovaNotificationMQReadyCreatingMessage
+	NovaNotificationMQReadyCreatingMessage = "Notification message bus creation ongoing"
+
+	// NovaNotificationMQReadyMessage
+	NovaNotificationMQReadyMessage = "Notification message bus created successfully"
 )

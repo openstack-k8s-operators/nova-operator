@@ -692,9 +692,10 @@ func CreateInternalTopLevelSecret(novaNames NovaNames) *corev1.Secret {
 	return th.CreateSecret(
 		novaNames.InternalTopLevelSecretName,
 		map[string][]byte{
-			"ServicePassword": []byte("service-password"),
-			"MetadataSecret":  []byte("metadata-secret"),
-			"transport_url":   []byte("rabbit://api/fake"),
+			"ServicePassword":            []byte("service-password"),
+			"MetadataSecret":             []byte("metadata-secret"),
+			"transport_url":              []byte("rabbit://api/fake"),
+			"notification_transport_url": []byte("rabbit://notifications/fake"),
 		},
 	)
 }
@@ -764,8 +765,9 @@ func GetDefaultNovaNoVNCProxySpec(cell CellNames) map[string]interface{} {
 func CreateCellInternalSecret(cell CellNames, additionalValues map[string][]byte) *corev1.Secret {
 
 	secretMap := map[string][]byte{
-		"ServicePassword": []byte("service-password"),
-		"transport_url":   []byte(fmt.Sprintf("rabbit://%s/fake", cell.CellName)),
+		"ServicePassword":            []byte("service-password"),
+		"transport_url":              []byte(fmt.Sprintf("rabbit://%s/fake", cell.CellName)),
+		"notification_transport_url": []byte("rabbit://notifications/fake"),
 	}
 	// (ksambor) this can be replaced with maps.Copy directly from maps
 	// not experimental package when we move to go 1.21
