@@ -391,6 +391,47 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		return ctrl.Result{}, fmt.Errorf("%w from  for the API MQ: %d", util.ErrInvalidStatus, apiMQStatus)
 	}
 
+	// nova broadcaster rabbit
+	notificationBusName := ""
+	if instance.Spec.NotificationsBusInstance != nil {
+		notificationBusName = *instance.Spec.NotificationsBusInstance
+	}
+
+	var notificationTransportURL string
+	var notificationMQStatus nova.MessageBusStatus
+	var notificationMQError error
+
+	if notificationBusName != "" {
+		notificationTransportURL, notificationMQStatus, notificationMQError = r.ensureMQ(
+			ctx, h, instance, instance.Name+"-notification-transport", notificationBusName)
+
+		switch notificationMQStatus {
+		case nova.MQFailed:
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				novav1.NovaNotificationMQReadyCondition,
+				condition.ErrorReason,
+				condition.SeverityError,
+				novav1.NovaNotificationMQReadyErrorMessage,
+				notificationMQError.Error(),
+			))
+		case nova.MQCreating:
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				novav1.NovaNotificationMQReadyCondition,
+				condition.ErrorReason,
+				condition.SeverityError,
+				novav1.NovaNotificationMQReadyCreatingMessage,
+			))
+		case nova.MQCompleted:
+			instance.Status.Conditions.MarkTrue(
+				novav1.NovaNotificationMQReadyCondition, novav1.NovaNotificationMQReadyMessage)
+		default:
+			return ctrl.Result{}, fmt.Errorf("%w from  for the Notification MQ: %d",
+				util.ErrInvalidStatus, notificationMQStatus)
+		}
+	} else {
+		instance.Status.Conditions.Remove(novav1.NovaNotificationMQReadyCondition)
+	}
+
 	cellMQs := map[string]*nova.MessageBus{}
 	var failedMQs []string
 	var creatingMQs []string
@@ -481,7 +522,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		}
 		cell, status, err := r.ensureCell(
 			ctx, h, instance, cellName, cellTemplate,
-			cellDB.Database, apiDB, cellMQ.TransportURL,
+			cellDB.Database, apiDB, cellMQ.TransportURL, notificationTransportURL,
 			keystoneInternalAuthURL, secret,
 		)
 		cells[cellName] = cell
@@ -546,7 +587,11 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		return ctrl.Result{}, nil
 	}
 
-	topLevelSecretName, err := r.ensureTopLevelSecret(ctx, h, instance, apiTransportURL, secret)
+	topLevelSecretName, err := r.ensureTopLevelSecret(
+		ctx, h, instance,
+		apiTransportURL,
+		notificationTransportURL,
+		secret)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -936,6 +981,11 @@ func (r *NovaReconciler) initConditions(
 			condition.InitReason,
 			condition.MemcachedReadyInitMessage,
 		),
+		condition.UnknownCondition(
+			novav1.NovaNotificationMQReadyCondition,
+			condition.InitReason,
+			novav1.NovaNotificationMQReadyInitMessage,
+		),
 	)
 	instance.Status.Conditions.Init(&cl)
 	return nil
@@ -1133,12 +1183,16 @@ func (r *NovaReconciler) ensureCell(
 	cellDB *mariadbv1.Database,
 	apiDB *mariadbv1.Database,
 	cellTransportURL string,
+	notificationTransportURL string,
 	keystoneAuthURL string,
 	secret corev1.Secret,
 ) (*novav1.NovaCell, nova.CellDeploymentStatus, error) {
 	Log := r.GetLogger(ctx)
 
-	cellSecretName, err := r.ensureCellSecret(ctx, h, instance, cellName, cellTemplate, cellTransportURL, secret)
+	cellSecretName, err := r.ensureCellSecret(
+		ctx, h, instance, cellName, cellTemplate,
+		cellTransportURL, notificationTransportURL,
+		secret)
 	if err != nil {
 		return nil, nova.CellDeploying, err
 	}
@@ -1684,6 +1738,7 @@ func (r *NovaReconciler) ensureMQ(
 	}
 
 	secretName := types.NamespacedName{Namespace: instance.Namespace, Name: transportURL.Status.SecretName}
+
 	secret := &corev1.Secret{}
 	err = h.GetClient().Get(ctx, secretName, secret)
 	if err != nil {
@@ -1698,7 +1753,6 @@ func (r *NovaReconciler) ensureMQ(
 		return "", nova.MQFailed, fmt.Errorf(
 			"%w: the TransportURL secret %s does not have 'transport_url' field", util.ErrFieldNotFound, transportURL.Status.SecretName)
 	}
-
 	return string(url), nova.MQCompleted, nil
 }
 
@@ -1902,13 +1956,15 @@ func (r *NovaReconciler) ensureCellSecret(
 	cellName string,
 	cellTemplate novav1.NovaCellTemplate,
 	cellTransportURL string,
+	notificationTransportURL string,
 	externalSecret corev1.Secret,
 ) (string, error) {
 	// NOTE(gibi): We can move other sensitive data to the internal Secret from
 	// the NovaCellSpec fields, possibly hostnames or usernames.
 	data := map[string]string{
-		ServicePasswordSelector: string(externalSecret.Data[instance.Spec.PasswordSelectors.Service]),
-		TransportURLSelector:    cellTransportURL,
+		ServicePasswordSelector:          string(externalSecret.Data[instance.Spec.PasswordSelectors.Service]),
+		TransportURLSelector:             cellTransportURL,
+		NotificationTransportURLSelector: notificationTransportURL,
 	}
 
 	// If metadata is enabled in the cell then the cell secret needs the
@@ -1952,14 +2008,16 @@ func (r *NovaReconciler) ensureTopLevelSecret(
 	h *helper.Helper,
 	instance *novav1.Nova,
 	apiTransportURL string,
+	notificationTransportURL string,
 	externalSecret corev1.Secret,
 ) (string, error) {
 	// NOTE(gibi): We can move other sensitive data to the internal Secret from
 	// the subCR fields, possibly hostnames or usernames.
 	data := map[string]string{
-		ServicePasswordSelector: string(externalSecret.Data[instance.Spec.PasswordSelectors.Service]),
-		MetadataSecretSelector:  string(externalSecret.Data[instance.Spec.PasswordSelectors.MetadataSecret]),
-		TransportURLSelector:    apiTransportURL,
+		ServicePasswordSelector:          string(externalSecret.Data[instance.Spec.PasswordSelectors.Service]),
+		MetadataSecretSelector:           string(externalSecret.Data[instance.Spec.PasswordSelectors.MetadataSecret]),
+		TransportURLSelector:             apiTransportURL,
+		NotificationTransportURLSelector: notificationTransportURL,
 	}
 
 	// NOTE(gibi): When we switch to immutable secrets then we need to include

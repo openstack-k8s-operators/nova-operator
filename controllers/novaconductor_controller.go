@@ -182,6 +182,7 @@ func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	requiredSecretFields := []string{
 		ServicePasswordSelector,
 		TransportURLSelector,
+		NotificationTransportURLSelector,
 	}
 
 	secretHash, result, secret, err := ensureSecret(
@@ -431,22 +432,23 @@ func (r *NovaConductorReconciler) generateConfigs(
 	cellDbSecret := cellDB.GetSecret()
 
 	templateParameters := map[string]interface{}{
-		"service_name":             "nova-conductor",
-		"keystone_internal_url":    instance.Spec.KeystoneAuthURL,
-		"nova_keystone_user":       instance.Spec.ServiceUser,
-		"nova_keystone_password":   string(secret.Data[ServicePasswordSelector]),
-		"cell_db_name":             getCellDatabaseName(instance.Spec.CellName),
-		"cell_db_user":             cellDatabaseAccount.Spec.UserName,
-		"cell_db_password":         string(cellDbSecret.Data[mariadbv1.DatabasePasswordSelector]),
-		"cell_db_address":          instance.Spec.CellDatabaseHostname,
-		"cell_db_port":             3306,
-		"openstack_region_name":    "regionOne", // fixme
-		"default_project_domain":   "Default",   // fixme
-		"default_user_domain":      "Default",   // fixme
-		"transport_url":            string(secret.Data[TransportURLSelector]),
-		"MemcachedServers":         memcachedInstance.GetMemcachedServerListString(),
-		"MemcachedServersWithInet": memcachedInstance.GetMemcachedServerListWithInetString(),
-		"MemcachedTLS":             memcachedInstance.GetMemcachedTLSSupport(),
+		"service_name":               "nova-conductor",
+		"keystone_internal_url":      instance.Spec.KeystoneAuthURL,
+		"nova_keystone_user":         instance.Spec.ServiceUser,
+		"nova_keystone_password":     string(secret.Data[ServicePasswordSelector]),
+		"cell_db_name":               getCellDatabaseName(instance.Spec.CellName),
+		"cell_db_user":               cellDatabaseAccount.Spec.UserName,
+		"cell_db_password":           string(cellDbSecret.Data[mariadbv1.DatabasePasswordSelector]),
+		"cell_db_address":            instance.Spec.CellDatabaseHostname,
+		"cell_db_port":               3306,
+		"openstack_region_name":      "regionOne", // fixme
+		"default_project_domain":     "Default",   // fixme
+		"default_user_domain":        "Default",   // fixme
+		"transport_url":              string(secret.Data[TransportURLSelector]),
+		"notification_transport_url": string(secret.Data[NotificationTransportURLSelector]),
+		"MemcachedServers":           memcachedInstance.GetMemcachedServerListString(),
+		"MemcachedServersWithInet":   memcachedInstance.GetMemcachedServerListWithInetString(),
+		"MemcachedTLS":               memcachedInstance.GetMemcachedTLSSupport(),
 	}
 	if len(instance.Spec.APIDatabaseHostname) > 0 {
 		apiDatabaseAccount, apiDbSecret, err := mariadbv1.GetAccountAndSecret(ctx, h, instance.Spec.APIDatabaseAccount, instance.Namespace)

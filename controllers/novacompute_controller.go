@@ -158,13 +158,16 @@ func (r *NovaComputeReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	hashes := make(map[string]env.Setter)
 
+	requiredSecretFields := []string{
+		ServicePasswordSelector,
+		TransportURLSelector,
+		NotificationTransportURLSelector,
+	}
+
 	secretHash, result, secret, err := ensureSecret(
 		ctx,
 		types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.Secret},
-		[]string{
-			ServicePasswordSelector,
-			TransportURLSelector,
-		},
+		requiredSecretFields,
 		h.GetClient(),
 		&instance.Status.Conditions,
 		r.RequeueTimeout,
@@ -336,15 +339,16 @@ func (r *NovaComputeReconciler) generateConfigs(
 	ctx context.Context, h *helper.Helper, instance *novav1.NovaCompute, hashes *map[string]env.Setter, secret corev1.Secret,
 ) error {
 	templateParameters := map[string]interface{}{
-		"service_name":           NovaComputeLabelPrefix,
-		"keystone_internal_url":  instance.Spec.KeystoneAuthURL,
-		"nova_keystone_user":     instance.Spec.ServiceUser,
-		"nova_keystone_password": string(secret.Data[ServicePasswordSelector]),
-		"openstack_region_name":  "regionOne", // fixme
-		"default_project_domain": "Default",   // fixme
-		"default_user_domain":    "Default",   // fixme
-		"transport_url":          string(secret.Data[TransportURLSelector]),
-		"compute_driver":         instance.Spec.ComputeDriver,
+		"service_name":               NovaComputeLabelPrefix,
+		"keystone_internal_url":      instance.Spec.KeystoneAuthURL,
+		"nova_keystone_user":         instance.Spec.ServiceUser,
+		"nova_keystone_password":     string(secret.Data[ServicePasswordSelector]),
+		"openstack_region_name":      "regionOne", // fixme
+		"default_project_domain":     "Default",   // fixme
+		"default_user_domain":        "Default",   // fixme
+		"transport_url":              string(secret.Data[TransportURLSelector]),
+		"notification_transport_url": string(secret.Data[NotificationTransportURLSelector]),
+		"compute_driver":             instance.Spec.ComputeDriver,
 		// Neither the ironic driver nor the fake driver support VNC
 		"vnc_enabled": false,
 	}
