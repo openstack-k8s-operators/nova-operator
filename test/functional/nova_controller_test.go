@@ -38,6 +38,150 @@ import (
 	"github.com/openstack-k8s-operators/nova-operator/controllers"
 )
 
+var _ = Describe("Nova controller - notifications", func() {
+
+	When("Nova CR instance is created", func() {
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateNovaSecret(novaNames.NovaName.Namespace, SecretName))
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(cell0))
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
+					novaNames.NovaName.Namespace,
+					"openstack",
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+			memcachedSpec := GetDefaultMemcachedSpec()
+
+			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
+			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
+
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace))
+
+			DeferCleanup(th.DeleteInstance, CreateNovaWithCell0(novaNames.NovaName))
+
+			keystone.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
+			mariadb.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(novaNames.APIMariaDBDatabaseAccount)
+			mariadb.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(cell0.MariaDBAccountName)
+			infra.SimulateTransportURLReady(cell0.TransportURLName)
+			SimulateReadyOfNovaTopServices()
+
+		})
+		It("notification transport url is not set", func() {
+
+			// assert that a the top level internal internal secret is created
+			// with the proper data
+			internalTopLevelSecret := th.GetSecret(novaNames.InternalTopLevelSecretName)
+			// verify if nova secret has notification-transport-url
+			Expect(internalTopLevelSecret.Data).To(HaveKey("notificaton_transport_url"))
+			Expect(internalTopLevelSecret.Data).To(
+				HaveKeyWithValue("notificaton_transport_url", []byte("")))
+
+			assertNotHaveNotificationTransportURL := func(configData string) {
+
+				Expect(configData).To(
+					ContainSubstring("[oslo_messaging_notifications]\ndriver = noop"))
+
+				Expect(configData).ToNot(
+					ContainSubstring("[oslo_messaging_notifications]\ntransport_url = "))
+
+			}
+
+			// verify if confs are updated with notification-transport-url under oslo_messaging_notifications
+			// assert in nova-api conf
+			configDataMap := th.GetSecret(novaNames.APIConfigDataName)
+			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
+			configData := string(configDataMap.Data["01-nova.conf"])
+			assertNotHaveNotificationTransportURL(configData)
+
+			// assert in sch conf
+			configDataMap = th.GetSecret(novaNames.SchedulerConfigDataName)
+			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
+			configData = string(configDataMap.Data["01-nova.conf"])
+			assertNotHaveNotificationTransportURL(configData)
+
+			// assert in cell0-conductor conf
+			configDataMap = th.GetSecret(cell0.ConductorConfigDataName)
+			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
+			configData = string(configDataMap.Data["01-nova.conf"])
+			assertNotHaveNotificationTransportURL(configData)
+
+		})
+
+		It("notification transport url is set with new rabbit", func() {
+
+			// add new-rabbit in Nova CR
+			notificationsBus := GetNotificationsBusNames(novaNames.NovaName)
+			CreateNotificiationTransportURLSecret(notificationsBus)
+
+			Eventually(func(g Gomega) {
+				nova := GetNova(novaNames.NovaName)
+				nova.Spec.NotificationsBusInstance = &notificationsBus.TransportURLName.Name
+				g.Expect(k8sClient.Update(ctx, nova)).Should(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			infra.SimulateTransportURLReady(notificationsBus.TransportURLName)
+			transportURLName := infra.GetTransportURL(notificationsBus.TransportURLName)
+			logger.Info("XXX", "t-url", transportURLName.Spec.RabbitmqClusterName)
+			logger.Info("XXX", "t-url", notificationsBus.BusName)
+
+			nova := GetNova(novaNames.NovaName)
+			Expect(nova.Spec.NotificationsBusInstance).ToNot(BeNil())
+
+			// verify if top level internal secret has notification-transport-url
+			th.ExpectConditionWithDetails(
+				novaNames.InternalTopLevelSecretName,
+				ConditionGetterFunc(NovaConditionGetter),
+				novav1.NovaNotificationMQReadyCondition,
+				corev1.ConditionTrue,
+				condition.ReadyReason,
+				novav1.NovaNotificationMQReadyMessage,
+			)
+
+			internalTopLevelSecret := th.GetSecret(novaNames.InternalTopLevelSecretName)
+			Expect(internalTopLevelSecret.Data).To(HaveKey("notificaton_transport_url"))
+			Expect(internalTopLevelSecret.Data["notificaton_transport_url"]).ShouldNot(BeEmpty())
+
+			assertHaveNotificationTransportURL := func(configData string) {
+
+				Expect(configData).ToNot(
+					ContainSubstring("[oslo_messaging_notifications]\ndriver = noop"))
+
+				Expect(configData).To(
+					ContainSubstring("[oslo_messaging_notifications]\ntransport_url = rabbit://%s/fake", notificationsBus.TransportURLName.Name))
+
+			}
+
+			// assert in nova-api conf
+			configDataMap := th.GetSecret(novaNames.APIConfigDataName)
+			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
+			configData := string(configDataMap.Data["01-nova.conf"])
+			assertHaveNotificationTransportURL(configData)
+
+			// assert in sch conf
+			configDataMap = th.GetSecret(novaNames.SchedulerConfigDataName)
+			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
+			configData = string(configDataMap.Data["01-nova.conf"])
+			assertHaveNotificationTransportURL(configData)
+
+			// assert in cell0-conductor conf
+			configDataMap = th.GetSecret(cell0.ConductorConfigDataName)
+			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
+			configData = string(configDataMap.Data["01-nova.conf"])
+			assertHaveNotificationTransportURL(configData)
+
+		})
+	})
+
+})
+
 var _ = Describe("Nova controller", func() {
 	When("Nova CR instance is created without a proper secret", func() {
 		BeforeEach(func() {
@@ -260,7 +404,7 @@ var _ = Describe("Nova controller", func() {
 			// proper content and the cell subCRs are configured to use the
 			// internal secret
 			internalCellSecret := th.GetSecret(cell0.InternalCellSecretName)
-			Expect(internalCellSecret.Data).To(HaveLen(2))
+			Expect(internalCellSecret.Data).To(HaveLen(3))
 			Expect(internalCellSecret.Data).To(
 				HaveKeyWithValue(controllers.ServicePasswordSelector, []byte("service-password")))
 			Expect(internalCellSecret.Data).To(
@@ -374,7 +518,7 @@ var _ = Describe("Nova controller", func() {
 			// assert that a the top level internal internal secret is created
 			// with the proper data
 			internalTopLevelSecret := th.GetSecret(novaNames.InternalTopLevelSecretName)
-			Expect(internalTopLevelSecret.Data).To(HaveLen(3))
+			Expect(internalTopLevelSecret.Data).To(HaveLen(4))
 			Expect(internalTopLevelSecret.Data).To(
 				HaveKeyWithValue(controllers.ServicePasswordSelector, []byte("service-password")))
 			Expect(internalTopLevelSecret.Data).To(
