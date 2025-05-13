@@ -220,9 +220,25 @@ func NovaConductorConditionGetter(name types.NamespacedName) condition.Condition
 
 func CreateNovaMessageBusSecret(cell CellNames) *corev1.Secret {
 	s := th.CreateSecret(
-		types.NamespacedName{Namespace: cell.CellCRName.Namespace, Name: fmt.Sprintf("%s-secret", cell.TransportURLName.Name)},
+		types.NamespacedName{
+			Namespace: cell.CellCRName.Namespace,
+			Name:      fmt.Sprintf("%s-secret", cell.TransportURLName.Name)},
 		map[string][]byte{
 			"transport_url": []byte(fmt.Sprintf("rabbit://%s/fake", cell.CellName)),
+		},
+	)
+	logger.Info("Secret created", "name", s.Name)
+	return s
+}
+
+func CreateNotificiationTransportURLSecret(notificationsBus NotificationsBusNames) *corev1.Secret {
+	s := th.CreateSecret(
+		types.NamespacedName{
+			Namespace: novaNames.NovaName.Namespace,
+			// Name:      fmt.Sprintf("%s-secret", notificationsBus.TransportURLName.Name)},
+			Name: fmt.Sprintf("%s-secret", notificationsBus.BusName)},
+		map[string][]byte{
+			"transport_url": []byte(fmt.Sprintf("rabbit://%s/fake", notificationsBus.TransportURLName.Name)),
 		},
 	)
 	logger.Info("Secret created", "name", s.Name)
@@ -476,6 +492,20 @@ func GetCellNames(novaName types.NamespacedName, cell string) CellNames {
 	return c
 }
 
+type NotificationsBusNames struct {
+	BusName          string
+	TransportURLName types.NamespacedName
+}
+
+func GetNotificationsBusNames(novaName types.NamespacedName) NotificationsBusNames {
+	return NotificationsBusNames{
+		BusName: "rabbitmq-broadcaster",
+		TransportURLName: types.NamespacedName{
+			Namespace: novaName.Namespace,
+			Name:      novaName.Name + "-notification-transport"},
+	}
+}
+
 type NovaNames struct {
 	Namespace                      string
 	NovaName                       types.NamespacedName
@@ -681,9 +711,10 @@ func CreateInternalTopLevelSecret(novaNames NovaNames) *corev1.Secret {
 	return th.CreateSecret(
 		novaNames.InternalTopLevelSecretName,
 		map[string][]byte{
-			"ServicePassword": []byte("service-password"),
-			"MetadataSecret":  []byte("metadata-secret"),
-			"transport_url":   []byte("rabbit://api/fake"),
+			"ServicePassword":            []byte("service-password"),
+			"MetadataSecret":             []byte("metadata-secret"),
+			"transport_url":              []byte("rabbit://api/fake"),
+			"notification_transport_url": []byte("rabbit://notifications/fake"),
 		},
 	)
 }
@@ -761,8 +792,9 @@ func GetDefaultNovaNoVNCProxySpec(cell CellNames) map[string]interface{} {
 func CreateCellInternalSecret(cell CellNames, additionalValues map[string][]byte) *corev1.Secret {
 
 	secretMap := map[string][]byte{
-		"ServicePassword": []byte("service-password"),
-		"transport_url":   []byte(fmt.Sprintf("rabbit://%s/fake", cell.CellName)),
+		"ServicePassword":            []byte("service-password"),
+		"transport_url":              []byte(fmt.Sprintf("rabbit://%s/fake", cell.CellName)),
+		"notification_transport_url": []byte("rabbit://notifications/fake"),
 	}
 	// (ksambor) this can be replaced with maps.Copy directly from maps
 	// not experimental package when we move to go 1.21

@@ -115,6 +115,10 @@ status:
     reason: Ready
     status: "True"
     type: NovaMetadataReady
+  - message: Notification message bus not requested
+    reason: Ready
+    status: "True"
+    type: NovaNotificationMQReady
   - message: Setup complete
     reason: Ready
     status: "True"
