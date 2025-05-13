@@ -59,7 +59,8 @@ var _ = Describe("Nova multi cell", func() {
 	When("Nova CR instance is created with 3 cells", func() {
 		BeforeEach(func() {
 			// TODO(bogdando): deduplicate this into CreateNovaWith3CellsAndEnsureReady()
-			DeferCleanup(k8sClient.Delete, ctx, CreateNovaSecretFor3Cells(novaNames.NovaName.Namespace, SecretName))
+			// DeferCleanup(k8sClient.Delete, ctx, CreateNovaSecretFor3Cells(novaNames.NovaName.Namespace, SecretName))
+			DeferCleanup(k8sClient.Delete, ctx, CreateNovaSecret(novaNames.NovaName.Namespace, SecretName))
 			DeferCleanup(k8sClient.Delete, ctx, CreateNovaMessageBusSecret(cell0))
 			DeferCleanup(k8sClient.Delete, ctx, CreateNovaMessageBusSecret(cell1))
 			DeferCleanup(k8sClient.Delete, ctx, CreateNovaMessageBusSecret(cell2))
