@@ -21,12 +21,13 @@ import (
 
 	. "github.com/onsi/gomega" //revive:disable:dot-imports
 
+	"maps"
+
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
-	"maps"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
@@ -277,16 +278,6 @@ func NovaCellConditionGetter(name types.NamespacedName) condition.Conditions {
 }
 
 func CreateNovaSecret(namespace string, name string) *corev1.Secret {
-	return th.CreateSecret(
-		types.NamespacedName{Namespace: namespace, Name: name},
-		map[string][]byte{
-			"NovaPassword":   []byte("service-password"),
-			"MetadataSecret": []byte("metadata-secret"),
-		},
-	)
-}
-
-func CreateNovaSecretFor3Cells(namespace string, name string) *corev1.Secret {
 	return th.CreateSecret(
 		types.NamespacedName{Namespace: namespace, Name: name},
 		map[string][]byte{
