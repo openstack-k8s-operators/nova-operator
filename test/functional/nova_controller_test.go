@@ -98,7 +98,7 @@ var _ = Describe("Nova controller", func() {
 					},
 				),
 			)
-			memcachedSpec := GetDefaultMemcachedSpec()
+			memcachedSpec := infra.GetDefaultMemcachedSpec()
 
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
@@ -517,7 +517,7 @@ var _ = Describe("Nova controller", func() {
 				),
 			)
 
-			memcachedSpec := GetDefaultMemcachedSpec()
+			memcachedSpec := infra.GetDefaultMemcachedSpec()
 
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
@@ -589,7 +589,7 @@ var _ = Describe("Nova controller", func() {
 					},
 				),
 			)
-			memcachedSpec := GetDefaultMemcachedSpec()
+			memcachedSpec := infra.GetDefaultMemcachedSpec()
 
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
@@ -653,7 +653,7 @@ var _ = Describe("Nova controller", func() {
 					},
 				),
 			)
-			memcachedSpec := GetDefaultMemcachedSpec()
+			memcachedSpec := infra.GetDefaultMemcachedSpec()
 
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
@@ -806,7 +806,7 @@ var _ = Describe("Nova controller", func() {
 					},
 				),
 			)
-			memcachedSpec := GetDefaultMemcachedSpec()
+			memcachedSpec := infra.GetDefaultMemcachedSpec()
 
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
@@ -877,7 +877,7 @@ var _ = Describe("Nova controller", func() {
 					},
 				),
 			)
-			memcachedSpec := GetDefaultMemcachedSpec()
+			memcachedSpec := infra.GetDefaultMemcachedSpec()
 
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
@@ -994,7 +994,7 @@ var _ = Describe("Nova controller", func() {
 				),
 			)
 
-			memcachedSpec := GetDefaultMemcachedSpec()
+			memcachedSpec := infra.GetDefaultMemcachedSpec()
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
 
@@ -1065,7 +1065,7 @@ var _ = Describe("Nova controller", func() {
 				),
 			)
 
-			memcachedSpec := GetDefaultMemcachedSpec()
+			memcachedSpec := infra.GetDefaultMemcachedSpec()
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
 
@@ -1212,7 +1212,7 @@ var _ = Describe("Nova controller", func() {
 			// except cell1 that has an override
 			spec["topologyRef"] = map[string]interface{}{"name": topologyRefTopLevel.Name}
 			DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
-			memcachedSpec := GetDefaultMemcachedSpec()
+			memcachedSpec := infra.GetDefaultMemcachedSpec()
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
 			keystoneAPIName := keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace)
@@ -1342,7 +1342,7 @@ var _ = Describe("Nova controller", func() {
 					},
 				),
 			)
-			memcachedSpec := GetDefaultMemcachedSpec()
+			memcachedSpec := infra.GetDefaultMemcachedSpec()
 
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
@@ -1427,7 +1427,7 @@ var _ = Describe("Nova controller", func() {
 				),
 			)
 
-			memcachedSpec := GetDefaultMemcachedSpec()
+			memcachedSpec := infra.GetDefaultMemcachedSpec()
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
 
@@ -1531,7 +1531,7 @@ var _ = Describe("Nova controller", func() {
 				),
 			)
 
-			memcachedSpec := GetDefaultMemcachedSpec()
+			memcachedSpec := infra.GetDefaultMemcachedSpec()
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
 

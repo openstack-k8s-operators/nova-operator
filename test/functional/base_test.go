@@ -27,10 +27,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
@@ -708,14 +706,6 @@ func AssertMetadataDoesNotExist(name types.NamespacedName) {
 		err := k8sClient.Get(ctx, name, instance)
 		g.Expect(k8s_errors.IsNotFound(err)).To(BeTrue())
 	}, timeout, interval).Should(Succeed())
-}
-
-func GetDefaultMemcachedSpec() memcachedv1.MemcachedSpec {
-	return memcachedv1.MemcachedSpec{
-		MemcachedSpecCore: memcachedv1.MemcachedSpecCore{
-			Replicas: ptr.To(int32(3)),
-		},
-	}
 }
 
 func CreateNovaNoVNCProxy(name types.NamespacedName, spec map[string]interface{}) client.Object {

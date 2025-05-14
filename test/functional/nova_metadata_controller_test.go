@@ -56,7 +56,7 @@ var _ = Describe("NovaMetadata controller", func() {
 		DeferCleanup(k8sClient.Delete, ctx, cell1Secret)
 
 		mariadb.CreateMariaDBDatabase(novaNames.APIMariaDBDatabaseName.Namespace, novaNames.APIMariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
-		memcachedSpec := GetDefaultMemcachedSpec()
+		memcachedSpec := infra.GetDefaultMemcachedSpec()
 		DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 		infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
 		DeferCleanup(k8sClient.Delete, ctx, mariadb.GetMariaDBDatabase(novaNames.APIMariaDBDatabaseName))
@@ -395,7 +395,7 @@ var _ = Describe("NovaMetadata controller", func() {
 		DeferCleanup(k8sClient.Delete, ctx, cell1Account)
 		DeferCleanup(k8sClient.Delete, ctx, cell1Secret)
 
-		memcachedSpec := GetDefaultMemcachedSpec()
+		memcachedSpec := infra.GetDefaultMemcachedSpec()
 		DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 		infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
 
@@ -868,7 +868,7 @@ var _ = Describe("NovaMetadata controller", func() {
 
 		mariadb.SimulateMariaDBTLSDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
 		mariadb.SimulateMariaDBAccountCompleted(novaNames.APIMariaDBDatabaseAccount)
-		memcachedSpec := GetDefaultMemcachedSpec()
+		memcachedSpec := infra.GetDefaultMemcachedSpec()
 		DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 		infra.SimulateTLSMemcachedReady(novaNames.MemcachedNamespace)
 
