@@ -52,7 +52,7 @@ var _ = Describe("NovaScheduler controller", func() {
 		// Uncomment this if you need the full output in the logs from gomega
 		// matchers
 		// format.MaxLength = 0
-		memcachedSpec := GetDefaultMemcachedSpec()
+		memcachedSpec := infra.GetDefaultMemcachedSpec()
 		DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 		infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
 		DeferCleanup(
@@ -323,7 +323,7 @@ var _ = Describe("NovaScheduler controller", func() {
 			cell0.MariaDBAccountName, mariadbv1.MariaDBAccountSpec{})
 		DeferCleanup(k8sClient.Delete, ctx, cell0Account)
 		DeferCleanup(k8sClient.Delete, ctx, cell0Secret)
-		memcachedSpec := GetDefaultMemcachedSpec()
+		memcachedSpec := infra.GetDefaultMemcachedSpec()
 		DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 		infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
 
@@ -601,7 +601,7 @@ var _ = Describe("NovaScheduler controller cleaning", func() {
 
 	var novaAPIFixture *NovaAPIFixture
 	BeforeEach(func() {
-		memcachedSpec := GetDefaultMemcachedSpec()
+		memcachedSpec := infra.GetDefaultMemcachedSpec()
 		DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 		infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
 		DeferCleanup(
@@ -653,7 +653,7 @@ var _ = Describe("NovaScheduler controller", func() {
 		DeferCleanup(k8sClient.Delete, ctx, cell0Account)
 		DeferCleanup(k8sClient.Delete, ctx, cell0Secret)
 
-		memcachedSpec := GetDefaultMemcachedSpec()
+		memcachedSpec := infra.GetDefaultMemcachedSpec()
 		DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 		infra.SimulateTLSMemcachedReady(novaNames.MemcachedNamespace)
 	})

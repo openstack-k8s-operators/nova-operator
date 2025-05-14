@@ -52,7 +52,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 			cell1.MariaDBAccountName, mariadbv1.MariaDBAccountSpec{})
 		DeferCleanup(k8sClient.Delete, ctx, cell1Account)
 		DeferCleanup(k8sClient.Delete, ctx, cell1Secret)
-		memcachedSpec := GetDefaultMemcachedSpec()
+		memcachedSpec := infra.GetDefaultMemcachedSpec()
 		DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 		infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
 
@@ -349,7 +349,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 		DeferCleanup(k8sClient.Delete, ctx, cell1Account)
 		DeferCleanup(k8sClient.Delete, ctx, cell1Secret)
 
-		memcachedSpec := GetDefaultMemcachedSpec()
+		memcachedSpec := infra.GetDefaultMemcachedSpec()
 		DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 		infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
 
@@ -768,7 +768,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 				},
 				"caBundleSecretName": novaNames.CaBundleSecretName.Name,
 			}
-			memcachedSpec := GetDefaultMemcachedSpec()
+			memcachedSpec := infra.GetDefaultMemcachedSpec()
 
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 			infra.SimulateTLSMemcachedReady(novaNames.MemcachedNamespace)
@@ -930,7 +930,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 				},
 				"caBundleSecretName": novaNames.CaBundleSecretName.Name,
 			}
-			memcachedSpec := GetDefaultMemcachedSpec()
+			memcachedSpec := infra.GetDefaultMemcachedSpec()
 
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 			infra.SimulateTLSMemcachedReady(novaNames.MemcachedNamespace)
@@ -1095,7 +1095,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 				},
 				"caBundleSecretName": novaNames.CaBundleSecretName.Name,
 			}
-			memcachedSpec := GetDefaultMemcachedSpec()
+			memcachedSpec := infra.GetDefaultMemcachedSpec()
 
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 			infra.SimulateTLSMemcachedReady(novaNames.MemcachedNamespace)
@@ -1280,7 +1280,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 			// We reference a topology that does not exist in the current namespace
 			spec["topologyRef"] = map[string]interface{}{"name": "foo"}
 
-			memcachedSpec := GetDefaultMemcachedSpec()
+			memcachedSpec := infra.GetDefaultMemcachedSpec()
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 			DeferCleanup(th.DeleteInstance, CreateNovaNoVNCProxy(cell1.NoVNCProxyName, spec))
 			DeferCleanup(
@@ -1319,7 +1319,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 			spec := GetDefaultNovaNoVNCProxySpec(cell1)
 			spec["topologyRef"] = map[string]interface{}{"name": topologyRefNoVNC.Name}
 
-			memcachedSpec := GetDefaultMemcachedSpec()
+			memcachedSpec := infra.GetDefaultMemcachedSpec()
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 			DeferCleanup(th.DeleteInstance, CreateNovaNoVNCProxy(cell1.NoVNCProxyName, spec))
 			DeferCleanup(

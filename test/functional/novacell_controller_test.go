@@ -57,7 +57,7 @@ var _ = Describe("NovaCell controller", func() {
 		DeferCleanup(k8sClient.Delete, ctx, cell2Account)
 		DeferCleanup(k8sClient.Delete, ctx, cell2Secret)
 
-		memcachedSpec := GetDefaultMemcachedSpec()
+		memcachedSpec := infra.GetDefaultMemcachedSpec()
 		DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 		infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
 	})
@@ -1063,7 +1063,7 @@ var _ = Describe("NovaCell controller", func() {
 
 var _ = Describe("NovaCell controller webhook", func() {
 	BeforeEach(func() {
-		memcachedSpec := GetDefaultMemcachedSpec()
+		memcachedSpec := infra.GetDefaultMemcachedSpec()
 		DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 		infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
 
