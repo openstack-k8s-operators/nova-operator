@@ -257,7 +257,7 @@ func ensureSecret(
 				condition.InputReadyCondition,
 				condition.RequestedReason,
 				condition.SeverityInfo,
-				fmt.Sprintf(novav1.InputReadyWaitingMessage, "secret/"+secretName.Name)))
+				novav1.InputReadyWaitingMessage, "secret/"+secretName.Name))
 			return "",
 				ctrl.Result{RequeueAfter: requeueTimeout},
 				*secret,
