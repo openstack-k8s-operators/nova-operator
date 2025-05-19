@@ -757,7 +757,7 @@ var _ = Describe("NovaScheduler controller", func() {
 
 			configData := string(configDataMap.Data["01-nova.conf"])
 			Expect(configData).Should(
-				ContainSubstring("backend = dogpile.cache.pymemcache"))
+				ContainSubstring("backend = oslo_cache.memcache_pool"))
 			Expect(configData).Should(
 				ContainSubstring(fmt.Sprintf("memcache_servers=memcached-0.memcached.%s.svc:11211,memcached-1.memcached.%s.svc:11211,memcached-2.memcached.%s.svc:11211",
 					novaNames.Namespace, novaNames.Namespace, novaNames.Namespace)))
