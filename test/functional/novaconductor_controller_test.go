@@ -660,7 +660,17 @@ var _ = Describe("NovaConductor controller", func() {
 		})
 	})
 	When("NovaConductor is reconfigured", func() {
+		neutronEndpoint := types.NamespacedName{}
+		cinderEndpoint := types.NamespacedName{}
+
 		BeforeEach(func() {
+			neutronEndpoint = types.NamespacedName{Name: "neutron", Namespace: novaNames.Namespace}
+			DeferCleanup(keystone.DeleteKeystoneEndpoint, keystone.CreateKeystoneEndpoint(neutronEndpoint))
+			keystone.SimulateKeystoneEndpointReady(neutronEndpoint)
+			cinderEndpoint = types.NamespacedName{Name: "cinder", Namespace: novaNames.Namespace}
+			DeferCleanup(keystone.DeleteKeystoneEndpoint, keystone.CreateKeystoneEndpoint(cinderEndpoint))
+			keystone.SimulateKeystoneEndpointReady(cinderEndpoint)
+
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreateDefaultCellInternalSecret(cell0))
 			DeferCleanup(th.DeleteInstance, CreateNovaConductor(cell0.ConductorName, GetDefaultNovaConductorSpec(cell0)))
@@ -755,6 +765,40 @@ var _ = Describe("NovaConductor controller", func() {
 				condition.ReadyCondition,
 				corev1.ConditionTrue,
 			)
+		})
+
+		It("updates the deployment if neutron internal endpoint changes", func() {
+			originalConfigHash := GetEnvVarValue(
+				th.GetStatefulSet(cell0.ConductorName).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
+			Expect(originalConfigHash).NotTo(Equal(""))
+
+			keystone.UpdateKeystoneEndpoint(neutronEndpoint, "internal", "https://neutron-internal")
+			logger.Info("Reconfigured")
+
+			// Assert that the CONFIG_HASH of the StateFulSet is changed due to this reconfiguration
+			Eventually(func(g Gomega) {
+				currentConfigHash := GetEnvVarValue(
+					th.GetStatefulSet(cell0.ConductorName).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
+				g.Expect(originalConfigHash).NotTo(Equal(currentConfigHash))
+
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("updates the deployment if neutron internal endpoint gets deleted", func() {
+			originalConfigHash := GetEnvVarValue(
+				th.GetStatefulSet(cell0.ConductorName).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
+			Expect(originalConfigHash).NotTo(Equal(""))
+
+			keystone.DeleteKeystoneEndpoint(neutronEndpoint)
+			logger.Info("Reconfigured")
+
+			// Assert that the CONFIG_HASH of the StateFulSet is changed due to this reconfiguration
+			Eventually(func(g Gomega) {
+				currentConfigHash := GetEnvVarValue(
+					th.GetStatefulSet(cell0.ConductorName).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
+				g.Expect(originalConfigHash).NotTo(Equal(currentConfigHash))
+
+			}, timeout, interval).Should(Succeed())
 		})
 	})
 
