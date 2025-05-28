@@ -116,6 +116,24 @@ const (
 	// NovaCell0DatabaseName - the name of the DB to store the cell schema for
 	// cell0
 	NovaCell0DatabaseName = "nova_cell0"
+
+	// services nova depends, which are endpoint AppSelector labels
+	// (mschuppert) - Manial should be added starting Dalmatian
+	endpointBarbican  = "barbican"
+	endpointCinder    = "cinder"
+	endpointGlance    = "glance"
+	endpointNeutron   = "neutron"
+	endpointPlacement = "placement"
+)
+
+var (
+	endpointList = []string{
+		endpointBarbican,
+		endpointCinder,
+		endpointGlance,
+		endpointNeutron,
+		endpointPlacement,
+	}
 )
 
 type conditionsGetter interface {
