@@ -25,6 +25,10 @@
                 value: 2
 
               - op: replace
+                path: /spec/nova/template/notificationsBusInstance
+                value: rabbitmq
+
+              - op: replace
                 path: /spec/neutron/template/replicas
                 value: 2
 

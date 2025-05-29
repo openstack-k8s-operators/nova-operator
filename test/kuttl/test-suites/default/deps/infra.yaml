@@ -18,6 +18,8 @@ spec:
         replicas: 1
       rabbitmq-cell1:
         replicas: 1
+      rabbitmq-broadcaster:
+        replicas: 1
   memcached:
     templates:
       memcached:
