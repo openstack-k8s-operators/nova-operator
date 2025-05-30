@@ -4,6 +4,7 @@ metadata:
   name: nova-kuttl
 spec:
   secret: osp-secret
+  notificationsBusInstance: rabbitmq-broadcaster
   apiServiceTemplate:
     defaultConfigOverwrite:
       policy.yaml: |
