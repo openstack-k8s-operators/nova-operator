@@ -537,6 +537,7 @@ type NovaNames struct {
 	MemcachedNamespace              types.NamespacedName
 	Cells                           map[string]CellNames
 	NovaTopologies                  []types.NamespacedName
+	KeystoneAPIName                 types.NamespacedName
 }
 
 func GetNovaNames(novaName types.NamespacedName, cellNames []string) NovaNames {
