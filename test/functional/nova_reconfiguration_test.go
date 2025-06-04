@@ -39,7 +39,7 @@ import (
 	"k8s.io/utils/ptr"
 )
 
-func CreateNovaWith3CellsAndEnsureReady(novaNames NovaNames) {
+func CreateNovaWith3CellsAndEnsureReady(novaNames *NovaNames) {
 	cell0 := novaNames.Cells["cell0"]
 	cell1 := novaNames.Cells["cell1"]
 	cell2 := novaNames.Cells["cell2"]
@@ -107,7 +107,8 @@ func CreateNovaWith3CellsAndEnsureReady(novaNames NovaNames) {
 	spec["apiMessageBusInstance"] = cell0.TransportURLName.Name
 
 	DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
-	DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace))
+	novaNames.KeystoneAPIName = keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace)
+	DeferCleanup(keystone.DeleteKeystoneAPI, novaNames.KeystoneAPIName)
 	memcachedSpec := infra.GetDefaultMemcachedSpec()
 
 	DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
@@ -166,7 +167,7 @@ var _ = Describe("Nova reconfiguration", func() {
 		// matchers
 		// format.MaxLength = 0
 
-		CreateNovaWith3CellsAndEnsureReady(novaNames)
+		CreateNovaWith3CellsAndEnsureReady(&novaNames)
 	})
 	When("cell1 is deleted", func() {
 		It("cell cr is deleted", func() {
@@ -1178,4 +1179,52 @@ var _ = Describe("Nova reconfiguration", func() {
 			g.Expect(diff).To(BeEmpty())
 		}, timeout, interval).Should(Succeed())
 	})
+
+	It("updates the KeystoneAuthURL of the sub components if keystone internal endpoint changes", func() {
+		newInternalEndpoint := "https://keystone-internal"
+
+		keystone.UpdateKeystoneAPIEndpoint(novaNames.KeystoneAPIName, "internal", newInternalEndpoint)
+		logger.Info("Reconfigured")
+
+		SimulateReadyOfNovaTopServices()
+		th.SimulateJobSuccess(cell0.DBSyncJobName)
+		th.SimulateJobSuccess(cell1.DBSyncJobName)
+		th.SimulateJobSuccess(cell2.DBSyncJobName)
+		th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
+
+		for _, cell := range []types.NamespacedName{cell0.ConductorName, cell1.ConductorName, cell2.ConductorName} {
+			Eventually(func(g Gomega) {
+				cond := GetNovaConductor(cell)
+				g.Expect(cond).ToNot(BeNil())
+				g.Expect(cond.Spec.KeystoneAuthURL).To(Equal(newInternalEndpoint))
+			}, timeout, interval).Should(Succeed())
+		}
+
+		for _, cell := range []types.NamespacedName{cell1.NoVNCProxyName, cell2.NoVNCProxyName} {
+			Eventually(func(g Gomega) {
+				vnc := GetNovaNoVNCProxy(cell)
+				g.Expect(vnc).ToNot(BeNil())
+				g.Expect(vnc.Spec.KeystoneAuthURL).To(Equal(newInternalEndpoint))
+			}, timeout, interval).Should(Succeed())
+		}
+
+		Eventually(func(g Gomega) {
+			api := GetNovaAPI(novaNames.APIName)
+			g.Expect(api).ToNot(BeNil())
+			g.Expect(api.Spec.KeystoneAuthURL).To(Equal(newInternalEndpoint))
+		}, timeout, interval).Should(Succeed())
+
+		Eventually(func(g Gomega) {
+			sch := GetNovaScheduler(novaNames.SchedulerName)
+			g.Expect(sch).ToNot(BeNil())
+			g.Expect(sch.Spec.KeystoneAuthURL).To(Equal(newInternalEndpoint))
+		}, timeout, interval).Should(Succeed())
+
+		Eventually(func(g Gomega) {
+			metadata := GetNovaMetadata(novaNames.MetadataName)
+			g.Expect(metadata).ToNot(BeNil())
+			g.Expect(metadata.Spec.KeystoneAuthURL).To(Equal(newInternalEndpoint))
+		}, timeout, interval).Should(Succeed())
+	})
+
 })
