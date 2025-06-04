@@ -800,11 +800,13 @@ var _ = Describe("PlacementAPI controller", func() {
 	})
 
 	Context("PlacementAPI is fully deployed", func() {
+		keystoneAPIName := types.NamespacedName{}
 		BeforeEach(func() {
 			DeferCleanup(th.DeleteInstance, CreatePlacementAPI(names.PlacementAPIName, GetDefaultPlacementAPISpec()))
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreatePlacementAPISecret(namespace, SecretName))
-			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(namespace))
+			keystoneAPIName = keystone.CreateKeystoneAPI(namespace)
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystoneAPIName)
 
 			serviceSpec := corev1.ServiceSpec{Ports: []corev1.ServicePort{{Port: 3306}}}
 			DeferCleanup(
@@ -896,6 +898,27 @@ var _ = Describe("PlacementAPI controller", func() {
 			}, timeout, interval).Should(Succeed())
 		})
 
+		It("updates the KeystoneAuthURL if keystone internal endpoint changes", func() {
+			deployment := th.GetDeployment(names.DeploymentName)
+			oldConfigHash := GetEnvVarValue(deployment.Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
+			Expect(oldConfigHash).NotTo(Equal(""))
+
+			newInternalEndpoint := "https://keystone-internal"
+
+			keystone.UpdateKeystoneAPIEndpoint(keystoneAPIName, "internal", newInternalEndpoint)
+			logger.Info("Reconfigured")
+
+			Eventually(func(g Gomega) {
+				deployment := th.GetDeployment(names.DeploymentName)
+				newConfigHash := GetEnvVarValue(deployment.Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
+				g.Expect(newConfigHash).NotTo(Equal(oldConfigHash))
+			}, timeout, interval).Should(Succeed())
+
+			cm := th.GetSecret(names.ConfigMapName)
+			conf := cm.Data["placement.conf"]
+			Expect(conf).Should(
+				ContainSubstring("auth_url = %s", newInternalEndpoint))
+		})
 	})
 
 	When("A PlacementAPI is created with TLS", func() {
