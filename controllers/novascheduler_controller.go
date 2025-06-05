@@ -25,6 +25,7 @@ import (
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -36,8 +37,10 @@ import (
 
 	"github.com/go-logr/logr"
 	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
+	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/endpoint"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/labels"
@@ -176,6 +179,22 @@ func (r *NovaSchedulerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	// Collect hashes of all the input we depend on so that we can easily
 	// detect if something is changed.
 	hashes := make(map[string]env.Setter)
+
+	// hash the endpoint URLs of the services this depends on
+	// By adding the hash to the hash of hashes being added to the deployment
+	// allows it to get restarted, in case the endpoint changes and it requires
+	// the current cached ones to be updated.
+	endpointUrlsHash, err := keystonev1.GetHashforKeystoneEndpointUrlsForServices(
+		ctx,
+		h,
+		instance.Namespace,
+		ptr.To(string(endpoint.EndpointInternal)),
+		endpointList,
+	)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	hashes["endpointUrlsHash"] = env.SetValue(endpointUrlsHash)
 
 	requiredSecretFields := []string{
 		// TODO(gibi): add keystoneAuthURL here is that is also passed via
@@ -345,6 +364,40 @@ func (r *NovaSchedulerReconciler) findObjectsForSrc(ctx context.Context, src cli
 	return requests
 }
 
+func (r *NovaSchedulerReconciler) findObjectsWithAppSelectorLabelInNamespace(ctx context.Context, src client.Object) []reconcile.Request {
+	requests := []reconcile.Request{}
+
+	l := log.FromContext(ctx).WithName("Controllers").WithName("NovaScheduler")
+
+	// if the endpoint has the service label and its in our endpointList, reconcile the CR in the namespace
+	if svc, ok := src.GetLabels()[common.AppSelector]; ok && util.StringInSlice(svc, endpointList) {
+		crList := &novav1.NovaSchedulerList{}
+		listOps := &client.ListOptions{
+			Namespace: src.GetNamespace(),
+		}
+		err := r.Client.List(ctx, crList, listOps)
+		if err != nil {
+			l.Error(err, fmt.Sprintf("listing %s for namespace: %s", crList.GroupVersionKind().Kind, src.GetNamespace()))
+			return requests
+		}
+
+		for _, item := range crList.Items {
+			l.Info(fmt.Sprintf("input source %s changed, reconcile: %s - %s", src.GetName(), item.GetName(), item.GetNamespace()))
+
+			requests = append(requests,
+				reconcile.Request{
+					NamespacedName: types.NamespacedName{
+						Name:      item.GetName(),
+						Namespace: item.GetNamespace(),
+					},
+				},
+			)
+		}
+	}
+
+	return requests
+}
+
 // fields to index to reconcile when change
 var (
 	schedulerWatchFields = []string{
@@ -409,6 +462,9 @@ func (r *NovaSchedulerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Watches(&topologyv1.Topology{},
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForSrc),
 			builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		Watches(&keystonev1.KeystoneEndpoint{},
+			handler.EnqueueRequestsFromMapFunc(r.findObjectsWithAppSelectorLabelInNamespace),
+			builder.WithPredicates(keystonev1.KeystoneEndpointStatusChangedPredicate)).
 		Complete(r)
 }
 

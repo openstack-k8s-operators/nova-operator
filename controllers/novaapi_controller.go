@@ -183,6 +183,22 @@ func (r *NovaAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (re
 	// detect if something is changed.
 	hashes := make(map[string]env.Setter)
 
+	// hash the endpoint URLs of the services this depends on
+	// By adding the hash to the hash of hashes being added to the deployment
+	// allows it to get restarted, in case the endpoint changes and it requires
+	// the current cached ones to be updated.
+	endpointUrlsHash, err := keystonev1.GetHashforKeystoneEndpointUrlsForServices(
+		ctx,
+		h,
+		instance.Namespace,
+		ptr.To(string(endpoint.EndpointInternal)),
+		endpointList,
+	)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	hashes["endpointUrlsHash"] = env.SetValue(endpointUrlsHash)
+
 	requiredSecretFields := []string{
 		// TODO(gibi): add keystoneAuthURL here is that is also passed via
 		// the Secret. Also add DB and MQ user name here too if those are
@@ -787,9 +803,12 @@ func (r *NovaAPIReconciler) ensureKeystoneEndpoint(
 	if err != nil {
 		return ctrlResult, err
 	}
-	c := endpoint.GetConditions().Mirror(condition.KeystoneEndpointReadyCondition)
-	if c != nil {
-		instance.Status.Conditions.Set(c)
+
+	if endpoint.ValidateGeneration() {
+		c := endpoint.GetConditions().Mirror(condition.KeystoneEndpointReadyCondition)
+		if c != nil {
+			instance.Status.Conditions.Set(c)
+		}
 	}
 
 	if (ctrlResult != ctrl.Result{}) {
@@ -903,6 +922,40 @@ func (r *NovaAPIReconciler) findObjectsForSrc(ctx context.Context, src client.Ob
 		err := r.Client.List(ctx, crList, listOps)
 		if err != nil {
 			l.Error(err, fmt.Sprintf("listing %s for field: %s - %s", crList.GroupVersionKind().Kind, field, src.GetNamespace()))
+			return requests
+		}
+
+		for _, item := range crList.Items {
+			l.Info(fmt.Sprintf("input source %s changed, reconcile: %s - %s", src.GetName(), item.GetName(), item.GetNamespace()))
+
+			requests = append(requests,
+				reconcile.Request{
+					NamespacedName: types.NamespacedName{
+						Name:      item.GetName(),
+						Namespace: item.GetNamespace(),
+					},
+				},
+			)
+		}
+	}
+
+	return requests
+}
+
+func (r *NovaAPIReconciler) findObjectsWithAppSelectorLabelInNamespace(ctx context.Context, src client.Object) []reconcile.Request {
+	requests := []reconcile.Request{}
+
+	l := log.FromContext(ctx).WithName("Controllers").WithName("NovaAPI")
+
+	// if the endpoint has the service label and its in our endpointList, reconcile the CR in the namespace
+	if svc, ok := src.GetLabels()[common.AppSelector]; ok && util.StringInSlice(svc, endpointList) {
+		crList := &novav1.NovaAPIList{}
+		listOps := &client.ListOptions{
+			Namespace: src.GetNamespace(),
+		}
+		err := r.Client.List(ctx, crList, listOps)
+		if err != nil {
+			l.Error(err, fmt.Sprintf("listing %s for namespace: %s", crList.GroupVersionKind().Kind, src.GetNamespace()))
 			return requests
 		}
 
@@ -1043,5 +1096,8 @@ func (r *NovaAPIReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Watches(&topologyv1.Topology{},
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForSrc),
 			builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		Watches(&keystonev1.KeystoneEndpoint{},
+			handler.EnqueueRequestsFromMapFunc(r.findObjectsWithAppSelectorLabelInNamespace),
+			builder.WithPredicates(keystonev1.KeystoneEndpointStatusChangedPredicate)).
 		Complete(r)
 }
