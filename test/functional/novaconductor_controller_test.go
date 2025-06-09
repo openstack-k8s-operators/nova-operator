@@ -17,6 +17,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/google/uuid"
 	. "github.com/onsi/ginkgo/v2" //revive:disable:dot-imports
 	. "github.com/onsi/gomega"    //revive:disable:dot-imports
 	"k8s.io/apimachinery/pkg/types"
@@ -427,6 +428,79 @@ var _ = Describe("NovaConductor controller", func() {
 					condition.CronJobReadyCondition,
 					corev1.ConditionTrue,
 				)
+			})
+
+			It("configures [oslo_limit] endpoint_id", func() {
+				th.ExpectCondition(
+					cell0.ConductorName,
+					ConditionGetterFunc(NovaConductorConditionGetter),
+					condition.ServiceConfigReadyCondition,
+					corev1.ConditionTrue,
+				)
+				// Assert that [oslo_limit] endpoint_id is not initially configured
+				configDataMap := th.GetSecret(cell0.ConductorConfigDataName)
+				Expect(configDataMap).ShouldNot(BeNil())
+				Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
+				configData := string(configDataMap.Data["01-nova.conf"])
+				Expect(configData).ShouldNot(ContainSubstring("endpoint_id = "))
+
+				// Grab the current config hash
+				originalHash := GetEnvVarValue(
+					th.GetStatefulSet(cell0.ConductorStatefulSetName).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
+				Expect(originalHash).NotTo(BeEmpty())
+
+				// Create a Nova API service and simulate that it is ready
+				mariadb.CreateMariaDBDatabase(novaNames.APIMariaDBDatabaseName.Namespace, novaNames.APIMariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
+				DeferCleanup(k8sClient.Delete, ctx, mariadb.GetMariaDBDatabase(novaNames.APIMariaDBDatabaseName))
+				DeferCleanup(
+					k8sClient.Delete, ctx, CreateInternalTopLevelSecret(novaNames))
+				DeferCleanup(th.DeleteInstance, CreateNovaAPI(novaNames.APIName, GetDefaultNovaAPISpec(novaNames)))
+				th.ExpectCondition(
+					novaNames.APIName,
+					ConditionGetterFunc(NovaAPIConditionGetter),
+					condition.InputReadyCondition,
+					corev1.ConditionTrue,
+				)
+				th.ExpectCondition(
+					novaNames.APIName,
+					ConditionGetterFunc(NovaAPIConditionGetter),
+					condition.ServiceConfigReadyCondition,
+					corev1.ConditionTrue,
+				)
+				th.SimulateStatefulSetReplicaReady(novaNames.APIStatefulSetName)
+				keystone.SimulateKeystoneEndpointReady(types.NamespacedName{Namespace: novaNames.APIName.Namespace, Name: "nova"})
+				th.ExpectCondition(
+					novaNames.APIName,
+					ConditionGetterFunc(NovaAPIConditionGetter),
+					condition.KeystoneEndpointReadyCondition,
+					corev1.ConditionTrue,
+				)
+
+				// Set the Nova API endpoint ID to something we will expect
+				expectedEndpointID := uuid.New().String()
+				Eventually(func(g Gomega) {
+					endpoint := keystone.GetKeystoneEndpoint(types.NamespacedName{Namespace: novaNames.APIName.Namespace, Name: "nova"})
+					endpoint.Status.EndpointIDs = map[string]string{"internal": expectedEndpointID}
+					g.Expect(k8sClient.Status().Update(ctx, endpoint)).Should(Succeed())
+				}, timeout, interval).Should(Succeed())
+
+				th.SimulateJobSuccess(cell0.DBSyncJobName)
+				th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
+
+				// Assert that the deployment is updated
+				Eventually(func(g Gomega) {
+					newHash := GetEnvVarValue(
+						th.GetStatefulSet(cell0.ConductorStatefulSetName).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
+					g.Expect(newHash).NotTo(BeEmpty())
+					g.Expect(newHash).NotTo(Equal(originalHash))
+				}, timeout, interval).Should(Succeed())
+
+				// Assert that [oslo_limit] endpoint_id is now configured
+				configDataMap = th.GetSecret(cell0.ConductorConfigDataName)
+				Expect(configDataMap).ShouldNot(BeNil())
+				Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
+				configData = string(configDataMap.Data["01-nova.conf"])
+				Expect(configData).Should(ContainSubstring("endpoint_id = " + expectedEndpointID))
 			})
 		})
 	})

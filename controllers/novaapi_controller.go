@@ -499,6 +499,7 @@ func (r *NovaAPIReconciler) generateConfigs(
 		"MemcachedServers":           memcachedInstance.GetMemcachedServerListString(),
 		"MemcachedServersWithInet":   memcachedInstance.GetMemcachedServerListWithInetString(),
 		"MemcachedTLS":               memcachedInstance.GetMemcachedTLSSupport(),
+		"nova_endpoint_id":           r.getNovaEndpointID(ctx, h, instance.Namespace),
 	}
 	// create httpd  vhost template parameters
 	httpdVhostConfig := map[string]interface{}{}

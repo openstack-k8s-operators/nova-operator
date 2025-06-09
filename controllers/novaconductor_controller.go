@@ -449,6 +449,7 @@ func (r *NovaConductorReconciler) generateConfigs(
 		"MemcachedServers":           memcachedInstance.GetMemcachedServerListString(),
 		"MemcachedServersWithInet":   memcachedInstance.GetMemcachedServerListWithInetString(),
 		"MemcachedTLS":               memcachedInstance.GetMemcachedTLSSupport(),
+		"nova_endpoint_id":           r.getNovaEndpointID(ctx, h, instance.Namespace),
 	}
 	if len(instance.Spec.APIDatabaseHostname) > 0 {
 		apiDatabaseAccount, apiDbSecret, err := mariadbv1.GetAccountAndSecret(ctx, h, instance.Spec.APIDatabaseAccount, instance.Namespace)

@@ -39,6 +39,7 @@ import (
 	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/nova-operator/pkg/nova"
+	"github.com/openstack-k8s-operators/nova-operator/pkg/novaapi"
 
 	gophercloud "github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/services"
@@ -49,10 +50,13 @@ import (
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 	nad "github.com/openstack-k8s-operators/lib-common/modules/common/networkattachment"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/secret"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	"github.com/openstack-k8s-operators/lib-common/modules/openstack"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 )
 
 const (
@@ -728,4 +732,15 @@ func SortNovaCellListByName(cellList *novav1.NovaCellList) {
 	sort.SliceStable(cellList.Items, func(i, j int) bool {
 		return cellList.Items[i].Name < cellList.Items[j].Name
 	})
+}
+
+// getNovaEndpointID - returns the endpoint ID associated with the Nova keystone Endpoint
+func (r *ReconcilerBase) getNovaEndpointID(ctx context.Context, h *helper.Helper, ns string) string {
+	Log := r.GetLogger(ctx)
+	endpoint, _ := keystonev1.GetKeystoneEndpointWithName(ctx, h, novaapi.ServiceName, ns)
+	if endpoint != nil {
+		return endpoint.Status.EndpointIDs[string(service.EndpointInternal)]
+	}
+	Log.Info("Nova API endpoint ID is not yet available")
+	return ""
 }
