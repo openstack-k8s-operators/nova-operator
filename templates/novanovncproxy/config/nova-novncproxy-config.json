@@ -37,10 +37,42 @@
             "merge": true
         },
         {
+            "source": "/var/lib/config-data/mtls/certs/*",
+            "dest": "/etc/pki/tls/certs/",
+            "owner": "nova",
+            "perm": "0640",
+            "optional": true,
+            "merge": true
+        },
+        {
+            "source": "/var/lib/config-data/mtls/private/*",
+            "dest": "/etc/pki/tls/private/",
+            "owner": "nova",
+            "perm": "0600",
+            "optional": true,
+            "merge": true
+        },
+        {
             "source": "/var/lib/openstack/config/my.cnf",
             "dest": "/etc/my.cnf",
             "owner": "nova",
             "perm": "0644"
+        },
+        {
+            "source": "/var/lib/config-data/mtls/certs/*",
+            "dest": "/etc/pki/tls/certs/",
+            "owner": "nova",
+            "perm": "0640",
+            "optional": true,
+            "merge": true
+        },
+        {
+            "source": "/var/lib/config-data/mtls/private/*",
+            "dest": "/etc/pki/tls/private/",
+            "owner": "nova",
+            "perm": "0600",
+            "optional": true,
+            "merge": true
         }
     ]
 }
