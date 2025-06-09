@@ -299,17 +299,17 @@ func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return result, err
 	}
 
-	result, err = r.ensureCellDBSynced(ctx, h, instance, serviceAnnotations)
+	result, err = r.ensureCellDBSynced(ctx, h, instance, serviceAnnotations, memcached)
 	if (err != nil || result != ctrl.Result{}) {
 		return result, err
 	}
 
-	result, err = r.ensureDeployment(ctx, h, instance, inputHash, serviceAnnotations)
+	result, err = r.ensureDeployment(ctx, h, instance, inputHash, serviceAnnotations, memcached)
 	if (err != nil || result != ctrl.Result{}) {
 		return result, err
 	}
 
-	err = r.ensureDBPurgeCronJob(ctx, h, instance, serviceAnnotations)
+	err = r.ensureDBPurgeCronJob(ctx, h, instance, serviceAnnotations, memcached)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -486,6 +486,14 @@ func (r *NovaConductorReconciler) generateConfigs(
 	if instance.Spec.TLS.CaBundleSecretName != "" {
 		tlsCfg = &tls.Service{}
 	}
+
+	// MTLS
+	if memcachedInstance.GetMemcachedMTLSSecret() != "" {
+		templateParameters["MemcachedAuthCert"] = fmt.Sprint(memcachedv1.CertMountPath())
+		templateParameters["MemcachedAuthKey"] = fmt.Sprint(memcachedv1.KeyMountPath())
+		templateParameters["MemcachedAuthCa"] = fmt.Sprint(memcachedv1.CaMountPath())
+	}
+
 	extraData := map[string]string{
 		"my.cnf": cellDB.GetDatabaseClientConfig(tlsCfg), //(mschuppert) for now just get the default my.cnf
 	}
@@ -506,13 +514,15 @@ func (r *NovaConductorReconciler) ensureCellDBSynced(
 	h *helper.Helper,
 	instance *novav1.NovaConductor,
 	annotations map[string]string,
+	memcached *memcachedv1.Memcached,
 ) (ctrl.Result, error) {
 	serviceLabels := map[string]string{
 		common.AppSelector: NovaConductorLabelPrefix,
 	}
 	Log := r.GetLogger(ctx)
 	dbSyncHash := instance.Status.Hash[DbSyncHash]
-	jobDef := novaconductor.CellDBSyncJob(instance, serviceLabels, annotations)
+
+	jobDef := novaconductor.CellDBSyncJob(instance, serviceLabels, annotations, memcached)
 	dbSyncJob := job.NewJob(jobDef, "dbsync", instance.Spec.PreserveJobs, r.RequeueTimeout, dbSyncHash)
 	ctrlResult, err := dbSyncJob.DoJob(ctx, h)
 	if (ctrlResult != ctrl.Result{}) {
@@ -547,6 +557,7 @@ func (r *NovaConductorReconciler) ensureDeployment(
 	instance *novav1.NovaConductor,
 	inputHash string,
 	annotations map[string]string,
+	memcached *memcachedv1.Memcached,
 ) (ctrl.Result, error) {
 	serviceLabels := map[string]string{
 		common.AppSelector: NovaConductorLabelPrefix,
@@ -569,7 +580,7 @@ func (r *NovaConductorReconciler) ensureDeployment(
 		return ctrl.Result{}, fmt.Errorf("waiting for Topology requirements: %w", err)
 	}
 
-	ss := statefulset.NewStatefulSet(novaconductor.StatefulSet(instance, inputHash, serviceLabels, annotations, topology), r.RequeueTimeout)
+	ss := statefulset.NewStatefulSet(novaconductor.StatefulSet(instance, inputHash, serviceLabels, annotations, topology, memcached), r.RequeueTimeout)
 	ctrlResult, err := ss.CreateOrPatch(ctx, h)
 	if err != nil && !k8s_errors.IsNotFound(err) {
 		Log.Error(err, "Deployment failed")
@@ -642,11 +653,13 @@ func (r *NovaConductorReconciler) ensureDBPurgeCronJob(
 	h *helper.Helper,
 	instance *novav1.NovaConductor,
 	annotations map[string]string,
+	memcached *memcachedv1.Memcached,
 ) error {
 	serviceLabels := map[string]string{
 		common.AppSelector: NovaConductorLabelPrefix,
 	}
-	cronDef := novaconductor.DBPurgeCronJob(instance, serviceLabels, annotations)
+
+	cronDef := novaconductor.DBPurgeCronJob(instance, serviceLabels, annotations, memcached)
 	cronjob := cronjob.NewCronJob(cronDef, r.RequeueTimeout)
 
 	_, err := cronjob.CreateOrPatch(ctx, h)
