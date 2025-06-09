@@ -22,6 +22,7 @@ import (
 
 	env "github.com/openstack-k8s-operators/lib-common/modules/common/env"
 
+	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -33,6 +34,7 @@ func CellDBSyncJob(
 	instance *novav1.NovaConductor,
 	labels map[string]string,
 	annotations map[string]string,
+	memcached *memcachedv1.Memcached,
 ) *batchv1.Job {
 	args := []string{"-c", nova.KollaServiceCommand}
 
@@ -59,6 +61,12 @@ func CellDBSyncJob(
 	if instance.Spec.TLS.CaBundleSecretName != "" {
 		volumes = append(volumes, instance.Spec.TLS.CreateVolume())
 		volumeMounts = append(volumeMounts, instance.Spec.TLS.CreateVolumeMounts(nil)...)
+	}
+
+	// add MTLS cert if defined
+	if memcached.Status.MTLSCert != "" {
+		volumes = append(volumes, memcached.CreateMTLSVolume())
+		volumeMounts = append(volumeMounts, memcached.CreateMTLSVolumeMounts(nil, nil)...)
 	}
 
 	job := &batchv1.Job{

@@ -309,7 +309,7 @@ func (r *NovaSchedulerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return result, err
 	}
 
-	result, err = r.ensureDeployment(ctx, h, instance, inputHash, serviceAnnotations)
+	result, err = r.ensureDeployment(ctx, h, instance, inputHash, serviceAnnotations, memcached)
 	if (err != nil || result != ctrl.Result{}) {
 		return result, err
 	}
@@ -605,6 +605,14 @@ func (r *NovaSchedulerReconciler) generateConfigs(
 	if instance.Spec.TLS.CaBundleSecretName != "" {
 		tlsCfg = &tls.Service{}
 	}
+
+	// MTLS
+	if memcachedInstance.GetMemcachedMTLSSecret() != "" {
+		templateParameters["MemcachedAuthCert"] = fmt.Sprint(memcachedv1.CertMountPath())
+		templateParameters["MemcachedAuthKey"] = fmt.Sprint(memcachedv1.KeyMountPath())
+		templateParameters["MemcachedAuthCa"] = fmt.Sprint(memcachedv1.CaMountPath())
+	}
+
 	extraData := map[string]string{
 		"my.cnf": apiDB.GetDatabaseClientConfig(tlsCfg), //(mschuppert) for now just get the default my.cnf
 	}
@@ -656,6 +664,7 @@ func (r *NovaSchedulerReconciler) ensureDeployment(
 	instance *novav1.NovaScheduler,
 	inputHash string,
 	annotations map[string]string,
+	memcached *memcachedv1.Memcached,
 ) (ctrl.Result, error) {
 	serviceLabels := map[string]string{
 		common.AppSelector: NovaSchedulerLabelPrefix,
@@ -677,7 +686,7 @@ func (r *NovaSchedulerReconciler) ensureDeployment(
 		return ctrl.Result{}, fmt.Errorf("waiting for Topology requirements: %w", err)
 	}
 
-	ss := statefulset.NewStatefulSet(novascheduler.StatefulSet(instance, inputHash, serviceLabels, annotations, topology), r.RequeueTimeout)
+	ss := statefulset.NewStatefulSet(novascheduler.StatefulSet(instance, inputHash, serviceLabels, annotations, topology, memcached), r.RequeueTimeout)
 	ctrlResult, err := ss.CreateOrPatch(ctx, h)
 	if err != nil && !k8s_errors.IsNotFound(err) {
 		Log.Error(err, "Deployment failed")

@@ -523,6 +523,7 @@ type NovaNames struct {
 	APIConfigDataName              types.NamespacedName
 	InternalCertSecretName         types.NamespacedName
 	PublicCertSecretName           types.NamespacedName
+	MTLSSecretName                 types.NamespacedName
 	CaBundleSecretName             types.NamespacedName
 	VNCProxyVencryptCertSecretName types.NamespacedName
 	// refers internal API network for all Nova services (not just nova API)
@@ -607,6 +608,9 @@ func GetNovaNames(novaName types.NamespacedName, cellNames []string) NovaNames {
 		PublicCertSecretName: types.NamespacedName{
 			Namespace: novaAPI.Namespace,
 			Name:      "public-tls-certs"},
+		MTLSSecretName: types.NamespacedName{
+			Namespace: novaName.Namespace,
+			Name:      "cert-memcached-mtls"},
 		CaBundleSecretName: types.NamespacedName{
 			Namespace: novaName.Namespace,
 			Name:      "combined-ca-bundle"},

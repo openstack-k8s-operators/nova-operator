@@ -990,7 +990,7 @@ var _ = Describe("Nova reconfiguration", func() {
 			ContainSubstring(fmt.Sprintf("memcache_servers=memcached-0.memcached.%s.svc:11211,memcached-1.memcached.%s.svc:11211,memcached-2.memcached.%s.svc:11211",
 				novaNames.Namespace, novaNames.Namespace, novaNames.Namespace)))
 		Expect(configData).Should(
-			ContainSubstring(fmt.Sprintf("memcached_servers=inet:[memcached-0.memcached.%s.svc]:11211,inet:[memcached-1.memcached.%s.svc]:11211,inet:[memcached-2.memcached.%s.svc]:11211",
+			ContainSubstring(fmt.Sprintf("memcached_servers=memcached-0.memcached.%s.svc:11211,memcached-1.memcached.%s.svc:11211,memcached-2.memcached.%s.svc:11211",
 				novaNames.Namespace, novaNames.Namespace, novaNames.Namespace)))
 		Expect(configData).Should(
 			ContainSubstring("tls_enabled=false"))
@@ -1008,7 +1008,7 @@ var _ = Describe("Nova reconfiguration", func() {
 			g.Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
 			configData = string(configDataMap.Data["01-nova.conf"])
 			g.Expect(configData).ToNot(ContainSubstring("memcache_servers=new"))
-			g.Expect(configData).To(ContainSubstring("memcached_servers=inet_new"))
+			g.Expect(configData).To(ContainSubstring("memcached_servers=new"))
 		}, timeout, interval).Should(Succeed())
 	})
 

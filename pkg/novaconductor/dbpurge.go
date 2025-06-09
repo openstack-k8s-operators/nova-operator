@@ -9,6 +9,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 
+	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/nova-operator/pkg/nova"
@@ -18,6 +19,7 @@ func DBPurgeCronJob(
 	instance *novav1.NovaConductor,
 	labels map[string]string,
 	annotations map[string]string,
+	memcached *memcachedv1.Memcached,
 ) *batchv1.CronJob {
 	args := []string{"-c", nova.KollaServiceCommand}
 
@@ -44,6 +46,12 @@ func DBPurgeCronJob(
 	if instance.Spec.TLS.CaBundleSecretName != "" {
 		volumes = append(volumes, instance.Spec.TLS.CreateVolume())
 		volumeMounts = append(volumeMounts, instance.Spec.TLS.CreateVolumeMounts(nil)...)
+	}
+
+	// add MTLS cert if defined
+	if memcached.Status.MTLSCert != "" {
+		volumes = append(volumes, memcached.CreateMTLSVolume())
+		volumeMounts = append(volumeMounts, memcached.CreateMTLSVolumeMounts(nil, nil)...)
 	}
 
 	// we want to hide the fact that the job is created by the conductor

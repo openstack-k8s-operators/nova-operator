@@ -21,6 +21,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2" //revive:disable:dot-imports
 	. "github.com/onsi/gomega"    //revive:disable:dot-imports
+	"github.com/onsi/gomega/format"
 
 	//revive:disable-next-line:dot-imports
 	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
@@ -1023,7 +1024,7 @@ var _ = Describe("NovaMetadata controller", func() {
 				ContainSubstring(fmt.Sprintf("memcache_servers=memcached-0.memcached.%s.svc:11211,memcached-1.memcached.%s.svc:11211,memcached-2.memcached.%s.svc:11211",
 					novaNames.Namespace, novaNames.Namespace, novaNames.Namespace)))
 			Expect(configData).Should(
-				ContainSubstring(fmt.Sprintf("memcached_servers=inet:[memcached-0.memcached.%s.svc]:11211,inet:[memcached-1.memcached.%s.svc]:11211,inet:[memcached-2.memcached.%s.svc]:11211",
+				ContainSubstring(fmt.Sprintf("memcached_servers=memcached-0.memcached.%s.svc:11211,memcached-1.memcached.%s.svc:11211,memcached-2.memcached.%s.svc:11211",
 					novaNames.Namespace, novaNames.Namespace, novaNames.Namespace)))
 			Expect(configData).Should(
 				ContainSubstring("tls_enabled=true"))
@@ -1263,5 +1264,107 @@ var _ = Describe("NovaMetadata controller", func() {
 					fmt.Sprintf("openstack.org/novametadata-%s", novaNames.MetadataName.Name)))
 			}, timeout, interval).Should(Succeed())
 		})
+	})
+})
+
+var _ = Describe("NovaMetadata controller", func() {
+	BeforeEach(func() {
+		apiMariaDBAccount, apiMariaDBSecret := mariadb.CreateMariaDBAccountAndSecret(
+			novaNames.APIMariaDBDatabaseAccount, mariadbv1.MariaDBAccountSpec{})
+		DeferCleanup(k8sClient.Delete, ctx, apiMariaDBAccount)
+		DeferCleanup(k8sClient.Delete, ctx, apiMariaDBSecret)
+
+		cell0Account, cell0Secret := mariadb.CreateMariaDBAccountAndSecret(
+			cell0.MariaDBAccountName, mariadbv1.MariaDBAccountSpec{})
+		DeferCleanup(k8sClient.Delete, ctx, cell0Account)
+		DeferCleanup(k8sClient.Delete, ctx, cell0Secret)
+
+		cell1Account, cell1Secret := mariadb.CreateMariaDBAccountAndSecret(
+			cell1.MariaDBAccountName, mariadbv1.MariaDBAccountSpec{})
+		DeferCleanup(k8sClient.Delete, ctx, cell1Account)
+		DeferCleanup(k8sClient.Delete, ctx, cell1Secret)
+
+		mariadb.CreateMariaDBDatabase(novaNames.APIMariaDBDatabaseName.Namespace, novaNames.APIMariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
+		DeferCleanup(k8sClient.Delete, ctx, mariadb.GetMariaDBDatabase(novaNames.APIMariaDBDatabaseName))
+
+		mariadb.SimulateMariaDBTLSDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
+		mariadb.SimulateMariaDBAccountCompleted(novaNames.APIMariaDBDatabaseAccount)
+		memcachedSpec := infra.GetDefaultMemcachedSpec()
+		DeferCleanup(infra.DeleteMemcached, infra.CreateMTLSMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
+		infra.SimulateMTLSMemcachedReady(novaNames.MemcachedNamespace)
+
+	})
+
+	When("NovaMetadata is configured for MTLS memcached auth", func() {
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateInternalTopLevelSecret(novaNames))
+
+			spec := GetDefaultNovaMetadataSpec(novaNames.InternalTopLevelSecretName)
+			spec["tls"] = map[string]interface{}{
+				"secretName":         ptr.To(novaNames.InternalCertSecretName.Name),
+				"caBundleSecretName": novaNames.CaBundleSecretName.Name,
+			}
+
+			DeferCleanup(th.DeleteInstance, CreateNovaMetadata(novaNames.MetadataName, spec))
+		})
+
+		It("creates a StatefulSet for nova-metadata service with MTLS certs attached", func() {
+			format.MaxLength = 0
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCABundleSecret(novaNames.CaBundleSecretName))
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(novaNames.InternalCertSecretName))
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(novaNames.PublicCertSecretName))
+
+			th.SimulateStatefulSetReplicaReady(novaNames.MetadataStatefulSetName)
+
+			th.ExpectCondition(
+				novaNames.MetadataName,
+				ConditionGetterFunc(NovaMetadataConditionGetter),
+				condition.TLSInputReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			ss := th.GetStatefulSet(novaNames.MetadataName)
+			// Check the resulting statefulset fields
+			Expect(int(*ss.Spec.Replicas)).To(Equal(1))
+
+			// MTLS additional volume
+			Expect(ss.Spec.Template.Spec.Volumes).To(HaveLen(5))
+			Expect(ss.Spec.Template.Spec.Containers).To(HaveLen(2))
+
+			// MTLS additional volume
+			th.AssertVolumeExists(novaNames.MTLSSecretName.Name, ss.Spec.Template.Spec.Volumes)
+
+			// httpd container certs
+			metadataContainer := ss.Spec.Template.Spec.Containers[1]
+
+			// MTLS additional volumemounts
+			th.AssertVolumeMountExists(novaNames.MTLSSecretName.Name, "tls.key", metadataContainer.VolumeMounts)
+			th.AssertVolumeMountExists(novaNames.MTLSSecretName.Name, "tls.crt", metadataContainer.VolumeMounts)
+			th.AssertVolumeMountExists(novaNames.MTLSSecretName.Name, "ca.crt", metadataContainer.VolumeMounts)
+
+			configDataMap := th.GetSecret(novaNames.MetadataConfigDataName)
+			Expect(configDataMap).ShouldNot(BeNil())
+
+			configData := string(configDataMap.Data["01-nova.conf"])
+
+			// MTLS - [cache]
+			Expect(configData).Should(
+				ContainSubstring("tls_certfile=/etc/pki/tls/certs/mtls.crt"))
+			Expect(configData).Should(
+				ContainSubstring("tls_keyfile=/etc/pki/tls/private/mtls.key"))
+			Expect(configData).Should(
+				ContainSubstring("tls_cafile=/etc/pki/tls/certs/mtls-ca.crt"))
+			// MTLS - [keystone_authtoken]
+			Expect(configData).Should(
+				ContainSubstring("memcache_tls_certfile = /etc/pki/tls/certs/mtls.crt"))
+			Expect(configData).Should(
+				ContainSubstring("memcache_tls_keyfile = /etc/pki/tls/private/mtls.key"))
+			Expect(configData).Should(
+				ContainSubstring("memcache_tls_cafile = /etc/pki/tls/certs/mtls-ca.crt"))
+			Expect(configData).Should(
+				ContainSubstring("memcache_tls_enabled = true"))
+		})
+
 	})
 })

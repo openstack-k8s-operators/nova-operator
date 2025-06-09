@@ -23,6 +23,7 @@ import (
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/nova-operator/pkg/nova"
 
+	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -37,6 +38,7 @@ func StatefulSet(
 	labels map[string]string,
 	annotations map[string]string,
 	topology *topologyv1.Topology,
+	memcached *memcachedv1.Memcached,
 ) *appsv1.StatefulSet {
 	// This allows the pod to start up slowly. The pod will only be killed
 	// if it does not succeed a probe in 60 seconds.
@@ -95,6 +97,12 @@ func StatefulSet(
 	if instance.Spec.TLS.CaBundleSecretName != "" {
 		volumes = append(volumes, instance.Spec.TLS.CreateVolume())
 		volumeMounts = append(volumeMounts, instance.Spec.TLS.CreateVolumeMounts(nil)...)
+	}
+
+	// add MTLS cert if defined
+	if memcached.Status.MTLSCert != "" {
+		volumes = append(volumes, memcached.CreateMTLSVolume())
+		volumeMounts = append(volumeMounts, memcached.CreateMTLSVolumeMounts(nil, nil)...)
 	}
 
 	statefulset := &appsv1.StatefulSet{

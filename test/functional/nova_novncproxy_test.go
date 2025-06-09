@@ -19,6 +19,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2" //revive:disable:dot-imports
 	. "github.com/onsi/gomega"    //revive:disable:dot-imports
+	"github.com/onsi/gomega/format"
 
 	//revive:disable-next-line:dot-imports
 	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
@@ -199,7 +200,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 				Expect(configData).Should(
 					ContainSubstring(fmt.Sprintf("memcache_servers=%s", memcacheInstance.GetMemcachedServerListWithInetString())))
 				Expect(configData).Should(
-					ContainSubstring(fmt.Sprintf("memcached_servers=inet:[memcached-0.memcached.%s.svc]:11211,inet:[memcached-1.memcached.%s.svc]:11211,inet:[memcached-2.memcached.%s.svc]:11211",
+					ContainSubstring(fmt.Sprintf("memcached_servers=memcached-0.memcached.%s.svc:11211,memcached-1.memcached.%s.svc:11211,memcached-2.memcached.%s.svc:11211",
 						novaNames.Namespace, novaNames.Namespace, novaNames.Namespace)))
 				Expect(configData).Should(
 					ContainSubstring("tls_enabled=false"))
@@ -918,7 +919,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 				ContainSubstring(fmt.Sprintf("memcache_servers=memcached-0.memcached.%s.svc:11211,memcached-1.memcached.%s.svc:11211,memcached-2.memcached.%s.svc:11211",
 					novaNames.Namespace, novaNames.Namespace, novaNames.Namespace)))
 			Expect(configData).Should(
-				ContainSubstring(fmt.Sprintf("memcached_servers=inet:[memcached-0.memcached.%s.svc]:11211,inet:[memcached-1.memcached.%s.svc]:11211,inet:[memcached-2.memcached.%s.svc]:11211",
+				ContainSubstring(fmt.Sprintf("memcached_servers=memcached-0.memcached.%s.svc:11211,memcached-1.memcached.%s.svc:11211,memcached-2.memcached.%s.svc:11211",
 					novaNames.Namespace, novaNames.Namespace, novaNames.Namespace)))
 			Expect(configData).Should(
 				ContainSubstring("tls_enabled=true"))
@@ -1080,7 +1081,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 				ContainSubstring(fmt.Sprintf("memcache_servers=memcached-0.memcached.%s.svc:11211,memcached-1.memcached.%s.svc:11211,memcached-2.memcached.%s.svc:11211",
 					novaNames.Namespace, novaNames.Namespace, novaNames.Namespace)))
 			Expect(configData).Should(
-				ContainSubstring(fmt.Sprintf("memcached_servers=inet:[memcached-0.memcached.%s.svc]:11211,inet:[memcached-1.memcached.%s.svc]:11211,inet:[memcached-2.memcached.%s.svc]:11211",
+				ContainSubstring(fmt.Sprintf("memcached_servers=memcached-0.memcached.%s.svc:11211,memcached-1.memcached.%s.svc:11211,memcached-2.memcached.%s.svc:11211",
 					novaNames.Namespace, novaNames.Namespace, novaNames.Namespace)))
 			Expect(configData).Should(
 				ContainSubstring("tls_enabled=true"))
@@ -1270,7 +1271,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 				ContainSubstring(fmt.Sprintf("memcache_servers=memcached-0.memcached.%s.svc:11211,memcached-1.memcached.%s.svc:11211,memcached-2.memcached.%s.svc:11211",
 					novaNames.Namespace, novaNames.Namespace, novaNames.Namespace)))
 			Expect(configData).Should(
-				ContainSubstring(fmt.Sprintf("memcached_servers=inet:[memcached-0.memcached.%s.svc]:11211,inet:[memcached-1.memcached.%s.svc]:11211,inet:[memcached-2.memcached.%s.svc]:11211",
+				ContainSubstring(fmt.Sprintf("memcached_servers=memcached-0.memcached.%s.svc:11211,memcached-1.memcached.%s.svc:11211,memcached-2.memcached.%s.svc:11211",
 					novaNames.Namespace, novaNames.Namespace, novaNames.Namespace)))
 			Expect(configData).Should(
 				ContainSubstring("tls_enabled=true"))
@@ -1516,5 +1517,109 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 					fmt.Sprintf("openstack.org/novanovncproxy-%s", cell1.NoVNCProxyName.Name)))
 			}, timeout, interval).Should(Succeed())
 		})
+	})
+})
+
+var _ = Describe("NovaNoVNCProxy controller", func() {
+	BeforeEach(func() {
+		mariadb.CreateMariaDBDatabase(cell1.MariaDBDatabaseName.Namespace, cell1.MariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
+		DeferCleanup(k8sClient.Delete, ctx, mariadb.GetMariaDBDatabase(cell1.MariaDBDatabaseName))
+
+		// only cell DB accounts are needed as novanovncproxy_controller does
+		// not create configurations with the API DB account
+
+		cell0Account, cell0Secret := mariadb.CreateMariaDBAccountAndSecret(
+			cell0.MariaDBAccountName, mariadbv1.MariaDBAccountSpec{})
+		DeferCleanup(k8sClient.Delete, ctx, cell0Account)
+		DeferCleanup(k8sClient.Delete, ctx, cell0Secret)
+
+		cell1Account, cell1Secret := mariadb.CreateMariaDBAccountAndSecret(
+			cell1.MariaDBAccountName, mariadbv1.MariaDBAccountSpec{})
+		DeferCleanup(k8sClient.Delete, ctx, cell1Account)
+		DeferCleanup(k8sClient.Delete, ctx, cell1Secret)
+
+		mariadb.SimulateMariaDBTLSDatabaseCompleted(cell1.MariaDBDatabaseName)
+
+		memcachedSpec := infra.GetDefaultMemcachedSpec()
+		// Create Memcached with MTLS auth
+		DeferCleanup(infra.DeleteMemcached, infra.CreateMTLSMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
+		infra.SimulateMTLSMemcachedReady(novaNames.MemcachedNamespace)
+	})
+
+	When("NovaNoVNCProxy is configured for MTLS memcached auth", func() {
+		BeforeEach(func() {
+			spec := GetDefaultNovaNoVNCProxySpec(cell1)
+			spec["tls"] = map[string]interface{}{
+				"service": map[string]interface{}{
+					"secretName": ptr.To(novaNames.InternalCertSecretName.Name),
+				},
+				"vencrypt": map[string]interface{}{
+					"secretName": ptr.To(novaNames.VNCProxyVencryptCertSecretName.Name),
+				},
+				"caBundleSecretName": novaNames.CaBundleSecretName.Name,
+			}
+
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateCellInternalSecret(cell1, map[string][]byte{}))
+			DeferCleanup(th.DeleteInstance, CreateNovaNoVNCProxy(cell1.NoVNCProxyName, spec))
+		})
+
+		It("creates a StatefulSet for nova-novncproxy service with MTLS certs attached", func() {
+			format.MaxLength = 0
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCABundleSecret(novaNames.CaBundleSecretName))
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(novaNames.InternalCertSecretName))
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(novaNames.VNCProxyVencryptCertSecretName))
+
+			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyName)
+
+			th.ExpectCondition(
+				cell1.NoVNCProxyName,
+				ConditionGetterFunc(NoVNCProxyConditionGetter),
+				condition.TLSInputReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			ss := th.GetStatefulSet(cell1.NoVNCProxyName)
+			// Check the resulting statefulset fields
+			Expect(int(*ss.Spec.Replicas)).To(Equal(1))
+
+			// MTLS additional volume
+			Expect(ss.Spec.Template.Spec.Volumes).To(HaveLen(5))
+			Expect(ss.Spec.Template.Spec.Containers).To(HaveLen(1))
+
+			// MTLS additional volume
+			th.AssertVolumeExists(novaNames.MTLSSecretName.Name, ss.Spec.Template.Spec.Volumes)
+
+			// novncproxy container certs
+			novncproxyContainer := ss.Spec.Template.Spec.Containers[0]
+
+			// MTLS additional volumemounts
+			th.AssertVolumeMountExists(novaNames.MTLSSecretName.Name, "tls.key", novncproxyContainer.VolumeMounts)
+			th.AssertVolumeMountExists(novaNames.MTLSSecretName.Name, "tls.crt", novncproxyContainer.VolumeMounts)
+			th.AssertVolumeMountExists(novaNames.MTLSSecretName.Name, "ca.crt", novncproxyContainer.VolumeMounts)
+
+			configDataMap := th.GetSecret(cell1.CellNoVNCProxyNameConfigDataName)
+			Expect(configDataMap).ShouldNot(BeNil())
+
+			configData := string(configDataMap.Data["01-nova.conf"])
+
+			// MTLS - [cache]
+			Expect(configData).Should(
+				ContainSubstring("tls_certfile=/etc/pki/tls/certs/mtls.crt"))
+			Expect(configData).Should(
+				ContainSubstring("tls_keyfile=/etc/pki/tls/private/mtls.key"))
+			Expect(configData).Should(
+				ContainSubstring("tls_cafile=/etc/pki/tls/certs/mtls-ca.crt"))
+			// MTLS - [keystone_authtoken]
+			Expect(configData).Should(
+				ContainSubstring("memcache_tls_certfile = /etc/pki/tls/certs/mtls.crt"))
+			Expect(configData).Should(
+				ContainSubstring("memcache_tls_keyfile = /etc/pki/tls/private/mtls.key"))
+			Expect(configData).Should(
+				ContainSubstring("memcache_tls_cafile = /etc/pki/tls/certs/mtls-ca.crt"))
+			Expect(configData).Should(
+				ContainSubstring("memcache_tls_enabled = true"))
+		})
+
 	})
 })
