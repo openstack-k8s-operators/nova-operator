@@ -1,0 +1,27 @@
+# permissions for end users to view novaplacementapis.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: novaplacementapi-viewer-role
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: nova-operator
+    app.kubernetes.io/part-of: nova-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: novaplacementapi-viewer-role
+rules:
+- apiGroups:
+  - nova.openstack.org
+  resources:
+  - novaplacementapis
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - nova.openstack.org
+  resources:
+  - novaplacementapis/status
+  verbs:
+  - get
