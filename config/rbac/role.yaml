@@ -381,6 +381,32 @@ rules:
 - apiGroups:
   - nova.openstack.org
   resources:
+  - novaplacementapis
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - nova.openstack.org
+  resources:
+  - novaplacementapis/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - nova.openstack.org
+  resources:
+  - novaplacementapis/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - nova.openstack.org
+  resources:
   - novaschedulers
   verbs:
   - create

@@ -136,6 +136,15 @@ spec:
         displayName: TLS
         path: tls
       version: v1beta1
+    - description: NovaPlacementAPI is the Schema for the placementapis API
+      displayName: Placement API
+      kind: NovaPlacementAPI
+      name: novaplacementapis.nova.openstack.org
+      specDescriptors:
+      - description: TLS - Parameters related to the TLS
+        displayName: TLS
+        path: tls
+      version: v1beta1
   description: Nova Operator
   displayName: Nova Operator
   install:

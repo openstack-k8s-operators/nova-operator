@@ -25,12 +25,13 @@ import (
 
 // Container image fall-back defaults
 const (
-	NovaAPIContainerImage       = "quay.io/podified-antelope-centos9/openstack-nova-api:current-podified"
-	NovaConductorContainerImage = "quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified"
-	NovaMetadataContainerImage  = "quay.io/podified-antelope-centos9/openstack-nova-api:current-podified"
-	NovaNoVNCContainerImage     = "quay.io/podified-antelope-centos9/openstack-nova-novncproxy:current-podified"
-	NovaSchedulerContainerImage = "quay.io/podified-antelope-centos9/openstack-nova-scheduler:current-podified"
-	NovaComputeContainerImage   = "quay.io/podified-antelope-centos9/openstack-nova-compute:current-podified"
+	NovaAPIContainerImage          = "quay.io/podified-antelope-centos9/openstack-nova-api:current-podified"
+	NovaConductorContainerImage    = "quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified"
+	NovaMetadataContainerImage     = "quay.io/podified-antelope-centos9/openstack-nova-api:current-podified"
+	NovaNoVNCContainerImage        = "quay.io/podified-antelope-centos9/openstack-nova-novncproxy:current-podified"
+	NovaSchedulerContainerImage    = "quay.io/podified-antelope-centos9/openstack-nova-scheduler:current-podified"
+	NovaComputeContainerImage      = "quay.io/podified-antelope-centos9/openstack-nova-compute:current-podified"
+	NovaPlacementAPIContainerImage = "quay.io/podified-antelope-centos9/openstack-placement-api:current-podified"
 )
 
 // Compute drivers names

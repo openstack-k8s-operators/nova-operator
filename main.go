@@ -51,8 +51,10 @@ import (
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
+
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 
+	novav1beta1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/nova-operator/controllers"
 	//+kubebuilder:scaffold:imports
 )
@@ -73,6 +75,7 @@ func init() {
 	utilruntime.Must(networkv1.AddToScheme(scheme))
 	utilruntime.Must(memcachedv1.AddToScheme(scheme))
 	utilruntime.Must(topologyv1.AddToScheme(scheme))
+	utilruntime.Must(novav1beta1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
@@ -190,8 +193,23 @@ func main() {
 			setupLog.Error(err, "unable to create webhook", "webhook", "NovaCompute")
 			os.Exit(1)
 		}
+		if err = (&novav1.NovaPlacementAPI{}).SetupWebhookWithmanager(mg); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "NovaPlacementAPI")
+			os.Exit(1)
+		}
 	}
 
+	if err = (&controllers.NovaPlacementAPIReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "NovaPlacementAPI")
+		os.Exit(1)
+	}
+	if err = (&novav1beta1.NovaPlacementAPI{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "NovaPlacementAPI")
+		os.Exit(1)
+	}
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", checker); err != nil {
