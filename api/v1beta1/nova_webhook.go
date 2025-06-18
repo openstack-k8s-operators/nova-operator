@@ -29,6 +29,7 @@ import (
 	service "github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	"github.com/robfig/cron/v3"
 
+	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -38,7 +39,6 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
-	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 )
 
 // NovaDefaults -
@@ -272,7 +272,6 @@ func (r *NovaSpecCore) ValidateSchedulerServiceTemplate(basePath *field.Path, na
 	return errors
 }
 
-
 // ValidateCreate validates the NovaSpec during the webhook invocation.
 func (r *NovaSpec) ValidateCreate(basePath *field.Path, namespace string) field.ErrorList {
 	return r.NovaSpecCore.ValidateCreate(basePath, namespace)
@@ -380,7 +379,7 @@ func (r *Nova) ValidateDelete() (admission.Warnings, error) {
 
 // SetDefaultRouteAnnotations sets HAProxy timeout values of the route
 // NOTE: it is used by ctlplane webhook on openstack-operator
-func (r *NovaSpec) SetDefaultRouteAnnotations(annotations map[string]string) {
+func (r *NovaSpecCore) SetDefaultRouteAnnotations(annotations map[string]string) {
 	const haProxyAnno = "haproxy.router.openshift.io/timeout"
 	// Use a custom annotation to flag when the operator has set the default HAProxy timeout
 	// With the annotation func determines when to overwrite existing HAProxy timeout with the APITimeout
