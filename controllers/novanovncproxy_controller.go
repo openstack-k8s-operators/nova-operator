@@ -345,7 +345,7 @@ func (r *NovaNoVNCProxyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return result, err
 	}
 
-	result, err = r.ensureDeployment(ctx, h, instance, inputHash, serviceAnnotations)
+	result, err = r.ensureDeployment(ctx, h, instance, inputHash, serviceAnnotations, memcached)
 	if (err != nil || result != ctrl.Result{}) {
 		return result, err
 	}
@@ -499,6 +499,14 @@ func (r *NovaNoVNCProxyReconciler) generateConfigs(
 	if instance.Spec.TLS.CaBundleSecretName != "" {
 		tlsCfg = &tls.Service{}
 	}
+
+	// MTLS
+	if memcachedInstance.GetMemcachedMTLSSecret() != "" {
+		templateParameters["MemcachedAuthCert"] = fmt.Sprint(memcachedv1.CertMountPath())
+		templateParameters["MemcachedAuthKey"] = fmt.Sprint(memcachedv1.KeyMountPath())
+		templateParameters["MemcachedAuthCa"] = fmt.Sprint(memcachedv1.CaMountPath())
+	}
+
 	extraData := map[string]string{
 		"my.cnf": cellDB.GetDatabaseClientConfig(tlsCfg), //(mschuppert) for now just get the default my.cnf
 	}
@@ -523,6 +531,7 @@ func (r *NovaNoVNCProxyReconciler) ensureDeployment(
 	instance *novav1.NovaNoVNCProxy,
 	inputHash string,
 	annotations map[string]string,
+	memcached *memcachedv1.Memcached,
 ) (ctrl.Result, error) {
 	Log := r.GetLogger(ctx)
 	serviceLabels := getNoVNCProxyServiceLabels(instance.Spec.CellName)
@@ -542,7 +551,7 @@ func (r *NovaNoVNCProxyReconciler) ensureDeployment(
 		return ctrl.Result{}, fmt.Errorf("waiting for Topology requirements: %w", err)
 	}
 
-	ssSpec, err := novncproxy.StatefulSet(instance, inputHash, serviceLabels, annotations, topology)
+	ssSpec, err := novncproxy.StatefulSet(instance, inputHash, serviceLabels, annotations, topology, memcached)
 	if err != nil {
 		Log.Info("Deployment failed")
 		instance.Status.Conditions.Set(condition.FalseCondition(

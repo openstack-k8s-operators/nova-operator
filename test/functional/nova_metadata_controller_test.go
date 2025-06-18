@@ -1023,7 +1023,7 @@ var _ = Describe("NovaMetadata controller", func() {
 				ContainSubstring(fmt.Sprintf("memcache_servers=memcached-0.memcached.%s.svc:11211,memcached-1.memcached.%s.svc:11211,memcached-2.memcached.%s.svc:11211",
 					novaNames.Namespace, novaNames.Namespace, novaNames.Namespace)))
 			Expect(configData).Should(
-				ContainSubstring(fmt.Sprintf("memcached_servers=inet:[memcached-0.memcached.%s.svc]:11211,inet:[memcached-1.memcached.%s.svc]:11211,inet:[memcached-2.memcached.%s.svc]:11211",
+				ContainSubstring(fmt.Sprintf("memcached_servers=memcached-0.memcached.%s.svc:11211,memcached-1.memcached.%s.svc:11211,memcached-2.memcached.%s.svc:11211",
 					novaNames.Namespace, novaNames.Namespace, novaNames.Namespace)))
 			Expect(configData).Should(
 				ContainSubstring("tls_enabled=true"))
