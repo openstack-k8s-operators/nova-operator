@@ -150,6 +150,26 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
+      path: /mutate-nova-openstack-org-v1beta1-novaplacementapi
+  failurePolicy: Fail
+  name: mnovaplacementapi.kb.io
+  rules:
+  - apiGroups:
+    - nova.openstack.org
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - novaplacementapis
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
       path: /mutate-nova-openstack-org-v1beta1-novascheduler
   failurePolicy: Fail
   name: mnovascheduler.kb.io
@@ -309,6 +329,26 @@ webhooks:
     - UPDATE
     resources:
     - novanovncproxies
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-nova-openstack-org-v1beta1-novaplacementapi
+  failurePolicy: Fail
+  name: vnovaplacementapi.kb.io
+  rules:
+  - apiGroups:
+    - nova.openstack.org
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - novaplacementapis
   sideEffects: None
 - admissionReviewVersions:
   - v1
