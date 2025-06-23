@@ -1,0 +1,22 @@
+apiVersion: nova.openstack.org/v1beta1
+kind: NovaPlacementAPI
+metadata:
+  name: placement
+spec:
+  serviceUser: placement
+  customServiceConfig: |
+    [DEFAULT]
+    debug = true
+  databaseInstance: openstack
+  databaseAccount: placement
+  preserveJobs: false
+  replicas: 1
+  secret: placement-secret
+  tls:
+    api:
+      internal:
+        secretName: cert-internal-svc
+      public:
+        secretName: cert-public-svc
+    caBundleSecretName: combined-ca-bundle
+
