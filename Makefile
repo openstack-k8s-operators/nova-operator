@@ -113,7 +113,7 @@ docker-buildx: ## Build and push docker image for the manager for cross-platform
 .PHONY: manifests
 manifests: gowork controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
 	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases && \
- 	rm -f api/bases/* && cp -a config/crd/bases api/
+	rm -f apis/bases/* && cp -a config/crd/bases apis/
 
 .PHONY: generate
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
@@ -126,13 +126,13 @@ fmt: ## Run go fmt against code.
 .PHONY: vet
 vet: gowork ## Run go vet against code.
 	go vet ./...
-	go vet ./api/...
+	go vet ./apis/...
 
 
 .PHONY: tidy
 tidy: ## Run go mod tidy on every mod file in the repo
 	go mod tidy
-	cd ./api && go mod tidy
+	cd ./apis && go mod tidy
 
 .PHONY: golangci-lint
 golangci-lint:
@@ -147,7 +147,7 @@ PROC_CMD = --procs ${PROCS}
 test: manifests generate fmt vet envtest ginkgo ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) -v debug --bin-dir $(LOCALBIN) use $(ENVTEST_K8S_VERSION) -p path)" \
 	OPERATOR_TEMPLATES="$(PWD)/templates" \
-	$(GINKGO) --trace --cover --coverpkg=../../pkg/...,../../controllers,../../api/v1beta1 --coverprofile cover.out --covermode=atomic --randomize-all ${PROC_CMD} $(GINKGO_ARGS) ./test/...
+	$(GINKGO) --trace --cover --coverpkg=../../pkg/...,../../controllers,../../apis/nova/v1beta1 --coverprofile cover.out --covermode=atomic --randomize-all ${PROC_CMD} $(GINKGO_ARGS) ./test/...
 
 ##@ Build
 
@@ -333,12 +333,12 @@ get-ci-tools:
 # Run go fmt against code
 gofmt: get-ci-tools
 	$(CI_TOOLS_REPO_DIR)/test-runner/gofmt.sh
-	$(CI_TOOLS_REPO_DIR)/test-runner/gofmt.sh ./api
+	$(CI_TOOLS_REPO_DIR)/test-runner/gofmt.sh ./apis
 
 # Run go vet against code
 govet: get-ci-tools
 	GOWORK=off $(CI_TOOLS_REPO_DIR)/test-runner/govet.sh
-	GOWORK=off $(CI_TOOLS_REPO_DIR)/test-runner/govet.sh ./api
+	GOWORK=off $(CI_TOOLS_REPO_DIR)/test-runner/govet.sh ./apis
 
 # Run go test against code
 gotest: test
@@ -346,23 +346,23 @@ gotest: test
 # Run golangci-lint test against code
 golangci: get-ci-tools
 	GOWORK=off $(CI_TOOLS_REPO_DIR)/test-runner/golangci.sh
-	GOWORK=off $(CI_TOOLS_REPO_DIR)/test-runner/golangci.sh ./api
+	GOWORK=off $(CI_TOOLS_REPO_DIR)/test-runner/golangci.sh ./apis
 
 # Run go lint against code
 golint: get-ci-tools
 	export GOWORK=off && PATH=$(GOBIN):$(PATH); $(CI_TOOLS_REPO_DIR)/test-runner/golint.sh
-	export GOWORK=off && PATH=$(GOBIN):$(PATH); $(CI_TOOLS_REPO_DIR)/test-runner/golint.sh ./api
+	export GOWORK=off && PATH=$(GOBIN):$(PATH); $(CI_TOOLS_REPO_DIR)/test-runner/golint.sh ./apis
 
 .PHONY: operator-lint
 operator-lint: $(LOCALBIN) gowork ## Runs operator-lint
 	GOBIN=$(LOCALBIN) go install github.com/gibizer/operator-lint@v0.5.0
-	go vet -vettool=$(LOCALBIN)/operator-lint ./... ./api/...
+	go vet -vettool=$(LOCALBIN)/operator-lint ./... ./apis/...
 
 .PHONY: gowork
 gowork: ## Generate go.work file
 	test -f go.work || GOTOOLCHAIN=$(GOTOOLCHAIN_VERSION) go work init
 	go work use .
-	go work use ./api
+	go work use ./apis
 	go work sync
 
 OPERATOR_NAMESPACE ?= openstack-operators
@@ -431,8 +431,8 @@ force-bump: ## Force bump operator and lib-common dependencies
 	for dep in $$(cat go.mod | grep openstack-k8s-operators | grep -vE -- 'indirect|nova-operator|^replace' | awk '{print $$1}'); do \
 		go get $$dep@$(BRANCH) ; \
 	done
-	for dep in $$(cat api/go.mod | grep openstack-k8s-operators | grep -vE -- 'indirect|nova-operator|^replace' | awk '{print $$1}'); do \
-		cd ./api && go get $$dep@$(BRANCH) && cd .. ; \
+	for dep in $$(cat apis/go.mod | grep openstack-k8s-operators | grep -vE -- 'indirect|nova-operator|^replace' | awk '{print $$1}'); do \
+		cd ./apis && go get $$dep@$(BRANCH) && cd .. ; \
 	done
 
 PHONY: crd-schema-check

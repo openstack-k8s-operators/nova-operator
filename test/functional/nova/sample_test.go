@@ -25,7 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-const SamplesDir = "../../config/samples/"
+const SamplesDir = "../../../config/samples/"
 
 func ReadSample(sampleFileName string) map[string]interface{} {
 	rawSample := make(map[string]interface{})
