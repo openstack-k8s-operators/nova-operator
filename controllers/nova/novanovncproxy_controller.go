@@ -19,7 +19,6 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"net/url"
 
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -46,35 +45,35 @@ import (
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/labels"
 	nad "github.com/openstack-k8s-operators/lib-common/modules/common/networkattachment"
-	common_secret "github.com/openstack-k8s-operators/lib-common/modules/common/secret"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/statefulset"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
-	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
+	novav1 "github.com/openstack-k8s-operators/nova-operator/apis/nova/v1beta1"
 	"github.com/openstack-k8s-operators/nova-operator/pkg/nova"
-	"github.com/openstack-k8s-operators/nova-operator/pkg/novametadata"
+	"github.com/openstack-k8s-operators/nova-operator/pkg/novncproxy"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 )
 
-// NovaMetadataReconciler reconciles a NovaMetadata object
-type NovaMetadataReconciler struct {
+// NovaNoVNCProxyReconciler reconciles a NovaNoVNCProxy object
+type NovaNoVNCProxyReconciler struct {
 	ReconcilerBase
 }
 
 // GetLogger returns a logger object with a prefix of "controller.name" and additional controller context fields
-func (r *NovaMetadataReconciler) GetLogger(ctx context.Context) logr.Logger {
-	return log.FromContext(ctx).WithName("Controllers").WithName("NovaMetadata")
+func (r *NovaNoVNCProxyReconciler) GetLogger(ctx context.Context) logr.Logger {
+	return log.FromContext(ctx).WithName("Controllers").WithName("NovaNoVNCProxy")
 }
 
-//+kubebuilder:rbac:groups=nova.openstack.org,resources=novametadata,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=nova.openstack.org,resources=novametadata/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=nova.openstack.org,resources=novametadata/finalizers,verbs=update;patch
+//+kubebuilder:rbac:groups=nova.openstack.org,resources=novanovncproxies,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=nova.openstack.org,resources=novanovncproxies/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=nova.openstack.org,resources=novanovncproxies/finalizers,verbs=update;patch
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;
 // +kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;list;watch;create;update;patch;delete;
+// +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneendpoints,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=k8s.cni.cncf.io,resources=network-attachment-definitions,verbs=get;list;watch
 // +kubebuilder:rbac:groups=memcached.openstack.org,resources=memcacheds,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=memcached.openstack.org,resources=memcacheds/finalizers,verbs=update;patch
@@ -83,28 +82,28 @@ func (r *NovaMetadataReconciler) GetLogger(ctx context.Context) logr.Logger {
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 // TODO(user): Modify the Reconcile function to compare the state specified by
-// the NovaMetadata object against the actual cluster state, and then
+// the NovaNoVNCProxy object against the actual cluster state, and then
 // perform operations to make the cluster state reflect the state specified by
 // the user.
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.2/pkg/reconcile
-func (r *NovaMetadataReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, _err error) {
+func (r *NovaNoVNCProxyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, _err error) {
 	Log := r.GetLogger(ctx)
 
-	// Fetch the NovaMetadata instance that needs to be reconciled
-	instance := &novav1.NovaMetadata{}
+	// Fetch the NovaNoVNCProxy instance that needs to be reconciled
+	instance := &novav1.NovaNoVNCProxy{}
 	err := r.Client.Get(ctx, req.NamespacedName, instance)
 	if err != nil {
 		if k8s_errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected.
 			// For additional cleanup logic use finalizers. Return and don't requeue.
-			Log.Info("NovaMetadata instance not found, probably deleted before reconciled. Nothing to do.")
+			Log.Info("NovaNoVNCProxy instance not found, probably deleted before reconciled. Nothing to do.")
 			return ctrl.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
-		Log.Error(err, "Failed to read the NovaMetadata instance.")
+		Log.Error(err, "Failed to read the NovaNoVNCProxy instance.")
 		return ctrl.Result{}, err
 	}
 
@@ -116,6 +115,7 @@ func (r *NovaMetadataReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		Log,
 	)
 	if err != nil {
+		Log.Error(err, "Failed to create lib-common Helper")
 		return ctrl.Result{}, err
 	}
 
@@ -124,6 +124,7 @@ func (r *NovaMetadataReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	// Save a copy of the conditions so that we can restore the LastTransitionTime
 	// when a condition's state doesn't change.
 	savedConditions := instance.Status.Conditions.DeepCopy()
+
 	// initialize status fields
 	if err = r.initStatus(instance); err != nil {
 		return ctrl.Result{}, err
@@ -194,16 +195,13 @@ func (r *NovaMetadataReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 	hashes["endpointUrlsHash"] = env.SetValue(endpointUrlsHash)
 
-	expectedSelectors := []string{
-		ServicePasswordSelector,
-		MetadataSecretSelector,
-		TransportURLSelector,
-	}
-
 	secretHash, result, secret, err := ensureSecret(
 		ctx,
 		types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.Secret},
-		expectedSelectors,
+		[]string{
+			ServicePasswordSelector,
+			TransportURLSelector,
+		},
 		h.GetClient(),
 		&instance.Status.Conditions,
 		r.RequeueTimeout,
@@ -216,25 +214,6 @@ func (r *NovaMetadataReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	// all our input checks out so report InputReady
 	instance.Status.Conditions.MarkTrue(condition.InputReadyCondition, condition.InputReadyMessage)
-
-	memcached, err := ensureMemcached(ctx, h, instance.Namespace, instance.Spec.MemcachedInstance, &instance.Status.Conditions)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-
-	// Add finalizer to Memcached to prevent it from being deleted now that we're using it
-	if controllerutil.AddFinalizer(memcached, h.GetFinalizer()) {
-		err := h.GetClient().Update(ctx, memcached)
-		if err != nil {
-			instance.Status.Conditions.Set(condition.FalseCondition(
-				condition.MemcachedReadyCondition,
-				condition.ErrorReason,
-				condition.SeverityWarning,
-				condition.MemcachedReadyErrorMessage,
-				err.Error()))
-			return ctrl.Result{}, err
-		}
-	}
 
 	//
 	// TLS input validation
@@ -272,9 +251,9 @@ func (r *NovaMetadataReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		}
 	}
 
-	// Validate metadata service cert secret
-	if instance.Spec.TLS.Enabled() {
-		hash, err := instance.Spec.TLS.ValidateCertSecret(ctx, h, instance.Namespace)
+	// Validate the service cert secret
+	if instance.Spec.TLS.Service.Enabled() {
+		hash, err := instance.Spec.TLS.Service.ValidateCertSecret(ctx, h, instance.Namespace)
 		if err != nil {
 			if k8s_errors.IsNotFound(err) {
 				instance.Status.Conditions.Set(condition.FalseCondition(
@@ -294,23 +273,63 @@ func (r *NovaMetadataReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		}
 		hashes[tls.TLSHashName] = env.SetValue(hash)
 	}
+
+	// Validate the Vencrypt cert secret
+	if instance.Spec.TLS.Vencrypt.Enabled() {
+		hash, err := instance.Spec.TLS.Vencrypt.ValidateCertSecret(ctx, h, instance.Namespace)
+		if err != nil {
+			if k8s_errors.IsNotFound(err) {
+				instance.Status.Conditions.Set(condition.FalseCondition(
+					condition.TLSInputReadyCondition,
+					condition.RequestedReason,
+					condition.SeverityInfo,
+					fmt.Sprintf(condition.TLSInputReadyWaitingMessage, err.Error())))
+				return ctrl.Result{}, nil
+			}
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				condition.TLSInputReadyCondition,
+				condition.ErrorReason,
+				condition.SeverityWarning,
+				condition.TLSInputErrorMessage,
+				err.Error()))
+			return ctrl.Result{}, err
+		}
+		hashes[novncproxy.VencryptName] = env.SetValue(hash)
+	}
+
 	// all cert input checks out so report InputReady
 	instance.Status.Conditions.MarkTrue(condition.TLSInputReadyCondition, condition.InputReadyMessage)
+
+	result, err = r.ensureServiceExposed(ctx, h, instance)
+	if (err != nil || result != ctrl.Result{}) {
+		// We can ignore RequeueAfter as we are watching the Service resource
+		// but we have to return while waiting for the service to be exposed
+		return ctrl.Result{}, err
+	}
+
+	memcached, err := ensureMemcached(ctx, h, instance.Namespace, instance.Spec.MemcachedInstance, &instance.Status.Conditions)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	// Add finalizer to Memcached to prevent it from being deleted now that we're using it
+	if controllerutil.AddFinalizer(memcached, h.GetFinalizer()) {
+		err := h.GetClient().Update(ctx, memcached)
+		if err != nil {
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				condition.MemcachedReadyCondition,
+				condition.ErrorReason,
+				condition.SeverityWarning,
+				condition.MemcachedReadyErrorMessage,
+				err.Error()))
+			return ctrl.Result{}, err
+		}
+	}
 
 	err = r.ensureConfigs(ctx, h, instance, &hashes, secret, memcached)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-
-	// Create hash over all the different input resources to identify if any of
-	// those changed and a restart/recreate is required.
-	// We have a special input, the registered cells, as the openstack service
-	// needs to be restarted if this changes to refresh the in memory cell caches
-	cellHash, err := hashOfStringMap(instance.Spec.RegisteredCells)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-	hashes["cells"] = env.SetValue(cellHash)
 
 	inputHash, err := util.HashOfInputHashes(hashes)
 	if err != nil {
@@ -331,33 +350,12 @@ func (r *NovaMetadataReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return result, err
 	}
 
-	apiEndpoint, result, err := r.ensureServiceExposed(ctx, h, instance)
-	if (err != nil || result != ctrl.Result{}) {
-		// We can ignore RequeueAfter as we are watching the Service resource
-		// but we have to return while waiting for the service to be exposed
-		return ctrl.Result{}, err
-	}
-
-	// We have to wait until our service is fully exposed so that we can
-	// generate the compute config containing the metadata host
-	if !instance.Status.Conditions.IsTrue(condition.CreateServiceReadyCondition) {
-		Log.Info("Waiting for the service to be exposed before generating compute configuration")
-		return ctrl.Result{}, nil
-	}
-
-	// TODO(gibi): fix lib-common endpoint.ExposeEndpoints return value to
-	// avoid the need for the cast
-	err = r.ensureNeutronConfig(ctx, h, instance, apiEndpoint, secret)
-	if err != nil {
-		return result, err
-	}
-
 	Log.Info("Successfully reconciled")
 	return ctrl.Result{}, nil
 }
 
-func (r *NovaMetadataReconciler) initStatus(
-	instance *novav1.NovaMetadata,
+func (r *NovaNoVNCProxyReconciler) initStatus(
+	instance *novav1.NovaNoVNCProxy,
 ) error {
 	if err := r.initConditions(instance); err != nil {
 		return err
@@ -366,6 +364,7 @@ func (r *NovaMetadataReconciler) initStatus(
 	if instance.Status.Hash == nil {
 		instance.Status.Hash = map[string]string{}
 	}
+
 	if instance.Status.NetworkAttachments == nil {
 		instance.Status.NetworkAttachments = map[string][]string{}
 	}
@@ -373,8 +372,29 @@ func (r *NovaMetadataReconciler) initStatus(
 	return nil
 }
 
-func (r *NovaMetadataReconciler) initConditions(
-	instance *novav1.NovaMetadata,
+func (r *NovaNoVNCProxyReconciler) ensureConfigs(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *novav1.NovaNoVNCProxy,
+	hashes *map[string]env.Setter,
+	secret corev1.Secret,
+	memcachedInstance *memcachedv1.Memcached,
+) error {
+	err := r.generateConfigs(ctx, h, instance, hashes, secret, memcachedInstance)
+	if err != nil {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.ServiceConfigReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.ServiceConfigReadyErrorMessage,
+			err.Error()))
+		return err
+	}
+	return nil
+}
+
+func (r *NovaNoVNCProxyReconciler) initConditions(
+	instance *novav1.NovaNoVNCProxy,
 ) error {
 	if instance.Status.Conditions == nil {
 		instance.Status.Conditions = condition.Conditions{}
@@ -410,11 +430,6 @@ func (r *NovaMetadataReconciler) initConditions(
 			condition.NetworkAttachmentsReadyInitMessage,
 		),
 		condition.UnknownCondition(
-			novav1.NovaComputeServiceConfigReady,
-			condition.InitReason,
-			novav1.NovaComputeServiceConfigInitMessage,
-		),
-		condition.UnknownCondition(
 			condition.TLSInputReadyCondition,
 			condition.InitReason,
 			condition.InputReadyInitMessage,
@@ -438,109 +453,46 @@ func (r *NovaMetadataReconciler) initConditions(
 	return nil
 }
 
-func (r *NovaMetadataReconciler) ensureConfigs(
-	ctx context.Context,
-	h *helper.Helper,
-	instance *novav1.NovaMetadata,
-	hashes *map[string]env.Setter,
+func (r *NovaNoVNCProxyReconciler) generateConfigs(
+	ctx context.Context, h *helper.Helper, instance *novav1.NovaNoVNCProxy, hashes *map[string]env.Setter,
 	secret corev1.Secret,
 	memcachedInstance *memcachedv1.Memcached,
 ) error {
-	err := r.generateConfigs(ctx, h, instance, hashes, secret, memcachedInstance)
+
+	cellDB, err := mariadbv1.GetDatabaseByNameAndAccount(ctx, h, "nova-"+instance.Spec.CellName, instance.Spec.CellDatabaseAccount, instance.Namespace)
 	if err != nil {
-		instance.Status.Conditions.Set(condition.FalseCondition(
-			condition.ServiceConfigReadyCondition,
-			condition.ErrorReason,
-			condition.SeverityWarning,
-			condition.ServiceConfigReadyErrorMessage,
-			err.Error()))
 		return err
 	}
-	return nil
-}
-
-func (r *NovaMetadataReconciler) generateConfigs(
-	ctx context.Context, h *helper.Helper, instance *novav1.NovaMetadata, hashes *map[string]env.Setter,
-	secret corev1.Secret,
-	memcachedInstance *memcachedv1.Memcached,
-) error {
-
-	var cellDB *mariadbv1.Database
-	var cellDatabaseAccount *mariadbv1.MariaDBAccount
-	var cellDbSecret *corev1.Secret
-	var err error
-
-	if instance.Spec.CellName == "" {
-		cellDB = nil
-		cellDatabaseAccount, cellDbSecret, err = mariadbv1.GetAccountAndSecret(ctx, h, instance.Spec.CellDatabaseAccount, instance.Namespace)
-		if err != nil {
-			return err
-		}
-	} else {
-		cellDB, err = mariadbv1.GetDatabaseByNameAndAccount(ctx, h, "nova-"+instance.Spec.CellName, instance.Spec.CellDatabaseAccount, instance.Namespace)
-
-		if err != nil {
-			return err
-		}
-
-		cellDatabaseAccount = cellDB.GetAccount()
-		cellDbSecret = cellDB.GetSecret()
-
-	}
+	cellDatabaseAccount := cellDB.GetAccount()
+	cellDbSecret := cellDB.GetSecret()
 
 	templateParameters := map[string]interface{}{
-		"service_name":             novametadata.ServiceName,
+		"service_name":             novncproxy.ServiceName,
 		"keystone_internal_url":    instance.Spec.KeystoneAuthURL,
 		"nova_keystone_user":       instance.Spec.ServiceUser,
 		"nova_keystone_password":   string(secret.Data[ServicePasswordSelector]),
-		"cell_db_name":             NovaCell0DatabaseName,
+		"cell_db_name":             getCellDatabaseName(instance.Spec.CellName),
 		"cell_db_user":             cellDatabaseAccount.Spec.UserName,
 		"cell_db_password":         string(cellDbSecret.Data[mariadbv1.DatabasePasswordSelector]),
 		"cell_db_address":          instance.Spec.CellDatabaseHostname,
 		"cell_db_port":             3306,
+		"transport_url":            string(secret.Data[TransportURLSelector]),
 		"openstack_region_name":    "regionOne", // fixme
 		"default_project_domain":   "Default",   // fixme
 		"default_user_domain":      "Default",   // fixme
-		"metadata_secret":          string(secret.Data[MetadataSecretSelector]),
-		"log_file":                 "/var/log/nova/nova-metadata.log",
-		"transport_url":            string(secret.Data[TransportURLSelector]),
-		"tls":                      false,
-		"ServerName":               fmt.Sprintf("%s.%s.svc", novametadata.ServiceName, instance.Namespace),
 		"MemcachedServers":         memcachedInstance.GetMemcachedServerListString(),
 		"MemcachedServersWithInet": memcachedInstance.GetMemcachedServerListWithInetString(),
 		"MemcachedTLS":             memcachedInstance.GetMemcachedTLSSupport(),
-		"TimeOut":                  instance.Spec.APITimeout,
+	}
+	if instance.Spec.TLS.Service.Enabled() {
+		templateParameters["SSLCertificateFile"] = fmt.Sprintf("/etc/pki/tls/certs/%s.crt", novncproxy.ServiceName)
+		templateParameters["SSLCertificateKeyFile"] = fmt.Sprintf("/etc/pki/tls/private/%s.key", novncproxy.ServiceName)
 	}
 
-	var db *mariadbv1.Database
-	if instance.Spec.CellName == "" {
-		apiDB, err := mariadbv1.GetDatabaseByNameAndAccount(ctx, h, "nova-api", instance.Spec.APIDatabaseAccount, instance.Namespace)
-		if err != nil {
-			return err
-		}
-		apiDatabaseAccount := apiDB.GetAccount()
-		apiDbSecret := apiDB.GetSecret()
-
-		templateParameters["api_db_name"] = NovaAPIDatabaseName
-		templateParameters["api_db_user"] = apiDatabaseAccount.Spec.UserName
-		templateParameters["api_db_password"] = string(apiDbSecret.Data[mariadbv1.DatabasePasswordSelector])
-		templateParameters["api_db_address"] = instance.Spec.APIDatabaseHostname
-		templateParameters["api_db_port"] = 3306
-		templateParameters["local_metadata_per_cell"] = false
-
-		db = apiDB
-	} else {
-		templateParameters["local_metadata_per_cell"] = true
-		templateParameters["cell_db_name"] = getCellDatabaseName(instance.Spec.CellName)
-
-		db = cellDB
-	}
-
-	// create httpd tls template parameters
-	if instance.Spec.TLS.GenericService.Enabled() {
-		templateParameters["tls"] = true
-		templateParameters["SSLCertificateFile"] = fmt.Sprintf("/etc/pki/tls/certs/%s.crt", novametadata.ServiceName)
-		templateParameters["SSLCertificateKeyFile"] = fmt.Sprintf("/etc/pki/tls/private/%s.key", novametadata.ServiceName)
+	if instance.Spec.TLS.Vencrypt.Enabled() {
+		templateParameters["VencryptClientKey"] = "/etc/pki/nova-novncproxy/client-key.pem"
+		templateParameters["VencryptClientCert"] = "/etc/pki/nova-novncproxy/client-cert.pem"
+		templateParameters["VencryptCACerts"] = "/etc/pki/nova-novncproxy/ca-cert.pem"
 	}
 
 	var tlsCfg *tls.Service
@@ -548,17 +500,14 @@ func (r *NovaMetadataReconciler) generateConfigs(
 		tlsCfg = &tls.Service{}
 	}
 	extraData := map[string]string{
-		"my.cnf": db.GetDatabaseClientConfig(tlsCfg), //(mschuppert) for now just get the default my.cnf
+		"my.cnf": cellDB.GetDatabaseClientConfig(tlsCfg), //(mschuppert) for now just get the default my.cnf
 	}
 	if instance.Spec.CustomServiceConfig != "" {
 		extraData["02-nova-override.conf"] = instance.Spec.CustomServiceConfig
 	}
-	for key, data := range instance.Spec.DefaultConfigOverwrite {
-		extraData[key] = data
-	}
 
 	cmLabels := labels.GetLabels(
-		instance, labels.GetGroupLabel(NovaMetadataLabelPrefix), map[string]string{},
+		instance, labels.GetGroupLabel(NovaNoVNCProxyLabelPrefix), map[string]string{},
 	)
 
 	err = r.GenerateConfigs(
@@ -568,15 +517,15 @@ func (r *NovaMetadataReconciler) generateConfigs(
 	return err
 }
 
-func (r *NovaMetadataReconciler) ensureDeployment(
+func (r *NovaNoVNCProxyReconciler) ensureDeployment(
 	ctx context.Context,
 	h *helper.Helper,
-	instance *novav1.NovaMetadata,
+	instance *novav1.NovaNoVNCProxy,
 	inputHash string,
 	annotations map[string]string,
 ) (ctrl.Result, error) {
 	Log := r.GetLogger(ctx)
-	serviceLabels := getMetadataServiceLabels(instance.Spec.CellName)
+	serviceLabels := getNoVNCProxyServiceLabels(instance.Spec.CellName)
 
 	//
 	// Handle Topology
@@ -593,9 +542,9 @@ func (r *NovaMetadataReconciler) ensureDeployment(
 		return ctrl.Result{}, fmt.Errorf("waiting for Topology requirements: %w", err)
 	}
 
-	ssSpec, err := novametadata.StatefulSet(instance, inputHash, serviceLabels, annotations, topology)
+	ssSpec, err := novncproxy.StatefulSet(instance, inputHash, serviceLabels, annotations, topology)
 	if err != nil {
-		Log.Error(err, "Deployment failed")
+		Log.Info("Deployment failed")
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.DeploymentReadyCondition,
 			condition.ErrorReason,
@@ -607,7 +556,7 @@ func (r *NovaMetadataReconciler) ensureDeployment(
 	ss := statefulset.NewStatefulSet(ssSpec, r.RequeueTimeout)
 	ctrlResult, err := ss.CreateOrPatch(ctx, h)
 	if err != nil && !k8s_errors.IsNotFound(err) {
-		Log.Error(err, "Deployment failed")
+		Log.Info("Deployment failed")
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.DeploymentReadyCondition,
 			condition.ErrorReason,
@@ -628,7 +577,7 @@ func (r *NovaMetadataReconciler) ensureDeployment(
 
 	statefulSet := ss.GetStatefulSet()
 	if statefulSet.Generation == statefulSet.Status.ObservedGeneration {
-		instance.Status.ReadyCount = ss.GetStatefulSet().Status.ReadyReplicas
+		instance.Status.ReadyCount = statefulSet.Status.ReadyReplicas
 	}
 
 	// verify if network attachment matches expectations
@@ -656,7 +605,6 @@ func (r *NovaMetadataReconciler) ensureDeployment(
 		return ctrl.Result{}, err
 	}
 
-	statefulSet = ss.GetStatefulSet()
 	if instance.Status.ReadyCount == *instance.Spec.Replicas && statefulSet.Generation == statefulSet.Status.ObservedGeneration {
 		Log.Info("Deployment is ready")
 		instance.Status.Conditions.MarkTrue(condition.DeploymentReadyCondition, condition.DeploymentReadyMessage)
@@ -673,27 +621,24 @@ func (r *NovaMetadataReconciler) ensureDeployment(
 	return ctrl.Result{}, nil
 }
 
-func (r *NovaMetadataReconciler) ensureServiceExposed(
+func (r *NovaNoVNCProxyReconciler) ensureServiceExposed(
 	ctx context.Context,
 	h *helper.Helper,
-	instance *novav1.NovaMetadata,
-) (string, ctrl.Result, error) {
-	endpointTypeStr := string(service.EndpointInternal)
-	serviceName := novametadata.ServiceName
-	if instance.Spec.CellName != "" {
-		serviceName = novametadata.ServiceName + "-" + instance.Spec.CellName
-	}
-	serviceName = serviceName + "-" + endpointTypeStr
+	instance *novav1.NovaNoVNCProxy,
+) (ctrl.Result, error) {
+	endpointTypeStr := string(service.EndpointPublic)
+	serviceName := novncproxy.ServiceName + "-" + instance.Spec.CellName + "-" + endpointTypeStr
+
 	svcOverride := instance.Spec.Override.Service
 	if svcOverride == nil {
-		svcOverride = &service.OverrideSpec{}
+		svcOverride = &service.RoutedOverrideSpec{}
 	}
 	if svcOverride.EmbeddedLabelsAnnotations == nil {
 		svcOverride.EmbeddedLabelsAnnotations = &service.EmbeddedLabelsAnnotations{}
 	}
 
 	exportLabels := util.MergeStringMaps(
-		getMetadataServiceLabels(instance.Spec.CellName),
+		getNoVNCProxyServiceLabels(instance.Spec.CellName),
 		map[string]string{
 			service.AnnotationEndpointKey: endpointTypeStr,
 		},
@@ -705,15 +650,15 @@ func (r *NovaMetadataReconciler) ensureServiceExposed(
 			Name:      serviceName,
 			Namespace: instance.Namespace,
 			Labels:    exportLabels,
-			Selector:  getMetadataServiceLabels(instance.Spec.CellName),
+			Selector:  getNoVNCProxyServiceLabels(instance.Spec.CellName),
 			Port: service.GenericServicePort{
 				Name:     serviceName,
-				Port:     novametadata.APIServicePort,
+				Port:     novncproxy.NoVNCProxyPort,
 				Protocol: corev1.ProtocolTCP,
 			},
 		}),
 		5,
-		svcOverride,
+		&svcOverride.OverrideSpec,
 	)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
@@ -722,13 +667,28 @@ func (r *NovaMetadataReconciler) ensureServiceExposed(
 			condition.SeverityWarning,
 			condition.CreateServiceReadyErrorMessage,
 			err.Error()))
-		return "", ctrl.Result{}, err
+
+		return ctrl.Result{}, err
 	}
 
-	if svc.GetServiceType() == corev1.ServiceTypeLoadBalancer {
+	svc.AddAnnotation(map[string]string{
+		service.AnnotationEndpointKey: endpointTypeStr,
+	})
+
+	// add Annotation to whether creating an ingress is required or not
+	if svc.GetServiceType() == corev1.ServiceTypeClusterIP {
 		svc.AddAnnotation(map[string]string{
-			service.AnnotationHostnameKey: svc.GetServiceHostname(), // add annotation to register service name in dnsmasq
+			service.AnnotationIngressCreateKey: "true",
 		})
+	} else {
+		svc.AddAnnotation(map[string]string{
+			service.AnnotationIngressCreateKey: "false",
+		})
+		if svc.GetServiceType() == corev1.ServiceTypeLoadBalancer {
+			svc.AddAnnotation(map[string]string{
+				service.AnnotationHostnameKey: svc.GetServiceHostname(), // add annotation to register service name in dnsmasq
+			})
+		}
 	}
 
 	ctrlResult, err := svc.CreateOrPatch(ctx, h)
@@ -740,46 +700,31 @@ func (r *NovaMetadataReconciler) ensureServiceExposed(
 			condition.CreateServiceReadyErrorMessage,
 			err.Error()))
 
-		return "", ctrlResult, err
+		return ctrlResult, err
 	} else if (ctrlResult != ctrl.Result{}) {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.CreateServiceReadyCondition,
 			condition.RequestedReason,
 			condition.SeverityInfo,
 			condition.CreateServiceReadyRunningMessage))
-		return "", ctrlResult, err
+		return ctrlResult, nil
 	}
 	// create service - end
-
-	// if TLS is enabled
-	proto := ptr.To(service.ProtocolHTTP)
-	if instance.Spec.TLS.Enabled() {
-		// set endpoint protocol to https
-		proto = ptr.To(service.ProtocolHTTPS)
-	}
-	apiEndpoint, err := svc.GetAPIEndpoint(
-		nil, proto, "")
-	if err != nil {
-		return "", ctrl.Result{}, err
-	}
-
 	instance.Status.Conditions.MarkTrue(condition.CreateServiceReadyCondition, condition.CreateServiceReadyMessage)
 
-	return apiEndpoint, ctrl.Result{}, nil
+	return ctrl.Result{}, nil
 }
 
-func (r *NovaMetadataReconciler) reconcileDelete(
+func (r *NovaNoVNCProxyReconciler) reconcileDelete(
 	ctx context.Context,
 	h *helper.Helper,
-	instance *novav1.NovaMetadata,
+	instance *novav1.NovaNoVNCProxy,
 ) error {
 	Log := r.GetLogger(ctx)
 	Log.Info("Reconciling delete")
-	// TODO(ksambor): add cleanup for the service rows in the nova DB
-	// when the service is scaled in or deleted
-
 	// Remove our finalizer from Memcached
 	memcached, _ := memcachedv1.GetMemcachedByName(ctx, h, instance.Spec.MemcachedInstance, instance.Namespace)
+
 	if memcached != nil {
 		if controllerutil.RemoveFinalizer(memcached, h.GetFinalizer()) {
 			err := h.GetClient().Update(ctx, memcached)
@@ -800,7 +745,7 @@ func (r *NovaMetadataReconciler) reconcileDelete(
 	}
 
 	// Successfully cleaned up everything. So as the final step let's remove the
-	// finalizer from ourselves to allow the deletion of NovaMetadata CR itself
+	// finalizer from ourselves to allow the deletion of NovaNoVNCProxy CR itself
 	updated := controllerutil.RemoveFinalizer(instance, h.GetFinalizer())
 	if updated {
 		Log.Info("Removed finalizer from ourselves")
@@ -810,102 +755,20 @@ func (r *NovaMetadataReconciler) reconcileDelete(
 	return nil
 }
 
-func getMetadataServiceLabels(cell string) map[string]string {
-	if cell != "" {
-		return map[string]string{
-			common.AppSelector: NovaMetadataLabelPrefix,
-			CellSelector:       cell,
-		}
-	}
+func getNoVNCProxyServiceLabels(cell string) map[string]string {
 	return map[string]string{
-		common.AppSelector: NovaMetadataLabelPrefix,
+		common.AppSelector: NovaNoVNCProxyLabelPrefix,
+		CellSelector:       cell,
 	}
 }
 
-// ensureNeutronConfig ensures the metadata config Secret exists and up to
-// date. The metadata config Secret then can be used to configure the neutron
-// metadata agent on the the EDPM side
-func (r *NovaMetadataReconciler) ensureNeutronConfig(
-	ctx context.Context, h *helper.Helper,
-	instance *novav1.NovaMetadata, endpoint string, secret corev1.Secret,
-) error {
-	err := r.generateNeutronConfigs(ctx, h, instance, endpoint, secret)
-	if err != nil {
-		instance.Status.Conditions.Set(condition.FalseCondition(
-			novav1.NovaComputeServiceConfigReady,
-			condition.ErrorReason,
-			condition.SeverityWarning,
-			novav1.NovaComputeServiceConfigErrorMessage,
-			err.Error()))
-		return err
-	}
-	instance.Status.Conditions.MarkTrue(
-		novav1.NovaComputeServiceConfigReady, condition.ServiceConfigReadyMessage,
-	)
-
-	return nil
-}
-
-func (r *NovaMetadataReconciler) generateNeutronConfigs(
-	ctx context.Context, h *helper.Helper,
-	instance *novav1.NovaMetadata, endpoint string, secret corev1.Secret,
-) error {
-	configName := instance.GetName() + "-neutron-config"
-
-	templates := map[string]string{
-		"05-nova-metadata.conf": "/neutron-metadata.conf",
-	}
-
-	endpointURL, err := url.Parse(endpoint)
-	if err != nil {
-		return err
-	}
-
-	// NOTE(gibi): We are generating this data in the nova-operator to:
-	// 1. avoid the work needed to teach cells to neutron
-	// 2. avoid the need to synchronize the shared secret between nova- and
-	//    neutron-operator externally
-	templateParameters := map[string]interface{}{
-		"nova_metadata_host":           endpointURL.Hostname(),
-		"nova_metadata_port":           endpointURL.Port(),
-		"nova_metadata_protocol":       endpointURL.Scheme,
-		"metadata_proxy_shared_secret": string(secret.Data[MetadataSecretSelector]),
-	}
-
-	labels := getMetadataServiceLabels(instance.Spec.CellName)
-	hashes := make(map[string]env.Setter)
-
-	cms := []util.Template{
-		{
-			Name:               configName,
-			Namespace:          instance.GetNamespace(),
-			Type:               util.TemplateTypeNone,
-			InstanceType:       instance.GetObjectKind().GroupVersionKind().Kind,
-			ConfigOptions:      templateParameters,
-			Labels:             labels,
-			AdditionalTemplate: templates,
-		},
-	}
-
-	err = common_secret.EnsureSecrets(ctx, h, instance, cms, &hashes)
-	if err != nil {
-		return err
-	}
-
-	// TODO(gibi): can we make it simpler?
-	a := &corev1.EnvVar{}
-	hashes[configName](a)
-	instance.Status.Hash[configName] = a.Value
-	return nil
-}
-
-func (r *NovaMetadataReconciler) findObjectsForSrc(ctx context.Context, src client.Object) []reconcile.Request {
+func (r *NovaNoVNCProxyReconciler) findObjectsForSrc(ctx context.Context, src client.Object) []reconcile.Request {
 	requests := []reconcile.Request{}
 
-	l := log.FromContext(ctx).WithName("Controllers").WithName("NovaMetadata")
+	l := log.FromContext(ctx).WithName("Controllers").WithName("NovaNoVNCProxy")
 
-	for _, field := range metaWatchFields {
-		crList := &novav1.NovaMetadataList{}
+	for _, field := range noVNCProxyWatchFields {
+		crList := &novav1.NovaNoVNCProxyList{}
 		listOps := &client.ListOptions{
 			FieldSelector: fields.OneTermEqualSelector(field, src.GetName()),
 			Namespace:     src.GetNamespace(),
@@ -933,14 +796,14 @@ func (r *NovaMetadataReconciler) findObjectsForSrc(ctx context.Context, src clie
 	return requests
 }
 
-func (r *NovaMetadataReconciler) findObjectsWithAppSelectorLabelInNamespace(ctx context.Context, src client.Object) []reconcile.Request {
+func (r *NovaNoVNCProxyReconciler) findObjectsWithAppSelectorLabelInNamespace(ctx context.Context, src client.Object) []reconcile.Request {
 	requests := []reconcile.Request{}
 
-	l := log.FromContext(ctx).WithName("Controllers").WithName("NovaMetadata")
+	l := log.FromContext(ctx).WithName("Controllers").WithName("NovaNoVNCProxy")
 
 	// if the endpoint has the service label and its in our endpointList, reconcile the CR in the namespace
 	if svc, ok := src.GetLabels()[common.AppSelector]; ok && util.StringInSlice(svc, endpointList) {
-		crList := &novav1.NovaMetadataList{}
+		crList := &novav1.NovaNoVNCProxyList{}
 		listOps := &client.ListOptions{
 			Namespace: src.GetNamespace(),
 		}
@@ -969,28 +832,29 @@ func (r *NovaMetadataReconciler) findObjectsWithAppSelectorLabelInNamespace(ctx 
 
 // fields to index to reconcile when change
 var (
-	metaWatchFields = []string{
+	noVNCProxyWatchFields = []string{
 		passwordSecretField,
 		caBundleSecretNameField,
-		tlsMetadataField,
+		tlsNoVNCProxyServiceField,
+		tlsNoVNCProxyVencryptField,
 		topologyField,
 	}
 )
 
-func (r *NovaMetadataReconciler) memcachedNamespaceMapFunc(ctx context.Context, src client.Object) []reconcile.Request {
+func (r *NovaNoVNCProxyReconciler) memcachedNamespaceMapFunc(ctx context.Context, src client.Object) []reconcile.Request {
 
 	result := []reconcile.Request{}
 
 	// get all Nova CRs
-	novaMetadataList := &novav1.NovaMetadataList{}
+	novaNoVNCProxyList := &novav1.NovaNoVNCProxyList{}
 	listOpts := []client.ListOption{
 		client.InNamespace(src.GetNamespace()),
 	}
-	if err := r.Client.List(ctx, novaMetadataList, listOpts...); err != nil {
+	if err := r.Client.List(ctx, novaNoVNCProxyList, listOpts...); err != nil {
 		return nil
 	}
 
-	for _, cr := range novaMetadataList.Items {
+	for _, cr := range novaNoVNCProxyList.Items {
 		if src.GetName() == cr.Spec.MemcachedInstance {
 			name := client.ObjectKey{
 				Namespace: src.GetNamespace(),
@@ -1006,11 +870,11 @@ func (r *NovaMetadataReconciler) memcachedNamespaceMapFunc(ctx context.Context, 
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *NovaMetadataReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *NovaNoVNCProxyReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	// index passwordSecretField
-	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &novav1.NovaMetadata{}, passwordSecretField, func(rawObj client.Object) []string {
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &novav1.NovaNoVNCProxy{}, passwordSecretField, func(rawObj client.Object) []string {
 		// Extract the secret name from the spec, if one is provided
-		cr := rawObj.(*novav1.NovaMetadata)
+		cr := rawObj.(*novav1.NovaNoVNCProxy)
 		if cr.Spec.Secret == "" {
 			return nil
 		}
@@ -1020,9 +884,9 @@ func (r *NovaMetadataReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}
 
 	// index caBundleSecretNameField
-	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &novav1.NovaMetadata{}, caBundleSecretNameField, func(rawObj client.Object) []string {
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &novav1.NovaNoVNCProxy{}, caBundleSecretNameField, func(rawObj client.Object) []string {
 		// Extract the secret name from the spec, if one is provided
-		cr := rawObj.(*novav1.NovaMetadata)
+		cr := rawObj.(*novav1.NovaNoVNCProxy)
 		if cr.Spec.TLS.CaBundleSecretName == "" {
 			return nil
 		}
@@ -1031,22 +895,34 @@ func (r *NovaMetadataReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		return err
 	}
 
-	// index tlsMetadataField
-	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &novav1.NovaMetadata{}, tlsMetadataField, func(rawObj client.Object) []string {
+	// index service cert secret tlsNoVNCProxyField
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &novav1.NovaNoVNCProxy{}, tlsNoVNCProxyServiceField, func(rawObj client.Object) []string {
 		// Extract the secret name from the spec, if one is provided
-		cr := rawObj.(*novav1.NovaMetadata)
-		if cr.Spec.TLS.SecretName == nil {
+		cr := rawObj.(*novav1.NovaNoVNCProxy)
+		if cr.Spec.TLS.Service.SecretName == nil {
 			return nil
 		}
-		return []string{*cr.Spec.TLS.SecretName}
+		return []string{*cr.Spec.TLS.Service.SecretName}
+	}); err != nil {
+		return err
+	}
+
+	// index vencrypt cert secret tlsNoVNCProxyField
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &novav1.NovaNoVNCProxy{}, tlsNoVNCProxyVencryptField, func(rawObj client.Object) []string {
+		// Extract the secret name from the spec, if one is provided
+		cr := rawObj.(*novav1.NovaNoVNCProxy)
+		if cr.Spec.TLS.Vencrypt.SecretName == nil {
+			return nil
+		}
+		return []string{*cr.Spec.TLS.Vencrypt.SecretName}
 	}); err != nil {
 		return err
 	}
 
 	// index topologyField
-	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &novav1.NovaMetadata{}, topologyField, func(rawObj client.Object) []string {
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &novav1.NovaNoVNCProxy{}, topologyField, func(rawObj client.Object) []string {
 		// Extract the topology name from the spec, if one is provided
-		cr := rawObj.(*novav1.NovaMetadata)
+		cr := rawObj.(*novav1.NovaNoVNCProxy)
 		if cr.Spec.TopologyRef == nil {
 			return nil
 		}
@@ -1056,7 +932,7 @@ func (r *NovaMetadataReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&novav1.NovaMetadata{}).
+		For(&novav1.NovaNoVNCProxy{}).
 		Owns(&v1.StatefulSet{}).
 		Owns(&corev1.Service{}).
 		Owns(&corev1.Secret{}).
