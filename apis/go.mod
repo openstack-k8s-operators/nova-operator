@@ -1,4 +1,4 @@
-module github.com/openstack-k8s-operators/nova-operator/api
+module github.com/openstack-k8s-operators/nova-operator/apis
 
 go 1.21
 

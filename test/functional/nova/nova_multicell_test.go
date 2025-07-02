@@ -26,8 +26,8 @@ import (
 
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
-	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
-	"github.com/openstack-k8s-operators/nova-operator/controllers"
+	novav1 "github.com/openstack-k8s-operators/nova-operator/apis/nova/v1beta1"
+	nova_ctrl "github.com/openstack-k8s-operators/nova-operator/controllers/nova"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -923,12 +923,12 @@ var _ = Describe("Nova multi cell", func() {
 
 			cell1Secret := th.GetSecret(cell1.InternalCellSecretName)
 			Expect(cell1Secret.Data).To(
-				HaveKeyWithValue(controllers.MetadataSecretSelector, []byte("metadata-secret-cell1")))
+				HaveKeyWithValue(nova_ctrl.MetadataSecretSelector, []byte("metadata-secret-cell1")))
 			cell0Secret := th.GetSecret(cell0.InternalCellSecretName)
 			Expect(cell0Secret.Data).NotTo(
-				HaveKeyWithValue(controllers.MetadataSecretSelector, []byte("metadata-secret")))
+				HaveKeyWithValue(nova_ctrl.MetadataSecretSelector, []byte("metadata-secret")))
 			Expect(cell0Secret.Data).NotTo(
-				HaveKeyWithValue(controllers.MetadataSecretSelector, []byte("metadata-secret-cell1")))
+				HaveKeyWithValue(nova_ctrl.MetadataSecretSelector, []byte("metadata-secret-cell1")))
 			configDataMap := th.GetSecret(cell1.MetadataConfigDataName)
 			Expect(configDataMap).ShouldNot(BeNil())
 			Expect(configDataMap.Data).Should(HaveKey("httpd.conf"))
@@ -1011,7 +1011,7 @@ var _ = Describe("Nova multi cell deletion", func() {
 				"cell-3",
 			}
 
-			controllers.SortNovaCellListByName(cellList)
+			nova_ctrl.SortNovaCellListByName(cellList)
 
 			actualList := []string{}
 			for _, cell := range cellList.Items {
