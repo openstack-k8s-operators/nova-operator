@@ -22,18 +22,21 @@ import (
 
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/go-logr/logr"
+	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
@@ -45,63 +48,61 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/statefulset"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
-
-	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
-	"github.com/openstack-k8s-operators/nova-operator/pkg/nova"
-	"github.com/openstack-k8s-operators/nova-operator/pkg/novacompute"
+	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
-	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
+	novav1 "github.com/openstack-k8s-operators/nova-operator/apis/nova/v1beta1"
+	"github.com/openstack-k8s-operators/nova-operator/pkg/nova"
+	"github.com/openstack-k8s-operators/nova-operator/pkg/novascheduler"
 )
 
-// NovaComputeReconciler reconciles a NovaCompute object
-type NovaComputeReconciler struct {
+// NovaSchedulerReconciler reconciles a NovaScheduler object
+type NovaSchedulerReconciler struct {
 	ReconcilerBase
 }
 
-// GetLOgger returns a logger object with a prefix of "controller.name" and additional controller context fields
-func (r *NovaComputeReconciler) GetLogger(ctx context.Context) logr.Logger {
-	return log.FromContext(ctx).WithName("Controllers").WithName("NovaCompute")
+// GetLogger returns a logger object with a prefix of "controller.name" and additional controller context fields
+func (r *NovaSchedulerReconciler) GetLogger(ctx context.Context) logr.Logger {
+	return log.FromContext(ctx).WithName("Controllers").WithName("NovaScheduler")
 }
 
-//+kubebuilder:rbac:groups=nova.openstack.org,resources=novacomputes,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=nova.openstack.org,resources=novacomputes/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=nova.openstack.org,resources=novacomputes/finalizers,verbs=update;patch
+// +kubebuilder:rbac:groups=nova.openstack.org,resources=novaschedulers,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=nova.openstack.org,resources=novaschedulers/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=nova.openstack.org,resources=novaschedulers/finalizers,verbs=update;patch
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch;delete;
-// +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;
 // +kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete;
-// +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete;
+// +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;
 // +kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;list;watch;create;update;patch;delete;
-// +kubebuilder:rbac:groups=route.openshift.io,resources=routes,verbs=get;list;watch;create;update;patch;delete;
-// +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneendpoints,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=k8s.cni.cncf.io,resources=network-attachment-definitions,verbs=get;list;watch
+// +kubebuilder:rbac:groups=memcached.openstack.org,resources=memcacheds,verbs=get;list;watch;update;patch
+// +kubebuilder:rbac:groups=memcached.openstack.org,resources=memcacheds/finalizers,verbs=update;patch
 // +kubebuilder:rbac:groups=topology.openstack.org,resources=topologies,verbs=get;list;watch;update
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 // TODO(user): Modify the Reconcile function to compare the state specified by
-// the NovaCompute object against the actual cluster state, and then
+// the NovaScheduler object against the actual cluster state, and then
 // perform operations to make the cluster state reflect the state specified by
 // the user.
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.2/pkg/reconcile
-func (r *NovaComputeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, _err error) {
+func (r *NovaSchedulerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, _err error) {
 	Log := r.GetLogger(ctx)
 
-	// Fetch the NovaCompute instance that needs to be reconciled
-	instance := &novav1.NovaCompute{}
+	// Fetch the NovaScheduler instance that needs to be reconciled
+	instance := &novav1.NovaScheduler{}
 	err := r.Client.Get(ctx, req.NamespacedName, instance)
 	if err != nil {
 		if k8s_errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected.
 			// For additional cleanup logic use finalizers. Return and don't requeue.
-			Log.Info("NovaCompute instance not found, probably deleted before reconciled. Nothing to do.")
+			Log.Info("NovaScheduler instance not found, probably deleted before reconciled. Nothing to do.")
 			return ctrl.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
-		Log.Error(err, "Failed to read the NovaCompute instance.")
+		Log.Error(err, "Failed to read the NovaScheduler instance.")
 		return ctrl.Result{}, err
 	}
 
@@ -121,6 +122,7 @@ func (r *NovaComputeReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	// Save a copy of the conditions so that we can restore the LastTransitionTime
 	// when a condition's state doesn't change.
 	savedConditions := instance.Status.Conditions.DeepCopy()
+
 	// initialize status fields
 	if err = r.initStatus(instance); err != nil {
 		return ctrl.Result{}, err
@@ -159,6 +161,23 @@ func (r *NovaComputeReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, r.reconcileDelete(ctx, h, instance)
 	}
 
+	// We are adding Nova finalizer to Memcached CR later.
+	// So we need a finalizer on the ourselves too so that
+	// during CR delete we can have a chance to remove the finalizer from
+	// the our Memcached so that is also deleted.
+	updated := controllerutil.AddFinalizer(instance, h.GetFinalizer())
+	if updated {
+		Log.Info("Added finalizer to ourselves")
+		// we intentionally return immediately to force the deferred function
+		// to persist the Instance with the finalizer. We need to have our own
+		// finalizer persisted before we try to create the Memcached with
+		// our finalizer to avoid orphaning the Memcached.
+		return ctrl.Result{}, nil
+	}
+
+	// TODO(gibi): Can we use a simple map[string][string] for hashes?
+	// Collect hashes of all the input we depend on so that we can easily
+	// detect if something is changed.
 	hashes := make(map[string]env.Setter)
 
 	// hash the endpoint URLs of the services this depends on
@@ -178,6 +197,9 @@ func (r *NovaComputeReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	hashes["endpointUrlsHash"] = env.SetValue(endpointUrlsHash)
 
 	requiredSecretFields := []string{
+		// TODO(gibi): add keystoneAuthURL here is that is also passed via
+		// the Secret. Also add DB and MQ user name here too if those are
+		// passed via the Secret
 		ServicePasswordSelector,
 		TransportURLSelector,
 		NotificationTransportURLSelector,
@@ -239,10 +261,39 @@ func (r *NovaComputeReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	// all cert input checks out so report InputReady
 	instance.Status.Conditions.MarkTrue(condition.TLSInputReadyCondition, condition.InputReadyMessage)
 
-	err = r.ensureConfigs(ctx, h, instance, &hashes, secret)
+	memcached, err := ensureMemcached(ctx, h, instance.Namespace, instance.Spec.MemcachedInstance, &instance.Status.Conditions)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
+
+	// Add finalizer to Memcached to prevent it from being deleted now that we're using it
+	if controllerutil.AddFinalizer(memcached, h.GetFinalizer()) {
+		err := h.GetClient().Update(ctx, memcached)
+		if err != nil {
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				condition.MemcachedReadyCondition,
+				condition.ErrorReason,
+				condition.SeverityWarning,
+				condition.MemcachedReadyErrorMessage,
+				err.Error()))
+			return ctrl.Result{}, err
+		}
+	}
+
+	err = r.ensureConfigs(ctx, h, instance, &hashes, secret, memcached)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	// Create hash over all the different input resources to identify if any of
+	// those changed and a restart/recreate is required.
+	// We have a special input, the registered cells, as the openstack service
+	// needs to be restarted if this changes to refresh the in memory cell caches
+	cellHash, err := hashOfStringMap(instance.Spec.RegisteredCells)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	hashes["cells"] = env.SetValue(cellHash)
 
 	inputHash, err := util.HashOfInputHashes(hashes)
 	if err != nil {
@@ -263,17 +314,169 @@ func (r *NovaComputeReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return result, err
 	}
 
-	Log.Info("Successfully reconciled")
+	if !instance.Status.Conditions.IsTrue(condition.DeploymentReadyCondition) {
+		Log.Info("Waiting for the deployment to be ready before doing service cleanup in the nova database.")
+
+		return ctrl.Result{}, nil
+	}
+
+	// clean up nova services from nova db should be always a last step in reconcile
+	// to make sure that
+	err = r.cleanServiceFromNovaDb(ctx, h, instance, secret, Log)
+	if err != nil {
+		Log.Error(err, "Failed cleaning services from nova db")
+	}
+
 	return ctrl.Result{}, nil
 }
 
-func (r *NovaComputeReconciler) initStatus(
-	instance *novav1.NovaCompute,
+func (r *NovaSchedulerReconciler) findObjectsForSrc(ctx context.Context, src client.Object) []reconcile.Request {
+	requests := []reconcile.Request{}
+
+	l := log.FromContext(ctx).WithName("Controllers").WithName("NovaScheduler")
+
+	for _, field := range schedulerWatchFields {
+		crList := &novav1.NovaSchedulerList{}
+		listOps := &client.ListOptions{
+			FieldSelector: fields.OneTermEqualSelector(field, src.GetName()),
+			Namespace:     src.GetNamespace(),
+		}
+		err := r.Client.List(ctx, crList, listOps)
+		if err != nil {
+			l.Error(err, fmt.Sprintf("listing %s for field: %s - %s", crList.GroupVersionKind().Kind, field, src.GetNamespace()))
+			return requests
+		}
+
+		for _, item := range crList.Items {
+			l.Info(fmt.Sprintf("input source %s changed, reconcile: %s - %s", src.GetName(), item.GetName(), item.GetNamespace()))
+
+			requests = append(requests,
+				reconcile.Request{
+					NamespacedName: types.NamespacedName{
+						Name:      item.GetName(),
+						Namespace: item.GetNamespace(),
+					},
+				},
+			)
+		}
+	}
+
+	return requests
+}
+
+func (r *NovaSchedulerReconciler) findObjectsWithAppSelectorLabelInNamespace(ctx context.Context, src client.Object) []reconcile.Request {
+	requests := []reconcile.Request{}
+
+	l := log.FromContext(ctx).WithName("Controllers").WithName("NovaScheduler")
+
+	// if the endpoint has the service label and its in our endpointList, reconcile the CR in the namespace
+	if svc, ok := src.GetLabels()[common.AppSelector]; ok && util.StringInSlice(svc, endpointList) {
+		crList := &novav1.NovaSchedulerList{}
+		listOps := &client.ListOptions{
+			Namespace: src.GetNamespace(),
+		}
+		err := r.Client.List(ctx, crList, listOps)
+		if err != nil {
+			l.Error(err, fmt.Sprintf("listing %s for namespace: %s", crList.GroupVersionKind().Kind, src.GetNamespace()))
+			return requests
+		}
+
+		for _, item := range crList.Items {
+			l.Info(fmt.Sprintf("input source %s changed, reconcile: %s - %s", src.GetName(), item.GetName(), item.GetNamespace()))
+
+			requests = append(requests,
+				reconcile.Request{
+					NamespacedName: types.NamespacedName{
+						Name:      item.GetName(),
+						Namespace: item.GetNamespace(),
+					},
+				},
+			)
+		}
+	}
+
+	return requests
+}
+
+// fields to index to reconcile when change
+var (
+	schedulerWatchFields = []string{
+		passwordSecretField,
+		caBundleSecretNameField,
+		topologyField,
+	}
+)
+
+// SetupWithManager sets up the controller with the Manager.
+func (r *NovaSchedulerReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	// index passwordSecretField
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &novav1.NovaScheduler{}, passwordSecretField, func(rawObj client.Object) []string {
+		// Extract the secret name from the spec, if one is provided
+		cr := rawObj.(*novav1.NovaScheduler)
+		if cr.Spec.Secret == "" {
+			return nil
+		}
+		return []string{cr.Spec.Secret}
+	}); err != nil {
+		return err
+	}
+
+	// index caBundleSecretNameField
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &novav1.NovaScheduler{}, caBundleSecretNameField, func(rawObj client.Object) []string {
+		// Extract the secret name from the spec, if one is provided
+		cr := rawObj.(*novav1.NovaScheduler)
+		if cr.Spec.TLS.CaBundleSecretName == "" {
+			return nil
+		}
+		return []string{cr.Spec.TLS.CaBundleSecretName}
+	}); err != nil {
+		return err
+	}
+
+	// index topologyField
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &novav1.NovaScheduler{}, topologyField, func(rawObj client.Object) []string {
+		// Extract the topology name from the spec, if one is provided
+		cr := rawObj.(*novav1.NovaScheduler)
+		if cr.Spec.TopologyRef == nil {
+			return nil
+		}
+		return []string{cr.Spec.TopologyRef.Name}
+	}); err != nil {
+		return err
+	}
+
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&novav1.NovaScheduler{}).
+		Owns(&v1.StatefulSet{}).
+		Owns(&corev1.Secret{}).
+		// watch the input secrets
+		Watches(
+			&corev1.Secret{},
+			handler.EnqueueRequestsFromMapFunc(r.findObjectsForSrc),
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+		).
+		Watches(
+			&memcachedv1.Memcached{},
+			handler.EnqueueRequestsFromMapFunc(r.memcachedNamespaceMapFunc),
+		).
+		Watches(&topologyv1.Topology{},
+			handler.EnqueueRequestsFromMapFunc(r.findObjectsForSrc),
+			builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		Watches(&keystonev1.KeystoneEndpoint{},
+			handler.EnqueueRequestsFromMapFunc(r.findObjectsWithAppSelectorLabelInNamespace),
+			builder.WithPredicates(keystonev1.KeystoneEndpointStatusChangedPredicate)).
+		Complete(r)
+}
+
+func (r *NovaSchedulerReconciler) initStatus(
+	instance *novav1.NovaScheduler,
 ) error {
 	if err := r.initConditions(instance); err != nil {
 		return err
 	}
 
+	// NOTE(gibi): initialize the rest of the status fields here
+	// so that the reconcile loop later can assume they are not nil.
 	if instance.Status.Hash == nil {
 		instance.Status.Hash = map[string]string{}
 	}
@@ -284,8 +487,8 @@ func (r *NovaComputeReconciler) initStatus(
 	return nil
 }
 
-func (r *NovaComputeReconciler) initConditions(
-	instance *novav1.NovaCompute,
+func (r *NovaSchedulerReconciler) initConditions(
+	instance *novav1.NovaScheduler,
 ) error {
 	if instance.Status.Conditions == nil {
 		instance.Status.Conditions = condition.Conditions{}
@@ -334,14 +537,15 @@ func (r *NovaComputeReconciler) initConditions(
 	return nil
 }
 
-func (r *NovaComputeReconciler) ensureConfigs(
+func (r *NovaSchedulerReconciler) ensureConfigs(
 	ctx context.Context,
 	h *helper.Helper,
-	instance *novav1.NovaCompute,
+	instance *novav1.NovaScheduler,
 	hashes *map[string]env.Setter,
 	secret corev1.Secret,
+	memcachedInstance *memcachedv1.Memcached,
 ) error {
-	err := r.generateConfigs(ctx, h, instance, hashes, secret)
+	err := r.generateConfigs(ctx, h, instance, hashes, secret, memcachedInstance)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.ServiceConfigReadyCondition,
@@ -354,51 +558,109 @@ func (r *NovaComputeReconciler) ensureConfigs(
 	return nil
 }
 
-func (r *NovaComputeReconciler) generateConfigs(
-	ctx context.Context, h *helper.Helper, instance *novav1.NovaCompute, hashes *map[string]env.Setter, secret corev1.Secret,
+func (r *NovaSchedulerReconciler) generateConfigs(
+	ctx context.Context, h *helper.Helper, instance *novav1.NovaScheduler, hashes *map[string]env.Setter,
+	secret corev1.Secret,
+	memcachedInstance *memcachedv1.Memcached,
 ) error {
+
+	apiDB, err := mariadbv1.GetDatabaseByNameAndAccount(ctx, h, "nova-api", instance.Spec.APIDatabaseAccount, instance.Namespace)
+	if err != nil {
+		return err
+	}
+	apiDatabaseAccount := apiDB.GetAccount()
+	apiDbSecret := apiDB.GetSecret()
+
+	cellDatabaseAccount, cellDbSecret, err := mariadbv1.GetAccountAndSecret(ctx, h, instance.Spec.Cell0DatabaseAccount, instance.Namespace)
+	if err != nil {
+		return err
+	}
+
 	templateParameters := map[string]interface{}{
-		"service_name":               NovaComputeLabelPrefix,
+		"service_name":               "nova-scheduler",
 		"keystone_internal_url":      instance.Spec.KeystoneAuthURL,
 		"nova_keystone_user":         instance.Spec.ServiceUser,
 		"nova_keystone_password":     string(secret.Data[ServicePasswordSelector]),
+		"api_db_name":                NovaAPIDatabaseName,
+		"api_db_user":                apiDatabaseAccount.Spec.UserName,
+		"api_db_password":            string(apiDbSecret.Data[mariadbv1.DatabasePasswordSelector]),
+		"api_db_address":             instance.Spec.APIDatabaseHostname,
+		"api_db_port":                3306,
+		"cell_db_name":               NovaCell0DatabaseName,
+		"cell_db_user":               cellDatabaseAccount.Spec.UserName,
+		"cell_db_password":           string(cellDbSecret.Data[mariadbv1.DatabasePasswordSelector]),
+		"cell_db_address":            instance.Spec.Cell0DatabaseHostname,
+		"cell_db_port":               3306,
 		"openstack_region_name":      "regionOne", // fixme
 		"default_project_domain":     "Default",   // fixme
 		"default_user_domain":        "Default",   // fixme
 		"transport_url":              string(secret.Data[TransportURLSelector]),
 		"notification_transport_url": string(secret.Data[NotificationTransportURLSelector]),
-		"compute_driver":             instance.Spec.ComputeDriver,
-		// Neither the ironic driver nor the fake driver support VNC
-		"vnc_enabled": false,
+		"MemcachedServers":           memcachedInstance.GetMemcachedServerListString(),
+		"MemcachedServersWithInet":   memcachedInstance.GetMemcachedServerListWithInetString(),
+		"MemcachedTLS":               memcachedInstance.GetMemcachedTLSSupport(),
 	}
 
-	extraData := map[string]string{}
+	var tlsCfg *tls.Service
+	if instance.Spec.TLS.CaBundleSecretName != "" {
+		tlsCfg = &tls.Service{}
+	}
+	extraData := map[string]string{
+		"my.cnf": apiDB.GetDatabaseClientConfig(tlsCfg), //(mschuppert) for now just get the default my.cnf
+	}
 	if instance.Spec.CustomServiceConfig != "" {
 		extraData["02-nova-override.conf"] = instance.Spec.CustomServiceConfig
 	}
-	for key, data := range instance.Spec.DefaultConfigOverwrite {
-		extraData[key] = data
-	}
 
 	cmLabels := labels.GetLabels(
-		instance, labels.GetGroupLabel(NovaComputeLabelPrefix), map[string]string{},
+		instance, labels.GetGroupLabel(NovaSchedulerLabelPrefix), map[string]string{},
 	)
 
-	err := r.GenerateConfigs(
-		ctx, h, instance, nova.GetServiceConfigSecretName(instance.GetName()), hashes, templateParameters, extraData, cmLabels, map[string]string{},
+	return r.GenerateConfigs(
+		ctx, h, instance, nova.GetServiceConfigSecretName(instance.GetName()),
+		hashes, templateParameters, extraData, cmLabels, map[string]string{},
 	)
-	return err
 }
 
-func (r *NovaComputeReconciler) ensureDeployment(
+func (r *NovaSchedulerReconciler) memcachedNamespaceMapFunc(ctx context.Context, src client.Object) []reconcile.Request {
+
+	result := []reconcile.Request{}
+
+	// get all Nova CRs
+	novaSchedulerList := &novav1.NovaSchedulerList{}
+	listOpts := []client.ListOption{
+		client.InNamespace(src.GetNamespace()),
+	}
+	if err := r.Client.List(ctx, novaSchedulerList, listOpts...); err != nil {
+		return nil
+	}
+
+	for _, cr := range novaSchedulerList.Items {
+		if src.GetName() == cr.Spec.MemcachedInstance {
+			name := client.ObjectKey{
+				Namespace: src.GetNamespace(),
+				Name:      cr.Name,
+			}
+			result = append(result, reconcile.Request{NamespacedName: name})
+		}
+	}
+	if len(result) > 0 {
+		return result
+	}
+	return nil
+}
+
+func (r *NovaSchedulerReconciler) ensureDeployment(
 	ctx context.Context,
 	h *helper.Helper,
-	instance *novav1.NovaCompute,
+	instance *novav1.NovaScheduler,
 	inputHash string,
 	annotations map[string]string,
 ) (ctrl.Result, error) {
+	serviceLabels := map[string]string{
+		common.AppSelector: NovaSchedulerLabelPrefix,
+	}
 	Log := r.GetLogger(ctx)
-	serviceLabels := getComputeServiceLabels(instance.Spec.CellName)
 
 	//
 	// Handle Topology
@@ -415,7 +677,7 @@ func (r *NovaComputeReconciler) ensureDeployment(
 		return ctrl.Result{}, fmt.Errorf("waiting for Topology requirements: %w", err)
 	}
 
-	ss := statefulset.NewStatefulSet(novacompute.StatefulSet(instance, inputHash, serviceLabels, annotations, topology), r.RequeueTimeout)
+	ss := statefulset.NewStatefulSet(novascheduler.StatefulSet(instance, inputHash, serviceLabels, annotations, topology), r.RequeueTimeout)
 	ctrlResult, err := ss.CreateOrPatch(ctx, h)
 	if err != nil && !k8s_errors.IsNotFound(err) {
 		Log.Error(err, "Deployment failed")
@@ -427,7 +689,7 @@ func (r *NovaComputeReconciler) ensureDeployment(
 			err.Error()))
 		return ctrlResult, err
 	} else if (ctrlResult != ctrl.Result{} || k8s_errors.IsNotFound(err)) {
-		Log.Info("Deployment in progress")
+		Log.Info("in progress")
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.DeploymentReadyCondition,
 			condition.RequestedReason,
@@ -483,15 +745,29 @@ func (r *NovaComputeReconciler) ensureDeployment(
 	return ctrl.Result{}, nil
 }
 
-func (r *NovaComputeReconciler) reconcileDelete(
+func (r *NovaSchedulerReconciler) reconcileDelete(
 	ctx context.Context,
 	h *helper.Helper,
-	instance *novav1.NovaCompute,
+	instance *novav1.NovaScheduler,
+
 ) error {
 	Log := r.GetLogger(ctx)
+
 	Log.Info("Reconciling delete")
 
-	// Remove finalizer on the Topology CR
+	// Remove our finalizer from Memcached
+	memcached, _ := memcachedv1.GetMemcachedByName(ctx, h, instance.Spec.MemcachedInstance, instance.Namespace)
+
+	if memcached != nil {
+		if controllerutil.RemoveFinalizer(memcached, h.GetFinalizer()) {
+			err := h.GetClient().Update(ctx, memcached)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// Remove finalizer from the referenced Topology CR
 	if _, err := topologyv1.EnsureDeletedTopologyRef(
 		ctx,
 		h,
@@ -500,147 +776,31 @@ func (r *NovaComputeReconciler) reconcileDelete(
 	); err != nil {
 		return err
 	}
+
+	// Successfully cleaned up everything. So as the final step let's remove the
+	// finalizer from ourselves to allow the deletion of NovaScheduler CR itself
+	updated := controllerutil.RemoveFinalizer(instance, h.GetFinalizer())
+	if updated {
+		Log.Info("Removed finalizer from ourselves")
+	}
+
 	Log.Info("Reconciled delete successfully")
 	return nil
 }
 
-func getComputeServiceLabels(cell string) map[string]string {
-	return map[string]string{
-		common.AppSelector: NovaComputeLabelPrefix,
-		CellSelector:       cell,
-	}
-}
-
-func (r *NovaComputeReconciler) findObjectsForSrc(ctx context.Context, src client.Object) []reconcile.Request {
-	requests := []reconcile.Request{}
-
-	l := log.FromContext(ctx).WithName("Controllers").WithName("NovaCompute")
-
-	for _, field := range cmpWatchFields {
-		crList := &novav1.NovaComputeList{}
-		listOps := &client.ListOptions{
-			FieldSelector: fields.OneTermEqualSelector(field, src.GetName()),
-			Namespace:     src.GetNamespace(),
-		}
-		err := r.Client.List(ctx, crList, listOps)
-		if err != nil {
-			l.Error(err, fmt.Sprintf("listing %s for field: %s - %s", crList.GroupVersionKind().Kind, field, src.GetNamespace()))
-			return requests
-		}
-
-		for _, item := range crList.Items {
-			l.Info(fmt.Sprintf("input source %s changed, reconcile: %s - %s", src.GetName(), item.GetName(), item.GetNamespace()))
-
-			requests = append(requests,
-				reconcile.Request{
-					NamespacedName: types.NamespacedName{
-						Name:      item.GetName(),
-						Namespace: item.GetNamespace(),
-					},
-				},
-			)
-		}
-	}
-
-	return requests
-}
-
-func (r *NovaComputeReconciler) findObjectsWithAppSelectorLabelInNamespace(ctx context.Context, src client.Object) []reconcile.Request {
-	requests := []reconcile.Request{}
-
-	l := log.FromContext(ctx).WithName("Controllers").WithName("NovaCompute")
-
-	// if the endpoint has the service label and its in our endpointList, reconcile the CR in the namespace
-	if svc, ok := src.GetLabels()[common.AppSelector]; ok && util.StringInSlice(svc, endpointList) {
-		crList := &novav1.NovaComputeList{}
-		listOps := &client.ListOptions{
-			Namespace: src.GetNamespace(),
-		}
-		err := r.Client.List(ctx, crList, listOps)
-		if err != nil {
-			l.Error(err, fmt.Sprintf("listing %s for namespace: %s", crList.GroupVersionKind().Kind, src.GetNamespace()))
-			return requests
-		}
-
-		for _, item := range crList.Items {
-			l.Info(fmt.Sprintf("input source %s changed, reconcile: %s - %s", src.GetName(), item.GetName(), item.GetNamespace()))
-
-			requests = append(requests,
-				reconcile.Request{
-					NamespacedName: types.NamespacedName{
-						Name:      item.GetName(),
-						Namespace: item.GetNamespace(),
-					},
-				},
-			)
-		}
-	}
-
-	return requests
-}
-
-// fields to index to reconcile when change
-var (
-	cmpWatchFields = []string{
-		passwordSecretField,
-		caBundleSecretNameField,
-		topologyField,
-	}
-)
-
-// SetupWithManager sets up the controller with the Manager.
-func (r *NovaComputeReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	// index passwordSecretField
-	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &novav1.NovaCompute{}, passwordSecretField, func(rawObj client.Object) []string {
-		// Extract the secret name from the spec, if one is provided
-		cr := rawObj.(*novav1.NovaCompute)
-		if cr.Spec.Secret == "" {
-			return nil
-		}
-		return []string{cr.Spec.Secret}
-	}); err != nil {
+func (r *NovaSchedulerReconciler) cleanServiceFromNovaDb(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *novav1.NovaScheduler,
+	secret corev1.Secret,
+	l logr.Logger,
+) error {
+	authPassword := string(secret.Data[ServicePasswordSelector])
+	computeClient, err := getNovaClient(ctx, h, instance, authPassword, l)
+	if err != nil {
 		return err
 	}
+	replicaCount := instance.Spec.Replicas
 
-	// index caBundleSecretNameField
-	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &novav1.NovaCompute{}, caBundleSecretNameField, func(rawObj client.Object) []string {
-		// Extract the secret name from the spec, if one is provided
-		cr := rawObj.(*novav1.NovaCompute)
-		if cr.Spec.TLS.CaBundleSecretName == "" {
-			return nil
-		}
-		return []string{cr.Spec.TLS.CaBundleSecretName}
-	}); err != nil {
-		return err
-	}
-
-	// index topologyField
-	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &novav1.NovaCompute{}, topologyField, func(rawObj client.Object) []string {
-		// Extract the topology name from the spec, if one is provided
-		cr := rawObj.(*novav1.NovaCompute)
-		if cr.Spec.TopologyRef == nil {
-			return nil
-		}
-		return []string{cr.Spec.TopologyRef.Name}
-	}); err != nil {
-		return err
-	}
-
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&novav1.NovaCompute{}).
-		Owns(&v1.StatefulSet{}).
-		Owns(&corev1.Secret{}).
-		// watch the input secrets
-		Watches(
-			&corev1.Secret{},
-			handler.EnqueueRequestsFromMapFunc(r.findObjectsForSrc),
-			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
-		).
-		Watches(&topologyv1.Topology{},
-			handler.EnqueueRequestsFromMapFunc(r.findObjectsForSrc),
-			builder.WithPredicates(predicate.GenerationChangedPredicate{})).
-		Watches(&keystonev1.KeystoneEndpoint{},
-			handler.EnqueueRequestsFromMapFunc(r.findObjectsWithAppSelectorLabelInNamespace),
-			builder.WithPredicates(keystonev1.KeystoneEndpointStatusChangedPredicate)).
-		Complete(r)
+	return cleanNovaServiceFromNovaDb(computeClient, "nova-scheduler", l, *replicaCount, "")
 }
