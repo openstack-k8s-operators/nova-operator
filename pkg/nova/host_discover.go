@@ -16,7 +16,7 @@ package nova
 
 import (
 	env "github.com/openstack-k8s-operators/lib-common/modules/common/env"
-	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
+	novav1 "github.com/openstack-k8s-operators/nova-operator/apis/nova/v1beta1"
 
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"

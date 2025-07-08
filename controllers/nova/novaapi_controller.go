@@ -21,9 +21,7 @@ import (
 	"fmt"
 
 	v1 "k8s.io/api/apps/v1"
-	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
@@ -37,74 +35,79 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/go-logr/logr"
+
 	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
-	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
-	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
-	"github.com/openstack-k8s-operators/lib-common/modules/common/cronjob"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/endpoint"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
-	job "github.com/openstack-k8s-operators/lib-common/modules/common/job"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/labels"
 	nad "github.com/openstack-k8s-operators/lib-common/modules/common/networkattachment"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/statefulset"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
-	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
-	"github.com/openstack-k8s-operators/nova-operator/pkg/novaconductor"
+
+	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
+	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
+	novav1 "github.com/openstack-k8s-operators/nova-operator/apis/nova/v1beta1"
+	"github.com/openstack-k8s-operators/nova-operator/pkg/nova"
+	"github.com/openstack-k8s-operators/nova-operator/pkg/novaapi"
+
+	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 )
 
-// NovaConductorReconciler reconciles a NovaConductor object
-type NovaConductorReconciler struct {
+// NovaAPIReconciler reconciles a NovaAPI object
+type NovaAPIReconciler struct {
 	ReconcilerBase
 }
 
 // GetLogger returns a logger object with a prefix of "controller.name" and additional controller context fields
-func (r *NovaConductorReconciler) GetLogger(ctx context.Context) logr.Logger {
-	return log.FromContext(ctx).WithName("Controllers").WithName("NovaConductor")
+func (r *NovaAPIReconciler) GetLogger(ctx context.Context) logr.Logger {
+	return log.FromContext(ctx).WithName("Controllers").WithName("NovaAPI")
 }
 
-//+kubebuilder:rbac:groups=nova.openstack.org,resources=novaconductors,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=nova.openstack.org,resources=novaconductors/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=nova.openstack.org,resources=novaconductors/finalizers,verbs=update;patch
-//+kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;
-//+kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch;delete;
-//+kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete;
-//+kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete;
-//+kubebuilder:rbac:groups=k8s.cni.cncf.io,resources=network-attachment-definitions,verbs=get;list;watch
-//+kubebuilder:rbac:groups=memcached.openstack.org,resources=memcacheds,verbs=get;list;watch;update;patch
-//+kubebuilder:rbac:groups=memcached.openstack.org,resources=memcacheds/finalizers,verbs=update;patch
-// +kubebuilder:rbac:groups=batch,resources=cronjobs,verbs=get;list;watch;create;update;patch;delete;
+//+kubebuilder:rbac:groups=nova.openstack.org,resources=novaapis,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=nova.openstack.org,resources=novaapis/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=nova.openstack.org,resources=novaapis/finalizers,verbs=update;patch
+// +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch;delete;
+// +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;
+// +kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete;
+// +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete;
+// +kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;list;watch;create;update;patch;delete;
+// +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneendpoints,verbs=get;list;watch;create;update;patch;delete;
+// +kubebuilder:rbac:groups=k8s.cni.cncf.io,resources=network-attachment-definitions,verbs=get;list;watch
+// +kubebuilder:rbac:groups=memcached.openstack.org,resources=memcacheds,verbs=get;list;watch;update;patch
+// +kubebuilder:rbac:groups=memcached.openstack.org,resources=memcacheds/finalizers,verbs=update;patch
 // +kubebuilder:rbac:groups=topology.openstack.org,resources=topologies,verbs=get;list;watch;update
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 // TODO(user): Modify the Reconcile function to compare the state specified by
-// the NovaConductor object against the actual cluster state, and then
+// the NovaAPI object against the actual cluster state, and then
 // perform operations to make the cluster state reflect the state specified by
 // the user.
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.2/pkg/reconcile
-func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, _err error) {
+func (r *NovaAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, _err error) {
 	Log := r.GetLogger(ctx)
 
-	// Fetch our instance that needs to be reconciled
-	instance := &novav1.NovaConductor{}
+	// Fetch the NovaAPI instance that needs to be reconciled
+	instance := &novav1.NovaAPI{}
 	err := r.Client.Get(ctx, req.NamespacedName, instance)
 	if err != nil {
 		if k8s_errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected.
 			// For additional cleanup logic use finalizers. Return and don't requeue.
-			Log.Info("NovaConductor instance not found, probably deleted before reconciled. Nothing to do.")
+			Log.Info("NovaAPI instance not found, probably deleted before reconciled. Nothing to do.")
 			return ctrl.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
-		Log.Error(err, "Failed to read the NovaConductor instance.")
+		Log.Error(err, "Failed to read the NovaAPI instance.")
 		return ctrl.Result{}, err
 	}
 
@@ -150,7 +153,6 @@ func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			instance.Status.Conditions.Set(
 				instance.Status.Conditions.Mirror(condition.ReadyCondition))
 		}
-
 		condition.RestoreLastTransitionTimes(&instance.Status.Conditions, savedConditions)
 		err := h.PatchInstance(ctx, instance)
 		if err != nil {
@@ -162,18 +164,17 @@ func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	if !instance.DeletionTimestamp.IsZero() {
 		return ctrl.Result{}, r.reconcileDelete(ctx, h, instance)
 	}
-
-	// We are adding Nova finalizer to Memcached CR.
-	// So we need a finalizer on the ourselves too so that
-	// during CR delete we can have a chance to remove the finalizer from
-	// the our Memcached so that is also deleted.
+	// We create a KeystoneEndpoint CR later and that will automatically get the
+	// Nova finalizer. So we need a finalizer on the ourselves too so that
+	// during NovaAPI CR delete we can have a chance to remove the finalizer from
+	// the our KeystoneEndpoint so that is also deleted.
 	updated := controllerutil.AddFinalizer(instance, h.GetFinalizer())
 	if updated {
 		Log.Info("Added finalizer to ourselves")
 		// we intentionally return immediately to force the deferred function
 		// to persist the Instance with the finalizer. We need to have our own
-		// finalizer persisted before we try to create the Memcached with
-		// our finalizer to avoid orphaning the Memcached.
+		// finalizer persisted before we try to create the KeystoneEndpoint with
+		// our finalizer to avoid orphaning the KeystoneEndpoint.
 		return ctrl.Result{}, nil
 	}
 
@@ -199,6 +200,9 @@ func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	hashes["endpointUrlsHash"] = env.SetValue(endpointUrlsHash)
 
 	requiredSecretFields := []string{
+		// TODO(gibi): add keystoneAuthURL here is that is also passed via
+		// the Secret. Also add DB and MQ user name here too if those are
+		// passed via the Secret
 		ServicePasswordSelector,
 		TransportURLSelector,
 		NotificationTransportURLSelector,
@@ -220,6 +224,40 @@ func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	// all our input checks out so report InputReady
 	instance.Status.Conditions.MarkTrue(condition.InputReadyCondition, condition.InputReadyMessage)
+
+	memcached, err := ensureMemcached(ctx, h, instance.Namespace, instance.Spec.MemcachedInstance, &instance.Status.Conditions)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	// Add finalizer to Memcached to prevent it from being deleted now that we're using it
+	if controllerutil.AddFinalizer(memcached, h.GetFinalizer()) {
+		err := h.GetClient().Update(ctx, memcached)
+		if err != nil {
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				condition.MemcachedReadyCondition,
+				condition.ErrorReason,
+				condition.SeverityWarning,
+				condition.MemcachedReadyErrorMessage,
+				err.Error()))
+			return ctrl.Result{}, err
+		}
+	}
+
+	err = r.ensureConfigs(ctx, h, instance, &hashes, secret, memcached)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	// Create hash over all the different input resources to identify if any of
+	// those changed and a restart/recreate is required.
+	// We have a special input, the registered cells, as the openstack service
+	// needs to be restarted if this changes to refresh the in memory cell caches
+	cellHash, err := hashOfStringMap(instance.Spec.RegisteredCells)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	hashes["cells"] = env.SetValue(cellHash)
 
 	//
 	// TLS input validation
@@ -257,39 +295,35 @@ func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		}
 	}
 
+	// Validate API service certs secrets
+	certsHash, err := instance.Spec.TLS.API.ValidateCertSecrets(ctx, h, instance.Namespace)
+	if err != nil {
+		if k8s_errors.IsNotFound(err) {
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				condition.TLSInputReadyCondition,
+				condition.RequestedReason,
+				condition.SeverityInfo,
+				fmt.Sprintf(condition.TLSInputReadyWaitingMessage, err.Error())))
+			return ctrl.Result{}, nil
+		}
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.TLSInputReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.TLSInputErrorMessage,
+			err.Error()))
+		return ctrl.Result{}, err
+	}
+	hashes[tls.TLSHashName] = env.SetValue(certsHash)
+
 	// all cert input checks out so report InputReady
 	instance.Status.Conditions.MarkTrue(condition.TLSInputReadyCondition, condition.InputReadyMessage)
 
-	memcached, err := ensureMemcached(ctx, h, instance.Namespace, instance.Spec.MemcachedInstance, &instance.Status.Conditions)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-
-	// Add finalizer to Memcached to prevent it from being deleted now that we're using it
-	if controllerutil.AddFinalizer(memcached, h.GetFinalizer()) {
-		err := h.GetClient().Update(ctx, memcached)
-		if err != nil {
-			instance.Status.Conditions.Set(condition.FalseCondition(
-				condition.MemcachedReadyCondition,
-				condition.ErrorReason,
-				condition.SeverityWarning,
-				condition.MemcachedReadyErrorMessage,
-				err.Error()))
-			return ctrl.Result{}, err
-		}
-	}
-
-	err = r.ensureConfigs(ctx, h, instance, &hashes, secret, memcached)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-
-	// create hash over all the different input resources to identify if any of
-	// those changed and a restart/recreate is required.
 	inputHash, err := util.HashOfInputHashes(hashes)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
+
 	instance.Status.Hash[common.InputHashName] = inputHash
 
 	instance.Status.Conditions.MarkTrue(condition.ServiceConfigReadyCondition, condition.ServiceConfigReadyMessage)
@@ -299,38 +333,36 @@ func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return result, err
 	}
 
-	result, err = r.ensureCellDBSynced(ctx, h, instance, serviceAnnotations)
-	if (err != nil || result != ctrl.Result{}) {
-		return result, err
-	}
-
 	result, err = r.ensureDeployment(ctx, h, instance, inputHash, serviceAnnotations)
 	if (err != nil || result != ctrl.Result{}) {
 		return result, err
 	}
 
-	err = r.ensureDBPurgeCronJob(ctx, h, instance, serviceAnnotations)
-	if err != nil {
+	// Only expose the service is the deployment succeeded
+	if !instance.Status.Conditions.IsTrue(condition.DeploymentReadyCondition) {
+		Log.Info("Waiting for the Deployment to become Ready before exposing the service in Keystone")
+		return ctrl.Result{}, nil
+	}
+
+	apiEndpoints, result, err := r.ensureServiceExposed(ctx, h, instance)
+	if (err != nil || result != ctrl.Result{}) {
+		// We can ignore RequeueAfter as we are watching the Service resource
+		// but we have to return while waiting for the service to be exposed
 		return ctrl.Result{}, err
 	}
 
-	if !instance.Status.Conditions.IsTrue(condition.DeploymentReadyCondition) {
-		Log.Info("Waiting for the deployment to be ready before doing service cleanup in the nova database.")
-
-		return ctrl.Result{}, nil
-	}
-	// clean up nova services from nova db should be always a last step in reconcile
-	err = r.cleanServiceFromNovaDb(ctx, h, instance, secret, Log)
-	if err != nil {
-		Log.Error(err, "Failed cleaning services from nova db")
+	result, err = r.ensureKeystoneEndpoint(ctx, h, instance, apiEndpoints)
+	if (err != nil || result != ctrl.Result{}) {
+		// We can ignore RequeueAfter as we are watching the KeystoneEndpoint resource
+		return ctrl.Result{}, err
 	}
 
 	Log.Info("Successfully reconciled")
 	return ctrl.Result{}, nil
 }
 
-func (r *NovaConductorReconciler) initStatus(
-	instance *novav1.NovaConductor,
+func (r *NovaAPIReconciler) initStatus(
+	instance *novav1.NovaAPI,
 ) error {
 	if err := r.initConditions(instance); err != nil {
 		return err
@@ -348,8 +380,8 @@ func (r *NovaConductorReconciler) initStatus(
 	return nil
 }
 
-func (r *NovaConductorReconciler) initConditions(
-	instance *novav1.NovaConductor,
+func (r *NovaAPIReconciler) initConditions(
+	instance *novav1.NovaAPI,
 ) error {
 	if instance.Status.Conditions == nil {
 		instance.Status.Conditions = condition.Conditions{}
@@ -370,14 +402,19 @@ func (r *NovaConductorReconciler) initConditions(
 			condition.ServiceConfigReadyInitMessage,
 		),
 		condition.UnknownCondition(
-			condition.DBSyncReadyCondition,
-			condition.InitReason,
-			condition.DBSyncReadyInitMessage,
-		),
-		condition.UnknownCondition(
 			condition.DeploymentReadyCondition,
 			condition.InitReason,
 			condition.DeploymentReadyInitMessage,
+		),
+		condition.UnknownCondition(
+			condition.CreateServiceReadyCondition,
+			condition.InitReason,
+			condition.CreateServiceReadyInitMessage,
+		),
+		condition.UnknownCondition(
+			condition.KeystoneEndpointReadyCondition,
+			condition.InitReason,
+			"KeystoneEndpoint not created",
 		),
 		condition.UnknownCondition(
 			condition.NetworkAttachmentsReadyCondition,
@@ -394,11 +431,6 @@ func (r *NovaConductorReconciler) initConditions(
 			condition.InitReason,
 			condition.MemcachedReadyInitMessage,
 		),
-		condition.UnknownCondition(
-			condition.CronJobReadyCondition,
-			condition.InitReason,
-			condition.CronJobReadyInitMessage,
-		),
 	)
 	// Init Topology condition if there's a reference
 	if instance.Spec.TopologyRef != nil {
@@ -413,10 +445,10 @@ func (r *NovaConductorReconciler) initConditions(
 	return nil
 }
 
-func (r *NovaConductorReconciler) ensureConfigs(
+func (r *NovaAPIReconciler) ensureConfigs(
 	ctx context.Context,
 	h *helper.Helper,
-	instance *novav1.NovaConductor,
+	instance *novav1.NovaAPI,
 	hashes *map[string]env.Setter,
 	secret corev1.Secret,
 	memcachedInstance *memcachedv1.Memcached,
@@ -434,125 +466,110 @@ func (r *NovaConductorReconciler) ensureConfigs(
 	return nil
 }
 
-func (r *NovaConductorReconciler) generateConfigs(
+func (r *NovaAPIReconciler) generateConfigs(
 	ctx context.Context,
 	h *helper.Helper,
-	instance *novav1.NovaConductor,
+	instance *novav1.NovaAPI,
 	hashes *map[string]env.Setter,
 	secret corev1.Secret,
 	memcachedInstance *memcachedv1.Memcached,
 ) error {
 
-	cellDB, err := mariadbv1.GetDatabaseByNameAndAccount(ctx, h, "nova-"+instance.Spec.CellName, instance.Spec.CellDatabaseAccount, instance.Namespace)
+	apiDB, err := mariadbv1.GetDatabaseByNameAndAccount(ctx, h, "nova-api", instance.Spec.APIDatabaseAccount, instance.Namespace)
 	if err != nil {
 		return err
 	}
-	cellDatabaseAccount := cellDB.GetAccount()
-	cellDbSecret := cellDB.GetSecret()
+	apiDatabaseAccount := apiDB.GetAccount()
+	apiDbSecret := apiDB.GetSecret()
+
+	cellDatabaseAccount, cellDbSecret, err := mariadbv1.GetAccountAndSecret(ctx, h, instance.Spec.Cell0DatabaseAccount, instance.Namespace)
+	if err != nil {
+		return err
+	}
 
 	templateParameters := map[string]interface{}{
-		"service_name":               "nova-conductor",
-		"keystone_internal_url":      instance.Spec.KeystoneAuthURL,
+		"service_name":          "nova-api",
+		"keystone_internal_url": instance.Spec.KeystoneAuthURL,
+		// NOTE(gibi): As per the definition of www_authenticate_uri this
+		// always needs to point to the public keystone endpoint.
+		"www_authenticate_uri":       instance.Spec.KeystonePublicAuthURL,
 		"nova_keystone_user":         instance.Spec.ServiceUser,
 		"nova_keystone_password":     string(secret.Data[ServicePasswordSelector]),
-		"cell_db_name":               getCellDatabaseName(instance.Spec.CellName),
+		"api_db_name":                NovaAPIDatabaseName,
+		"api_db_user":                apiDatabaseAccount.Spec.UserName,
+		"api_db_password":            string(apiDbSecret.Data[mariadbv1.DatabasePasswordSelector]),
+		"api_db_address":             instance.Spec.APIDatabaseHostname,
+		"api_db_port":                3306,
+		"cell_db_name":               NovaCell0DatabaseName,
 		"cell_db_user":               cellDatabaseAccount.Spec.UserName,
 		"cell_db_password":           string(cellDbSecret.Data[mariadbv1.DatabasePasswordSelector]),
-		"cell_db_address":            instance.Spec.CellDatabaseHostname,
+		"cell_db_address":            instance.Spec.Cell0DatabaseHostname,
 		"cell_db_port":               3306,
 		"openstack_region_name":      "regionOne", // fixme
 		"default_project_domain":     "Default",   // fixme
 		"default_user_domain":        "Default",   // fixme
 		"transport_url":              string(secret.Data[TransportURLSelector]),
 		"notification_transport_url": string(secret.Data[NotificationTransportURLSelector]),
+		"log_file":                   "/var/log/nova/nova-api.log",
+		"tls":                        false,
 		"MemcachedServers":           memcachedInstance.GetMemcachedServerListString(),
 		"MemcachedServersWithInet":   memcachedInstance.GetMemcachedServerListWithInetString(),
 		"MemcachedTLS":               memcachedInstance.GetMemcachedTLSSupport(),
 	}
-	if len(instance.Spec.APIDatabaseHostname) > 0 {
-		apiDatabaseAccount, apiDbSecret, err := mariadbv1.GetAccountAndSecret(ctx, h, instance.Spec.APIDatabaseAccount, instance.Namespace)
-		if err != nil {
-			return err
+	// create httpd  vhost template parameters
+	httpdVhostConfig := map[string]interface{}{}
+	for _, endpt := range []service.Endpoint{service.EndpointInternal, service.EndpointPublic} {
+		endptConfig := map[string]interface{}{}
+		endptConfig["ServerName"] = fmt.Sprintf("nova-%s.%s.svc", endpt.String(), instance.Namespace)
+		endptConfig["tls"] = false // default TLS to false, and set it bellow to true if enabled
+		endptConfig["TimeOut"] = instance.Spec.APITimeout
+		if instance.Spec.TLS.API.Enabled(endpt) {
+			templateParameters["tls"] = true
+			endptConfig["tls"] = true
+			endptConfig["SSLCertificateFile"] = fmt.Sprintf("/etc/pki/tls/certs/%s.crt", endpt.String())
+			endptConfig["SSLCertificateKeyFile"] = fmt.Sprintf("/etc/pki/tls/private/%s.key", endpt.String())
 		}
+		httpdVhostConfig[endpt.String()] = endptConfig
 
-		templateParameters["api_db_name"] = NovaAPIDatabaseName
-		templateParameters["api_db_user"] = apiDatabaseAccount.Spec.UserName
-		templateParameters["api_db_password"] = string(apiDbSecret.Data[mariadbv1.DatabasePasswordSelector])
-		templateParameters["api_db_address"] = instance.Spec.APIDatabaseHostname
-		templateParameters["api_db_port"] = 3306
 	}
+	templateParameters["VHosts"] = httpdVhostConfig
 
 	var tlsCfg *tls.Service
-	if instance.Spec.TLS.CaBundleSecretName != "" {
+	if instance.Spec.TLS.Ca.CaBundleSecretName != "" {
 		tlsCfg = &tls.Service{}
 	}
+
 	extraData := map[string]string{
-		"my.cnf": cellDB.GetDatabaseClientConfig(tlsCfg), //(mschuppert) for now just get the default my.cnf
+		"my.cnf": apiDB.GetDatabaseClientConfig(tlsCfg), //(mschuppert) for now just get the default my.cnf
 	}
+
 	if instance.Spec.CustomServiceConfig != "" {
 		extraData["02-nova-override.conf"] = instance.Spec.CustomServiceConfig
 	}
+	for key, data := range instance.Spec.DefaultConfigOverwrite {
+		extraData[key] = data
+	}
 
 	cmLabels := labels.GetLabels(
-		instance, labels.GetGroupLabel(NovaConductorLabelPrefix), map[string]string{})
-
-	return r.GenerateConfigsWithScripts(
-		ctx, h, instance, hashes, templateParameters, extraData, cmLabels, map[string]string{},
+		instance, labels.GetGroupLabel(NovaAPILabelPrefix), map[string]string{},
 	)
+
+	err = r.GenerateConfigs(
+		ctx, h, instance, nova.GetServiceConfigSecretName(instance.GetName()),
+		hashes, templateParameters, extraData, cmLabels, map[string]string{},
+	)
+	return err
 }
 
-func (r *NovaConductorReconciler) ensureCellDBSynced(
+func (r *NovaAPIReconciler) ensureDeployment(
 	ctx context.Context,
 	h *helper.Helper,
-	instance *novav1.NovaConductor,
-	annotations map[string]string,
-) (ctrl.Result, error) {
-	serviceLabels := map[string]string{
-		common.AppSelector: NovaConductorLabelPrefix,
-	}
-	Log := r.GetLogger(ctx)
-	dbSyncHash := instance.Status.Hash[DbSyncHash]
-	jobDef := novaconductor.CellDBSyncJob(instance, serviceLabels, annotations)
-	dbSyncJob := job.NewJob(jobDef, "dbsync", instance.Spec.PreserveJobs, r.RequeueTimeout, dbSyncHash)
-	ctrlResult, err := dbSyncJob.DoJob(ctx, h)
-	if (ctrlResult != ctrl.Result{}) {
-		instance.Status.Conditions.Set(condition.FalseCondition(
-			condition.DBSyncReadyCondition,
-			condition.RequestedReason,
-			condition.SeverityInfo,
-			condition.DBSyncReadyRunningMessage))
-		return ctrlResult, nil
-	}
-	if err != nil {
-		instance.Status.Conditions.Set(condition.FalseCondition(
-			condition.DBSyncReadyCondition,
-			condition.ErrorReason,
-			condition.SeverityWarning,
-			condition.DBSyncReadyErrorMessage,
-			err.Error()))
-		return ctrl.Result{}, err
-	}
-	if dbSyncJob.HasChanged() {
-		instance.Status.Hash[DbSyncHash] = dbSyncJob.GetHash()
-		Log.Info(fmt.Sprintf("Job %s ash added %s", jobDef.Name, instance.Status.Hash[DbSyncHash]))
-	}
-	instance.Status.Conditions.MarkTrue(condition.DBSyncReadyCondition, condition.DBSyncReadyMessage)
-
-	return ctrl.Result{}, nil
-}
-
-func (r *NovaConductorReconciler) ensureDeployment(
-	ctx context.Context,
-	h *helper.Helper,
-	instance *novav1.NovaConductor,
+	instance *novav1.NovaAPI,
 	inputHash string,
 	annotations map[string]string,
 ) (ctrl.Result, error) {
-	serviceLabels := map[string]string{
-		common.AppSelector: NovaConductorLabelPrefix,
-		CellSelector:       instance.Spec.CellName,
-	}
 	Log := r.GetLogger(ctx)
+	serviceLabels := getAPIServiceLabels()
 
 	//
 	// Handle Topology
@@ -569,7 +586,18 @@ func (r *NovaConductorReconciler) ensureDeployment(
 		return ctrl.Result{}, fmt.Errorf("waiting for Topology requirements: %w", err)
 	}
 
-	ss := statefulset.NewStatefulSet(novaconductor.StatefulSet(instance, inputHash, serviceLabels, annotations, topology), r.RequeueTimeout)
+	ssSpec, err := novaapi.StatefulSet(instance, inputHash, serviceLabels, annotations, topology)
+	if err != nil {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.DeploymentReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.DeploymentReadyErrorMessage,
+			err.Error()))
+		return ctrl.Result{}, err
+	}
+
+	ss := statefulset.NewStatefulSet(ssSpec, r.RequeueTimeout)
 	ctrlResult, err := ss.CreateOrPatch(ctx, h)
 	if err != nil && !k8s_errors.IsNotFound(err) {
 		Log.Error(err, "Deployment failed")
@@ -637,59 +665,256 @@ func (r *NovaConductorReconciler) ensureDeployment(
 	return ctrl.Result{}, nil
 }
 
-func (r *NovaConductorReconciler) ensureDBPurgeCronJob(
+func (r *NovaAPIReconciler) ensureServiceExposed(
 	ctx context.Context,
 	h *helper.Helper,
-	instance *novav1.NovaConductor,
-	annotations map[string]string,
-) error {
-	serviceLabels := map[string]string{
-		common.AppSelector: NovaConductorLabelPrefix,
+	instance *novav1.NovaAPI,
+) (map[string]string, ctrl.Result, error) {
+	ports := map[service.Endpoint]endpoint.Data{
+		service.EndpointPublic: {
+			Port: novaapi.APIServicePort,
+			Path: "/v2.1",
+		},
+		service.EndpointInternal: {
+			Port: novaapi.APIServicePort,
+			Path: "/v2.1",
+		},
 	}
-	cronDef := novaconductor.DBPurgeCronJob(instance, serviceLabels, annotations)
-	cronjob := cronjob.NewCronJob(cronDef, r.RequeueTimeout)
 
-	_, err := cronjob.CreateOrPatch(ctx, h)
+	apiEndpoints := make(map[string]string)
+
+	for endpointType, data := range ports {
+		endpointTypeStr := string(endpointType)
+		endpointName := novaapi.ServiceName + "-" + endpointTypeStr
+		svcOverride := instance.Spec.Override.Service[endpointType]
+		if svcOverride.EmbeddedLabelsAnnotations == nil {
+			svcOverride.EmbeddedLabelsAnnotations = &service.EmbeddedLabelsAnnotations{}
+		}
+
+		exportLabels := util.MergeStringMaps(
+			getAPIServiceLabels(),
+			map[string]string{
+				service.AnnotationEndpointKey: endpointTypeStr,
+			},
+		)
+
+		// Create the service
+		svc, err := service.NewService(
+			service.GenericService(&service.GenericServiceDetails{
+				Name:      endpointName,
+				Namespace: instance.Namespace,
+				Labels:    exportLabels,
+				Selector:  getAPIServiceLabels(),
+				Port: service.GenericServicePort{
+					Name:     endpointName,
+					Port:     data.Port,
+					Protocol: corev1.ProtocolTCP,
+				},
+			}),
+			5,
+			&svcOverride.OverrideSpec,
+		)
+		if err != nil {
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				condition.CreateServiceReadyCondition,
+				condition.ErrorReason,
+				condition.SeverityWarning,
+				condition.CreateServiceReadyErrorMessage,
+				err.Error()))
+
+			return nil, ctrl.Result{}, err
+		}
+
+		svc.AddAnnotation(map[string]string{
+			service.AnnotationEndpointKey: endpointTypeStr,
+		})
+
+		// add Annotation to whether creating an ingress is required or not
+		if endpointType == service.EndpointPublic && svc.GetServiceType() == corev1.ServiceTypeClusterIP {
+			svc.AddAnnotation(map[string]string{
+				service.AnnotationIngressCreateKey: "true",
+			})
+		} else {
+			svc.AddAnnotation(map[string]string{
+				service.AnnotationIngressCreateKey: "false",
+			})
+			if svc.GetServiceType() == corev1.ServiceTypeLoadBalancer {
+				svc.AddAnnotation(map[string]string{
+					service.AnnotationHostnameKey: svc.GetServiceHostname(), // add annotation to register service name in dnsmasq
+				})
+			}
+		}
+
+		ctrlResult, err := svc.CreateOrPatch(ctx, h)
+		if err != nil {
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				condition.CreateServiceReadyCondition,
+				condition.ErrorReason,
+				condition.SeverityWarning,
+				condition.CreateServiceReadyErrorMessage,
+				err.Error()))
+
+			return nil, ctrlResult, err
+		} else if (ctrlResult != ctrl.Result{}) {
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				condition.CreateServiceReadyCondition,
+				condition.RequestedReason,
+				condition.SeverityInfo,
+				condition.CreateServiceReadyRunningMessage))
+			return nil, ctrlResult, nil
+		}
+		// create service - end
+
+		// if TLS is enabled
+		if instance.Spec.TLS.API.Enabled(endpointType) {
+			// set endpoint protocol to https
+			data.Protocol = ptr.To(service.ProtocolHTTPS)
+		}
+
+		apiEndpoints[string(endpointType)], err = svc.GetAPIEndpoint(
+			svcOverride.EndpointURL, data.Protocol, data.Path)
+		if err != nil {
+			return nil, ctrl.Result{}, err
+		}
+	}
+	instance.Status.Conditions.MarkTrue(condition.CreateServiceReadyCondition, condition.CreateServiceReadyMessage)
+
+	return apiEndpoints, ctrl.Result{}, nil
+}
+
+func (r *NovaAPIReconciler) ensureKeystoneEndpoint(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *novav1.NovaAPI,
+	apiEndpoints map[string]string,
+) (ctrl.Result, error) {
+	endpointSpec := keystonev1.KeystoneEndpointSpec{
+		ServiceName: novaapi.ServiceName,
+		Endpoints:   apiEndpoints,
+	}
+	endpoint := keystonev1.NewKeystoneEndpoint(
+		novaapi.ServiceName,
+		instance.Namespace,
+		endpointSpec,
+		getAPIServiceLabels(),
+		r.RequeueTimeout,
+	)
+	ctrlResult, err := endpoint.CreateOrPatch(ctx, h)
 	if err != nil {
-		instance.Status.Conditions.Set(condition.FalseCondition(
-			condition.CronJobReadyCondition,
-			condition.ErrorReason,
-			condition.SeverityWarning,
-			condition.CronJobReadyErrorMessage,
-			err.Error()))
+		return ctrlResult, err
+	}
+
+	if endpoint.ValidateGeneration() {
+		c := endpoint.GetConditions().Mirror(condition.KeystoneEndpointReadyCondition)
+		if c != nil {
+			instance.Status.Conditions.Set(c)
+		}
+	}
+
+	if (ctrlResult != ctrl.Result{}) {
+		// We can ignore RequeueAfter as we are watching the KeystoneEndpoint resource
+		return ctrlResult, nil
+	}
+
+	return ctrl.Result{}, nil
+}
+
+func (r *NovaAPIReconciler) ensureKeystoneEndpointDeletion(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *novav1.NovaAPI,
+) error {
+	// Remove the finalizer from our KeystoneEndpoint CR
+	// This is oddly added automatically when we created KeystoneEndpoint but
+	// we need to remove it manually
+	Log := r.GetLogger(ctx)
+
+	endpoint, err := keystonev1.GetKeystoneEndpointWithName(ctx, h, novaapi.ServiceName, instance.Namespace)
+	if err != nil && !k8s_errors.IsNotFound(err) {
 		return err
 	}
 
-	instance.Status.Conditions.MarkTrue(
-		condition.CronJobReadyCondition, condition.CronJobReadyMessage)
+	if k8s_errors.IsNotFound(err) {
+		// Nothing to do as it was never created
+		return nil
+	}
+
+	updated := controllerutil.RemoveFinalizer(endpoint, h.GetFinalizer())
+	if !updated {
+		// No finalizer to remove
+		return nil
+	}
+
+	if err = h.GetClient().Update(ctx, endpoint); err != nil && !k8s_errors.IsNotFound(err) {
+		return err
+	}
+	Log.Info("Removed finalizer from nova KeystoneEndpoint")
+
 	return nil
 }
 
-func (r *NovaConductorReconciler) cleanServiceFromNovaDb(
+func (r *NovaAPIReconciler) reconcileDelete(
 	ctx context.Context,
 	h *helper.Helper,
-	instance *novav1.NovaConductor,
-	secret corev1.Secret,
-	l logr.Logger,
+	instance *novav1.NovaAPI,
 ) error {
-	authPassword := string(secret.Data[ServicePasswordSelector])
-	computeClient, err := getNovaClient(ctx, h, instance, authPassword, l)
+	Log := r.GetLogger(ctx)
+
+	Log.Info("Reconciling delete")
+
+	err := r.ensureKeystoneEndpointDeletion(ctx, h, instance)
 	if err != nil {
 		return err
 	}
-	replicaCount := instance.Spec.Replicas
-	cellName := instance.Spec.CellName
 
-	return cleanNovaServiceFromNovaDb(computeClient, "nova-conductor", l, *replicaCount, cellName)
+	// Remove our finalizer from Memcached
+	memcached, err := memcachedv1.GetMemcachedByName(ctx, h, instance.Spec.MemcachedInstance, instance.Namespace)
+	if err != nil && !k8s_errors.IsNotFound(err) {
+		return err
+	}
+	if memcached != nil {
+		if controllerutil.RemoveFinalizer(memcached, h.GetFinalizer()) {
+			err := h.GetClient().Update(ctx, memcached)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// Remove finalizer from the referenced Topology CR
+	if _, err := topologyv1.EnsureDeletedTopologyRef(
+		ctx,
+		h,
+		instance.Status.LastAppliedTopology,
+		instance.Name,
+	); err != nil {
+		return err
+	}
+
+	// Successfully cleaned up everything. So as the final step let's remove the
+	// finalizer from ourselves to allow the deletion of NovaAPI CR itself
+	updated := controllerutil.RemoveFinalizer(instance, h.GetFinalizer())
+	if updated {
+		Log.Info("Removed finalizer from ourselves")
+	}
+
+	Log.Info("Reconciled delete successfully")
+	return nil
 }
 
-func (r *NovaConductorReconciler) findObjectsForSrc(ctx context.Context, src client.Object) []reconcile.Request {
+func getAPIServiceLabels() map[string]string {
+	return map[string]string{
+		common.AppSelector: NovaAPILabelPrefix,
+	}
+}
+
+func (r *NovaAPIReconciler) findObjectsForSrc(ctx context.Context, src client.Object) []reconcile.Request {
 	requests := []reconcile.Request{}
 
-	l := log.FromContext(ctx).WithName("Controllers").WithName("NovaConductor")
+	l := log.FromContext(ctx).WithName("Controllers").WithName("NovaAPI")
 
-	for _, field := range cdWatchFields {
-		crList := &novav1.NovaConductorList{}
+	for _, field := range apiWatchFields {
+		crList := &novav1.NovaAPIList{}
 		listOps := &client.ListOptions{
 			FieldSelector: fields.OneTermEqualSelector(field, src.GetName()),
 			Namespace:     src.GetNamespace(),
@@ -717,14 +942,14 @@ func (r *NovaConductorReconciler) findObjectsForSrc(ctx context.Context, src cli
 	return requests
 }
 
-func (r *NovaConductorReconciler) findObjectsWithAppSelectorLabelInNamespace(ctx context.Context, src client.Object) []reconcile.Request {
+func (r *NovaAPIReconciler) findObjectsWithAppSelectorLabelInNamespace(ctx context.Context, src client.Object) []reconcile.Request {
 	requests := []reconcile.Request{}
 
-	l := log.FromContext(ctx).WithName("Controllers").WithName("NovaConductor")
+	l := log.FromContext(ctx).WithName("Controllers").WithName("NovaAPI")
 
 	// if the endpoint has the service label and its in our endpointList, reconcile the CR in the namespace
 	if svc, ok := src.GetLabels()[common.AppSelector]; ok && util.StringInSlice(svc, endpointList) {
-		crList := &novav1.NovaConductorList{}
+		crList := &novav1.NovaAPIList{}
 		listOps := &client.ListOptions{
 			Namespace: src.GetNamespace(),
 		}
@@ -753,27 +978,29 @@ func (r *NovaConductorReconciler) findObjectsWithAppSelectorLabelInNamespace(ctx
 
 // fields to index to reconcile when change
 var (
-	cdWatchFields = []string{
+	apiWatchFields = []string{
 		passwordSecretField,
 		caBundleSecretNameField,
+		tlsAPIInternalField,
+		tlsAPIPublicField,
 		topologyField,
 	}
 )
 
-func (r *NovaConductorReconciler) memcachedNamespaceMapFunc(ctx context.Context, src client.Object) []reconcile.Request {
+func (r *NovaAPIReconciler) memcachedNamespaceMapFunc(ctx context.Context, src client.Object) []reconcile.Request {
 
 	result := []reconcile.Request{}
 
 	// get all Nova CRs
-	novaConductorList := &novav1.NovaConductorList{}
+	novaAPIList := &novav1.NovaAPIList{}
 	listOpts := []client.ListOption{
 		client.InNamespace(src.GetNamespace()),
 	}
-	if err := r.Client.List(ctx, novaConductorList, listOpts...); err != nil {
+	if err := r.Client.List(ctx, novaAPIList, listOpts...); err != nil {
 		return nil
 	}
 
-	for _, cr := range novaConductorList.Items {
+	for _, cr := range novaAPIList.Items {
 		if src.GetName() == cr.Spec.MemcachedInstance {
 			name := client.ObjectKey{
 				Namespace: src.GetNamespace(),
@@ -788,54 +1015,12 @@ func (r *NovaConductorReconciler) memcachedNamespaceMapFunc(ctx context.Context,
 	return nil
 }
 
-func (r *NovaConductorReconciler) reconcileDelete(
-	ctx context.Context,
-	h *helper.Helper,
-	instance *novav1.NovaConductor,
-) error {
-	Log := r.GetLogger(ctx)
-
-	Log.Info("Reconciling delete")
-
-	// Remove our finalizer from Memcached
-
-	memcached, _ := memcachedv1.GetMemcachedByName(ctx, h, instance.Spec.MemcachedInstance, instance.Namespace)
-	if memcached != nil {
-		if controllerutil.RemoveFinalizer(memcached, h.GetFinalizer()) {
-			err := h.GetClient().Update(ctx, memcached)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	// Successfully cleaned up everything. So as the final step let's remove the
-	// finalizer from ourselves to allow the deletion of NovaConductor CR itself
-	updated := controllerutil.RemoveFinalizer(instance, h.GetFinalizer())
-	if updated {
-		Log.Info("Removed finalizer from ourselves")
-	}
-
-	// Remove finalizer from the referenced Topology CR
-	if _, err := topologyv1.EnsureDeletedTopologyRef(
-		ctx,
-		h,
-		instance.Status.LastAppliedTopology,
-		instance.Name,
-	); err != nil {
-		return err
-	}
-
-	Log.Info("Reconciled delete successfully")
-	return nil
-}
-
 // SetupWithManager sets up the controller with the Manager.
-func (r *NovaConductorReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *NovaAPIReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	// index passwordSecretField
-	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &novav1.NovaConductor{}, passwordSecretField, func(rawObj client.Object) []string {
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &novav1.NovaAPI{}, passwordSecretField, func(rawObj client.Object) []string {
 		// Extract the secret name from the spec, if one is provided
-		cr := rawObj.(*novav1.NovaConductor)
+		cr := rawObj.(*novav1.NovaAPI)
 		if cr.Spec.Secret == "" {
 			return nil
 		}
@@ -845,9 +1030,9 @@ func (r *NovaConductorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}
 
 	// index caBundleSecretNameField
-	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &novav1.NovaConductor{}, caBundleSecretNameField, func(rawObj client.Object) []string {
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &novav1.NovaAPI{}, caBundleSecretNameField, func(rawObj client.Object) []string {
 		// Extract the secret name from the spec, if one is provided
-		cr := rawObj.(*novav1.NovaConductor)
+		cr := rawObj.(*novav1.NovaAPI)
 		if cr.Spec.TLS.CaBundleSecretName == "" {
 			return nil
 		}
@@ -856,10 +1041,34 @@ func (r *NovaConductorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		return err
 	}
 
+	// index tlsAPIInternalField
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &novav1.NovaAPI{}, tlsAPIInternalField, func(rawObj client.Object) []string {
+		// Extract the secret name from the spec, if one is provided
+		cr := rawObj.(*novav1.NovaAPI)
+		if cr.Spec.TLS.API.Internal.SecretName == nil {
+			return nil
+		}
+		return []string{*cr.Spec.TLS.API.Internal.SecretName}
+	}); err != nil {
+		return err
+	}
+
+	// index tlsAPIPublicField
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &novav1.NovaAPI{}, tlsAPIPublicField, func(rawObj client.Object) []string {
+		// Extract the secret name from the spec, if one is provided
+		cr := rawObj.(*novav1.NovaAPI)
+		if cr.Spec.TLS.API.Public.SecretName == nil {
+			return nil
+		}
+		return []string{*cr.Spec.TLS.API.Public.SecretName}
+	}); err != nil {
+		return err
+	}
+
 	// index topologyField
-	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &novav1.NovaConductor{}, topologyField, func(rawObj client.Object) []string {
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &novav1.NovaAPI{}, topologyField, func(rawObj client.Object) []string {
 		// Extract the topology name from the spec, if one is provided
-		cr := rawObj.(*novav1.NovaConductor)
+		cr := rawObj.(*novav1.NovaAPI)
 		if cr.Spec.TopologyRef == nil {
 			return nil
 		}
@@ -869,10 +1078,10 @@ func (r *NovaConductorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&novav1.NovaConductor{}).
+		For(&novav1.NovaAPI{}).
 		Owns(&v1.StatefulSet{}).
-		Owns(&batchv1.Job{}).
-		Owns(&batchv1.CronJob{}).
+		Owns(&corev1.Service{}).
+		Owns(&keystonev1.KeystoneEndpoint{}).
 		Owns(&corev1.Secret{}).
 		// watch the input secrets
 		Watches(
