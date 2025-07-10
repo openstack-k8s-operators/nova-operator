@@ -229,7 +229,7 @@ func CreateNovaMessageBusSecret(cell CellNames) *corev1.Secret {
 	return s
 }
 
-func CreateNotificiationTransportURLSecret(notificationsBus NotificationsBusNames) *corev1.Secret {
+func CreateNotificationTransportURLSecret(notificationsBus NotificationsBusNames) *corev1.Secret {
 	s := th.CreateSecret(
 		types.NamespacedName{
 			Namespace: novaNames.NovaName.Namespace,

@@ -103,7 +103,7 @@ status:
     reason: Ready
     status: "True"
     type: NovaAllCellReady
-  - message: All message busses created successfully
+  - message: All message buses created successfully
     reason: Ready
     status: "True"
     type: NovaAllCellsMQReady
