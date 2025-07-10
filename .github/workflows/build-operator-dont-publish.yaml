@@ -6,7 +6,7 @@ on:
       - '*'
 
 jobs:
-  build-nova-operator-with-bunlde-and-index:
+  build-nova-operator-with-bundle-and-index:
     name: Build
     runs-on: ubuntu-latest
 

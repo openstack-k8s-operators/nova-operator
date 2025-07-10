@@ -18,7 +18,7 @@ set -xe
 export CELL_NAME=${CELL_NAME:?"Please specify a CELL_NAME variable."}
 
 # NOTE(gibi): nova-manage should be enhanced upstream to get rid of this
-# uglyness
+# ugliness
 # Note the "|" around the CELL_NAME, that is needed as a single line from
 # nova-manage cell_v2 cell_list can match to multiple cells if the cell name
 # is part of the line, e.g. as the user name of the DB URL
@@ -30,7 +30,7 @@ if [ -z "${cell_uuid}" ]; then
         # NOTE(gibi): cell_v2 map_cell0 command above blindly appended _cell0 to the end
         # of the DB URL found in the configuration and ended up with nova_cell0_cell0 which
         # is invalid. This is an nova upstream bug to fix. But we can workaround it as
-        # update_cell does have the corret behavior when collecting the cell mapping information
+        # update_cell does have the correct behavior when collecting the cell mapping information
         # from the nova.conf
         nova-manage cell_v2 update_cell --cell_uuid 00000000-0000-0000-0000-000000000000
     else

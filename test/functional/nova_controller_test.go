@@ -108,7 +108,7 @@ var _ = Describe("Nova controller - notifications", func() {
 
 			// add new-rabbit in Nova CR
 			notificationsBus := GetNotificationsBusNames(novaNames.NovaName)
-			DeferCleanup(k8sClient.Delete, ctx, CreateNotificiationTransportURLSecret(notificationsBus))
+			DeferCleanup(k8sClient.Delete, ctx, CreateNotificationTransportURLSecret(notificationsBus))
 
 			Eventually(func(g Gomega) {
 				nova := GetNova(novaNames.NovaName)
@@ -1325,7 +1325,7 @@ var _ = Describe("Nova controller", func() {
 				"cell0": cell0Template,
 				"cell1": cell1Template,
 			}
-			// disable top-level metatadata as we enabled the instance in cell1
+			// disable top-level metadata as we enabled the instance in cell1
 			spec["metadataServiceTemplate"] = map[string]interface{}{
 				"enabled": false,
 			}

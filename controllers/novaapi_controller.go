@@ -521,7 +521,7 @@ func (r *NovaAPIReconciler) generateConfigs(
 	for _, endpt := range []service.Endpoint{service.EndpointInternal, service.EndpointPublic} {
 		endptConfig := map[string]interface{}{}
 		endptConfig["ServerName"] = fmt.Sprintf("nova-%s.%s.svc", endpt.String(), instance.Namespace)
-		endptConfig["tls"] = false // default TLS to false, and set it bellow to true if enabled
+		endptConfig["tls"] = false // default TLS to false, and set it below to true if enabled
 		endptConfig["TimeOut"] = instance.Spec.APITimeout
 		if instance.Spec.TLS.API.Enabled(endpt) {
 			templateParameters["tls"] = true
