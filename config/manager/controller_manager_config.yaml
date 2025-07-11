@@ -5,7 +5,7 @@ health:
 metrics:
   bindAddress: 127.0.0.1:8080
 webhook:
-  port: 9444
+  port: 9444 (TODO- ratailor) port in placement-operator is 9443
 leaderElection:
   leaderElect: true
   resourceName: f33036c1.openstack.org

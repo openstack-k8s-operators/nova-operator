@@ -29,7 +29,13 @@ const (
 var (
 	configMode int32 = 0640
 	scriptMode int32 = 0740
+	// copied from placement-operator
+	// check if placement-api needs below mode
+	//or can use above mode (common for nova)
+	//scriptsVolumeDefaultMode int32 = 0755
+	//configMode int32 = 0640
 )
+
 
 func GetConfigVolumeMount() corev1.VolumeMount {
 	return corev1.VolumeMount{
@@ -68,6 +74,14 @@ func GetLogVolumeMount() corev1.VolumeMount {
 	}
 }
 
+func GetPlacementLogVolumeMount() corev1.VolumeMount {
+	return corev1.VolumeMount{
+		Name: logVolume,
+		MountPath: "/var/log/placement",
+		ReadOnly: false,
+	}
+}
+
 func GetLogVolume() corev1.Volume {
 	return corev1.Volume{
 		Name: logVolume,
@@ -82,6 +96,14 @@ func GetScriptVolumeMount() corev1.VolumeMount {
 		Name:      scriptVolume,
 		MountPath: "/var/lib/openstack/bin",
 		ReadOnly:  false,
+	}
+}
+
+func GetPlacementScriptVolumeMount() corev1.VolumeMount {
+	return corev1.VolumeMount{
+		Name:      scriptVolume
+		MountPath: "/usr/local/bin/container-scripts",
+		ReadOnly:  true,
 	}
 }
 

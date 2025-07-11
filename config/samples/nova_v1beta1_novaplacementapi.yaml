@@ -1,0 +1,24 @@
+apiVersion: nova.openstack.org/v1beta1
+kind: NovaPlacementAPI
+metadata:
+  labels:
+    app.kubernetes.io/name: novaplacementapi
+    app.kubernetes.io/instance: novaplacementapi-sample
+    app.kubernetes.io/part-of: nova-operator
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: nova-operator
+  name: novaplacementapi-sample
+spec:
+  serviceUser: placement
+  customServiceConfig: |
+    [DEFAULT]
+    debug = true
+  databaseInstance: openstack
+  databaseAccount: placement
+  preserveJobs: false
+  replicas: 1
+  secret: placement-secret
+  #resources:
+  #  requests:
+  #    memory: "500Mi"
+  #    cpu: "1.0"
