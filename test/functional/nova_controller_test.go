@@ -1761,7 +1761,7 @@ var _ = Describe("Nova controller without memcached", func() {
 		DeferCleanup(
 			k8sClient.Delete, ctx, CreateNovaMessageBusSecret(cell0))
 	})
-	It("memcached failed", func() {
+	It("memcached not created", func() {
 		th.ExpectCondition(
 			novaNames.NovaName,
 			ConditionGetterFunc(NovaConditionGetter),
@@ -1772,9 +1772,9 @@ var _ = Describe("Nova controller without memcached", func() {
 			novaNames.NovaName,
 			ConditionGetterFunc(NovaConditionGetter),
 			condition.MemcachedReadyCondition,
-			corev1.ConditionFalse,
-			condition.RequestedReason,
-			" Memcached instance has not been provisioned",
+			corev1.ConditionUnknown,
+			condition.InitReason,
+			" Memcached create not started",
 		)
 	})
 })
