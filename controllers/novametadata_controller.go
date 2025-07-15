@@ -345,8 +345,6 @@ func (r *NovaMetadataReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, nil
 	}
 
-	// TODO(gibi): fix lib-common endpoint.ExposeEndpoints return value to
-	// avoid the need for the cast
 	err = r.ensureNeutronConfig(ctx, h, instance, apiEndpoint, secret)
 	if err != nil {
 		return result, err
