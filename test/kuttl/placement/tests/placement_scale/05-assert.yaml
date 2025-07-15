@@ -1,0 +1,23 @@
+#
+# Check for:
+#
+# - 1 PlacementAPI CR with 0 replicas
+# - Placement Deployment with 0 Pods
+# NOTE: This test is asserting for spec.replicas to be 0
+# NOT status.availableReplicas
+
+apiVersion: placement.openstack.org/v1beta1
+kind: PlacementAPI
+metadata:
+  finalizers:
+  - openstack.org/placementapi
+  name: placement
+spec:
+  replicas: 0
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: placement
+spec:
+  replicas: 0

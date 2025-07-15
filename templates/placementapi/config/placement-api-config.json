@@ -1,0 +1,70 @@
+{
+    "command": "/usr/sbin/httpd -DFOREGROUND",
+    "config_files": [
+        {
+            "source": "/var/lib/openstack/config/placement.conf",
+            "dest": "/etc/placement/placement.conf",
+            "owner": "placement",
+            "perm": "0600"
+        },
+        {
+            "source": "/var/lib/openstack/config/httpd.conf",
+            "dest": "/etc/httpd/conf/httpd.conf",
+            "owner": "apache",
+            "perm": "0644"
+        },
+        {
+            "source": "/var/lib/openstack/config/custom.conf",
+            "dest": "/etc/placement/placement.conf.d/custom.conf",
+            "owner": "placement",
+            "perm": "0600"
+        },
+        {
+            "source": "/var/lib/openstack/config/ssl.conf",
+            "dest": "/etc/httpd/conf.d/ssl.conf",
+            "owner": "apache",
+            "perm": "0644"
+        },
+        {
+            "source": "/var/lib/config-data/tls/certs/*",
+            "dest": "/etc/pki/tls/certs/",
+            "owner": "placement",
+            "perm": "0440",
+            "optional": true,
+            "merge": true
+        },
+        {
+            "source": "/var/lib/config-data/tls/private/*",
+            "dest": "/etc/pki/tls/private/",
+            "owner": "placement",
+            "perm": "0400",
+            "optional": true,
+            "merge": true
+        },
+        {
+            "source": "/var/lib/openstack/config/policy.yaml",
+            "dest": "/etc/placement/policy.yaml",
+            "owner": "placement",
+            "perm": "0600",
+            "optional": true
+        },
+        {
+            "source": "/var/lib/openstack/config/my.cnf",
+            "dest": "/etc/my.cnf",
+            "owner": "placement",
+            "perm": "0644"
+        }
+    ],
+    "permissions": [
+        {
+            "path": "/var/log/placement",
+            "owner": "placement:apache",
+            "recurse": true
+        },
+        {
+            "path": "/etc/httpd/run/",
+            "owner": "placement:apache",
+            "recurse": true
+        }
+    ]
+}

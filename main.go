@@ -51,9 +51,12 @@ import (
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
+
 	novav1 "github.com/openstack-k8s-operators/nova-operator/apis/nova/v1beta1"
 
+	placementv1 "github.com/openstack-k8s-operators/nova-operator/apis/placement/v1beta1"
 	nova_ctrl "github.com/openstack-k8s-operators/nova-operator/controllers/nova"
+	placement_ctrl "github.com/openstack-k8s-operators/nova-operator/controllers/placement"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -73,6 +76,7 @@ func init() {
 	utilruntime.Must(networkv1.AddToScheme(scheme))
 	utilruntime.Must(memcachedv1.AddToScheme(scheme))
 	utilruntime.Must(topologyv1.AddToScheme(scheme))
+	utilruntime.Must(placementv1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
@@ -195,6 +199,17 @@ func main() {
 		}
 	}
 
+	if err = (&placement_ctrl.PlacementAPIReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "PlacementAPI")
+		os.Exit(1)
+	}
+	if err = (&placementv1.PlacementAPI{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "PlacementAPI")
+		os.Exit(1)
+	}
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", checker); err != nil {

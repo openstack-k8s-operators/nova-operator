@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cert-internal-svc
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cert-public-svc
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: combined-ca-bundle

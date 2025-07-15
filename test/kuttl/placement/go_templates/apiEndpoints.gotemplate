@@ -1,0 +1,1 @@
+{{.spec.endpoints.internal}}{{":"}}{{.spec.endpoints.public}}{{"\n"}}
