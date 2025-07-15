@@ -30,6 +30,18 @@ rules:
 - apiGroups:
   - apps
   resources:
+  - deployments
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - apps
+  resources:
   - statefulsets
   verbs:
   - create
@@ -55,6 +67,18 @@ rules:
   - batch
   resources:
   - jobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
   verbs:
   - create
   - delete
@@ -401,6 +425,33 @@ rules:
   - nova.openstack.org
   resources:
   - novaschedulers/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - placement.openstack.org
+  resources:
+  - placementapis
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - placement.openstack.org
+  resources:
+  - placementapis/finalizers
+  verbs:
+  - patch
+  - update
+- apiGroups:
+  - placement.openstack.org
+  resources:
+  - placementapis/status
   verbs:
   - get
   - patch
