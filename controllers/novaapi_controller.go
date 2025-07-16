@@ -911,7 +911,7 @@ func getAPIServiceLabels() map[string]string {
 func (r *NovaAPIReconciler) findObjectsForSrc(ctx context.Context, src client.Object) []reconcile.Request {
 	requests := []reconcile.Request{}
 
-	l := log.FromContext(ctx).WithName("Controllers").WithName("NovaAPI")
+	Log := r.GetLogger(ctx)
 
 	for _, field := range apiWatchFields {
 		crList := &novav1.NovaAPIList{}
@@ -921,12 +921,12 @@ func (r *NovaAPIReconciler) findObjectsForSrc(ctx context.Context, src client.Ob
 		}
 		err := r.Client.List(ctx, crList, listOps)
 		if err != nil {
-			l.Error(err, fmt.Sprintf("listing %s for field: %s - %s", crList.GroupVersionKind().Kind, field, src.GetNamespace()))
+			Log.Error(err, fmt.Sprintf("listing %s for field: %s - %s", crList.GroupVersionKind().Kind, field, src.GetNamespace()))
 			return requests
 		}
 
 		for _, item := range crList.Items {
-			l.Info(fmt.Sprintf("input source %s changed, reconcile: %s - %s", src.GetName(), item.GetName(), item.GetNamespace()))
+			Log.Info(fmt.Sprintf("input source %s changed, reconcile: %s - %s", src.GetName(), item.GetName(), item.GetNamespace()))
 
 			requests = append(requests,
 				reconcile.Request{
@@ -945,7 +945,7 @@ func (r *NovaAPIReconciler) findObjectsForSrc(ctx context.Context, src client.Ob
 func (r *NovaAPIReconciler) findObjectsWithAppSelectorLabelInNamespace(ctx context.Context, src client.Object) []reconcile.Request {
 	requests := []reconcile.Request{}
 
-	l := log.FromContext(ctx).WithName("Controllers").WithName("NovaAPI")
+	Log := r.GetLogger(ctx)
 
 	// if the endpoint has the service label and its in our endpointList, reconcile the CR in the namespace
 	if svc, ok := src.GetLabels()[common.AppSelector]; ok && util.StringInSlice(svc, endpointList) {
@@ -955,12 +955,12 @@ func (r *NovaAPIReconciler) findObjectsWithAppSelectorLabelInNamespace(ctx conte
 		}
 		err := r.Client.List(ctx, crList, listOps)
 		if err != nil {
-			l.Error(err, fmt.Sprintf("listing %s for namespace: %s", crList.GroupVersionKind().Kind, src.GetNamespace()))
+			Log.Error(err, fmt.Sprintf("listing %s for namespace: %s", crList.GroupVersionKind().Kind, src.GetNamespace()))
 			return requests
 		}
 
 		for _, item := range crList.Items {
-			l.Info(fmt.Sprintf("input source %s changed, reconcile: %s - %s", src.GetName(), item.GetName(), item.GetNamespace()))
+			Log.Info(fmt.Sprintf("input source %s changed, reconcile: %s - %s", src.GetName(), item.GetName(), item.GetNamespace()))
 
 			requests = append(requests,
 				reconcile.Request{
