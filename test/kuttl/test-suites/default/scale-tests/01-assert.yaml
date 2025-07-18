@@ -530,8 +530,6 @@ spec:
               value: "30"
             - name: KOLLA_BOOTSTRAP
               value: "true"
-            - name: KOLLA_CONFIG_STRATEGY
-              value: COPY_ALWAYS
             - name: PURGE_AGE
               value: "90"
             name: nova-manage
@@ -587,8 +585,6 @@ spec:
               value: "30"
             - name: KOLLA_BOOTSTRAP
               value: "true"
-            - name: KOLLA_CONFIG_STRATEGY
-              value: COPY_ALWAYS
             - name: PURGE_AGE
               value: "90"
             name: nova-manage
