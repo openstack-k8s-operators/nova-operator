@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/google/uuid"
 	. "github.com/onsi/ginkgo/v2" //revive:disable:dot-imports
 	. "github.com/onsi/gomega"    //revive:disable:dot-imports
 
@@ -413,6 +414,41 @@ endpoint_service_type = compute`))
 				condition.KeystoneEndpointReadyCondition,
 				corev1.ConditionTrue,
 			)
+		})
+
+		It("configures [oslo_limit] endpoint_id", func() {
+			th.SimulateStatefulSetReplicaReady(novaNames.APIStatefulSetName)
+			keystone.SimulateKeystoneEndpointReady(types.NamespacedName{Namespace: novaNames.APIName.Namespace, Name: "nova"})
+			th.ExpectCondition(
+				novaNames.APIName,
+				ConditionGetterFunc(NovaAPIConditionGetter),
+				condition.KeystoneEndpointReadyCondition,
+				corev1.ConditionTrue,
+			)
+			// Assert that [oslo_limit] endpoint_id is not initially configured
+			configDataMap := th.GetSecret(novaNames.APIConfigDataName)
+			Expect(configDataMap).ShouldNot(BeNil())
+			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
+			configData := string(configDataMap.Data["01-nova.conf"])
+			Expect(configData).ShouldNot(ContainSubstring("endpoint_id = "))
+
+			// Set the Nova API endpoint ID to something we will expect
+			expectedEndpointID := uuid.New().String()
+			Eventually(func(g Gomega) {
+				endpoint := keystone.GetKeystoneEndpoint(types.NamespacedName{Namespace: novaNames.APIName.Namespace, Name: "nova"})
+				endpoint.Status.EndpointIDs = map[string]string{"internal": expectedEndpointID}
+				g.Expect(k8sClient.Status().Update(ctx, endpoint)).Should(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			th.SimulateStatefulSetReplicaReady(novaNames.APIStatefulSetName)
+			keystone.SimulateKeystoneEndpointReady(types.NamespacedName{Namespace: novaNames.APIName.Namespace, Name: "nova"})
+
+			// Assert that [oslo_limit] endpoint_id is now configured
+			configDataMap = th.GetSecret(novaNames.APIConfigDataName)
+			Expect(configDataMap).ShouldNot(BeNil())
+			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
+			configData = string(configDataMap.Data["01-nova.conf"])
+			Expect(configData).Should(ContainSubstring("endpoint_id = " + expectedEndpointID))
 		})
 
 		It("is Ready", func() {
