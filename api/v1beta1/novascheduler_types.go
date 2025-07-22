@@ -149,7 +149,7 @@ type NovaSchedulerStatus struct {
 	// ObservedGeneration - the most recent generation observed for this
 	// service. If the observed generation is less than the spec generation,
 	// then the controller has not processed the latest changes injected by
-	// the opentack-operator in the top-level CR (e.g. the ContainerImage)
+	// the openstack-operator in the top-level CR (e.g. the ContainerImage)
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 
 	// LastAppliedTopology - the last applied Topology

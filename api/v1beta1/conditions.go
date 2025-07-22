@@ -123,7 +123,7 @@ const (
 	NovaAllCellsMQReadyErrorMessage = "Message bus creation failed for %s"
 
 	// NovaAllCellsMQReadyMessage
-	NovaAllCellsMQReadyMessage = "All message busses created successfully"
+	NovaAllCellsMQReadyMessage = "All message buses created successfully"
 
 	// NovaSchedulerReadyInitMessage
 	NovaSchedulerReadyInitMessage = "NovaScheduler not started"

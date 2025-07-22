@@ -6,12 +6,12 @@ A golang operator for openstack nova lifecycle management
 
 The goal of nova-operator is to manage custom resource that define a nova control plane (CRD).
 Nova operator continuously monitors the state of Nova CR and takes actions to ensure that the desired state is applied and reflected in nova pods. These pods run actual nova services, nova-operators ensure they are deployed, scaled, and configured correctly.
-**Note:** Nova CR is created by openstack-operator as per user intial deployment.
+**Note:** Nova CR is created by openstack-operator as per user initial deployment.
 
 ## Description
 
 This operator is built using the operator-sdk framework to provide day one and day two
-lifecycle managment of the OpenStack nova service on an OpenShift cluster.
+lifecycle management of the OpenStack nova service on an OpenShift cluster.
 
 ## Getting Started
 
@@ -30,7 +30,7 @@ pre-commit is optional but recommend to ensure good git hygiene.
 sudo dnf install -y golang
 ```
 
-#### installing in a virutal env
+#### installing in a virtual env
 
 ```sh
 python3 -m venv .venv
@@ -93,7 +93,7 @@ trim trailing whitespace.................................................Passed
 
 ### Running kuttl tests
 
-Kuttl testing requires some inital setup on the host to enable running them.
+Kuttl testing requires some initial setup on the host to enable running them.
 first the kuttl oc/kubectl plugin need to be installed, that is done via using
 the krew plugin manager. kuttl testing in this repo will never install or modify
 operators in the test cloud. that means that you can run them in the openshift
@@ -143,7 +143,7 @@ cd ..
 make openstack
 ```
 note: we will use the `crc-csi-hostpath-provisioner` storage class so "make crc_storage"
-is not required but it wont break anything either.
+is not required but it won't break anything either.
 
 4. prepare kuttl deps
 

@@ -262,8 +262,8 @@ var _ = Describe("NovaAPI controller", func() {
 				Expect(configData).Should(ContainSubstring("enforce_new_defaults=true"))
 				Expect(configData).Should(ContainSubstring("enforce_scope=true"))
 				Expect(configData).Should(ContainSubstring("policy_file=/etc/nova/policy.yaml"))
-				// need for inital quota check when using unifed limits
-				// im using a multi line sting literal so it must be dedented to avoid including
+				// need for initial quota check when using unified limits
+				// im using a multi line string literal so it must be dedented to avoid including
 				// the tabs in the assert
 				Expect(configData).Should(
 					ContainSubstring(`[oslo_limit]

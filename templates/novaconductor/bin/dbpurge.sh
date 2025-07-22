@@ -22,7 +22,7 @@ purge_before=$(date --date="${PURGE_AGE} day ago" +%Y-%m-%d)
 nova-manage db archive_deleted_rows --verbose --until-complete --task-log --before "${archive_before}"
 ret=$?
 # 0 means no error and nothing is archived
-# 1 means no error and someting is archived
+# 1 means no error and something is archived
 if [ $ret -gt "1" ]; then
     exit $ret
 fi

@@ -50,7 +50,7 @@ spec:
       cellDatabaseInstance: openstack
       cellDatabaseAccount: nova-cell0
       cellMessageBusInstance: rabbitmq
-      # cell0 alway needs access to the API DB and MQ as it hosts the super
+      # cell0 always needs access to the API DB and MQ as it hosts the super
       # conductor. It will inherit the API DB and MQ access from the Nova CR
       # that creates it.
       hasAPIAccess: true

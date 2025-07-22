@@ -8,7 +8,7 @@
     description: |
       This job deploy a basic "Compute Starter Kit" topology
       https://www.openstack.org/software/sample-configs#compute-starter-kit
-      that is the minium set of openstack services required to boot a vm.
+      that is the minimum set of openstack services required to boot a vm.
     post-run:
       - ci/nova-operator-base/playbooks/collect-logs.yaml
     vars:
@@ -65,7 +65,7 @@
         - "@scenarios/centos-9/multinode-ci.yml"
         - "@{{ ansible_user_dir }}/{{ zuul.projects['github.com/openstack-k8s-operators/nova-operator'].src_dir }}/ci/nova-operator-tempest-multinode/ci_fw_vars.yaml"
       cifmw_run_test_role: test_operator
-      cifmw_test_operator_concurrency: 4
+      cifmw_test_operator_tempest_concurrency: 4
       cifmw_test_operator_timeout: 7200
       cifmw_test_operator_tempest_network_attachments:
         - ctlplane
@@ -125,7 +125,7 @@
         - "@{{ ansible_user_dir }}/{{ zuul.projects['github.com/openstack-k8s-operators/nova-operator'].src_dir }}/ci/nova-operator-tempest-multinode-ceph/ci_fw_vars.yaml"
       # dedupe this later
       cifmw_run_test_role: test_operator
-      cifmw_test_operator_concurrency: 4
+      cifmw_test_operator_tempest_concurrency: 4
       cifmw_test_operator_timeout: 7200
       cifmw_test_operator_tempest_network_attachments:
         - ctlplane
@@ -163,8 +163,8 @@
       # test_server_detach_rules and test_old_versions_reject are blocked by the requirement
       # to use service tokens to authenticate with cinder when a volume is attached to a server
       # as such the tests are not valid following CVE-2023-2088
-      # test_encrypted_cinder_volumes_cryptsetup use encyption format plain which is either
-      # not supported by ceph or a volume type that supprots it is not available.
+      # test_encrypted_cinder_volumes_cryptsetup use encryption format plain which is either
+      # not supported by ceph or a volume type that supports it is not available.
       # luks support is enabled and we are testing encrypted volumes with luks.
       # tempest.scenario.test_network_v6 is disabled as it is 8 slow test case
       # that does not cover nova functionality. Also we keep running it in
