@@ -123,6 +123,14 @@ var _ = Describe("Nova controller - notifications", func() {
 			configData = string(configDataMap.Data["01-nova.conf"])
 			AssertHaveNotificationTransportURL(notificationsBus.TransportURLName.Name, configData)
 
+			// cleanup notifications transporturl
+			Eventually(func(g Gomega) {
+				nova := GetNova(novaNames.NovaName)
+				nova.Spec.NotificationsBusInstance = nil
+				g.Expect(k8sClient.Update(ctx, nova)).Should(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			infra.AssertTransportURLDoesNotExist(notificationsBus.TransportURLName)
 		})
 	})
 
