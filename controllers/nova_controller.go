@@ -401,9 +401,10 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	var notificationMQStatus nova.MessageBusStatus
 	var notificationMQError error
 
+	notificationTransportURLName := instance.Name + "-notification-transport"
 	if notificationBusName != "" {
 		notificationTransportURL, notificationMQStatus, notificationMQError = r.ensureMQ(
-			ctx, h, instance, instance.Name+"-notification-transport", notificationBusName)
+			ctx, h, instance, notificationTransportURLName, notificationBusName)
 
 		switch notificationMQStatus {
 		case nova.MQFailed:
@@ -430,6 +431,24 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		}
 	} else {
 		instance.Status.Conditions.Remove(novav1.NovaNotificationMQReadyCondition)
+
+		// Ensure to delete the previous notifications transport url
+		transportURLList := &rabbitmqv1.TransportURLList{}
+		listOpts := []client.ListOption{
+			client.InNamespace(instance.Namespace),
+		}
+		if err := r.Client.List(ctx, transportURLList, listOpts...); err != nil {
+			return ctrl.Result{}, err
+		}
+
+		for _, url := range transportURLList.Items {
+			if strings.Contains(url.Name, notificationTransportURLName) {
+				err = r.ensureMQDeleted(ctx, instance, url.Name)
+				if err != nil {
+					return ctrl.Result{}, err
+				}
+			}
+		}
 	}
 
 	cellMQs := map[string]*nova.MessageBus{}
@@ -827,13 +846,7 @@ func (r *NovaReconciler) ensureCellDeleted(
 	}
 
 	// Delete transportURL cr
-	transportURL := &rabbitmqv1.TransportURL{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      instance.Name + "-" + cellName + "-transport",
-			Namespace: instance.Namespace,
-		},
-	}
-	err = r.Client.Delete(ctx, transportURL)
+	err = r.ensureMQDeleted(ctx, instance, instance.Name+"-"+cellName+"-transport")
 	if err != nil && !k8s_errors.IsNotFound(err) {
 		return nova.CellDeleteFailed, err
 	}
@@ -1754,6 +1767,30 @@ func (r *NovaReconciler) ensureMQ(
 			"%w: the TransportURL secret %s does not have 'transport_url' field", util.ErrFieldNotFound, transportURL.Status.SecretName)
 	}
 	return string(url), nova.MQCompleted, nil
+}
+
+func (r *NovaReconciler) ensureMQDeleted(
+	ctx context.Context,
+	instance *novav1.Nova,
+	transportURLName string,
+) error {
+	Log := r.GetLogger(ctx)
+	transportURL := &rabbitmqv1.TransportURL{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      transportURLName,
+			Namespace: instance.Namespace,
+		},
+	}
+
+	err := r.Client.Delete(ctx, transportURL)
+	if err != nil {
+		Log.Info(fmt.Sprintf("Could not delete TransportURL %s err: %s", transportURLName, err))
+		return err
+	}
+
+	Log.Info("Deleted transportURL", ":", transportURLName)
+
+	return nil
 }
 
 func getNovaMetadataName(instance client.Object) types.NamespacedName {
