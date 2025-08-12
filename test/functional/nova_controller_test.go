@@ -1740,6 +1740,22 @@ var _ = Describe("Nova controller without memcached", func() {
 		DeferCleanup(
 			k8sClient.Delete, ctx, CreateNovaMessageBusSecret(cell0))
 	})
+	It("memcached not created", func() {
+		th.ExpectCondition(
+			novaNames.NovaName,
+			ConditionGetterFunc(NovaConditionGetter),
+			condition.ServiceAccountReadyCondition,
+			corev1.ConditionTrue,
+		)
+		th.ExpectConditionWithDetails(
+			novaNames.NovaName,
+			ConditionGetterFunc(NovaConditionGetter),
+			condition.MemcachedReadyCondition,
+			corev1.ConditionUnknown,
+			condition.InitReason,
+			" Memcached create not started",
+		)
+	})
 	It("memcached failed", func() {
 		th.ExpectCondition(
 			novaNames.NovaName,
@@ -1747,6 +1763,19 @@ var _ = Describe("Nova controller without memcached", func() {
 			condition.ServiceAccountReadyCondition,
 			corev1.ConditionTrue,
 		)
+		keystone.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
+		th.ExpectCondition(
+			novaNames.NovaName,
+			ConditionGetterFunc(NovaConditionGetter),
+			novav1.NovaAPIDBReadyCondition,
+			corev1.ConditionFalse,
+		)
+		mariadb.GetMariaDBDatabase(novaNames.APIMariaDBDatabaseName)
+
+		mariadb.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
+		mariadb.SimulateMariaDBAccountCompleted(novaNames.APIMariaDBDatabaseAccount)
+		mariadb.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
+		mariadb.SimulateMariaDBAccountCompleted(cell0.MariaDBAccountName)
 		th.ExpectConditionWithDetails(
 			novaNames.NovaName,
 			ConditionGetterFunc(NovaConditionGetter),
