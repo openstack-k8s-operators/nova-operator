@@ -336,7 +336,7 @@ func (r *NovaNoVNCProxyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, err
 	}
 
-	instance.Status.Hash[common.InputHashName] = inputHash
+	instance.Status.Hash = setKeyValuePair(instance.Status.Hash, common.InputHashName, inputHash)
 
 	instance.Status.Conditions.MarkTrue(condition.ServiceConfigReadyCondition, condition.ServiceConfigReadyMessage)
 
@@ -362,7 +362,7 @@ func (r *NovaNoVNCProxyReconciler) initStatus(
 	}
 
 	if instance.Status.Hash == nil {
-		instance.Status.Hash = map[string]string{}
+		instance.Status.Hash = []novav1.KeyValuePair{}
 	}
 
 	if instance.Status.NetworkAttachments == nil {

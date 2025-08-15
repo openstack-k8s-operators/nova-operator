@@ -148,8 +148,8 @@ func StatefulSet(
 		},
 	}
 
-	if instance.Spec.NodeSelector != nil {
-		statefulset.Spec.Template.Spec.NodeSelector = *instance.Spec.NodeSelector
+	if len(instance.Spec.NodeSelector) > 0 {
+		statefulset.Spec.Template.Spec.NodeSelector = convertKeyValuePairsToMap(instance.Spec.NodeSelector)
 	}
 
 	if topology != nil {
@@ -168,4 +168,16 @@ func StatefulSet(
 	}
 
 	return statefulset
+}
+
+// convertKeyValuePairsToMap converts []KeyValuePair to map[string]string
+func convertKeyValuePairsToMap(pairs []novav1.KeyValuePair) map[string]string {
+	if pairs == nil {
+		return nil
+	}
+	m := make(map[string]string, len(pairs))
+	for _, pair := range pairs {
+		m[pair.Key] = pair.Value
+	}
+	return m
 }

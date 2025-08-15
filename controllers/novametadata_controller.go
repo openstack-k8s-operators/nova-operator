@@ -306,7 +306,7 @@ func (r *NovaMetadataReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	// those changed and a restart/recreate is required.
 	// We have a special input, the registered cells, as the openstack service
 	// needs to be restarted if this changes to refresh the in memory cell caches
-	cellHash, err := hashOfStringMap(instance.Spec.RegisteredCells)
+	cellHash, err := hashOfStringMap(convertKeyValuePairsToMap(instance.Spec.RegisteredCells))
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -317,7 +317,7 @@ func (r *NovaMetadataReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, err
 	}
 
-	instance.Status.Hash[common.InputHashName] = inputHash
+	instance.Status.Hash = setKeyValuePair(instance.Status.Hash, common.InputHashName, inputHash)
 
 	instance.Status.Conditions.MarkTrue(condition.ServiceConfigReadyCondition, condition.ServiceConfigReadyMessage)
 
@@ -362,7 +362,7 @@ func (r *NovaMetadataReconciler) initStatus(
 	}
 
 	if instance.Status.Hash == nil {
-		instance.Status.Hash = map[string]string{}
+		instance.Status.Hash = []novav1.KeyValuePair{}
 	}
 	if instance.Status.NetworkAttachments == nil {
 		instance.Status.NetworkAttachments = map[string][]string{}
@@ -559,8 +559,8 @@ func (r *NovaMetadataReconciler) generateConfigs(
 	if instance.Spec.CustomServiceConfig != "" {
 		extraData["02-nova-override.conf"] = instance.Spec.CustomServiceConfig
 	}
-	for key, data := range instance.Spec.DefaultConfigOverwrite {
-		extraData[key] = data
+	for _, pair := range instance.Spec.DefaultConfigOverwrite {
+		extraData[pair.Key] = pair.Value
 	}
 
 	cmLabels := labels.GetLabels(
@@ -902,7 +902,7 @@ func (r *NovaMetadataReconciler) generateNeutronConfigs(
 	// TODO(gibi): can we make it simpler?
 	a := &corev1.EnvVar{}
 	hashes[configName](a)
-	instance.Status.Hash[configName] = a.Value
+	instance.Status.Hash = setKeyValuePair(instance.Status.Hash, configName, a.Value)
 	return nil
 }
 

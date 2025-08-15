@@ -1,0 +1,15 @@
+# Assert Application Credential resources are created
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ac-nova-secret
+type: Opaque
+---
+apiVersion: keystone.openstack.org/v1beta1
+kind: KeystoneApplicationCredential
+metadata:
+  name: ac-nova
+spec:
+  userName: nova
+  roles:
+  - service

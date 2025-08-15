@@ -17,11 +17,11 @@ limitations under the License.
 package v1beta1
 
 import (
+	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -40,7 +40,9 @@ type NovaSchedulerTemplate struct {
 	// +kubebuilder:validation:Optional
 	// NodeSelector to target subset of worker nodes running this service. Setting here overrides
 	// any global NodeSelector settings within the Nova CR.
-	NodeSelector *map[string]string `json:"nodeSelector,omitempty"`
+	// +listType=map
+	// +listMapKey=key
+	NodeSelector []KeyValuePair `json:"nodeSelector,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	// CustomServiceConfig - customize the service config using this parameter to change service defaults,
@@ -118,7 +120,9 @@ type NovaSchedulerSpec struct {
 	// This is used to detect when a new cell is added or an existing cell is
 	// reconfigured to trigger refresh of the in memory cell caches of the
 	// service.
-	RegisteredCells map[string]string `json:"registeredCells"`
+	// +listType=map
+	// +listMapKey=key
+	RegisteredCells []KeyValuePair `json:"registeredCells"`
 
 	// +kubebuilder:validation:Optional
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
@@ -128,6 +132,20 @@ type NovaSchedulerSpec struct {
 	// +kubebuilder:validation:Required
 	// MemcachedInstance is the name of the Memcached CR that all nova service will use.
 	MemcachedInstance string `json:"memcachedInstance"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Enum="true";"false"
+	// +kubebuilder:default="false"
+	// UseApplicationCredential - indicates if ApplicationCredential authentication is used
+	UseApplicationCredential string `json:"useApplicationCredential"`
+
+	// +kubebuilder:validation:Optional
+	// ApplicationCredentialID - the ID of the ApplicationCredential
+	ApplicationCredentialID string `json:"applicationCredentialID"`
+
+	// +kubebuilder:validation:Optional
+	// ApplicationCredentialSecret - the secret of the ApplicationCredential
+	ApplicationCredentialSecret string `json:"applicationCredentialSecret"`
 }
 
 // NovaSchedulerStatus defines the observed state of NovaScheduler
@@ -135,7 +153,9 @@ type NovaSchedulerStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 	// Map of hashes to track e.g. job status
-	Hash map[string]string `json:"hash,omitempty"`
+	// +listType=map
+	// +listMapKey=key
+	Hash []KeyValuePair `json:"hash,omitempty"`
 
 	// Conditions
 	Conditions condition.Conditions `json:"conditions,omitempty" optional:"true"`
@@ -144,7 +164,16 @@ type NovaSchedulerStatus struct {
 	ReadyCount int32 `json:"readyCount,omitempty"`
 
 	// NetworkAttachments status of the deployment pods
+	// NetworkAttachments status of the deployment pods
+	// Deprecated: This field uses a map structure that violates schema validation.
+	// Use NetworkAttachmentsStatus instead.
 	NetworkAttachments map[string][]string `json:"networkAttachments,omitempty"`
+
+	// +listType=map
+	// +listMapKey=name
+	// NetworkAttachmentsStatus provides the same information as NetworkAttachments
+	// but in a schema-compliant format
+	NetworkAttachmentsStatus []NetworkAttachmentStatus `json:"networkAttachmentsStatus,omitempty"`
 
 	// ObservedGeneration - the most recent generation observed for this
 	// service. If the observed generation is less than the spec generation,

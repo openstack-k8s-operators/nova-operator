@@ -105,6 +105,14 @@ rules:
 - apiGroups:
   - keystone.openstack.org
   resources:
+  - applicationcredentials
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - keystone.openstack.org
+  resources:
   - keystoneapis
   verbs:
   - get

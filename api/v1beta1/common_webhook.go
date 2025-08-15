@@ -50,6 +50,81 @@ func ValidateDefaultConfigOverwrite(
 	return errors
 }
 
+// ValidateDefaultConfigOverwriteKeyValuePairs checks if the file names in the overwrite pairs
+// are allowed and return an error for each unsupported files. The allowedKeys
+// list supports direct string match and globs like provider*.yaml
+func ValidateDefaultConfigOverwriteKeyValuePairs(
+	basePath *field.Path,
+	defaultConfigOverwrite []KeyValuePair,
+	allowedKeys []string,
+) field.ErrorList {
+	var errors field.ErrorList
+	for _, pair := range defaultConfigOverwrite {
+		if !matchAny(pair.Key, allowedKeys) {
+			errors = append(
+				errors,
+				field.Invalid(
+					basePath,
+					pair.Key,
+					fmt.Sprintf(
+						"Only the following keys are valid: %s",
+						strings.Join(allowedKeys, ", ")),
+				),
+			)
+		}
+	}
+	return errors
+}
+
+// ValidateAPIDefaultConfigOverwrite validates API-specific default config overwrite
+func ValidateAPIDefaultConfigOverwrite(
+	defaultConfigOverwrite []KeyValuePair,
+) field.ErrorList {
+	allowedKeys := []string{
+		"api-paste.ini",
+		"policy.yaml",
+		"policy.json",
+	}
+	return ValidateDefaultConfigOverwriteKeyValuePairs(
+		field.NewPath("spec").Child("defaultConfigOverwrite"),
+		defaultConfigOverwrite,
+		allowedKeys,
+	)
+}
+
+// ValidateComputeDefaultConfigOverwrite validates Compute-specific default config overwrite
+func ValidateComputeDefaultConfigOverwrite(
+	defaultConfigOverwrite []KeyValuePair,
+) field.ErrorList {
+	allowedKeys := []string{
+		"nova.conf",
+		"provider*.yaml",
+		"policy.yaml",
+		"policy.json",
+	}
+	return ValidateDefaultConfigOverwriteKeyValuePairs(
+		field.NewPath("spec").Child("defaultConfigOverwrite"),
+		defaultConfigOverwrite,
+		allowedKeys,
+	)
+}
+
+// ValidateMetadataDefaultConfigOverwrite validates Metadata-specific default config overwrite
+func ValidateMetadataDefaultConfigOverwrite(
+	defaultConfigOverwrite []KeyValuePair,
+) field.ErrorList {
+	allowedKeys := []string{
+		"api-paste.ini",
+		"policy.yaml",
+		"policy.json",
+	}
+	return ValidateDefaultConfigOverwriteKeyValuePairs(
+		field.NewPath("spec").Child("defaultConfigOverwrite"),
+		defaultConfigOverwrite,
+		allowedKeys,
+	)
+}
+
 func matchAny(requested string, allowed []string) bool {
 	for _, a := range allowed {
 		if matched, _ := filepath.Match(a, requested); matched {

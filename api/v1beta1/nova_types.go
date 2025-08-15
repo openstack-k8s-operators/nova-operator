@@ -88,7 +88,9 @@ type NovaSpecCore struct {
 	// NodeSelector to target subset of worker nodes running this service. Setting
 	// NodeSelector here acts as a default value and can be overridden by service
 	// specific NodeSelector Settings.
-	NodeSelector *map[string]string `json:"nodeSelector,omitempty"`
+	// +listType=map
+	// +listMapKey=key
+	NodeSelector []KeyValuePair `json:"nodeSelector,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=false
@@ -165,11 +167,20 @@ type NovaStatus struct {
 	// RegisteredCells is a map keyed by cell names that are registered in the
 	// nova_api database with a value that is the hash of the given cell
 	// configuration.
-	RegisteredCells map[string]string `json:"registeredCells,omitempty"`
+	// +listType=map
+	// +listMapKey=key
+	RegisteredCells []KeyValuePair `json:"registeredCells,omitempty"`
 
 	// DiscoveredCells is a map keyed by cell names that have discovered all kubernetes managed
 	// computes in cell value is a hash of config from all kubernetes managed computes in cell
-	DiscoveredCells map[string]string `json:"discoveredCells,omitempty"`
+	// +listType=map
+	// +listMapKey=key
+	DiscoveredCells []KeyValuePair `json:"discoveredCells,omitempty"`
+
+	// Hash contains hashes of various configurations like ApplicationCredential
+	// +listType=map
+	// +listMapKey=key
+	Hash []KeyValuePair `json:"hash,omitempty"`
 
 	//ObservedGeneration - the most recent generation observed for this service. If the observed generation is less than the spec generation, then the controller has not processed the latest changes.
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`

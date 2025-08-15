@@ -143,8 +143,8 @@ func StatefulSet(
 		},
 	}
 
-	if instance.Spec.NodeSelector != nil {
-		statefulset.Spec.Template.Spec.NodeSelector = *instance.Spec.NodeSelector
+	if len(instance.Spec.NodeSelector) > 0 {
+		statefulset.Spec.Template.Spec.NodeSelector = convertKeyValuePairsToMap(instance.Spec.NodeSelector)
 	}
 	if topology != nil {
 		topology.ApplyTo(&statefulset.Spec.Template)

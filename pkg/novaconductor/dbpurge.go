@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
+
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -11,7 +13,6 @@ import (
 
 	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
-	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/nova-operator/pkg/nova"
 )
 
@@ -103,9 +104,21 @@ func DBPurgeCronJob(
 		},
 	}
 
-	if instance.Spec.NodeSelector != nil {
-		cron.Spec.JobTemplate.Spec.Template.Spec.NodeSelector = *instance.Spec.NodeSelector
+	if len(instance.Spec.NodeSelector) > 0 {
+		cron.Spec.JobTemplate.Spec.Template.Spec.NodeSelector = convertKeyValuePairsToMap(instance.Spec.NodeSelector)
 	}
 
 	return cron
+}
+
+// convertKeyValuePairsToMap converts []KeyValuePair to map[string]string
+func convertKeyValuePairsToMap(pairs []novav1.KeyValuePair) map[string]string {
+	if pairs == nil {
+		return nil
+	}
+	m := make(map[string]string, len(pairs))
+	for _, pair := range pairs {
+		m[pair.Key] = pair.Value
+	}
+	return m
 }

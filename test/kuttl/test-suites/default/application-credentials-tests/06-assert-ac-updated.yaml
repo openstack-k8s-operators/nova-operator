@@ -1,0 +1,26 @@
+# Assert Application Credential secret was updated successfully
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ac-nova-secret
+data:
+  AC_ID: dXBkYXRlZC1hYy1pZA==  # updated-ac-id
+  AC_SECRET: dXBkYXRlZC1hYy1zZWNyZXQ=  # updated-ac-secret
+---
+# Assert KeystoneApplicationCredential is still present
+apiVersion: keystone.openstack.org/v1beta1
+kind: KeystoneApplicationCredential
+metadata:
+  name: ac-nova
+spec:
+  userName: nova
+  roles:
+  - service
+---
+# Assert Nova is still present after the credential update
+apiVersion: nova.openstack.org/v1beta1
+kind: Nova
+metadata:
+  name: nova-kuttl
+spec:
+  secret: osp-secret

@@ -249,7 +249,7 @@ func (r *NovaComputeReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, err
 	}
 
-	instance.Status.Hash[common.InputHashName] = inputHash
+	instance.Status.Hash = setKeyValuePair(instance.Status.Hash, common.InputHashName, inputHash)
 
 	instance.Status.Conditions.MarkTrue(condition.ServiceConfigReadyCondition, condition.ServiceConfigReadyMessage)
 
@@ -275,7 +275,7 @@ func (r *NovaComputeReconciler) initStatus(
 	}
 
 	if instance.Status.Hash == nil {
-		instance.Status.Hash = map[string]string{}
+		instance.Status.Hash = []novav1.KeyValuePair{}
 	}
 	if instance.Status.NetworkAttachments == nil {
 		instance.Status.NetworkAttachments = map[string][]string{}
@@ -376,8 +376,8 @@ func (r *NovaComputeReconciler) generateConfigs(
 	if instance.Spec.CustomServiceConfig != "" {
 		extraData["02-nova-override.conf"] = instance.Spec.CustomServiceConfig
 	}
-	for key, data := range instance.Spec.DefaultConfigOverwrite {
-		extraData[key] = data
+	for _, pair := range instance.Spec.DefaultConfigOverwrite {
+		extraData[pair.Key] = pair.Value
 	}
 
 	cmLabels := labels.GetLabels(

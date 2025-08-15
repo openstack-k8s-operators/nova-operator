@@ -129,11 +129,23 @@ spec:
                   type: string
                 type: array
               nodeSelector:
-                additionalProperties:
-                  type: string
                 description: NodeSelector to target subset of worker nodes running
                   this service
-                type: object
+                items:
+                  description: |-
+                    KeyValuePair represents a key-value pair as an alternative to map fields
+                    to comply with CRD schema validation requirements
+                  properties:
+                    key:
+                      default: ""
+                      type: string
+                    value:
+                      type: string
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - key
+                x-kubernetes-list-type: map
               preserveJobs:
                 default: false
                 description: PreserveJobs - do not delete jobs after they finished
@@ -298,10 +310,22 @@ spec:
                   type: object
                 type: array
               hash:
-                additionalProperties:
-                  type: string
                 description: Map of hashes to track e.g. job status
-                type: object
+                items:
+                  description: |-
+                    KeyValuePair represents a key-value pair as an alternative to map fields
+                    to comply with CRD schema validation requirements
+                  properties:
+                    key:
+                      default: ""
+                      type: string
+                    value:
+                      type: string
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - key
+                x-kubernetes-list-type: map
               lastAppliedTopology:
                 description: LastAppliedTopology - the last applied Topology
                 properties:
@@ -322,8 +346,33 @@ spec:
                   items:
                     type: string
                   type: array
-                description: NetworkAttachments status of the deployment pods
+                description: |-
+                  NetworkAttachments status of the deployment pods
+                  NetworkAttachments status of the deployment pods
+                  Deprecated: This field uses a map structure that violates schema validation.
+                  Use NetworkAttachmentsStatus instead.
                 type: object
+              networkAttachmentsStatus:
+                description: |-
+                  NetworkAttachmentsStatus provides the same information as NetworkAttachments
+                  but in a schema-compliant format
+                items:
+                  description: NetworkAttachmentStatus represents network attachment
+                    status for a specific endpoint
+                  properties:
+                    ips:
+                      items:
+                        type: string
+                      type: array
+                      x-kubernetes-list-type: set
+                    name:
+                      default: ""
+                      type: string
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - name
+                x-kubernetes-list-type: map
               observedGeneration:
                 description: |-
                   ObservedGeneration - the most recent generation observed for this

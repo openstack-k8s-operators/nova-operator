@@ -40,6 +40,8 @@ import (
 
 	"golang.org/x/exp/maps"
 
+	"github.com/openstack-k8s-operators/nova-operator/pkg/util/appcred"
+
 	"github.com/go-logr/logr"
 	"github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
@@ -83,6 +85,7 @@ func (r *NovaReconciler) GetLogger(ctx context.Context) logr.Logger {
 // +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneapis,verbs=get;list;watch;
 // +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneservices,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneendpoints,verbs=get;list;watch;create;update;patch;delete;
+// +kubebuilder:rbac:groups=keystone.openstack.org,resources=applicationcredentials,verbs=get;list;watch;
 // +kubebuilder:rbac:groups=rabbitmq.openstack.org,resources=transporturls,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=memcached.openstack.org,resources=memcacheds,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=memcached.openstack.org,resources=memcacheds/finalizers,verbs=update;patch
@@ -244,9 +247,44 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	// the cellTemplates
 	cell0Template := instance.Spec.CellTemplates[novav1.Cell0Name]
 
+	// Check for ApplicationCredential authentication
+	var acID, acSecret string
+	var useApplicationCredential bool
+
+	// Try to load ApplicationCredential secret first
+	acSecretName := types.NamespacedName{
+		Namespace: instance.Namespace,
+		Name:      "ac-nova-secret",
+	}
+
+	id, sec, _, err := appcred.LoadSecret(ctx, r.Client, acSecretName)
+	if err == nil {
+		// ApplicationCredential is available, use it
+		acID = id
+		acSecret = sec
+		useApplicationCredential = true
+		appcred.LogACInUse(Log, "nova")
+		Log.Info("Using ApplicationCredential authentication for nova")
+	} else {
+		// Fall back to service user authentication
+		useApplicationCredential = false
+		Log.Info("Using service user authentication for nova", "reason", err.Error())
+	}
+
+	// Store the AC configuration for use in child controllers
+	if useApplicationCredential {
+		instance.Status.Conditions.MarkTrue(
+			condition.InputReadyCondition,
+			"ApplicationCredential authentication configured")
+	}
+
 	expectedSelectors := []string{
-		instance.Spec.PasswordSelectors.Service,
 		instance.Spec.PasswordSelectors.MetadataSecret,
+	}
+
+	// Only require service password if not using ApplicationCredential
+	if !useApplicationCredential {
+		expectedSelectors = append(expectedSelectors, instance.Spec.PasswordSelectors.Service)
 	}
 
 	_, result, secret, err := ensureSecret(
@@ -259,6 +297,15 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	)
 	if (err != nil || result != ctrl.Result{}) {
 		return result, err
+	}
+
+	// Add AC hash to status if using ApplicationCredential
+	if useApplicationCredential {
+		acHash := appcred.HashSecret(acID, acSecret)
+		if instance.Status.Hash == nil {
+			instance.Status.Hash = []novav1.KeyValuePair{}
+		}
+		instance.Status.Hash = setKeyValuePair(instance.Status.Hash, "applicationcredential", acHash)
 	}
 	instance.Status.Conditions.MarkTrue(condition.InputReadyCondition, condition.InputReadyMessage)
 
@@ -542,7 +589,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		cell, status, err := r.ensureCell(
 			ctx, h, instance, cellName, cellTemplate,
 			cellDB.Database, apiDB, cellMQ.TransportURL, notificationTransportURL,
-			keystoneInternalAuthURL, secret,
+			keystoneInternalAuthURL, secret, useApplicationCredential, acID, acSecret,
 		)
 		cells[cellName] = cell
 		switch status {
@@ -620,6 +667,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		cellDBs[novav1.Cell0Name].Database, apiDB,
 		keystoneInternalAuthURL, keystonePublicAuthURL,
 		topLevelSecretName,
+		useApplicationCredential, acID, acSecret,
 	)
 	if err != nil {
 		return result, err
@@ -629,6 +677,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		ctx, instance, cell0Template,
 		cellDBs[novav1.Cell0Name].Database, apiDB, keystoneInternalAuthURL,
 		topLevelSecretName,
+		useApplicationCredential, acID, acSecret,
 	)
 	if err != nil {
 		return result, err
@@ -639,6 +688,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 			ctx, instance, cell0Template,
 			cellDBs[novav1.Cell0Name].Database, apiDB, keystoneInternalAuthURL,
 			topLevelSecretName,
+			useApplicationCredential, acID, acSecret,
 		)
 		if err != nil {
 			return result, err
@@ -690,7 +740,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 			}
 			if result == nova.CellDeleteComplete {
 				Log.Info("Cell deleted", "cell", cr.Spec.CellName)
-				delete(instance.Status.RegisteredCells, cr.Name)
+				instance.Status.RegisteredCells = removeKeyValuePair(instance.Status.RegisteredCells, cr.Name)
 				delete(toDeletCells, cr.Spec.CellName)
 			}
 		}
@@ -894,10 +944,10 @@ func (r *NovaReconciler) initStatus(
 	}
 
 	if instance.Status.RegisteredCells == nil {
-		instance.Status.RegisteredCells = map[string]string{}
+		instance.Status.RegisteredCells = []novav1.KeyValuePair{}
 	}
 	if instance.Status.DiscoveredCells == nil {
-		instance.Status.DiscoveredCells = map[string]string{}
+		instance.Status.DiscoveredCells = []novav1.KeyValuePair{}
 	}
 
 	return nil
@@ -1199,6 +1249,9 @@ func (r *NovaReconciler) ensureCell(
 	notificationTransportURL string,
 	keystoneAuthURL string,
 	secret corev1.Secret,
+	useApplicationCredential bool,
+	acID string,
+	acSecret string,
 ) (*novav1.NovaCell, nova.CellDeploymentStatus, error) {
 	Log := r.GetLogger(ctx)
 
@@ -1233,6 +1286,10 @@ func (r *NovaReconciler) ensureCell(
 		MemcachedInstance: getMemcachedInstance(instance, cellTemplate),
 		DBPurge:           cellTemplate.DBPurge,
 		NovaCellImages:    instance.Spec.NovaCellImages,
+		// Add ApplicationCredential fields
+		UseApplicationCredential:    convertBoolToString(useApplicationCredential),
+		ApplicationCredentialID:     acID,
+		ApplicationCredentialSecret: acSecret,
 	}
 	if cellTemplate.HasAPIAccess {
 		cellSpec.APIDatabaseHostname = apiDB.GetDatabaseHostname()
@@ -1337,11 +1394,11 @@ func (r *NovaReconciler) ensureNovaComputeDiscover(
 	labels := map[string]string{
 		common.AppSelector: NovaLabelPrefix,
 	}
-	jobDef := nova.HostDiscoveryJob(cell, configName, scriptName, cell.Status.Hash[novav1.ComputeDiscoverHashKey], labels)
+	jobDef := nova.HostDiscoveryJob(cell, configName, scriptName, getKeyValuePair(cell.Status.Hash, novav1.ComputeDiscoverHashKey), labels)
 
 	job := job.NewJob(
 		jobDef, cell.Name+"-host-discover",
-		cell.Spec.PreserveJobs, r.RequeueTimeout, instance.Status.DiscoveredCells[cell.Name])
+		cell.Spec.PreserveJobs, r.RequeueTimeout, getKeyValuePair(instance.Status.DiscoveredCells, cell.Name))
 
 	result, err := job.DoJob(ctx, h)
 	if err != nil {
@@ -1359,7 +1416,7 @@ func (r *NovaReconciler) ensureNovaComputeDiscover(
 		return nova.CellComputeDiscoveryReady, nil
 	}
 
-	instance.Status.DiscoveredCells[cell.Name] = job.GetHash()
+	instance.Status.DiscoveredCells = setKeyValuePair(instance.Status.DiscoveredCells, cell.Name, job.GetHash())
 	Log.Info(fmt.Sprintf("Job %s hash added - %s", jobDef.Name, cell.Name))
 
 	return nova.CellComputeDiscoveryReady, nil
@@ -1374,6 +1431,9 @@ func (r *NovaReconciler) ensureAPI(
 	keystoneInternalAuthURL string,
 	keystonePublicAuthURL string,
 	secretName string,
+	useApplicationCredential bool,
+	acID string,
+	acSecret string,
 ) (ctrl.Result, error) {
 	Log := r.GetLogger(ctx)
 
@@ -1404,6 +1464,10 @@ func (r *NovaReconciler) ensureAPI(
 		DefaultConfigOverwrite: instance.Spec.APIServiceTemplate.DefaultConfigOverwrite,
 		MemcachedInstance:      getMemcachedInstance(instance, cell0Template),
 		APITimeout:             instance.Spec.APITimeout,
+		// Add ApplicationCredential fields
+		UseApplicationCredential:    convertBoolToString(useApplicationCredential),
+		ApplicationCredentialID:     acID,
+		ApplicationCredentialSecret: acSecret,
 	}
 	api := &novav1.NovaAPI{
 		ObjectMeta: metav1.ObjectMeta{
@@ -1464,6 +1528,9 @@ func (r *NovaReconciler) ensureScheduler(
 	apiDB *mariadbv1.Database,
 	keystoneAuthURL string,
 	secretName string,
+	useApplicationCredential bool,
+	acID string,
+	acSecret string,
 ) (ctrl.Result, error) {
 	Log := r.GetLogger(ctx)
 	// TODO(gibi): Pass down a narrowed secret that only hold
@@ -1494,6 +1561,10 @@ func (r *NovaReconciler) ensureScheduler(
 		// The assumption is that the CA bundle for the NovaScheduler is the same as the NovaAPI
 		TLS:               instance.Spec.APIServiceTemplate.TLS.Ca,
 		MemcachedInstance: getMemcachedInstance(instance, cell0Template),
+		// Add ApplicationCredential fields
+		UseApplicationCredential:    convertBoolToString(useApplicationCredential),
+		ApplicationCredentialID:     acID,
+		ApplicationCredentialSecret: acSecret,
 	}
 	scheduler := &novav1.NovaScheduler{
 		ObjectMeta: metav1.ObjectMeta{
@@ -1805,6 +1876,9 @@ func (r *NovaReconciler) ensureMetadata(
 	apiDB *mariadbv1.Database,
 	keystoneAuthURL string,
 	secretName string,
+	useApplicationCredential bool,
+	acID string,
+	acSecret string,
 ) (ctrl.Result, error) {
 	Log := r.GetLogger(ctx)
 	// There is a case when the user manually created a NovaMetadata while it
@@ -1870,6 +1944,10 @@ func (r *NovaReconciler) ensureMetadata(
 		DefaultConfigOverwrite: instance.Spec.MetadataServiceTemplate.DefaultConfigOverwrite,
 		MemcachedInstance:      getMemcachedInstance(instance, cell0Template),
 		APITimeout:             instance.Spec.APITimeout,
+		// Add ApplicationCredential fields
+		UseApplicationCredential:    convertBoolToString(useApplicationCredential),
+		ApplicationCredentialID:     acID,
+		ApplicationCredentialSecret: acSecret,
 	}
 	metadata = &novav1.NovaMetadata{
 		ObjectMeta: metav1.ObjectMeta{
@@ -1955,7 +2033,7 @@ func (r *NovaReconciler) ensureCellMapped(
 	job := job.NewJob(
 		jobDef, cell.Name+"-cell-mapping",
 		instance.Spec.PreserveJobs, r.RequeueTimeout,
-		instance.Status.RegisteredCells[cell.Name])
+		getKeyValuePair(instance.Status.RegisteredCells, cell.Name))
 
 	result, err := job.DoJob(ctx, h)
 	if err != nil {
@@ -1978,8 +2056,8 @@ func (r *NovaReconciler) ensureCellMapped(
 	// Also the controller distributes the instance.Status.RegisteredCells
 	// information to the top level services so that each service can restart
 	// their Pods if a new cell is registered or an existing cell is updated.
-	instance.Status.RegisteredCells[cell.Name] = job.GetHash()
-	Log.Info("Job hash added ", "job", jobDef.Name, "hash", instance.Status.RegisteredCells[cell.Name])
+	instance.Status.RegisteredCells = setKeyValuePair(instance.Status.RegisteredCells, cell.Name, job.GetHash())
+	Log.Info("Job hash added ", "job", jobDef.Name, "hash", getKeyValuePair(instance.Status.RegisteredCells, cell.Name))
 
 	return nova.CellMappingReady, nil
 }
@@ -2194,7 +2272,7 @@ func (r *NovaReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		return err
 	}
 
-	return ctrl.NewControllerManagedBy(mgr).
+	b := ctrl.NewControllerManagedBy(mgr).
 		For(&novav1.Nova{}).
 		Owns(&mariadbv1.MariaDBDatabase{}).
 		Owns(&mariadbv1.MariaDBAccount{}).
@@ -2221,6 +2299,64 @@ func (r *NovaReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		).
 		Watches(&keystonev1.KeystoneAPI{},
 			handler.EnqueueRequestsFromMapFunc(r.findObjectForSrc),
-			builder.WithPredicates(keystonev1.KeystoneAPIStatusChangedPredicate)).
-		Complete(r)
+			builder.WithPredicates(keystonev1.KeystoneAPIStatusChangedPredicate))
+
+	// Attach AC watches (AC CR + Secret) and proper event mapping
+	b = AddACWatchesForNova(b, mgr)
+
+	return b.Complete(r)
+}
+
+// convertBoolToString converts a boolean value to its string representation
+// for use with the CRD string enum fields that replaced boolean fields
+func convertBoolToString(b bool) string {
+	if b {
+		return "true"
+	}
+	return "false"
+}
+
+// convertKeyValuePairsToMap converts []KeyValuePair to map[string]string
+// for use when working with data from CRD list fields
+func convertKeyValuePairsToMap(pairs []novav1.KeyValuePair) map[string]string {
+	if pairs == nil {
+		return nil
+	}
+	m := make(map[string]string, len(pairs))
+	for _, pair := range pairs {
+		m[pair.Key] = pair.Value
+	}
+	return m
+}
+
+// setKeyValuePair sets or updates a key-value pair in a KeyValuePair slice
+func setKeyValuePair(pairs []novav1.KeyValuePair, key, value string) []novav1.KeyValuePair {
+	for i, pair := range pairs {
+		if pair.Key == key {
+			pairs[i].Value = value
+			return pairs
+		}
+	}
+	return append(pairs, novav1.KeyValuePair{Key: key, Value: value})
+}
+
+// getKeyValuePair gets a value from a KeyValuePair slice by key
+func getKeyValuePair(pairs []novav1.KeyValuePair, key string) string {
+	for _, pair := range pairs {
+		if pair.Key == key {
+			return pair.Value
+		}
+	}
+	return ""
+}
+
+// removeKeyValuePair removes a key-value pair from a KeyValuePair slice by key
+func removeKeyValuePair(pairs []novav1.KeyValuePair, key string) []novav1.KeyValuePair {
+	result := make([]novav1.KeyValuePair, 0, len(pairs))
+	for _, pair := range pairs {
+		if pair.Key != key {
+			result = append(result, pair)
+		}
+	}
+	return result
 }

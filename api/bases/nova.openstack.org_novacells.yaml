@@ -56,6 +56,12 @@ spec:
                 description: APITimeout for Route and Apache
                 minimum: 10
                 type: integer
+              applicationCredentialID:
+                description: ApplicationCredentialID - the ID of the ApplicationCredential
+                type: string
+              applicationCredentialSecret:
+                description: ApplicationCredentialSecret - the secret of the ApplicationCredential
+                type: string
               cellDatabaseAccount:
                 default: nova
                 description: CellDatabaseAccount - MariaDBAccount to use when accessing
@@ -95,12 +101,24 @@ spec:
                       type: string
                     type: array
                   nodeSelector:
-                    additionalProperties:
-                      type: string
                     description: |-
                       NodeSelector to target subset of worker nodes running this service. Setting here overrides
                       any global NodeSelector settings within the Nova CR.
-                    type: object
+                    items:
+                      description: |-
+                        KeyValuePair represents a key-value pair as an alternative to map fields
+                        to comply with CRD schema validation requirements
+                      properties:
+                        key:
+                          default: ""
+                          type: string
+                        value:
+                          type: string
+                      type: object
+                    type: array
+                    x-kubernetes-list-map-keys:
+                    - key
+                    x-kubernetes-list-type: map
                   replicas:
                     default: 1
                     description: Replicas of the service to run
@@ -232,11 +250,23 @@ spec:
                       to /etc/<service>/<service>.conf.d directory as custom.conf file.
                     type: string
                   defaultConfigOverwrite:
-                    additionalProperties:
-                      type: string
                     description: DefaultConfigOverwrite - interface to overwrite default
                       config files like e.g. api-paste.ini.
-                    type: object
+                    items:
+                      description: |-
+                        KeyValuePair represents a key-value pair as an alternative to map fields
+                        to comply with CRD schema validation requirements
+                      properties:
+                        key:
+                          default: ""
+                          type: string
+                        value:
+                          type: string
+                      type: object
+                    type: array
+                    x-kubernetes-list-map-keys:
+                    - key
+                    x-kubernetes-list-type: map
                   enabled:
                     description: |-
                       Enabled - Whether NovaMetadata services should be deployed and managed.
@@ -257,12 +287,24 @@ spec:
                       type: string
                     type: array
                   nodeSelector:
-                    additionalProperties:
-                      type: string
                     description: |-
                       NodeSelector to target subset of worker nodes running this service. Setting here overrides
                       any global NodeSelector settings within the Nova CR.
-                    type: object
+                    items:
+                      description: |-
+                        KeyValuePair represents a key-value pair as an alternative to map fields
+                        to comply with CRD schema validation requirements
+                      properties:
+                        key:
+                          default: ""
+                          type: string
+                        value:
+                          type: string
+                      type: object
+                    type: array
+                    x-kubernetes-list-map-keys:
+                    - key
+                    x-kubernetes-list-type: map
                   override:
                     description: Override, provides the ability to override the generated
                       manifest of several child resources.
@@ -539,11 +581,23 @@ spec:
                       type: string
                     type: array
                   nodeSelector:
-                    additionalProperties:
-                      type: string
                     description: NodeSelector to target subset of worker nodes running
                       this service
-                    type: object
+                    items:
+                      description: |-
+                        KeyValuePair represents a key-value pair as an alternative to map fields
+                        to comply with CRD schema validation requirements
+                      properties:
+                        key:
+                          default: ""
+                          type: string
+                        value:
+                          type: string
+                      type: object
+                    type: array
+                    x-kubernetes-list-map-keys:
+                    - key
+                    x-kubernetes-list-type: map
                   override:
                     description: Override, provides the ability to override the generated
                       manifest of several child resources.
@@ -810,11 +864,23 @@ spec:
                     type: object
                 type: object
               nodeSelector:
-                additionalProperties:
-                  type: string
                 description: NodeSelector to target subset of worker nodes running
                   this services.
-                type: object
+                items:
+                  description: |-
+                    KeyValuePair represents a key-value pair as an alternative to map fields
+                    to comply with CRD schema validation requirements
+                  properties:
+                    key:
+                      default: ""
+                      type: string
+                    value:
+                      type: string
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - key
+                x-kubernetes-list-type: map
               novaComputeTemplates:
                 additionalProperties:
                   description: |-
@@ -835,11 +901,23 @@ spec:
                         to /etc/<service>/<service>.conf.d directory as custom.conf file.
                       type: string
                     defaultConfigOverwrite:
-                      additionalProperties:
-                        type: string
                       description: DefaultConfigOverwrite - interface to overwrite
                         default config files like e.g. provider.yaml
-                      type: object
+                      items:
+                        description: |-
+                          KeyValuePair represents a key-value pair as an alternative to map fields
+                          to comply with CRD schema validation requirements
+                        properties:
+                          key:
+                            default: ""
+                            type: string
+                          value:
+                            type: string
+                        type: object
+                      type: array
+                      x-kubernetes-list-map-keys:
+                      - key
+                      x-kubernetes-list-type: map
                     networkAttachments:
                       description: NetworkAttachments is a list of NetworkAttachment
                         resource names to expose the services to the given network
@@ -847,12 +925,24 @@ spec:
                         type: string
                       type: array
                     nodeSelector:
-                      additionalProperties:
-                        type: string
                       description: |-
                         NodeSelector to target subset of worker nodes running this service. Setting here overrides
                         any global NodeSelector settings within the Nova CR.
-                      type: object
+                      items:
+                        description: |-
+                          KeyValuePair represents a key-value pair as an alternative to map fields
+                          to comply with CRD schema validation requirements
+                        properties:
+                          key:
+                            default: ""
+                            type: string
+                          value:
+                            type: string
+                        type: object
+                      type: array
+                      x-kubernetes-list-map-keys:
+                      - key
+                      x-kubernetes-list-type: map
                     replicas:
                       default: 1
                       description: Replicas of the service to run. For ironic.IronicDriver
@@ -994,6 +1084,14 @@ spec:
                       current project
                     type: string
                 type: object
+              useApplicationCredential:
+                default: "false"
+                description: UseApplicationCredential - indicates if ApplicationCredential
+                  authentication is used
+                enum:
+                - "true"
+                - "false"
+                type: string
             required:
             - cellDatabaseHostname
             - cellName
@@ -1060,13 +1158,25 @@ spec:
                 format: int32
                 type: integer
               hash:
-                additionalProperties:
-                  type: string
                 description: |-
                   INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
                   Important: Run "make" to regenerate code after modifying this file
                   Map of hashes to track e.g. job status
-                type: object
+                items:
+                  description: |-
+                    KeyValuePair represents a key-value pair as an alternative to map fields
+                    to comply with CRD schema validation requirements
+                  properties:
+                    key:
+                      default: ""
+                      type: string
+                    value:
+                      type: string
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - key
+                x-kubernetes-list-type: map
               metadataServiceReadyCount:
                 description: |-
                   MetadataServiceReadyCount defines the number of replicas ready from

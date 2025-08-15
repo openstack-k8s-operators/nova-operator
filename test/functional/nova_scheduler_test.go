@@ -608,7 +608,7 @@ var _ = Describe("NovaScheduler controller", func() {
 			// therefore a new cell is added to RegisteredCells
 			Eventually(func(g Gomega) {
 				novaAPI := GetNovaScheduler(novaNames.SchedulerName)
-				novaAPI.Spec.RegisteredCells = map[string]string{"cell0": "cell0-config-hash"}
+				novaAPI.Spec.RegisteredCells = []novav1.KeyValuePair{{Key: "cell0", Value: "cell0-config-hash"}}
 				g.Expect(k8sClient.Update(ctx, novaAPI)).To(Succeed())
 			}, timeout, interval).Should(Succeed())
 

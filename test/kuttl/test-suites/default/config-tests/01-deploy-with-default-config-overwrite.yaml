@@ -4,6 +4,13 @@ metadata:
   name: nova-kuttl
 spec:
   secret: osp-secret
+  # Container image URLs are required
+  apiContainerImageURL: "quay.io/podified-antelope-centos9/openstack-nova-api:current-podified"
+  schedulerContainerImageURL: "quay.io/podified-antelope-centos9/openstack-nova-scheduler:current-podified"
+  conductorContainerImageURL: "quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified"
+  metadataContainerImageURL: "quay.io/podified-antelope-centos9/openstack-nova-api:current-podified"
+  novncproxyContainerImageURL: "quay.io/podified-antelope-centos9/openstack-nova-novncproxy:current-podified"
+  computeContainerImageURL: "quay.io/podified-antelope-centos9/openstack-nova-compute:current-podified"
   apiServiceTemplate:
     defaultConfigOverwrite:
       policy.yaml: |
@@ -20,6 +27,7 @@ spec:
       cellDatabaseAccount: nova-cell1
       cellMessageBusInstance: rabbitmq-cell1
       memcachedInstance: memcached
+      hasAPIAccess: true
       novaComputeTemplates:
         compute-fake1:
           computeDriver: fake.FakeDriver
