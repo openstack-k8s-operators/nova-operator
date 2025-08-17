@@ -29,6 +29,7 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
+	"github.com/openstack-k8s-operators/nova-operator/controllers"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/utils/ptr"
@@ -338,6 +339,51 @@ var _ = Describe("NovaCell controller", func() {
 			)
 
 			Expect(GetNovaCell(cell1.CellCRName).Status.Hash).To(HaveKey(cell1.ComputeConfigSecretName.Name))
+		})
+
+		It("should have quorum queues disabled by default and enabled when configured", func() {
+			// Set up cell1 to be ready
+			th.SimulateJobSuccess(cell1.DBSyncJobName)
+			th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
+			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
+
+			// Verify the internal secret doesn't have quorum_queues field by default
+			cell1InternalSecret := th.GetSecret(cell1.InternalCellSecretName)
+			Expect(cell1InternalSecret.Data).ToNot(HaveKey(controllers.QuorumQueuesTemplateKey))
+
+			// Verify compute config has standard non-quorum queue settings when field is missing
+			computeConfigData := th.GetSecret(cell1.ComputeConfigSecretName)
+			Expect(computeConfigData).ShouldNot(BeNil())
+			Expect(computeConfigData.Data).Should(HaveKey("01-nova.conf"))
+			configData := string(computeConfigData.Data["01-nova.conf"])
+
+			Expect(configData).ToNot(ContainSubstring("rabbit_quorum_queue=true"))
+			Expect(configData).ToNot(ContainSubstring("rabbit_transient_quorum_queue=true"))
+
+			// Now enable quorum queues by adding the field to internal secret
+			// (simulating Nova controller behavior when quorum queues are enabled)
+			cell1InternalSecret.Data[controllers.QuorumQueuesTemplateKey] = []byte("true")
+			Expect(k8sClient.Update(ctx, &cell1InternalSecret)).Should(Succeed())
+
+			// Trigger NovaCell reconciliation to pick up the change
+			Eventually(func(g Gomega) {
+				novaCell := GetNovaCell(cell1.CellCRName)
+				if novaCell.Annotations == nil {
+					novaCell.Annotations = make(map[string]string)
+				}
+				novaCell.Annotations["test-trigger"] = "force-reconcile-quorum"
+				g.Expect(k8sClient.Update(ctx, novaCell)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			// Verify compute config now has quorum queue settings enabled
+			Eventually(func(g Gomega) {
+				computeConfigData := th.GetSecret(cell1.ComputeConfigSecretName)
+				g.Expect(computeConfigData.Data).Should(HaveKey("01-nova.conf"))
+				configData := string(computeConfigData.Data["01-nova.conf"])
+
+				g.Expect(configData).To(ContainSubstring("rabbit_quorum_queue=true"))
+				g.Expect(configData).To(ContainSubstring("rabbit_transient_quorum_queue=true"))
+			}, timeout, interval).Should(Succeed())
 		})
 
 		It("updates the novncproxy_base_url in the compute config secret when VNCProxy endpointURL is set", func() {

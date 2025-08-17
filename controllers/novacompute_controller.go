@@ -369,7 +369,8 @@ func (r *NovaComputeReconciler) generateConfigs(
 		"notification_transport_url": string(secret.Data[NotificationTransportURLSelector]),
 		"compute_driver":             instance.Spec.ComputeDriver,
 		// Neither the ironic driver nor the fake driver support VNC
-		"vnc_enabled": false,
+		"vnc_enabled":           false,
+		QuorumQueuesTemplateKey: parseQuorumQueues(secret.Data[QuorumQueuesTemplateKey]),
 	}
 
 	extraData := map[string]string{}

@@ -366,7 +366,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	// Create TransportURLs to access the message buses of each cell. Cell0
 	// message bus is always the same as the top level API message bus so
 	// we create API MQ separately first
-	apiTransportURL, apiMQStatus, apiMQError := r.ensureMQ(
+	apiTransportURL, apiQuorumQueues, apiMQStatus, apiMQError := r.ensureMQ(
 		ctx, h, instance, instance.Name+"-api-transport", instance.Spec.APIMessageBusInstance)
 	switch apiMQStatus {
 	case nova.MQFailed:
@@ -403,7 +403,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 
 	notificationTransportURLName := instance.Name + "-notification-transport"
 	if notificationBusName != "" {
-		notificationTransportURL, notificationMQStatus, notificationMQError = r.ensureMQ(
+		notificationTransportURL, _, notificationMQStatus, notificationMQError = r.ensureMQ(
 			ctx, h, instance, notificationTransportURLName, notificationBusName)
 
 		switch notificationMQStatus {
@@ -459,14 +459,16 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		var status nova.MessageBusStatus
 		var err error
 		cellTemplate := instance.Spec.CellTemplates[cellName]
+		var cellQuorumQueues bool
 		// cell0 does not need its own cell message bus it uses the
 		// API message bus instead
 		if cellName == novav1.Cell0Name {
 			cellTransportURL = apiTransportURL
+			cellQuorumQueues = apiQuorumQueues
 			status = apiMQStatus
 			err = apiMQError
 		} else {
-			cellTransportURL, status, err = r.ensureMQ(
+			cellTransportURL, cellQuorumQueues, status, err = r.ensureMQ(
 				ctx, h, instance, instance.Name+"-"+cellName+"-transport", cellTemplate.CellMessageBusInstance)
 		}
 		switch status {
@@ -478,7 +480,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		default:
 			return ctrl.Result{}, fmt.Errorf("%w from ensureMQ: %d for cell %s", util.ErrInvalidStatus, status, cellName)
 		}
-		cellMQs[cellName] = &nova.MessageBus{TransportURL: cellTransportURL, Status: status}
+		cellMQs[cellName] = &nova.MessageBus{TransportURL: cellTransportURL, QuorumQueues: cellQuorumQueues, Status: status}
 	}
 	if len(failedMQs) > 0 {
 		instance.Status.Conditions.Set(condition.FalseCondition(
@@ -541,7 +543,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		}
 		cell, status, err := r.ensureCell(
 			ctx, h, instance, cellName, cellTemplate,
-			cellDB.Database, apiDB, cellMQ.TransportURL, notificationTransportURL,
+			cellDB.Database, apiDB, cellMQ.TransportURL, cellMQ.QuorumQueues, notificationTransportURL,
 			keystoneInternalAuthURL, secret,
 		)
 		cells[cellName] = cell
@@ -608,7 +610,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 
 	topLevelSecretName, err := r.ensureTopLevelSecret(
 		ctx, h, instance,
-		apiTransportURL,
+		apiTransportURL, apiQuorumQueues,
 		notificationTransportURL,
 		secret)
 	if err != nil {
@@ -1196,6 +1198,7 @@ func (r *NovaReconciler) ensureCell(
 	cellDB *mariadbv1.Database,
 	apiDB *mariadbv1.Database,
 	cellTransportURL string,
+	cellQuorumQueues bool,
 	notificationTransportURL string,
 	keystoneAuthURL string,
 	secret corev1.Secret,
@@ -1204,7 +1207,7 @@ func (r *NovaReconciler) ensureCell(
 
 	cellSecretName, err := r.ensureCellSecret(
 		ctx, h, instance, cellName, cellTemplate,
-		cellTransportURL, notificationTransportURL,
+		cellTransportURL, cellQuorumQueues, notificationTransportURL,
 		secret)
 	if err != nil {
 		return nil, nova.CellDeploying, err
@@ -1708,7 +1711,7 @@ func (r *NovaReconciler) ensureMQ(
 	instance *novav1.Nova,
 	transportName string,
 	messageBusInstanceName string,
-) (string, nova.MessageBusStatus, error) {
+) (string, bool, nova.MessageBusStatus, error) {
 	Log := r.GetLogger(ctx)
 	transportURL := &rabbitmqv1.TransportURL{
 		ObjectMeta: metav1.ObjectMeta{
@@ -1725,7 +1728,7 @@ func (r *NovaReconciler) ensureMQ(
 	})
 
 	if err != nil && !k8s_errors.IsNotFound(err) {
-		return "", nova.MQFailed, util.WrapErrorForObject(
+		return "", false, nova.MQFailed, util.WrapErrorForObject(
 			fmt.Sprintf("Error create or update TransportURL object %s", transportName),
 			transportURL,
 			err,
@@ -1734,12 +1737,12 @@ func (r *NovaReconciler) ensureMQ(
 
 	if op != controllerutil.OperationResultNone {
 		Log.Info(fmt.Sprintf("TransportURL object %s created or patched", transportName))
-		return "", nova.MQCreating, nil
+		return "", false, nova.MQCreating, nil
 	}
 
 	err = r.Client.Get(ctx, types.NamespacedName{Namespace: instance.Namespace, Name: transportName}, transportURL)
 	if err != nil && !k8s_errors.IsNotFound(err) {
-		return "", nova.MQFailed, util.WrapErrorForObject(
+		return "", false, nova.MQFailed, util.WrapErrorForObject(
 			fmt.Sprintf("Error reading TransportURL object %s", transportName),
 			transportURL,
 			err,
@@ -1747,7 +1750,7 @@ func (r *NovaReconciler) ensureMQ(
 	}
 
 	if k8s_errors.IsNotFound(err) || !transportURL.IsReady() || transportURL.Status.SecretName == "" {
-		return "", nova.MQCreating, nil
+		return "", false, nova.MQCreating, nil
 	}
 
 	secretName := types.NamespacedName{Namespace: instance.Namespace, Name: transportURL.Status.SecretName}
@@ -1756,17 +1759,24 @@ func (r *NovaReconciler) ensureMQ(
 	err = h.GetClient().Get(ctx, secretName, secret)
 	if err != nil {
 		if k8s_errors.IsNotFound(err) {
-			return "", nova.MQCreating, nil
+			return "", false, nova.MQCreating, nil
 		}
-		return "", nova.MQFailed, err
+		return "", false, nova.MQFailed, err
 	}
 
 	url, ok := secret.Data[TransportURLSelector]
 	if !ok {
-		return "", nova.MQFailed, fmt.Errorf(
+		return "", false, nova.MQFailed, fmt.Errorf(
 			"%w: the TransportURL secret %s does not have 'transport_url' field", util.ErrFieldNotFound, transportURL.Status.SecretName)
 	}
-	return string(url), nova.MQCompleted, nil
+
+	// Check if quorum queues are enabled
+	quorumQueues := false
+	if val, ok := secret.Data[QuorumQueuesSelector]; ok {
+		quorumQueues = string(val) == "true"
+	}
+
+	return string(url), quorumQueues, nova.MQCompleted, nil
 }
 
 func (r *NovaReconciler) ensureMQDeleted(
@@ -1993,15 +2003,22 @@ func (r *NovaReconciler) ensureCellSecret(
 	cellName string,
 	cellTemplate novav1.NovaCellTemplate,
 	cellTransportURL string,
+	cellQuorumQueues bool,
 	notificationTransportURL string,
 	externalSecret corev1.Secret,
 ) (string, error) {
 	// NOTE(gibi): We can move other sensitive data to the internal Secret from
 	// the NovaCellSpec fields, possibly hostnames or usernames.
+	quorumQueuesValue := "false"
+	if cellQuorumQueues {
+		quorumQueuesValue = "true"
+	}
+
 	data := map[string]string{
 		ServicePasswordSelector:          string(externalSecret.Data[instance.Spec.PasswordSelectors.Service]),
 		TransportURLSelector:             cellTransportURL,
 		NotificationTransportURLSelector: notificationTransportURL,
+		QuorumQueuesTemplateKey:          quorumQueuesValue,
 	}
 
 	// If metadata is enabled in the cell then the cell secret needs the
@@ -2045,16 +2062,23 @@ func (r *NovaReconciler) ensureTopLevelSecret(
 	h *helper.Helper,
 	instance *novav1.Nova,
 	apiTransportURL string,
+	apiQuorumQueues bool,
 	notificationTransportURL string,
 	externalSecret corev1.Secret,
 ) (string, error) {
 	// NOTE(gibi): We can move other sensitive data to the internal Secret from
 	// the subCR fields, possibly hostnames or usernames.
+	quorumQueuesValue := "false"
+	if apiQuorumQueues {
+		quorumQueuesValue = "true"
+	}
+
 	data := map[string]string{
 		ServicePasswordSelector:          string(externalSecret.Data[instance.Spec.PasswordSelectors.Service]),
 		MetadataSecretSelector:           string(externalSecret.Data[instance.Spec.PasswordSelectors.MetadataSecret]),
 		TransportURLSelector:             apiTransportURL,
 		NotificationTransportURLSelector: notificationTransportURL,
+		QuorumQueuesTemplateKey:          quorumQueuesValue,
 	}
 
 	// NOTE(gibi): When we switch to immutable secrets then we need to include

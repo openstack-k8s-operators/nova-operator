@@ -599,6 +599,7 @@ func (r *NovaSchedulerReconciler) generateConfigs(
 		"MemcachedServers":           memcachedInstance.GetMemcachedServerListString(),
 		"MemcachedServersWithInet":   memcachedInstance.GetMemcachedServerListWithInetString(),
 		"MemcachedTLS":               memcachedInstance.GetMemcachedTLSSupport(),
+		QuorumQueuesTemplateKey:      parseQuorumQueues(secret.Data[QuorumQueuesTemplateKey]),
 	}
 
 	var tlsCfg *tls.Service
