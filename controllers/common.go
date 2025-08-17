@@ -100,6 +100,10 @@ const (
 	// top level notification message bus transport URL
 	NotificationTransportURLSelector = "notification_transport_url"
 
+	// QuorumQueuesSelector is the name of key in the internal Secret for
+	// the message bus quorum queues
+	QuorumQueuesSelector = "quorumqueues"
+
 	// fields to index to reconcile when change
 	passwordSecretField        = ".spec.secret"
 	caBundleSecretNameField    = ".spec.tls.caBundleSecretName" // #nosec G101

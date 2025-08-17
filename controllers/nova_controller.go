@@ -1769,6 +1769,24 @@ func (r *NovaReconciler) ensureMQ(
 	return string(url), nova.MQCompleted, nil
 }
 
+// checkTransportQuorum returns "true" if quorum queues are enabled in the given TransportURL secret, "false" otherwise
+func (r *NovaReconciler) checkTransportQuorum(ctx context.Context, h *helper.Helper, transportName string, instance *novav1.Nova) string {
+	transportURL := &rabbitmqv1.TransportURL{}
+	if err := r.Client.Get(ctx, types.NamespacedName{Namespace: instance.Namespace, Name: transportName}, transportURL); err != nil || !transportURL.IsReady() || transportURL.Status.SecretName == "" {
+		return "false"
+	}
+
+	secret := &corev1.Secret{}
+	if err := h.GetClient().Get(ctx, types.NamespacedName{Namespace: instance.Namespace, Name: transportURL.Status.SecretName}, secret); err != nil {
+		return "false"
+	}
+
+	if string(secret.Data[QuorumQueuesSelector]) == "true" {
+		return "true"
+	}
+	return "false"
+}
+
 func (r *NovaReconciler) ensureMQDeleted(
 	ctx context.Context,
 	instance *novav1.Nova,
@@ -1998,10 +2016,17 @@ func (r *NovaReconciler) ensureCellSecret(
 ) (string, error) {
 	// NOTE(gibi): We can move other sensitive data to the internal Secret from
 	// the NovaCellSpec fields, possibly hostnames or usernames.
+	// Check quorum queues from TransportURL secrets
+	mainTransportName := instance.Name + "-" + cellName + "-transport"
+	if cellName == novav1.Cell0Name {
+		mainTransportName = instance.Name + "-api-transport"
+	}
+
 	data := map[string]string{
 		ServicePasswordSelector:          string(externalSecret.Data[instance.Spec.PasswordSelectors.Service]),
 		TransportURLSelector:             cellTransportURL,
 		NotificationTransportURLSelector: notificationTransportURL,
+		QuorumQueuesSelector:             r.checkTransportQuorum(ctx, h, mainTransportName, instance),
 	}
 
 	// If metadata is enabled in the cell then the cell secret needs the
@@ -2055,6 +2080,7 @@ func (r *NovaReconciler) ensureTopLevelSecret(
 		MetadataSecretSelector:           string(externalSecret.Data[instance.Spec.PasswordSelectors.MetadataSecret]),
 		TransportURLSelector:             apiTransportURL,
 		NotificationTransportURLSelector: notificationTransportURL,
+		QuorumQueuesSelector:             r.checkTransportQuorum(ctx, h, instance.Name+"-api-transport", instance),
 	}
 
 	// NOTE(gibi): When we switch to immutable secrets then we need to include

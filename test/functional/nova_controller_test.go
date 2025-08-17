@@ -136,6 +136,174 @@ var _ = Describe("Nova controller - notifications", func() {
 
 })
 
+var _ = Describe("Nova controller - quorum queues", func() {
+
+	When("Nova CR instance is created with quorum queues disabled", func() {
+		BeforeEach(func() {
+			CreateNovaWithNCellsAndEnsureReady(1, &novaNames)
+		})
+
+		It("should have quorum queues disabled in configuration", func() {
+			// Check that internal secrets have quorum queues set to false
+			internalTopLevelSecret := th.GetSecret(novaNames.InternalTopLevelSecretName)
+			Expect(internalTopLevelSecret.Data).To(HaveKey(controllers.QuorumQueuesSelector))
+			Expect(internalTopLevelSecret.Data).To(
+				HaveKeyWithValue(controllers.QuorumQueuesSelector, []byte("false")))
+
+			// Check cell0 internal secret
+			cell0InternalSecret := th.GetSecret(cell0.InternalCellSecretName)
+			Expect(cell0InternalSecret.Data).To(HaveKey(controllers.QuorumQueuesSelector))
+			Expect(cell0InternalSecret.Data).To(
+				HaveKeyWithValue(controllers.QuorumQueuesSelector, []byte("false")))
+
+			// Verify nova-api configuration
+			configDataMap := th.GetSecret(novaNames.APIConfigDataName)
+			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
+			configData := string(configDataMap.Data["01-nova.conf"])
+
+			// Should have standard non-quorum queue settings
+			Expect(configData).To(ContainSubstring("amqp_durable_queues=false"))
+			Expect(configData).To(ContainSubstring("amqp_auto_delete=false"))
+			Expect(configData).ToNot(ContainSubstring("rabbit_quorum_queue=true"))
+			Expect(configData).ToNot(ContainSubstring("rabbit_transient_quorum_queue=true"))
+
+			// Verify nova-scheduler configuration
+			configDataMap = th.GetSecret(novaNames.SchedulerConfigDataName)
+			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
+			configData = string(configDataMap.Data["01-nova.conf"])
+
+			Expect(configData).To(ContainSubstring("amqp_durable_queues=false"))
+			Expect(configData).To(ContainSubstring("amqp_auto_delete=false"))
+			Expect(configData).ToNot(ContainSubstring("rabbit_quorum_queue=true"))
+
+			// Verify nova-conductor configuration
+			configDataMap = th.GetSecret(cell0.ConductorConfigDataName)
+			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
+			configData = string(configDataMap.Data["01-nova.conf"])
+
+			Expect(configData).To(ContainSubstring("amqp_durable_queues=false"))
+			Expect(configData).To(ContainSubstring("amqp_auto_delete=false"))
+			Expect(configData).ToNot(ContainSubstring("rabbit_quorum_queue=true"))
+		})
+	})
+
+	When("Nova CR instance is created with quorum queues enabled", func() {
+		BeforeEach(func() {
+			CreateNovaWithNCellsAndEnsureReady(1, &novaNames)
+		})
+
+		It("should have quorum queues enabled in configuration when TransportURL secret has quorumqueues=true", func() {
+			// Get the TransportURL resource to find the actual secret name that the controller uses
+			transportURL := infra.GetTransportURL(cell0.TransportURLName)
+
+			// Update the correct TransportURL secret (the one the controller actually checks)
+			transportSecret := th.GetSecret(types.NamespacedName{
+				Namespace: cell0.TransportURLName.Namespace,
+				Name:      transportURL.Status.SecretName,
+			})
+			transportSecret.Data[controllers.QuorumQueuesSelector] = []byte("true")
+			Expect(k8sClient.Update(ctx, &transportSecret)).Should(Succeed())
+
+			// Trigger Nova reconciliation by updating a field (force a reconcile)
+			nova := GetNova(novaNames.NovaName)
+			if nova.Annotations == nil {
+				nova.Annotations = make(map[string]string)
+			}
+			nova.Annotations["test-trigger"] = "force-reconcile"
+			Expect(k8sClient.Update(ctx, nova)).Should(Succeed())
+
+			// Wait for Nova to reconcile and update internal secrets
+			Eventually(func(g Gomega) {
+				internalSecret := th.GetSecret(cell0.InternalCellSecretName)
+				g.Expect(internalSecret.Data).To(HaveKey(controllers.QuorumQueuesSelector))
+				g.Expect(internalSecret.Data).To(
+					HaveKeyWithValue(controllers.QuorumQueuesSelector, []byte("true")))
+			}, timeout, interval).Should(Succeed())
+
+			// Check that internal secrets have quorum queues set to true
+			internalSecret := th.GetSecret(cell0.InternalCellSecretName)
+			Expect(internalSecret.Data).To(
+				HaveKeyWithValue(controllers.QuorumQueuesSelector, []byte("true")))
+
+			// Verify nova-api configuration has quorum queue settings
+			Eventually(func(g Gomega) {
+				configDataMap := th.GetSecret(novaNames.APIConfigDataName)
+				g.Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
+				configData := string(configDataMap.Data["01-nova.conf"])
+
+				g.Expect(configData).To(ContainSubstring("rabbit_quorum_queue=true"))
+				g.Expect(configData).To(ContainSubstring("rabbit_transient_quorum_queue=true"))
+				g.Expect(configData).To(ContainSubstring("amqp_durable_queues=true"))
+				g.Expect(configData).ToNot(ContainSubstring("amqp_durable_queues=false"))
+				g.Expect(configData).ToNot(ContainSubstring("amqp_auto_delete=false"))
+			}, timeout, interval).Should(Succeed())
+
+			// Verify nova-scheduler configuration
+			Eventually(func(g Gomega) {
+				configDataMap := th.GetSecret(novaNames.SchedulerConfigDataName)
+				g.Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
+				configData := string(configDataMap.Data["01-nova.conf"])
+
+				g.Expect(configData).To(ContainSubstring("rabbit_quorum_queue=true"))
+				g.Expect(configData).To(ContainSubstring("rabbit_transient_quorum_queue=true"))
+				g.Expect(configData).To(ContainSubstring("amqp_durable_queues=true"))
+			}, timeout, interval).Should(Succeed())
+
+			// Verify nova-conductor configuration
+			Eventually(func(g Gomega) {
+				configDataMap := th.GetSecret(cell0.ConductorConfigDataName)
+				g.Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
+				configData := string(configDataMap.Data["01-nova.conf"])
+
+				g.Expect(configData).To(ContainSubstring("rabbit_quorum_queue=true"))
+				g.Expect(configData).To(ContainSubstring("rabbit_transient_quorum_queue=true"))
+				g.Expect(configData).To(ContainSubstring("amqp_durable_queues=true"))
+			}, timeout, interval).Should(Succeed())
+		})
+	})
+
+	When("TransportURL secret is updated after Nova deployment", func() {
+		BeforeEach(func() {
+			CreateNovaWithNCellsAndEnsureReady(1, &novaNames)
+		})
+
+		It("should update configuration when quorum queues are enabled later", func() {
+			// Initially verify quorum queues are disabled
+			configDataMap := th.GetSecret(novaNames.APIConfigDataName)
+			configData := string(configDataMap.Data["01-nova.conf"])
+			Expect(configData).To(ContainSubstring("amqp_durable_queues=false"))
+			Expect(configData).ToNot(ContainSubstring("rabbit_quorum_queue=true"))
+
+			// Update the TransportURL secret to enable quorum queues
+			transportSecret := th.GetSecret(types.NamespacedName{
+				Namespace: cell0.TransportURLName.Namespace,
+				Name:      fmt.Sprintf("%s-secret", cell0.TransportURLName.Name),
+			})
+			transportSecret.Data[controllers.QuorumQueuesSelector] = []byte("true")
+			Expect(k8sClient.Update(ctx, &transportSecret)).Should(Succeed())
+
+			// Trigger Nova reconciliation by updating a field (force a reconcile)
+			nova := GetNova(novaNames.NovaName)
+			if nova.Annotations == nil {
+				nova.Annotations = make(map[string]string)
+			}
+			nova.Annotations["test-trigger"] = "force-reconcile"
+			Expect(k8sClient.Update(ctx, nova)).Should(Succeed())
+
+			// Wait for Nova to reconcile and update configurations
+			Eventually(func(g Gomega) {
+				configDataMap := th.GetSecret(novaNames.APIConfigDataName)
+				configData := string(configDataMap.Data["01-nova.conf"])
+
+				g.Expect(configData).To(ContainSubstring("rabbit_quorum_queue=true"))
+				g.Expect(configData).To(ContainSubstring("rabbit_transient_quorum_queue=true"))
+				g.Expect(configData).To(ContainSubstring("amqp_durable_queues=true"))
+				g.Expect(configData).ToNot(ContainSubstring("amqp_durable_queues=false"))
+			}, timeout, interval).Should(Succeed())
+		})
+	})
+})
+
 var _ = Describe("Nova controller", func() {
 	When("Nova CR instance is created without a proper secret", func() {
 		BeforeEach(func() {
@@ -358,7 +526,7 @@ var _ = Describe("Nova controller", func() {
 			// proper content and the cell subCRs are configured to use the
 			// internal secret
 			internalCellSecret := th.GetSecret(cell0.InternalCellSecretName)
-			Expect(internalCellSecret.Data).To(HaveLen(3))
+			Expect(internalCellSecret.Data).To(HaveLen(4))
 			Expect(internalCellSecret.Data).To(
 				HaveKeyWithValue(controllers.ServicePasswordSelector, []byte("service-password")))
 			Expect(internalCellSecret.Data).To(
@@ -474,7 +642,7 @@ var _ = Describe("Nova controller", func() {
 			// assert that a the top level internal internal secret is created
 			// with the proper data
 			internalTopLevelSecret := th.GetSecret(novaNames.InternalTopLevelSecretName)
-			Expect(internalTopLevelSecret.Data).To(HaveLen(4))
+			Expect(internalTopLevelSecret.Data).To(HaveLen(5))
 			Expect(internalTopLevelSecret.Data).To(
 				HaveKeyWithValue(controllers.ServicePasswordSelector, []byte("service-password")))
 			Expect(internalTopLevelSecret.Data).To(
