@@ -483,6 +483,7 @@ func (r *NovaNoVNCProxyReconciler) generateConfigs(
 		"MemcachedServers":         memcachedInstance.GetMemcachedServerListString(),
 		"MemcachedServersWithInet": memcachedInstance.GetMemcachedServerListWithInetString(),
 		"MemcachedTLS":             memcachedInstance.GetMemcachedTLSSupport(),
+		QuorumQueuesTemplateKey:    parseQuorumQueues(secret.Data[QuorumQueuesTemplateKey]),
 	}
 	if instance.Spec.TLS.Service.Enabled() {
 		templateParameters["SSLCertificateFile"] = fmt.Sprintf("/etc/pki/tls/certs/%s.crt", novncproxy.ServiceName)

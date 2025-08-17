@@ -113,5 +113,6 @@ type Database struct {
 // MessageBus -
 type MessageBus struct {
 	TransportURL string
+	QuorumQueues bool
 	Status       MessageBusStatus
 }

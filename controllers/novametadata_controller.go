@@ -507,6 +507,7 @@ func (r *NovaMetadataReconciler) generateConfigs(
 		"MemcachedServers":         memcachedInstance.GetMemcachedServerListString(),
 		"MemcachedServersWithInet": memcachedInstance.GetMemcachedServerListWithInetString(),
 		"MemcachedTLS":             memcachedInstance.GetMemcachedTLSSupport(),
+		QuorumQueuesTemplateKey:    parseQuorumQueues(secret.Data[QuorumQueuesTemplateKey]),
 		"TimeOut":                  instance.Spec.APITimeout,
 	}
 

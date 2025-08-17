@@ -100,6 +100,14 @@ const (
 	// top level notification message bus transport URL
 	NotificationTransportURLSelector = "notification_transport_url"
 
+	// QuorumQueuesSelector is the name of key in the TransportURL Secret for
+	// the message bus quorum queues
+	QuorumQueuesSelector = "quorumqueues"
+
+	// QuorumQueuesTemplateKey is the name of key in template parameters for
+	// the message bus quorum queues configuration
+	QuorumQueuesTemplateKey = "quorum_queues"
+
 	// fields to index to reconcile when change
 	passwordSecretField        = ".spec.secret"
 	caBundleSecretNameField    = ".spec.tls.caBundleSecretName" // #nosec G101
@@ -746,4 +754,12 @@ func SortNovaCellListByName(cellList *novav1.NovaCellList) {
 	sort.SliceStable(cellList.Items, func(i, j int) bool {
 		return cellList.Items[i].Name < cellList.Items[j].Name
 	})
+}
+
+// parseQuorumQueues parses the quorum queues value from secret data
+func parseQuorumQueues(data []byte) bool {
+	if data == nil {
+		return false
+	}
+	return string(data) == "true"
 }
