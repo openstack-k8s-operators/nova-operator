@@ -244,7 +244,7 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-	instance.Status.Hash[novav1.ComputeDiscoverHashKey] = computeTemplatesHash
+	instance.Status.Hash = setKeyValuePair(instance.Status.Hash, novav1.ComputeDiscoverHashKey, computeTemplatesHash)
 
 	cellHasVNCService := (*instance.Spec.NoVNCProxyServiceTemplate.Enabled)
 	if cellHasVNCService {
@@ -301,7 +301,7 @@ func (r *NovaCellReconciler) initStatus(
 		return err
 	}
 	if instance.Status.Hash == nil {
-		instance.Status.Hash = map[string]string{}
+		instance.Status.Hash = []novav1.KeyValuePair{}
 	}
 	if instance.Status.NovaComputesStatus == nil {
 		instance.Status.NovaComputesStatus = map[string]novav1.NovaComputeCellStatus{}
@@ -807,7 +807,7 @@ func (r *NovaCellReconciler) generateComputeConfigs(
 	// TODO(gibi): can we make it simpler?
 	a := &corev1.EnvVar{}
 	hashes[configName](a)
-	instance.Status.Hash[configName] = a.Value
+	instance.Status.Hash = setKeyValuePair(instance.Status.Hash, configName, a.Value)
 	return err
 }
 

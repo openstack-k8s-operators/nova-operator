@@ -44,6 +44,7 @@ import (
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/services"
 	networkv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
+	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
@@ -53,6 +54,11 @@ import (
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	"github.com/openstack-k8s-operators/lib-common/modules/openstack"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"sigs.k8s.io/controller-runtime/pkg/builder"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 const (
@@ -746,4 +752,42 @@ func SortNovaCellListByName(cellList *novav1.NovaCellList) {
 	sort.SliceStable(cellList.Items, func(i, j int) bool {
 		return cellList.Items[i].Name < cellList.Items[j].Name
 	})
+}
+
+// AddACWatchesForNova wires watches for the Nova service ApplicationCredential (and its Secret)
+// and maps those events to all Nova CRs in the same namespace.
+// Names follow the service pattern used in the cross-repo PRs: ac-<service> and ac-<service>-secret
+// (e.g., ac-nova / ac-nova-secret). :contentReference[oaicite:1]{index=1}
+func AddACWatchesForNova(b *builder.Builder, mgr ctrl.Manager) *builder.Builder {
+	// Map any AC/Secret event to all Nova CRs in the same namespace.
+	mapNovaInNS := handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, obj client.Object) []reconcile.Request {
+		var lst novav1.NovaList
+		if err := mgr.GetClient().List(ctx, &lst, &client.ListOptions{Namespace: obj.GetNamespace()}); err != nil {
+			return nil
+		}
+		reqs := make([]reconcile.Request, 0, len(lst.Items))
+		for _, n := range lst.Items {
+			reqs = append(reqs, reconcile.Request{
+				NamespacedName: types.NamespacedName{Namespace: n.Namespace, Name: n.Name},
+			})
+		}
+		return reqs
+	})
+	// Watch the AC CR for Nova
+	b = b.Watches(
+		&keystonev1.KeystoneApplicationCredential{},
+		mapNovaInNS,
+		builder.WithPredicates(predicate.NewPredicateFuncs(func(obj client.Object) bool {
+			return obj.GetName() == "ac-nova"
+		})),
+	)
+	// Watch the AC Secret for Nova (contains AC_ID/AC_SECRET) :contentReference[oaicite:2]{index=2}
+	b = b.Watches(
+		&corev1.Secret{},
+		mapNovaInNS,
+		builder.WithPredicates(predicate.NewPredicateFuncs(func(obj client.Object) bool {
+			return obj.GetName() == "ac-nova-secret"
+		})),
+	)
+	return b
 }

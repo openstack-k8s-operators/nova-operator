@@ -1,0 +1,9 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+delete:
+- apiVersion: nova.openstack.org/v1beta1
+  kind: Nova
+  name: nova-kuttl
+- apiVersion: keystone.openstack.org/v1beta1
+  kind: KeystoneApplicationCredential
+  name: ac-nova

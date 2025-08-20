@@ -290,7 +290,7 @@ func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-	instance.Status.Hash[common.InputHashName] = inputHash
+	instance.Status.Hash = setKeyValuePair(instance.Status.Hash, common.InputHashName, inputHash)
 
 	instance.Status.Conditions.MarkTrue(condition.ServiceConfigReadyCondition, condition.ServiceConfigReadyMessage)
 
@@ -339,7 +339,7 @@ func (r *NovaConductorReconciler) initStatus(
 	// NOTE(gibi): initialize the rest of the status fields here
 	// so that the reconcile loop later can assume they are not nil.
 	if instance.Status.Hash == nil {
-		instance.Status.Hash = map[string]string{}
+		instance.Status.Hash = []novav1.KeyValuePair{}
 	}
 	if instance.Status.NetworkAttachments == nil {
 		instance.Status.NetworkAttachments = map[string][]string{}
@@ -520,7 +520,7 @@ func (r *NovaConductorReconciler) ensureCellDBSynced(
 		common.AppSelector: NovaConductorLabelPrefix,
 	}
 	Log := r.GetLogger(ctx)
-	dbSyncHash := instance.Status.Hash[DbSyncHash]
+	dbSyncHash := getKeyValuePair(instance.Status.Hash, DbSyncHash)
 
 	jobDef := novaconductor.CellDBSyncJob(instance, serviceLabels, annotations, memcached)
 	dbSyncJob := job.NewJob(jobDef, "dbsync", instance.Spec.PreserveJobs, r.RequeueTimeout, dbSyncHash)
@@ -543,8 +543,8 @@ func (r *NovaConductorReconciler) ensureCellDBSynced(
 		return ctrl.Result{}, err
 	}
 	if dbSyncJob.HasChanged() {
-		instance.Status.Hash[DbSyncHash] = dbSyncJob.GetHash()
-		Log.Info(fmt.Sprintf("Job %s ash added %s", jobDef.Name, instance.Status.Hash[DbSyncHash]))
+		instance.Status.Hash = setKeyValuePair(instance.Status.Hash, DbSyncHash, dbSyncJob.GetHash())
+		Log.Info(fmt.Sprintf("Job %s hash added %s", jobDef.Name, getKeyValuePair(instance.Status.Hash, DbSyncHash)))
 	}
 	instance.Status.Conditions.MarkTrue(condition.DBSyncReadyCondition, condition.DBSyncReadyMessage)
 

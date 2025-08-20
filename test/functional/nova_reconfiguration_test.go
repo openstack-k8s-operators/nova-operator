@@ -535,8 +535,13 @@ var _ = Describe("Nova reconfiguration", func() {
 			Eventually(func(g Gomega) {
 				nova := GetNova(novaNames.NovaName)
 
+				// Convert map to KeyValuePair slice
 				newSelector := map[string]string{"foo": "bar"}
-				nova.Spec.NodeSelector = &newSelector
+				nodeSelector := make([]novav1.KeyValuePair, 0, len(newSelector))
+				for k, v := range newSelector {
+					nodeSelector = append(nodeSelector, novav1.KeyValuePair{Key: k, Value: v})
+				}
+				nova.Spec.NodeSelector = nodeSelector
 
 				g.Expect(k8sClient.Update(ctx, nova)).To(Succeed())
 				SimulateReadyOfNovaTopServices()
@@ -557,7 +562,12 @@ var _ = Describe("Nova reconfiguration", func() {
 				nova := GetNova(novaNames.NovaName)
 
 				newSelector := map[string]string{}
-				nova.Spec.NodeSelector = &newSelector
+				// Convert map to KeyValuePair slice
+				nodeSelector := make([]novav1.KeyValuePair, 0, len(newSelector))
+				for k, v := range newSelector {
+					nodeSelector = append(nodeSelector, novav1.KeyValuePair{Key: k, Value: v})
+				}
+				nova.Spec.NodeSelector = nodeSelector
 
 				g.Expect(k8sClient.Update(ctx, nova)).To(Succeed())
 
@@ -606,14 +616,29 @@ var _ = Describe("Nova reconfiguration", func() {
 			Eventually(func(g Gomega) {
 				nova := GetNova(novaNames.NovaName)
 
-				nova.Spec.APIServiceTemplate.NodeSelector = &serviceSelector
-				nova.Spec.MetadataServiceTemplate.NodeSelector = &serviceSelector
-				nova.Spec.SchedulerServiceTemplate.NodeSelector = &serviceSelector
+				// Convert map to KeyValuePair slice
+				serviceSelectorPairs := make([]novav1.KeyValuePair, 0, len(serviceSelector))
+				for k, v := range serviceSelector {
+					serviceSelectorPairs = append(serviceSelectorPairs, novav1.KeyValuePair{Key: k, Value: v})
+				}
+				nova.Spec.APIServiceTemplate.NodeSelector = serviceSelectorPairs
+				nova.Spec.MetadataServiceTemplate.NodeSelector = serviceSelectorPairs
+				nova.Spec.SchedulerServiceTemplate.NodeSelector = serviceSelectorPairs
 				for _, cell := range []string{"cell0", "cell1", "cell2"} {
 					cellTemplate := nova.Spec.CellTemplates[cell]
-					cellTemplate.ConductorServiceTemplate.NodeSelector = &conductorSelector
+					// Convert conductor selector map to KeyValuePair slice
+					conductorSelectorPairs := make([]novav1.KeyValuePair, 0, len(conductorSelector))
+					for k, v := range conductorSelector {
+						conductorSelectorPairs = append(conductorSelectorPairs, novav1.KeyValuePair{Key: k, Value: v})
+					}
+					cellTemplate.ConductorServiceTemplate.NodeSelector = conductorSelectorPairs
 					if cell == "cell2" {
-						cellTemplate.ConductorServiceTemplate.NodeSelector = &emptySelector
+						// Convert empty selector map to KeyValuePair slice
+						emptySelectorPairs := make([]novav1.KeyValuePair, 0, len(emptySelector))
+						for k, v := range emptySelector {
+							emptySelectorPairs = append(emptySelectorPairs, novav1.KeyValuePair{Key: k, Value: v})
+						}
+						cellTemplate.ConductorServiceTemplate.NodeSelector = emptySelectorPairs
 					}
 					nova.Spec.CellTemplates[cell] = cellTemplate
 
@@ -650,7 +675,12 @@ var _ = Describe("Nova reconfiguration", func() {
 			// except to the NovaService's
 			Eventually(func(g Gomega) {
 				nova := GetNova(novaNames.NovaName)
-				nova.Spec.NodeSelector = &globalSelector
+				// Convert global selector map to KeyValuePair slice
+				globalSelectorPairs := make([]novav1.KeyValuePair, 0, len(globalSelector))
+				for k, v := range globalSelector {
+					globalSelectorPairs = append(globalSelectorPairs, novav1.KeyValuePair{Key: k, Value: v})
+				}
+				nova.Spec.NodeSelector = globalSelectorPairs
 
 				g.Expect(k8sClient.Update(ctx, nova)).To(Succeed())
 
@@ -682,8 +712,17 @@ var _ = Describe("Nova reconfiguration", func() {
 			oldJobInputHash := GetEnvVarValue(
 				mappingJob.Spec.Template.Spec.Containers[0].Env, "INPUT_HASH", "")
 
-			oldCell1Hash := GetNova(novaNames.NovaName).Status.RegisteredCells[cell1.CellCRName.Name]
-			oldComputeConfigHash := GetNovaCell(cell1.CellCRName).Status.Hash[cell1.ComputeConfigSecretName.Name]
+			// Helper function to get value from KeyValuePair slice
+			getHashValue := func(pairs []novav1.KeyValuePair, key string) string {
+				for _, pair := range pairs {
+					if pair.Key == key {
+						return pair.Value
+					}
+				}
+				return ""
+			}
+			oldCell1Hash := getHashValue(GetNova(novaNames.NovaName).Status.RegisteredCells, cell1.CellCRName.Name)
+			oldComputeConfigHash := getHashValue(GetNovaCell(cell1.CellCRName).Status.Hash, cell1.ComputeConfigSecretName.Name)
 
 			Eventually(func(g Gomega) {
 				nova := GetNova(novaNames.NovaName)
@@ -744,7 +783,7 @@ var _ = Describe("Nova reconfiguration", func() {
 				configData := string(configDataMap.Data["01-nova.conf"])
 				g.Expect(configData).Should(ContainSubstring("transport_url=rabbit://alternate-mq-for-cell1/fake"))
 			}, timeout, interval).Should(Succeed())
-			Expect(GetNovaCell(cell1.CellCRName).Status.Hash[cell1.ComputeConfigSecretName.Name]).NotTo(Equal(oldComputeConfigHash))
+			Expect(getHashValue(GetNovaCell(cell1.CellCRName).Status.Hash, cell1.ComputeConfigSecretName.Name)).NotTo(Equal(oldComputeConfigHash))
 			// and therefore the statefulset is also updated with a new config
 			// hash so the test needs to make the Generation of the StatefulSet
 			// Ready
@@ -763,7 +802,7 @@ var _ = Describe("Nova reconfiguration", func() {
 
 			// Expect that the new config results in a new cell1 hash
 			Eventually(func(g Gomega) {
-				newCell1Hash := GetNova(novaNames.NovaName).Status.RegisteredCells[cell1.CellCRName.Name]
+				newCell1Hash := getHashValue(GetNova(novaNames.NovaName).Status.RegisteredCells, cell1.CellCRName.Name)
 				g.Expect(newCell1Hash).NotTo(Equal(oldCell1Hash))
 			}, timeout, interval).Should(Succeed())
 
@@ -775,7 +814,7 @@ var _ = Describe("Nova reconfiguration", func() {
 				configData := string(configDataMap.Data["01-nova.conf"])
 				g.Expect(configData).Should(ContainSubstring("transport_url=rabbit://alternate-mq-for-cell1/fake"))
 			}, timeout, interval).Should(Succeed())
-			Expect(GetNovaCell(cell1.CellCRName).Status.Hash[cell1.ComputeConfigSecretName.Name]).NotTo(Equal(oldComputeConfigHash))
+			Expect(getHashValue(GetNovaCell(cell1.CellCRName).Status.Hash, cell1.ComputeConfigSecretName.Name)).NotTo(Equal(oldComputeConfigHash))
 		})
 	})
 
@@ -946,8 +985,16 @@ var _ = Describe("Nova reconfiguration", func() {
 			th.GetStatefulSet(novaNames.MetadataStatefulSetName).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
 		Expect(originalHash).NotTo(BeEmpty())
 
-		originalComputeHash := GetNovaMetadata(
-			novaNames.MetadataName).Status.Hash[novaNames.MetadataNeutronConfigDataName.Name]
+		getHashValue := func(pairs []novav1.KeyValuePair, key string) string {
+			for _, pair := range pairs {
+				if pair.Key == key {
+					return pair.Value
+				}
+			}
+			return ""
+		}
+		originalComputeHash := getHashValue(GetNovaMetadata(
+			novaNames.MetadataName).Status.Hash, novaNames.MetadataNeutronConfigDataName.Name)
 		Expect(originalComputeHash).NotTo(BeEmpty())
 
 		secretName := types.NamespacedName{Namespace: novaNames.NovaName.Namespace, Name: SecretName}
@@ -975,8 +1022,8 @@ var _ = Describe("Nova reconfiguration", func() {
 			configData := string(computeConfigData.Data["05-nova-metadata.conf"])
 			g.Expect(configData).To(ContainSubstring("metadata_proxy_shared_secret = new-metadata-secret"))
 
-			newComputeHash := GetNovaMetadata(
-				novaNames.MetadataName).Status.Hash[novaNames.MetadataNeutronConfigDataName.Name]
+			newComputeHash := getHashValue(GetNovaMetadata(
+				novaNames.MetadataName).Status.Hash, novaNames.MetadataNeutronConfigDataName.Name)
 			g.Expect(originalComputeHash).NotTo(Equal(newComputeHash))
 		}, timeout, interval).Should(Succeed())
 	})

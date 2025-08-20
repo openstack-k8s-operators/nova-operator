@@ -17,9 +17,9 @@ limitations under the License.
 package v1beta1
 
 import (
+	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
-	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -41,7 +41,9 @@ type NovaComputeTemplate struct {
 	// +kubebuilder:validation:Optional
 	// NodeSelector to target subset of worker nodes running this service. Setting here overrides
 	// any global NodeSelector settings within the Nova CR.
-	NodeSelector *map[string]string `json:"nodeSelector,omitempty"`
+	// +listType=map
+	// +listMapKey=key
+	NodeSelector []KeyValuePair `json:"nodeSelector,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	// TopologyRef to apply the Topology defined by the associated CR referenced
@@ -55,7 +57,9 @@ type NovaComputeTemplate struct {
 
 	// +kubebuilder:validation:Optional
 	// DefaultConfigOverwrite - interface to overwrite default config files like e.g. provider.yaml
-	DefaultConfigOverwrite map[string]string `json:"defaultConfigOverwrite,omitempty"`
+	// +listType=map
+	// +listMapKey=key
+	DefaultConfigOverwrite []KeyValuePair `json:"defaultConfigOverwrite,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	// Resources - Compute Resources required by this service (Limits/Requests).
@@ -121,7 +125,9 @@ type NovaComputeSpec struct {
 
 	// +kubebuilder:validation:Optional
 	// DefaultConfigOverwrite - interface to overwrite default config files like e.g. provider.yaml
-	DefaultConfigOverwrite map[string]string `json:"defaultConfigOverwrite,omitempty"`
+	// +listType=map
+	// +listMapKey=key
+	DefaultConfigOverwrite []KeyValuePair `json:"defaultConfigOverwrite,omitempty"`
 }
 
 // NovaComputeStatus defines the observed state of NovaCompute
@@ -130,7 +136,9 @@ type NovaComputeStatus struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	// Map of hashes to track e.g. job status
-	Hash map[string]string `json:"hash,omitempty"`
+	// +listType=map
+	// +listMapKey=key
+	Hash []KeyValuePair `json:"hash,omitempty"`
 
 	// Conditions
 	Conditions condition.Conditions `json:"conditions,omitempty" optional:"true"`
@@ -139,7 +147,16 @@ type NovaComputeStatus struct {
 	ReadyCount int32 `json:"readyCount,omitempty"`
 
 	// NetworkAttachments status of the deployment pods
+	// NetworkAttachments status of the deployment pods
+	// Deprecated: This field uses a map structure that violates schema validation.
+	// Use NetworkAttachmentsStatus instead.
 	NetworkAttachments map[string][]string `json:"networkAttachments,omitempty"`
+
+	// +listType=map
+	// +listMapKey=name
+	// NetworkAttachmentsStatus provides the same information as NetworkAttachments
+	// but in a schema-compliant format
+	NetworkAttachmentsStatus []NetworkAttachmentStatus `json:"networkAttachmentsStatus,omitempty"`
 
 	// ObservedGeneration - the most recent generation observed for this
 	// service. If the observed generation is less than the spec generation,

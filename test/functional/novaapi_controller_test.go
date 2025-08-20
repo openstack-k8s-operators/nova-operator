@@ -19,6 +19,8 @@ import (
 	"encoding/json"
 	"fmt"
 
+	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
+
 	. "github.com/onsi/ginkgo/v2" //revive:disable:dot-imports
 	. "github.com/onsi/gomega"    //revive:disable:dot-imports
 	"github.com/onsi/gomega/format"
@@ -31,7 +33,6 @@ import (
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
-	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -903,7 +904,7 @@ var _ = Describe("NovaAPI controller", func() {
 			// therefore a new cell is added to RegisteredCells
 			Eventually(func(g Gomega) {
 				novaAPI := GetNovaAPI(novaNames.APIName)
-				novaAPI.Spec.RegisteredCells = map[string]string{"cell0": "cell0-config-hash"}
+				novaAPI.Spec.RegisteredCells = []novav1.KeyValuePair{{Key: "cell0", Value: "cell0-config-hash"}}
 				g.Expect(k8sClient.Update(ctx, novaAPI)).To(Succeed())
 			}, timeout, interval).Should(Succeed())
 

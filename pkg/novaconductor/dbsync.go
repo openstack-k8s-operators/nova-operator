@@ -102,8 +102,8 @@ func CellDBSyncJob(
 		},
 	}
 
-	if instance.Spec.NodeSelector != nil {
-		job.Spec.Template.Spec.NodeSelector = *instance.Spec.NodeSelector
+	if len(instance.Spec.NodeSelector) > 0 {
+		job.Spec.Template.Spec.NodeSelector = convertKeyValuePairsToMap(instance.Spec.NodeSelector)
 	}
 
 	return job

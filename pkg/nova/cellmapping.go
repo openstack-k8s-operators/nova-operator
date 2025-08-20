@@ -1,13 +1,13 @@
 package nova
 
 import (
+	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
-	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 )
 
 func CellMappingJob(
@@ -82,8 +82,8 @@ func CellMappingJob(
 		},
 	}
 
-	if cell.Spec.NodeSelector != nil {
-		job.Spec.Template.Spec.NodeSelector = *cell.Spec.NodeSelector
+	if len(cell.Spec.NodeSelector) > 0 {
+		job.Spec.Template.Spec.NodeSelector = convertKeyValuePairsToMap(cell.Spec.NodeSelector)
 	}
 
 	return job

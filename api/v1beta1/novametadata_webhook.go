@@ -26,6 +26,7 @@ import (
 	"fmt"
 
 	"github.com/google/go-cmp/cmp"
+	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -34,7 +35,6 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
-	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 )
 
 // NovaMetadataDefaults -
@@ -90,7 +90,6 @@ func (r *NovaMetadata) ValidateCreate() (admission.Warnings, error) {
 	basePath := field.NewPath("spec")
 
 	errors = append(errors, ValidateMetadataDefaultConfigOverwrite(
-		basePath.Child("defaultConfigOverwrite"),
 		r.Spec.DefaultConfigOverwrite)...)
 
 	errors = append(errors, topologyv1.ValidateTopologyRef(
@@ -119,7 +118,6 @@ func (r *NovaMetadata) ValidateUpdate(old runtime.Object) (admission.Warnings, e
 	novametadatalog.Info("validate update", "diff", cmp.Diff(oldMetadata, r))
 
 	errors = append(errors, ValidateMetadataDefaultConfigOverwrite(
-		basePath.Child("defaultConfigOverwrite"),
 		r.Spec.DefaultConfigOverwrite)...)
 
 	errors = append(errors, topologyv1.ValidateTopologyRef(
@@ -158,16 +156,7 @@ func (r *NovaMetadataTemplate) ValidateCell0(basePath *field.Path) field.ErrorLi
 
 func (r *NovaMetadataTemplate) ValidateDefaultConfigOverwrite(basePath *field.Path) field.ErrorList {
 	return ValidateMetadataDefaultConfigOverwrite(
-		basePath.Child("defaultConfigOverwrite"),
 		r.DefaultConfigOverwrite)
-}
-
-func ValidateMetadataDefaultConfigOverwrite(
-	basePath *field.Path,
-	defaultConfigOverwrite map[string]string,
-) field.ErrorList {
-	return ValidateDefaultConfigOverwrite(
-		basePath, defaultConfigOverwrite, []string{"api-paste.ini"})
 }
 
 // ValidateTopology validates the referenced TopoRef.Namespace.

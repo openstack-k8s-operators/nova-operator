@@ -250,7 +250,6 @@ func (r *NovaSpecCore) ValidateAPIServiceTemplate(basePath *field.Path, namespac
 
 	errors = append(errors,
 		ValidateAPIDefaultConfigOverwrite(
-			basePath.Child("apiServiceTemplate").Child("defaultConfigOverwrite"),
 			r.APIServiceTemplate.DefaultConfigOverwrite)...)
 
 	errors = append(errors,

@@ -356,7 +356,16 @@ var _ = Describe("NovaMetadata controller", func() {
 				Expect(configData).To(ContainSubstring("metadata_proxy_shared_secret = metadata-secret"))
 
 				metadata := GetNovaMetadata(novaNames.MetadataName)
-				Expect(metadata.Status.Hash[novaNames.MetadataNeutronConfigDataName.Name]).NotTo(BeEmpty())
+				// Helper function to get value from KeyValuePair slice
+				getHashValue := func(pairs []novav1.KeyValuePair, key string) string {
+					for _, pair := range pairs {
+						if pair.Key == key {
+							return pair.Value
+						}
+					}
+					return ""
+				}
+				Expect(getHashValue(metadata.Status.Hash, novaNames.MetadataNeutronConfigDataName.Name)).NotTo(BeEmpty())
 			})
 
 			It("is Ready", func() {
@@ -476,7 +485,16 @@ var _ = Describe("NovaMetadata controller", func() {
 			Expect(configData).To(ContainSubstring("metadata_proxy_shared_secret = metadata-secret"))
 
 			metadata := GetNovaMetadata(cell1.MetadataName)
-			Expect(metadata.Status.Hash[cell1.MetadataNeutronConfigDataName.Name]).NotTo(BeEmpty())
+			// Helper function to get value from KeyValuePair slice
+			getHashValue := func(pairs []novav1.KeyValuePair, key string) string {
+				for _, pair := range pairs {
+					if pair.Key == key {
+						return pair.Value
+					}
+				}
+				return ""
+			}
+			Expect(getHashValue(metadata.Status.Hash, cell1.MetadataNeutronConfigDataName.Name)).NotTo(BeEmpty())
 		})
 
 	})
@@ -779,7 +797,7 @@ var _ = Describe("NovaMetadata controller", func() {
 			// therefore a new cell is added to RegisteredCells
 			Eventually(func(g Gomega) {
 				novaMetadata := GetNovaMetadata(novaNames.MetadataName)
-				novaMetadata.Spec.RegisteredCells = map[string]string{"cell0": "cell0-config-hash"}
+				novaMetadata.Spec.RegisteredCells = []novav1.KeyValuePair{{Key: "cell0", Value: "cell0-config-hash"}}
 				g.Expect(k8sClient.Update(ctx, novaMetadata)).To(Succeed())
 			}, timeout, interval).Should(Succeed())
 

@@ -35,8 +35,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
-	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 )
 
 // NovaAPIDefaults -
@@ -97,7 +97,6 @@ func (r *NovaAPI) ValidateCreate() (admission.Warnings, error) {
 
 	errors = append(errors,
 		ValidateAPIDefaultConfigOverwrite(
-			basePath.Child("defaultConfigOverwrite"),
 			r.Spec.DefaultConfigOverwrite)...)
 
 	errors = append(errors, topologyv1.ValidateTopologyRef(
@@ -130,7 +129,6 @@ func (r *NovaAPI) ValidateUpdate(old runtime.Object) (admission.Warnings, error)
 
 	errors = append(errors,
 		ValidateAPIDefaultConfigOverwrite(
-			basePath.Child("defaultConfigOverwrite"),
 			r.Spec.DefaultConfigOverwrite)...)
 
 	errors = append(errors, topologyv1.ValidateTopologyRef(
@@ -151,16 +149,6 @@ func (r *NovaAPI) ValidateDelete() (admission.Warnings, error) {
 
 	// TODO(user): fill in your validation logic upon object deletion.
 	return nil, nil
-}
-
-func ValidateAPIDefaultConfigOverwrite(
-	basePath *field.Path,
-	defaultConfigOverwrite map[string]string,
-) field.ErrorList {
-	return ValidateDefaultConfigOverwrite(
-		basePath,
-		defaultConfigOverwrite,
-		[]string{"policy.yaml", "api-paste.ini"})
 }
 
 // ValidateTopology validates the referenced TopoRef.Namespace.

@@ -27,6 +27,7 @@ import (
 	"regexp"
 
 	"github.com/google/go-cmp/cmp"
+	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -35,7 +36,6 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
-	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 )
 
 // NovaComputeDefaults -
@@ -150,7 +150,7 @@ func (r *NovaComputeSpec) validate(basePath *field.Path, namespace string) field
 	errors = append(
 		errors,
 		ValidateComputeDefaultConfigOverwrite(
-			basePath.Child("defaultConfigOverwrite"), r.DefaultConfigOverwrite)...)
+			r.DefaultConfigOverwrite)...)
 
 	errors = append(errors, topologyv1.ValidateTopologyRef(
 		r.TopologyRef, *basePath.Child("topologyRef"), namespace)...)
@@ -172,16 +172,7 @@ func (r *NovaComputeTemplate) ValidateIronicDriverReplicas(basePath *field.Path)
 }
 
 func (r *NovaComputeTemplate) ValidateDefaultConfigOverwrite(basePath *field.Path) field.ErrorList {
-	return ValidateComputeDefaultConfigOverwrite(
-		basePath.Child("defaultConfigOverwrite"), r.DefaultConfigOverwrite)
-}
-
-func ValidateComputeDefaultConfigOverwrite(
-	basePath *field.Path,
-	defaultConfigOverwrite map[string]string,
-) field.ErrorList {
-	return ValidateDefaultConfigOverwrite(
-		basePath, defaultConfigOverwrite, []string{"provider*.yaml"})
+	return ValidateComputeDefaultConfigOverwrite(r.DefaultConfigOverwrite)
 }
 
 // ValidateNovaComputeName validates the compute name. It is expected to be called
@@ -220,7 +211,6 @@ func ValidateNovaComputeCell0(basePath *field.Path, mapLength int) field.ErrorLi
 	}
 	return errors
 }
-
 
 // ValidateTopology validates the referenced TopoRef.Namespace.
 func (r *NovaComputeTemplate) ValidateTopology(

@@ -58,7 +58,9 @@ type NovaCellTemplate struct {
 
 	// +kubebuilder:validation:Optional
 	// NodeSelector to target subset of worker nodes running cell.
-	NodeSelector *map[string]string `json:"nodeSelector,omitempty"`
+	// +listType=map
+	// +listMapKey=key
+	NodeSelector []KeyValuePair `json:"nodeSelector,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	// TopologyRef to apply the Topology defined by the associated CR referenced
@@ -128,7 +130,9 @@ type NovaCellSpec struct {
 
 	// +kubebuilder:validation:Optional
 	// NodeSelector to target subset of worker nodes running this services.
-	NodeSelector *map[string]string `json:"nodeSelector,omitempty"`
+	// +listType=map
+	// +listMapKey=key
+	NodeSelector []KeyValuePair `json:"nodeSelector,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=nova
@@ -210,6 +214,20 @@ type NovaCellSpec struct {
 	// TopologyRef to apply the Topology defined by the associated CR referenced
 	// by name
 	TopologyRef *topologyv1.TopoRef `json:"topologyRef,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Enum="true";"false"
+	// +kubebuilder:default="false"
+	// UseApplicationCredential - indicates if ApplicationCredential authentication is used
+	UseApplicationCredential string `json:"useApplicationCredential"`
+
+	// +kubebuilder:validation:Optional
+	// ApplicationCredentialID - the ID of the ApplicationCredential
+	ApplicationCredentialID string `json:"applicationCredentialID"`
+
+	// +kubebuilder:validation:Optional
+	// ApplicationCredentialSecret - the secret of the ApplicationCredential
+	ApplicationCredentialSecret string `json:"applicationCredentialSecret"`
 }
 
 // NovaCellDBPurge defines the parameters for the DB archiving and purging
@@ -241,7 +259,9 @@ type NovaCellStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 	// Map of hashes to track e.g. job status
-	Hash map[string]string `json:"hash,omitempty"`
+	// +listType=map
+	// +listMapKey=key
+	Hash []KeyValuePair `json:"hash,omitempty"`
 
 	// Conditions
 	Conditions condition.Conditions `json:"conditions,omitempty" optional:"true"`

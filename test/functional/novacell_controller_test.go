@@ -585,7 +585,16 @@ var _ = Describe("NovaCell controller", func() {
 				condition.ReadyCondition,
 				corev1.ConditionTrue,
 			)
-			oldComputeConfigHash := GetNovaCell(cell2.CellCRName).Status.Hash[cell2.ComputeConfigSecretName.Name]
+			// Helper function to get value from KeyValuePair slice
+			getHashValue := func(pairs []novav1.KeyValuePair, key string) string {
+				for _, pair := range pairs {
+					if pair.Key == key {
+						return pair.Value
+					}
+				}
+				return ""
+			}
+			oldComputeConfigHash := getHashValue(GetNovaCell(cell2.CellCRName).Status.Hash, cell2.ComputeConfigSecretName.Name)
 
 			// Now that the cell is deployed without VNCProxy, enabled the
 			// VNCProxy for this cell
@@ -636,8 +645,8 @@ var _ = Describe("NovaCell controller", func() {
 			Expect(configData).To(ContainSubstring(vncURLConfig))
 			Expect(configData).To(ContainSubstring("[vnc]\nenabled = True"))
 
-			Expect(GetNovaCell(cell2.CellCRName).Status.Hash[cell2.ComputeConfigSecretName.Name]).NotTo(BeNil())
-			Expect(GetNovaCell(cell2.CellCRName).Status.Hash[cell2.ComputeConfigSecretName.Name]).NotTo(Equal(oldComputeConfigHash))
+			Expect(getHashValue(GetNovaCell(cell2.CellCRName).Status.Hash, cell2.ComputeConfigSecretName.Name)).NotTo(BeEmpty())
+			Expect(getHashValue(GetNovaCell(cell2.CellCRName).Status.Hash, cell2.ComputeConfigSecretName.Name)).NotTo(Equal(oldComputeConfigHash))
 		})
 		It("fails if VNC is enabled later while a manually created VNC already exists until that is deleted", func() {
 			th.SimulateJobSuccess(cell2.DBSyncJobName)

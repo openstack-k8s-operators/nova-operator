@@ -19,8 +19,8 @@ package v1beta1
 import (
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
 )
 
 // Container image fall-back defaults
@@ -57,8 +57,10 @@ type NovaServiceBase struct {
 	Replicas *int32 `json:"replicas"`
 
 	// +kubebuilder:validation:Optional
+	// +listType=map
+	// +listMapKey=key
 	// NodeSelector to target subset of worker nodes running this service
-	NodeSelector *map[string]string `json:"nodeSelector,omitempty"`
+	NodeSelector []KeyValuePair `json:"nodeSelector,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	// CustomServiceConfig - customize the service config using this parameter to change service defaults,
@@ -79,6 +81,26 @@ type NovaServiceBase struct {
 	// TopologyRef to apply the Topology defined by the associated CR referenced
 	// by name
 	TopologyRef *topologyv1.TopoRef `json:"topologyRef,omitempty"`
+}
+
+// KeyValuePair represents a key-value pair as an alternative to map fields
+// to comply with CRD schema validation requirements
+type KeyValuePair struct {
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=""
+	Key string `json:"key"`
+	// +kubebuilder:validation:Optional
+	Value string `json:"value,omitempty"`
+}
+
+// NetworkAttachmentStatus represents network attachment status for a specific endpoint
+type NetworkAttachmentStatus struct {
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=""
+	Name string `json:"name"`
+	// +kubebuilder:validation:Optional
+	// +listType=set
+	IPs []string `json:"ips,omitempty"`
 }
 
 // PasswordSelector to identify the DB and AdminUser password from the Secret
