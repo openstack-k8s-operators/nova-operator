@@ -421,7 +421,7 @@ kuttl-test-cleanup:
 		oc delete --wait=true --all=true -n $(KUTTL_NAMESPACE) --timeout=120s OpenStackControlPlane; \
 		oc delete --wait=true namespace $(KUTTL_NAMESPACE); \
 	else \
-		echo "Namespce already cleaned up. Nothing to do"; \
+		echo "Namespace already cleaned up. Nothing to do"; \
 	fi
 
 CRD_SCHEMA_CHECKER_VERSION ?= release-4.16

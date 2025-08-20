@@ -147,7 +147,7 @@ var _ = BeforeSuite(func() {
 	Expect(cfg).NotTo(BeNil())
 
 	// NOTE(gibi): Need to add all API schemas our operator can own.
-	// this includes external scheme lke mariadb otherwise the
+	// this includes external scheme like mariadb otherwise the
 	// reconciler loop will silently not start
 	// TODO(sean): factor this out to a common function.
 	err = novav1.AddToScheme(scheme.Scheme)

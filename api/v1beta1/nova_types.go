@@ -135,7 +135,7 @@ type NovaSpecCore struct {
 
 // NovaSpec defines the desired state of Nova
 type NovaSpec struct {
-	// NOTE(bogdando): Anything that is only submitted by opentack-operator should be in NovaSpec but not in NovaSpecCore.
+	// NOTE(bogdando): Anything that is only submitted by openstack-operator should be in NovaSpec but not in NovaSpecCore.
 
 	// +kubebuilder:validation:Required
 	NovaSpecCore `json:",inline"`

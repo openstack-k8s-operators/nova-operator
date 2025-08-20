@@ -76,6 +76,12 @@ repos:
       # E020: Function declaration not in format ^function name {$
       # E012: here doc didn't end before EOF
 
+- repo: https://github.com/codespell-project/codespell
+  rev: v2.4.1
+  hooks:
+    - id: codespell
+      args: ['--ignore-words=.codespell.ignore']
+
 - repo: https://github.com/golangci/golangci-lint
   rev: v1.59.1
   hooks:

@@ -333,7 +333,7 @@ func (r *NovaAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (re
 		return result, err
 	}
 
-	result, err = r.ensureDeployment(ctx, h, instance, inputHash, serviceAnnotations)
+	result, err = r.ensureDeployment(ctx, h, instance, inputHash, serviceAnnotations, memcached)
 	if (err != nil || result != ctrl.Result{}) {
 		return result, err
 	}
@@ -521,7 +521,7 @@ func (r *NovaAPIReconciler) generateConfigs(
 	for _, endpt := range []service.Endpoint{service.EndpointInternal, service.EndpointPublic} {
 		endptConfig := map[string]interface{}{}
 		endptConfig["ServerName"] = fmt.Sprintf("nova-%s.%s.svc", endpt.String(), instance.Namespace)
-		endptConfig["tls"] = false // default TLS to false, and set it bellow to true if enabled
+		endptConfig["tls"] = false // default TLS to false, and set it below to true if enabled
 		endptConfig["TimeOut"] = instance.Spec.APITimeout
 		if instance.Spec.TLS.API.Enabled(endpt) {
 			templateParameters["tls"] = true
@@ -537,6 +537,13 @@ func (r *NovaAPIReconciler) generateConfigs(
 	var tlsCfg *tls.Service
 	if instance.Spec.TLS.Ca.CaBundleSecretName != "" {
 		tlsCfg = &tls.Service{}
+	}
+
+	// MTLS
+	if memcachedInstance.GetMemcachedMTLSSecret() != "" {
+		templateParameters["MemcachedAuthCert"] = fmt.Sprint(memcachedv1.CertMountPath())
+		templateParameters["MemcachedAuthKey"] = fmt.Sprint(memcachedv1.KeyMountPath())
+		templateParameters["MemcachedAuthCa"] = fmt.Sprint(memcachedv1.CaMountPath())
 	}
 
 	extraData := map[string]string{
@@ -567,6 +574,7 @@ func (r *NovaAPIReconciler) ensureDeployment(
 	instance *novav1.NovaAPI,
 	inputHash string,
 	annotations map[string]string,
+	memcached *memcachedv1.Memcached,
 ) (ctrl.Result, error) {
 	Log := r.GetLogger(ctx)
 	serviceLabels := getAPIServiceLabels()
@@ -586,7 +594,7 @@ func (r *NovaAPIReconciler) ensureDeployment(
 		return ctrl.Result{}, fmt.Errorf("waiting for Topology requirements: %w", err)
 	}
 
-	ssSpec, err := novaapi.StatefulSet(instance, inputHash, serviceLabels, annotations, topology)
+	ssSpec, err := novaapi.StatefulSet(instance, inputHash, serviceLabels, annotations, topology, memcached)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.DeploymentReadyCondition,
@@ -911,7 +919,7 @@ func getAPIServiceLabels() map[string]string {
 func (r *NovaAPIReconciler) findObjectsForSrc(ctx context.Context, src client.Object) []reconcile.Request {
 	requests := []reconcile.Request{}
 
-	l := log.FromContext(ctx).WithName("Controllers").WithName("NovaAPI")
+	Log := r.GetLogger(ctx)
 
 	for _, field := range apiWatchFields {
 		crList := &novav1.NovaAPIList{}
@@ -921,12 +929,12 @@ func (r *NovaAPIReconciler) findObjectsForSrc(ctx context.Context, src client.Ob
 		}
 		err := r.Client.List(ctx, crList, listOps)
 		if err != nil {
-			l.Error(err, fmt.Sprintf("listing %s for field: %s - %s", crList.GroupVersionKind().Kind, field, src.GetNamespace()))
+			Log.Error(err, fmt.Sprintf("listing %s for field: %s - %s", crList.GroupVersionKind().Kind, field, src.GetNamespace()))
 			return requests
 		}
 
 		for _, item := range crList.Items {
-			l.Info(fmt.Sprintf("input source %s changed, reconcile: %s - %s", src.GetName(), item.GetName(), item.GetNamespace()))
+			Log.Info(fmt.Sprintf("input source %s changed, reconcile: %s - %s", src.GetName(), item.GetName(), item.GetNamespace()))
 
 			requests = append(requests,
 				reconcile.Request{
@@ -945,7 +953,7 @@ func (r *NovaAPIReconciler) findObjectsForSrc(ctx context.Context, src client.Ob
 func (r *NovaAPIReconciler) findObjectsWithAppSelectorLabelInNamespace(ctx context.Context, src client.Object) []reconcile.Request {
 	requests := []reconcile.Request{}
 
-	l := log.FromContext(ctx).WithName("Controllers").WithName("NovaAPI")
+	Log := r.GetLogger(ctx)
 
 	// if the endpoint has the service label and its in our endpointList, reconcile the CR in the namespace
 	if svc, ok := src.GetLabels()[common.AppSelector]; ok && util.StringInSlice(svc, endpointList) {
@@ -955,12 +963,12 @@ func (r *NovaAPIReconciler) findObjectsWithAppSelectorLabelInNamespace(ctx conte
 		}
 		err := r.Client.List(ctx, crList, listOps)
 		if err != nil {
-			l.Error(err, fmt.Sprintf("listing %s for namespace: %s", crList.GroupVersionKind().Kind, src.GetNamespace()))
+			Log.Error(err, fmt.Sprintf("listing %s for namespace: %s", crList.GroupVersionKind().Kind, src.GetNamespace()))
 			return requests
 		}
 
 		for _, item := range crList.Items {
-			l.Info(fmt.Sprintf("input source %s changed, reconcile: %s - %s", src.GetName(), item.GetName(), item.GetNamespace()))
+			Log.Info(fmt.Sprintf("input source %s changed, reconcile: %s - %s", src.GetName(), item.GetName(), item.GetNamespace()))
 
 			requests = append(requests,
 				reconcile.Request{

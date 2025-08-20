@@ -19,6 +19,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2" //revive:disable:dot-imports
 	. "github.com/onsi/gomega"    //revive:disable:dot-imports
+	"github.com/onsi/gomega/format"
 
 	//revive:disable-next-line:dot-imports
 	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
@@ -249,17 +250,17 @@ var _ = Describe("NovaScheduler controller", func() {
 				ContainSubstring("[client]\nssl=0"))
 			extraConfigData := string(configDataMap.Data["02-nova-override.conf"])
 			Expect(extraConfigData).To(Equal("foo=bar"))
-			// ensure that sepcific non default filters we expect are present
+			// ensure that specific non default filters we expect are present
 			// the AggregateInstanceExtraSpecsFilter is enabled by default as it is
 			// one of the most common non default filters used by customers
 			Expect(configData).Should(
 				ContainSubstring("enabled_filters = AggregateInstanceExtraSpecsFilter"))
 			//  the pci_passthrough and numa_topology filters are enabled by default to
-			//  ensure numa aware schduleing works correctly out of the box
+			//  ensure numa aware scheduling works correctly out of the box
 			Expect(configData).Should(
 				ContainSubstring("PciPassthroughFilter,NUMATopologyFilter"))
 			//  the ServerGroupAntiAffinityFilter and ServerGroupAffinityFilter are enabled
-			//  by default to ensure server group aware schduleing is supported.
+			//  by default to ensure server group aware scheduling is supported.
 			Expect(configData).Should(
 				ContainSubstring("ServerGroupAntiAffinityFilter,ServerGroupAffinityFilter"))
 
@@ -831,7 +832,7 @@ var _ = Describe("NovaScheduler controller", func() {
 				ContainSubstring(fmt.Sprintf("memcache_servers=memcached-0.memcached.%s.svc:11211,memcached-1.memcached.%s.svc:11211,memcached-2.memcached.%s.svc:11211",
 					novaNames.Namespace, novaNames.Namespace, novaNames.Namespace)))
 			Expect(configData).Should(
-				ContainSubstring(fmt.Sprintf("memcached_servers=inet:[memcached-0.memcached.%s.svc]:11211,inet:[memcached-1.memcached.%s.svc]:11211,inet:[memcached-2.memcached.%s.svc]:11211",
+				ContainSubstring(fmt.Sprintf("memcached_servers=memcached-0.memcached.%s.svc:11211,memcached-1.memcached.%s.svc:11211,memcached-2.memcached.%s.svc:11211",
 					novaNames.Namespace, novaNames.Namespace, novaNames.Namespace)))
 			Expect(configData).Should(
 				ContainSubstring("tls_enabled=true"))
@@ -1068,5 +1069,96 @@ var _ = Describe("NovaScheduler controller", func() {
 					fmt.Sprintf("openstack.org/novascheduler-%s", novaNames.SchedulerName.Name)))
 			}, timeout, interval).Should(Succeed())
 		})
+	})
+})
+
+var _ = Describe("NovaScheduler controller", func() {
+	BeforeEach(func() {
+		mariadb.CreateMariaDBDatabase(novaNames.APIMariaDBDatabaseName.Namespace, novaNames.APIMariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
+		DeferCleanup(k8sClient.Delete, ctx, mariadb.GetMariaDBDatabase(novaNames.APIMariaDBDatabaseName))
+
+		mariadb.SimulateMariaDBTLSDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
+
+		apiMariaDBAccount, apiMariaDBSecret := mariadb.CreateMariaDBAccountAndSecret(novaNames.APIMariaDBDatabaseAccount, mariadbv1.MariaDBAccountSpec{})
+		DeferCleanup(k8sClient.Delete, ctx, apiMariaDBAccount)
+		DeferCleanup(k8sClient.Delete, ctx, apiMariaDBSecret)
+
+		cell0Account, cell0Secret := mariadb.CreateMariaDBAccountAndSecret(cell0.MariaDBAccountName, mariadbv1.MariaDBAccountSpec{})
+		DeferCleanup(k8sClient.Delete, ctx, cell0Account)
+		DeferCleanup(k8sClient.Delete, ctx, cell0Secret)
+
+		memcachedSpec := infra.GetDefaultMemcachedSpec()
+		// Create Memcached with MTLS auth
+		DeferCleanup(infra.DeleteMemcached, infra.CreateMTLSMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
+		infra.SimulateMTLSMemcachedReady(novaNames.MemcachedNamespace)
+	})
+
+	When("NovaScheduler is configured for MTLS memcached auth", func() {
+		BeforeEach(func() {
+			spec := GetDefaultNovaSchedulerSpec(novaNames)
+			spec["tls"] = map[string]interface{}{
+				"caBundleSecretName": novaNames.CaBundleSecretName.Name,
+			}
+
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateInternalTopLevelSecret(novaNames))
+			DeferCleanup(th.DeleteInstance, CreateNovaScheduler(novaNames.SchedulerName, spec))
+		})
+
+		It("creates a StatefulSet for nova-scheduler service with MTLS certs attached", func() {
+			format.MaxLength = 0
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCABundleSecret(novaNames.CaBundleSecretName))
+
+			th.SimulateStatefulSetReplicaReady(novaNames.SchedulerName)
+
+			th.ExpectCondition(
+				novaNames.SchedulerName,
+				ConditionGetterFunc(NovaSchedulerConditionGetter),
+				condition.TLSInputReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			ss := th.GetStatefulSet(novaNames.SchedulerName)
+			// Check the resulting statefulset fields
+			Expect(int(*ss.Spec.Replicas)).To(Equal(1))
+
+			// MTLS additional volume
+			Expect(ss.Spec.Template.Spec.Volumes).To(HaveLen(3))
+			Expect(ss.Spec.Template.Spec.Containers).To(HaveLen(1))
+
+			// MTLS additional volume
+			th.AssertVolumeExists(novaNames.MTLSSecretName.Name, ss.Spec.Template.Spec.Volumes)
+
+			// scheduler container certs
+			schedulerContainer := ss.Spec.Template.Spec.Containers[0]
+
+			// MTLS additional volumemounts
+			th.AssertVolumeMountExists(novaNames.MTLSSecretName.Name, "tls.key", schedulerContainer.VolumeMounts)
+			th.AssertVolumeMountExists(novaNames.MTLSSecretName.Name, "tls.crt", schedulerContainer.VolumeMounts)
+			th.AssertVolumeMountExists(novaNames.MTLSSecretName.Name, "ca.crt", schedulerContainer.VolumeMounts)
+
+			configDataMap := th.GetSecret(novaNames.SchedulerConfigDataName)
+			Expect(configDataMap).ShouldNot(BeNil())
+
+			configData := string(configDataMap.Data["01-nova.conf"])
+
+			// MTLS - [cache]
+			Expect(configData).Should(
+				ContainSubstring("tls_certfile=/etc/pki/tls/certs/mtls.crt"))
+			Expect(configData).Should(
+				ContainSubstring("tls_keyfile=/etc/pki/tls/private/mtls.key"))
+			Expect(configData).Should(
+				ContainSubstring("tls_cafile=/etc/pki/tls/certs/mtls-ca.crt"))
+			// MTLS - [keystone_authtoken]
+			Expect(configData).Should(
+				ContainSubstring("memcache_tls_certfile = /etc/pki/tls/certs/mtls.crt"))
+			Expect(configData).Should(
+				ContainSubstring("memcache_tls_keyfile = /etc/pki/tls/private/mtls.key"))
+			Expect(configData).Should(
+				ContainSubstring("memcache_tls_cafile = /etc/pki/tls/certs/mtls-ca.crt"))
+			Expect(configData).Should(
+				ContainSubstring("memcache_tls_enabled = true"))
+		})
+
 	})
 })

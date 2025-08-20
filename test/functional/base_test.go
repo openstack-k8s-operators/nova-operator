@@ -19,7 +19,12 @@ import (
 	"fmt"
 	"time"
 
-	. "github.com/onsi/gomega" //revive:disable:dot-imports
+	. "github.com/onsi/ginkgo/v2" //revive:disable:dot-imports
+	. "github.com/onsi/gomega"    //revive:disable:dot-imports
+
+	//revive:disable-next-line:dot-imports
+	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
+	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 
 	"maps"
 
@@ -229,7 +234,7 @@ func CreateNovaMessageBusSecret(cell CellNames) *corev1.Secret {
 	return s
 }
 
-func CreateNotificiationTransportURLSecret(notificationsBus NotificationsBusNames) *corev1.Secret {
+func CreateNotificationTransportURLSecret(notificationsBus NotificationsBusNames) *corev1.Secret {
 	s := th.CreateSecret(
 		types.NamespacedName{
 			Namespace: novaNames.NovaName.Namespace,
@@ -518,6 +523,7 @@ type NovaNames struct {
 	APIConfigDataName              types.NamespacedName
 	InternalCertSecretName         types.NamespacedName
 	PublicCertSecretName           types.NamespacedName
+	MTLSSecretName                 types.NamespacedName
 	CaBundleSecretName             types.NamespacedName
 	VNCProxyVencryptCertSecretName types.NamespacedName
 	// refers internal API network for all Nova services (not just nova API)
@@ -602,6 +608,9 @@ func GetNovaNames(novaName types.NamespacedName, cellNames []string) NovaNames {
 		PublicCertSecretName: types.NamespacedName{
 			Namespace: novaAPI.Namespace,
 			Name:      "public-tls-certs"},
+		MTLSSecretName: types.NamespacedName{
+			Namespace: novaName.Namespace,
+			Name:      "cert-memcached-mtls"},
 		CaBundleSecretName: types.NamespacedName{
 			Namespace: novaName.Namespace,
 			Name:      "combined-ca-bundle"},
@@ -971,4 +980,129 @@ func AssertHaveNotificationTransportURL(notificationsTransportURLName string, co
 	Expect(configData).To(
 		ContainSubstring(expectedConf2))
 
+}
+
+func CreateNovaWithNCellsAndEnsureReady(cellNumber int, novaNames *NovaNames) {
+	if cellNumber < 1 {
+		panic("At least 1 cell, cell0 must required for Nova CR")
+	}
+
+	serviceSpec := corev1.ServiceSpec{Ports: []corev1.ServicePort{{Port: 3306}}}
+	cellTemplates := make(map[string]interface{})
+
+	DeferCleanup(k8sClient.Delete, ctx, CreateNovaSecret(novaNames.NovaName.Namespace, SecretName))
+	DeferCleanup(
+		mariadb.DeleteDBService,
+		mariadb.CreateDBService(novaNames.APIMariaDBDatabaseName.Namespace, novaNames.APIMariaDBDatabaseName.Name, serviceSpec))
+
+	apiAccount, apiSecret := mariadb.CreateMariaDBAccountAndSecret(
+		novaNames.APIMariaDBDatabaseAccount, mariadbv1.MariaDBAccountSpec{})
+	DeferCleanup(k8sClient.Delete, ctx, apiAccount)
+	DeferCleanup(k8sClient.Delete, ctx, apiSecret)
+
+	for i := 0; i < cellNumber; i++ {
+		cellName := fmt.Sprintf("cell%d", i)
+		cell := novaNames.Cells[cellName]
+
+		// rabbit and galera
+		DeferCleanup(k8sClient.Delete, ctx, CreateNovaMessageBusSecret(cell))
+		DeferCleanup(mariadb.DeleteDBService, mariadb.CreateDBService(cell.MariaDBDatabaseName.Namespace, cell.MariaDBDatabaseName.Name, serviceSpec))
+
+		// account & Secret
+		account, secret := mariadb.CreateMariaDBAccountAndSecret(cell.MariaDBAccountName, mariadbv1.MariaDBAccountSpec{})
+
+		// Defer cleanup based on cell only for default cell (cell0), others might be deleted in caller test
+		if i == 0 {
+			DeferCleanup(k8sClient.Delete, ctx, account)
+			DeferCleanup(k8sClient.Delete, ctx, secret)
+		} else {
+			logger.Info(fmt.Sprintf("Not creating defer cleanup for %s ...", cellName), " -- ", secret)
+		}
+
+		// Build cell template
+		template := GetDefaultNovaCellTemplate()
+		template["cellDatabaseInstance"] = cell.MariaDBDatabaseName.Name
+		template["cellDatabaseAccount"] = account.Name
+		if i != 0 {
+			// cell0
+			template["cellMessageBusInstance"] = cell.TransportURLName.Name
+		}
+
+		if i == 1 {
+			// cell1
+			template["novaComputeTemplates"] = map[string]interface{}{
+				ironicComputeName: GetDefaultNovaComputeTemplate(),
+			}
+		}
+		if i != 0 && i != 1 {
+			// cell2 ..
+			template["hasAPIAccess"] = false
+		}
+
+		cellTemplates[cellName] = template
+	}
+
+	// Create Nova spec
+	spec := GetDefaultNovaSpec()
+	spec["cellTemplates"] = cellTemplates
+	spec["apiDatabaseInstance"] = novaNames.APIMariaDBDatabaseName.Name
+	spec["apiMessageBusInstance"] = novaNames.Cells["cell0"].TransportURLName.Name
+
+	// Deploy Nova and simulate its dependencies
+	DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
+	// DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace))
+	novaNames.KeystoneAPIName = keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace)
+	DeferCleanup(keystone.DeleteKeystoneAPI, novaNames.KeystoneAPIName)
+
+	memcachedSpec := infra.GetDefaultMemcachedSpec()
+	DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
+
+	infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
+	keystone.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
+
+	mariadb.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
+	mariadb.SimulateMariaDBAccountCompleted(novaNames.APIMariaDBDatabaseAccount)
+
+	for i := 0; i < cellNumber; i++ {
+		cell := novaNames.Cells[fmt.Sprintf("cell%d", i)]
+		mariadb.SimulateMariaDBDatabaseCompleted(cell.MariaDBDatabaseName)
+		mariadb.SimulateMariaDBAccountCompleted(cell.MariaDBAccountName)
+		infra.SimulateTransportURLReady(cell.TransportURLName)
+
+		if i != 0 {
+			// cell0
+			th.SimulateStatefulSetReplicaReady(cell.NoVNCProxyStatefulSetName)
+		}
+
+		th.SimulateJobSuccess(cell.DBSyncJobName)
+		th.SimulateStatefulSetReplicaReady(cell.ConductorStatefulSetName)
+
+		if i == 1 {
+			// only cell1 will have computes
+			th.SimulateStatefulSetReplicaReady(cell.NovaComputeStatefulSetName)
+		}
+
+		th.SimulateJobSuccess(cell.CellMappingJobName)
+
+		if i == 1 {
+			// run cell1 computes host discovery
+			th.SimulateJobSuccess(cell1.HostDiscoveryJobName)
+		}
+
+	}
+
+	// Final Ready condition check
+	th.ExpectCondition(
+		novaNames.NovaName,
+		ConditionGetterFunc(NovaConditionGetter),
+		novav1.NovaAllCellsReadyCondition,
+		corev1.ConditionTrue,
+	)
+	SimulateReadyOfNovaTopServices()
+	th.ExpectCondition(
+		novaNames.NovaName,
+		ConditionGetterFunc(NovaConditionGetter),
+		condition.ReadyCondition,
+		corev1.ConditionTrue,
+	)
 }

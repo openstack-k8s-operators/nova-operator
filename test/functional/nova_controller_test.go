@@ -42,36 +42,7 @@ var _ = Describe("Nova controller - notifications", func() {
 
 	When("Nova CR instance is created", func() {
 		BeforeEach(func() {
-			DeferCleanup(
-				k8sClient.Delete, ctx, CreateNovaSecret(novaNames.NovaName.Namespace, SecretName))
-			DeferCleanup(
-				k8sClient.Delete, ctx, CreateNovaMessageBusSecret(cell0))
-			DeferCleanup(
-				mariadb.DeleteDBService,
-				mariadb.CreateDBService(
-					novaNames.NovaName.Namespace,
-					"openstack",
-					corev1.ServiceSpec{
-						Ports: []corev1.ServicePort{{Port: 3306}},
-					},
-				),
-			)
-			memcachedSpec := infra.GetDefaultMemcachedSpec()
-
-			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
-			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
-
-			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace))
-
-			DeferCleanup(th.DeleteInstance, CreateNovaWithCell0(novaNames.NovaName))
-
-			keystone.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
-			mariadb.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(novaNames.APIMariaDBDatabaseAccount)
-			mariadb.SimulateMariaDBDatabaseCompleted(cell0.MariaDBDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(cell0.MariaDBAccountName)
-			infra.SimulateTransportURLReady(cell0.TransportURLName)
-			SimulateReadyOfNovaTopServices()
+			CreateNovaWithNCellsAndEnsureReady(1, &novaNames)
 		})
 		It("notification transport url is not set", func() {
 
@@ -108,7 +79,7 @@ var _ = Describe("Nova controller - notifications", func() {
 
 			// add new-rabbit in Nova CR
 			notificationsBus := GetNotificationsBusNames(novaNames.NovaName)
-			DeferCleanup(k8sClient.Delete, ctx, CreateNotificiationTransportURLSecret(notificationsBus))
+			DeferCleanup(k8sClient.Delete, ctx, CreateNotificationTransportURLSecret(notificationsBus))
 
 			Eventually(func(g Gomega) {
 				nova := GetNova(novaNames.NovaName)
@@ -152,6 +123,14 @@ var _ = Describe("Nova controller - notifications", func() {
 			configData = string(configDataMap.Data["01-nova.conf"])
 			AssertHaveNotificationTransportURL(notificationsBus.TransportURLName.Name, configData)
 
+			// cleanup notifications transporturl
+			Eventually(func(g Gomega) {
+				nova := GetNova(novaNames.NovaName)
+				nova.Spec.NotificationsBusInstance = nil
+				g.Expect(k8sClient.Update(ctx, nova)).Should(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			infra.AssertTransportURLDoesNotExist(notificationsBus.TransportURLName)
 		})
 	})
 
@@ -1325,7 +1304,7 @@ var _ = Describe("Nova controller", func() {
 				"cell0": cell0Template,
 				"cell1": cell1Template,
 			}
-			// disable top-level metatadata as we enabled the instance in cell1
+			// disable top-level metadata as we enabled the instance in cell1
 			spec["metadataServiceTemplate"] = map[string]interface{}{
 				"enabled": false,
 			}

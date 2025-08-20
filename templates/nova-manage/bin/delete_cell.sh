@@ -18,7 +18,7 @@ set -xe
 export CELL_NAME=${CELL_NAME:?"Please specify a CELL_NAME variable."}
 
 # NOTE(gibi): nova-manage should be enhanced upstream to get rid of this
-# uglyness
+# ugliness
 # Note the "|" around the CELL_NAME, that is needed as a single line from
 # nova-manage cell_v2 cell_list can match to multiple cells if the cell name
 # is part of the line, e.g. as the user name of the DB URL

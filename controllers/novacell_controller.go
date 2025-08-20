@@ -850,7 +850,7 @@ func (r *NovaCellReconciler) getVNCProxyURL(
 func (r *NovaCellReconciler) findObjectsForSrc(ctx context.Context, src client.Object) []reconcile.Request {
 	requests := []reconcile.Request{}
 
-	l := log.FromContext(ctx).WithName("Controllers").WithName("NovaCell")
+	Log := r.GetLogger(ctx)
 
 	for _, field := range cellWatchFields {
 		crList := &novav1.NovaCellList{}
@@ -860,12 +860,12 @@ func (r *NovaCellReconciler) findObjectsForSrc(ctx context.Context, src client.O
 		}
 		err := r.Client.List(ctx, crList, listOps)
 		if err != nil {
-			l.Error(err, fmt.Sprintf("listing %s for field: %s - %s", crList.GroupVersionKind().Kind, field, src.GetNamespace()))
+			Log.Error(err, fmt.Sprintf("listing %s for field: %s - %s", crList.GroupVersionKind().Kind, field, src.GetNamespace()))
 			return requests
 		}
 
 		for _, item := range crList.Items {
-			l.Info(fmt.Sprintf("input source %s changed, reconcile: %s - %s", src.GetName(), item.GetName(), item.GetNamespace()))
+			Log.Info(fmt.Sprintf("input source %s changed, reconcile: %s - %s", src.GetName(), item.GetName(), item.GetNamespace()))
 
 			requests = append(requests,
 				reconcile.Request{
@@ -949,7 +949,7 @@ func (r *NovaCellReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&novav1.NovaMetadata{}).
 		Owns(&novav1.NovaNoVNCProxy{}).
 		Owns(&novav1.NovaCompute{}).
-		// It generates and therefor owns the compute config secret
+		// It generates and therefore owns the compute config secret
 		Owns(&corev1.Secret{}).
 		// watch the input secrets
 		Watches(
