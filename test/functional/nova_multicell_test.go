@@ -1021,4 +1021,5 @@ var _ = Describe("Nova multi cell deletion", func() {
 			Expect(actualList).To(Equal(expectedList))
 		})
 	})
+
 })
