@@ -1753,8 +1753,17 @@ var _ = Describe("Nova controller", func() {
 
 		},
 		SwitchToNewAccount: func() {
-			SimulateReadyOfNovaTopServices()
+			// Wait for cell0 NovaConductor being updated to the new generation before
+			// simulate the services to be ready. Otherwise it can happen that the old
+			// version gets simulated to be ready and the new generation never reaches
+			// the ready state.
+			Eventually(func(g Gomega) {
+				conductor := GetNovaConductor(cell0.ConductorName)
+				g.Expect(conductor.Generation).To(BeNumerically(">", 1))
+				g.Expect(conductor.Generation).To(Equal(conductor.Status.ObservedGeneration))
+			}, timeout, interval).Should(Succeed())
 
+			SimulateReadyOfNovaTopServices()
 		},
 		// delete the CR, allowing tests that exercise finalizer removal
 		DeleteCR: func() {
@@ -1873,11 +1882,18 @@ var _ = Describe("Nova controller", func() {
 
 		},
 		SwitchToNewAccount: func() {
+			// Wait for cell0 NovaConductor being updated to the new generation before
+			// simulate the services to be ready. Otherwise it can happen that the old
+			// version gets simulated to be ready and the new generation never reaches
+			// the ready state.
+			Eventually(func(g Gomega) {
+				conductor := GetNovaConductor(cell0.ConductorName)
+				g.Expect(conductor.Generation).To(BeNumerically(">", 1))
+				g.Expect(conductor.Generation).To(Equal(conductor.Status.ObservedGeneration))
+			}, timeout, interval).Should(Succeed())
+
 			SimulateReadyOfNovaTopServices()
 			Eventually(func(g Gomega) {
-				th.SimulateJobSuccess(cell0.DBSyncJobName)
-				th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
-				th.SimulateJobSuccess(cell0.CellMappingJobName)
 				nova := GetNova(novaNames.NovaName)
 				g.Expect(nova.Status.APIServiceReadyCount).To(Equal(int32(1)))
 				g.Expect(nova.Status.SchedulerServiceReadyCount).To(Equal(int32(1)))
