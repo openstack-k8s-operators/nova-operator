@@ -1063,11 +1063,18 @@ var _ = Describe("Nova reconfiguration", func() {
 		keystone.UpdateKeystoneAPIEndpoint(novaNames.KeystoneAPIName, "internal", newInternalEndpoint)
 		logger.Info("Reconfigured")
 
+		// Wait for Nova controller to detect the keystone endpoint change and start updating components
+		// We check if the cell0 conductor gets the new KeystoneAuthURL
+		Eventually(func(g Gomega) {
+			// Check if cell0 conductor has been updated with the new KeystoneAuthURL
+			conductor := GetNovaConductor(cell0.ConductorName)
+			// The KeystoneAuthURL should match the new endpoint we set
+			g.Expect(conductor.Spec.KeystoneAuthURL).To(Equal(newInternalEndpoint))
+		}, timeout, interval).Should(Succeed())
+
 		SimulateReadyOfNovaTopServices()
-		th.SimulateJobSuccess(cell0.DBSyncJobName)
 		th.SimulateJobSuccess(cell1.DBSyncJobName)
 		th.SimulateJobSuccess(cell2.DBSyncJobName)
-		th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 
 		for _, cell := range []types.NamespacedName{cell0.ConductorName, cell1.ConductorName, cell2.ConductorName} {
 			Eventually(func(g Gomega) {

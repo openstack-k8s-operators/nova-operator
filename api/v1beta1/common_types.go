@@ -19,8 +19,8 @@ package v1beta1
 import (
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
 )
 
 // Container image fall-back defaults
@@ -113,7 +113,6 @@ type NovaImages struct {
 	// SchedulerContainerImageURL
 	SchedulerContainerImageURL string `json:"schedulerContainerImageURL"`
 
-	// +kubebuilder:validation:Required
 	NovaCellImages `json:",inline"`
 }
 
