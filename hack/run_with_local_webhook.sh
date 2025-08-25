@@ -490,6 +490,62 @@ webhooks:
     scope: '*'
   sideEffects: None
   timeoutSeconds: 10
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: vplacementapi.kb.io
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    caBundle: ${CA_BUNDLE}
+    url: https://${CRC_IP}:${WEBHOOK_PORT}/validate-placement-openstack-org-v1beta1-placementapi
+  failurePolicy: Fail
+  matchPolicy: Equivalent
+  name: vplacementapi.kb.io
+  objectSelector: {}
+  rules:
+  - apiGroups:
+    - placement.openstack.org
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - placementapis
+    scope: '*'
+  sideEffects: None
+  timeoutSeconds: 10
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: mplacementapi.kb.io
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    caBundle: ${CA_BUNDLE}
+    url: https://${CRC_IP}:${WEBHOOK_PORT}/mutate-placement-openstack-org-v1beta1-placementapi
+  failurePolicy: Fail
+  matchPolicy: Equivalent
+  name: mplacementapi.kb.io
+  objectSelector: {}
+  rules:
+  - apiGroups:
+    - placement.openstack.org
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - placementapis
+    scope: '*'
+  sideEffects: None
+  timeoutSeconds: 10
 EOF_CAT
 
 oc apply -n openstack -f ${TMPDIR}/patch_webhook_configurations.yaml
