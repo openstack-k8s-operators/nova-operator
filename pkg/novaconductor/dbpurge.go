@@ -11,7 +11,7 @@ import (
 
 	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
-	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
+	novav1 "github.com/openstack-k8s-operators/nova-operator/apis/nova/v1beta1"
 	"github.com/openstack-k8s-operators/nova-operator/pkg/nova"
 )
 

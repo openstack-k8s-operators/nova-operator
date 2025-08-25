@@ -24,7 +24,7 @@ import (
 	env "github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
-	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
+	novav1 "github.com/openstack-k8s-operators/nova-operator/apis/nova/v1beta1"
 	"github.com/openstack-k8s-operators/nova-operator/pkg/nova"
 
 	appsv1 "k8s.io/api/apps/v1"
