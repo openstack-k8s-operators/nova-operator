@@ -66,6 +66,7 @@ const (
 	MQCompleted MessageBusStatus = iota
 )
 
+// CellDeploymentStatus represents the deployment status of a Nova cell
 type CellDeploymentStatus int
 
 // CellDeploymentStatus -

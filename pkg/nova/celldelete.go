@@ -1,3 +1,4 @@
+// Package nova contains common Nova service functionality and utilities.
 package nova
 
 import (
@@ -10,6 +11,7 @@ import (
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 )
 
+// CellDeleteJob creates a Kubernetes job to delete a Nova cell
 func CellDeleteJob(
 	instance *novav1.Nova,
 	cell *novav1.NovaCell,

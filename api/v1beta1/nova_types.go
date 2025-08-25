@@ -137,10 +137,8 @@ type NovaSpecCore struct {
 type NovaSpec struct {
 	// NOTE(bogdando): Anything that is only submitted by openstack-operator should be in NovaSpec but not in NovaSpecCore.
 
-	// +kubebuilder:validation:Required
 	NovaSpecCore `json:",inline"`
 
-	// +kubebuilder:validation:Required
 	NovaImages `json:",inline"`
 }
 
