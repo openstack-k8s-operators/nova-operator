@@ -98,6 +98,10 @@ var _ = Describe("Nova multi cell", func() {
 				"database": "NovaCell2DatabasePassword",
 			}
 
+			// Create KeystoneAPI first to get the correct name
+			keystoneAPIName := keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace)
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystoneAPIName)
+
 			spec["cellTemplates"] = map[string]interface{}{
 				"cell0": cell0Template,
 				"cell1": cell1Template,
@@ -105,9 +109,9 @@ var _ = Describe("Nova multi cell", func() {
 			}
 			spec["apiDatabaseInstance"] = novaNames.APIMariaDBDatabaseName.Name
 			spec["apiMessageBusInstance"] = cell0.TransportURLName.Name
+			spec["keystoneInstance"] = keystoneAPIName.Name
 
 			DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
-			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace))
 			memcachedSpecCell1 := infra.GetDefaultMemcachedSpec()
 			memcachedNamespace := types.NamespacedName{
 				Name:      cell1Memcached,
@@ -678,19 +682,23 @@ var _ = Describe("Nova multi cell", func() {
 			cell1Template["cellMessageBusInstance"] = cell0.TransportURLName.Name
 			cell1Template["hasAPIAccess"] = true
 
+			// Create KeystoneAPI first to get the correct name
+			keystoneAPIName := keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace)
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystoneAPIName)
+
 			spec["cellTemplates"] = map[string]interface{}{
 				"cell0": cell0Template,
 				"cell1": cell1Template,
 			}
 			spec["apiDatabaseInstance"] = novaNames.APIMariaDBDatabaseName.Name
 			spec["apiMessageBusInstance"] = cell0.TransportURLName.Name
+			spec["keystoneInstance"] = keystoneAPIName.Name
 
 			DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
 			memcachedSpec := infra.GetDefaultMemcachedSpec()
 
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
-			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace))
 			keystone.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
 
 		})
@@ -792,19 +800,23 @@ var _ = Describe("Nova multi cell", func() {
 			cell1Template["cellDatabaseAccount"] = cell1.MariaDBAccountName.Name
 			cell1Template["cellMessageBusInstance"] = cell1.TransportURLName.Name
 
+			// Create KeystoneAPI first to get the correct name
+			keystoneAPIName := keystone.CreateKeystoneAPI(novaNames.Namespace)
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystoneAPIName)
+
 			spec["cellTemplates"] = map[string]interface{}{
 				"cell0": cell0Template,
 				"cell1": cell1Template,
 			}
 			spec["apiDatabaseInstance"] = novaNames.APIMariaDBDatabaseName.Name
 			spec["apiMessageBusInstance"] = cell0.TransportURLName.Name
+			spec["keystoneInstance"] = keystoneAPIName.Name
 
 			DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
 			memcachedSpec := infra.GetDefaultMemcachedSpec()
 
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
-			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(novaNames.Namespace))
 			keystone.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
 		})
 
@@ -858,19 +870,22 @@ var _ = Describe("Nova multi cell", func() {
 				"cell0": cell0Template,
 				"cell1": cell1Template,
 			}
+			// Create KeystoneAPI first to get the correct name
+			keystoneAPIName := keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace)
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystoneAPIName)
+
 			spec["metadataServiceTemplate"] = map[string]interface{}{
 				"enabled": false,
 			}
 			spec["apiDatabaseInstance"] = novaNames.APIMariaDBDatabaseName.Name
 			spec["apiMessageBusInstance"] = cell0.TransportURLName.Name
+			spec["keystoneInstance"] = keystoneAPIName.Name
 
 			DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
 			memcachedSpec := infra.GetDefaultMemcachedSpec()
 
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
-			keystoneAPIName := keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace)
-			DeferCleanup(keystone.DeleteKeystoneAPI, keystoneAPIName)
 			keystoneAPI := keystone.GetKeystoneAPI(keystoneAPIName)
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Status().Update(ctx, keystoneAPI.DeepCopy())).Should(Succeed())

@@ -1042,17 +1042,20 @@ func CreateNovaWithNCellsAndEnsureReady(cellNumber int, novaNames *NovaNames) {
 		cellTemplates[cellName] = template
 	}
 
+	// Create KeystoneAPI first to get the correct name
+	// DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace))
+	keystoneAPIName := keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace)
+	DeferCleanup(keystone.DeleteKeystoneAPI, keystoneAPIName)
+
 	// Create Nova spec
 	spec := GetDefaultNovaSpec()
 	spec["cellTemplates"] = cellTemplates
 	spec["apiDatabaseInstance"] = novaNames.APIMariaDBDatabaseName.Name
 	spec["apiMessageBusInstance"] = novaNames.Cells["cell0"].TransportURLName.Name
+	spec["keystoneInstance"] = keystoneAPIName.Name
 
 	// Deploy Nova and simulate its dependencies
 	DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
-	// DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace))
-	novaNames.KeystoneAPIName = keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace)
-	DeferCleanup(keystone.DeleteKeystoneAPI, novaNames.KeystoneAPIName)
 
 	memcachedSpec := infra.GetDefaultMemcachedSpec()
 	DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))

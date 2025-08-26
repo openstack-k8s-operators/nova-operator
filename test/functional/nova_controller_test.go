@@ -759,13 +759,17 @@ var _ = Describe("Nova controller", func() {
 
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
-			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace))
+
+			// Create KeystoneAPI first to get correct name
+			keystoneAPIName := keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace)
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystoneAPIName)
 
 			spec := GetDefaultNovaSpec()
 			cell0template := GetDefaultNovaCellTemplate()
 			cell0template["cellDatabaseInstance"] = cell0.MariaDBDatabaseName.Name
 			spec["cellTemplates"] = map[string]interface{}{"cell0": cell0template}
 			spec["apiDatabaseInstance"] = novaNames.APIMariaDBDatabaseName.Name
+			spec["keystoneInstance"] = keystoneAPIName.Name
 
 			DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
 		})
@@ -1100,7 +1104,9 @@ var _ = Describe("Nova controller", func() {
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
 
-			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace))
+			// Create KeystoneAPI first to get the correct name
+			keystoneAPIName := keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace)
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystoneAPIName)
 
 			spec := GetDefaultNovaSpec()
 			cell0template := GetDefaultNovaCellTemplate()
@@ -1109,6 +1115,7 @@ var _ = Describe("Nova controller", func() {
 			spec["apiDatabaseInstance"] = novaNames.APIMariaDBDatabaseName.Name
 			spec["apiDatabaseAccount"] = novaNames.APIMariaDBDatabaseAccount.Name
 			spec["topologyRef"] = map[string]interface{}{"name": "foo"}
+			spec["keystoneInstance"] = keystoneAPIName.Name
 
 			DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
 
@@ -1176,7 +1183,9 @@ var _ = Describe("Nova controller", func() {
 			// Create a global Test Topology
 			_, topologyRef = infra.CreateTopology(novaNames.NovaTopologies[0], topologySpec)
 
-			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace))
+			// Create keystoneAPI first to get correct name
+			keystoneAPIName := keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace)
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystoneAPIName)
 
 			spec := GetDefaultNovaSpec()
 			cell0template := GetDefaultNovaCellTemplate()
@@ -1184,6 +1193,7 @@ var _ = Describe("Nova controller", func() {
 			spec["cellTemplates"] = map[string]interface{}{"cell0": cell0template}
 			spec["apiDatabaseInstance"] = novaNames.APIMariaDBDatabaseName.Name
 			spec["apiDatabaseAccount"] = novaNames.APIMariaDBDatabaseAccount.Name
+			spec["keystoneInstance"] = keystoneAPIName.Name
 
 			// We reference the global topology and is inherited by the sub components
 			spec["topologyRef"] = map[string]interface{}{"name": topologyRef.Name}
@@ -1284,6 +1294,9 @@ var _ = Describe("Nova controller", func() {
 			DeferCleanup(mariadb.DeleteDBService, mariadb.CreateDBService(novaNames.APIMariaDBDatabaseName.Namespace, novaNames.APIMariaDBDatabaseName.Name, serviceSpec))
 			DeferCleanup(mariadb.DeleteDBService, mariadb.CreateDBService(cell0.MariaDBDatabaseName.Namespace, cell0.MariaDBDatabaseName.Name, serviceSpec))
 			DeferCleanup(mariadb.DeleteDBService, mariadb.CreateDBService(cell1.MariaDBDatabaseName.Namespace, cell1.MariaDBDatabaseName.Name, serviceSpec))
+			keystoneAPIName := keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace)
+			keystoneAPI := keystone.GetKeystoneAPI(keystoneAPIName)
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystoneAPIName)
 			// cell0
 			spec := GetDefaultNovaSpec()
 			cell0Template := GetDefaultNovaCellTemplate()
@@ -1313,13 +1326,11 @@ var _ = Describe("Nova controller", func() {
 			// We reference the global topology and is inherited by the sub components
 			// except cell1 that has an override
 			spec["topologyRef"] = map[string]interface{}{"name": topologyRefTopLevel.Name}
+			spec["keystoneInstance"] = keystoneAPIName.Name
 			DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
 			memcachedSpec := infra.GetDefaultMemcachedSpec()
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
-			keystoneAPIName := keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace)
-			DeferCleanup(keystone.DeleteKeystoneAPI, keystoneAPIName)
-			keystoneAPI := keystone.GetKeystoneAPI(keystoneAPIName)
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Status().Update(ctx, keystoneAPI.DeepCopy())).Should(Succeed())
 			}, timeout, interval).Should(Succeed())
@@ -1449,11 +1460,16 @@ var _ = Describe("Nova controller", func() {
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
 
+			// Create keystoneAPI first to get the correct name
+			keystoneAPIName := keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace)
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystoneAPIName)
+
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace))
 
 			spec := GetDefaultNovaSpec()
 			cell0 := GetDefaultNovaCellTemplate()
 			spec["cellTemplates"] = map[string]interface{}{"cell0": cell0}
+			spec["keystoneInstance"] = keystoneAPIName.Name
 			// This nova is created without any container image is specified in
 			// the request
 			DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
@@ -1533,7 +1549,9 @@ var _ = Describe("Nova controller", func() {
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
 
-			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace))
+			// Create keystoneAPI first to get the correct name
+			keystoneAPIName := keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace)
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystoneAPIName)
 
 			spec := GetDefaultNovaSpec()
 			cell0template := GetDefaultNovaCellTemplate()
@@ -1541,6 +1559,7 @@ var _ = Describe("Nova controller", func() {
 			spec["cellTemplates"] = map[string]interface{}{"cell0": cell0template}
 			spec["apiDatabaseInstance"] = novaNames.APIMariaDBDatabaseName.Name
 			spec["apiDatabaseAccount"] = accountName.Name
+			spec["keystoneInstance"] = keystoneAPIName.Name
 
 			DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
 
@@ -1637,7 +1656,9 @@ var _ = Describe("Nova controller", func() {
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
 
-			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace))
+			// Create keystoneAPI first to get the correct name
+			keystoneAPIName := keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace)
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystoneAPIName)
 
 			spec := GetDefaultNovaSpec()
 			cell0template := GetDefaultNovaCellTemplate()
@@ -1645,6 +1666,7 @@ var _ = Describe("Nova controller", func() {
 			cell0template["cellDatabaseAccount"] = accountName.Name
 			spec["cellTemplates"] = map[string]interface{}{"cell0": cell0template}
 			spec["apiDatabaseInstance"] = novaNames.APIMariaDBDatabaseName.Name
+			spec["keystoneInstance"] = keystoneAPIName.Name
 
 			DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
 
