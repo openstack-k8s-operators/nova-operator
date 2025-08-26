@@ -55,8 +55,8 @@ import (
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	test "github.com/openstack-k8s-operators/lib-common/modules/test"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
-	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
-	"github.com/openstack-k8s-operators/nova-operator/controllers"
+	novav1 "github.com/openstack-k8s-operators/nova-operator/apis/nova/v1beta1"
+	nova_ctrl "github.com/openstack-k8s-operators/nova-operator/controllers/nova"
 
 	infra_test "github.com/openstack-k8s-operators/infra-operator/apis/test/helpers"
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
@@ -100,7 +100,7 @@ var _ = BeforeSuite(func() {
 
 	ctx, cancel = context.WithCancel(context.TODO())
 
-	const gomod = "../../go.mod"
+	const gomod = "../../../go.mod"
 
 	keystoneCRDs, err := test.GetCRDDirFromModule(
 		"github.com/openstack-k8s-operators/keystone-operator/api", gomod, "bases")
@@ -120,7 +120,7 @@ var _ = BeforeSuite(func() {
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
 		CRDDirectoryPaths: []string{
-			filepath.Join("..", "..", "config", "crd", "bases"),
+			filepath.Join("..", "..", "..", "config", "crd", "bases"),
 			// NOTE(gibi): we need to list all the external CRDs our operator depends on
 			mariadbCRDs,
 			keystoneCRDs,
@@ -133,7 +133,7 @@ var _ = BeforeSuite(func() {
 		},
 		ErrorIfCRDPathMissing: true,
 		WebhookInstallOptions: envtest.WebhookInstallOptions{
-			Paths: []string{filepath.Join("..", "..", "config", "webhook")},
+			Paths: []string{filepath.Join("..", "..", "..", "config", "webhook")},
 			// NOTE(gibi): if localhost is resolved to ::1 (ipv6) then starting
 			// the webhook fails as it try to parse the address as ipv4 and
 			// failing on the colons in ::1
@@ -210,7 +210,7 @@ var _ = BeforeSuite(func() {
 	kclient, err := kubernetes.NewForConfig(cfg)
 	Expect(err).ToNot(HaveOccurred(), "failed to create kclient")
 
-	reconcilers := controllers.NewReconcilers(k8sManager, kclient)
+	reconcilers := nova_ctrl.NewReconcilers(k8sManager, kclient)
 	// NOTE(gibi): During envtest we simulate success of tasks (e.g Job,
 	// Deployment, DB) so we can speed up the test execution by reducing the
 	// time we wait before we reconcile when a task is running.
