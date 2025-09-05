@@ -389,6 +389,7 @@ SKIP_CERT ?=false
 run-with-webhook: export METRICS_PORT?=24600
 run-with-webhook: export HEALTH_PORT?=24601
 run-with-webhook: export PPROF_PORT?=8082
+run-with-webhook: export WEBHOOK_PORT?=9444
 run-with-webhook: manifests generate fmt vet ## Run a controller from your host.
 	/bin/bash hack/clean_local_webhook.sh
 	/bin/bash hack/run_with_local_webhook.sh
