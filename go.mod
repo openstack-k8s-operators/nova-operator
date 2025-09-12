@@ -87,6 +87,8 @@ require (
 
 replace github.com/openstack-k8s-operators/nova-operator/api => ./api
 
+replace github.com/openstack-k8s-operators/openstack-operator/apis => github.com/ratailor/openstack-operator/apis v0.0.0-20250912060332-a39ff2fbd0a3 //allow-merging
+
 // mschuppert: map to latest commit from release-4.16 tag
 // must consistent within modules and service operators
 replace github.com/openshift/api => github.com/openshift/api v0.0.0-20240830023148-b7d0481c9094 //allow-merging
