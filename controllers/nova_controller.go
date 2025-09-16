@@ -1649,10 +1649,7 @@ func (r *NovaReconciler) getKeystoneAuthURL(
 	h *helper.Helper,
 	instance *novav1.Nova,
 ) (string, string, error) {
-	// TODO(gibi): change lib-common to take the name of the KeystoneAPI as
-	// parameter instead of labels. Then use instance.Spec.KeystoneInstance as
-	// the name.
-	keystoneAPI, err := keystonev1.GetKeystoneAPI(ctx, h, instance.Namespace, map[string]string{})
+	keystoneAPI, err := keystonev1.GetKeystoneAPIByName(ctx, h, instance.Spec.KeystoneInstance, instance.Namespace)
 	if err != nil {
 		return "", "", err
 	}

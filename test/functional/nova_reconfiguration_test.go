@@ -1060,7 +1060,11 @@ var _ = Describe("Nova reconfiguration", func() {
 	It("updates the KeystoneAuthURL of the sub components if keystone internal endpoint changes", func() {
 		newInternalEndpoint := "https://keystone-internal"
 
-		keystone.UpdateKeystoneAPIEndpoint(novaNames.KeystoneAPIName, "internal", newInternalEndpoint)
+		// Create keystoneAPI first to get the correct name
+		keystoneAPIName := keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace)
+
+		keystone.UpdateKeystoneAPIEndpoint(keystoneAPIName, "internal", newInternalEndpoint)
+		DeferCleanup(keystone.DeleteKeystoneAPI, keystoneAPIName)
 		logger.Info("Reconfigured")
 
 		SimulateReadyOfNovaTopServices()
