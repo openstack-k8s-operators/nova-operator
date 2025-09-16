@@ -34,8 +34,8 @@ import (
 
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
-	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
-	"github.com/openstack-k8s-operators/nova-operator/controllers"
+	novav1 "github.com/openstack-k8s-operators/nova-operator/apis/nova/v1beta1"
+	nova_ctrl "github.com/openstack-k8s-operators/nova-operator/controllers/nova"
 )
 
 var _ = Describe("Nova controller - notifications", func() {
@@ -360,7 +360,7 @@ var _ = Describe("Nova controller", func() {
 			internalCellSecret := th.GetSecret(cell0.InternalCellSecretName)
 			Expect(internalCellSecret.Data).To(HaveLen(3))
 			Expect(internalCellSecret.Data).To(
-				HaveKeyWithValue(controllers.ServicePasswordSelector, []byte("service-password")))
+				HaveKeyWithValue(nova_ctrl.ServicePasswordSelector, []byte("service-password")))
 			Expect(internalCellSecret.Data).To(
 				HaveKeyWithValue("transport_url", []byte("rabbit://cell0/fake")))
 			Expect(internalCellSecret.Data).To(
@@ -476,9 +476,9 @@ var _ = Describe("Nova controller", func() {
 			internalTopLevelSecret := th.GetSecret(novaNames.InternalTopLevelSecretName)
 			Expect(internalTopLevelSecret.Data).To(HaveLen(4))
 			Expect(internalTopLevelSecret.Data).To(
-				HaveKeyWithValue(controllers.ServicePasswordSelector, []byte("service-password")))
+				HaveKeyWithValue(nova_ctrl.ServicePasswordSelector, []byte("service-password")))
 			Expect(internalTopLevelSecret.Data).To(
-				HaveKeyWithValue(controllers.MetadataSecretSelector, []byte("metadata-secret")))
+				HaveKeyWithValue(nova_ctrl.MetadataSecretSelector, []byte("metadata-secret")))
 			Expect(internalTopLevelSecret.Data).To(
 				HaveKeyWithValue("transport_url", []byte("rabbit://cell0/fake")))
 			Expect(internalTopLevelSecret.Data).To(
