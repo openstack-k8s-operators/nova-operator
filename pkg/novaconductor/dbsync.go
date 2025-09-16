@@ -17,7 +17,7 @@ limitations under the License.
 package novaconductor
 
 import (
-	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
+	novav1 "github.com/openstack-k8s-operators/nova-operator/apis/nova/v1beta1"
 	"github.com/openstack-k8s-operators/nova-operator/pkg/nova"
 
 	env "github.com/openstack-k8s-operators/lib-common/modules/common/env"

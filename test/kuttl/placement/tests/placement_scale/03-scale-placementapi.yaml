@@ -1,0 +1,5 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+  - script: |
+      oc patch placementapi -n $NAMESPACE placement --type='json' -p='[{"op": "replace", "path": "/spec/replicas", "value":3}]'

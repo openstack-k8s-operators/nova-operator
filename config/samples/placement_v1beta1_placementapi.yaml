@@ -1,0 +1,12 @@
+apiVersion: placement.openstack.org/v1beta1
+kind: PlacementAPI
+metadata:
+  labels:
+    app.kubernetes.io/name: placementapi
+    app.kubernetes.io/instance: placementapi-sample
+    app.kubernetes.io/part-of: nova-operator
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: nova-operator
+  name: placementapi-sample
+spec:
+  # TODO(user): Add fields here
