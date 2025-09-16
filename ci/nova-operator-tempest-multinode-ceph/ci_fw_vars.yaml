@@ -28,6 +28,13 @@ post_deploy:
     type: playbook
     source: control_plane_kustomize_deploy.yml
 
+post_ceph:
+  - name: 80 Run Ceph hook playbook
+    type: playbook
+    source: ceph.yml
+
+cifmw_cephadm_log_path: /home/zuul/ci-framework-data/logs
+
 # we can use this hook to create flavors, images, etc
 # before we execute tempest simiilar to how we would use
 # local.sh in devstack based jobs
