@@ -203,7 +203,6 @@ type NovaCellSpec struct {
 	// DBPurge defines the parameters for the DB archiving and purging cron job
 	DBPurge NovaCellDBPurge `json:"dbPurge"`
 
-	// +kubebuilder:validation:Required
 	NovaCellImages `json:",inline"`
 
 	// +kubebuilder:validation:Optional

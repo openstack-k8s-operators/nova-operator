@@ -1,3 +1,4 @@
+// Package novaconductor contains Nova Conductor service deployment and management functionality.
 package novaconductor
 
 import (
@@ -15,6 +16,7 @@ import (
 	"github.com/openstack-k8s-operators/nova-operator/pkg/nova"
 )
 
+// DBPurgeCronJob creates a Kubernetes CronJob for purging old Nova database records
 func DBPurgeCronJob(
 	instance *novav1.NovaConductor,
 	labels map[string]string,

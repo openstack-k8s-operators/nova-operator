@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package controllers contains the Nova operator controllers for managing OpenStack Nova services.
 package controllers
 
 import (
@@ -287,7 +288,7 @@ func ensureSecret(
 				condition.InputReadyCondition,
 				condition.RequestedReason,
 				condition.SeverityInfo,
-				fmt.Sprintf(novav1.InputReadyWaitingMessage, "secret/"+secretName.Name)))
+				novav1.InputReadyWaitingMessage, "secret/"+secretName.Name))
 			return "",
 				ctrl.Result{RequeueAfter: requeueTimeout},
 				*secret,
@@ -572,6 +573,7 @@ func hashOfStringMap(input map[string]string) (string, error) {
 	return util.ObjectHash(keyValues)
 }
 
+// GetSecret defines an interface for objects that can provide a secret name
 type GetSecret interface {
 	GetSecret() string
 	client.Object
@@ -750,6 +752,7 @@ func ensureMemcached(
 	return memcached, err
 }
 
+// SortNovaCellListByName sorts a NovaCellList by name in ascending order
 func SortNovaCellListByName(cellList *novav1.NovaCellList) {
 	sort.SliceStable(cellList.Items, func(i, j int) bool {
 		return cellList.Items[i].Name < cellList.Items[j].Name

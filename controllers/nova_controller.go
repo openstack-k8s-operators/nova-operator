@@ -688,7 +688,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 				cr.Spec.CellName, apiTransportURL,
 				secret, apiDB, cellDBs[novav1.Cell0Name].Database.GetDatabaseHostname(), cells[novav1.Cell0Name])
 			if err != nil {
-				deleteErrs = append(deleteErrs, fmt.Errorf("Cell '%s' deletion failed, because: %w", cr.Spec.CellName, err))
+				deleteErrs = append(deleteErrs, fmt.Errorf("cell '%s' deletion failed, because: %w", cr.Spec.CellName, err))
 			}
 			if result == nova.CellDeleteComplete {
 				Log.Info("Cell deleted", "cell", cr.Spec.CellName)
@@ -1029,7 +1029,7 @@ func (r *NovaReconciler) ensureNovaManageJobSecret(
 	)
 
 	var tlsCfg *tls.Service
-	if instance.Spec.APIServiceTemplate.TLS.Ca.CaBundleSecretName != "" {
+	if instance.Spec.APIServiceTemplate.TLS.CaBundleSecretName != "" {
 		tlsCfg = &tls.Service{}
 	}
 
@@ -1604,7 +1604,7 @@ func (r *NovaReconciler) ensureDBDeletion(
 	for _, novaDb := range novaDbs {
 		dbName, accountName := novaDb[0], novaDb[1]
 
-		err := mariadbv1.DeleteDatabaseAndAccountFinalizers(ctx, h, dbName, accountName, instance.ObjectMeta.Namespace)
+		err := mariadbv1.DeleteDatabaseAndAccountFinalizers(ctx, h, dbName, accountName, instance.Namespace)
 		if err != nil {
 			return err
 		}
