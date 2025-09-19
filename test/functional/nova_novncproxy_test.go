@@ -1366,10 +1366,10 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 
 			memcachedSpec := infra.GetDefaultMemcachedSpec()
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
+			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
 			DeferCleanup(th.DeleteInstance, CreateNovaNoVNCProxy(cell1.NoVNCProxyName, spec))
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreateDefaultCellInternalSecret(cell1))
-			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
 		})
 		It("sets lastAppliedTopology field in NovaNoVNCProxy topology .Status", func() {
 			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
