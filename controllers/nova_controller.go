@@ -262,10 +262,6 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	}
 	instance.Status.Conditions.MarkTrue(condition.InputReadyCondition, condition.InputReadyMessage)
 
-	_, err = ensureMemcached(ctx, h, instance.Namespace, instance.Spec.MemcachedInstance, &instance.Status.Conditions)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
 	err = r.ensureKeystoneServiceUser(ctx, h, instance)
 	if err != nil {
 		return ctrl.Result{}, err
@@ -361,6 +357,11 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	} else { // we have no DB in failed or creating status so all DB is ready
 		instance.Status.Conditions.MarkTrue(
 			novav1.NovaAllCellsDBReadyCondition, novav1.NovaAllCellsDBReadyMessage)
+	}
+
+	_, err = ensureMemcached(ctx, h, instance.Namespace, instance.Spec.MemcachedInstance, &instance.Status.Conditions)
+	if err != nil {
+		return ctrl.Result{}, err
 	}
 
 	// Create TransportURLs to access the message buses of each cell. Cell0
