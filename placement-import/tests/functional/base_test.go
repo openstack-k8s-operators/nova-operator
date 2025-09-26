@@ -112,26 +112,26 @@ func CreateNames(placementAPIName types.NamespacedName) Names {
 	}
 }
 
-func GetDefaultPlacementAPISpec() map[string]interface{} {
-	return map[string]interface{}{
+func GetDefaultPlacementAPISpec() map[string]any {
+	return map[string]any{
 		"databaseInstance": "openstack",
 		"secret":           SecretName,
 		"databaseAccount":  AccountName,
 	}
 }
 
-func GetTLSPlacementAPISpec(names Names) map[string]interface{} {
-	return map[string]interface{}{
+func GetTLSPlacementAPISpec(names Names) map[string]any {
+	return map[string]any{
 		"databaseInstance": "openstack",
 		"replicas":         1,
 		"secret":           SecretName,
 		"databaseAccount":  AccountName,
-		"tls": map[string]interface{}{
-			"api": map[string]interface{}{
-				"internal": map[string]interface{}{
+		"tls": map[string]any{
+			"api": map[string]any{
+				"internal": map[string]any{
 					"secretName": names.InternalCertSecretName.Name,
 				},
-				"public": map[string]interface{}{
+				"public": map[string]any{
 					"secretName": names.PublicCertSecretName.Name,
 				},
 			},
@@ -140,12 +140,12 @@ func GetTLSPlacementAPISpec(names Names) map[string]interface{} {
 	}
 }
 
-func CreatePlacementAPI(name types.NamespacedName, spec map[string]interface{}) client.Object {
+func CreatePlacementAPI(name types.NamespacedName, spec map[string]any) client.Object {
 
-	raw := map[string]interface{}{
+	raw := map[string]any{
 		"apiVersion": "placement.openstack.org/v1beta1",
 		"kind":       "PlacementAPI",
-		"metadata": map[string]interface{}{
+		"metadata": map[string]any{
 			"name":      name.Name,
 			"namespace": name.Namespace,
 		},
@@ -185,16 +185,16 @@ func PlacementConditionGetter(name types.NamespacedName) condition.Conditions {
 // want to avoid by default
 // 2. Usually a topologySpreadConstraints is used to take care about
 // multi AZ, which is not applicable in this context
-func GetSampleTopologySpec(label string) (map[string]interface{}, []corev1.TopologySpreadConstraint) {
+func GetSampleTopologySpec(label string) (map[string]any, []corev1.TopologySpreadConstraint) {
 	// Build the topology Spec
-	topologySpec := map[string]interface{}{
-		"topologySpreadConstraints": []map[string]interface{}{
+	topologySpec := map[string]any{
+		"topologySpreadConstraints": []map[string]any{
 			{
 				"maxSkew":           1,
 				"topologyKey":       corev1.LabelHostname,
 				"whenUnsatisfiable": "ScheduleAnyway",
-				"labelSelector": map[string]interface{}{
-					"matchLabels": map[string]interface{}{
+				"labelSelector": map[string]any{
+					"matchLabels": map[string]any{
 						"service":  placement.ServiceName,
 						"topology": label,
 					},

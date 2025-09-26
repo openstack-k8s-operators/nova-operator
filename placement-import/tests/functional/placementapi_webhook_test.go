@@ -82,14 +82,14 @@ var _ = Describe("PlacementAPI Webhook", func() {
 
 	It("rejects PlacementAPI with wrong defaultConfigOverwrite", func() {
 		spec := GetDefaultPlacementAPISpec()
-		spec["defaultConfigOverwrite"] = map[string]interface{}{
+		spec["defaultConfigOverwrite"] = map[string]any{
 			"policy.yaml":   "support",
 			"api-paste.ini": "not supported",
 		}
-		raw := map[string]interface{}{
+		raw := map[string]any{
 			"apiVersion": "placement.openstack.org/v1beta1",
 			"kind":       "PlacementAPI",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      placementAPIName.Name,
 				"namespace": placementAPIName.Namespace,
 			},
@@ -114,17 +114,17 @@ var _ = Describe("PlacementAPI Webhook", func() {
 
 	It("rejects with wrong service override endpoint type", func() {
 		spec := GetDefaultPlacementAPISpec()
-		spec["override"] = map[string]interface{}{
-			"service": map[string]interface{}{
-				"internal": map[string]interface{}{},
-				"wrooong":  map[string]interface{}{},
+		spec["override"] = map[string]any{
+			"service": map[string]any{
+				"internal": map[string]any{},
+				"wrooong":  map[string]any{},
 			},
 		}
 
-		raw := map[string]interface{}{
+		raw := map[string]any{
 			"apiVersion": "placement.openstack.org/v1beta1",
 			"kind":       "PlacementAPI",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      placementAPIName.Name,
 				"namespace": placementAPIName.Namespace,
 			},
@@ -194,14 +194,14 @@ var _ = Describe("PlacementAPI Webhook", func() {
 	It("rejects a wrong TopologyRef on a different namespace", func() {
 		spec := GetDefaultPlacementAPISpec()
 		// Inject a topologyRef that points to a different namespace
-		spec["topologyRef"] = map[string]interface{}{
+		spec["topologyRef"] = map[string]any{
 			"name":      "foo",
 			"namespace": "bar",
 		}
-		raw := map[string]interface{}{
+		raw := map[string]any{
 			"apiVersion": "placement.openstack.org/v1beta1",
 			"kind":       "PlacementAPI",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      placementAPIName.Name,
 				"namespace": placementAPIName.Namespace,
 			},

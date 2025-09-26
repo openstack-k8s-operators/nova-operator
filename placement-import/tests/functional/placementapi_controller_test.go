@@ -248,7 +248,7 @@ var _ = Describe("PlacementAPI controller", func() {
 		BeforeEach(func() {
 			spec := GetDefaultPlacementAPISpec()
 			spec["customServiceConfig"] = "foo = bar"
-			spec["defaultConfigOverwrite"] = map[string]interface{}{
+			spec["defaultConfigOverwrite"] = map[string]any{
 				"policy.yaml": "\"placement:resource_providers:list\": \"!\"",
 			}
 			DeferCleanup(th.DeleteInstance, CreatePlacementAPI(names.PlacementAPIName, spec))
@@ -667,8 +667,8 @@ var _ = Describe("PlacementAPI controller", func() {
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(namespace))
 
 			spec := GetDefaultPlacementAPISpec()
-			serviceOverride := map[string]interface{}{}
-			serviceOverride["internal"] = map[string]interface{}{
+			serviceOverride := map[string]any{}
+			serviceOverride["internal"] = map[string]any{
 				"metadata": map[string]map[string]string{
 					"annotations": {
 						"dnsmasq.network.openstack.org/hostname": "placement-internal.openstack.svc",
@@ -681,12 +681,12 @@ var _ = Describe("PlacementAPI controller", func() {
 						"service":  "placement",
 					},
 				},
-				"spec": map[string]interface{}{
+				"spec": map[string]any{
 					"type": "LoadBalancer",
 				},
 			}
 
-			spec["override"] = map[string]interface{}{
+			spec["override"] = map[string]any{
 				"service": serviceOverride,
 			}
 
@@ -754,12 +754,12 @@ var _ = Describe("PlacementAPI controller", func() {
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(namespace))
 
 			spec := GetDefaultPlacementAPISpec()
-			serviceOverride := map[string]interface{}{}
-			serviceOverride["public"] = map[string]interface{}{
+			serviceOverride := map[string]any{}
+			serviceOverride["public"] = map[string]any{
 				"endpointURL": "http://placement-openstack.apps-crc.testing",
 			}
 
-			spec["override"] = map[string]interface{}{
+			spec["override"] = map[string]any{
 				"service": serviceOverride,
 			}
 
@@ -996,7 +996,7 @@ var _ = Describe("PlacementAPI controller", func() {
 	When("A PlacementAPI is created with a wrong topologyref", func() {
 		BeforeEach(func() {
 			spec := GetDefaultPlacementAPISpec()
-			spec["topologyRef"] = map[string]interface{}{
+			spec["topologyRef"] = map[string]any{
 				"name": "foo",
 			}
 			placement := CreatePlacementAPI(names.PlacementAPIName, spec)
@@ -1041,7 +1041,7 @@ var _ = Describe("PlacementAPI controller", func() {
 				infra.CreateTopology(t, topologySpec)
 			}
 			spec := GetDefaultPlacementAPISpec()
-			spec["topologyRef"] = map[string]interface{}{
+			spec["topologyRef"] = map[string]any{
 				"name": topologyRef.Name,
 			}
 			placement := CreatePlacementAPI(names.PlacementAPIName, spec)
@@ -1166,7 +1166,7 @@ var _ = Describe("PlacementAPI controller", func() {
 	When("A PlacementAPI is created with nodeSelector", func() {
 		BeforeEach(func() {
 			spec := GetDefaultPlacementAPISpec()
-			spec["nodeSelector"] = map[string]interface{}{
+			spec["nodeSelector"] = map[string]any{
 				"foo": "bar",
 			}
 

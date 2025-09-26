@@ -20,6 +20,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"maps"
 	"time"
 
 	"k8s.io/apimachinery/pkg/fields"
@@ -69,7 +70,7 @@ import (
 
 type conditionUpdater interface {
 	Set(c *condition.Condition)
-	MarkTrue(t condition.Type, messageFormat string, messageArgs ...interface{})
+	MarkTrue(t condition.Type, messageFormat string, messageArgs ...any)
 }
 
 // GetSecret interface defines methods for objects that can provide secret names
@@ -1336,9 +1337,7 @@ func (r *PlacementAPIReconciler) generateServiceConfigMaps(
 		common.CustomServiceConfigFileName: instance.Spec.CustomServiceConfig,
 		"my.cnf":                           db.GetDatabaseClientConfig(tlsCfg), //(mschuppert) for now just get the default my.cnf
 	}
-	for key, data := range instance.Spec.DefaultConfigOverwrite {
-		customData[key] = data
-	}
+	maps.Copy(customData, instance.Spec.DefaultConfigOverwrite)
 
 	keystoneAPI, err := keystonev1.GetKeystoneAPI(ctx, h, instance.Namespace, map[string]string{})
 	if err != nil {
@@ -1356,7 +1355,7 @@ func (r *PlacementAPIReconciler) generateServiceConfigMaps(
 	databaseAccount := db.GetAccount()
 	dbSecret := db.GetSecret()
 
-	templateParameters := map[string]interface{}{
+	templateParameters := map[string]any{
 		"ServiceUser":         instance.Spec.ServiceUser,
 		"KeystoneInternalURL": keystoneInternalURL,
 		"KeystonePublicURL":   keystonePublicURL,
@@ -1371,9 +1370,9 @@ func (r *PlacementAPIReconciler) generateServiceConfigMaps(
 	}
 
 	// create httpd  vhost template parameters
-	httpdVhostConfig := map[string]interface{}{}
+	httpdVhostConfig := map[string]any{}
 	for _, endpt := range []service.Endpoint{service.EndpointInternal, service.EndpointPublic} {
-		endptConfig := map[string]interface{}{}
+		endptConfig := map[string]any{}
 		endptConfig["ServerName"] = fmt.Sprintf("placement-%s.%s.svc", endpt.String(), instance.Namespace)
 		endptConfig["TLS"] = false // default TLS to false, and set it bellow to true if enabled
 		if instance.Spec.TLS.API.Enabled(endpt) {
