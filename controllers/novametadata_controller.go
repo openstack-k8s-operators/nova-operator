@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"maps"
 	"net/url"
 
 	v1 "k8s.io/api/apps/v1"
@@ -486,7 +487,7 @@ func (r *NovaMetadataReconciler) generateConfigs(
 
 	}
 
-	templateParameters := map[string]interface{}{
+	templateParameters := map[string]any{
 		"service_name":             novametadata.ServiceName,
 		"keystone_internal_url":    instance.Spec.KeystoneAuthURL,
 		"nova_keystone_user":       instance.Spec.ServiceUser,
@@ -560,9 +561,7 @@ func (r *NovaMetadataReconciler) generateConfigs(
 	if instance.Spec.CustomServiceConfig != "" {
 		extraData["02-nova-override.conf"] = instance.Spec.CustomServiceConfig
 	}
-	for key, data := range instance.Spec.DefaultConfigOverwrite {
-		extraData[key] = data
-	}
+	maps.Copy(extraData, instance.Spec.DefaultConfigOverwrite)
 
 	cmLabels := labels.GetLabels(
 		instance, labels.GetGroupLabel(NovaMetadataLabelPrefix), map[string]string{},
@@ -873,7 +872,7 @@ func (r *NovaMetadataReconciler) generateNeutronConfigs(
 	// 1. avoid the work needed to teach cells to neutron
 	// 2. avoid the need to synchronize the shared secret between nova- and
 	//    neutron-operator externally
-	templateParameters := map[string]interface{}{
+	templateParameters := map[string]any{
 		"nova_metadata_host":           endpointURL.Hostname(),
 		"nova_metadata_port":           endpointURL.Port(),
 		"nova_metadata_protocol":       endpointURL.Scheme,

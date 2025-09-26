@@ -236,7 +236,7 @@ var _ = Describe("Nova reconfiguration", func() {
 	})
 
 	When("Nova CR instance is created with topology that is later removed", func() {
-		var topologySpec map[string]interface{}
+		var topologySpec map[string]any
 		var defaultTopologyRef topologyv1.TopoRef
 		BeforeEach(func() {
 			// Create Test Topologies

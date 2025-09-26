@@ -189,10 +189,10 @@ var _ = Describe("NovaCell controller", func() {
 			)
 
 			spec := GetDefaultNovaCellSpec(cell1)
-			spec["metadataServiceTemplate"] = map[string]interface{}{
+			spec["metadataServiceTemplate"] = map[string]any{
 				"enabled": true,
 			}
-			spec["novaComputeTemplates"] = map[string]interface{}{
+			spec["novaComputeTemplates"] = map[string]any{
 				ironicComputeName: GetDefaultNovaComputeTemplate(),
 			}
 			DeferCleanup(th.DeleteInstance, CreateNovaCell(cell1.CellCRName, spec))
@@ -573,7 +573,7 @@ var _ = Describe("NovaCell controller", func() {
 				CreateMetadataCellInternalSecret(cell2),
 			)
 			spec := GetDefaultNovaCellSpec(cell2)
-			spec["noVNCProxyServiceTemplate"] = map[string]interface{}{
+			spec["noVNCProxyServiceTemplate"] = map[string]any{
 				"enabled": false,
 			}
 			DeferCleanup(th.DeleteInstance, CreateNovaCell(cell2.CellCRName, spec))
@@ -1017,7 +1017,7 @@ var _ = Describe("NovaCell controller", func() {
 			DeferCleanup(k8sClient.Delete, ctx, CreateMetadataCellInternalSecret(cell1))
 
 			spec := GetDefaultNovaCellSpec(cell1)
-			spec["metadataServiceTemplate"] = map[string]interface{}{
+			spec["metadataServiceTemplate"] = map[string]any{
 				"enabled": true,
 			}
 			DeferCleanup(th.DeleteInstance, CreateNovaCell(cell1.CellCRName, spec))
@@ -1121,10 +1121,10 @@ var _ = Describe("NovaCell controller webhook", func() {
 		DeferCleanup(k8sClient.Delete, ctx, CreateDefaultCellInternalSecret(cell))
 
 		spec := GetDefaultNovaCellSpec(cell)
-		rawObj := map[string]interface{}{
+		rawObj := map[string]any{
 			"apiVersion": "nova.openstack.org/v1beta1",
 			"kind":       "NovaCell",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      cell.CellCRName.Name,
 				"namespace": cell.CellCRName.Namespace,
 			},

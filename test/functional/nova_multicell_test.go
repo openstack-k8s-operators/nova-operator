@@ -80,10 +80,10 @@ var _ = Describe("Nova multi cell", func() {
 			cell1Template["cellDatabaseInstance"] = cell1.MariaDBDatabaseName.Name
 			cell1Template["cellDatabaseAccount"] = cell1.MariaDBAccountName.Name
 			cell1Template["cellMessageBusInstance"] = cell1.TransportURLName.Name
-			cell1Template["passwordSelectors"] = map[string]interface{}{
+			cell1Template["passwordSelectors"] = map[string]any{
 				"database": "NovaCell1DatabasePassword",
 			}
-			cell1Template["novaComputeTemplates"] = map[string]interface{}{
+			cell1Template["novaComputeTemplates"] = map[string]any{
 				ironicComputeName: GetDefaultNovaComputeTemplate(),
 			}
 			cell1Memcached := "memcached1"
@@ -94,11 +94,11 @@ var _ = Describe("Nova multi cell", func() {
 			cell2Template["cellDatabaseAccount"] = cell2.MariaDBAccountName.Name
 			cell2Template["cellMessageBusInstance"] = cell2.TransportURLName.Name
 			cell2Template["hasAPIAccess"] = false
-			cell2Template["passwordSelectors"] = map[string]interface{}{
+			cell2Template["passwordSelectors"] = map[string]any{
 				"database": "NovaCell2DatabasePassword",
 			}
 
-			spec["cellTemplates"] = map[string]interface{}{
+			spec["cellTemplates"] = map[string]any{
 				"cell0": cell0Template,
 				"cell1": cell1Template,
 				"cell2": cell2Template,
@@ -665,7 +665,7 @@ var _ = Describe("Nova multi cell", func() {
 			cell0Template["cellDatabaseAccount"] = cell0.MariaDBAccountName.Name
 			cell0Template["hasAPIAccess"] = true
 			// disable cell0 conductor
-			cell0Template["conductorServiceTemplate"] = map[string]interface{}{
+			cell0Template["conductorServiceTemplate"] = map[string]any{
 				"replicas": 0,
 			}
 
@@ -678,7 +678,7 @@ var _ = Describe("Nova multi cell", func() {
 			cell1Template["cellMessageBusInstance"] = cell0.TransportURLName.Name
 			cell1Template["hasAPIAccess"] = true
 
-			spec["cellTemplates"] = map[string]interface{}{
+			spec["cellTemplates"] = map[string]any{
 				"cell0": cell0Template,
 				"cell1": cell1Template,
 			}
@@ -792,7 +792,7 @@ var _ = Describe("Nova multi cell", func() {
 			cell1Template["cellDatabaseAccount"] = cell1.MariaDBAccountName.Name
 			cell1Template["cellMessageBusInstance"] = cell1.TransportURLName.Name
 
-			spec["cellTemplates"] = map[string]interface{}{
+			spec["cellTemplates"] = map[string]any{
 				"cell0": cell0Template,
 				"cell1": cell1Template,
 			}
@@ -850,15 +850,15 @@ var _ = Describe("Nova multi cell", func() {
 			cell1Template["cellDatabaseInstance"] = cell1.MariaDBDatabaseName.Name
 			cell1Template["cellDatabaseAccount"] = cell1.MariaDBAccountName.Name
 			cell1Template["cellMessageBusInstance"] = cell1.TransportURLName.Name
-			cell1Template["metadataServiceTemplate"] = map[string]interface{}{
+			cell1Template["metadataServiceTemplate"] = map[string]any{
 				"enabled": true,
 			}
 
-			spec["cellTemplates"] = map[string]interface{}{
+			spec["cellTemplates"] = map[string]any{
 				"cell0": cell0Template,
 				"cell1": cell1Template,
 			}
-			spec["metadataServiceTemplate"] = map[string]interface{}{
+			spec["metadataServiceTemplate"] = map[string]any{
 				"enabled": false,
 			}
 			spec["apiDatabaseInstance"] = novaNames.APIMariaDBDatabaseName.Name

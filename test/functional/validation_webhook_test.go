@@ -32,49 +32,49 @@ import (
 // Entries used to test topology validation webhook at different levels
 var (
 	topLevelEntry = Entry("top-level topologyRef", func() (
-		map[string]interface{}, string, string) {
+		map[string]any, string, string) {
 		spec := GetDefaultNovaSpec()
 		cell0 := GetDefaultNovaCellTemplate()
-		spec["cellTemplates"] = map[string]interface{}{"cell0": cell0}
+		spec["cellTemplates"] = map[string]any{"cell0": cell0}
 		return spec, "Nova", novaNames.NovaName.Name
 	})
 	apiEntry = Entry("api sub CR", func() (
-		map[string]interface{}, string, string) {
+		map[string]any, string, string) {
 		spec := GetDefaultNovaAPISpec(novaNames)
 		return spec, "NovaAPI", novaNames.APIName.Name
 	})
 	schedulerEntry = Entry("scheduler sub CR", func() (
-		map[string]interface{}, string, string) {
+		map[string]any, string, string) {
 		spec := GetDefaultNovaSchedulerSpec(novaNames)
 		return spec, "NovaScheduler", novaNames.SchedulerName.Name
 	})
 	metadataEntry = Entry("metadata sub CR", func() (
-		map[string]interface{}, string, string) {
+		map[string]any, string, string) {
 		spec := GetDefaultNovaMetadataSpec(novaNames.MetadataName)
 		return spec, "NovaMetadata", novaNames.MetadataName.Name
 	})
 	cellEntry = Entry("cell0 topologyRef", func() (
-		map[string]interface{}, string, string) {
+		map[string]any, string, string) {
 		spec := GetDefaultNovaCellTemplate()
 		return spec, "NovaCell", cell0.CellName
 	})
 	cell0MetadataEntry = Entry("cell0 metadata topologyRef", func() (
-		map[string]interface{}, string, string) {
+		map[string]any, string, string) {
 		spec := GetDefaultNovaMetadataSpec(cell0.MetadataName)
 		return spec, "NovaMetadata", cell0.ConductorName.Name
 	})
 	cell0ConductorEntry = Entry("cell0 conductor topologyRef", func() (
-		map[string]interface{}, string, string) {
+		map[string]any, string, string) {
 		spec := GetDefaultNovaConductorSpec(cell0)
 		return spec, "NovaConductor", cell0.ConductorName.Name
 	})
 	cell0NoVNCProxyEntry = Entry("cell0 NoVNCProxy topologyRef", func() (
-		map[string]interface{}, string, string) {
+		map[string]any, string, string) {
 		spec := GetDefaultNovaNoVNCProxySpec(cell0)
 		return spec, "NovaNoVNCProxy", cell0.NoVNCProxyName.Name
 	})
 	cell0ComputeEntry = Entry("cell0 compute topologyRef", func() (
-		map[string]interface{}, string, string) {
+		map[string]any, string, string) {
 		spec := GetDefaultNovaComputeSpec(cell0)
 		return spec, "NovaCompute", cell0.NovaComputeName.Name
 	})
@@ -83,24 +83,24 @@ var (
 var _ = Describe("Nova validation", func() {
 	It("rejects Nova with metadata in cell0", func() {
 		spec := GetDefaultNovaSpec()
-		spec["metadataServiceTemplate"] = map[string]interface{}{
+		spec["metadataServiceTemplate"] = map[string]any{
 			"enabled": false,
 		}
 		cell0Template := GetDefaultNovaCellTemplate()
-		cell0Template["metadataServiceTemplate"] = map[string]interface{}{
+		cell0Template["metadataServiceTemplate"] = map[string]any{
 			"enabled": true,
 		}
 
-		spec["cellTemplates"] = map[string]interface{}{
+		spec["cellTemplates"] = map[string]any{
 			"cell0": cell0Template,
 			// note that this is intentional to test that metadata 1 is allowed
 			// in cell1 but not in cell0
 			"cell1": cell0Template,
 		}
-		raw := map[string]interface{}{
+		raw := map[string]any{
 			"apiVersion": "nova.openstack.org/v1beta1",
 			"kind":       "Nova",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      novaNames.NovaName.Name,
 				"namespace": novaNames.Namespace,
 			},
@@ -123,13 +123,13 @@ var _ = Describe("Nova validation", func() {
 	})
 	It("rejects NovaCell with metadata in cell0", func() {
 		spec := GetDefaultNovaCellSpec(cell0)
-		spec["metadataServiceTemplate"] = map[string]interface{}{
+		spec["metadataServiceTemplate"] = map[string]any{
 			"enabled": true,
 		}
-		raw := map[string]interface{}{
+		raw := map[string]any{
 			"apiVersion": "nova.openstack.org/v1beta1",
 			"kind":       "NovaCell",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      cell0.CellCRName.Name,
 				"namespace": novaNames.Namespace,
 			},
@@ -153,20 +153,20 @@ var _ = Describe("Nova validation", func() {
 	It("rejects Nova with NoVNCProxy in cell0", func() {
 		spec := GetDefaultNovaSpec()
 		cell0Template := GetDefaultNovaCellTemplate()
-		cell0Template["noVNCProxyServiceTemplate"] = map[string]interface{}{
+		cell0Template["noVNCProxyServiceTemplate"] = map[string]any{
 			"enabled": true,
 		}
 
-		spec["cellTemplates"] = map[string]interface{}{
+		spec["cellTemplates"] = map[string]any{
 			"cell0": cell0Template,
 			// note that this is intentional to test that novncproxy is allowed
 			// in cell1 but not in cell0
 			"cell1": cell0Template,
 		}
-		raw := map[string]interface{}{
+		raw := map[string]any{
 			"apiVersion": "nova.openstack.org/v1beta1",
 			"kind":       "Nova",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      novaNames.NovaName.Name,
 				"namespace": novaNames.Namespace,
 			},
@@ -189,13 +189,13 @@ var _ = Describe("Nova validation", func() {
 	})
 	It("rejects NovaCell with NoVNCProxy in cell0", func() {
 		spec := GetDefaultNovaCellSpec(cell0)
-		spec["noVNCProxyServiceTemplate"] = map[string]interface{}{
+		spec["noVNCProxyServiceTemplate"] = map[string]any{
 			"enabled": true,
 		}
-		raw := map[string]interface{}{
+		raw := map[string]any{
 			"apiVersion": "nova.openstack.org/v1beta1",
 			"kind":       "NovaCell",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      cell0.CellCRName.Name,
 				"namespace": novaNames.Namespace,
 			},
@@ -219,15 +219,15 @@ var _ = Describe("Nova validation", func() {
 	It("rejects Nova with too long cell name", func() {
 		spec := GetDefaultNovaSpec()
 		cell0Template := GetDefaultNovaCellTemplate()
-		spec["cellTemplates"] = map[string]interface{}{
+		spec["cellTemplates"] = map[string]any{
 			"cell0": cell0Template,
 			// the limit is 35 chars, this is 5 + 31
 			"cell1" + strings.Repeat("x", 31): cell0Template,
 		}
-		raw := map[string]interface{}{
+		raw := map[string]any{
 			"apiVersion": "nova.openstack.org/v1beta1",
 			"kind":       "Nova",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      novaNames.NovaName.Name,
 				"namespace": novaNames.Namespace,
 			},
@@ -252,15 +252,15 @@ var _ = Describe("Nova validation", func() {
 	DescribeTable("rejects Nova with wrong cell name format", func(cellName string) {
 		spec := GetDefaultNovaSpec()
 		cell0Template := GetDefaultNovaCellTemplate()
-		spec["cellTemplates"] = map[string]interface{}{
+		spec["cellTemplates"] = map[string]any{
 			"cell0": cell0Template,
 			// the limit is 35 chars, this is 5 + 31
 			cellName: cell0Template,
 		}
-		raw := map[string]interface{}{
+		raw := map[string]any{
 			"apiVersion": "nova.openstack.org/v1beta1",
 			"kind":       "Nova",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      novaNames.NovaName.Name,
 				"namespace": novaNames.Namespace,
 			},
@@ -290,10 +290,10 @@ var _ = Describe("Nova validation", func() {
 	It("rejects NovaCell with too long cell name", func() {
 		cell := GetCellNames(novaNames.NovaName, "cell1"+strings.Repeat("x", 31))
 		spec := GetDefaultNovaCellSpec(cell)
-		raw := map[string]interface{}{
+		raw := map[string]any{
 			"apiVersion": "nova.openstack.org/v1beta1",
 			"kind":       "NovaCell",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      cell0.CellCRName.Name,
 				"namespace": novaNames.Namespace,
 			},
@@ -316,24 +316,24 @@ var _ = Describe("Nova validation", func() {
 	})
 	It("rejects Nova with multiple errors", func() {
 		spec := GetDefaultNovaSpec()
-		spec["metadataServiceTemplate"] = map[string]interface{}{
+		spec["metadataServiceTemplate"] = map[string]any{
 			"enabled": false,
 		}
 		cell0Template := GetDefaultNovaCellTemplate()
-		cell0Template["metadataServiceTemplate"] = map[string]interface{}{
+		cell0Template["metadataServiceTemplate"] = map[string]any{
 			"enabled": true,
 		}
 
-		spec["cellTemplates"] = map[string]interface{}{
+		spec["cellTemplates"] = map[string]any{
 			// error: this is cell0 with metadata
 			"cell0": cell0Template,
 			// error: this is a too long cell name
 			"cell1" + strings.Repeat("x", 31): cell0Template,
 		}
-		raw := map[string]interface{}{
+		raw := map[string]any{
 			"apiVersion": "nova.openstack.org/v1beta1",
 			"kind":       "Nova",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      novaNames.NovaName.Name,
 				"namespace": novaNames.Namespace,
 			},
@@ -369,15 +369,15 @@ var _ = Describe("Nova validation", func() {
 		spec := GetDefaultNovaSpec()
 		cell1Template := GetDefaultNovaCellTemplate()
 
-		spec["cellTemplates"] = map[string]interface{}{
+		spec["cellTemplates"] = map[string]any{
 			// We explicitly not define cell0 template to trigger the
 			// validation
 			"cell1": cell1Template,
 		}
-		raw := map[string]interface{}{
+		raw := map[string]any{
 			"apiVersion": "nova.openstack.org/v1beta1",
 			"kind":       "Nova",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      novaNames.NovaName.Name,
 				"namespace": novaNames.Namespace,
 			},
@@ -401,14 +401,14 @@ var _ = Describe("Nova validation", func() {
 	It("rejects Nova if cell0 contains novacomputetemplates", func() {
 		spec := GetDefaultNovaSpec()
 		cell0 := GetDefaultNovaCellTemplate()
-		cell0["novaComputeTemplates"] = map[string]interface{}{
+		cell0["novaComputeTemplates"] = map[string]any{
 			ironicComputeName: GetDefaultNovaComputeTemplate(),
 		}
-		spec["cellTemplates"] = map[string]interface{}{"cell0": cell0}
-		raw := map[string]interface{}{
+		spec["cellTemplates"] = map[string]any{"cell0": cell0}
+		raw := map[string]any{
 			"apiVersion": "nova.openstack.org/v1beta1",
 			"kind":       "Nova",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      novaNames.NovaName.Name,
 				"namespace": novaNames.Namespace,
 			},
@@ -434,14 +434,14 @@ var _ = Describe("Nova validation", func() {
 		spec := GetDefaultNovaSpec()
 		cell0 := GetDefaultNovaCellTemplate()
 		cell1 := GetDefaultNovaCellTemplate()
-		cell1["novaComputeTemplates"] = map[string]interface{}{
+		cell1["novaComputeTemplates"] = map[string]any{
 			ironicComputeName + strings.Repeat("x", 31): GetDefaultNovaComputeTemplate(),
 		}
-		spec["cellTemplates"] = map[string]interface{}{"cell0": cell0, "cell1": cell1}
-		raw := map[string]interface{}{
+		spec["cellTemplates"] = map[string]any{"cell0": cell0, "cell1": cell1}
+		raw := map[string]any{
 			"apiVersion": "nova.openstack.org/v1beta1",
 			"kind":       "Nova",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      novaNames.NovaName.Name,
 				"namespace": novaNames.Namespace,
 			},
@@ -470,14 +470,14 @@ var _ = Describe("Nova validation", func() {
 		cell1 := GetDefaultNovaCellTemplate()
 		novaCompute := GetDefaultNovaComputeTemplate()
 		novaCompute["replicas"] = nil
-		cell1["novaComputeTemplates"] = map[string]interface{}{
+		cell1["novaComputeTemplates"] = map[string]any{
 			ironicComputeName: novaCompute,
 		}
-		spec["cellTemplates"] = map[string]interface{}{"cell0": cell0, "cell1": cell1}
-		raw := map[string]interface{}{
+		spec["cellTemplates"] = map[string]any{"cell0": cell0, "cell1": cell1}
+		raw := map[string]any{
 			"apiVersion": "nova.openstack.org/v1beta1",
 			"kind":       "Nova",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      novaNames.NovaName.Name,
 				"namespace": novaNames.Namespace,
 			},
@@ -495,14 +495,14 @@ var _ = Describe("Nova validation", func() {
 		cell1 := GetDefaultNovaCellTemplate()
 		novaCompute := GetDefaultNovaComputeTemplate()
 		novaCompute["replicas"] = 2
-		cell1["novaComputeTemplates"] = map[string]interface{}{
+		cell1["novaComputeTemplates"] = map[string]any{
 			ironicComputeName: novaCompute,
 		}
-		spec["cellTemplates"] = map[string]interface{}{"cell0": cell0, "cell1": cell1}
-		raw := map[string]interface{}{
+		spec["cellTemplates"] = map[string]any{"cell0": cell0, "cell1": cell1}
+		raw := map[string]any{
 			"apiVersion": "nova.openstack.org/v1beta1",
 			"kind":       "Nova",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      novaNames.NovaName.Name,
 				"namespace": novaNames.Namespace,
 			},
@@ -528,13 +528,13 @@ var _ = Describe("Nova validation", func() {
 	})
 	It("rejects NovaCell - cell0 contains novacomputetemplates", func() {
 		spec := GetDefaultNovaCellSpec(cell0)
-		spec["novaComputeTemplates"] = map[string]interface{}{
+		spec["novaComputeTemplates"] = map[string]any{
 			ironicComputeName: GetDefaultNovaComputeTemplate(),
 		}
-		raw := map[string]interface{}{
+		raw := map[string]any{
 			"apiVersion": "nova.openstack.org/v1beta1",
 			"kind":       "NovaCell",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      cell0.CellCRName.Name,
 				"namespace": novaNames.Namespace,
 			},
@@ -557,13 +557,13 @@ var _ = Describe("Nova validation", func() {
 	})
 	It("rejects NovaCell with too long compute name", func() {
 		spec := GetDefaultNovaCellSpec(cell1)
-		spec["novaComputeTemplates"] = map[string]interface{}{
+		spec["novaComputeTemplates"] = map[string]any{
 			ironicComputeName + strings.Repeat("x", 31): GetDefaultNovaComputeTemplate(),
 		}
-		raw := map[string]interface{}{
+		raw := map[string]any{
 			"apiVersion": "nova.openstack.org/v1beta1",
 			"kind":       "NovaCell",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      cell1.CellCRName.Name,
 				"namespace": novaNames.Namespace,
 			},
@@ -587,13 +587,13 @@ var _ = Describe("Nova validation", func() {
 	})
 	DescribeTable("rejects NovaCell with wrong compute name", func(computeName string) {
 		spec := GetDefaultNovaCellSpec(cell1)
-		spec["novaComputeTemplates"] = map[string]interface{}{
+		spec["novaComputeTemplates"] = map[string]any{
 			computeName: GetDefaultNovaComputeTemplate(),
 		}
-		raw := map[string]interface{}{
+		raw := map[string]any{
 			"apiVersion": "nova.openstack.org/v1beta1",
 			"kind":       "NovaCell",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      cell1.CellCRName.Name,
 				"namespace": novaNames.Namespace,
 			},
@@ -621,23 +621,23 @@ var _ = Describe("Nova validation", func() {
 	)
 	It("rejects Nova with metadata both on top and in cells", func() {
 		spec := GetDefaultNovaSpec()
-		spec["metadataServiceTemplate"] = map[string]interface{}{
+		spec["metadataServiceTemplate"] = map[string]any{
 			"enabled": true,
 		}
 		cell0Template := GetDefaultNovaCellTemplate()
 		cell1Template := GetDefaultNovaCellTemplate()
-		cell1Template["metadataServiceTemplate"] = map[string]interface{}{
+		cell1Template["metadataServiceTemplate"] = map[string]any{
 			"enabled": true,
 		}
 
-		spec["cellTemplates"] = map[string]interface{}{
+		spec["cellTemplates"] = map[string]any{
 			"cell0": cell0Template,
 			"cell1": cell1Template,
 		}
-		raw := map[string]interface{}{
+		raw := map[string]any{
 			"apiVersion": "nova.openstack.org/v1beta1",
 			"kind":       "Nova",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      novaNames.NovaName.Name,
 				"namespace": novaNames.Namespace,
 			},
@@ -669,11 +669,11 @@ var _ = Describe("Nova validation", func() {
 		cell2 := GetDefaultNovaCellTemplate()
 		cell1["cellMessageBusInstance"] = "rabbitmq-of-caerbannog"
 		cell2["cellMessageBusInstance"] = "rabbitmq-of-caerbannog"
-		spec["cellTemplates"] = map[string]interface{}{"cell0": cell0, "cell1": cell1, "cell2": cell2}
-		raw := map[string]interface{}{
+		spec["cellTemplates"] = map[string]any{"cell0": cell0, "cell1": cell1, "cell2": cell2}
+		raw := map[string]any{
 			"apiVersion": "nova.openstack.org/v1beta1",
 			"kind":       "Nova",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      novaNames.NovaName.Name,
 				"namespace": novaNames.Namespace,
 			},
@@ -695,15 +695,15 @@ var _ = Describe("Nova validation", func() {
 	})
 	It("rejects NovaAPI with wrong defaultConfigOverwrite", func() {
 		spec := GetDefaultNovaAPISpec(novaNames)
-		spec["defaultConfigOverwrite"] = map[string]interface{}{
+		spec["defaultConfigOverwrite"] = map[string]any{
 			"policy.yaml":   "custom policy",
 			"api-paste.ini": "custom paste config",
 			"foo.conf":      "wrong custom config",
 		}
-		raw := map[string]interface{}{
+		raw := map[string]any{
 			"apiVersion": "nova.openstack.org/v1beta1",
 			"kind":       "NovaAPI",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      novaNames.APIName.Name,
 				"namespace": novaNames.Namespace,
 			},
@@ -728,20 +728,20 @@ var _ = Describe("Nova validation", func() {
 	})
 	It("rejects Nova with wrong defaultConfigOverwrite in NovaAPI", func() {
 		spec := GetDefaultNovaSpec()
-		spec["cellTemplates"] = map[string]interface{}{
+		spec["cellTemplates"] = map[string]any{
 			"cell0": GetDefaultNovaCellTemplate(),
 		}
-		spec["apiServiceTemplate"] = map[string]interface{}{
-			"defaultConfigOverwrite": map[string]interface{}{
+		spec["apiServiceTemplate"] = map[string]any{
+			"defaultConfigOverwrite": map[string]any{
 				"policy.yaml":   "custom policy",
 				"api-paste.ini": "custom paste config",
 				"provider.yaml": "provider.yaml not supported here",
 			},
 		}
-		raw := map[string]interface{}{
+		raw := map[string]any{
 			"apiVersion": "nova.openstack.org/v1beta1",
 			"kind":       "Nova",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      novaNames.NovaName.Name,
 				"namespace": novaNames.Namespace,
 			},
@@ -766,14 +766,14 @@ var _ = Describe("Nova validation", func() {
 
 	It("rejects NovaMetadata with wrong defaultConfigOverwrite", func() {
 		spec := GetDefaultNovaMetadataSpec(novaNames.InternalTopLevelSecretName)
-		spec["defaultConfigOverwrite"] = map[string]interface{}{
+		spec["defaultConfigOverwrite"] = map[string]any{
 			"policy.yaml":   "custom policy not supported",
 			"api-paste.ini": "custom paste config",
 		}
-		raw := map[string]interface{}{
+		raw := map[string]any{
 			"apiVersion": "nova.openstack.org/v1beta1",
 			"kind":       "NovaMetadata",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      novaNames.MetadataName.Name,
 				"namespace": novaNames.Namespace,
 			},
@@ -798,19 +798,19 @@ var _ = Describe("Nova validation", func() {
 	})
 	It("rejects Nova with wrong defaultConfigOverwrite in top level NovaMetadata", func() {
 		spec := GetDefaultNovaSpec()
-		spec["cellTemplates"] = map[string]interface{}{
+		spec["cellTemplates"] = map[string]any{
 			"cell0": GetDefaultNovaCellTemplate(),
 		}
-		spec["metadataServiceTemplate"] = map[string]interface{}{
-			"defaultConfigOverwrite": map[string]interface{}{
+		spec["metadataServiceTemplate"] = map[string]any{
+			"defaultConfigOverwrite": map[string]any{
 				"policy.yaml":   "custom policy not supported",
 				"api-paste.ini": "custom paste config",
 			},
 		}
-		raw := map[string]interface{}{
+		raw := map[string]any{
 			"apiVersion": "nova.openstack.org/v1beta1",
 			"kind":       "Nova",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      novaNames.NovaName.Name,
 				"namespace": novaNames.Namespace,
 			},
@@ -835,20 +835,20 @@ var _ = Describe("Nova validation", func() {
 	It("rejects Nova with wrong defaultConfigOverwrite in cell level NovaMetadata", func() {
 		spec := GetDefaultNovaSpec()
 		cell1 := GetDefaultNovaCellTemplate()
-		cell1["metadataServiceTemplate"] = map[string]interface{}{
-			"defaultConfigOverwrite": map[string]interface{}{
+		cell1["metadataServiceTemplate"] = map[string]any{
+			"defaultConfigOverwrite": map[string]any{
 				"policy.yaml":   "custom policy not supported",
 				"api-paste.ini": "custom paste config",
 			},
 		}
-		spec["cellTemplates"] = map[string]interface{}{
+		spec["cellTemplates"] = map[string]any{
 			"cell0": GetDefaultNovaCellTemplate(),
 			"cell1": cell1,
 		}
-		raw := map[string]interface{}{
+		raw := map[string]any{
 			"apiVersion": "nova.openstack.org/v1beta1",
 			"kind":       "Nova",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      novaNames.NovaName.Name,
 				"namespace": novaNames.Namespace,
 			},
@@ -872,14 +872,14 @@ var _ = Describe("Nova validation", func() {
 	})
 	It("rejects NovaCompute with wrong defaultConfigOverwrite", func() {
 		spec := GetDefaultNovaComputeSpec(cell1)
-		spec["defaultConfigOverwrite"] = map[string]interface{}{
+		spec["defaultConfigOverwrite"] = map[string]any{
 			"policy.yaml":      "custom policy not supported",
 			"provider123.yaml": "provider*.yaml is supported",
 		}
-		raw := map[string]interface{}{
+		raw := map[string]any{
 			"apiVersion": "nova.openstack.org/v1beta1",
 			"kind":       "NovaCompute",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      cell1.NovaComputeName.Name,
 				"namespace": novaNames.Namespace,
 			},
@@ -905,18 +905,18 @@ var _ = Describe("Nova validation", func() {
 	It("rejects NovaCell with wrong defaultConfigOverwrite in computeTemplates", func() {
 		spec := GetDefaultNovaCellSpec(cell1)
 		novaCompute := GetDefaultNovaComputeTemplate()
-		novaCompute["defaultConfigOverwrite"] = map[string]interface{}{
+		novaCompute["defaultConfigOverwrite"] = map[string]any{
 			"policy.yaml":      "custom policy not supported",
 			"provider123.yaml": "provider*.yaml is supported",
 		}
-		spec["novaComputeTemplates"] = map[string]interface{}{
+		spec["novaComputeTemplates"] = map[string]any{
 			ironicComputeName: novaCompute,
 		}
 
-		raw := map[string]interface{}{
+		raw := map[string]any{
 			"apiVersion": "nova.openstack.org/v1beta1",
 			"kind":       "NovaCell",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      cell1.CellCRName.Name,
 				"namespace": novaNames.Namespace,
 			},
@@ -944,18 +944,18 @@ var _ = Describe("Nova validation", func() {
 		cell0 := GetDefaultNovaCellTemplate()
 		cell1 := GetDefaultNovaCellTemplate()
 		novaCompute := GetDefaultNovaComputeTemplate()
-		novaCompute["defaultConfigOverwrite"] = map[string]interface{}{
+		novaCompute["defaultConfigOverwrite"] = map[string]any{
 			"policy.yaml":      "custom policy not supported",
 			"provider123.yaml": "provider*.yaml is supported",
 		}
-		cell1["novaComputeTemplates"] = map[string]interface{}{
+		cell1["novaComputeTemplates"] = map[string]any{
 			ironicComputeName: novaCompute,
 		}
-		spec["cellTemplates"] = map[string]interface{}{"cell0": cell0, "cell1": cell1}
-		raw := map[string]interface{}{
+		spec["cellTemplates"] = map[string]any{"cell0": cell0, "cell1": cell1}
+		raw := map[string]any{
 			"apiVersion": "nova.openstack.org/v1beta1",
 			"kind":       "Nova",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      novaNames.NovaName.Name,
 				"namespace": novaNames.Namespace,
 			},
@@ -980,13 +980,13 @@ var _ = Describe("Nova validation", func() {
 	})
 	It("rejects NovaConductor with wrong dbPurge.Schedule", func() {
 		spec := GetDefaultNovaConductorSpec(cell1)
-		spec["dbPurge"] = map[string]interface{}{
+		spec["dbPurge"] = map[string]any{
 			"schedule": "* * * *",
 		}
-		raw := map[string]interface{}{
+		raw := map[string]any{
 			"apiVersion": "nova.openstack.org/v1beta1",
 			"kind":       "NovaConductor",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      cell1.ConductorName.Name,
 				"namespace": novaNames.Namespace,
 			},
@@ -1012,14 +1012,14 @@ var _ = Describe("Nova validation", func() {
 	It("rejects NovaCell with wrong dbPurge.Schedule", func() {
 		spec := GetDefaultNovaCellSpec(cell1)
 
-		spec["dbPurge"] = map[string]interface{}{
+		spec["dbPurge"] = map[string]any{
 			"schedule": "* * * * * 1",
 		}
 
-		raw := map[string]interface{}{
+		raw := map[string]any{
 			"apiVersion": "nova.openstack.org/v1beta1",
 			"kind":       "NovaCell",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      cell1.CellCRName.Name,
 				"namespace": novaNames.Namespace,
 			},
@@ -1046,14 +1046,14 @@ var _ = Describe("Nova validation", func() {
 		spec := GetDefaultNovaSpec()
 		cell0 := GetDefaultNovaCellTemplate()
 		cell1 := GetDefaultNovaCellTemplate()
-		cell1["dbPurge"] = map[string]interface{}{
+		cell1["dbPurge"] = map[string]any{
 			"schedule": "@dailyX",
 		}
-		spec["cellTemplates"] = map[string]interface{}{"cell0": cell0, "cell1": cell1}
-		raw := map[string]interface{}{
+		spec["cellTemplates"] = map[string]any{"cell0": cell0, "cell1": cell1}
+		raw := map[string]any{
 			"apiVersion": "nova.openstack.org/v1beta1",
 			"kind":       "Nova",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      novaNames.NovaName.Name,
 				"namespace": novaNames.Namespace,
 			},
@@ -1079,16 +1079,16 @@ var _ = Describe("Nova validation", func() {
 
 	It("rejects NovaAPI wrong service override endpoint type", func() {
 		spec := GetDefaultNovaAPISpec(novaNames)
-		spec["override"] = map[string]interface{}{
-			"service": map[string]interface{}{
-				"internal": map[string]interface{}{},
-				"wrooong":  map[string]interface{}{},
+		spec["override"] = map[string]any{
+			"service": map[string]any{
+				"internal": map[string]any{},
+				"wrooong":  map[string]any{},
 			},
 		}
-		raw := map[string]interface{}{
+		raw := map[string]any{
 			"apiVersion": "nova.openstack.org/v1beta1",
 			"kind":       "NovaAPI",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      novaNames.APIName.Name,
 				"namespace": novaNames.Namespace,
 			},
@@ -1111,21 +1111,21 @@ var _ = Describe("Nova validation", func() {
 	})
 	It("rejects Nova with wrong service override endpoint type in NovaAPI", func() {
 		spec := GetDefaultNovaSpec()
-		spec["cellTemplates"] = map[string]interface{}{
+		spec["cellTemplates"] = map[string]any{
 			"cell0": GetDefaultNovaCellTemplate(),
 		}
-		spec["apiServiceTemplate"] = map[string]interface{}{
-			"override": map[string]interface{}{
-				"service": map[string]interface{}{
-					"internal": map[string]interface{}{},
-					"wrooong":  map[string]interface{}{},
+		spec["apiServiceTemplate"] = map[string]any{
+			"override": map[string]any{
+				"service": map[string]any{
+					"internal": map[string]any{},
+					"wrooong":  map[string]any{},
 				},
 			},
 		}
-		raw := map[string]interface{}{
+		raw := map[string]any{
 			"apiVersion": "nova.openstack.org/v1beta1",
 			"kind":       "Nova",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      novaNames.NovaName.Name,
 				"namespace": novaNames.Namespace,
 			},
@@ -1147,15 +1147,15 @@ var _ = Describe("Nova validation", func() {
 		)
 	})
 	DescribeTable("rejects wrong topology for",
-		func(serviceNameFunc func() (map[string]interface{}, string, string)) {
+		func(serviceNameFunc func() (map[string]any, string, string)) {
 			expectedErrorMessage := "spec.topologyRef.namespace: Invalid value: \"namespace\": Customizing namespace field is not supported"
 
 			spec, kind, name := serviceNameFunc()
-			spec["topologyRef"] = map[string]interface{}{"name": "foo", "namespace": "bar"}
-			raw := map[string]interface{}{
+			spec["topologyRef"] = map[string]any{"name": "foo", "namespace": "bar"}
+			raw := map[string]any{
 				"apiVersion": "nova.openstack.org/v1beta1",
 				"kind":       kind,
-				"metadata": map[string]interface{}{
+				"metadata": map[string]any{
 					"name":      name,
 					"namespace": novaNames.Namespace,
 				},

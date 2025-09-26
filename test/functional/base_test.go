@@ -54,8 +54,8 @@ const (
 	MemcachedInstance  = "memcached"
 )
 
-func GetDefaultNovaAPISpec(novaNames NovaNames) map[string]interface{} {
-	return map[string]interface{}{
+func GetDefaultNovaAPISpec(novaNames NovaNames) map[string]any {
+	return map[string]any{
 		"secret":                novaNames.InternalTopLevelSecretName.Name,
 		"apiDatabaseHostname":   "nova-api-db-hostname",
 		"cell0DatabaseHostname": "nova-cell0-db-hostname",
@@ -70,11 +70,11 @@ func GetDefaultNovaAPISpec(novaNames NovaNames) map[string]interface{} {
 	}
 }
 
-func CreateNovaAPI(name types.NamespacedName, spec map[string]interface{}) client.Object {
-	raw := map[string]interface{}{
+func CreateNovaAPI(name types.NamespacedName, spec map[string]any) client.Object {
+	raw := map[string]any{
 		"apiVersion": "nova.openstack.org/v1beta1",
 		"kind":       "NovaAPI",
-		"metadata": map[string]interface{}{
+		"metadata": map[string]any{
 			"name":      name.Name,
 			"namespace": name.Namespace,
 		},
@@ -110,28 +110,28 @@ func NovaSchedulerConditionGetter(name types.NamespacedName) condition.Condition
 	return instance.Status.Conditions
 }
 
-func GetDefaultNovaSpec() map[string]interface{} {
-	return map[string]interface{}{
+func GetDefaultNovaSpec() map[string]any {
+	return map[string]any{
 		"secret":                SecretName,
-		"cellTemplates":         map[string]interface{}{},
+		"cellTemplates":         map[string]any{},
 		"apiMessageBusInstance": cell0.TransportURLName.Name,
 		"apiDatabaseAccount":    novaNames.APIMariaDBDatabaseAccount.Name,
 	}
 }
 
-func GetDefaultNovaCellTemplate() map[string]interface{} {
-	return map[string]interface{}{
+func GetDefaultNovaCellTemplate() map[string]any {
+	return map[string]any{
 		"cellDatabaseAccount": cell0.MariaDBAccountName.Name,
 		"hasAPIAccess":        true,
 		"apiDatabaseAccount":  novaNames.APIMariaDBDatabaseAccount.Name,
 	}
 }
 
-func CreateNova(name types.NamespacedName, spec map[string]interface{}) client.Object {
-	raw := map[string]interface{}{
+func CreateNova(name types.NamespacedName, spec map[string]any) client.Object {
+	raw := map[string]any{
 		"apiVersion": "nova.openstack.org/v1beta1",
 		"kind":       "Nova",
-		"metadata": map[string]interface{}{
+		"metadata": map[string]any{
 			"name":      name.Name,
 			"namespace": name.Namespace,
 		},
@@ -141,22 +141,22 @@ func CreateNova(name types.NamespacedName, spec map[string]interface{}) client.O
 }
 
 func CreateNovaWithCell0(name types.NamespacedName) client.Object {
-	rawNova := map[string]interface{}{
+	rawNova := map[string]any{
 		"apiVersion": "nova.openstack.org/v1beta1",
 		"kind":       "Nova",
-		"metadata": map[string]interface{}{
+		"metadata": map[string]any{
 			"name":      name.Name,
 			"namespace": name.Namespace,
 		},
-		"spec": map[string]interface{}{
+		"spec": map[string]any{
 			"secret":             SecretName,
 			"apiDatabaseAccount": novaNames.APIMariaDBDatabaseAccount.Name,
-			"cellTemplates": map[string]interface{}{
-				"cell0": map[string]interface{}{
+			"cellTemplates": map[string]any{
+				"cell0": map[string]any{
 					"cellDatabaseAccount": cell0.MariaDBAccountName.Name,
 					"apiDatabaseAccount":  novaNames.APIMariaDBDatabaseAccount.Name,
 					"hasAPIAccess":        true,
-					"dbPurge": map[string]interface{}{
+					"dbPurge": map[string]any{
 						"schedule": "1 0 * * *",
 					},
 				},
@@ -181,8 +181,8 @@ func NovaConditionGetter(name types.NamespacedName) condition.Conditions {
 	return instance.Status.Conditions
 }
 
-func GetDefaultNovaConductorSpec(cell CellNames) map[string]interface{} {
-	return map[string]interface{}{
+func GetDefaultNovaConductorSpec(cell CellNames) map[string]any {
+	return map[string]any{
 		"cellName":            cell.CellName,
 		"secret":              cell.InternalCellSecretName.Name,
 		"apiDatabaseAccount":  novaNames.APIMariaDBDatabaseAccount.Name,
@@ -195,11 +195,11 @@ func GetDefaultNovaConductorSpec(cell CellNames) map[string]interface{} {
 	}
 }
 
-func CreateNovaConductor(name types.NamespacedName, spec map[string]interface{}) client.Object {
-	raw := map[string]interface{}{
+func CreateNovaConductor(name types.NamespacedName, spec map[string]any) client.Object {
+	raw := map[string]any{
 		"apiVersion": "nova.openstack.org/v1beta1",
 		"kind":       "NovaConductor",
-		"metadata": map[string]interface{}{
+		"metadata": map[string]any{
 			"name":      name.Name,
 			"namespace": name.Namespace,
 		},
@@ -227,7 +227,7 @@ func CreateNovaMessageBusSecret(cell CellNames) *corev1.Secret {
 			Namespace: cell.CellCRName.Namespace,
 			Name:      fmt.Sprintf("%s-secret", cell.TransportURLName.Name)},
 		map[string][]byte{
-			"transport_url": []byte(fmt.Sprintf("rabbit://%s/fake", cell.CellName)),
+			"transport_url": fmt.Appendf(nil, "rabbit://%s/fake", cell.CellName),
 		},
 	)
 	logger.Info("Secret created", "name", s.Name)
@@ -240,15 +240,15 @@ func CreateNotificationTransportURLSecret(notificationsBus NotificationsBusNames
 			Namespace: novaNames.NovaName.Namespace,
 			Name:      fmt.Sprintf("%s-secret", notificationsBus.BusName)},
 		map[string][]byte{
-			"transport_url": []byte(fmt.Sprintf("rabbit://%s/fake", notificationsBus.TransportURLName.Name)),
+			"transport_url": fmt.Appendf(nil, "rabbit://%s/fake", notificationsBus.TransportURLName.Name),
 		},
 	)
 	logger.Info("Secret created", "name", s.Name)
 	return s
 }
 
-func GetDefaultNovaCellSpec(cell CellNames) map[string]interface{} {
-	return map[string]interface{}{
+func GetDefaultNovaCellSpec(cell CellNames) map[string]any {
+	return map[string]any{
 		"cellName":             cell.CellName,
 		"secret":               cell.InternalCellSecretName.Name,
 		"apiDatabaseAccount":   novaNames.APIMariaDBDatabaseAccount.Name,
@@ -260,12 +260,12 @@ func GetDefaultNovaCellSpec(cell CellNames) map[string]interface{} {
 	}
 }
 
-func CreateNovaCell(name types.NamespacedName, spec map[string]interface{}) client.Object {
+func CreateNovaCell(name types.NamespacedName, spec map[string]any) client.Object {
 
-	raw := map[string]interface{}{
+	raw := map[string]any{
 		"apiVersion": "nova.openstack.org/v1beta1",
 		"kind":       "NovaCell",
-		"metadata": map[string]interface{}{
+		"metadata": map[string]any{
 			"name":      name.Name,
 			"namespace": name.Namespace,
 		},
@@ -305,8 +305,8 @@ func CreateNovaSecret(namespace string, name string) *corev1.Secret {
 	)
 }
 
-func GetDefaultNovaSchedulerSpec(novaNames NovaNames) map[string]interface{} {
-	return map[string]interface{}{
+func GetDefaultNovaSchedulerSpec(novaNames NovaNames) map[string]any {
+	return map[string]any{
 		"secret":                novaNames.InternalTopLevelSecretName.Name,
 		"apiDatabaseAccount":    novaNames.APIMariaDBDatabaseAccount.Name,
 		"apiDatabaseHostname":   "nova-api-db-hostname",
@@ -320,11 +320,11 @@ func GetDefaultNovaSchedulerSpec(novaNames NovaNames) map[string]interface{} {
 	}
 }
 
-func CreateNovaScheduler(name types.NamespacedName, spec map[string]interface{}) client.Object {
-	raw := map[string]interface{}{
+func CreateNovaScheduler(name types.NamespacedName, spec map[string]any) client.Object {
+	raw := map[string]any{
 		"apiVersion": "nova.openstack.org/v1beta1",
 		"kind":       "NovaScheduler",
-		"metadata": map[string]interface{}{
+		"metadata": map[string]any{
 			"name":      name.Name,
 			"namespace": name.Namespace,
 		},
@@ -688,11 +688,11 @@ func GetNovaNames(novaName types.NamespacedName, cellNames []string) NovaNames {
 	}
 }
 
-func CreateNovaMetadata(name types.NamespacedName, spec map[string]interface{}) client.Object {
-	raw := map[string]interface{}{
+func CreateNovaMetadata(name types.NamespacedName, spec map[string]any) client.Object {
+	raw := map[string]any{
 		"apiVersion": "nova.openstack.org/v1beta1",
 		"kind":       "NovaMetadata",
-		"metadata": map[string]interface{}{
+		"metadata": map[string]any{
 			"name":      name.Name,
 			"namespace": name.Namespace,
 		},
@@ -726,8 +726,8 @@ func CreateInternalTopLevelSecret(novaNames NovaNames) *corev1.Secret {
 	)
 }
 
-func GetDefaultNovaMetadataSpec(secretName types.NamespacedName) map[string]interface{} {
-	return map[string]interface{}{
+func GetDefaultNovaMetadataSpec(secretName types.NamespacedName) map[string]any {
+	return map[string]any{
 		"secret":               secretName.Name,
 		"apiDatabaseAccount":   novaNames.APIMariaDBDatabaseAccount.Name,
 		"apiDatabaseHostname":  "nova-api-db-hostname",
@@ -748,11 +748,11 @@ func AssertMetadataDoesNotExist(name types.NamespacedName) {
 	}, timeout, interval).Should(Succeed())
 }
 
-func CreateNovaNoVNCProxy(name types.NamespacedName, spec map[string]interface{}) client.Object {
-	raw := map[string]interface{}{
+func CreateNovaNoVNCProxy(name types.NamespacedName, spec map[string]any) client.Object {
+	raw := map[string]any{
 		"apiVersion": "nova.openstack.org/v1beta1",
 		"kind":       "NovaNoVNCProxy",
-		"metadata": map[string]interface{}{
+		"metadata": map[string]any{
 			"name":      name.Name,
 			"namespace": name.Namespace,
 		},
@@ -774,8 +774,8 @@ func GetNovaNoVNCProxy(name types.NamespacedName) *novav1.NovaNoVNCProxy {
 	return instance
 }
 
-func GetDefaultNovaNoVNCProxySpec(cell CellNames) map[string]interface{} {
-	return map[string]interface{}{
+func GetDefaultNovaNoVNCProxySpec(cell CellNames) map[string]any {
+	return map[string]any{
 		"secret":               cell.InternalCellSecretName.Name,
 		"apiDatabaseAccount":   novaNames.APIMariaDBDatabaseAccount.Name,
 		"cellDatabaseHostname": "nova-cell-db-hostname",
@@ -792,7 +792,7 @@ func CreateCellInternalSecret(cell CellNames, additionalValues map[string][]byte
 
 	secretMap := map[string][]byte{
 		"ServicePassword":            []byte("service-password"),
-		"transport_url":              []byte(fmt.Sprintf("rabbit://%s/fake", cell.CellName)),
+		"transport_url":              fmt.Appendf(nil, "rabbit://%s/fake", cell.CellName),
 		"notification_transport_url": []byte("rabbit://notifications/fake"),
 	}
 	// (ksambor) this can be replaced with maps.Copy directly from maps
@@ -823,11 +823,11 @@ func AssertNoVNCProxyDoesNotExist(name types.NamespacedName) {
 	}, timeout, interval).Should(Succeed())
 }
 
-func CreateNovaCompute(name types.NamespacedName, spec map[string]interface{}) client.Object {
-	raw := map[string]interface{}{
+func CreateNovaCompute(name types.NamespacedName, spec map[string]any) client.Object {
+	raw := map[string]any{
 		"apiVersion": "nova.openstack.org/v1beta1",
 		"kind":       "NovaCompute",
-		"metadata": map[string]interface{}{
+		"metadata": map[string]any{
 			"name":      name.Name,
 			"namespace": name.Namespace,
 		},
@@ -849,15 +849,15 @@ func NovaComputeConditionGetter(name types.NamespacedName) condition.Conditions 
 	return instance.Status.Conditions
 }
 
-func GetDefaultNovaComputeTemplate() map[string]interface{} {
-	return map[string]interface{}{
+func GetDefaultNovaComputeTemplate() map[string]any {
+	return map[string]any{
 		"computeDriver": novav1.IronicDriver,
 		"name":          ironicComputeName,
 	}
 }
 
-func GetDefaultNovaComputeSpec(cell CellNames) map[string]interface{} {
-	return map[string]interface{}{
+func GetDefaultNovaComputeSpec(cell CellNames) map[string]any {
+	return map[string]any{
 		"secret":               cell.InternalCellSecretName.Name,
 		"apiDatabaseAccount":   novaNames.APIMariaDBDatabaseAccount.Name,
 		"computeName":          "compute1",
@@ -924,16 +924,16 @@ func SimulateReadyOfNovaTopServices() {
 // test Nova components. It returns both the user input representation
 // in the form of map[string]string, and the Golang expected representation
 // used in the test asserts.
-func GetSampleTopologySpec(label string) (map[string]interface{}, []corev1.TopologySpreadConstraint) {
+func GetSampleTopologySpec(label string) (map[string]any, []corev1.TopologySpreadConstraint) {
 	// Build the topology Spec yaml representation
-	topologySpec := map[string]interface{}{
-		"topologySpreadConstraints": []map[string]interface{}{
+	topologySpec := map[string]any{
+		"topologySpreadConstraints": []map[string]any{
 			{
 				"maxSkew":           1,
 				"topologyKey":       corev1.LabelHostname,
 				"whenUnsatisfiable": "ScheduleAnyway",
-				"labelSelector": map[string]interface{}{
-					"matchLabels": map[string]interface{}{
+				"labelSelector": map[string]any{
+					"matchLabels": map[string]any{
 						"service": label,
 					},
 				},
@@ -988,7 +988,7 @@ func CreateNovaWithNCellsAndEnsureReady(cellNumber int, novaNames *NovaNames) {
 	}
 
 	serviceSpec := corev1.ServiceSpec{Ports: []corev1.ServicePort{{Port: 3306}}}
-	cellTemplates := make(map[string]interface{})
+	cellTemplates := make(map[string]any)
 
 	DeferCleanup(k8sClient.Delete, ctx, CreateNovaSecret(novaNames.NovaName.Namespace, SecretName))
 	DeferCleanup(
@@ -1000,7 +1000,7 @@ func CreateNovaWithNCellsAndEnsureReady(cellNumber int, novaNames *NovaNames) {
 	DeferCleanup(k8sClient.Delete, ctx, apiAccount)
 	DeferCleanup(k8sClient.Delete, ctx, apiSecret)
 
-	for i := 0; i < cellNumber; i++ {
+	for i := range cellNumber {
 		cellName := fmt.Sprintf("cell%d", i)
 		cell := novaNames.Cells[cellName]
 
@@ -1030,7 +1030,7 @@ func CreateNovaWithNCellsAndEnsureReady(cellNumber int, novaNames *NovaNames) {
 
 		if i == 1 {
 			// cell1
-			template["novaComputeTemplates"] = map[string]interface{}{
+			template["novaComputeTemplates"] = map[string]any{
 				ironicComputeName: GetDefaultNovaComputeTemplate(),
 			}
 		}
@@ -1063,7 +1063,7 @@ func CreateNovaWithNCellsAndEnsureReady(cellNumber int, novaNames *NovaNames) {
 	mariadb.SimulateMariaDBDatabaseCompleted(novaNames.APIMariaDBDatabaseName)
 	mariadb.SimulateMariaDBAccountCompleted(novaNames.APIMariaDBDatabaseAccount)
 
-	for i := 0; i < cellNumber; i++ {
+	for i := range cellNumber {
 		cell := novaNames.Cells[fmt.Sprintf("cell%d", i)]
 		mariadb.SimulateMariaDBDatabaseCompleted(cell.MariaDBDatabaseName)
 		mariadb.SimulateMariaDBAccountCompleted(cell.MariaDBAccountName)

@@ -450,7 +450,7 @@ func (r *NovaConductorReconciler) generateConfigs(
 	cellDatabaseAccount := cellDB.GetAccount()
 	cellDbSecret := cellDB.GetSecret()
 
-	templateParameters := map[string]interface{}{
+	templateParameters := map[string]any{
 		"service_name":               "nova-conductor",
 		"keystone_internal_url":      instance.Spec.KeystoneAuthURL,
 		"nova_keystone_user":         instance.Spec.ServiceUser,
