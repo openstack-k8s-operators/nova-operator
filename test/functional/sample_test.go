@@ -27,8 +27,8 @@ import (
 
 const SamplesDir = "../../config/samples/"
 
-func ReadSample(sampleFileName string) map[string]interface{} {
-	rawSample := make(map[string]interface{})
+func ReadSample(sampleFileName string) map[string]any {
+	rawSample := make(map[string]any)
 
 	bytes, err := os.ReadFile(filepath.Join(SamplesDir, sampleFileName)) // #nosec G304 -- Reading test sample files from controlled directory
 	Expect(err).ShouldNot(HaveOccurred())
@@ -39,14 +39,14 @@ func ReadSample(sampleFileName string) map[string]interface{} {
 
 func CreateNovaFromSample(sampleFileName string, name types.NamespacedName) types.NamespacedName {
 	raw := ReadSample(sampleFileName)
-	instance := CreateNova(name, raw["spec"].(map[string]interface{}))
+	instance := CreateNova(name, raw["spec"].(map[string]any))
 	DeferCleanup(th.DeleteInstance, instance)
 	return types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
 }
 
 func CreateNovaAPIFromSample(sampleFileName string, name types.NamespacedName) types.NamespacedName {
 	raw := ReadSample(sampleFileName)
-	instance := CreateNovaAPI(name, raw["spec"].(map[string]interface{}))
+	instance := CreateNovaAPI(name, raw["spec"].(map[string]any))
 	DeferCleanup(th.DeleteInstance, instance)
 	return types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
 }
@@ -55,7 +55,7 @@ func CreateNovaCellFromSample(sampleFileName string, name types.NamespacedName) 
 	raw := ReadSample(sampleFileName)
 	instance := CreateNovaCell(
 		name,
-		raw["spec"].(map[string]interface{}),
+		raw["spec"].(map[string]any),
 	)
 	DeferCleanup(th.DeleteInstance, instance)
 	return types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
@@ -63,7 +63,7 @@ func CreateNovaCellFromSample(sampleFileName string, name types.NamespacedName) 
 
 func CreateNovaConductorFromSample(sampleFileName string, name types.NamespacedName) types.NamespacedName {
 	raw := ReadSample(sampleFileName)
-	instance := CreateNovaConductor(name, raw["spec"].(map[string]interface{}))
+	instance := CreateNovaConductor(name, raw["spec"].(map[string]any))
 	DeferCleanup(th.DeleteInstance, instance)
 	return types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
 }

@@ -40,7 +40,7 @@ var _ = Describe("NovaCompute controller", func() {
 		BeforeEach(func() {
 			spec := GetDefaultNovaComputeSpec(cell1)
 			spec["customServiceConfig"] = "foo=bar"
-			spec["defaultConfigOverwrite"] = map[string]interface{}{
+			spec["defaultConfigOverwrite"] = map[string]any{
 				"provider1.yaml": `
 				providers:
 				    - identification:
@@ -643,7 +643,7 @@ var _ = Describe("NovaCompute with ironic diver controller", func() {
 	When("NovaCompute is created with TLS CA cert secret", func() {
 		BeforeEach(func() {
 			spec := GetDefaultNovaComputeSpec(cell1)
-			spec["tls"] = map[string]interface{}{
+			spec["tls"] = map[string]any{
 				"caBundleSecretName": novaNames.CaBundleSecretName.Name,
 			}
 			novaCompute := CreateNovaCompute(cell1.NovaComputeName, spec)

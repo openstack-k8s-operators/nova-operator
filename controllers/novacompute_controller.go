@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"maps"
 
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -359,7 +360,7 @@ func (r *NovaComputeReconciler) ensureConfigs(
 func (r *NovaComputeReconciler) generateConfigs(
 	ctx context.Context, h *helper.Helper, instance *novav1.NovaCompute, hashes *map[string]env.Setter, secret corev1.Secret,
 ) error {
-	templateParameters := map[string]interface{}{
+	templateParameters := map[string]any{
 		"service_name":               NovaComputeLabelPrefix,
 		"keystone_internal_url":      instance.Spec.KeystoneAuthURL,
 		"nova_keystone_user":         instance.Spec.ServiceUser,
@@ -379,9 +380,7 @@ func (r *NovaComputeReconciler) generateConfigs(
 	if instance.Spec.CustomServiceConfig != "" {
 		extraData["02-nova-override.conf"] = instance.Spec.CustomServiceConfig
 	}
-	for key, data := range instance.Spec.DefaultConfigOverwrite {
-		extraData[key] = data
-	}
+	maps.Copy(extraData, instance.Spec.DefaultConfigOverwrite)
 
 	cmLabels := labels.GetLabels(
 		instance, labels.GetGroupLabel(NovaComputeLabelPrefix), map[string]string{},

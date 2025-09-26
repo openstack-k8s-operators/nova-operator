@@ -60,7 +60,7 @@ var _ = Describe("NovaAPI controller", func() {
 		BeforeEach(func() {
 			spec := GetDefaultNovaAPISpec(novaNames)
 			spec["customServiceConfig"] = "foo=bar"
-			spec["defaultConfigOverwrite"] = map[string]interface{}{
+			spec["defaultConfigOverwrite"] = map[string]any{
 				"policy.yaml":   "\"os_compute_api:os-flavor-manage:create\": \"rule:project_member_or_admin\"",
 				"api-paste.ini": "pipeline = cors compute_req_id faultwrap request_log http_proxy_to_wsgi oscomputeversionapp_v2",
 			}
@@ -610,8 +610,8 @@ var _ = Describe("NovaAPI controller", func() {
 	When("NovaAPI is created with service override with endpointURL set", func() {
 		BeforeEach(func() {
 			spec := GetDefaultNovaAPISpec(novaNames)
-			serviceOverride := map[string]interface{}{}
-			serviceOverride["internal"] = map[string]interface{}{
+			serviceOverride := map[string]any{}
+			serviceOverride["internal"] = map[string]any{
 				"metadata": map[string]map[string]string{
 					"annotations": {
 						"dnsmasq.network.openstack.org/hostname": "nova-internal.openstack.svc",
@@ -624,11 +624,11 @@ var _ = Describe("NovaAPI controller", func() {
 						"service":  "nova",
 					},
 				},
-				"spec": map[string]interface{}{
+				"spec": map[string]any{
 					"type": "LoadBalancer",
 				},
 			}
-			serviceOverride["public"] = map[string]interface{}{
+			serviceOverride["public"] = map[string]any{
 				"endpointURL": "http://nova-api-" + novaNames.APIName.Namespace + ".apps-crc.testing",
 				"metadata": map[string]map[string]string{
 					"labels": {
@@ -637,7 +637,7 @@ var _ = Describe("NovaAPI controller", func() {
 				},
 			}
 
-			spec["override"] = map[string]interface{}{
+			spec["override"] = map[string]any{
 				"service": serviceOverride,
 			}
 
@@ -695,8 +695,8 @@ var _ = Describe("NovaAPI controller", func() {
 	When("NovaAPI is created with service override with no endpointURL set", func() {
 		BeforeEach(func() {
 			spec := GetDefaultNovaAPISpec(novaNames)
-			serviceOverride := map[string]interface{}{}
-			serviceOverride["internal"] = map[string]interface{}{
+			serviceOverride := map[string]any{}
+			serviceOverride["internal"] = map[string]any{
 				"metadata": map[string]map[string]string{
 					"annotations": {
 						"dnsmasq.network.openstack.org/hostname": "nova-internal.openstack.svc",
@@ -709,11 +709,11 @@ var _ = Describe("NovaAPI controller", func() {
 						"service":  "nova",
 					},
 				},
-				"spec": map[string]interface{}{
+				"spec": map[string]any{
 					"type": "LoadBalancer",
 				},
 			}
-			serviceOverride["public"] = map[string]interface{}{
+			serviceOverride["public"] = map[string]any{
 				"metadata": map[string]map[string]string{
 					"annotations": {
 						"dnsmasq.network.openstack.org/hostname": "nova-public.openstack.svc",
@@ -725,12 +725,12 @@ var _ = Describe("NovaAPI controller", func() {
 						"service": "nova-api",
 					},
 				},
-				"spec": map[string]interface{}{
+				"spec": map[string]any{
 					"type": "LoadBalancer",
 				},
 			}
 
-			spec["override"] = map[string]interface{}{
+			spec["override"] = map[string]any{
 				"service": serviceOverride,
 			}
 
@@ -995,12 +995,12 @@ var _ = Describe("NovaAPI controller", func() {
 	When("NovaAPI is created with TLS cert secrets", func() {
 		BeforeEach(func() {
 			spec := GetDefaultNovaAPISpec(novaNames)
-			spec["tls"] = map[string]interface{}{
-				"api": map[string]interface{}{
-					"internal": map[string]interface{}{
+			spec["tls"] = map[string]any{
+				"api": map[string]any{
+					"internal": map[string]any{
 						"secretName": novaNames.InternalCertSecretName.Name,
 					},
-					"public": map[string]interface{}{
+					"public": map[string]any{
 						"secretName": novaNames.PublicCertSecretName.Name,
 					},
 				},
@@ -1198,7 +1198,7 @@ var _ = Describe("NovaAPI controller", func() {
 		BeforeEach(func() {
 			spec := GetDefaultNovaAPISpec(novaNames)
 			// We reference a topology that does not exist in the current namespace
-			spec["topologyRef"] = map[string]interface{}{"name": "foo"}
+			spec["topologyRef"] = map[string]any{"name": "foo"}
 
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreateInternalTopLevelSecret(novaNames))
@@ -1225,7 +1225,7 @@ var _ = Describe("NovaAPI controller", func() {
 		var expectedTopologySpec []corev1.TopologySpreadConstraint
 		BeforeEach(func() {
 			// Build the topology Spec
-			var topologySpec map[string]interface{}
+			var topologySpec map[string]any
 			topologySpec, expectedTopologySpec = GetSampleTopologySpec(novaNames.APIName.Name)
 
 			// Create Test Topologies
@@ -1233,7 +1233,7 @@ var _ = Describe("NovaAPI controller", func() {
 			_, topologyRefAPI = infra.CreateTopology(novaNames.NovaTopologies[1], topologySpec)
 
 			spec := GetDefaultNovaAPISpec(novaNames)
-			spec["topologyRef"] = map[string]interface{}{"name": topologyRefAPI.Name}
+			spec["topologyRef"] = map[string]any{"name": topologyRefAPI.Name}
 
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreateInternalTopLevelSecret(novaNames))
@@ -1410,12 +1410,12 @@ var _ = Describe("NovaAPI controller", func() {
 	When("NovaAPI is configured for MTLS memcached auth", func() {
 		BeforeEach(func() {
 			spec := GetDefaultNovaAPISpec(novaNames)
-			spec["tls"] = map[string]interface{}{
-				"api": map[string]interface{}{
-					"internal": map[string]interface{}{
+			spec["tls"] = map[string]any{
+				"api": map[string]any{
+					"internal": map[string]any{
 						"secretName": novaNames.InternalCertSecretName.Name,
 					},
-					"public": map[string]interface{}{
+					"public": map[string]any{
 						"secretName": novaNames.PublicCertSecretName.Name,
 					},
 				},

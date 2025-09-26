@@ -68,7 +68,7 @@ var _ = Describe("NovaMetadata controller", func() {
 		BeforeEach(func() {
 			spec := GetDefaultNovaMetadataSpec(novaNames.InternalTopLevelSecretName)
 			spec["customServiceConfig"] = "foo=bar"
-			spec["defaultConfigOverwrite"] = map[string]interface{}{
+			spec["defaultConfigOverwrite"] = map[string]any{
 				"api-paste.ini": "pipeline = cors metaapp",
 			}
 
@@ -614,7 +614,7 @@ var _ = Describe("NovaMetadata controller", func() {
 				k8sClient.Delete, ctx, CreateInternalTopLevelSecret(novaNames))
 
 			spec := GetDefaultNovaMetadataSpec(novaNames.InternalTopLevelSecretName)
-			serviceOverride := map[string]interface{}{
+			serviceOverride := map[string]any{
 				"metadata": map[string]map[string]string{
 					"annotations": {
 						"metallb.universe.tf/address-pool":    "osp-internalapi",
@@ -626,12 +626,12 @@ var _ = Describe("NovaMetadata controller", func() {
 						"service":  "nova",
 					},
 				},
-				"spec": map[string]interface{}{
+				"spec": map[string]any{
 					"type": "LoadBalancer",
 				},
 			}
 
-			spec["override"] = map[string]interface{}{
+			spec["override"] = map[string]any{
 				"service": serviceOverride,
 			}
 
@@ -925,7 +925,7 @@ var _ = Describe("NovaMetadata controller", func() {
 				k8sClient.Delete, ctx, CreateInternalTopLevelSecret(novaNames))
 
 			spec := GetDefaultNovaMetadataSpec(novaNames.InternalTopLevelSecretName)
-			spec["tls"] = map[string]interface{}{
+			spec["tls"] = map[string]any{
 				"secretName":         ptr.To(novaNames.InternalCertSecretName.Name),
 				"caBundleSecretName": novaNames.CaBundleSecretName.Name,
 			}
@@ -1082,7 +1082,7 @@ var _ = Describe("NovaMetadata controller", func() {
 		BeforeEach(func() {
 			spec := GetDefaultNovaMetadataSpec(novaNames.InternalTopLevelSecretName)
 			// We reference a topology that does not exist in the current namespace
-			spec["topologyRef"] = map[string]interface{}{"name": "foo"}
+			spec["topologyRef"] = map[string]any{"name": "foo"}
 
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreateInternalTopLevelSecret(novaNames))
@@ -1109,14 +1109,14 @@ var _ = Describe("NovaMetadata controller", func() {
 		var expectedTopologySpec []corev1.TopologySpreadConstraint
 		BeforeEach(func() {
 			// Build the topology Spec
-			var topologySpec map[string]interface{}
+			var topologySpec map[string]any
 			topologySpec, expectedTopologySpec = GetSampleTopologySpec(novaNames.MetadataName.Name)
 			// Create Test Topologies
 			_, topologyRefAlt = infra.CreateTopology(novaNames.NovaTopologies[0], topologySpec)
 			_, topologyRefMeta = infra.CreateTopology(novaNames.NovaTopologies[3], topologySpec)
 
 			spec := GetDefaultNovaMetadataSpec(novaNames.InternalTopLevelSecretName)
-			spec["topologyRef"] = map[string]interface{}{"name": topologyRefMeta.Name}
+			spec["topologyRef"] = map[string]any{"name": topologyRefMeta.Name}
 
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreateInternalTopLevelSecret(novaNames))
@@ -1301,7 +1301,7 @@ var _ = Describe("NovaMetadata controller", func() {
 				k8sClient.Delete, ctx, CreateInternalTopLevelSecret(novaNames))
 
 			spec := GetDefaultNovaMetadataSpec(novaNames.InternalTopLevelSecretName)
-			spec["tls"] = map[string]interface{}{
+			spec["tls"] = map[string]any{
 				"secretName":         ptr.To(novaNames.InternalCertSecretName.Name),
 				"caBundleSecretName": novaNames.CaBundleSecretName.Name,
 			}
