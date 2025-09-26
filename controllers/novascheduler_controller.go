@@ -576,7 +576,7 @@ func (r *NovaSchedulerReconciler) generateConfigs(
 		return err
 	}
 
-	templateParameters := map[string]interface{}{
+	templateParameters := map[string]any{
 		"service_name":               "nova-scheduler",
 		"keystone_internal_url":      instance.Spec.KeystoneAuthURL,
 		"nova_keystone_user":         instance.Spec.ServiceUser,

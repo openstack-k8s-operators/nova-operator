@@ -20,6 +20,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"maps"
 	"net/url"
 	"sort"
 	"strconv"
@@ -268,7 +269,7 @@ func allSubConditionIsTrue(conditionsGetter conditionsGetter) bool {
 
 type conditionUpdater interface {
 	Set(c *condition.Condition)
-	MarkTrue(t condition.Type, messageFormat string, messageArgs ...interface{})
+	MarkTrue(t condition.Type, messageFormat string, messageArgs ...any)
 }
 
 func ensureSecret(
@@ -482,7 +483,7 @@ func (r *Reconcilers) OverrideRequeueTimeout(timeout time.Duration) {
 func (r *ReconcilerBase) generateConfigsGeneric(
 	ctx context.Context, h *helper.Helper,
 	instance client.Object, configName string, envVars *map[string]env.Setter,
-	templateParameters map[string]interface{},
+	templateParameters map[string]any,
 	extraData map[string]string, cmLabels map[string]string,
 	additionalTemplates map[string]string,
 	withScripts bool,
@@ -493,9 +494,7 @@ func (r *ReconcilerBase) generateConfigsGeneric(
 		"nova-blank.conf": "/nova-blank.conf",
 	}
 
-	for k, v := range additionalTemplates {
-		extraTemplates[k] = v
-	}
+	maps.Copy(extraTemplates, additionalTemplates)
 	cms := []util.Template{
 		{
 			Name:               configName,
@@ -527,7 +526,7 @@ func (r *ReconcilerBase) generateConfigsGeneric(
 func (r *ReconcilerBase) GenerateConfigs(
 	ctx context.Context, h *helper.Helper,
 	instance client.Object, configName string, envVars *map[string]env.Setter,
-	templateParameters map[string]interface{},
+	templateParameters map[string]any,
 	extraData map[string]string, cmLabels map[string]string,
 	additionalTemplates map[string]string,
 ) error {
@@ -542,7 +541,7 @@ func (r *ReconcilerBase) GenerateConfigs(
 func (r *ReconcilerBase) GenerateConfigsWithScripts(
 	ctx context.Context, h *helper.Helper,
 	instance client.Object, envVars *map[string]env.Setter,
-	templateParameters map[string]interface{},
+	templateParameters map[string]any,
 	extraData map[string]string, cmLabels map[string]string,
 	additionalTemplates map[string]string,
 ) error {

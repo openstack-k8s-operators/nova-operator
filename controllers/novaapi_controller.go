@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"maps"
 
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -487,7 +488,7 @@ func (r *NovaAPIReconciler) generateConfigs(
 		return err
 	}
 
-	templateParameters := map[string]interface{}{
+	templateParameters := map[string]any{
 		"service_name":          "nova-api",
 		"keystone_internal_url": instance.Spec.KeystoneAuthURL,
 		// NOTE(gibi): As per the definition of www_authenticate_uri this
@@ -518,9 +519,9 @@ func (r *NovaAPIReconciler) generateConfigs(
 		QuorumQueuesTemplateKey:      parseQuorumQueues(secret.Data[QuorumQueuesTemplateKey]),
 	}
 	// create httpd  vhost template parameters
-	httpdVhostConfig := map[string]interface{}{}
+	httpdVhostConfig := map[string]any{}
 	for _, endpt := range []service.Endpoint{service.EndpointInternal, service.EndpointPublic} {
-		endptConfig := map[string]interface{}{}
+		endptConfig := map[string]any{}
 		endptConfig["ServerName"] = fmt.Sprintf("nova-%s.%s.svc", endpt.String(), instance.Namespace)
 		endptConfig["tls"] = false // default TLS to false, and set it below to true if enabled
 		endptConfig["TimeOut"] = instance.Spec.APITimeout
@@ -554,9 +555,7 @@ func (r *NovaAPIReconciler) generateConfigs(
 	if instance.Spec.CustomServiceConfig != "" {
 		extraData["02-nova-override.conf"] = instance.Spec.CustomServiceConfig
 	}
-	for key, data := range instance.Spec.DefaultConfigOverwrite {
-		extraData[key] = data
-	}
+	maps.Copy(extraData, instance.Spec.DefaultConfigOverwrite)
 
 	cmLabels := labels.GetLabels(
 		instance, labels.GetGroupLabel(NovaAPILabelPrefix), map[string]string{},

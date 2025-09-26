@@ -940,7 +940,7 @@ var _ = Describe("Nova controller", func() {
 			spec := GetDefaultNovaSpec()
 			cell0template := GetDefaultNovaCellTemplate()
 			cell0template["cellDatabaseInstance"] = cell0.MariaDBDatabaseName.Name
-			spec["cellTemplates"] = map[string]interface{}{"cell0": cell0template}
+			spec["cellTemplates"] = map[string]any{"cell0": cell0template}
 			spec["apiDatabaseInstance"] = novaNames.APIMariaDBDatabaseName.Name
 
 			DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
@@ -1164,36 +1164,36 @@ var _ = Describe("Nova controller", func() {
 			nad := th.CreateNetworkAttachmentDefinition(novaNames.InternalAPINetworkNADName)
 			DeferCleanup(th.DeleteInstance, nad)
 
-			var externalEndpoints []interface{}
+			var externalEndpoints []any
 			externalEndpoints = append(
-				externalEndpoints, map[string]interface{}{
+				externalEndpoints, map[string]any{
 					"endpoint":        "internal",
 					"ipAddressPool":   "osp-internalapi",
 					"loadBalancerIPs": []string{"10.1.0.1", "10.1.0.2"},
 				},
 			)
-			rawSpec := map[string]interface{}{
+			rawSpec := map[string]any{
 				"secret":                SecretName,
 				"apiDatabaseAccount":    novaNames.APIMariaDBDatabaseAccount.Name,
 				"apiMessageBusInstance": cell0.TransportURLName.Name,
-				"cellTemplates": map[string]interface{}{
-					"cell0": map[string]interface{}{
+				"cellTemplates": map[string]any{
+					"cell0": map[string]any{
 						"apiDatabaseAccount":  novaNames.APIMariaDBDatabaseAccount.Name,
 						"cellDatabaseAccount": cell0.MariaDBAccountName.Name,
 						"hasAPIAccess":        true,
-						"conductorServiceTemplate": map[string]interface{}{
+						"conductorServiceTemplate": map[string]any{
 							"networkAttachments": []string{"internalapi"},
 						},
 					},
 				},
-				"apiServiceTemplate": map[string]interface{}{
+				"apiServiceTemplate": map[string]any{
 					"networkAttachments": []string{"internalapi"},
 					"externalEndpoints":  externalEndpoints,
 				},
-				"schedulerServiceTemplate": map[string]interface{}{
+				"schedulerServiceTemplate": map[string]any{
 					"networkAttachments": []string{"internalapi"},
 				},
-				"metadataServiceTemplate": map[string]interface{}{
+				"metadataServiceTemplate": map[string]any{
 					"networkAttachments": []string{"internalapi"},
 				},
 			}
@@ -1281,10 +1281,10 @@ var _ = Describe("Nova controller", func() {
 			spec := GetDefaultNovaSpec()
 			cell0template := GetDefaultNovaCellTemplate()
 			cell0template["cellDatabaseInstance"] = cell0.MariaDBDatabaseName.Name
-			spec["cellTemplates"] = map[string]interface{}{"cell0": cell0template}
+			spec["cellTemplates"] = map[string]any{"cell0": cell0template}
 			spec["apiDatabaseInstance"] = novaNames.APIMariaDBDatabaseName.Name
 			spec["apiDatabaseAccount"] = novaNames.APIMariaDBDatabaseAccount.Name
-			spec["topologyRef"] = map[string]interface{}{"name": "foo"}
+			spec["topologyRef"] = map[string]any{"name": "foo"}
 
 			DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
 
@@ -1357,12 +1357,12 @@ var _ = Describe("Nova controller", func() {
 			spec := GetDefaultNovaSpec()
 			cell0template := GetDefaultNovaCellTemplate()
 			cell0template["cellDatabaseInstance"] = cell0.MariaDBDatabaseName.Name
-			spec["cellTemplates"] = map[string]interface{}{"cell0": cell0template}
+			spec["cellTemplates"] = map[string]any{"cell0": cell0template}
 			spec["apiDatabaseInstance"] = novaNames.APIMariaDBDatabaseName.Name
 			spec["apiDatabaseAccount"] = novaNames.APIMariaDBDatabaseAccount.Name
 
 			// We reference the global topology and is inherited by the sub components
-			spec["topologyRef"] = map[string]interface{}{"name": topologyRef.Name}
+			spec["topologyRef"] = map[string]any{"name": topologyRef.Name}
 
 			DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
 
@@ -1472,23 +1472,23 @@ var _ = Describe("Nova controller", func() {
 			cell1Template["cellMessageBusInstance"] = cell1.TransportURLName.Name
 			// We reference the cell1 topology that is inherited by the cell1 conductor,
 			// metadata, and novncproxy
-			cell1Template["topologyRef"] = map[string]interface{}{"name": topologyRefCell.Name}
-			cell1Template["metadataServiceTemplate"] = map[string]interface{}{
+			cell1Template["topologyRef"] = map[string]any{"name": topologyRefCell.Name}
+			cell1Template["metadataServiceTemplate"] = map[string]any{
 				"enabled": true,
 			}
-			spec["cellTemplates"] = map[string]interface{}{
+			spec["cellTemplates"] = map[string]any{
 				"cell0": cell0Template,
 				"cell1": cell1Template,
 			}
 			// disable top-level metadata as we enabled the instance in cell1
-			spec["metadataServiceTemplate"] = map[string]interface{}{
+			spec["metadataServiceTemplate"] = map[string]any{
 				"enabled": false,
 			}
 			spec["apiDatabaseInstance"] = novaNames.APIMariaDBDatabaseName.Name
 			spec["apiMessageBusInstance"] = cell0.TransportURLName.Name
 			// We reference the global topology and is inherited by the sub components
 			// except cell1 that has an override
-			spec["topologyRef"] = map[string]interface{}{"name": topologyRefTopLevel.Name}
+			spec["topologyRef"] = map[string]any{"name": topologyRefTopLevel.Name}
 			DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
 			memcachedSpec := infra.GetDefaultMemcachedSpec()
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
@@ -1629,7 +1629,7 @@ var _ = Describe("Nova controller", func() {
 
 			spec := GetDefaultNovaSpec()
 			cell0 := GetDefaultNovaCellTemplate()
-			spec["cellTemplates"] = map[string]interface{}{"cell0": cell0}
+			spec["cellTemplates"] = map[string]any{"cell0": cell0}
 			// This nova is created without any container image is specified in
 			// the request
 			DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
@@ -1714,7 +1714,7 @@ var _ = Describe("Nova controller", func() {
 			spec := GetDefaultNovaSpec()
 			cell0template := GetDefaultNovaCellTemplate()
 			cell0template["cellDatabaseInstance"] = cell0.MariaDBDatabaseName.Name
-			spec["cellTemplates"] = map[string]interface{}{"cell0": cell0template}
+			spec["cellTemplates"] = map[string]any{"cell0": cell0template}
 			spec["apiDatabaseInstance"] = novaNames.APIMariaDBDatabaseName.Name
 			spec["apiDatabaseAccount"] = accountName.Name
 
@@ -1828,7 +1828,7 @@ var _ = Describe("Nova controller", func() {
 			cell0template := GetDefaultNovaCellTemplate()
 			cell0template["cellDatabaseInstance"] = cell0.MariaDBDatabaseName.Name
 			cell0template["cellDatabaseAccount"] = accountName.Name
-			spec["cellTemplates"] = map[string]interface{}{"cell0": cell0template}
+			spec["cellTemplates"] = map[string]any{"cell0": cell0template}
 			spec["apiDatabaseInstance"] = novaNames.APIMariaDBDatabaseName.Name
 
 			DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))

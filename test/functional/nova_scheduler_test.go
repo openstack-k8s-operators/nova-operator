@@ -772,7 +772,7 @@ var _ = Describe("NovaScheduler controller", func() {
 	When("NovaScheduler is created with TLS CA cert secret", func() {
 		BeforeEach(func() {
 			spec := GetDefaultNovaSchedulerSpec(novaNames)
-			spec["tls"] = map[string]interface{}{
+			spec["tls"] = map[string]any{
 				"caBundleSecretName": novaNames.CaBundleSecretName.Name,
 			}
 
@@ -887,7 +887,7 @@ var _ = Describe("NovaScheduler controller", func() {
 	When("NovaScheduler is created with a wrong topologyRef", func() {
 		BeforeEach(func() {
 			spec := GetDefaultNovaSchedulerSpec(novaNames)
-			spec["topologyRef"] = map[string]interface{}{"name": "foo"}
+			spec["topologyRef"] = map[string]any{"name": "foo"}
 
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreateInternalTopLevelSecret(novaNames))
@@ -914,7 +914,7 @@ var _ = Describe("NovaScheduler controller", func() {
 		var expectedTopologySpec []corev1.TopologySpreadConstraint
 		BeforeEach(func() {
 			// Build the topology Spec
-			var topologySpec map[string]interface{}
+			var topologySpec map[string]any
 			topologySpec, expectedTopologySpec = GetSampleTopologySpec(novaNames.SchedulerName.Name)
 
 			// Create Test Topologies
@@ -922,7 +922,7 @@ var _ = Describe("NovaScheduler controller", func() {
 			_, topologyRefSch = infra.CreateTopology(novaNames.NovaTopologies[2], topologySpec)
 
 			spec := GetDefaultNovaSchedulerSpec(novaNames)
-			spec["topologyRef"] = map[string]interface{}{"name": topologyRefSch.Name}
+			spec["topologyRef"] = map[string]any{"name": topologyRefSch.Name}
 
 			DeferCleanup(
 				k8sClient.Delete, ctx, CreateInternalTopLevelSecret(novaNames))
@@ -1096,7 +1096,7 @@ var _ = Describe("NovaScheduler controller", func() {
 	When("NovaScheduler is configured for MTLS memcached auth", func() {
 		BeforeEach(func() {
 			spec := GetDefaultNovaSchedulerSpec(novaNames)
-			spec["tls"] = map[string]interface{}{
+			spec["tls"] = map[string]any{
 				"caBundleSecretName": novaNames.CaBundleSecretName.Name,
 			}
 

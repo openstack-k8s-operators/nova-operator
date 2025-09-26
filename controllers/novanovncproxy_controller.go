@@ -466,7 +466,7 @@ func (r *NovaNoVNCProxyReconciler) generateConfigs(
 	cellDatabaseAccount := cellDB.GetAccount()
 	cellDbSecret := cellDB.GetSecret()
 
-	templateParameters := map[string]interface{}{
+	templateParameters := map[string]any{
 		"service_name":             novncproxy.ServiceName,
 		"keystone_internal_url":    instance.Spec.KeystoneAuthURL,
 		"nova_keystone_user":       instance.Spec.ServiceUser,

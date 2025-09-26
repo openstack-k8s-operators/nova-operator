@@ -1056,7 +1056,7 @@ func (r *NovaReconciler) ensureNovaManageJobSecret(
 	// We configure the Job like it runs in the env of the conductor of the given cell
 	// but we ensure that the config always has [api_database] section configure
 	// even if the cell has no API access at all.
-	templateParameters := map[string]interface{}{
+	templateParameters := map[string]any{
 		"service_name":           "nova-conductor",
 		"keystone_internal_url":  cell.Spec.KeystoneAuthURL,
 		"nova_keystone_user":     cell.Spec.ServiceUser,
