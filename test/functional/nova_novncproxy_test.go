@@ -490,7 +490,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 				k8sClient.Delete, ctx, CreateDefaultCellInternalSecret(cell1))
 
 			spec := GetDefaultNovaNoVNCProxySpec(cell1)
-			serviceOverride := map[string]interface{}{
+			serviceOverride := map[string]any{
 				"endpointURL": "http://nova-novncproxy-cell1-" + novaNames.Namespace + ".apps-crc.testing",
 				"metadata": map[string]map[string]string{
 					"labels": {
@@ -499,7 +499,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 				},
 			}
 
-			spec["override"] = map[string]interface{}{
+			spec["override"] = map[string]any{
 				"service": serviceOverride,
 			}
 
@@ -535,7 +535,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 				k8sClient.Delete, ctx, CreateDefaultCellInternalSecret(cell1))
 
 			spec := GetDefaultNovaNoVNCProxySpec(cell1)
-			serviceOverride := map[string]interface{}{
+			serviceOverride := map[string]any{
 				"metadata": map[string]map[string]string{
 					"annotations": {
 						"dnsmasq.network.openstack.org/hostname": "nova-novncproxy-cell1-public.openstack.svc",
@@ -547,12 +547,12 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 						"service": "nova-novncproxy",
 					},
 				},
-				"spec": map[string]interface{}{
+				"spec": map[string]any{
 					"type": "LoadBalancer",
 				},
 			}
 
-			spec["override"] = map[string]interface{}{
+			spec["override"] = map[string]any{
 				"service": serviceOverride,
 			}
 
@@ -807,8 +807,8 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 	When("NovaNoVNCProxy is created with service and CA bundle cert secret", func() {
 		BeforeEach(func() {
 			spec := GetDefaultNovaNoVNCProxySpec(cell1)
-			spec["tls"] = map[string]interface{}{
-				"service": map[string]interface{}{
+			spec["tls"] = map[string]any{
+				"service": map[string]any{
 					"secretName": ptr.To(novaNames.InternalCertSecretName.Name),
 				},
 				"caBundleSecretName": novaNames.CaBundleSecretName.Name,
@@ -969,8 +969,8 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 	When("NovaNoVNCProxy is created with vencrypt and CA bundle cert secret", func() {
 		BeforeEach(func() {
 			spec := GetDefaultNovaNoVNCProxySpec(cell1)
-			spec["tls"] = map[string]interface{}{
-				"vencrypt": map[string]interface{}{
+			spec["tls"] = map[string]any{
+				"vencrypt": map[string]any{
 					"secretName": ptr.To(novaNames.VNCProxyVencryptCertSecretName.Name),
 				},
 				"caBundleSecretName": novaNames.CaBundleSecretName.Name,
@@ -1131,11 +1131,11 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 	When("NovaNoVNCProxy is created with both service, vencrypt and CA bundle cert secret", func() {
 		BeforeEach(func() {
 			spec := GetDefaultNovaNoVNCProxySpec(cell1)
-			spec["tls"] = map[string]interface{}{
-				"service": map[string]interface{}{
+			spec["tls"] = map[string]any{
+				"service": map[string]any{
 					"secretName": ptr.To(novaNames.InternalCertSecretName.Name),
 				},
-				"vencrypt": map[string]interface{}{
+				"vencrypt": map[string]any{
 					"secretName": ptr.To(novaNames.VNCProxyVencryptCertSecretName.Name),
 				},
 				"caBundleSecretName": novaNames.CaBundleSecretName.Name,
@@ -1323,7 +1323,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 		BeforeEach(func() {
 			spec := GetDefaultNovaNoVNCProxySpec(cell1)
 			// We reference a topology that does not exist in the current namespace
-			spec["topologyRef"] = map[string]interface{}{"name": "foo"}
+			spec["topologyRef"] = map[string]any{"name": "foo"}
 
 			memcachedSpec := infra.GetDefaultMemcachedSpec()
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
@@ -1354,7 +1354,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 		var expectedTopologySpec []corev1.TopologySpreadConstraint
 		BeforeEach(func() {
 			// Build the topology Spec
-			var topologySpec map[string]interface{}
+			var topologySpec map[string]any
 			topologySpec, expectedTopologySpec = GetSampleTopologySpec(cell1.NoVNCProxyName.Name)
 
 			// Create Test Topologies
@@ -1362,7 +1362,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 			_, topologyRefNoVNC = infra.CreateTopology(novaNames.NovaTopologies[5], topologySpec)
 
 			spec := GetDefaultNovaNoVNCProxySpec(cell1)
-			spec["topologyRef"] = map[string]interface{}{"name": topologyRefNoVNC.Name}
+			spec["topologyRef"] = map[string]any{"name": topologyRefNoVNC.Name}
 
 			memcachedSpec := infra.GetDefaultMemcachedSpec()
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
@@ -1549,11 +1549,11 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 	When("NovaNoVNCProxy is configured for MTLS memcached auth", func() {
 		BeforeEach(func() {
 			spec := GetDefaultNovaNoVNCProxySpec(cell1)
-			spec["tls"] = map[string]interface{}{
-				"service": map[string]interface{}{
+			spec["tls"] = map[string]any{
+				"service": map[string]any{
 					"secretName": ptr.To(novaNames.InternalCertSecretName.Name),
 				},
-				"vencrypt": map[string]interface{}{
+				"vencrypt": map[string]any{
 					"secretName": ptr.To(novaNames.VNCProxyVencryptCertSecretName.Name),
 				},
 				"caBundleSecretName": novaNames.CaBundleSecretName.Name,

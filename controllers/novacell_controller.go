@@ -769,7 +769,7 @@ func (r *NovaCellReconciler) generateComputeConfigs(
 	ctx context.Context, h *helper.Helper, instance *novav1.NovaCell,
 	secret corev1.Secret, vncProxyURL *string,
 ) error {
-	templateParameters := map[string]interface{}{
+	templateParameters := map[string]any{
 		"service_name":               "nova-compute",
 		"keystone_internal_url":      instance.Spec.KeystoneAuthURL,
 		"nova_keystone_user":         instance.Spec.ServiceUser,

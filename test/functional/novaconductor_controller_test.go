@@ -819,7 +819,7 @@ var _ = Describe("NovaConductor controller", func() {
 	When("NovaConductor is created with a wrong topologyRef", func() {
 		BeforeEach(func() {
 			spec := GetDefaultNovaConductorSpec(cell0)
-			spec["topologyRef"] = map[string]interface{}{"name": "foo"}
+			spec["topologyRef"] = map[string]any{"name": "foo"}
 			conductor := CreateNovaConductor(cell0.ConductorName, spec)
 			DeferCleanup(th.DeleteInstance, conductor)
 		})
@@ -844,7 +844,7 @@ var _ = Describe("NovaConductor controller", func() {
 		var topologyRefAlt topologyv1.TopoRef
 		var expectedTopologySpec []corev1.TopologySpreadConstraint
 		BeforeEach(func() {
-			var topologySpec map[string]interface{}
+			var topologySpec map[string]any
 			// Build the topology Spec
 			topologySpec, expectedTopologySpec = GetSampleTopologySpec(cell0.ConductorName.Name)
 			// Create Test Topologies
@@ -855,7 +855,7 @@ var _ = Describe("NovaConductor controller", func() {
 				k8sClient.Delete, ctx, CreateDefaultCellInternalSecret(cell0))
 
 			spec := GetDefaultNovaConductorSpec(cell0)
-			spec["topologyRef"] = map[string]interface{}{"name": topologyRefCnd.Name}
+			spec["topologyRef"] = map[string]any{"name": topologyRefCnd.Name}
 
 			DeferCleanup(th.DeleteInstance, CreateNovaConductor(cell0.ConductorName, spec))
 		})
@@ -1114,7 +1114,7 @@ var _ = Describe("NovaConductor controller", func() {
 				k8sClient.Delete, ctx, CreateDefaultCellInternalSecret(cell0))
 
 			spec := GetDefaultNovaConductorSpec(cell0)
-			spec["tls"] = map[string]interface{}{
+			spec["tls"] = map[string]any{
 				"caBundleSecretName": novaNames.CaBundleSecretName.Name,
 			}
 			DeferCleanup(th.DeleteInstance, CreateNovaConductor(cell0.ConductorName, spec))
@@ -1244,7 +1244,7 @@ var _ = Describe("NovaConductor controller", func() {
 	When("NovaConductor is configured for MTLS memcached auth", func() {
 		BeforeEach(func() {
 			spec := GetDefaultNovaConductorSpec(cell0)
-			spec["tls"] = map[string]interface{}{
+			spec["tls"] = map[string]any{
 				"caBundleSecretName": novaNames.CaBundleSecretName.Name,
 			}
 
