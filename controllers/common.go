@@ -283,11 +283,15 @@ func ensureSecret(
 	err := reader.Get(ctx, secretName, secret)
 	if err != nil {
 		if k8s_errors.IsNotFound(err) {
+			// This is only currently used to get the password secret provided by the user in the spec.
+			// Therefore, since the secret should have been manually created by the user and referenced
+			// in the spec, we treat this as a warning because it means that the service will not be
+			// able to start.
 			log.FromContext(ctx).Info(fmt.Sprintf("secret %s not found", secretName))
 			conditionUpdater.Set(condition.FalseCondition(
 				condition.InputReadyCondition,
-				condition.RequestedReason,
-				condition.SeverityInfo,
+				condition.ErrorReason,
+				condition.SeverityWarning,
 				novav1.InputReadyWaitingMessage, "secret/"+secretName.Name))
 			return "",
 				ctrl.Result{RequeueAfter: requeueTimeout},
@@ -354,11 +358,13 @@ func ensureNetworkAttachments(
 		nad, err := nad.GetNADWithName(ctx, h, netAtt, h.GetBeforeObject().GetNamespace())
 		if err != nil {
 			if k8s_errors.IsNotFound(err) {
+				// Since the net-attach-def CR should have been manually created by the user and referenced in the spec,
+				// we treat this as a warning because it means that the service will not be able to start.
 				log.FromContext(ctx).Info(fmt.Sprintf("network-attachment-definition %s not found", netAtt))
 				conditionUpdater.Set(condition.FalseCondition(
 					condition.NetworkAttachmentsReadyCondition,
-					condition.RequestedReason,
-					condition.SeverityInfo,
+					condition.ErrorReason,
+					condition.SeverityWarning,
 					condition.NetworkAttachmentsReadyWaitingMessage,
 					netAtt))
 				return nadAnnotations, ctrl.Result{RequeueAfter: requeueTimeout}, nil
@@ -723,10 +729,15 @@ func ensureMemcached(
 	memcached, err := memcachedv1.GetMemcachedByName(ctx, h, memcachedName, namespaceName)
 	if err != nil {
 		if k8s_errors.IsNotFound(err) {
+			// Memcached should be automatically created by the encompassing OpenStackControlPlane,
+			// but we don't propagate its name into the "memcachedInstance" field of other sub-resources,
+			// so if it is missing at this point, it *could* be because there's a mismatch between the
+			// name of the Memcached CR and the name of the Memcached instance referenced by this CR.
+			// Since that situation would block further reconciliation, we treat it as a warning.
 			conditionUpdater.Set(condition.FalseCondition(
 				condition.MemcachedReadyCondition,
-				condition.RequestedReason,
-				condition.SeverityInfo,
+				condition.ErrorReason,
+				condition.SeverityWarning,
 				condition.MemcachedReadyWaitingMessage))
 			return nil, fmt.Errorf("%w: memcached %s not found", err, memcachedName)
 		}

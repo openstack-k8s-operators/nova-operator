@@ -88,7 +88,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 					ConditionGetterFunc(NoVNCProxyConditionGetter),
 					condition.InputReadyCondition,
 					corev1.ConditionFalse,
-					condition.RequestedReason,
+					condition.ErrorReason,
 					fmt.Sprintf("Input data resources missing: secret/%s", cell1.CellCRName.Name),
 				)
 			})
@@ -371,7 +371,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 				ConditionGetterFunc(NoVNCProxyConditionGetter),
 				condition.NetworkAttachmentsReadyCondition,
 				corev1.ConditionFalse,
-				condition.RequestedReason,
+				condition.ErrorReason,
 				"NetworkAttachment resources missing: internalapi",
 			)
 			th.ExpectCondition(
@@ -637,7 +637,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 				ConditionGetterFunc(NoVNCProxyConditionGetter),
 				condition.NetworkAttachmentsReadyCondition,
 				corev1.ConditionFalse,
-				condition.RequestedReason,
+				condition.ErrorReason,
 				"NetworkAttachment resources missing: internalapi",
 			)
 			th.ExpectConditionWithDetails(
@@ -645,7 +645,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 				ConditionGetterFunc(NoVNCProxyConditionGetter),
 				condition.ReadyCondition,
 				corev1.ConditionFalse,
-				condition.RequestedReason,
+				condition.ErrorReason,
 				"NetworkAttachment resources missing: internalapi",
 			)
 
@@ -828,7 +828,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 				ConditionGetterFunc(NoVNCProxyConditionGetter),
 				condition.TLSInputReadyCondition,
 				corev1.ConditionFalse,
-				condition.RequestedReason,
+				condition.ErrorReason,
 				fmt.Sprintf("TLSInput is missing: %s", novaNames.CaBundleSecretName.Name),
 			)
 			th.ExpectCondition(
@@ -990,7 +990,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 				ConditionGetterFunc(NoVNCProxyConditionGetter),
 				condition.TLSInputReadyCondition,
 				corev1.ConditionFalse,
-				condition.RequestedReason,
+				condition.ErrorReason,
 				fmt.Sprintf("TLSInput is missing: %s", novaNames.CaBundleSecretName.Name),
 			)
 			th.ExpectCondition(
@@ -1155,7 +1155,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 				ConditionGetterFunc(NoVNCProxyConditionGetter),
 				condition.TLSInputReadyCondition,
 				corev1.ConditionFalse,
-				condition.RequestedReason,
+				condition.ErrorReason,
 				fmt.Sprintf("TLSInput is missing: %s", novaNames.CaBundleSecretName.Name),
 			)
 			th.ExpectCondition(

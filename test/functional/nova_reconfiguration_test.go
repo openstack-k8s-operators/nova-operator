@@ -165,7 +165,7 @@ var _ = Describe("Nova reconfiguration", func() {
 				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.NetworkAttachmentsReadyCondition,
 				corev1.ConditionFalse,
-				condition.RequestedReason,
+				condition.ErrorReason,
 				"NetworkAttachment resources missing: internalapi",
 			)
 			th.ExpectConditionWithDetails(
@@ -173,7 +173,7 @@ var _ = Describe("Nova reconfiguration", func() {
 				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.ReadyCondition,
 				corev1.ConditionFalse,
-				condition.RequestedReason,
+				condition.ErrorReason,
 				"NetworkAttachment resources missing: internalapi",
 			)
 
@@ -182,7 +182,7 @@ var _ = Describe("Nova reconfiguration", func() {
 				ConditionGetterFunc(NovaCellConditionGetter),
 				novav1.NovaConductorReadyCondition,
 				corev1.ConditionFalse,
-				condition.RequestedReason,
+				condition.ErrorReason,
 				"NetworkAttachment resources missing: internalapi",
 			)
 			th.ExpectConditionWithDetails(
@@ -190,7 +190,7 @@ var _ = Describe("Nova reconfiguration", func() {
 				ConditionGetterFunc(NovaCellConditionGetter),
 				condition.ReadyCondition,
 				corev1.ConditionFalse,
-				condition.RequestedReason,
+				condition.ErrorReason,
 				"NetworkAttachment resources missing: internalapi",
 			)
 

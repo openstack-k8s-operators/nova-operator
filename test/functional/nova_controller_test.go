@@ -1973,7 +1973,7 @@ var _ = Describe("Nova controller without memcached", func() {
 			ConditionGetterFunc(NovaConditionGetter),
 			condition.MemcachedReadyCondition,
 			corev1.ConditionFalse,
-			condition.RequestedReason,
+			condition.ErrorReason,
 			" Memcached instance has not been provisioned",
 		)
 	})

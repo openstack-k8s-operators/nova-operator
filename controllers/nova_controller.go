@@ -350,8 +350,8 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	} else if len(creatingDBs) > 0 {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			novav1.NovaAllCellsDBReadyCondition,
-			condition.ErrorReason,
-			condition.SeverityError,
+			condition.RequestedReason,
+			condition.SeverityInfo,
 			novav1.NovaAllCellsDBReadyCreatingMessage,
 			strings.Join(creatingDBs, ",")))
 	} else { // we have no DB in failed or creating status so all DB is ready
@@ -381,8 +381,8 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	case nova.MQCreating:
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			novav1.NovaAPIMQReadyCondition,
-			condition.ErrorReason,
-			condition.SeverityError,
+			condition.RequestedReason,
+			condition.SeverityInfo,
 			novav1.NovaAPIMQReadyCreatingMessage,
 		))
 	case nova.MQCompleted:
@@ -419,8 +419,8 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		case nova.MQCreating:
 			instance.Status.Conditions.Set(condition.FalseCondition(
 				novav1.NovaNotificationMQReadyCondition,
-				condition.ErrorReason,
-				condition.SeverityError,
+				condition.RequestedReason,
+				condition.SeverityInfo,
 				novav1.NovaNotificationMQReadyCreatingMessage,
 			))
 		case nova.MQCompleted:
@@ -493,8 +493,8 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	} else if len(creatingMQs) > 0 {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			novav1.NovaAllCellsMQReadyCondition,
-			condition.ErrorReason,
-			condition.SeverityError,
+			condition.RequestedReason,
+			condition.SeverityInfo,
 			novav1.NovaAllCellsMQReadyCreatingMessage,
 			strings.Join(creatingMQs, ",")))
 	} else { // we have no MQ in failed or creating status so all MQ is ready
@@ -582,7 +582,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			novav1.NovaAllCellsReadyCondition,
 			condition.RequestedReason,
-			condition.SeverityWarning,
+			condition.SeverityInfo,
 			novav1.NovaAllCellsReadyNotReadyMessage,
 			strings.Join(append(deployingCells, mappingCells...), ","),
 		))

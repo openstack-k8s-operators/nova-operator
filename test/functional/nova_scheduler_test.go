@@ -386,7 +386,7 @@ var _ = Describe("NovaScheduler controller", func() {
 				ConditionGetterFunc(NovaSchedulerConditionGetter),
 				condition.NetworkAttachmentsReadyCondition,
 				corev1.ConditionFalse,
-				condition.RequestedReason,
+				condition.ErrorReason,
 				"NetworkAttachment resources missing: internalapi",
 			)
 			th.ExpectCondition(
@@ -539,7 +539,7 @@ var _ = Describe("NovaScheduler controller", func() {
 				ConditionGetterFunc(NovaSchedulerConditionGetter),
 				condition.NetworkAttachmentsReadyCondition,
 				corev1.ConditionFalse,
-				condition.RequestedReason,
+				condition.ErrorReason,
 				"NetworkAttachment resources missing: internalapi",
 			)
 
@@ -548,7 +548,7 @@ var _ = Describe("NovaScheduler controller", func() {
 				ConditionGetterFunc(NovaSchedulerConditionGetter),
 				condition.ReadyCondition,
 				corev1.ConditionFalse,
-				condition.RequestedReason,
+				condition.ErrorReason,
 				"NetworkAttachment resources missing: internalapi",
 			)
 
@@ -787,7 +787,7 @@ var _ = Describe("NovaScheduler controller", func() {
 				ConditionGetterFunc(NovaSchedulerConditionGetter),
 				condition.TLSInputReadyCondition,
 				corev1.ConditionFalse,
-				condition.RequestedReason,
+				condition.ErrorReason,
 				fmt.Sprintf("TLSInput is missing: %s", novaNames.CaBundleSecretName.Name),
 			)
 			th.ExpectCondition(
