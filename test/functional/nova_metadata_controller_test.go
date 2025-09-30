@@ -497,7 +497,7 @@ var _ = Describe("NovaMetadata controller", func() {
 				ConditionGetterFunc(NovaMetadataConditionGetter),
 				condition.NetworkAttachmentsReadyCondition,
 				corev1.ConditionFalse,
-				condition.RequestedReason,
+				condition.ErrorReason,
 				"NetworkAttachment resources missing: internalapi",
 			)
 			th.ExpectCondition(
@@ -712,7 +712,7 @@ var _ = Describe("NovaMetadata controller", func() {
 				ConditionGetterFunc(NovaMetadataConditionGetter),
 				condition.NetworkAttachmentsReadyCondition,
 				corev1.ConditionFalse,
-				condition.RequestedReason,
+				condition.ErrorReason,
 				"NetworkAttachment resources missing: internalapi",
 			)
 			th.ExpectConditionWithDetails(
@@ -720,7 +720,7 @@ var _ = Describe("NovaMetadata controller", func() {
 				ConditionGetterFunc(NovaMetadataConditionGetter),
 				condition.ReadyCondition,
 				corev1.ConditionFalse,
-				condition.RequestedReason,
+				condition.ErrorReason,
 				"NetworkAttachment resources missing: internalapi",
 			)
 
@@ -939,7 +939,7 @@ var _ = Describe("NovaMetadata controller", func() {
 				ConditionGetterFunc(NovaMetadataConditionGetter),
 				condition.TLSInputReadyCondition,
 				corev1.ConditionFalse,
-				condition.RequestedReason,
+				condition.ErrorReason,
 				fmt.Sprintf("TLSInput is missing: %s", novaNames.CaBundleSecretName.Name),
 			)
 			th.ExpectCondition(

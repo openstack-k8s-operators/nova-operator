@@ -230,10 +230,12 @@ func (r *NovaNoVNCProxyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		)
 		if err != nil {
 			if k8s_errors.IsNotFound(err) {
+				// Since the CA cert secret should have been manually created by the user and provided in the spec,
+				// we treat this as a warning because it means that the service will not be able to start.
 				instance.Status.Conditions.Set(condition.FalseCondition(
 					condition.TLSInputReadyCondition,
-					condition.RequestedReason,
-					condition.SeverityInfo,
+					condition.ErrorReason,
+					condition.SeverityWarning,
 					condition.TLSInputReadyWaitingMessage, instance.Spec.TLS.CaBundleSecretName))
 				return ctrl.Result{}, nil
 			}
@@ -256,6 +258,8 @@ func (r *NovaNoVNCProxyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		hash, err := instance.Spec.TLS.Service.ValidateCertSecret(ctx, h, instance.Namespace)
 		if err != nil {
 			if k8s_errors.IsNotFound(err) {
+				// We treat this as an info since the service cert secret is automatically generated
+				// by the encompassing OpenStackControlPlane CR
 				instance.Status.Conditions.Set(condition.FalseCondition(
 					condition.TLSInputReadyCondition,
 					condition.RequestedReason,
@@ -279,6 +283,8 @@ func (r *NovaNoVNCProxyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		hash, err := instance.Spec.TLS.Vencrypt.ValidateCertSecret(ctx, h, instance.Namespace)
 		if err != nil {
 			if k8s_errors.IsNotFound(err) {
+				// We treat this as an info since the vencrypt cert secret is automatically generated
+				// by the encompassing OpenStackControlPlane CR
 				instance.Status.Conditions.Set(condition.FalseCondition(
 					condition.TLSInputReadyCondition,
 					condition.RequestedReason,

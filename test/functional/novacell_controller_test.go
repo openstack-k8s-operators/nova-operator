@@ -73,7 +73,7 @@ var _ = Describe("NovaCell controller", func() {
 				ConditionGetterFunc(NovaCellConditionGetter),
 				condition.InputReadyCondition,
 				corev1.ConditionFalse,
-				condition.RequestedReason,
+				condition.ErrorReason,
 				fmt.Sprintf("Input data resources missing: secret/%s", cell0.InternalCellSecretName.Name),
 			)
 		})
@@ -953,7 +953,7 @@ var _ = Describe("NovaCell controller", func() {
 				ConditionGetterFunc(NovaConductorConditionGetter),
 				condition.NetworkAttachmentsReadyCondition,
 				corev1.ConditionFalse,
-				condition.RequestedReason,
+				condition.ErrorReason,
 				"NetworkAttachment resources missing: internalapi",
 			)
 
@@ -962,7 +962,7 @@ var _ = Describe("NovaCell controller", func() {
 				ConditionGetterFunc(NovaCellConditionGetter),
 				condition.ReadyCondition,
 				corev1.ConditionFalse,
-				condition.RequestedReason,
+				condition.ErrorReason,
 				"NetworkAttachment resources missing: internalapi",
 			)
 

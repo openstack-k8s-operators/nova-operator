@@ -347,7 +347,7 @@ var _ = Describe("NovaCompute with ironic diver controller", func() {
 				ConditionGetterFunc(NovaComputeConditionGetter),
 				condition.NetworkAttachmentsReadyCondition,
 				corev1.ConditionFalse,
-				condition.RequestedReason,
+				condition.ErrorReason,
 				"NetworkAttachment resources missing: internalapi",
 			)
 			th.ExpectCondition(
@@ -506,7 +506,7 @@ var _ = Describe("NovaCompute with ironic diver controller", func() {
 				ConditionGetterFunc(NovaComputeConditionGetter),
 				condition.NetworkAttachmentsReadyCondition,
 				corev1.ConditionFalse,
-				condition.RequestedReason,
+				condition.ErrorReason,
 				"NetworkAttachment resources missing: internalapi",
 			)
 			th.ExpectConditionWithDetails(
@@ -514,7 +514,7 @@ var _ = Describe("NovaCompute with ironic diver controller", func() {
 				ConditionGetterFunc(NovaComputeConditionGetter),
 				condition.ReadyCondition,
 				corev1.ConditionFalse,
-				condition.RequestedReason,
+				condition.ErrorReason,
 				"NetworkAttachment resources missing: internalapi",
 			)
 
@@ -661,7 +661,7 @@ var _ = Describe("NovaCompute with ironic diver controller", func() {
 				ConditionGetterFunc(NovaComputeConditionGetter),
 				condition.TLSInputReadyCondition,
 				corev1.ConditionFalse,
-				condition.RequestedReason,
+				condition.ErrorReason,
 				fmt.Sprintf("TLSInput is missing: %s", novaNames.CaBundleSecretName.Name),
 			)
 			th.ExpectCondition(
