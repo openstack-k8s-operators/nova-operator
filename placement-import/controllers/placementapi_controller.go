@@ -92,10 +92,13 @@ func ensureSecret(
 	err := reader.Get(ctx, secretName, secret)
 	if err != nil {
 		if k8s_errors.IsNotFound(err) {
+			// This is currently only used to acquire the password secret, which should have been
+			// manually created by the user and referenced in the spec, so we treat this as a
+			// warning because it means that the service will not be able to start.
 			conditionUpdater.Set(condition.FalseCondition(
 				condition.InputReadyCondition,
-				condition.RequestedReason,
-				condition.SeverityInfo,
+				condition.ErrorReason,
+				condition.SeverityWarning,
 				"%s", fmt.Sprintf("Input data resources missing: %s", "secret/"+secretName.Name)))
 			return "",
 				ctrl.Result{},
@@ -306,11 +309,13 @@ func (r *PlacementAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		&instance.Status.Conditions)
 	if err != nil {
 		if k8s_errors.IsNotFound(err) {
+			// Since the service secret should have been manually created by the user and referenced in the spec,
+			// we treat this as a warning because it means that the service will not be able to start.
 			Log.Info(fmt.Sprintf("OpenStack secret %s not found", instance.Spec.Secret))
 			instance.Status.Conditions.Set(condition.FalseCondition(
 				condition.InputReadyCondition,
-				condition.RequestedReason,
-				condition.SeverityInfo,
+				condition.ErrorReason,
+				condition.SeverityWarning,
 				condition.InputReadyWaitingMessage))
 			return ctrl.Result{RequeueAfter: time.Second * 10}, nil
 		}
@@ -385,10 +390,12 @@ func (r *PlacementAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		)
 		if err != nil {
 			if k8s_errors.IsNotFound(err) {
+				// Since the CA cert secret should have been manually created by the user and provided in the spec,
+				// we treat this as a warning because it means that the service will not be able to start.
 				instance.Status.Conditions.Set(condition.FalseCondition(
 					condition.TLSInputReadyCondition,
-					condition.RequestedReason,
-					condition.SeverityInfo,
+					condition.ErrorReason,
+					condition.SeverityWarning,
 					condition.TLSInputReadyWaitingMessage, instance.Spec.TLS.CaBundleSecretName))
 				return ctrl.Result{}, nil
 			}
@@ -625,11 +632,13 @@ func (r *PlacementAPIReconciler) ensureNetworkAttachments(
 		nad, err := nad.GetNADWithName(ctx, h, netAtt, instance.Namespace)
 		if err != nil {
 			if k8s_errors.IsNotFound(err) {
+				// Since the net-attach-def CR should have been manually created by the user and referenced in the spec,
+				// we treat this as a warning because it means that the service will not be able to start.
 				Log.Info(fmt.Sprintf("network-attachment-definition %s not found", netAtt))
 				instance.Status.Conditions.Set(condition.FalseCondition(
 					condition.NetworkAttachmentsReadyCondition,
-					condition.RequestedReason,
-					condition.SeverityInfo,
+					condition.ErrorReason,
+					condition.SeverityWarning,
 					condition.NetworkAttachmentsReadyWaitingMessage,
 					netAtt))
 				return nadAnnotations, ctrl.Result{RequeueAfter: time.Second * 10}, nil
