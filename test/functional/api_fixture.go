@@ -35,6 +35,10 @@ import (
 // NOTE(gibi): When we are on golang 1.22 and gophercloud v2 is released we can
 // use the "github.com/gophercloud/gophercloud/openstack/compute/v2/services"
 // structs directly.
+// NOTE(mschuppert): using the local Service struct for test isolation avoids the
+// JSON marshalling complications with gophercloud v2's Service type that has
+// json:"-" on the ID field. It would required a custom type for the response.
+// keeping it for now.
 type Service struct {
 	// The binary name of the service.
 	Binary string `json:"binary"`
@@ -202,7 +206,44 @@ func (f *NovaAPIFixture) registerHandler(handler api.Handler) {
 }
 
 func (f *NovaAPIFixture) registerNormalHandlers() {
+	f.registerHandler(api.Handler{Pattern: "/", Func: f.HandleVersion})
 	f.registerHandler(api.Handler{Pattern: "/os-services/", Func: f.ServicesHandler})
+}
+
+// HandleVersion responds with a valid Nova API version response
+func (f *NovaAPIFixture) HandleVersion(w http.ResponseWriter, r *http.Request) {
+	f.LogRequest(r)
+	// The /compute/ URL matches to every request if no handle registered with a more
+	// specific URL pattern
+	if r.RequestURI != f.URLBase+"/" {
+		f.UnexpectedRequest(w, r)
+		return
+	}
+
+	switch r.Method {
+	case "GET":
+		w.Header().Add("Content-Type", "application/json")
+		w.WriteHeader(200)
+		_, _ = fmt.Fprintf(w, // Ignore write error in test
+			`
+			{
+				"versions": [{
+					"id": "v2.1",
+					"status": "CURRENT",
+					"version": "2.95",
+					"min_version": "2.1",
+					"updated": "2013-07-23T11:33:21Z",
+					"links": [{
+						"rel": "self",
+						"href": "%s/"
+					}]
+				}]
+			}
+			`, f.Endpoint())
+	default:
+		f.UnexpectedRequest(w, r)
+		return
+	}
 }
 
 // ServicesHandler handles requests to the Nova services API endpoint

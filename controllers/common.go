@@ -42,8 +42,8 @@ import (
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/nova-operator/pkg/nova"
 
-	gophercloud "github.com/gophercloud/gophercloud"
-	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/services"
+	gophercloud "github.com/gophercloud/gophercloud/v2"
+	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/services"
 	networkv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
@@ -201,6 +201,7 @@ func ensureTopology(
 }
 
 func cleanNovaServiceFromNovaDb(
+	ctx context.Context,
 	computeClient *gophercloud.ServiceClient,
 	serviceName string,
 	l logr.Logger,
@@ -211,7 +212,7 @@ func cleanNovaServiceFromNovaDb(
 		Binary: serviceName,
 	}
 
-	allPages, err := services.List(computeClient, opts).AllPages()
+	allPages, err := services.List(computeClient, opts).AllPages(ctx)
 	if err != nil {
 		return err
 	}
@@ -242,7 +243,7 @@ func cleanNovaServiceFromNovaDb(
 		// which means if replicaCount is 1, only nova-scheduler-0 is valid case
 		// so delete >= 1
 		if hostIndex >= int(replicaCount) {
-			rsp := services.Delete(computeClient, service.ID)
+			rsp := services.Delete(ctx, computeClient, service.ID)
 			if rsp.Err != nil {
 				l.Error(rsp.Err, "Failed to delete service", "service", service, "response", rsp)
 				return rsp.Err
@@ -694,7 +695,7 @@ func getNovaClient(
 		Region:       cfg.Region,
 		Availability: gophercloud.AvailabilityInternal,
 	}
-	computeClient, err := openstack.GetNovaOpenStackClient(l, cfg, endpointOpts)
+	computeClient, err := openstack.GetNovaOpenStackClient(ctx, l, cfg, endpointOpts)
 	if err != nil {
 		return nil, err
 	}
