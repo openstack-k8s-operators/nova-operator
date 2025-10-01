@@ -814,5 +814,5 @@ func (r *NovaSchedulerReconciler) cleanServiceFromNovaDb(
 	}
 	replicaCount := instance.Spec.Replicas
 
-	return cleanNovaServiceFromNovaDb(computeClient, "nova-scheduler", l, *replicaCount, "")
+	return cleanNovaServiceFromNovaDb(ctx, computeClient, "nova-scheduler", l, *replicaCount, "")
 }
