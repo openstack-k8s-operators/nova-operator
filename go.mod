@@ -6,10 +6,10 @@ require (
 	github.com/go-logr/logr v1.4.3
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
-	github.com/gophercloud/gophercloud v1.14.1
+	github.com/gophercloud/gophercloud/v2 v2.8.0
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.7.7
-	github.com/onsi/ginkgo/v2 v2.23.4
-	github.com/onsi/gomega v1.38.0
+	github.com/onsi/ginkgo/v2 v2.25.3
+	github.com/onsi/gomega v1.38.2
 	github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20250922155301-057562fb7182
 	github.com/openstack-k8s-operators/keystone-operator/api v0.6.1-0.20250916093250-82a76386143d
 	github.com/openstack-k8s-operators/lib-common/modules/common v0.6.1-0.20250922082314-c83d83092a04
@@ -28,13 +28,14 @@ require (
 )
 
 require (
+	github.com/Masterminds/semver/v3 v3.4.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/emicklei/go-restful/v3 v3.12.2 // indirect
 	github.com/evanphx/json-patch/v5 v5.9.11 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
-	github.com/fxamacker/cbor/v2 v2.8.0 // indirect
+	github.com/fxamacker/cbor/v2 v2.9.0 // indirect
 	github.com/go-logr/zapr v1.3.0 // indirect
 	github.com/go-openapi/jsonpointer v0.21.1 // indirect
 	github.com/go-openapi/jsonreference v0.21.0 // indirect
@@ -67,25 +68,25 @@ require (
 	go.uber.org/automaxprocs v1.6.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
-	go.yaml.in/yaml/v3 v3.0.3 // indirect
-	golang.org/x/mod v0.26.0 // indirect
-	golang.org/x/net v0.42.0 // indirect
+	go.yaml.in/yaml/v3 v3.0.4 // indirect
+	golang.org/x/mod v0.27.0 // indirect
+	golang.org/x/net v0.43.0 // indirect
 	golang.org/x/oauth2 v0.30.0 // indirect
-	golang.org/x/sys v0.34.0 // indirect
-	golang.org/x/term v0.33.0 // indirect
-	golang.org/x/text v0.27.0 // indirect
+	golang.org/x/sys v0.35.0 // indirect
+	golang.org/x/term v0.34.0 // indirect
+	golang.org/x/text v0.28.0 // indirect
 	golang.org/x/time v0.12.0 // indirect
-	golang.org/x/tools v0.34.0 // indirect
+	golang.org/x/tools v0.36.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.5.0 // indirect
-	google.golang.org/protobuf v1.36.6 // indirect
+	google.golang.org/protobuf v1.36.7 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	k8s.io/apiextensions-apiserver v0.33.2 // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
-	k8s.io/kube-openapi v0.0.0-20250610211856-8b98d1ed966a // indirect
+	k8s.io/kube-openapi v0.0.0-20250902184714-7fc278399c7f // indirect
 	sigs.k8s.io/json v0.0.0-20241014173422-cfa47c3a1cc8 // indirect
 	sigs.k8s.io/randfill v1.0.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.7.0 // indirect
-	sigs.k8s.io/yaml v1.5.0 // indirect
+	sigs.k8s.io/yaml v1.6.0 // indirect
 )
 
 replace github.com/openstack-k8s-operators/nova-operator/api => ./api
@@ -115,3 +116,7 @@ replace k8s.io/component-base => k8s.io/component-base v0.31.13 //allow-merging
 replace github.com/rabbitmq/cluster-operator/v2 => github.com/openstack-k8s-operators/rabbitmq-cluster-operator/v2 v2.6.1-0.20250929174222-a0d328fa4dec //allow-merging
 
 replace k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20250627150254-e9823e99808e //allow-merging
+
+replace github.com/openstack-k8s-operators/lib-common/modules/openstack => github.com/stuggi/lib-common/modules/openstack v0.0.0-20250930155844-c46eba0df5b5
+
+replace github.com/openstack-k8s-operators/keystone-operator/api => github.com/stuggi/keystone-operator/api v0.0.0-20251002103207-2e465868f3df

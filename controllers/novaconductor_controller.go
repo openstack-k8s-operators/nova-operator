@@ -696,7 +696,7 @@ func (r *NovaConductorReconciler) cleanServiceFromNovaDb(
 	replicaCount := instance.Spec.Replicas
 	cellName := instance.Spec.CellName
 
-	return cleanNovaServiceFromNovaDb(computeClient, "nova-conductor", l, *replicaCount, cellName)
+	return cleanNovaServiceFromNovaDb(ctx, computeClient, "nova-conductor", l, *replicaCount, cellName)
 }
 
 func (r *NovaConductorReconciler) findObjectsForSrc(ctx context.Context, src client.Object) []reconcile.Request {
