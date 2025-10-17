@@ -63,7 +63,7 @@ import (
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 )
 
-// NovaReconciler reconciles a Nova object
+// NovaReconciler reconciles a Nova object TESTING
 type NovaReconciler struct {
 	ReconcilerBase
 }
