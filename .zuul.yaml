@@ -17,6 +17,7 @@
       nova_repo: "{{ ansible_user_dir }}/src/github.com/openstack-k8s-operators/nova-operator"
       zuul_log_collection: true
       nova_hook: "{{ ansible_user_dir }}/{{ zuul.projects['github.com/openstack-k8s-operators/nova-operator'].src_dir }}/ci/nova-operator-kuttl/deploy_webhooks.yaml"
+      cifmw_installyamls_repos: "{{ ansible_user_dir }}/src/github.com/openstack-k8s-operators/install_yamls"
       pre_kuttl_from_operator:
         - name: 70 Create nova webhooks
           type: playbook
