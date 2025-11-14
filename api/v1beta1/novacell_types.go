@@ -308,6 +308,6 @@ func (instance NovaCell) IsReady() bool {
 }
 
 // GetSecret returns the value of the NovaCell.Spec.Secret
-func (n NovaCell) GetSecret() string {
-	return n.Spec.Secret
+func (instance NovaCell) GetSecret() string {
+	return instance.Spec.Secret
 }

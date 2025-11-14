@@ -35,7 +35,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/utils/ptr"
-	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
@@ -59,15 +58,6 @@ func SetupNovaDefaults(defaults NovaDefaults) {
 	novaDefaults = defaults
 	novalog.Info("Nova defaults initialized", "defaults", defaults)
 }
-
-// SetupWebhookWithManager sets up the webhook with the Manager
-func (r *Nova) SetupWebhookWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewWebhookManagedBy(mgr).
-		For(r).
-		Complete()
-}
-
-//+kubebuilder:webhook:path=/mutate-nova-openstack-org-v1beta1-nova,mutating=true,failurePolicy=fail,sideEffects=None,groups=nova.openstack.org,resources=nova,verbs=create;update,versions=v1beta1,name=mnova.kb.io,admissionReviewVersions=v1
 
 var _ webhook.Defaulter = &Nova{}
 
@@ -121,15 +111,13 @@ func (spec *NovaSpecCore) Default() {
 	}
 }
 
-// NOTE: change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
-//+kubebuilder:webhook:path=/validate-nova-openstack-org-v1beta1-nova,mutating=false,failurePolicy=fail,sideEffects=None,groups=nova.openstack.org,resources=nova,verbs=create;update,versions=v1beta1,name=vnova.kb.io,admissionReviewVersions=v1
-
 var _ webhook.Validator = &Nova{}
 
-func (r *NovaSpecCore) ValidateCellTemplates(basePath *field.Path, namespace string) field.ErrorList {
+// ValidateCellTemplates validates cell templates configuration
+func (spec *NovaSpecCore) ValidateCellTemplates(basePath *field.Path, namespace string) field.ErrorList {
 	var errors field.ErrorList
 
-	if _, ok := r.CellTemplates[Cell0Name]; !ok {
+	if _, ok := spec.CellTemplates[Cell0Name]; !ok {
 		errors = append(
 			errors,
 			field.Required(basePath.Child("cellTemplates"),
@@ -139,7 +127,7 @@ func (r *NovaSpecCore) ValidateCellTemplates(basePath *field.Path, namespace str
 
 	cellMessageBusNames := make(map[string]string)
 
-	for name, cell := range r.CellTemplates {
+	for name, cell := range spec.CellTemplates {
 		cellPath := basePath.Child("cellTemplates").Key(name)
 		errors = append(
 			errors,
@@ -163,7 +151,7 @@ func (r *NovaSpecCore) ValidateCellTemplates(basePath *field.Path, namespace str
 
 			cellMessageBusNames[cell.CellMessageBusInstance] = name
 		}
-		if *cell.MetadataServiceTemplate.Enabled && *r.MetadataServiceTemplate.Enabled {
+		if *cell.MetadataServiceTemplate.Enabled && *spec.MetadataServiceTemplate.Enabled {
 			errors = append(
 				errors,
 				field.Invalid(
@@ -239,22 +227,22 @@ func (r *NovaSpecCore) ValidateCellTemplates(basePath *field.Path, namespace str
 }
 
 // ValidateAPIServiceTemplate -
-func (r *NovaSpecCore) ValidateAPIServiceTemplate(basePath *field.Path, namespace string) field.ErrorList {
+func (spec *NovaSpecCore) ValidateAPIServiceTemplate(basePath *field.Path, namespace string) field.ErrorList {
 	errors := field.ErrorList{}
 
 	// validate the service override key is valid
 	errors = append(errors,
 		service.ValidateRoutedOverrides(
 			basePath.Child("apiServiceTemplate").Child("override").Child("service"),
-			r.APIServiceTemplate.Override.Service)...)
+			spec.APIServiceTemplate.Override.Service)...)
 
 	errors = append(errors,
 		ValidateAPIDefaultConfigOverwrite(
 			basePath.Child("apiServiceTemplate").Child("defaultConfigOverwrite"),
-			r.APIServiceTemplate.DefaultConfigOverwrite)...)
+			spec.APIServiceTemplate.DefaultConfigOverwrite)...)
 
 	errors = append(errors,
-		r.APIServiceTemplate.ValidateTopology(
+		spec.APIServiceTemplate.ValidateTopology(
 			basePath.Child("apiServiceTemplate"),
 			namespace)...)
 
@@ -262,44 +250,44 @@ func (r *NovaSpecCore) ValidateAPIServiceTemplate(basePath *field.Path, namespac
 }
 
 // ValidateSchedulerServiceTemplate -
-func (r *NovaSpecCore) ValidateSchedulerServiceTemplate(basePath *field.Path, namespace string) field.ErrorList {
+func (spec *NovaSpecCore) ValidateSchedulerServiceTemplate(basePath *field.Path, namespace string) field.ErrorList {
 	errors := field.ErrorList{}
 	// validate the referenced TopologyRef
 	errors = append(errors,
-		r.SchedulerServiceTemplate.ValidateTopology(
+		spec.SchedulerServiceTemplate.ValidateTopology(
 			basePath.Child("schedulerServiceTemplate"),
 			namespace)...)
 	return errors
 }
 
 // ValidateCreate validates the NovaSpec during the webhook invocation.
-func (r *NovaSpec) ValidateCreate(basePath *field.Path, namespace string) field.ErrorList {
-	return r.NovaSpecCore.ValidateCreate(basePath, namespace)
+func (spec *NovaSpec) ValidateCreate(basePath *field.Path, namespace string) field.ErrorList {
+	return spec.NovaSpecCore.ValidateCreate(basePath, namespace)
 }
 
 // ValidateCreate validates the NovaSpecCore during the webhook invocation. It is
 // expected to be called by the validation webhook in the higher level meta
 // operator
-func (r *NovaSpecCore) ValidateCreate(basePath *field.Path, namespace string) field.ErrorList {
-	errors := r.ValidateCellTemplates(basePath, namespace)
-	errors = append(errors, r.ValidateAPIServiceTemplate(basePath, namespace)...)
-	errors = append(errors, r.ValidateSchedulerServiceTemplate(basePath, namespace)...)
+func (spec *NovaSpecCore) ValidateCreate(basePath *field.Path, namespace string) field.ErrorList {
+	errors := spec.ValidateCellTemplates(basePath, namespace)
+	errors = append(errors, spec.ValidateAPIServiceTemplate(basePath, namespace)...)
+	errors = append(errors, spec.ValidateSchedulerServiceTemplate(basePath, namespace)...)
 
 	// validate TopologyRef override for top-level MetadataServiceTemplate
 	errors = append(errors,
-		r.MetadataServiceTemplate.ValidateTopology(
+		spec.MetadataServiceTemplate.ValidateTopology(
 			basePath.Child("metadataServiceTemplate"),
 			namespace)...)
 
 	errors = append(
 		errors,
-		r.MetadataServiceTemplate.ValidateDefaultConfigOverwrite(
+		spec.MetadataServiceTemplate.ValidateDefaultConfigOverwrite(
 			basePath.Child("metadataServiceTemplate"))...)
 
 	// validate top-level topology
 	errors = append(errors,
 		topologyv1.ValidateTopologyRef(
-			r.TopologyRef, *basePath.Child("topologyRef"), namespace)...)
+			spec.TopologyRef, *basePath.Child("topologyRef"), namespace)...)
 
 	return errors
 }
@@ -319,31 +307,31 @@ func (r *Nova) ValidateCreate() (admission.Warnings, error) {
 }
 
 // ValidateUpdate validates the NovaSpec during the webhook invocation.
-func (r *NovaSpec) ValidateUpdate(old NovaSpec, basePath *field.Path, namespace string) field.ErrorList {
-	return r.NovaSpecCore.ValidateUpdate(old.NovaSpecCore, basePath, namespace)
+func (spec *NovaSpec) ValidateUpdate(old NovaSpec, basePath *field.Path, namespace string) field.ErrorList {
+	return spec.NovaSpecCore.ValidateUpdate(old.NovaSpecCore, basePath, namespace)
 }
 
 // ValidateUpdate validates the NovaSpecCore during the webhook invocation. It is
 // expected to be called by the validation webhook in the higher level meta
 // operator
-func (r *NovaSpecCore) ValidateUpdate(old NovaSpecCore, basePath *field.Path, namespace string) field.ErrorList {
-	errors := r.ValidateCellTemplates(basePath, namespace)
+func (spec *NovaSpecCore) ValidateUpdate(old NovaSpecCore, basePath *field.Path, namespace string) field.ErrorList {
+	errors := spec.ValidateCellTemplates(basePath, namespace)
 	// Validate top-level TopologyRef
 	errors = append(errors, topologyv1.ValidateTopologyRef(
-		r.TopologyRef, *basePath.Child("topologyRef"), namespace)...)
+		spec.TopologyRef, *basePath.Child("topologyRef"), namespace)...)
 
-	errors = append(errors, r.ValidateAPIServiceTemplate(basePath, namespace)...)
-	errors = append(errors, r.ValidateSchedulerServiceTemplate(basePath, namespace)...)
+	errors = append(errors, spec.ValidateAPIServiceTemplate(basePath, namespace)...)
+	errors = append(errors, spec.ValidateSchedulerServiceTemplate(basePath, namespace)...)
 
 	// validate TopologyRef override for top-level MetadataServiceTemplate
 	errors = append(errors,
-		r.MetadataServiceTemplate.ValidateTopology(
+		spec.MetadataServiceTemplate.ValidateTopology(
 			basePath.Child("metadataServiceTemplate"),
 			namespace)...)
 
 	errors = append(
 		errors,
-		r.MetadataServiceTemplate.ValidateDefaultConfigOverwrite(
+		spec.MetadataServiceTemplate.ValidateDefaultConfigOverwrite(
 			basePath.Child("metadataServiceTemplate"))...)
 
 	return errors
@@ -379,7 +367,7 @@ func (r *Nova) ValidateDelete() (admission.Warnings, error) {
 
 // SetDefaultRouteAnnotations sets HAProxy timeout values of the route
 // NOTE: it is used by ctlplane webhook on openstack-operator
-func (r *NovaSpecCore) SetDefaultRouteAnnotations(annotations map[string]string) {
+func (spec *NovaSpecCore) SetDefaultRouteAnnotations(annotations map[string]string) {
 	const haProxyAnno = "haproxy.router.openshift.io/timeout"
 	// Use a custom annotation to flag when the operator has set the default HAProxy timeout
 	// With the annotation func determines when to overwrite existing HAProxy timeout with the APITimeout
@@ -399,7 +387,7 @@ func (r *NovaSpecCore) SetDefaultRouteAnnotations(annotations map[string]string)
 		return
 	}
 
-	timeout := fmt.Sprintf("%ds", r.APITimeout)
+	timeout := fmt.Sprintf("%ds", spec.APITimeout)
 	annotations[novaAnno] = timeout
 	annotations[haProxyAnno] = timeout
 }

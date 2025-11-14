@@ -1,13 +1,8 @@
-
 apiVersion: v1
 kind: Service
 metadata:
   labels:
-    app.kubernetes.io/name: service
-    app.kubernetes.io/instance: webhook-service
-    app.kubernetes.io/component: webhook
-    app.kubernetes.io/created-by: nova-operator
-    app.kubernetes.io/part-of: nova-operator
+    app.kubernetes.io/name: nova-operator
     app.kubernetes.io/managed-by: kustomize
   name: webhook-service
   namespace: system
@@ -15,6 +10,7 @@ spec:
   ports:
     - port: 443
       protocol: TCP
-      targetPort: 9444
+      targetPort: 9443
   selector:
-    openstack.org/operator-name: nova
+    control-plane: controller-manager
+    app.kubernetes.io/name: nova-operator

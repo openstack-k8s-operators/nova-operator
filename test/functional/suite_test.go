@@ -56,7 +56,8 @@ import (
 	test "github.com/openstack-k8s-operators/lib-common/modules/test"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
-	"github.com/openstack-k8s-operators/nova-operator/controllers"
+	controllers "github.com/openstack-k8s-operators/nova-operator/internal/controller"
+	webhookv1beta1 "github.com/openstack-k8s-operators/nova-operator/internal/webhook/v1beta1"
 
 	infra_test "github.com/openstack-k8s-operators/infra-operator/apis/test/helpers"
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
@@ -221,21 +222,21 @@ var _ = BeforeSuite(func() {
 	// Acquire environmental defaults and initialize operator defaults with them
 	novav1.SetupDefaults()
 
-	err = (&novav1.Nova{}).SetupWebhookWithManager(k8sManager)
+	err = webhookv1beta1.SetupNovaWebhookWithManager(k8sManager)
 	Expect(err).NotTo(HaveOccurred())
-	err = (&novav1.NovaAPI{}).SetupWebhookWithManager(k8sManager)
+	err = webhookv1beta1.SetupNovaAPIWebhookWithManager(k8sManager)
 	Expect(err).NotTo(HaveOccurred())
-	err = (&novav1.NovaCell{}).SetupWebhookWithManager(k8sManager)
+	err = webhookv1beta1.SetupNovaCellWebhookWithManager(k8sManager)
 	Expect(err).NotTo(HaveOccurred())
-	err = (&novav1.NovaConductor{}).SetupWebhookWithManager(k8sManager)
+	err = webhookv1beta1.SetupNovaConductorWebhookWithManager(k8sManager)
 	Expect(err).NotTo(HaveOccurred())
-	err = (&novav1.NovaMetadata{}).SetupWebhookWithManager(k8sManager)
+	err = webhookv1beta1.SetupNovaMetadataWebhookWithManager(k8sManager)
 	Expect(err).NotTo(HaveOccurred())
-	err = (&novav1.NovaNoVNCProxy{}).SetupWebhookWithManager(k8sManager)
+	err = webhookv1beta1.SetupNovaNoVNCProxyWebhookWithManager(k8sManager)
 	Expect(err).NotTo(HaveOccurred())
-	err = (&novav1.NovaScheduler{}).SetupWebhookWithManager(k8sManager)
+	err = webhookv1beta1.SetupNovaSchedulerWebhookWithManager(k8sManager)
 	Expect(err).NotTo(HaveOccurred())
-	err = (&novav1.NovaCompute{}).SetupWebhookWithManager(k8sManager)
+	err = webhookv1beta1.SetupNovaComputeWebhookWithManager(k8sManager)
 	Expect(err).NotTo(HaveOccurred())
 
 	go func() {

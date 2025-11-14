@@ -12,7 +12,7 @@ webhooks:
       namespace: system
       path: /mutate-nova-openstack-org-v1beta1-nova
   failurePolicy: Fail
-  name: mnova.kb.io
+  name: mnova-v1beta1.kb.io
   rules:
   - apiGroups:
     - nova.openstack.org
@@ -32,7 +32,7 @@ webhooks:
       namespace: system
       path: /mutate-nova-openstack-org-v1beta1-novaapi
   failurePolicy: Fail
-  name: mnovaapi.kb.io
+  name: mnovaapi-v1beta1.kb.io
   rules:
   - apiGroups:
     - nova.openstack.org
@@ -52,7 +52,7 @@ webhooks:
       namespace: system
       path: /mutate-nova-openstack-org-v1beta1-novacell
   failurePolicy: Fail
-  name: mnovacell.kb.io
+  name: mnovacell-v1beta1.kb.io
   rules:
   - apiGroups:
     - nova.openstack.org
@@ -72,7 +72,7 @@ webhooks:
       namespace: system
       path: /mutate-nova-openstack-org-v1beta1-novacompute
   failurePolicy: Fail
-  name: mnovacompute.kb.io
+  name: mnovacompute-v1beta1.kb.io
   rules:
   - apiGroups:
     - nova.openstack.org
@@ -92,7 +92,7 @@ webhooks:
       namespace: system
       path: /mutate-nova-openstack-org-v1beta1-novaconductor
   failurePolicy: Fail
-  name: mnovaconductor.kb.io
+  name: mnovaconductor-v1beta1.kb.io
   rules:
   - apiGroups:
     - nova.openstack.org
@@ -112,7 +112,7 @@ webhooks:
       namespace: system
       path: /mutate-nova-openstack-org-v1beta1-novametadata
   failurePolicy: Fail
-  name: mnovametadata.kb.io
+  name: mnovametadata-v1beta1.kb.io
   rules:
   - apiGroups:
     - nova.openstack.org
@@ -132,7 +132,7 @@ webhooks:
       namespace: system
       path: /mutate-nova-openstack-org-v1beta1-novanovncproxy
   failurePolicy: Fail
-  name: mnovanovncproxy.kb.io
+  name: mnovanovncproxy-v1beta1.kb.io
   rules:
   - apiGroups:
     - nova.openstack.org
@@ -152,7 +152,7 @@ webhooks:
       namespace: system
       path: /mutate-nova-openstack-org-v1beta1-novascheduler
   failurePolicy: Fail
-  name: mnovascheduler.kb.io
+  name: mnovascheduler-v1beta1.kb.io
   rules:
   - apiGroups:
     - nova.openstack.org
@@ -178,7 +178,7 @@ webhooks:
       namespace: system
       path: /validate-nova-openstack-org-v1beta1-nova
   failurePolicy: Fail
-  name: vnova.kb.io
+  name: vnova-v1beta1.kb.io
   rules:
   - apiGroups:
     - nova.openstack.org
@@ -198,7 +198,7 @@ webhooks:
       namespace: system
       path: /validate-nova-openstack-org-v1beta1-novaapi
   failurePolicy: Fail
-  name: vnovaapi.kb.io
+  name: vnovaapi-v1beta1.kb.io
   rules:
   - apiGroups:
     - nova.openstack.org
@@ -218,7 +218,7 @@ webhooks:
       namespace: system
       path: /validate-nova-openstack-org-v1beta1-novacell
   failurePolicy: Fail
-  name: vnovacell.kb.io
+  name: vnovacell-v1beta1.kb.io
   rules:
   - apiGroups:
     - nova.openstack.org
@@ -238,7 +238,7 @@ webhooks:
       namespace: system
       path: /validate-nova-openstack-org-v1beta1-novacompute
   failurePolicy: Fail
-  name: vnovacompute.kb.io
+  name: vnovacompute-v1beta1.kb.io
   rules:
   - apiGroups:
     - nova.openstack.org
@@ -258,7 +258,7 @@ webhooks:
       namespace: system
       path: /validate-nova-openstack-org-v1beta1-novaconductor
   failurePolicy: Fail
-  name: vnovaconductor.kb.io
+  name: vnovaconductor-v1beta1.kb.io
   rules:
   - apiGroups:
     - nova.openstack.org
@@ -278,7 +278,7 @@ webhooks:
       namespace: system
       path: /validate-nova-openstack-org-v1beta1-novametadata
   failurePolicy: Fail
-  name: vnovametadata.kb.io
+  name: vnovametadata-v1beta1.kb.io
   rules:
   - apiGroups:
     - nova.openstack.org
@@ -298,7 +298,7 @@ webhooks:
       namespace: system
       path: /validate-nova-openstack-org-v1beta1-novanovncproxy
   failurePolicy: Fail
-  name: vnovanovncproxy.kb.io
+  name: vnovanovncproxy-v1beta1.kb.io
   rules:
   - apiGroups:
     - nova.openstack.org
@@ -318,7 +318,7 @@ webhooks:
       namespace: system
       path: /validate-nova-openstack-org-v1beta1-novascheduler
   failurePolicy: Fail
-  name: vnovascheduler.kb.io
+  name: vnovascheduler-v1beta1.kb.io
   rules:
   - apiGroups:
     - nova.openstack.org
