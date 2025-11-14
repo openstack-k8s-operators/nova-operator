@@ -32,13 +32,13 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/utils/ptr"
-	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 )
 
+// CRDNameRegex is the regex pattern for validating CRD names
 const CRDNameRegex = "^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$"
 
 // NovaCellDefaults -
@@ -59,15 +59,6 @@ func SetupNovaCellDefaults(defaults NovaCellDefaults) {
 	novaCellDefaults = defaults
 	novacelllog.Info("NovaCell defaults initialized", "defaults", defaults)
 }
-
-// SetupWebhookWithManager sets up the webhook with the Manager
-func (r *NovaCell) SetupWebhookWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewWebhookManagedBy(mgr).
-		For(r).
-		Complete()
-}
-
-//+kubebuilder:webhook:path=/mutate-nova-openstack-org-v1beta1-novacell,mutating=true,failurePolicy=fail,sideEffects=None,groups=nova.openstack.org,resources=novacells,verbs=create;update,versions=v1beta1,name=mnovacell.kb.io,admissionReviewVersions=v1
 
 var _ webhook.Defaulter = &NovaCell{}
 
@@ -99,27 +90,24 @@ func (spec *NovaCellSpec) Default() {
 	}
 }
 
-// NOTE: change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
-//+kubebuilder:webhook:path=/validate-nova-openstack-org-v1beta1-novacell,mutating=false,failurePolicy=fail,sideEffects=None,groups=nova.openstack.org,resources=novacells,verbs=create;update,versions=v1beta1,name=vnovacell.kb.io,admissionReviewVersions=v1
-
 var _ webhook.Validator = &NovaCell{}
 
-func (r *NovaCellSpec) validate(basePath *field.Path, namespace string) field.ErrorList {
+func (spec *NovaCellSpec) validate(basePath *field.Path, namespace string) field.ErrorList {
 	var errors field.ErrorList
 
-	if r.CellName == Cell0Name {
+	if spec.CellName == Cell0Name {
 		errors = append(
-			errors, r.MetadataServiceTemplate.ValidateCell0(
+			errors, spec.MetadataServiceTemplate.ValidateCell0(
 				basePath.Child("metadataServiceTemplate"))...,
 		)
 		errors = append(
-			errors, r.NoVNCProxyServiceTemplate.ValidateCell0(
+			errors, spec.NoVNCProxyServiceTemplate.ValidateCell0(
 				basePath.Child("noVNCProxyServiceTemplate"))...,
 		)
 		errors = append(
 			errors,
 			ValidateNovaComputeCell0(
-				basePath.Child("novaComputeTemplates"), len(r.NovaComputeTemplates))...)
+				basePath.Child("novaComputeTemplates"), len(spec.NovaComputeTemplates))...)
 	}
 
 	// validate topology if passed to the CellSpec (regardless of CellName).
@@ -127,24 +115,24 @@ func (r *NovaCellSpec) validate(basePath *field.Path, namespace string) field.Er
 	// be validated for the underlying components (metadata, conductor,
 	// novncproxy, compute templates).
 	errors = append(errors, topologyv1.ValidateTopologyRef(
-		r.TopologyRef, *basePath.Child("topologyRef"), namespace)...)
+		spec.TopologyRef, *basePath.Child("topologyRef"), namespace)...)
 
 	errors = append(errors,
-		r.MetadataServiceTemplate.ValidateTopology(
+		spec.MetadataServiceTemplate.ValidateTopology(
 			basePath.Child("metadataServiceTemplate"),
 			namespace)...)
 
 	errors = append(errors,
-		r.NoVNCProxyServiceTemplate.ValidateTopology(
+		spec.NoVNCProxyServiceTemplate.ValidateTopology(
 			basePath.Child("noVNCProxyServiceTemplate"),
 			namespace)...)
 
 	errors = append(errors,
-		r.ConductorServiceTemplate.ValidateTopology(
+		spec.ConductorServiceTemplate.ValidateTopology(
 			basePath.Child("conductorServiceTemplate"),
 			namespace)...)
 
-	for computeName, computeTemplate := range r.NovaComputeTemplates {
+	for computeName, computeTemplate := range spec.NovaComputeTemplates {
 		if computeTemplate.ComputeDriver == IronicDriver {
 			errors = append(
 				errors, computeTemplate.ValidateIronicDriverReplicas(
@@ -168,18 +156,19 @@ func (r *NovaCellSpec) validate(basePath *field.Path, namespace string) field.Er
 
 	errors = append(
 		errors, ValidateCellName(
-			basePath.Child("cellName"), r.CellName)...,
+			basePath.Child("cellName"), spec.CellName)...,
 	)
 	errors = append(
 		errors,
-		r.DBPurge.Validate(basePath.Child("dbPurge"))...,
+		spec.DBPurge.Validate(basePath.Child("dbPurge"))...,
 	)
 
 	return errors
 }
 
-func (r *NovaCellSpec) ValidateCreate(basePath *field.Path, namespace string) field.ErrorList {
-	return r.validate(basePath, namespace)
+// ValidateCreate validates the NovaCellSpec during the webhook invocation
+func (spec *NovaCellSpec) ValidateCreate(basePath *field.Path, namespace string) field.ErrorList {
+	return spec.validate(basePath, namespace)
 }
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
@@ -199,8 +188,9 @@ func (r *NovaCell) ValidateCreate() (admission.Warnings, error) {
 	return nil, nil
 }
 
-func (r *NovaCellSpec) ValidateUpdate(old NovaCellSpec, basePath *field.Path, namespace string) field.ErrorList {
-	return r.validate(basePath, namespace)
+// ValidateUpdate validates the NovaCellSpec during the webhook invocation
+func (spec *NovaCellSpec) ValidateUpdate(old NovaCellSpec, basePath *field.Path, namespace string) field.ErrorList {
+	return spec.validate(basePath, namespace)
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
@@ -237,7 +227,6 @@ func (r *NovaCell) ValidateDelete() (admission.Warnings, error) {
 
 // ValidateCellName validates the cell name. It is expected to be called
 // from various webhooks.
-
 func ValidateCellName(path *field.Path, cellName string) field.ErrorList {
 	var errors field.ErrorList
 	if len(cellName) > 35 {

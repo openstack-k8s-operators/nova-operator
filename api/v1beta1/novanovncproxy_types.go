@@ -271,16 +271,16 @@ func (n NovaNoVNCProxy) GetSecret() string {
 }
 
 // GetSpecTopologyRef - Returns the LastAppliedTopology Set in the Status
-func (instance *NovaNoVNCProxy) GetSpecTopologyRef() *topologyv1.TopoRef {
-	return instance.Spec.TopologyRef
+func (n *NovaNoVNCProxy) GetSpecTopologyRef() *topologyv1.TopoRef {
+	return n.Spec.TopologyRef
 }
 
 // GetLastAppliedTopology - Returns the LastAppliedTopology Set in the Status
-func (instance *NovaNoVNCProxy) GetLastAppliedTopology() *topologyv1.TopoRef {
-	return instance.Status.LastAppliedTopology
+func (n *NovaNoVNCProxy) GetLastAppliedTopology() *topologyv1.TopoRef {
+	return n.Status.LastAppliedTopology
 }
 
 // SetLastAppliedTopology - Sets the LastAppliedTopology value in the Status
-func (instance *NovaNoVNCProxy) SetLastAppliedTopology(topologyRef *topologyv1.TopoRef) {
-	instance.Status.LastAppliedTopology = topologyRef
+func (n *NovaNoVNCProxy) SetLastAppliedTopology(topologyRef *topologyv1.TopoRef) {
+	n.Status.LastAppliedTopology = topologyRef
 }

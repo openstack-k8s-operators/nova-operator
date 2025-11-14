@@ -104,6 +104,7 @@ type PasswordSelector struct {
 	PrefixMetadataCellsSecret string `json:"prefixMetadataCellsSecret"`
 }
 
+// NovaImages defines container images used by top level Nova CR
 type NovaImages struct {
 	// +kubebuilder:validation:Required
 	// APIContainerImageURL
@@ -116,6 +117,7 @@ type NovaImages struct {
 	NovaCellImages `json:",inline"`
 }
 
+// Default sets default image URLs for NovaImages
 func (r *NovaImages) Default(defaults NovaDefaults) {
 	r.NovaCellImages.Default(defaults.NovaCellDefaults)
 	if r.APIContainerImageURL == "" {
@@ -126,6 +128,7 @@ func (r *NovaImages) Default(defaults NovaDefaults) {
 	}
 }
 
+// NovaCellImages defines container images used by NovaCell services
 type NovaCellImages struct {
 
 	// +kubebuilder:validation:Required
@@ -145,6 +148,7 @@ type NovaCellImages struct {
 	NovaComputeContainerImageURL string `json:"computeContainerImageURL"`
 }
 
+// Default sets default image URLs for NovaCellImages
 func (r *NovaCellImages) Default(defaults NovaCellDefaults) {
 	if r.ConductorContainerImageURL == "" {
 		r.ConductorContainerImageURL = defaults.ConductorContainerImageURL

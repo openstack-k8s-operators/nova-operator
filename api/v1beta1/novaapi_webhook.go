@@ -30,7 +30,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
@@ -55,15 +54,6 @@ func SetupNovaAPIDefaults(defaults NovaAPIDefaults) {
 	novaapilog.Info("NovaAPI defaults initialized", "defaults", defaults)
 }
 
-// SetupWebhookWithManager sets up the webhook with the Manager
-func (r *NovaAPI) SetupWebhookWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewWebhookManagedBy(mgr).
-		For(r).
-		Complete()
-}
-
-//+kubebuilder:webhook:path=/mutate-nova-openstack-org-v1beta1-novaapi,mutating=true,failurePolicy=fail,sideEffects=None,groups=nova.openstack.org,resources=novaapis,verbs=create;update,versions=v1beta1,name=mnovaapi.kb.io,admissionReviewVersions=v1
-
 var _ webhook.Defaulter = &NovaAPI{}
 
 // Default implements webhook.Defaulter so a webhook will be registered for the type
@@ -79,9 +69,6 @@ func (spec *NovaAPISpec) Default() {
 		spec.ContainerImage = novaAPIDefaults.ContainerImageURL
 	}
 }
-
-// TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
-//+kubebuilder:webhook:path=/validate-nova-openstack-org-v1beta1-novaapi,mutating=false,failurePolicy=fail,sideEffects=None,groups=nova.openstack.org,resources=novaapis,verbs=create;update,versions=v1beta1,name=vnovaapi.kb.io,admissionReviewVersions=v1
 
 var _ webhook.Validator = &NovaAPI{}
 
@@ -153,6 +140,7 @@ func (r *NovaAPI) ValidateDelete() (admission.Warnings, error) {
 	return nil, nil
 }
 
+// ValidateAPIDefaultConfigOverwrite validates the defaultConfigOverwrite for NovaAPI
 func ValidateAPIDefaultConfigOverwrite(
 	basePath *field.Path,
 	defaultConfigOverwrite map[string]string,

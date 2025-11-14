@@ -42,11 +42,11 @@ spec:
       - description: Service - Cert secret used for the nova novnc service endpoint
         displayName: Service
         path: noVNCProxyServiceTemplate.tls.service
-      - description: Vencrypt - cert secret containing the x509 certificate to be
-          presented to the VNC server. The CommonName field should match the primary
-          hostname of the controller node. If using a HA deployment, the Organization
-          field can also be configured to a value that is common across all console
-          proxy instances in the deployment. https://docs.openstack.org/nova/latest/admin/remote-console-access.html#novnc-proxy-server-configuration
+      - description: |-
+          Vencrypt - cert secret containing the x509 certificate to be presented to the VNC server.
+          The CommonName field should match the primary hostname of the controller node. If using a HA deployment,
+          the Organization field can also be configured to a value that is common across all console proxy instances in the deployment.
+          https://docs.openstack.org/nova/latest/admin/remote-console-access.html#novnc-proxy-server-configuration
         displayName: Vencrypt
         path: noVNCProxyServiceTemplate.tls.vencrypt
       - description: TLS - Parameters related to the TLS
@@ -91,11 +91,11 @@ spec:
       - description: Service - Cert secret used for the nova novnc service endpoint
         displayName: Service
         path: tls.service
-      - description: Vencrypt - cert secret containing the x509 certificate to be
-          presented to the VNC server. The CommonName field should match the primary
-          hostname of the controller node. If using a HA deployment, the Organization
-          field can also be configured to a value that is common across all console
-          proxy instances in the deployment. https://docs.openstack.org/nova/latest/admin/remote-console-access.html#novnc-proxy-server-configuration
+      - description: |-
+          Vencrypt - cert secret containing the x509 certificate to be presented to the VNC server.
+          The CommonName field should match the primary hostname of the controller node. If using a HA deployment,
+          the Organization field can also be configured to a value that is common across all console proxy instances in the deployment.
+          https://docs.openstack.org/nova/latest/admin/remote-console-access.html#novnc-proxy-server-configuration
         displayName: Vencrypt
         path: tls.vencrypt
       version: v1beta1
@@ -116,11 +116,11 @@ spec:
       - description: Service - Cert secret used for the nova novnc service endpoint
         displayName: Service
         path: cellTemplates.noVNCProxyServiceTemplate.tls.service
-      - description: Vencrypt - cert secret containing the x509 certificate to be
-          presented to the VNC server. The CommonName field should match the primary
-          hostname of the controller node. If using a HA deployment, the Organization
-          field can also be configured to a value that is common across all console
-          proxy instances in the deployment. https://docs.openstack.org/nova/latest/admin/remote-console-access.html#novnc-proxy-server-configuration
+      - description: |-
+          Vencrypt - cert secret containing the x509 certificate to be presented to the VNC server.
+          The CommonName field should match the primary hostname of the controller node. If using a HA deployment,
+          the Organization field can also be configured to a value that is common across all console proxy instances in the deployment.
+          https://docs.openstack.org/nova/latest/admin/remote-console-access.html#novnc-proxy-server-configuration
         displayName: Vencrypt
         path: cellTemplates.noVNCProxyServiceTemplate.tls.vencrypt
       - description: TLS - Parameters related to the TLS
@@ -158,6 +158,7 @@ spec:
   - name: Nova Operator
     url: https://github.com/openstack-k8s-operators/nova-operator
   maturity: beta
+  minKubeVersion: 0.0.0
   provider:
     name: Red Hat Inc.
     url: https://redhat.com/

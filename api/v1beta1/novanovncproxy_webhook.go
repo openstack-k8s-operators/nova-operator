@@ -29,7 +29,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -53,15 +52,6 @@ func SetupNovaNoVNCProxyDefaults(defaults NovaNoVNCProxyDefaults) {
 	novanovncproxylog.Info("NovaNoVNCProxy defaults initialized", "defaults", defaults)
 }
 
-// SetupWebhookWithManager sets up the webhook with the Manager
-func (r *NovaNoVNCProxy) SetupWebhookWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewWebhookManagedBy(mgr).
-		For(r).
-		Complete()
-}
-
-//+kubebuilder:webhook:path=/mutate-nova-openstack-org-v1beta1-novanovncproxy,mutating=true,failurePolicy=fail,sideEffects=None,groups=nova.openstack.org,resources=novanovncproxies,verbs=create;update,versions=v1beta1,name=mnovanovncproxy.kb.io,admissionReviewVersions=v1
-
 var _ webhook.Defaulter = &NovaNoVNCProxy{}
 
 // Default implements webhook.Defaulter so a webhook will be registered for the type
@@ -77,9 +67,6 @@ func (spec *NovaNoVNCProxySpec) Default() {
 		spec.ContainerImage = novaNoVNCProxyDefaults.ContainerImageURL
 	}
 }
-
-// TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
-//+kubebuilder:webhook:path=/validate-nova-openstack-org-v1beta1-novanovncproxy,mutating=false,failurePolicy=fail,sideEffects=None,groups=nova.openstack.org,resources=novanovncproxies,verbs=create;update,versions=v1beta1,name=vnovanovncproxy.kb.io,admissionReviewVersions=v1
 
 var _ webhook.Validator = &NovaNoVNCProxy{}
 
