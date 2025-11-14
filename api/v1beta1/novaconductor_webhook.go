@@ -30,7 +30,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
@@ -53,15 +52,6 @@ func SetupNovaConductorDefaults(defaults NovaConductorDefaults) {
 	novaconductorlog.Info("NovaConductor defaults initialized", "defaults", defaults)
 }
 
-// SetupWebhookWithManager sets up the webhook with the Manager
-func (r *NovaConductor) SetupWebhookWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewWebhookManagedBy(mgr).
-		For(r).
-		Complete()
-}
-
-//+kubebuilder:webhook:path=/mutate-nova-openstack-org-v1beta1-novaconductor,mutating=true,failurePolicy=fail,sideEffects=None,groups=nova.openstack.org,resources=novaconductors,verbs=create;update,versions=v1beta1,name=mnovaconductor.kb.io,admissionReviewVersions=v1
-
 var _ webhook.Defaulter = &NovaConductor{}
 
 // Default implements webhook.Defaulter so a webhook will be registered for the type
@@ -77,9 +67,6 @@ func (spec *NovaConductorSpec) Default() {
 		spec.ContainerImage = novaConductorDefaults.ContainerImageURL
 	}
 }
-
-// TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
-//+kubebuilder:webhook:path=/validate-nova-openstack-org-v1beta1-novaconductor,mutating=false,failurePolicy=fail,sideEffects=None,groups=nova.openstack.org,resources=novaconductors,verbs=create;update,versions=v1beta1,name=vnovaconductor.kb.io,admissionReviewVersions=v1
 
 var _ webhook.Validator = &NovaConductor{}
 

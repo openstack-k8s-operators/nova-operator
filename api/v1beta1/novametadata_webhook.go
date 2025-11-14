@@ -30,7 +30,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
@@ -53,15 +52,6 @@ func SetupNovaMetadataDefaults(defaults NovaMetadataDefaults) {
 	novametadatalog.Info("NovaMetadata defaults initialized", "defaults", defaults)
 }
 
-// SetupWebhookWithManager sets up the webhook with the Manager
-func (r *NovaMetadata) SetupWebhookWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewWebhookManagedBy(mgr).
-		For(r).
-		Complete()
-}
-
-//+kubebuilder:webhook:path=/mutate-nova-openstack-org-v1beta1-novametadata,mutating=true,failurePolicy=fail,sideEffects=None,groups=nova.openstack.org,resources=novametadata,verbs=create;update,versions=v1beta1,name=mnovametadata.kb.io,admissionReviewVersions=v1
-
 var _ webhook.Defaulter = &NovaMetadata{}
 
 // Default implements webhook.Defaulter so a webhook will be registered for the type
@@ -77,9 +67,6 @@ func (spec *NovaMetadataSpec) Default() {
 		spec.ContainerImage = novaMetadataDefaults.ContainerImageURL
 	}
 }
-
-// TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
-//+kubebuilder:webhook:path=/validate-nova-openstack-org-v1beta1-novametadata,mutating=false,failurePolicy=fail,sideEffects=None,groups=nova.openstack.org,resources=novametadata,verbs=create;update,versions=v1beta1,name=vnovametadata.kb.io,admissionReviewVersions=v1
 
 var _ webhook.Validator = &NovaMetadata{}
 
@@ -156,12 +143,14 @@ func (r *NovaMetadataTemplate) ValidateCell0(basePath *field.Path) field.ErrorLi
 	return errors
 }
 
+// ValidateDefaultConfigOverwrite validates the defaultConfigOverwrite for NovaMetadataTemplate
 func (r *NovaMetadataTemplate) ValidateDefaultConfigOverwrite(basePath *field.Path) field.ErrorList {
 	return ValidateMetadataDefaultConfigOverwrite(
 		basePath.Child("defaultConfigOverwrite"),
 		r.DefaultConfigOverwrite)
 }
 
+// ValidateMetadataDefaultConfigOverwrite validates the defaultConfigOverwrite for NovaMetadata
 func ValidateMetadataDefaultConfigOverwrite(
 	basePath *field.Path,
 	defaultConfigOverwrite map[string]string,

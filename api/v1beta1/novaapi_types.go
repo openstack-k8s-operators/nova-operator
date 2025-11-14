@@ -240,16 +240,16 @@ func (n NovaAPI) GetSecret() string {
 }
 
 // GetSpecTopologyRef - Returns the LastAppliedTopology Set in the Status
-func (instance *NovaAPI) GetSpecTopologyRef() *topologyv1.TopoRef {
-	return instance.Spec.TopologyRef
+func (n *NovaAPI) GetSpecTopologyRef() *topologyv1.TopoRef {
+	return n.Spec.TopologyRef
 }
 
 // GetLastAppliedTopology - Returns the LastAppliedTopology Set in the Status
-func (instance *NovaAPI) GetLastAppliedTopology() *topologyv1.TopoRef {
-	return instance.Status.LastAppliedTopology
+func (n *NovaAPI) GetLastAppliedTopology() *topologyv1.TopoRef {
+	return n.Status.LastAppliedTopology
 }
 
 // SetLastAppliedTopology - Sets the LastAppliedTopology value in the Status
-func (instance *NovaAPI) SetLastAppliedTopology(topologyRef *topologyv1.TopoRef) {
-	instance.Status.LastAppliedTopology = topologyRef
+func (n *NovaAPI) SetLastAppliedTopology(topologyRef *topologyv1.TopoRef) {
+	n.Status.LastAppliedTopology = topologyRef
 }
