@@ -197,8 +197,8 @@ func (n NovaCompute) GetSecret() string {
 }
 
 // IsReady returns true if the Cell reconciled successfully
-func (instance NovaCompute) IsReady() bool {
-	return instance.Status.Conditions.IsTrue(condition.ReadyCondition)
+func (n NovaCompute) IsReady() bool {
+	return n.Status.Conditions.IsTrue(condition.ReadyCondition)
 }
 
 // NewNovaComputeSpec constructs a NewNovaComputeSpec
@@ -240,16 +240,16 @@ func NewNovaComputeSpec(
 }
 
 // GetSpecTopologyRef - Returns the LastAppliedTopology Set in the Status
-func (instance *NovaCompute) GetSpecTopologyRef() *topologyv1.TopoRef {
-	return instance.Spec.TopologyRef
+func (n *NovaCompute) GetSpecTopologyRef() *topologyv1.TopoRef {
+	return n.Spec.TopologyRef
 }
 
 // GetLastAppliedTopology - Returns the LastAppliedTopology Set in the Status
-func (instance *NovaCompute) GetLastAppliedTopology() *topologyv1.TopoRef {
-	return instance.Status.LastAppliedTopology
+func (n *NovaCompute) GetLastAppliedTopology() *topologyv1.TopoRef {
+	return n.Status.LastAppliedTopology
 }
 
 // SetLastAppliedTopology - Sets the LastAppliedTopology value in the Status
-func (instance *NovaCompute) SetLastAppliedTopology(topologyRef *topologyv1.TopoRef) {
-	instance.Status.LastAppliedTopology = topologyRef
+func (n *NovaCompute) SetLastAppliedTopology(topologyRef *topologyv1.TopoRef) {
+	n.Status.LastAppliedTopology = topologyRef
 }

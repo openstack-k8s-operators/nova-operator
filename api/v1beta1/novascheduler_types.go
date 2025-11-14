@@ -198,7 +198,7 @@ func (n NovaScheduler) GetKeystoneAuthURL() string {
 	return n.Spec.KeystoneAuthURL
 }
 
-// GetServiceUser returns the Service user from the Spec
+// GetKeystoneUser returns the Service user from the Spec
 func (n NovaScheduler) GetKeystoneUser() string {
 	return n.Spec.ServiceUser
 }
@@ -209,16 +209,16 @@ func (n NovaScheduler) GetCABundleSecretName() string {
 }
 
 // GetSpecTopologyRef - Returns the LastAppliedTopology Set in the Status
-func (instance *NovaScheduler) GetSpecTopologyRef() *topologyv1.TopoRef {
-	return instance.Spec.TopologyRef
+func (n *NovaScheduler) GetSpecTopologyRef() *topologyv1.TopoRef {
+	return n.Spec.TopologyRef
 }
 
 // GetLastAppliedTopology - Returns the LastAppliedTopology Set in the Status
-func (instance *NovaScheduler) GetLastAppliedTopology() *topologyv1.TopoRef {
-	return instance.Status.LastAppliedTopology
+func (n *NovaScheduler) GetLastAppliedTopology() *topologyv1.TopoRef {
+	return n.Status.LastAppliedTopology
 }
 
 // SetLastAppliedTopology - Sets the LastAppliedTopology value in the Status
-func (instance *NovaScheduler) SetLastAppliedTopology(topologyRef *topologyv1.TopoRef) {
-	instance.Status.LastAppliedTopology = topologyRef
+func (n *NovaScheduler) SetLastAppliedTopology(topologyRef *topologyv1.TopoRef) {
+	n.Status.LastAppliedTopology = topologyRef
 }

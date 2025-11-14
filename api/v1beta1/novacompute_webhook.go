@@ -31,7 +31,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
@@ -54,15 +53,6 @@ func SetupNovaComputeDefaults(defaults NovaComputeDefaults) {
 	novacomputelog.Info("NovaCompute defaults initialized", "defaults", defaults)
 }
 
-// SetupWebhookWithManager sets up the webhook with the Manager
-func (r *NovaCompute) SetupWebhookWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewWebhookManagedBy(mgr).
-		For(r).
-		Complete()
-}
-
-//+kubebuilder:webhook:path=/mutate-nova-openstack-org-v1beta1-novacompute,mutating=true,failurePolicy=fail,sideEffects=None,groups=nova.openstack.org,resources=novacomputes,verbs=create;update,versions=v1beta1,name=mnovacompute.kb.io,admissionReviewVersions=v1
-
 var _ webhook.Defaulter = &NovaCompute{}
 
 // Default implements webhook.Defaulter so a webhook will be registered for the type
@@ -78,9 +68,6 @@ func (spec *NovaComputeSpec) Default() {
 		spec.ContainerImage = novaComputeDefaults.ContainerImageURL
 	}
 }
-
-// TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
-//+kubebuilder:webhook:path=/validate-nova-openstack-org-v1beta1-novacompute,mutating=false,failurePolicy=fail,sideEffects=None,groups=nova.openstack.org,resources=novacomputes,verbs=create;update,versions=v1beta1,name=vnovacompute.kb.io,admissionReviewVersions=v1
 
 var _ webhook.Validator = &NovaCompute{}
 
@@ -121,12 +108,14 @@ func (r *NovaCompute) ValidateUpdate(old runtime.Object) (admission.Warnings, er
 	return nil, nil
 }
 
-func (r *NovaComputeSpec) ValidateCreate(basePath *field.Path, namespace string) field.ErrorList {
-	return r.validate(basePath, namespace)
+// ValidateCreate validates the NovaComputeSpec during the webhook invocation
+func (spec *NovaComputeSpec) ValidateCreate(basePath *field.Path, namespace string) field.ErrorList {
+	return spec.validate(basePath, namespace)
 }
 
-func (r *NovaComputeSpec) ValidateUpdate(old NovaComputeSpec, basePath *field.Path, namespace string) field.ErrorList {
-	return r.validate(basePath, namespace)
+// ValidateUpdate validates the NovaComputeSpec during the webhook invocation
+func (spec *NovaComputeSpec) ValidateUpdate(old NovaComputeSpec, basePath *field.Path, namespace string) field.ErrorList {
+	return spec.validate(basePath, namespace)
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
@@ -137,28 +126,28 @@ func (r *NovaCompute) ValidateDelete() (admission.Warnings, error) {
 	return nil, nil
 }
 
-func (r *NovaComputeSpec) validate(basePath *field.Path, namespace string) field.ErrorList {
+func (spec *NovaComputeSpec) validate(basePath *field.Path, namespace string) field.ErrorList {
 	var errors field.ErrorList
 
-	if r.ComputeDriver == IronicDriver && *r.NovaServiceBase.Replicas > 1 {
+	if spec.ComputeDriver == IronicDriver && *spec.NovaServiceBase.Replicas > 1 {
 		errors = append(
 			errors,
 			field.Invalid(
-				basePath.Child("replicas"), *r.NovaServiceBase.Replicas, "should be max 1 for ironic.IronicDriver"),
+				basePath.Child("replicas"), *spec.NovaServiceBase.Replicas, "should be max 1 for ironic.IronicDriver"),
 		)
 	}
 	errors = append(
 		errors,
 		ValidateComputeDefaultConfigOverwrite(
-			basePath.Child("defaultConfigOverwrite"), r.DefaultConfigOverwrite)...)
+			basePath.Child("defaultConfigOverwrite"), spec.DefaultConfigOverwrite)...)
 
 	errors = append(errors, topologyv1.ValidateTopologyRef(
-		r.TopologyRef, *basePath.Child("topologyRef"), namespace)...)
+		spec.TopologyRef, *basePath.Child("topologyRef"), namespace)...)
 
 	return errors
 }
 
-// ValidateReplicas validates replicas depend on compute driver
+// ValidateIronicDriverReplicas validates replicas depend on compute driver
 func (r *NovaComputeTemplate) ValidateIronicDriverReplicas(basePath *field.Path) field.ErrorList {
 	var errors field.ErrorList
 	if *r.Replicas > 1 {
@@ -171,11 +160,13 @@ func (r *NovaComputeTemplate) ValidateIronicDriverReplicas(basePath *field.Path)
 	return errors
 }
 
+// ValidateDefaultConfigOverwrite validates the defaultConfigOverwrite for NovaComputeTemplate
 func (r *NovaComputeTemplate) ValidateDefaultConfigOverwrite(basePath *field.Path) field.ErrorList {
 	return ValidateComputeDefaultConfigOverwrite(
 		basePath.Child("defaultConfigOverwrite"), r.DefaultConfigOverwrite)
 }
 
+// ValidateComputeDefaultConfigOverwrite validates the defaultConfigOverwrite for NovaCompute
 func ValidateComputeDefaultConfigOverwrite(
 	basePath *field.Path,
 	defaultConfigOverwrite map[string]string,

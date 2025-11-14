@@ -189,7 +189,9 @@
     merge-mode: rebase
     github-check:
       jobs:
-        - openstack-meta-content-provider
+        - openstack-meta-content-provider:
+            vars:
+              cifmw_install_yamls_sdk_version: v1.41.1
         - nova-operator-kuttl
         - nova-operator-tempest-multinode
         - nova-operator-tempest-multinode-ceph
@@ -223,6 +225,7 @@
               cifmw_bop_openstack_release: master
               cifmw_bop_dlrn_baseurl: "https://trunk.rdoproject.org/centos9-master"
               cifmw_repo_setup_branch: master
+              cifmw_install_yamls_sdk_version: v1.41.1
         - nova-operator-tempest-multinode: &job_vars
             override-checkout: main
             # when run from nova we need to ensure we list the nova-operator
