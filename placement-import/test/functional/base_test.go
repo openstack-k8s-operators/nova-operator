@@ -18,11 +18,12 @@ package functional_test
 
 import (
 	"fmt"
+
 	. "github.com/onsi/gomega" //revive:disable:dot-imports
 
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	placementv1 "github.com/openstack-k8s-operators/placement-operator/api/v1beta1"
-	"github.com/openstack-k8s-operators/placement-operator/pkg/placement"
+	"github.com/openstack-k8s-operators/placement-operator/internal/placement"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"

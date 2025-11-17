@@ -12,7 +12,7 @@ webhooks:
       namespace: system
       path: /mutate-placement-openstack-org-v1beta1-placementapi
   failurePolicy: Fail
-  name: mplacementapi.kb.io
+  name: mplacementapi-v1beta1.kb.io
   rules:
   - apiGroups:
     - placement.openstack.org
@@ -38,7 +38,7 @@ webhooks:
       namespace: system
       path: /validate-placement-openstack-org-v1beta1-placementapi
   failurePolicy: Fail
-  name: vplacementapi.kb.io
+  name: vplacementapi-v1beta1.kb.io
   rules:
   - apiGroups:
     - placement.openstack.org

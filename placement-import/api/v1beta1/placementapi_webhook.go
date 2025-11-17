@@ -29,7 +29,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
@@ -51,15 +50,6 @@ func SetupPlacementAPIDefaults(defaults PlacementAPIDefaults) {
 	placementAPIDefaults = defaults
 	placementapilog.Info("PlacementAPI defaults initialized", "defaults", defaults)
 }
-
-// SetupWebhookWithManager sets up the webhook with the Manager
-func (r *PlacementAPI) SetupWebhookWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewWebhookManagedBy(mgr).
-		For(r).
-		Complete()
-}
-
-//+kubebuilder:webhook:path=/mutate-placement-openstack-org-v1beta1-placementapi,mutating=true,failurePolicy=fail,sideEffects=None,groups=placement.openstack.org,resources=placementapis,verbs=create;update,versions=v1beta1,name=mplacementapi.kb.io,admissionReviewVersions=v1
 
 var _ webhook.Defaulter = &PlacementAPI{}
 
@@ -85,9 +75,6 @@ func (spec *PlacementAPISpec) Default() {
 func (spec *PlacementAPISpecCore) Default() {
 	// nothing here yet
 }
-
-// TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
-//+kubebuilder:webhook:path=/validate-placement-openstack-org-v1beta1-placementapi,mutating=false,failurePolicy=fail,sideEffects=None,groups=placement.openstack.org,resources=placementapis,verbs=create;update,versions=v1beta1,name=vplacementapi.kb.io,admissionReviewVersions=v1
 
 var _ webhook.Validator = &PlacementAPI{}
 

@@ -48,7 +48,8 @@ import (
 	test "github.com/openstack-k8s-operators/lib-common/modules/test"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	placementv1 "github.com/openstack-k8s-operators/placement-operator/api/v1beta1"
-	"github.com/openstack-k8s-operators/placement-operator/controllers"
+	controllers "github.com/openstack-k8s-operators/placement-operator/internal/controller"
+	webhookv1 "github.com/openstack-k8s-operators/placement-operator/internal/webhook/v1beta1"
 
 	keystone_test "github.com/openstack-k8s-operators/keystone-operator/api/test/helpers"
 	common_test "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
@@ -183,7 +184,7 @@ var _ = BeforeSuite(func() {
 	kclient, err := kubernetes.NewForConfig(cfg)
 	Expect(err).ToNot(HaveOccurred(), "failed to create kclient")
 
-	err = (&placementv1.PlacementAPI{}).SetupWebhookWithManager(k8sManager)
+	err = webhookv1.SetupPlacementAPIWebhookWithManager(k8sManager)
 	Expect(err).NotTo(HaveOccurred())
 
 	placementv1.SetupDefaults()

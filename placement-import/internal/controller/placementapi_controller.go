@@ -14,8 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package controllers contains the Kubernetes controllers for managing Placement API components
-package controllers
+// Package controller contains the Kubernetes controllers for managing Placement API components
+package controller
 
 import (
 	"context"
@@ -59,7 +59,7 @@ import (
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 
 	placementv1 "github.com/openstack-k8s-operators/placement-operator/api/v1beta1"
-	placement "github.com/openstack-k8s-operators/placement-operator/pkg/placement"
+	placement "github.com/openstack-k8s-operators/placement-operator/internal/placement"
 
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
