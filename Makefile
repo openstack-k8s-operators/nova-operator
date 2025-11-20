@@ -448,6 +448,10 @@ crd-schema-check: manifests
 .PHONY: run_with_olm
 run_with_olm: export CATALOG_IMG=${CATALOG_IMAGE}
 run_with_olm: ## Install nova operator via olm
+	# explicitly to delete any running nova-operator deployments from openstack-operator here as
+	# label selectors can change and installing a service catalog/index like this alongside
+	# openstack-operator (what CI appears to do?) is not recommended
+	oc delete deployment nova-operator-controller-manager -n openstack-operators --ignore-not-found=true
 	bash ci/olm.sh
 	oc apply -f ci/olm.yaml
 	timeout 300s bash -c "while ! (oc get csv -n openstack-operators -l operators.coreos.com/nova-operator.openstack-operators -o jsonpath='{.items[*].status.phase}' | grep Succeeded); do sleep 1; done"
