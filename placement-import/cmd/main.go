@@ -77,6 +77,7 @@ func main() {
 	var enableLeaderElection bool
 	var probeAddr string
 	var pprofBindAddress string
+	var webhookPort int
 	var secureMetrics bool
 	var enableHTTP2 bool
 	var tlsOpts []func(*tls.Config)
@@ -96,6 +97,7 @@ func main() {
 	flag.StringVar(&metricsCertName, "metrics-cert-name", "tls.crt", "The name of the metrics server certificate file.")
 	flag.StringVar(&metricsCertKey, "metrics-cert-key", "tls.key", "The name of the metrics server key file.")
 	flag.StringVar(&pprofBindAddress, "pprof-bind-address", "", "The address the pprof endpoint binds to. Set to empty to disable pprof.")
+	flag.IntVar(&webhookPort, "webhook-bind-address", 9443, "The port the webhook server binds to.")
 	flag.BoolVar(&enableHTTP2, "enable-http2", false,
 		"If set, HTTP/2 will be enabled for the metrics and webhook servers")
 	opts := zap.Options{
@@ -147,6 +149,7 @@ func main() {
 	}
 
 	webhookServer := webhook.NewServer(webhook.Options{
+		Port:    webhookPort,
 		TLSOpts: webhookTLSOpts,
 	})
 
