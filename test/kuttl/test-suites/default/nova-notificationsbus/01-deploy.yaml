@@ -1,0 +1,18 @@
+apiVersion: nova.openstack.org/v1beta1
+kind: Nova
+metadata:
+  name: nova-kuttl
+spec:
+  secret: osp-secret
+  messagingBus:
+    cluster: rabbitmq
+  notificationsBus:
+    cluster: rabbitmq-notifications
+  cellTemplates:
+    cell0:
+      cellDatabaseInstance: openstack
+      cellDatabaseAccount: nova-cell0
+      hasAPIAccess: true
+      memcachedInstance: memcached
+      messagingBus:
+        cluster: rabbitmq

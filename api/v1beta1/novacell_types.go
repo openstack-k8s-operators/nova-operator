@@ -17,6 +17,7 @@ limitations under the License.
 package v1beta1
 
 import (
+	rabbitmqv1 "github.com/openstack-k8s-operators/infra-operator/apis/rabbitmq/v1beta1"
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
@@ -50,6 +51,10 @@ type NovaCellTemplate struct {
 	// the Message Bus Service instance used by the nova services to
 	// communicate in this cell. For cell0 it is unused.
 	CellMessageBusInstance string `json:"cellMessageBusInstance"`
+
+	// +kubebuilder:validation:Optional
+	// MessagingBus configuration (username, vhost, and cluster)
+	MessagingBus rabbitmqv1.RabbitMqConfig `json:"messagingBus,omitempty"`
 
 	// +kubebuilder:validation:Required
 	// HasAPIAccess defines if this Cell is configured to have access to the

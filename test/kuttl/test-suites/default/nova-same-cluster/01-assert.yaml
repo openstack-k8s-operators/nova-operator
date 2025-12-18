@@ -1,0 +1,61 @@
+apiVersion: nova.openstack.org/v1beta1
+kind: Nova
+metadata:
+  name: nova-kuttl
+status:
+  conditions:
+  - message: Setup complete
+    reason: Ready
+    status: "True"
+    type: Ready
+  - message: Notification message bus created successfully
+    reason: Ready
+    status: "True"
+    type: NovaNotificationMQReady
+---
+apiVersion: rabbitmq.openstack.org/v1beta1
+kind: TransportURL
+metadata:
+  name: nova-kuttl-api-transport
+spec:
+  rabbitmqClusterName: rabbitmq
+status:
+  conditions:
+  - message: TransportURL successfully created
+    reason: Ready
+    status: "True"
+    type: Ready
+---
+# Verify that NO second TransportURL was created (same cluster optimization)
+apiVersion: kuttl.dev/v1beta1
+kind: TestAssert
+commands:
+- script: |
+    set -euxo pipefail
+    # Count TransportURL CRs for nova - should be exactly 1 (API transport)
+    # Note: Nova may have cell TransportURLs too, so we only count the main nova transport
+    nova_transport_count=$(kubectl get transporturl -n $NAMESPACE -o name | grep "nova-kuttl-api-transport" | wc -l)
+    notification_count=$(kubectl get transporturl -n $NAMESPACE -o name | grep "nova-kuttl-notification" | wc -l)
+
+    if [ "$nova_transport_count" -ne "1" ]; then
+      echo "Expected 1 nova-transport TransportURL, found $nova_transport_count"
+      exit 1
+    fi
+
+    if [ "$notification_count" -ne "0" ]; then
+      echo "Expected 0 notification TransportURL (same-cluster optimization), found $notification_count"
+      exit 1
+    fi
+
+    echo "Correctly found 1 TransportURL (same-cluster optimization working)"
+
+    # Verify that nova.conf still has notifications transport_url configured (reusing main transport)
+    NOVA_API_POD=$(kubectl get pods -n $NAMESPACE -l "service=nova-api" -o custom-columns=:metadata.name --no-headers | grep -v ^$ | head -1)
+    if [ -z "${NOVA_API_POD}" ]; then
+      echo "No nova-api pod found"
+      exit 1
+    fi
+    # Verify oslo_messaging_notifications section has transport_url configured
+    kubectl exec -n $NAMESPACE ${NOVA_API_POD} -c nova-kuttl-api-api -- cat /etc/nova/nova.conf.d/01-default.conf | grep -A 2 '\[oslo_messaging_notifications\]' | grep -q 'transport_url'
+    echo "Successfully verified notifications transport_url in nova.conf (using same cluster)"
+    exit 0
