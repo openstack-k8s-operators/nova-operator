@@ -24,9 +24,18 @@
                 path: /spec/nova/template/apiServiceTemplate/replicas
                 value: 2
 
-              - op: replace
+              - op: add
+                path: /spec/nova/template/apiMessageBusInstance
+                value: ""
+
+              - op: add
+                path: /spec/nova/template/notificationsBus
+                value:
+                  cluster: rabbitmq
+
+              - op: add
                 path: /spec/nova/template/notificationsBusInstance
-                value: rabbitmq
+                value: null
 
               - op: replace
                 path: /spec/neutron/template/replicas
@@ -47,13 +56,16 @@
                 value:
                   cell0:
                     cellDatabaseAccount: nova-cell0
+                    cellMessageBusInstance: ""
                     hasAPIAccess: true
                     metadataServiceTemplate:
                       enabled: false
                   cell1:
                     cellDatabaseAccount: nova-cell1
+                    cellMessageBusInstance: ""
                     hasAPIAccess: true
-                    cellMessageBusInstance: rabbitmq-cell1
+                    messagingBus:
+                      cluster: rabbitmq-cell1
                     cellDatabaseInstance: openstack-cell1
                     metadataServiceTemplate:
                       enabled: true
