@@ -17,6 +17,7 @@ limitations under the License.
 package v1beta1
 
 import (
+	rabbitmqv1 "github.com/openstack-k8s-operators/infra-operator/apis/rabbitmq/v1beta1"
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -47,7 +48,11 @@ type NovaSpecCore struct {
 	// APIMessageBusInstance is the name of the RabbitMqCluster CR to select
 	// the Message Bus Service instance used by the Nova top level services to
 	// communicate.
-	APIMessageBusInstance string `json:"apiMessageBusInstance"`
+	APIMessageBusInstance string `json:"apiMessageBusInstance" deprecated:"true" deprecatedNew:"messagingBus.cluster"`
+
+	// +kubebuilder:validation:Optional
+	// MessagingBus configuration (username, vhost, and cluster)
+	MessagingBus rabbitmqv1.RabbitMqConfig `json:"messagingBus,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default={cell0: {cellDatabaseAccount: nova-cell0, hasAPIAccess: true}, cell1: {cellDatabaseAccount: nova-cell1, cellDatabaseInstance: openstack-cell1, cellMessageBusInstance: rabbitmq-cell1, hasAPIAccess: true}}
@@ -130,7 +135,11 @@ type NovaSpecCore struct {
 	// An empty value "" leaves the notification drivers unconfigured and emitting no notifications at all.
 	// Avoid colocating it with RabbitMqClusterName, APIMessageBusInstance or CellMessageBusInstance used for RPC.
 	// For particular Nova cells, notifications cannot be disabled, nor configured differently.
-	NotificationsBusInstance *string `json:"notificationsBusInstance,omitempty"`
+	NotificationsBusInstance *string `json:"notificationsBusInstance,omitempty" deprecated:"true" deprecatedNew:"notificationsBus.cluster"`
+
+	// +kubebuilder:validation:Optional
+	// NotificationsBus configuration (username, vhost, and cluster) for notifications
+	NotificationsBus *rabbitmqv1.RabbitMqConfig `json:"notificationsBus,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
