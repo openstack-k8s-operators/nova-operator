@@ -26,6 +26,7 @@ import (
 	"fmt"
 
 	"github.com/google/go-cmp/cmp"
+	rabbitmqv1 "github.com/openstack-k8s-operators/infra-operator/apis/rabbitmq/v1beta1"
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	service "github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	"github.com/robfig/cron/v3"
@@ -88,6 +89,24 @@ func (spec *NovaSpecCore) Default() {
 		spec.APITimeout = novaDefaults.APITimeout
 	}
 
+	// Default MessagingBus.Cluster from APIMessageBusInstance if not already set
+	if spec.MessagingBus.Cluster == "" {
+		spec.MessagingBus.Cluster = spec.APIMessageBusInstance
+	}
+
+	// Default NotificationsBus if NotificationsBusInstance is specified
+	if spec.NotificationsBusInstance != nil && *spec.NotificationsBusInstance != "" {
+		if spec.NotificationsBus == nil {
+			// Initialize empty NotificationsBus - credentials will be created dynamically
+			// to ensure separation from MessagingBus (RPC and notifications should never share credentials)
+			spec.NotificationsBus = &rabbitmqv1.RabbitMqConfig{}
+		}
+		// Default cluster name if not already set
+		if spec.NotificationsBus.Cluster == "" {
+			spec.NotificationsBus.Cluster = *spec.NotificationsBusInstance
+		}
+	}
+
 	for cellName, cellTemplate := range spec.CellTemplates {
 
 		if cellTemplate.MetadataServiceTemplate.Enabled == nil {
@@ -104,6 +123,11 @@ func (spec *NovaSpecCore) Default() {
 			if cellTemplate.NoVNCProxyServiceTemplate.Enabled == nil {
 				cellTemplate.NoVNCProxyServiceTemplate.Enabled = ptr.To(true)
 			}
+		}
+
+		// Default MessagingBus.Cluster from CellMessageBusInstance if not already set
+		if cellTemplate.MessagingBus.Cluster == "" {
+			cellTemplate.MessagingBus.Cluster = cellTemplate.CellMessageBusInstance
 		}
 
 		// "cellTemplate" is a by-value copy, so we need to re-inject the updated version of it into the map
@@ -138,10 +162,26 @@ func (spec *NovaSpecCore) ValidateCellTemplates(basePath *field.Path, namespace 
 			cell.TopologyRef, *basePath.Child("topologyRef"), namespace)...)
 
 		if name != Cell0Name {
-			if dupName, ok := cellMessageBusNames[cell.CellMessageBusInstance]; ok {
+			// Determine which rabbit cluster this cell is using
+			// Prefer the new MessagingBus.Cluster field, fall back to deprecated CellMessageBusInstance
+			var cellCluster string
+			if cell.MessagingBus.Cluster != "" {
+				cellCluster = cell.MessagingBus.Cluster
+			} else {
+				cellCluster = cell.CellMessageBusInstance
+			}
+
+			// Check if this rabbit cluster is already used by another cell
+			if dupName, ok := cellMessageBusNames[cellCluster]; ok {
+				// Determine which field to report the error on
+				fieldPath := cellPath.Child("messagingBus").Child("cluster")
+				if cell.MessagingBus.Cluster == "" {
+					fieldPath = cellPath.Child("cellMessageBusInstance")
+				}
+
 				errors = append(errors, field.Invalid(
-					cellPath.Child("cellMessageBusInstance"),
-					cell.CellMessageBusInstance,
+					fieldPath,
+					cellCluster,
 					fmt.Sprintf(
 						"RabbitMqCluster CR need to be uniq per cell. It's duplicated with cell: %s",
 						dupName),
@@ -149,7 +189,7 @@ func (spec *NovaSpecCore) ValidateCellTemplates(basePath *field.Path, namespace 
 				)
 			}
 
-			cellMessageBusNames[cell.CellMessageBusInstance] = name
+			cellMessageBusNames[cellCluster] = name
 		}
 		if *cell.MetadataServiceTemplate.Enabled && *spec.MetadataServiceTemplate.Enabled {
 			errors = append(
@@ -260,16 +300,24 @@ func (spec *NovaSpecCore) ValidateSchedulerServiceTemplate(basePath *field.Path,
 	return errors
 }
 
+
 // ValidateCreate validates the NovaSpec during the webhook invocation.
-func (spec *NovaSpec) ValidateCreate(basePath *field.Path, namespace string) field.ErrorList {
+func (spec *NovaSpec) ValidateCreate(basePath *field.Path, namespace string) (admission.Warnings, field.ErrorList) {
 	return spec.NovaSpecCore.ValidateCreate(basePath, namespace)
 }
 
 // ValidateCreate validates the NovaSpecCore during the webhook invocation. It is
 // expected to be called by the validation webhook in the higher level meta
 // operator
-func (spec *NovaSpecCore) ValidateCreate(basePath *field.Path, namespace string) field.ErrorList {
-	errors := spec.ValidateCellTemplates(basePath, namespace)
+func (spec *NovaSpecCore) ValidateCreate(basePath *field.Path, namespace string) (admission.Warnings, field.ErrorList) {
+	var warnings admission.Warnings
+
+	// Validate deprecated fields
+	deprecatedWarnings, deprecatedErrors := spec.validateDeprecatedFieldsCreate(basePath)
+	warnings = append(warnings, deprecatedWarnings...)
+
+	errors := deprecatedErrors
+	errors = append(errors, spec.ValidateCellTemplates(basePath, namespace)...)
 	errors = append(errors, spec.ValidateAPIServiceTemplate(basePath, namespace)...)
 	errors = append(errors, spec.ValidateSchedulerServiceTemplate(basePath, namespace)...)
 
@@ -289,33 +337,41 @@ func (spec *NovaSpecCore) ValidateCreate(basePath *field.Path, namespace string)
 		topologyv1.ValidateTopologyRef(
 			spec.TopologyRef, *basePath.Child("topologyRef"), namespace)...)
 
-	return errors
+	return warnings, errors
 }
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (r *Nova) ValidateCreate() (admission.Warnings, error) {
 	novalog.Info("validate create", "name", r.Name)
 
-	errors := r.Spec.ValidateCreate(field.NewPath("spec"), r.Namespace)
+	warnings, errors := r.Spec.ValidateCreate(field.NewPath("spec"), r.Namespace)
 	if len(errors) != 0 {
 		novalog.Info("validation failed", "name", r.Name)
-		return nil, apierrors.NewInvalid(
+		return warnings, apierrors.NewInvalid(
 			schema.GroupKind{Group: "nova.openstack.org", Kind: "Nova"},
 			r.Name, errors)
 	}
-	return nil, nil
+	return warnings, nil
 }
 
 // ValidateUpdate validates the NovaSpec during the webhook invocation.
-func (spec *NovaSpec) ValidateUpdate(old NovaSpec, basePath *field.Path, namespace string) field.ErrorList {
+func (spec *NovaSpec) ValidateUpdate(old NovaSpec, basePath *field.Path, namespace string) (admission.Warnings, field.ErrorList) {
 	return spec.NovaSpecCore.ValidateUpdate(old.NovaSpecCore, basePath, namespace)
 }
 
 // ValidateUpdate validates the NovaSpecCore during the webhook invocation. It is
 // expected to be called by the validation webhook in the higher level meta
 // operator
-func (spec *NovaSpecCore) ValidateUpdate(old NovaSpecCore, basePath *field.Path, namespace string) field.ErrorList {
-	errors := spec.ValidateCellTemplates(basePath, namespace)
+func (spec *NovaSpecCore) ValidateUpdate(old NovaSpecCore, basePath *field.Path, namespace string) (admission.Warnings, field.ErrorList) {
+	var errors field.ErrorList
+	var warnings admission.Warnings
+
+	// Validate deprecated fields
+	deprecatedWarnings, deprecatedErrors := spec.validateDeprecatedFieldsUpdate(old, basePath)
+	warnings = append(warnings, deprecatedWarnings...)
+	errors = append(errors, deprecatedErrors...)
+
+	errors = append(errors, spec.ValidateCellTemplates(basePath, namespace)...)
 	// Validate top-level TopologyRef
 	errors = append(errors, topologyv1.ValidateTopologyRef(
 		spec.TopologyRef, *basePath.Child("topologyRef"), namespace)...)
@@ -334,7 +390,7 @@ func (spec *NovaSpecCore) ValidateUpdate(old NovaSpecCore, basePath *field.Path,
 		spec.MetadataServiceTemplate.ValidateDefaultConfigOverwrite(
 			basePath.Child("metadataServiceTemplate"))...)
 
-	return errors
+	return warnings, errors
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
@@ -347,14 +403,14 @@ func (r *Nova) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 
 	novalog.Info("validate update", "diff", cmp.Diff(oldNova, r))
 
-	errors := r.Spec.ValidateUpdate(oldNova.Spec, field.NewPath("spec"), r.Namespace)
+	warnings, errors := r.Spec.ValidateUpdate(oldNova.Spec, field.NewPath("spec"), r.Namespace)
 	if len(errors) != 0 {
 		novalog.Info("validation failed", "name", r.Name)
-		return nil, apierrors.NewInvalid(
+		return warnings, apierrors.NewInvalid(
 			schema.GroupKind{Group: "nova.openstack.org", Kind: "Nova"},
 			r.Name, errors)
 	}
-	return nil, nil
+	return warnings, nil
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type

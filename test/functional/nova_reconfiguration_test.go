@@ -689,7 +689,10 @@ var _ = Describe("Nova reconfiguration", func() {
 				nova := GetNova(novaNames.NovaName)
 
 				cell1 := nova.Spec.CellTemplates["cell1"]
-				cell1.CellMessageBusInstance = "alternate-mq-for-cell1"
+				// Migrate from deprecated cellMessageBusInstance to new messagingBus.cluster field
+				// Must null out the old field when setting the new one to avoid validation error
+				cell1.CellMessageBusInstance = ""
+				cell1.MessagingBus.Cluster = "alternate-mq-for-cell1"
 				nova.Spec.CellTemplates["cell1"] = cell1
 
 				g.Expect(k8sClient.Update(ctx, nova)).To(Succeed())

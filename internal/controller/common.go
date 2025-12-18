@@ -111,6 +111,14 @@ const (
 	// the message bus quorum queues configuration
 	QuorumQueuesTemplateKey = "quorum_queues"
 
+	// RabbitmqUserNameSelector is the name of key in the internal Secret for
+	// the RabbitMQUser CR name for the RPC/messaging bus
+	RabbitmqUserNameSelector = "rabbitmq_user_name"
+
+	// NotificationRabbitmqUserNameSelector is the name of key in the internal
+	// Secret for the RabbitMQUser CR name for the notifications bus
+	NotificationRabbitmqUserNameSelector = "notification_rabbitmq_user_name"
+
 	// fields to index to reconcile when change
 	passwordSecretField        = ".spec.secret"
 	authAppCredSecretField     = ".spec.auth.applicationCredentialSecret" // #nosec G101
