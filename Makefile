@@ -136,7 +136,7 @@ tidy: ## Run go mod tidy on every mod file in the repo
 	go mod tidy
 	cd ./api && go mod tidy
 
-GOLANGCI_LINT_VERSION ?= v2.4.0
+GOLANGCI_LINT_VERSION ?= v2.7.2
 .PHONY: golangci-lint
 golangci-lint:
 	# NOTE this will install golangci-lint in to local bin dir
