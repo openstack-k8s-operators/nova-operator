@@ -490,6 +490,13 @@ func (r *NovaAPIReconciler) generateConfigs(
 		return err
 	}
 
+	// Get region from keystoneAPI
+	keystoneAPI, err := keystonev1.GetKeystoneAPI(ctx, h, instance.Namespace, map[string]string{})
+	if err != nil {
+		return err
+	}
+	region := keystoneAPI.GetRegion()
+
 	templateParameters := map[string]any{
 		"service_name":          "nova-api",
 		"keystone_internal_url": instance.Spec.KeystoneAuthURL,
@@ -508,9 +515,9 @@ func (r *NovaAPIReconciler) generateConfigs(
 		"cell_db_password":           string(cellDbSecret.Data[mariadbv1.DatabasePasswordSelector]),
 		"cell_db_address":            instance.Spec.Cell0DatabaseHostname,
 		"cell_db_port":               3306,
-		"openstack_region_name":      "regionOne", // fixme
-		"default_project_domain":     "Default",   // fixme
-		"default_user_domain":        "Default",   // fixme
+		"openstack_region_name":      region,
+		"default_project_domain":     "Default", // fixme
+		"default_user_domain":        "Default", // fixme
 		"transport_url":              string(secret.Data[TransportURLSelector]),
 		"notification_transport_url": string(secret.Data[NotificationTransportURLSelector]),
 		"log_file":                   "/var/log/nova/nova-api.log",

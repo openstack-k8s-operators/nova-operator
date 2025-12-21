@@ -489,6 +489,11 @@ func (r *NovaMetadataReconciler) generateConfigs(
 
 	}
 
+	keystoneAPI, err := keystonev1.GetKeystoneAPI(ctx, h, instance.Namespace, map[string]string{})
+	if err != nil {
+		return err
+	}
+
 	templateParameters := map[string]any{
 		"service_name":             novametadata.ServiceName,
 		"keystone_internal_url":    instance.Spec.KeystoneAuthURL,
@@ -499,9 +504,9 @@ func (r *NovaMetadataReconciler) generateConfigs(
 		"cell_db_password":         string(cellDbSecret.Data[mariadbv1.DatabasePasswordSelector]),
 		"cell_db_address":          instance.Spec.CellDatabaseHostname,
 		"cell_db_port":             3306,
-		"openstack_region_name":    "regionOne", // fixme
-		"default_project_domain":   "Default",   // fixme
-		"default_user_domain":      "Default",   // fixme
+		"openstack_region_name":    keystoneAPI.GetRegion(),
+		"default_project_domain":   "Default", // fixme
+		"default_user_domain":      "Default", // fixme
 		"metadata_secret":          string(secret.Data[MetadataSecretSelector]),
 		"log_file":                 "/var/log/nova/nova-metadata.log",
 		"transport_url":            string(secret.Data[TransportURLSelector]),

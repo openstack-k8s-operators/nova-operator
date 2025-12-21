@@ -452,6 +452,11 @@ func (r *NovaConductorReconciler) generateConfigs(
 	cellDatabaseAccount := cellDB.GetAccount()
 	cellDbSecret := cellDB.GetSecret()
 
+	keystoneAPI, err := keystonev1.GetKeystoneAPI(ctx, h, instance.Namespace, map[string]string{})
+	if err != nil {
+		return err
+	}
+
 	templateParameters := map[string]any{
 		"service_name":               "nova-conductor",
 		"keystone_internal_url":      instance.Spec.KeystoneAuthURL,
@@ -462,9 +467,9 @@ func (r *NovaConductorReconciler) generateConfigs(
 		"cell_db_password":           string(cellDbSecret.Data[mariadbv1.DatabasePasswordSelector]),
 		"cell_db_address":            instance.Spec.CellDatabaseHostname,
 		"cell_db_port":               3306,
-		"openstack_region_name":      "regionOne", // fixme
-		"default_project_domain":     "Default",   // fixme
-		"default_user_domain":        "Default",   // fixme
+		"openstack_region_name":      keystoneAPI.GetRegion(),
+		"default_project_domain":     "Default", // fixme
+		"default_user_domain":        "Default", // fixme
 		"transport_url":              string(secret.Data[TransportURLSelector]),
 		"notification_transport_url": string(secret.Data[NotificationTransportURLSelector]),
 		"MemcachedServers":           memcachedInstance.GetMemcachedServerListString(),
@@ -689,7 +694,7 @@ func (r *NovaConductorReconciler) cleanServiceFromNovaDb(
 	l logr.Logger,
 ) error {
 	authPassword := string(secret.Data[ServicePasswordSelector])
-	computeClient, err := getNovaClient(ctx, h, instance, authPassword, l)
+	computeClient, err := getNovaClient(ctx, h, instance, authPassword, l, instance.Namespace)
 	if err != nil {
 		return err
 	}

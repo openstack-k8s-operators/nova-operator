@@ -46,6 +46,7 @@ import (
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
+	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 )
 
@@ -769,14 +770,19 @@ func (r *NovaCellReconciler) generateComputeConfigs(
 	ctx context.Context, h *helper.Helper, instance *novav1.NovaCell,
 	secret corev1.Secret, vncProxyURL *string,
 ) error {
+	keystoneAPI, err := keystonev1.GetKeystoneAPI(ctx, h, instance.Namespace, map[string]string{})
+	if err != nil {
+		return err
+	}
+
 	templateParameters := map[string]any{
 		"service_name":               "nova-compute",
 		"keystone_internal_url":      instance.Spec.KeystoneAuthURL,
 		"nova_keystone_user":         instance.Spec.ServiceUser,
 		"nova_keystone_password":     string(secret.Data[ServicePasswordSelector]),
-		"openstack_region_name":      "regionOne", // fixme
-		"default_project_domain":     "Default",   // fixme
-		"default_user_domain":        "Default",   // fixme
+		"openstack_region_name":      keystoneAPI.GetRegion(),
+		"default_project_domain":     "Default", // fixme
+		"default_user_domain":        "Default", // fixme
 		"compute_driver":             "libvirt.LibvirtDriver",
 		"transport_url":              string(secret.Data[TransportURLSelector]),
 		"notification_transport_url": string(secret.Data[NotificationTransportURLSelector]),
@@ -798,7 +804,7 @@ func (r *NovaCellReconciler) generateComputeConfigs(
 	hashes := make(map[string]env.Setter)
 
 	configName := instance.GetName() + "-compute-config"
-	err := r.GenerateConfigs(
+	err = r.GenerateConfigs(
 		ctx, h, instance, configName, &hashes, templateParameters, map[string]string{}, cmLabels, map[string]string{},
 	)
 	if err != nil {

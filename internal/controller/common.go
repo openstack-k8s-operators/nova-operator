@@ -46,6 +46,7 @@ import (
 	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/services"
 	networkv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
+	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
@@ -646,6 +647,7 @@ func getNovaClient(
 	auth clientAuth,
 	password string,
 	l logr.Logger,
+	namespace string,
 ) (*gophercloud.ServiceClient, error) {
 	authURL := auth.GetKeystoneAuthURL()
 	parsedAuthURL, err := url.Parse(authURL)
@@ -682,13 +684,17 @@ func getNovaClient(
 		}
 	}
 
+	keystoneAPI, err := keystonev1.GetKeystoneAPI(ctx, h, namespace, map[string]string{})
+	if err != nil {
+		return nil, err
+	}
 	cfg := openstack.AuthOpts{
 		AuthURL:    authURL,
 		Username:   auth.GetKeystoneUser(),
 		Password:   password,
-		DomainName: "Default",   // fixme",
-		Region:     "regionOne", // fixme",
-		TenantName: "service",   // fixme",
+		DomainName: "Default", // fixme",
+		Region:     keystoneAPI.GetRegion(),
+		TenantName: "service", // fixme",
 		TLS:        tlsConfig,
 	}
 	endpointOpts := gophercloud.EndpointOpts{

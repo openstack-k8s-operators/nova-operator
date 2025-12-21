@@ -1053,6 +1053,11 @@ func (r *NovaReconciler) ensureNovaManageJobSecret(
 		return nil, "", "", err
 	}
 
+	keystoneAPI, err := keystonev1.GetKeystoneAPI(ctx, h, instance.Namespace, map[string]string{})
+	if err != nil {
+		return nil, "", "", err
+	}
+
 	// We configure the Job like it runs in the env of the conductor of the given cell
 	// but we ensure that the config always has [api_database] section configure
 	// even if the cell has no API access at all.
@@ -1073,9 +1078,9 @@ func (r *NovaReconciler) ensureNovaManageJobSecret(
 		"cell_db_password":       string(cellDbSecret.Data[mariadbv1.DatabasePasswordSelector]),
 		"cell_db_address":        cell.Spec.CellDatabaseHostname,
 		"cell_db_port":           3306,
-		"openstack_region_name":  "regionOne", // fixme
-		"default_project_domain": "Default",   // fixme
-		"default_user_domain":    "Default",   // fixme
+		"openstack_region_name":  keystoneAPI.GetRegion(),
+		"default_project_domain": "Default", // fixme
+		"default_user_domain":    "Default", // fixme
 	}
 
 	// NOTE(gibi): cell mapping for cell0 should not have transport_url
