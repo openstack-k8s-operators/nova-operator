@@ -1034,6 +1034,8 @@ var _ = Describe("NovaConductor controller cleaning", func() {
 		keystoneFixture, f := SetupAPIFixtures(logger)
 		novaAPIServer = f
 		spec["keystoneAuthURL"] = keystoneFixture.Endpoint()
+		// Explicitly set region to match the test fixture's service catalog
+		spec["region"] = "regionOne"
 		DeferCleanup(th.DeleteInstance, CreateNovaConductor(cell0.ConductorName, spec))
 		DeferCleanup(
 			k8sClient.Delete, ctx, CreateDefaultCellInternalSecret(cell0))

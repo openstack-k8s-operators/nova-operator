@@ -101,6 +101,11 @@ type NovaComputeSpec struct {
 	// +kubebuilder:validation:Required
 	KeystoneAuthURL string `json:"keystoneAuthURL"`
 
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=regionOne
+	// Region - the region name to use for service endpoint discovery
+	Region string `json:"region"`
+
 	// NovaServiceBase specifies the generic fields of the service
 	NovaServiceBase `json:",inline"`
 
@@ -222,6 +227,7 @@ func NewNovaComputeSpec(
 		},
 		KeystoneAuthURL:        novaCell.KeystoneAuthURL,
 		ServiceUser:            novaCell.ServiceUser,
+		Region:                 novaCell.Region,
 		ServiceAccount:         novaCell.ServiceAccount,
 		ComputeDriver:          computeTemplate.ComputeDriver,
 		TLS:                    novaCell.TLS,

@@ -87,6 +87,11 @@ type NovaSchedulerSpec struct {
 	KeystoneAuthURL string `json:"keystoneAuthURL"`
 
 	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=regionOne
+	// Region - the region name to use for service endpoint discovery
+	Region string `json:"region"`
+
+	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=nova-api
 	// APIDatabaseAccount - MariaDBAccount to use when accessing the API DB
 	APIDatabaseAccount string `json:"apiDatabaseAccount"`
@@ -206,6 +211,11 @@ func (n NovaScheduler) GetKeystoneUser() string {
 // GetCABundleSecretName returns the TLS CA bundle name from the Spec
 func (n NovaScheduler) GetCABundleSecretName() string {
 	return n.Spec.TLS.CaBundleSecretName
+}
+
+// GetRegion returns the Region from the Spec
+func (n NovaScheduler) GetRegion() string {
+	return n.Spec.Region
 }
 
 // GetSpecTopologyRef - Returns the LastAppliedTopology Set in the Status
