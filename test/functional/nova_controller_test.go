@@ -1912,6 +1912,38 @@ var _ = Describe("Nova controller", func() {
 	mariadbCellSuite.RunBasicSuite()
 })
 
+var _ = Describe("Nova controller - region defaults", func() {
+	When("KeystoneAPI returns an empty region", func() {
+		BeforeEach(func() {
+			CreateNovaWithNCellsAndEnsureReady(1, &novaNames)
+		})
+
+		It("defaults the region to regionOne", func() {
+			Eventually(func(g Gomega) {
+				keystoneAPI := keystone.GetKeystoneAPI(novaNames.KeystoneAPIName)
+				keystoneAPI.Spec.Region = ""
+				g.Expect(k8sClient.Update(ctx, keystoneAPI)).To(Succeed())
+				keystoneAPI.Status.Region = ""
+				g.Expect(k8sClient.Status().Update(ctx, keystoneAPI)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				nova := GetNova(novaNames.NovaName)
+				if nova.Annotations == nil {
+					nova.Annotations = map[string]string{}
+				}
+				nova.Annotations["test-trigger"] = "region-default"
+				g.Expect(k8sClient.Update(ctx, nova)).Should(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				api := GetNovaAPI(novaNames.APIName)
+				g.Expect(api.Spec.Region).To(Equal("regionOne"))
+			}, timeout, interval).Should(Succeed())
+		})
+	})
+})
+
 var _ = Describe("Nova controller without memcached", func() {
 	BeforeEach(func() {
 		DeferCleanup(

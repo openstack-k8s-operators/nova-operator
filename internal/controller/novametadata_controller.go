@@ -499,9 +499,9 @@ func (r *NovaMetadataReconciler) generateConfigs(
 		"cell_db_password":         string(cellDbSecret.Data[mariadbv1.DatabasePasswordSelector]),
 		"cell_db_address":          instance.Spec.CellDatabaseHostname,
 		"cell_db_port":             3306,
-		"openstack_region_name":    "regionOne", // fixme
-		"default_project_domain":   "Default",   // fixme
-		"default_user_domain":      "Default",   // fixme
+		"openstack_region_name":    instance.Spec.Region,
+		"default_project_domain":   "Default", // fixme
+		"default_user_domain":      "Default", // fixme
 		"metadata_secret":          string(secret.Data[MetadataSecretSelector]),
 		"log_file":                 "/var/log/nova/nova-metadata.log",
 		"transport_url":            string(secret.Data[TransportURLSelector]),

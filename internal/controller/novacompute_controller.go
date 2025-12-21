@@ -365,9 +365,9 @@ func (r *NovaComputeReconciler) generateConfigs(
 		"keystone_internal_url":      instance.Spec.KeystoneAuthURL,
 		"nova_keystone_user":         instance.Spec.ServiceUser,
 		"nova_keystone_password":     string(secret.Data[ServicePasswordSelector]),
-		"openstack_region_name":      "regionOne", // fixme
-		"default_project_domain":     "Default",   // fixme
-		"default_user_domain":        "Default",   // fixme
+		"openstack_region_name":      instance.Spec.Region,
+		"default_project_domain":     "Default", // fixme
+		"default_user_domain":        "Default", // fixme
 		"transport_url":              string(secret.Data[TransportURLSelector]),
 		"notification_transport_url": string(secret.Data[NotificationTransportURLSelector]),
 		"compute_driver":             instance.Spec.ComputeDriver,
