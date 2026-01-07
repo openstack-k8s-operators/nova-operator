@@ -782,6 +782,14 @@ func (r *NovaCellReconciler) generateComputeConfigs(
 		"notification_transport_url": string(secret.Data[NotificationTransportURLSelector]),
 		QuorumQueuesTemplateKey:      parseQuorumQueues(secret.Data[QuorumQueuesTemplateKey]),
 	}
+
+	// Application Credential data
+	if acID, ok := secret.Data["ACID"]; ok && len(acID) > 0 {
+		if acSecretData, ok := secret.Data["ACSecret"]; ok && len(acSecretData) > 0 {
+			templateParameters["ACID"] = string(acID)
+			templateParameters["ACSecret"] = string(acSecretData)
+		}
+	}
 	// vnc is optional so we only need to configure it for the compute
 	// if the proxy service is deployed in the cell
 	if vncProxyURL != nil {

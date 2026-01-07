@@ -1484,6 +1484,147 @@ var _ = Describe("NovaAPI controller", func() {
 			Expect(configData).Should(
 				ContainSubstring("memcache_tls_enabled = true"))
 		})
+	})
+})
 
+var _ = Describe("NovaAPI controller", func() {
+	BeforeEach(func() {
+		mariadb.CreateMariaDBDatabase(novaNames.APIMariaDBDatabaseName.Namespace, novaNames.APIMariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
+		DeferCleanup(k8sClient.Delete, ctx, mariadb.GetMariaDBDatabase(novaNames.APIMariaDBDatabaseName))
+
+		apiMariaDBAccount, apiMariaDBSecret := mariadb.CreateMariaDBAccountAndSecret(
+			novaNames.APIMariaDBDatabaseAccount, mariadbv1.MariaDBAccountSpec{})
+		DeferCleanup(k8sClient.Delete, ctx, apiMariaDBAccount)
+		DeferCleanup(k8sClient.Delete, ctx, apiMariaDBSecret)
+
+		cell0Account, cell0Secret := mariadb.CreateMariaDBAccountAndSecret(
+			cell0.MariaDBAccountName, mariadbv1.MariaDBAccountSpec{})
+		DeferCleanup(k8sClient.Delete, ctx, cell0Account)
+		DeferCleanup(k8sClient.Delete, ctx, cell0Secret)
+
+		memcachedSpec := infra.GetDefaultMemcachedSpec()
+		DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
+		infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
+	})
+
+	When("NovaAPI is created with ApplicationCredential data in parent secret", func() {
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateInternalTopLevelSecret(novaNames))
+			DeferCleanup(th.DeleteInstance, CreateNovaAPI(novaNames.APIName, GetDefaultNovaAPISpec(novaNames)))
+
+			th.ExpectCondition(
+				novaNames.APIName,
+				ConditionGetterFunc(NovaAPIConditionGetter),
+				condition.ServiceConfigReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
+
+		It("should render ApplicationCredential auth in config when AC data is in parent secret", func() {
+			acID := "test-ac-id"
+			acSecret := "test-ac-secret"
+
+			// Update parent secret with AC data (simulating what Nova controller does)
+			Eventually(func(g Gomega) {
+				sec := &corev1.Secret{}
+				g.Expect(k8sClient.Get(ctx, novaNames.InternalTopLevelSecretName, sec)).To(Succeed())
+				sec.Data["ACID"] = []byte(acID)
+				sec.Data["ACSecret"] = []byte(acSecret)
+				g.Expect(k8sClient.Update(ctx, sec)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				cfgSecret := th.GetSecret(novaNames.APIConfigDataName)
+				g.Expect(cfgSecret).NotTo(BeNil())
+
+				conf := string(cfgSecret.Data["01-nova.conf"])
+
+				// AC auth is configured in keystone_authtoken
+				g.Expect(conf).To(ContainSubstring("[keystone_authtoken]"))
+				g.Expect(conf).To(ContainSubstring("auth_type = v3applicationcredential"))
+				g.Expect(conf).To(ContainSubstring("application_credential_id = " + acID))
+				g.Expect(conf).To(ContainSubstring("application_credential_secret = " + acSecret))
+
+				// oslo_limit should also use AC with unscoped system_scope
+				g.Expect(conf).To(ContainSubstring("[oslo_limit]"))
+				g.Expect(conf).To(ContainSubstring("system_scope = unscoped"))
+
+				// Service user should use AC
+				g.Expect(conf).To(ContainSubstring("[service_user]"))
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("adopts AC, rotates it, then falls back to password when removed", func() {
+			Eventually(func(g Gomega) {
+				cfg := th.GetSecret(novaNames.APIConfigDataName)
+				g.Expect(cfg).NotTo(BeNil())
+				conf := string(cfg.Data["01-nova.conf"])
+
+				g.Expect(conf).To(ContainSubstring("[keystone_authtoken]"))
+				g.Expect(conf).To(ContainSubstring("auth_type = password"))
+			}, timeout, interval).Should(Succeed())
+
+			// Adopt AC
+			acID1 := "ac-id-1"
+			acSecret1 := "ac-secret-1"
+			Eventually(func(g Gomega) {
+				sec := &corev1.Secret{}
+				g.Expect(k8sClient.Get(ctx, novaNames.InternalTopLevelSecretName, sec)).To(Succeed())
+				sec.Data["ACID"] = []byte(acID1)
+				sec.Data["ACSecret"] = []byte(acSecret1)
+				g.Expect(k8sClient.Update(ctx, sec)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				cfg := th.GetSecret(novaNames.APIConfigDataName)
+				g.Expect(cfg).NotTo(BeNil())
+				conf := string(cfg.Data["01-nova.conf"])
+
+				g.Expect(conf).To(ContainSubstring("auth_type = v3applicationcredential"))
+				g.Expect(conf).To(ContainSubstring("application_credential_id = " + acID1))
+				g.Expect(conf).To(ContainSubstring("application_credential_secret = " + acSecret1))
+			}, timeout, interval).Should(Succeed())
+
+			// Rotate AC
+			acID2 := "ac-id-2"
+			acSecret2 := "ac-secret-2"
+			Eventually(func(g Gomega) {
+				sec := &corev1.Secret{}
+				g.Expect(k8sClient.Get(ctx, novaNames.InternalTopLevelSecretName, sec)).To(Succeed())
+				sec.Data["ACID"] = []byte(acID2)
+				sec.Data["ACSecret"] = []byte(acSecret2)
+				g.Expect(k8sClient.Update(ctx, sec)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				cfg := th.GetSecret(novaNames.APIConfigDataName)
+				g.Expect(cfg).NotTo(BeNil())
+				conf := string(cfg.Data["01-nova.conf"])
+
+				g.Expect(conf).To(ContainSubstring("application_credential_id = " + acID2))
+				g.Expect(conf).To(ContainSubstring("application_credential_secret = " + acSecret2))
+			}, timeout, interval).Should(Succeed())
+
+			// Remove AC
+			Eventually(func(g Gomega) {
+				sec := &corev1.Secret{}
+				g.Expect(k8sClient.Get(ctx, novaNames.InternalTopLevelSecretName, sec)).To(Succeed())
+				delete(sec.Data, "ACID")
+				delete(sec.Data, "ACSecret")
+				g.Expect(k8sClient.Update(ctx, sec)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				cfg := th.GetSecret(novaNames.APIConfigDataName)
+				g.Expect(cfg).NotTo(BeNil())
+				conf := string(cfg.Data["01-nova.conf"])
+
+				g.Expect(conf).To(ContainSubstring("auth_type = password"))
+				g.Expect(conf).NotTo(ContainSubstring("auth_type = v3applicationcredential"))
+				g.Expect(conf).NotTo(ContainSubstring("application_credential_id"))
+				g.Expect(conf).NotTo(ContainSubstring("application_credential_secret"))
+			}, timeout, interval).Should(Succeed())
+		})
 	})
 })

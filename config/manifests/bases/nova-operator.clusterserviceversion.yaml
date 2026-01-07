@@ -107,6 +107,15 @@ spec:
       - description: TLS - Parameters related to the TLS
         displayName: TLS
         path: apiServiceTemplate.tls
+      - description: Auth - Parameters related to authentication (shared by all Nova
+          services)
+        displayName: Auth
+        path: auth
+      - description: |-
+          ApplicationCredentialSecret - the name of the k8s Secret that contains the
+          application credential data used for authentication
+        displayName: Application Credential Secret
+        path: auth.applicationCredentialSecret
       - description: TLS - Parameters related to the TLS
         displayName: TLS
         path: cellTemplates.metadataServiceTemplate.tls

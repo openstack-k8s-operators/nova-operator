@@ -260,6 +260,34 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	if (err != nil || result != ctrl.Result{}) {
 		return result, err
 	}
+
+	// Application Credential Secret (optional)
+	var acData *keystonev1.ApplicationCredentialData
+	if instance.Spec.Auth.ApplicationCredentialSecret != "" {
+		var err error
+		acData, err = keystonev1.GetApplicationCredentialFromSecret(
+			ctx,
+			h.GetClient(),
+			instance.Namespace,
+			novaapi.ServiceName,
+		)
+		if err != nil {
+			// Secret exists but is malformed
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				condition.InputReadyCondition,
+				condition.ErrorReason,
+				condition.SeverityWarning,
+				novav1.NovaApplicationCredentialSecretErrorMessage))
+			return ctrl.Result{}, err
+		}
+		if acData != nil {
+			Log.Info("Using ApplicationCredentials auth", "service", novaapi.ServiceName)
+		} else {
+			// Secret doesn't exist, continue with password auth
+			Log.Info("ApplicationCredential secret not found, using password auth", "service", novaapi.ServiceName)
+		}
+	}
+
 	instance.Status.Conditions.MarkTrue(condition.InputReadyCondition, condition.InputReadyMessage)
 
 	err = r.ensureKeystoneServiceUser(ctx, h, instance)
@@ -613,7 +641,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		ctx, h, instance,
 		apiTransportURL, apiQuorumQueues,
 		notificationTransportURL,
-		secret)
+		secret, acData)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -2022,6 +2050,14 @@ func (r *NovaReconciler) ensureCellSecret(
 		QuorumQueuesTemplateKey:          quorumQueuesValue,
 	}
 
+	// Application Credential data
+	if acID, ok := externalSecret.Data[keystonev1.ACIDSecretKey]; ok && len(acID) > 0 {
+		if acSecretData, ok := externalSecret.Data[keystonev1.ACSecretSecretKey]; ok && len(acSecretData) > 0 {
+			data["ACID"] = string(acID)
+			data["ACSecret"] = string(acSecretData)
+		}
+	}
+
 	// If metadata is enabled in the cell then the cell secret needs the
 	// metadata shared secret
 	if *cellTemplate.MetadataServiceTemplate.Enabled {
@@ -2066,6 +2102,7 @@ func (r *NovaReconciler) ensureTopLevelSecret(
 	apiQuorumQueues bool,
 	notificationTransportURL string,
 	externalSecret corev1.Secret,
+	acData *keystonev1.ApplicationCredentialData,
 ) (string, error) {
 	// NOTE(gibi): We can move other sensitive data to the internal Secret from
 	// the subCR fields, possibly hostnames or usernames.
@@ -2080,6 +2117,12 @@ func (r *NovaReconciler) ensureTopLevelSecret(
 		TransportURLSelector:             apiTransportURL,
 		NotificationTransportURLSelector: notificationTransportURL,
 		QuorumQueuesTemplateKey:          quorumQueuesValue,
+	}
+
+	// Add Application Credential data if provided
+	if acData != nil {
+		data["ACID"] = acData.ID
+		data["ACSecret"] = acData.Secret
 	}
 
 	// NOTE(gibi): When we switch to immutable secrets then we need to include
@@ -2202,6 +2245,7 @@ func (r *NovaReconciler) memcachedNamespaceMapFunc(ctx context.Context, src clie
 var (
 	novaWatchFields = []string{
 		passwordSecretField,
+		authAppCredSecretField,
 	}
 )
 
@@ -2215,6 +2259,18 @@ func (r *NovaReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			return nil
 		}
 		return []string{cr.Spec.Secret}
+	}); err != nil {
+		return err
+	}
+
+	// index authAppCredSecretField
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &novav1.Nova{}, authAppCredSecretField, func(rawObj client.Object) []string {
+		// Extract the application credential secret name from the spec, if one is provided
+		cr := rawObj.(*novav1.Nova)
+		if cr.Spec.Auth.ApplicationCredentialSecret == "" {
+			return nil
+		}
+		return []string{cr.Spec.Auth.ApplicationCredentialSecret}
 	}); err != nil {
 		return err
 	}

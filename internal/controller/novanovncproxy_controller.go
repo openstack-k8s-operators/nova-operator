@@ -514,6 +514,14 @@ func (r *NovaNoVNCProxyReconciler) generateConfigs(
 		templateParameters["MemcachedAuthCa"] = fmt.Sprint(memcachedv1.CaMountPath())
 	}
 
+	// Application Credential data
+	if acID, ok := secret.Data["ACID"]; ok && len(acID) > 0 {
+		if acSecretData, ok := secret.Data["ACSecret"]; ok && len(acSecretData) > 0 {
+			templateParameters["ACID"] = string(acID)
+			templateParameters["ACSecret"] = string(acSecretData)
+		}
+	}
+
 	extraData := map[string]string{
 		"my.cnf": cellDB.GetDatabaseClientConfig(tlsCfg), //(mschuppert) for now just get the default my.cnf
 	}

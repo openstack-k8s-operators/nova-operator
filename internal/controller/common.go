@@ -19,8 +19,11 @@ package controller
 
 import (
 	"context"
+	cryptotls "crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"maps"
+	"net/http"
 	"net/url"
 	"sort"
 	"strconv"
@@ -43,6 +46,7 @@ import (
 	"github.com/openstack-k8s-operators/nova-operator/internal/nova"
 
 	gophercloud "github.com/gophercloud/gophercloud/v2"
+	gophercloudopenstack "github.com/gophercloud/gophercloud/v2/openstack"
 	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/services"
 	networkv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
@@ -51,7 +55,7 @@ import (
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 	nad "github.com/openstack-k8s-operators/lib-common/modules/common/networkattachment"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/secret"
-	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
+	commontls "github.com/openstack-k8s-operators/lib-common/modules/common/tls"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	"github.com/openstack-k8s-operators/lib-common/modules/openstack"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -114,6 +118,7 @@ const (
 	passwordSecretField        = ".spec.secret"
 	caBundleSecretNameField    = ".spec.tls.caBundleSecretName" // #nosec G101
 	tlsAPIInternalField        = ".spec.tls.api.internal.secretName"
+	authAppCredSecretField     = ".spec.auth.applicationCredentialSecret" // #nosec G101
 	tlsAPIPublicField          = ".spec.tls.api.public.secretName"
 	tlsMetadataField           = ".spec.tls.secretName"
 	tlsNoVNCProxyServiceField  = ".spec.tls.service.secretName"
@@ -645,7 +650,9 @@ func getNovaClient(
 	h *helper.Helper,
 	auth clientAuth,
 	password string,
-	l logr.Logger,
+	appCredID string,
+	appCredSecret string,
+	_ logr.Logger,
 ) (*gophercloud.ServiceClient, error) {
 	authURL := auth.GetKeystoneAuthURL()
 	parsedAuthURL, err := url.Parse(authURL)
@@ -664,7 +671,7 @@ func getNovaClient(
 			// requeue is translated to error below as the secret already
 			// verified to exists and has the expected fields.
 			time.Second,
-			tls.InternalCABundleKey)
+			commontls.InternalCABundleKey)
 		if err != nil {
 			return nil, err
 		}
@@ -682,25 +689,52 @@ func getNovaClient(
 		}
 	}
 
-	cfg := openstack.AuthOpts{
-		AuthURL:    authURL,
-		Username:   auth.GetKeystoneUser(),
-		Password:   password,
-		DomainName: "Default",   // fixme",
-		Region:     "regionOne", // fixme",
-		TenantName: "service",   // fixme",
-		TLS:        tlsConfig,
+	// The cleanup client should also support ApplicationCredentials
+	// lib-common's openstack.AuthOpts doesn't include app-cred fields, so use gophercloud directly
+	provider, err := gophercloudopenstack.NewClient(authURL)
+	if err != nil {
+		return nil, err
 	}
+	if tlsConfig != nil && len(tlsConfig.CACerts) > 0 {
+		caCertPool := x509.NewCertPool()
+		for _, caCert := range tlsConfig.CACerts {
+			caCertPool.AppendCertsFromPEM([]byte(caCert))
+		}
+		provider.HTTPClient.Transport = &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+			TLSClientConfig: &cryptotls.Config{ // #nosec G402
+				RootCAs: caCertPool,
+			},
+		}
+	}
+
+	authOpts := gophercloud.AuthOptions{
+		IdentityEndpoint: authURL,
+		DomainName:       "Default", // fixme
+		// Region/Tenant are only needed for password auth path; endpoints use EndpointOpts below.
+	}
+	if appCredID != "" && appCredSecret != "" {
+		authOpts.ApplicationCredentialID = appCredID
+		authOpts.ApplicationCredentialSecret = appCredSecret
+	} else {
+		authOpts.Username = auth.GetKeystoneUser()
+		authOpts.Password = password
+		authOpts.TenantName = "service" // fixme
+	}
+
+	if err := gophercloudopenstack.Authenticate(ctx, provider, authOpts); err != nil {
+		return nil, err
+	}
+
 	endpointOpts := gophercloud.EndpointOpts{
-		Region:       cfg.Region,
+		Region:       "regionOne", // fixme
 		Availability: gophercloud.AvailabilityInternal,
 	}
-	computeClient, err := openstack.GetNovaOpenStackClient(ctx, l, cfg, endpointOpts)
+	client, err := gophercloudopenstack.NewComputeV2(provider, endpointOpts)
 	if err != nil {
 		return nil, err
 	}
 
-	client := computeClient.GetOSClient()
 	// NOTE(gibi): We use Antelope maximum because we can. In reality we only
 	// need 2.53 to be able to delete services based on UUID.
 	client.Microversion = "2.95"
