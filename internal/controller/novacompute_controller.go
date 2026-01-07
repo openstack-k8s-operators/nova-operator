@@ -376,6 +376,14 @@ func (r *NovaComputeReconciler) generateConfigs(
 		QuorumQueuesTemplateKey: parseQuorumQueues(secret.Data[QuorumQueuesTemplateKey]),
 	}
 
+	// Application Credential data
+	if acID, ok := secret.Data["ACID"]; ok && len(acID) > 0 {
+		if acSecretData, ok := secret.Data["ACSecret"]; ok && len(acSecretData) > 0 {
+			templateParameters["ACID"] = string(acID)
+			templateParameters["ACSecret"] = string(acSecretData)
+		}
+	}
+
 	extraData := map[string]string{}
 	if instance.Spec.CustomServiceConfig != "" {
 		extraData["02-nova-override.conf"] = instance.Spec.CustomServiceConfig
