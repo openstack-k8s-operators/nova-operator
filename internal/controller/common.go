@@ -114,6 +114,7 @@ const (
 	passwordSecretField        = ".spec.secret"
 	caBundleSecretNameField    = ".spec.tls.caBundleSecretName" // #nosec G101
 	tlsAPIInternalField        = ".spec.tls.api.internal.secretName"
+	authAppCredSecretField     = ".spec.auth.applicationCredentialSecret" // #nosec G101
 	tlsAPIPublicField          = ".spec.tls.api.public.secretName"
 	tlsMetadataField           = ".spec.tls.secretName"
 	tlsNoVNCProxyServiceField  = ".spec.tls.service.secretName"
