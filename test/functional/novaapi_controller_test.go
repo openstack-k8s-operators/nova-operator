@@ -342,10 +342,10 @@ endpoint_service_type = compute`))
 					g.Expect(section).ShouldNot(BeNil(), "Should find [cinder] section")
 					g.Expect(section.Key("os_region_name").String()).Should(Equal(testRegion))
 
-					// Verify region_name in [barbican]
+					// Verify barbican_region_name in [barbican]
 					section = cfg.Section("barbican")
 					g.Expect(section).ShouldNot(BeNil(), "Should find [barbican] section")
-					g.Expect(section.Key("region_name").String()).Should(Equal(testRegion))
+					g.Expect(section.Key("barbican_region_name").String()).Should(Equal(testRegion))
 
 					// Verify endpoint_region_name in [oslo_limit]
 					section = cfg.Section("oslo_limit")
