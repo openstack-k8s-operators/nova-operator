@@ -483,9 +483,9 @@ func (r *NovaNoVNCProxyReconciler) generateConfigs(
 		"cell_db_address":          instance.Spec.CellDatabaseHostname,
 		"cell_db_port":             3306,
 		"transport_url":            string(secret.Data[TransportURLSelector]),
-		"openstack_region_name":    "regionOne", // fixme
-		"default_project_domain":   "Default",   // fixme
-		"default_user_domain":      "Default",   // fixme
+		"openstack_region_name":    instance.Spec.Region,
+		"default_project_domain":   "Default", // fixme
+		"default_user_domain":      "Default", // fixme
 		"MemcachedServers":         memcachedInstance.GetMemcachedServerListString(),
 		"MemcachedServersWithInet": memcachedInstance.GetMemcachedServerListWithInetString(),
 		"MemcachedTLS":             memcachedInstance.GetMemcachedTLSSupport(),

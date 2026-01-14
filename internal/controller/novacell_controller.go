@@ -774,9 +774,9 @@ func (r *NovaCellReconciler) generateComputeConfigs(
 		"keystone_internal_url":      instance.Spec.KeystoneAuthURL,
 		"nova_keystone_user":         instance.Spec.ServiceUser,
 		"nova_keystone_password":     string(secret.Data[ServicePasswordSelector]),
-		"openstack_region_name":      "regionOne", // fixme
-		"default_project_domain":     "Default",   // fixme
-		"default_user_domain":        "Default",   // fixme
+		"openstack_region_name":      instance.Spec.Region,
+		"default_project_domain":     "Default", // fixme
+		"default_user_domain":        "Default", // fixme
 		"compute_driver":             "libvirt.LibvirtDriver",
 		"transport_url":              string(secret.Data[TransportURLSelector]),
 		"notification_transport_url": string(secret.Data[NotificationTransportURLSelector]),
@@ -809,7 +809,7 @@ func (r *NovaCellReconciler) generateComputeConfigs(
 	a := &corev1.EnvVar{}
 	hashes[configName](a)
 	instance.Status.Hash[configName] = a.Value
-	return err
+	return nil
 }
 
 func (r *NovaCellReconciler) getVNCProxyURL(

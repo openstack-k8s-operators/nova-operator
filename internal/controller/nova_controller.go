@@ -273,7 +273,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		return ctrl.Result{}, nil
 	}
 
-	keystoneInternalAuthURL, keystonePublicAuthURL, err := r.getKeystoneAuthURL(
+	keystoneInternalAuthURL, keystonePublicAuthURL, region, err := r.getKeystoneAuthURL(
 		ctx, h, instance)
 	if err != nil {
 		return ctrl.Result{}, err
@@ -545,7 +545,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		cell, status, err := r.ensureCell(
 			ctx, h, instance, cellName, cellTemplate,
 			cellDB.Database, apiDB, cellMQ.TransportURL, cellMQ.QuorumQueues, notificationTransportURL,
-			keystoneInternalAuthURL, secret,
+			keystoneInternalAuthURL, region, secret,
 		)
 		cells[cellName] = cell
 		switch status {
@@ -621,7 +621,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	result, err = r.ensureAPI(
 		ctx, instance, cell0Template,
 		cellDBs[novav1.Cell0Name].Database, apiDB,
-		keystoneInternalAuthURL, keystonePublicAuthURL,
+		keystoneInternalAuthURL, keystonePublicAuthURL, region,
 		topLevelSecretName,
 	)
 	if err != nil {
@@ -630,7 +630,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 
 	result, err = r.ensureScheduler(
 		ctx, instance, cell0Template,
-		cellDBs[novav1.Cell0Name].Database, apiDB, keystoneInternalAuthURL,
+		cellDBs[novav1.Cell0Name].Database, apiDB, keystoneInternalAuthURL, region,
 		topLevelSecretName,
 	)
 	if err != nil {
@@ -640,7 +640,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	if *instance.Spec.MetadataServiceTemplate.Enabled {
 		result, err = r.ensureMetadata(
 			ctx, instance, cell0Template,
-			cellDBs[novav1.Cell0Name].Database, apiDB, keystoneInternalAuthURL,
+			cellDBs[novav1.Cell0Name].Database, apiDB, keystoneInternalAuthURL, region,
 			topLevelSecretName,
 		)
 		if err != nil {
@@ -1053,6 +1053,11 @@ func (r *NovaReconciler) ensureNovaManageJobSecret(
 		return nil, "", "", err
 	}
 
+	keystoneAPI, err := keystonev1.GetKeystoneAPI(ctx, h, instance.Namespace, map[string]string{})
+	if err != nil {
+		return nil, "", "", err
+	}
+
 	// We configure the Job like it runs in the env of the conductor of the given cell
 	// but we ensure that the config always has [api_database] section configure
 	// even if the cell has no API access at all.
@@ -1073,9 +1078,9 @@ func (r *NovaReconciler) ensureNovaManageJobSecret(
 		"cell_db_password":       string(cellDbSecret.Data[mariadbv1.DatabasePasswordSelector]),
 		"cell_db_address":        cell.Spec.CellDatabaseHostname,
 		"cell_db_port":           3306,
-		"openstack_region_name":  "regionOne", // fixme
-		"default_project_domain": "Default",   // fixme
-		"default_user_domain":    "Default",   // fixme
+		"openstack_region_name":  keystoneAPI.GetRegion(),
+		"default_project_domain": "Default", // fixme
+		"default_user_domain":    "Default", // fixme
 	}
 
 	// NOTE(gibi): cell mapping for cell0 should not have transport_url
@@ -1202,6 +1207,7 @@ func (r *NovaReconciler) ensureCell(
 	cellQuorumQueues bool,
 	notificationTransportURL string,
 	keystoneAuthURL string,
+	region string,
 	secret corev1.Secret,
 ) (*novav1.NovaCell, nova.CellDeploymentStatus, error) {
 	Log := r.GetLogger(ctx)
@@ -1228,6 +1234,7 @@ func (r *NovaReconciler) ensureCell(
 		// TODO(gibi): this should be part of the secret
 		ServiceUser:     instance.Spec.ServiceUser,
 		KeystoneAuthURL: keystoneAuthURL,
+		Region:          region,
 		ServiceAccount:  instance.RbacResourceName(),
 		APITimeout:      instance.Spec.APITimeout,
 		// The assumption is that the CA bundle for ironic compute in the cell
@@ -1377,6 +1384,7 @@ func (r *NovaReconciler) ensureAPI(
 	apiDB *mariadbv1.Database,
 	keystoneInternalAuthURL string,
 	keystonePublicAuthURL string,
+	region string,
 	secretName string,
 ) (ctrl.Result, error) {
 	Log := r.GetLogger(ctx)
@@ -1401,6 +1409,7 @@ func (r *NovaReconciler) ensureAPI(
 		Override:               instance.Spec.APIServiceTemplate.Override,
 		KeystoneAuthURL:        keystoneInternalAuthURL,
 		KeystonePublicAuthURL:  keystonePublicAuthURL,
+		Region:                 region,
 		ServiceUser:            instance.Spec.ServiceUser,
 		ServiceAccount:         instance.RbacResourceName(),
 		RegisteredCells:        instance.Status.RegisteredCells,
@@ -1467,6 +1476,7 @@ func (r *NovaReconciler) ensureScheduler(
 	cell0DB *mariadbv1.Database,
 	apiDB *mariadbv1.Database,
 	keystoneAuthURL string,
+	region string,
 	secretName string,
 ) (ctrl.Result, error) {
 	Log := r.GetLogger(ctx)
@@ -1492,6 +1502,7 @@ func (r *NovaReconciler) ensureScheduler(
 			TopologyRef:         instance.Spec.SchedulerServiceTemplate.TopologyRef,
 		},
 		KeystoneAuthURL: keystoneAuthURL,
+		Region:          region,
 		ServiceUser:     instance.Spec.ServiceUser,
 		ServiceAccount:  instance.RbacResourceName(),
 		RegisteredCells: instance.Status.RegisteredCells,
@@ -1652,29 +1663,31 @@ func (r *NovaReconciler) getKeystoneAuthURL(
 	ctx context.Context,
 	h *helper.Helper,
 	instance *novav1.Nova,
-) (string, string, error) {
+) (string, string, string, error) {
 	// TODO(gibi): change lib-common to take the name of the KeystoneAPI as
 	// parameter instead of labels. Then use instance.Spec.KeystoneInstance as
 	// the name.
 	keystoneAPI, err := keystonev1.GetKeystoneAPI(ctx, h, instance.Namespace, map[string]string{})
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 	// NOTE(gibi): we use the internal endpoint as that is expected to be
 	// available on the external compute nodes as well and we want to keep
 	// thing consistent
 	internalAuthURL, err := keystoneAPI.GetEndpoint(endpoint.EndpointInternal)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 	// NOTE(gibi): but there is one case the www_authenticate_uri of nova-api
 	// the we need to configure the public keystone endpoint
 	publicAuthURL, err := keystoneAPI.GetEndpoint(endpoint.EndpointInternal)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 
-	return internalAuthURL, publicAuthURL, nil
+	region := keystoneAPI.GetRegion()
+
+	return internalAuthURL, publicAuthURL, region, nil
 }
 
 func (r *NovaReconciler) reconcileDelete(
@@ -1815,6 +1828,7 @@ func (r *NovaReconciler) ensureMetadata(
 	cell0DB *mariadbv1.Database,
 	apiDB *mariadbv1.Database,
 	keystoneAuthURL string,
+	region string,
 	secretName string,
 ) (ctrl.Result, error) {
 	Log := r.GetLogger(ctx)
@@ -1875,6 +1889,7 @@ func (r *NovaReconciler) ensureMetadata(
 		Override:               instance.Spec.MetadataServiceTemplate.Override,
 		ServiceUser:            instance.Spec.ServiceUser,
 		KeystoneAuthURL:        keystoneAuthURL,
+		Region:                 region,
 		ServiceAccount:         instance.RbacResourceName(),
 		RegisteredCells:        instance.Status.RegisteredCells,
 		TLS:                    instance.Spec.MetadataServiceTemplate.TLS,

@@ -638,6 +638,7 @@ type clientAuth interface {
 	GetKeystoneAuthURL() string
 	GetKeystoneUser() string
 	GetCABundleSecretName() string
+	GetRegion() string
 }
 
 func getNovaClient(
@@ -686,9 +687,9 @@ func getNovaClient(
 		AuthURL:    authURL,
 		Username:   auth.GetKeystoneUser(),
 		Password:   password,
-		DomainName: "Default",   // fixme",
-		Region:     "regionOne", // fixme",
-		TenantName: "service",   // fixme",
+		DomainName: "Default", // fixme",
+		Region:     auth.GetRegion(),
+		TenantName: "service", // fixme",
 		TLS:        tlsConfig,
 	}
 	endpointOpts := gophercloud.EndpointOpts{
