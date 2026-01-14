@@ -647,7 +647,6 @@ func getNovaClient(
 	auth clientAuth,
 	password string,
 	l logr.Logger,
-	namespace string,
 ) (*gophercloud.ServiceClient, error) {
 	authURL := auth.GetKeystoneAuthURL()
 	parsedAuthURL, err := url.Parse(authURL)

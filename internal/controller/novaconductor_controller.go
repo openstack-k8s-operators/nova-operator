@@ -689,7 +689,7 @@ func (r *NovaConductorReconciler) cleanServiceFromNovaDb(
 	l logr.Logger,
 ) error {
 	authPassword := string(secret.Data[ServicePasswordSelector])
-	computeClient, err := getNovaClient(ctx, h, instance, authPassword, l, instance.Namespace)
+	computeClient, err := getNovaClient(ctx, h, instance, authPassword, l)
 	if err != nil {
 		return err
 	}
