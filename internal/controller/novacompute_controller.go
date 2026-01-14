@@ -360,17 +360,12 @@ func (r *NovaComputeReconciler) ensureConfigs(
 func (r *NovaComputeReconciler) generateConfigs(
 	ctx context.Context, h *helper.Helper, instance *novav1.NovaCompute, hashes *map[string]env.Setter, secret corev1.Secret,
 ) error {
-	keystoneAPI, err := keystonev1.GetKeystoneAPI(ctx, h, instance.Namespace, map[string]string{})
-	if err != nil {
-		return err
-	}
-
 	templateParameters := map[string]any{
 		"service_name":               NovaComputeLabelPrefix,
 		"keystone_internal_url":      instance.Spec.KeystoneAuthURL,
 		"nova_keystone_user":         instance.Spec.ServiceUser,
 		"nova_keystone_password":     string(secret.Data[ServicePasswordSelector]),
-		"openstack_region_name":      keystoneAPI.GetRegion(),
+		"openstack_region_name":      instance.Spec.Region,
 		"default_project_domain":     "Default", // fixme
 		"default_user_domain":        "Default", // fixme
 		"transport_url":              string(secret.Data[TransportURLSelector]),
@@ -391,7 +386,7 @@ func (r *NovaComputeReconciler) generateConfigs(
 		instance, labels.GetGroupLabel(NovaComputeLabelPrefix), map[string]string{},
 	)
 
-	err = r.GenerateConfigs(
+	err := r.GenerateConfigs(
 		ctx, h, instance, nova.GetServiceConfigSecretName(instance.GetName()), hashes, templateParameters, extraData, cmLabels, map[string]string{},
 	)
 	return err

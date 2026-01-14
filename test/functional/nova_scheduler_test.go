@@ -267,19 +267,13 @@ var _ = Describe("NovaScheduler controller", func() {
 
 		})
 
-		It("includes region_name in config when KeystoneAPI has region set", func() {
+		It("includes region_name in config when region is set in spec", func() {
 			const testRegion = "regionTwo"
-			// Create and update KeystoneAPI with region in status
-			keystoneAPIName := keystone.CreateKeystoneAPI(novaNames.SchedulerName.Namespace)
-			DeferCleanup(keystone.DeleteKeystoneAPI, keystoneAPIName)
-			keystoneAPI := keystone.GetKeystoneAPI(keystoneAPIName)
-			keystoneAPI.Status.Region = testRegion
-			keystoneAPI.Status.APIEndpoints = map[string]string{
-				"internal": "http://keystone-internal-openstack.testing",
-				"public":   "http://keystone-public-openstack.testing",
-			}
+			// Update NovaScheduler spec to include region
 			Eventually(func(g Gomega) {
-				g.Expect(k8sClient.Status().Update(ctx, keystoneAPI.DeepCopy())).Should(Succeed())
+				scheduler := GetNovaScheduler(novaNames.SchedulerName)
+				scheduler.Spec.Region = testRegion
+				g.Expect(k8sClient.Update(ctx, scheduler)).Should(Succeed())
 			}, timeout, interval).Should(Succeed())
 
 			// Trigger reconciliation

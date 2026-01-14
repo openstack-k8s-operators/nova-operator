@@ -472,11 +472,6 @@ func (r *NovaNoVNCProxyReconciler) generateConfigs(
 	cellDatabaseAccount := cellDB.GetAccount()
 	cellDbSecret := cellDB.GetSecret()
 
-	keystoneAPI, err := keystonev1.GetKeystoneAPI(ctx, h, instance.Namespace, map[string]string{})
-	if err != nil {
-		return err
-	}
-
 	templateParameters := map[string]any{
 		"service_name":             novncproxy.ServiceName,
 		"keystone_internal_url":    instance.Spec.KeystoneAuthURL,
@@ -488,7 +483,7 @@ func (r *NovaNoVNCProxyReconciler) generateConfigs(
 		"cell_db_address":          instance.Spec.CellDatabaseHostname,
 		"cell_db_port":             3306,
 		"transport_url":            string(secret.Data[TransportURLSelector]),
-		"openstack_region_name":    keystoneAPI.GetRegion(),
+		"openstack_region_name":    instance.Spec.Region,
 		"default_project_domain":   "Default", // fixme
 		"default_user_domain":      "Default", // fixme
 		"MemcachedServers":         memcachedInstance.GetMemcachedServerListString(),

@@ -289,19 +289,13 @@ endpoint_service_type = compute`))
 					ContainSubstring("[client]\nssl=0"))
 			})
 
-			It("includes region_name in config when KeystoneAPI has region set", func() {
+			It("includes region_name in config when region is set in spec", func() {
 				const testRegion = "regionTwo"
-				// Create and update KeystoneAPI with region in status
-				keystoneAPIName := keystone.CreateKeystoneAPI(novaNames.APIName.Namespace)
-				DeferCleanup(keystone.DeleteKeystoneAPI, keystoneAPIName)
-				keystoneAPI := keystone.GetKeystoneAPI(keystoneAPIName)
-				keystoneAPI.Status.Region = testRegion
-				keystoneAPI.Status.APIEndpoints = map[string]string{
-					"internal": "http://keystone-internal-openstack.testing",
-					"public":   "http://keystone-public-openstack.testing",
-				}
+				// Update NovaAPI spec to include region
 				Eventually(func(g Gomega) {
-					g.Expect(k8sClient.Status().Update(ctx, keystoneAPI.DeepCopy())).Should(Succeed())
+					api := GetNovaAPI(novaNames.APIName)
+					api.Spec.Region = testRegion
+					g.Expect(k8sClient.Update(ctx, api)).Should(Succeed())
 				}, timeout, interval).Should(Succeed())
 
 				// Trigger reconciliation

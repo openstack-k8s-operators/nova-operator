@@ -135,6 +135,10 @@ type NovaMetadataSpec struct {
 	KeystoneAuthURL string `json:"keystoneAuthURL"`
 
 	// +kubebuilder:validation:Optional
+	// Region - the region name to use for service endpoint discovery
+	Region string `json:"region,omitempty"`
+
+	// +kubebuilder:validation:Optional
 	// +kubebuilder:default="nova-api"
 	// APIDatabaseAccount - MariaDBAccount to use when accessing the API DB
 	APIDatabaseAccount string `json:"apiDatabaseAccount"`

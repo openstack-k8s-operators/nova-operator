@@ -139,6 +139,10 @@ type NovaNoVNCProxySpec struct {
 	KeystoneAuthURL string `json:"keystoneAuthURL"`
 
 	// +kubebuilder:validation:Optional
+	// Region - the region name to use for service endpoint discovery
+	Region string `json:"region,omitempty"`
+
+	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=nova
 	// CellDatabaseAccount - MariaDBAccount to use when accessing the cell DB
 	CellDatabaseAccount string `json:"cellDatabaseAccount"`

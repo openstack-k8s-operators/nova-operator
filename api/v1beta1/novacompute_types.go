@@ -101,6 +101,10 @@ type NovaComputeSpec struct {
 	// +kubebuilder:validation:Required
 	KeystoneAuthURL string `json:"keystoneAuthURL"`
 
+	// +kubebuilder:validation:Optional
+	// Region - the region name to use for service endpoint discovery
+	Region string `json:"region,omitempty"`
+
 	// NovaServiceBase specifies the generic fields of the service
 	NovaServiceBase `json:",inline"`
 
