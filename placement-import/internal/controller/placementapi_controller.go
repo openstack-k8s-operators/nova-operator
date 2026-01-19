@@ -1370,6 +1370,7 @@ func (r *PlacementAPIReconciler) generateServiceConfigMaps(
 		"KeystonePublicURL":   keystonePublicURL,
 		"PlacementPassword":   string(ospSecret.Data[instance.Spec.PasswordSelectors.Service]),
 		"log_file":            "/var/log/placement/placement-api.log",
+		"Region":              keystoneAPI.GetRegion(),
 		"DatabaseConnection": fmt.Sprintf("mysql+pymysql://%s:%s@%s/%s?read_default_file=/etc/my.cnf",
 			databaseAccount.Spec.UserName,
 			string(dbSecret.Data[mariadbv1.DatabasePasswordSelector]),

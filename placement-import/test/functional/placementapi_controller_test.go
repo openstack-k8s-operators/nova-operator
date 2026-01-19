@@ -256,6 +256,16 @@ var _ = Describe("PlacementAPI controller", func() {
 				k8sClient.Delete, ctx, CreatePlacementAPISecret(namespace, SecretName))
 			keystoneAPIName := keystone.CreateKeystoneAPI(namespace)
 			keystoneAPI = keystone.GetKeystoneAPI(keystoneAPIName)
+			// Set region on KeystoneAPI to ensure GetRegion() returns a value
+			Eventually(func(g Gomega) {
+				ks := keystone.GetKeystoneAPI(keystoneAPIName)
+				ks.Spec.Region = "RegionOne"
+				g.Expect(k8sClient.Update(ctx, ks)).To(Succeed())
+				ks.Status.Region = "RegionOne"
+				g.Expect(k8sClient.Status().Update(ctx, ks)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+			// Refresh keystoneAPI after setting region
+			keystoneAPI = keystone.GetKeystoneAPI(keystoneAPIName)
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystoneAPIName)
 		})
 
@@ -347,6 +357,28 @@ var _ = Describe("PlacementAPI controller", func() {
 			configData := cm.Data["httpd.conf"]
 			Expect(configData).Should(
 				ContainSubstring("TimeOut 60"))
+		})
+
+		It("should set region_name in keystone_authtoken section", func() {
+			serviceSpec := corev1.ServiceSpec{Ports: []corev1.ServicePort{{Port: 3306}}}
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(namespace, "openstack", serviceSpec),
+			)
+			mariadb.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBAccount)
+
+			cm := th.GetSecret(names.ConfigMapName)
+			conf := string(cm.Data["placement.conf"])
+
+			// Verify region_name is set in [keystone_authtoken] section
+			// GetRegion() returns Status.Region, so check that
+			Expect(keystoneAPI.Status.Region).ToNot(BeEmpty(), "KeystoneAPI should have a region set in status")
+			// The region_name should appear in the [keystone_authtoken] section
+			// It's conditionally rendered, so check it appears between password and www_authenticate_uri
+			Expect(conf).Should(
+				MatchRegexp(fmt.Sprintf(
+					"password = .*\\nregion_name = %s\\n", keystoneAPI.Status.Region)))
 		})
 
 		It("creates service account, role and rolebindig", func() {
