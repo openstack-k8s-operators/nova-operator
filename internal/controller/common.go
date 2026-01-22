@@ -656,7 +656,6 @@ func getNovaClient(
 	var tlsConfig *openstack.TLSConfig
 
 	if parsedAuthURL.Scheme == "https" {
-
 		caCert, ctrlResult, err := secret.GetDataFromSecret(
 			ctx,
 			h,
@@ -664,7 +663,7 @@ func getNovaClient(
 			// requeue is translated to error below as the secret already
 			// verified to exists and has the expected fields.
 			time.Second,
-			tls.InternalCABundleKey)
+			tls.CABundleKey)
 		if err != nil {
 			return nil, err
 		}
