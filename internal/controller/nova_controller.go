@@ -573,7 +573,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		cell, status, err := r.ensureCell(
 			ctx, h, instance, cellName, cellTemplate,
 			cellDB.Database, apiDB, cellMQ.TransportURL, cellMQ.QuorumQueues, notificationTransportURL,
-			keystoneInternalAuthURL, secret,
+			keystoneInternalAuthURL, secret, acData,
 		)
 		cells[cellName] = cell
 		switch status {
@@ -1231,13 +1231,14 @@ func (r *NovaReconciler) ensureCell(
 	notificationTransportURL string,
 	keystoneAuthURL string,
 	secret corev1.Secret,
+	acData *keystonev1.ApplicationCredentialData,
 ) (*novav1.NovaCell, nova.CellDeploymentStatus, error) {
 	Log := r.GetLogger(ctx)
 
 	cellSecretName, err := r.ensureCellSecret(
 		ctx, h, instance, cellName, cellTemplate,
 		cellTransportURL, cellQuorumQueues, notificationTransportURL,
-		secret)
+		secret, acData)
 	if err != nil {
 		return nil, nova.CellDeploying, err
 	}
@@ -2035,6 +2036,7 @@ func (r *NovaReconciler) ensureCellSecret(
 	cellQuorumQueues bool,
 	notificationTransportURL string,
 	externalSecret corev1.Secret,
+	acData *keystonev1.ApplicationCredentialData,
 ) (string, error) {
 	// NOTE(gibi): We can move other sensitive data to the internal Secret from
 	// the NovaCellSpec fields, possibly hostnames or usernames.
@@ -2043,6 +2045,7 @@ func (r *NovaReconciler) ensureCellSecret(
 		quorumQueuesValue = "true"
 	}
 
+	Log := r.GetLogger(ctx)
 	data := map[string]string{
 		ServicePasswordSelector:          string(externalSecret.Data[instance.Spec.PasswordSelectors.Service]),
 		TransportURLSelector:             cellTransportURL,
@@ -2050,12 +2053,11 @@ func (r *NovaReconciler) ensureCellSecret(
 		QuorumQueuesTemplateKey:          quorumQueuesValue,
 	}
 
-	// Application Credential data
-	if acID, ok := externalSecret.Data[keystonev1.ACIDSecretKey]; ok && len(acID) > 0 {
-		if acSecretData, ok := externalSecret.Data[keystonev1.ACSecretSecretKey]; ok && len(acSecretData) > 0 {
-			data["ACID"] = string(acID)
-			data["ACSecret"] = string(acSecretData)
-		}
+	// Add Application Credential data
+	Log.Info("XXX", "-", acData)
+	if acData != nil {
+		data["ACID"] = acData.ID
+		data["ACSecret"] = acData.Secret
 	}
 
 	// If metadata is enabled in the cell then the cell secret needs the
