@@ -135,6 +135,11 @@ type NovaMetadataSpec struct {
 	KeystoneAuthURL string `json:"keystoneAuthURL"`
 
 	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=regionOne
+	// Region - the region name to use for service endpoint discovery
+	Region string `json:"region"`
+
+	// +kubebuilder:validation:Optional
 	// +kubebuilder:default="nova-api"
 	// APIDatabaseAccount - MariaDBAccount to use when accessing the API DB
 	APIDatabaseAccount string `json:"apiDatabaseAccount"`
@@ -275,6 +280,7 @@ func NewNovaMetadataSpec(
 		},
 		KeystoneAuthURL:        novaCell.KeystoneAuthURL,
 		ServiceUser:            novaCell.ServiceUser,
+		Region:                 novaCell.Region,
 		ServiceAccount:         novaCell.ServiceAccount,
 		Override:               novaCell.MetadataServiceTemplate.Override,
 		TLS:                    novaCell.MetadataServiceTemplate.TLS,

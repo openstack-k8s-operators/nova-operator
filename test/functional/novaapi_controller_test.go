@@ -22,6 +22,7 @@ import (
 	. "github.com/onsi/ginkgo/v2" //revive:disable:dot-imports
 	. "github.com/onsi/gomega"    //revive:disable:dot-imports
 	"github.com/onsi/gomega/format"
+	"gopkg.in/ini.v1"
 
 	//revive:disable-next-line:dot-imports
 	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
@@ -286,6 +287,71 @@ endpoint_service_type = compute`))
 				myCnf := configDataMap.Data["my.cnf"]
 				Expect(myCnf).To(
 					ContainSubstring("[client]\nssl=0"))
+			})
+
+			It("includes region_name in config when region is set in spec", func() {
+				const testRegion = "regionTwo"
+				// Update NovaAPI spec to include region
+				Eventually(func(g Gomega) {
+					api := GetNovaAPI(novaNames.APIName)
+					api.Spec.Region = testRegion
+					g.Expect(k8sClient.Update(ctx, api)).Should(Succeed())
+				}, timeout, interval).Should(Succeed())
+
+				// Trigger reconciliation
+				th.ExpectCondition(
+					novaNames.APIName,
+					ConditionGetterFunc(NovaAPIConditionGetter),
+					condition.ServiceConfigReadyCondition,
+					corev1.ConditionTrue,
+				)
+
+				// Wait for config to be regenerated with region
+				Eventually(func(g Gomega) {
+					configDataMap := th.GetSecret(novaNames.APIConfigDataName)
+					g.Expect(configDataMap).ShouldNot(BeNil())
+					g.Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
+					configData := string(configDataMap.Data["01-nova.conf"])
+
+					// Parse the INI file to properly access sections
+					cfg, err := ini.Load([]byte(configData))
+					g.Expect(err).ShouldNot(HaveOccurred(), "Should be able to parse config as INI")
+
+					// Verify region_name in [keystone_authtoken]
+					section := cfg.Section("keystone_authtoken")
+					g.Expect(section).ShouldNot(BeNil(), "Should find [keystone_authtoken] section")
+					g.Expect(section.Key("region_name").String()).Should(Equal(testRegion))
+
+					// Verify region_name in [placement]
+					section = cfg.Section("placement")
+					g.Expect(section).ShouldNot(BeNil(), "Should find [placement] section")
+					g.Expect(section.Key("region_name").String()).Should(Equal(testRegion))
+
+					// Verify region_name in [glance]
+					section = cfg.Section("glance")
+					g.Expect(section).ShouldNot(BeNil(), "Should find [glance] section")
+					g.Expect(section.Key("region_name").String()).Should(Equal(testRegion))
+
+					// Verify region_name in [neutron]
+					section = cfg.Section("neutron")
+					g.Expect(section).ShouldNot(BeNil(), "Should find [neutron] section")
+					g.Expect(section.Key("region_name").String()).Should(Equal(testRegion))
+
+					// Verify os_region_name in [cinder]
+					section = cfg.Section("cinder")
+					g.Expect(section).ShouldNot(BeNil(), "Should find [cinder] section")
+					g.Expect(section.Key("os_region_name").String()).Should(Equal(testRegion))
+
+					// Verify barbican_region_name in [barbican]
+					section = cfg.Section("barbican")
+					g.Expect(section).ShouldNot(BeNil(), "Should find [barbican] section")
+					g.Expect(section.Key("barbican_region_name").String()).Should(Equal(testRegion))
+
+					// Verify endpoint_region_name in [oslo_limit]
+					section = cfg.Section("oslo_limit")
+					g.Expect(section).ShouldNot(BeNil(), "Should find [oslo_limit] section")
+					g.Expect(section.Key("endpoint_region_name").String()).Should(Equal(testRegion))
+				}, timeout, interval).Should(Succeed())
 			})
 
 			It("stored the input hash in the Status", func() {

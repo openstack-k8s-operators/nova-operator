@@ -1054,6 +1054,15 @@ func CreateNovaWithNCellsAndEnsureReady(cellNumber int, novaNames *NovaNames) {
 	novaNames.KeystoneAPIName = keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace)
 	DeferCleanup(keystone.DeleteKeystoneAPI, novaNames.KeystoneAPIName)
 
+	// Set region on KeystoneAPI to ensure GetRegion() returns a value
+	Eventually(func(g Gomega) {
+		keystoneAPI := keystone.GetKeystoneAPI(novaNames.KeystoneAPIName)
+		keystoneAPI.Spec.Region = "regionOne"
+		g.Expect(k8sClient.Update(ctx, keystoneAPI)).To(Succeed())
+		keystoneAPI.Status.Region = "regionOne"
+		g.Expect(k8sClient.Status().Update(ctx, keystoneAPI)).To(Succeed())
+	}, timeout, interval).Should(Succeed())
+
 	memcachedSpec := infra.GetDefaultMemcachedSpec()
 	DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
 

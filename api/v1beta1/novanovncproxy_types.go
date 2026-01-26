@@ -139,6 +139,11 @@ type NovaNoVNCProxySpec struct {
 	KeystoneAuthURL string `json:"keystoneAuthURL"`
 
 	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=regionOne
+	// Region - the region name to use for service endpoint discovery
+	Region string `json:"region"`
+
+	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=nova
 	// CellDatabaseAccount - MariaDBAccount to use when accessing the cell DB
 	CellDatabaseAccount string `json:"cellDatabaseAccount"`
@@ -248,6 +253,7 @@ func NewNovaNoVNCProxySpec(
 		},
 		KeystoneAuthURL:   novaCell.KeystoneAuthURL,
 		ServiceUser:       novaCell.ServiceUser,
+		Region:            novaCell.Region,
 		ServiceAccount:    novaCell.ServiceAccount,
 		Override:          novaCell.NoVNCProxyServiceTemplate.Override,
 		TLS:               novaCell.NoVNCProxyServiceTemplate.TLS,
