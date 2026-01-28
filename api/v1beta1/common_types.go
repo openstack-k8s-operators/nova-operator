@@ -104,6 +104,15 @@ type PasswordSelector struct {
 	PrefixMetadataCellsSecret string `json:"prefixMetadataCellsSecret"`
 }
 
+// AuthSpec defines authentication parameters for Nova services
+type AuthSpec struct {
+	// +kubebuilder:validation:Optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	// ApplicationCredentialSecret - the name of the k8s Secret that contains the
+	// application credential data used for authentication
+	ApplicationCredentialSecret string `json:"applicationCredentialSecret,omitempty"`
+}
+
 // NovaImages defines container images used by top level Nova CR
 type NovaImages struct {
 	// +kubebuilder:validation:Required
