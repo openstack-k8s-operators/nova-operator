@@ -113,7 +113,7 @@ const (
 	// fields to index to reconcile when change
 	passwordSecretField        = ".spec.secret"
 	authAppCredSecretField     = ".spec.auth.applicationCredentialSecret" // #nosec G101
-	caBundleSecretNameField    = ".spec.tls.caBundleSecretName" // #nosec G101
+	caBundleSecretNameField    = ".spec.tls.caBundleSecretName"           // #nosec G101
 	tlsAPIInternalField        = ".spec.tls.api.internal.secretName"
 	tlsAPIPublicField          = ".spec.tls.api.public.secretName"
 	tlsMetadataField           = ".spec.tls.secretName"
