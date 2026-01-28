@@ -112,6 +112,7 @@ const (
 
 	// fields to index to reconcile when change
 	passwordSecretField        = ".spec.secret"
+	authAppCredSecretField     = ".spec.auth.applicationCredentialSecret" // #nosec G101
 	caBundleSecretNameField    = ".spec.tls.caBundleSecretName" // #nosec G101
 	tlsAPIInternalField        = ".spec.tls.api.internal.secretName"
 	tlsAPIPublicField          = ".spec.tls.api.public.secretName"
@@ -645,6 +646,8 @@ func getNovaClient(
 	h *helper.Helper,
 	auth clientAuth,
 	password string,
+	appCredID string,
+	appCredSecret string,
 	l logr.Logger,
 ) (*gophercloud.ServiceClient, error) {
 	authURL := auth.GetKeystoneAuthURL()
@@ -682,13 +685,15 @@ func getNovaClient(
 	}
 
 	cfg := openstack.AuthOpts{
-		AuthURL:    authURL,
-		Username:   auth.GetKeystoneUser(),
-		Password:   password,
-		DomainName: "Default",   // fixme",
-		Region:     "regionOne", // fixme",
-		TenantName: "service",   // fixme",
-		TLS:        tlsConfig,
+		AuthURL:                     authURL,
+		Username:                    auth.GetKeystoneUser(),
+		Password:                    password,
+		DomainName:                  "Default",   // fixme
+		Region:                      "regionOne", // fixme
+		TenantName:                  "service",   // fixme
+		TLS:                         tlsConfig,
+		ApplicationCredentialID:     appCredID,
+		ApplicationCredentialSecret: appCredSecret,
 	}
 	endpointOpts := gophercloud.EndpointOpts{
 		Region:       cfg.Region,
