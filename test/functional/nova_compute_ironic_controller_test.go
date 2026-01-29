@@ -706,3 +706,58 @@ var _ = Describe("NovaCompute with ironic diver controller", func() {
 		})
 	})
 })
+
+var _ = Describe("NovaCompute controller", func() {
+	BeforeEach(func() {
+		DeferCleanup(
+			k8sClient.Delete, ctx, CreateDefaultCellInternalSecret(cell1))
+
+		memcachedSpec := infra.GetDefaultMemcachedSpec()
+		DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
+		infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
+	})
+
+	When("NovaCompute is created with ApplicationCredential data in parent secret", func() {
+		BeforeEach(func() {
+			spec := GetDefaultNovaComputeSpec(cell1)
+			compute := CreateNovaCompute(cell1.NovaComputeName, spec)
+			DeferCleanup(th.DeleteInstance, compute)
+
+			th.ExpectCondition(
+				cell1.NovaComputeName,
+				ConditionGetterFunc(NovaComputeConditionGetter),
+				condition.ServiceConfigReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
+
+		It("should render ApplicationCredential auth in config when AC data is in parent secret", func() {
+			acID := "test-ac-id"
+			acSecret := "test-ac-secret"
+
+			// Update parent secret with AC data (simulating what Nova controller does)
+			Eventually(func(g Gomega) {
+				sec := &corev1.Secret{}
+				g.Expect(k8sClient.Get(ctx, cell1.InternalCellSecretName, sec)).To(Succeed())
+				sec.Data["ACID"] = []byte(acID)
+				sec.Data["ACSecret"] = []byte(acSecret)
+				g.Expect(k8sClient.Update(ctx, sec)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				cfgSecret := th.GetSecret(cell1.NovaComputeConfigDataName)
+				g.Expect(cfgSecret).NotTo(BeNil())
+
+				conf := string(cfgSecret.Data["01-nova.conf"])
+
+				// AC auth is configured
+				g.Expect(conf).To(ContainSubstring("auth_type = v3applicationcredential"))
+				g.Expect(conf).To(ContainSubstring("application_credential_id = " + acID))
+				g.Expect(conf).To(ContainSubstring("application_credential_secret = " + acSecret))
+				// oslo_limit is configured
+				g.Expect(conf).To(ContainSubstring("[oslo_limit]"))
+				g.Expect(conf).NotTo(ContainSubstring("system_scope"))
+			}, timeout, interval).Should(Succeed())
+		})
+	})
+})

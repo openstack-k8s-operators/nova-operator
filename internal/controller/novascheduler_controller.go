@@ -616,6 +616,15 @@ func (r *NovaSchedulerReconciler) generateConfigs(
 		templateParameters["MemcachedAuthCa"] = fmt.Sprint(memcachedv1.CaMountPath())
 	}
 
+	// Application Credential data
+	if acID, ok := secret.Data["ACID"]; ok && len(acID) > 0 {
+		if acSecretData, ok := secret.Data["ACSecret"]; ok && len(acSecretData) > 0 {
+			templateParameters["ACID"] = string(acID)
+			templateParameters["ACSecret"] = string(acSecretData)
+			log.FromContext(ctx).Info("Using ApplicationCredentials auth")
+		}
+	}
+
 	extraData := map[string]string{
 		"my.cnf": apiDB.GetDatabaseClientConfig(tlsCfg), //(mschuppert) for now just get the default my.cnf
 	}
@@ -808,7 +817,15 @@ func (r *NovaSchedulerReconciler) cleanServiceFromNovaDb(
 	l logr.Logger,
 ) error {
 	authPassword := string(secret.Data[ServicePasswordSelector])
-	computeClient, err := getNovaClient(ctx, h, instance, authPassword, l)
+	appCredID := ""
+	appCredSecret := ""
+	if id, ok := secret.Data["ACID"]; ok && len(id) > 0 {
+		if s, ok := secret.Data["ACSecret"]; ok && len(s) > 0 {
+			appCredID = string(id)
+			appCredSecret = string(s)
+		}
+	}
+	computeClient, err := getNovaClient(ctx, h, instance, authPassword, appCredID, appCredSecret, l)
 	if err != nil {
 		return err
 	}

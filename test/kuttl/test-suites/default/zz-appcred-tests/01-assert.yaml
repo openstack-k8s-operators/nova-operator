@@ -1,0 +1,21 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestAssert
+commands:
+  - script: |
+      set -euo pipefail
+      NS="${NAMESPACE}"
+
+      echo "Waiting for Nova CR to be Ready..."
+      oc wait -n "${NS}" nova/nova-kuttl --for=condition=Ready --timeout=300s
+
+      echo "✓ Nova is Ready"
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nova-kuttl-cell1-conductor-0
+status:
+  containerStatuses:
+  - name: nova-kuttl-cell1-conductor-conductor
+    ready: true
+    started: true

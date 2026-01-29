@@ -134,6 +134,9 @@ const (
 	// InputReadyWaitingMessage
 	InputReadyWaitingMessage = "Input data resources missing: %s"
 
+	// NovaApplicationCredentialSecretErrorMessage
+	NovaApplicationCredentialSecretErrorMessage = "Error with application credential secret"
+
 	// NovaCellReadyInitMessage
 	NovaCellReadyInitMessage = "The status of NovaCell %s is unknown"
 

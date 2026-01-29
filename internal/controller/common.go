@@ -19,6 +19,7 @@ package controller
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"maps"
 	"net/url"
@@ -112,7 +113,8 @@ const (
 
 	// fields to index to reconcile when change
 	passwordSecretField        = ".spec.secret"
-	caBundleSecretNameField    = ".spec.tls.caBundleSecretName" // #nosec G101
+	authAppCredSecretField     = ".spec.auth.applicationCredentialSecret" // #nosec G101
+	caBundleSecretNameField    = ".spec.tls.caBundleSecretName"           // #nosec G101
 	tlsAPIInternalField        = ".spec.tls.api.internal.secretName"
 	tlsAPIPublicField          = ".spec.tls.api.public.secretName"
 	tlsMetadataField           = ".spec.tls.secretName"
@@ -144,6 +146,9 @@ var (
 		endpointNeutron,
 		endpointPlacement,
 	}
+
+	// ErrACSecretMissingKeys indicates that the ApplicationCredential secret is missing required keys
+	ErrACSecretMissingKeys = errors.New("ApplicationCredential secret missing required keys")
 )
 
 type conditionsGetter interface {
@@ -646,6 +651,8 @@ func getNovaClient(
 	h *helper.Helper,
 	auth clientAuth,
 	password string,
+	appCredID string,
+	appCredSecret string,
 	l logr.Logger,
 ) (*gophercloud.ServiceClient, error) {
 	authURL := auth.GetKeystoneAuthURL()
@@ -683,13 +690,15 @@ func getNovaClient(
 	}
 
 	cfg := openstack.AuthOpts{
-		AuthURL:    authURL,
-		Username:   auth.GetKeystoneUser(),
-		Password:   password,
-		DomainName: "Default", // fixme",
-		Region:     auth.GetRegion(),
-		TenantName: "service", // fixme",
-		TLS:        tlsConfig,
+		AuthURL:                     authURL,
+		Username:                    auth.GetKeystoneUser(),
+		Password:                    password,
+		DomainName:                  "Default",   // fixme
+		Region:                      "regionOne", // fixme
+		TenantName:                  "service",   // fixme
+		TLS:                         tlsConfig,
+		ApplicationCredentialID:     appCredID,
+		ApplicationCredentialSecret: appCredSecret,
 	}
 	endpointOpts := gophercloud.EndpointOpts{
 		Region:       cfg.Region,
