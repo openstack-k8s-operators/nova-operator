@@ -1,0 +1,11 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+  - script: |-
+      set -euo pipefail
+      NS="${NAMESPACE}"
+
+      # Ensure Nova exists and is Ready before starting appcred tests
+      echo "Checking Nova exists and is Ready..."
+      oc get nova nova-kuttl -n "${NS}" -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' | grep -q "True"
+      echo "✓ Nova nova-kuttl is Ready"

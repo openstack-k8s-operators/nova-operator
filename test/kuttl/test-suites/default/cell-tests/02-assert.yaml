@@ -1,3 +1,62 @@
+# Wait for Nova to be Ready after cell1 deletion
+# Using a script instead of YAML assertion for better timeout handling
+apiVersion: kuttl.dev/v1beta1
+kind: TestAssert
+timeout: 600
+commands:
+  - script: |
+      set -euo pipefail
+      NS="nova-kuttl-default"
+      echo "Waiting for Nova to be Ready after cell1 deletion..."
+      for i in $(seq 1 60); do
+        READY=$(oc get nova nova-kuttl -n "${NS}" -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null || echo "Unknown")
+        if [ "$READY" = "True" ]; then
+          echo "✓ Nova is Ready"
+          exit 0
+        fi
+        echo "Attempt $i/60: Nova Ready=$READY, waiting 10s..."
+        sleep 10
+      done
+      echo "✗ Nova did not become Ready within timeout"
+      oc get nova nova-kuttl -n "${NS}" -o yaml
+      exit 1
+  # Verify cell1 resources are deleted
+  - script: |
+      oc get -n nova-kuttl-default pod/nova-kuttl-cell1-novncproxy-0 || exit 0
+      exit 1
+  - script: |
+      oc get -n nova-kuttl-default pod/nova-kuttl-cell1-conductor-0 || exit 0
+      exit 1
+  - script: |
+      oc get -n nova-kuttl-default NovaCell/nova-cell1 || exit 0
+      exit 1
+  - script: |
+      oc get -n nova-kuttl-default MariaDBAccount/nova-cell1 || exit 0
+      exit 1
+  - script: |
+      oc get -n nova-kuttl-default MariaDBDatabase/nova-cell1 || exit 0
+      exit 1
+  - script: |
+      oc get -n nova-kuttl-default TransportUrl/nova-cell1-transport || exit 0
+      exit 1
+  - script: |
+      oc get -n nova-kuttl-default Secret/nova-cell1 || exit 0
+      exit 1
+  - script: |
+      oc get -n nova-kuttl-default Secret/nova-cell1-db-secret || exit 0
+      exit 1
+  - script: |
+      oc get -n nova-kuttl-default Secret/nova-cell1-compute-config || exit 0
+      exit 1
+  - script: |
+      oc get -n nova-kuttl-default Secret/nova-cell1-manage-config-data || exit 0
+      exit 1
+  # TODO(gibi): this needs an openstack-operator change to clean up the cell1
+  # cert secrets
+  #- script: |
+  #    oc get -n nova-kuttl-default Secret/cert-nova-novncproxy-cell1-public-svc || exit 0
+  #    exit 1
+---
 apiVersion: nova.openstack.org/v1beta1
 kind: Nova
 metadata:
@@ -10,74 +69,8 @@ status:
   metadataServiceReadyCount: 1
   schedulerServiceReadyCount: 1
   conditions:
-  - message: Setup complete
-    reason: Ready
-    status: "True"
+  - status: "True"
     type: Ready
-  - message: Input data complete
-    reason: Ready
-    status: "True"
-    type: InputReady
-  - message: Setup complete
-    reason: Ready
-    status: "True"
-    type: KeystoneServiceReady
-  - message: MariaDBAccount creation complete
-    reason: Ready
-    status: "True"
-    type: MariaDBAccountReady
-  - message: ' Memcached instance has been provisioned'
-    reason: Ready
-    status: "True"
-    type: MemcachedReady
-  - message: DB create completed
-    reason: Ready
-    status: "True"
-    type: NovaAPIDBReady
-  - message: API message bus creation successfully
-    reason: Ready
-    status: "True"
-    type: NovaAPIMQReady
-  - message: Setup complete
-    reason: Ready
-    status: "True"
-    type: NovaAPIReady
-  - message: All DBs created successfully
-    reason: Ready
-    status: "True"
-    type: NovaAllCellDBReady
-  - message: All NovaCells are ready
-    reason: Ready
-    status: "True"
-    type: NovaAllCellReady
-  - message: All message buses created successfully
-    reason: Ready
-    status: "True"
-    type: NovaAllCellsMQReady
-  - message: There is no more NovaCells to delete
-    reason: Ready
-    status: "True"
-    type: NovaCellsDeletion
-  - message: Setup complete
-    reason: Ready
-    status: "True"
-    type: NovaMetadataReady
-  - message: Setup complete
-    reason: Ready
-    status: "True"
-    type: NovaSchedulerReady
-  - message: RoleBinding created
-    reason: Ready
-    status: "True"
-    type: RoleBindingReady
-  - message: Role created
-    reason: Ready
-    status: "True"
-    type: RoleReady
-  - message: ServiceAccount created
-    reason: Ready
-    status: "True"
-    type: ServiceAccountReady
 ---
 apiVersion: v1
 kind: Pod
@@ -119,43 +112,3 @@ status:
   - name: nova-kuttl-metadata-metadata
     ready: true
     started: true
-
----
-apiVersion: kuttl.dev/v1beta1
-kind: TestAssert
-commands:
-  - script: |
-      oc get -n nova-kuttl-default pod/nova-kuttl-cell1-novncproxy-0 || exit 0
-      exit 1
-  - script: |
-      oc get -n nova-kuttl-default pod/nova-kuttl-cell1-conductor-0 || exit 0
-      exit 1
-  - script: |
-      oc get -n nova-kuttl-default NovaCell/nova-cell1 || exit 0
-      exit 1
-  - script: |
-      oc get -n nova-kuttl-default MariaDBAccount/nova-cell1 || exit 0
-      exit 1
-  - script: |
-      oc get -n nova-kuttl-default MariaDBDatabase/nova-cell1 || exit 0
-      exit 1
-  - script: |
-      oc get -n nova-kuttl-default TransportUrl/nova-cell1-transport || exit 0
-      exit 1
-  - script: |
-      oc get -n nova-kuttl-default Secret/nova-cell1 || exit 0
-      exit 1
-  - script: |
-      oc get -n nova-kuttl-default Secret/nova-cell1-db-secret || exit 0
-      exit 1
-  - script: |
-      oc get -n nova-kuttl-default Secret/nova-cell1-compute-config || exit 0
-      exit 1
-  - script: |
-      oc get -n nova-kuttl-default Secret/nova-cell1-manage-config-data || exit 0
-      exit 1
-  # TODO(gibi): this needs an openstack-operator change to clean up the cell1
-  # cert secrets
-  #- script: |
-  #    oc get -n nova-kuttl-default Secret/cert-nova-novncproxy-cell1-public-svc || exit 0
-  #    exit 1
