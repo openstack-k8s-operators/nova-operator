@@ -367,8 +367,8 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	// Create TransportURLs to access the message buses of each cell. Cell0
 	// message bus is always the same as the top level API message bus so
 	// we create API MQ separately first
-	apiTransportURL, apiQuorumQueues, apiMQStatus, apiMQError := r.ensureMQ(
-		ctx, h, instance, instance.Name+"-api-transport", instance.Spec.APIMessageBusInstance)
+	apiTransportURL, apiRabbitmqUserName, apiQuorumQueues, apiMQStatus, apiMQError := r.ensureMQ(
+		ctx, h, instance, instance.Name+"-api-transport", instance.Spec.MessagingBus)
 	switch apiMQStatus {
 	case nova.MQFailed:
 		instance.Status.Conditions.Set(condition.FalseCondition(
@@ -392,20 +392,19 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		return ctrl.Result{}, fmt.Errorf("%w from  for the API MQ: %d", util.ErrInvalidStatus, apiMQStatus)
 	}
 
-	// nova broadcaster rabbit
-	notificationBusName := ""
-	if instance.Spec.NotificationsBusInstance != nil {
-		notificationBusName = *instance.Spec.NotificationsBusInstance
-	}
-
+	// Determine if notifications are enabled by checking NotificationsBus.Cluster
+	// (the webhook defaults this from the deprecated NotificationsBusInstance field)
 	var notificationTransportURL string
+	var notificationRabbitmqUserName string
 	var notificationMQStatus nova.MessageBusStatus
 	var notificationMQError error
 
-	notificationTransportURLName := instance.Name + "-notification-transport"
-	if notificationBusName != "" {
-		notificationTransportURL, _, notificationMQStatus, notificationMQError = r.ensureMQ(
-			ctx, h, instance, notificationTransportURLName, notificationBusName)
+	notificationTransportName := instance.Name + "-notification-transport"
+	if instance.Spec.NotificationsBus != nil && instance.Spec.NotificationsBus.Cluster != "" {
+		// Use NotificationsBus config (never fall back to MessagingBus to ensure separation)
+		notificationsRabbitMqConfig := *instance.Spec.NotificationsBus
+		notificationTransportURL, notificationRabbitmqUserName, _, notificationMQStatus, notificationMQError = r.ensureMQ(
+			ctx, h, instance, notificationTransportName, notificationsRabbitMqConfig)
 
 		switch notificationMQStatus {
 		case nova.MQFailed:
@@ -443,7 +442,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		}
 
 		for _, url := range transportURLList.Items {
-			if strings.Contains(url.Name, notificationTransportURLName) {
+			if strings.Contains(url.Name, notificationTransportName) {
 				err = r.ensureMQDeleted(ctx, instance, url.Name)
 				if err != nil {
 					return ctrl.Result{}, err
@@ -453,10 +452,12 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	}
 
 	cellMQs := map[string]*nova.MessageBus{}
+	cellRabbitmqUserNames := map[string]string{}
 	var failedMQs []string
 	var creatingMQs []string
 	for _, cellName := range orderedCellNames {
 		var cellTransportURL string
+		var cellRabbitmqUserName string
 		var status nova.MessageBusStatus
 		var err error
 		cellTemplate := instance.Spec.CellTemplates[cellName]
@@ -465,12 +466,13 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		// API message bus instead
 		if cellName == novav1.Cell0Name {
 			cellTransportURL = apiTransportURL
+			cellRabbitmqUserName = apiRabbitmqUserName
 			cellQuorumQueues = apiQuorumQueues
 			status = apiMQStatus
 			err = apiMQError
 		} else {
-			cellTransportURL, cellQuorumQueues, status, err = r.ensureMQ(
-				ctx, h, instance, instance.Name+"-"+cellName+"-transport", cellTemplate.CellMessageBusInstance)
+			cellTransportURL, cellRabbitmqUserName, cellQuorumQueues, status, err = r.ensureMQ(
+				ctx, h, instance, instance.Name+"-"+cellName+"-transport", cellTemplate.MessagingBus)
 		}
 		switch status {
 		case nova.MQFailed:
@@ -482,6 +484,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 			return ctrl.Result{}, fmt.Errorf("%w from ensureMQ: %d for cell %s", util.ErrInvalidStatus, status, cellName)
 		}
 		cellMQs[cellName] = &nova.MessageBus{TransportURL: cellTransportURL, QuorumQueues: cellQuorumQueues, Status: status}
+		cellRabbitmqUserNames[cellName] = cellRabbitmqUserName
 	}
 	if len(failedMQs) > 0 {
 		instance.Status.Conditions.Set(condition.FalseCondition(
@@ -544,7 +547,8 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		}
 		cell, status, err := r.ensureCell(
 			ctx, h, instance, cellName, cellTemplate,
-			cellDB.Database, apiDB, cellMQ.TransportURL, cellMQ.QuorumQueues, notificationTransportURL,
+			cellDB.Database, apiDB, cellMQ.TransportURL, cellRabbitmqUserNames[cellName], cellMQ.QuorumQueues,
+			notificationTransportURL, notificationRabbitmqUserName,
 			keystoneInternalAuthURL, secret,
 		)
 		cells[cellName] = cell
@@ -611,8 +615,8 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 
 	topLevelSecretName, err := r.ensureTopLevelSecret(
 		ctx, h, instance,
-		apiTransportURL, apiQuorumQueues,
-		notificationTransportURL,
+		apiTransportURL, apiRabbitmqUserName, apiQuorumQueues,
+		notificationTransportURL, notificationRabbitmqUserName,
 		secret)
 	if err != nil {
 		return ctrl.Result{}, err
@@ -1199,8 +1203,10 @@ func (r *NovaReconciler) ensureCell(
 	cellDB *mariadbv1.Database,
 	apiDB *mariadbv1.Database,
 	cellTransportURL string,
+	cellRabbitmqUserName string,
 	cellQuorumQueues bool,
 	notificationTransportURL string,
+	notificationRabbitmqUserName string,
 	keystoneAuthURL string,
 	secret corev1.Secret,
 ) (*novav1.NovaCell, nova.CellDeploymentStatus, error) {
@@ -1208,7 +1214,8 @@ func (r *NovaReconciler) ensureCell(
 
 	cellSecretName, err := r.ensureCellSecret(
 		ctx, h, instance, cellName, cellTemplate,
-		cellTransportURL, cellQuorumQueues, notificationTransportURL,
+		cellTransportURL, cellRabbitmqUserName, cellQuorumQueues,
+		notificationTransportURL, notificationRabbitmqUserName,
 		secret)
 	if err != nil {
 		return nil, nova.CellDeploying, err
@@ -1711,8 +1718,8 @@ func (r *NovaReconciler) ensureMQ(
 	h *helper.Helper,
 	instance *novav1.Nova,
 	transportName string,
-	messageBusInstanceName string,
-) (string, bool, nova.MessageBusStatus, error) {
+	rabbitMqConfig rabbitmqv1.RabbitMqConfig,
+) (string, string, bool, nova.MessageBusStatus, error) {
 	Log := r.GetLogger(ctx)
 	transportURL := &rabbitmqv1.TransportURL{
 		ObjectMeta: metav1.ObjectMeta{
@@ -1722,14 +1729,20 @@ func (r *NovaReconciler) ensureMQ(
 	}
 
 	op, err := controllerutil.CreateOrPatch(ctx, r.Client, transportURL, func() error {
-		transportURL.Spec.RabbitmqClusterName = messageBusInstanceName
+		transportURL.Spec.RabbitmqClusterName = rabbitMqConfig.Cluster
+		// Always set Username and Vhost to allow clearing/resetting them
+		// The infra-operator TransportURL controller handles empty values:
+		// - Empty Username: uses default cluster admin credentials
+		// - Empty Vhost: defaults to "/" vhost
+		transportURL.Spec.Username = rabbitMqConfig.User
+		transportURL.Spec.Vhost = rabbitMqConfig.Vhost
 
 		err := controllerutil.SetControllerReference(instance, transportURL, r.Scheme)
 		return err
 	})
 
 	if err != nil && !k8s_errors.IsNotFound(err) {
-		return "", false, nova.MQFailed, util.WrapErrorForObject(
+		return "", "", false, nova.MQFailed, util.WrapErrorForObject(
 			fmt.Sprintf("Error create or update TransportURL object %s", transportName),
 			transportURL,
 			err,
@@ -1738,12 +1751,12 @@ func (r *NovaReconciler) ensureMQ(
 
 	if op != controllerutil.OperationResultNone {
 		Log.Info(fmt.Sprintf("TransportURL object %s created or patched", transportName))
-		return "", false, nova.MQCreating, nil
+		return "", "", false, nova.MQCreating, nil
 	}
 
 	err = r.Client.Get(ctx, types.NamespacedName{Namespace: instance.Namespace, Name: transportName}, transportURL)
 	if err != nil && !k8s_errors.IsNotFound(err) {
-		return "", false, nova.MQFailed, util.WrapErrorForObject(
+		return "", "", false, nova.MQFailed, util.WrapErrorForObject(
 			fmt.Sprintf("Error reading TransportURL object %s", transportName),
 			transportURL,
 			err,
@@ -1751,7 +1764,7 @@ func (r *NovaReconciler) ensureMQ(
 	}
 
 	if k8s_errors.IsNotFound(err) || !transportURL.IsReady() || transportURL.Status.SecretName == "" {
-		return "", false, nova.MQCreating, nil
+		return "", "", false, nova.MQCreating, nil
 	}
 
 	secretName := types.NamespacedName{Namespace: instance.Namespace, Name: transportURL.Status.SecretName}
@@ -1760,14 +1773,14 @@ func (r *NovaReconciler) ensureMQ(
 	err = h.GetClient().Get(ctx, secretName, secret)
 	if err != nil {
 		if k8s_errors.IsNotFound(err) {
-			return "", false, nova.MQCreating, nil
+			return "", "", false, nova.MQCreating, nil
 		}
-		return "", false, nova.MQFailed, err
+		return "", "", false, nova.MQFailed, err
 	}
 
 	url, ok := secret.Data[TransportURLSelector]
 	if !ok {
-		return "", false, nova.MQFailed, fmt.Errorf(
+		return "", "", false, nova.MQFailed, fmt.Errorf(
 			"%w: the TransportURL secret %s does not have 'transport_url' field", util.ErrFieldNotFound, transportURL.Status.SecretName)
 	}
 
@@ -1777,7 +1790,13 @@ func (r *NovaReconciler) ensureMQ(
 		quorumQueues = string(val) == "true"
 	}
 
-	return string(url), quorumQueues, nova.MQCompleted, nil
+	// Get the RabbitMQUser CR name from the TransportURL status
+	// The infra-operator populates status.RabbitmqUserRef with the name of the RabbitMQUser CR
+	// that was created or referenced by this TransportURL.
+	// Empty string means using default RabbitMQ user (no dedicated RabbitMQUser CR)
+	rabbitmqUserName := transportURL.Status.RabbitmqUserRef
+
+	return string(url), rabbitmqUserName, quorumQueues, nova.MQCompleted, nil
 }
 
 func (r *NovaReconciler) ensureMQDeleted(
@@ -2004,8 +2023,10 @@ func (r *NovaReconciler) ensureCellSecret(
 	cellName string,
 	cellTemplate novav1.NovaCellTemplate,
 	cellTransportURL string,
+	cellRabbitmqUserName string,
 	cellQuorumQueues bool,
 	notificationTransportURL string,
+	notificationRabbitmqUserName string,
 	externalSecret corev1.Secret,
 ) (string, error) {
 	// NOTE(gibi): We can move other sensitive data to the internal Secret from
@@ -2016,10 +2037,12 @@ func (r *NovaReconciler) ensureCellSecret(
 	}
 
 	data := map[string]string{
-		ServicePasswordSelector:          string(externalSecret.Data[instance.Spec.PasswordSelectors.Service]),
-		TransportURLSelector:             cellTransportURL,
-		NotificationTransportURLSelector: notificationTransportURL,
-		QuorumQueuesTemplateKey:          quorumQueuesValue,
+		ServicePasswordSelector:              string(externalSecret.Data[instance.Spec.PasswordSelectors.Service]),
+		TransportURLSelector:                 cellTransportURL,
+		RabbitmqUserNameSelector:             cellRabbitmqUserName,
+		NotificationTransportURLSelector:     notificationTransportURL,
+		NotificationRabbitmqUserNameSelector: notificationRabbitmqUserName,
+		QuorumQueuesTemplateKey:              quorumQueuesValue,
 	}
 
 	// If metadata is enabled in the cell then the cell secret needs the
@@ -2063,8 +2086,10 @@ func (r *NovaReconciler) ensureTopLevelSecret(
 	h *helper.Helper,
 	instance *novav1.Nova,
 	apiTransportURL string,
+	apiRabbitmqUserName string,
 	apiQuorumQueues bool,
 	notificationTransportURL string,
+	notificationRabbitmqUserName string,
 	externalSecret corev1.Secret,
 ) (string, error) {
 	// NOTE(gibi): We can move other sensitive data to the internal Secret from
@@ -2075,11 +2100,13 @@ func (r *NovaReconciler) ensureTopLevelSecret(
 	}
 
 	data := map[string]string{
-		ServicePasswordSelector:          string(externalSecret.Data[instance.Spec.PasswordSelectors.Service]),
-		MetadataSecretSelector:           string(externalSecret.Data[instance.Spec.PasswordSelectors.MetadataSecret]),
-		TransportURLSelector:             apiTransportURL,
-		NotificationTransportURLSelector: notificationTransportURL,
-		QuorumQueuesTemplateKey:          quorumQueuesValue,
+		ServicePasswordSelector:              string(externalSecret.Data[instance.Spec.PasswordSelectors.Service]),
+		MetadataSecretSelector:               string(externalSecret.Data[instance.Spec.PasswordSelectors.MetadataSecret]),
+		TransportURLSelector:                 apiTransportURL,
+		RabbitmqUserNameSelector:             apiRabbitmqUserName,
+		NotificationTransportURLSelector:     notificationTransportURL,
+		NotificationRabbitmqUserNameSelector: notificationRabbitmqUserName,
+		QuorumQueuesTemplateKey:              quorumQueuesValue,
 	}
 
 	// NOTE(gibi): When we switch to immutable secrets then we need to include

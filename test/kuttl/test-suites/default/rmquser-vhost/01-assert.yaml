@@ -1,0 +1,126 @@
+# Verify the TransportURLs have correct cluster, user, and vhost configured
+apiVersion: rabbitmq.openstack.org/v1beta1
+kind: TransportURL
+metadata:
+  name: nova-kuttl-api-transport
+spec:
+  rabbitmqClusterName: rabbitmq
+  username: nova-rpc
+  vhost: nova-rpc
+---
+apiVersion: rabbitmq.openstack.org/v1beta1
+kind: TransportURL
+metadata:
+  name: nova-kuttl-notification-transport
+spec:
+  rabbitmqClusterName: rabbitmq-notifications
+  username: nova-notifications
+  vhost: nova-notifications
+---
+# Verify that 2 TransportURL CRs were created (separate clusters)
+apiVersion: kuttl.dev/v1beta1
+kind: TestAssert
+commands:
+- script: |
+    set -euxo pipefail
+
+    # Wait for Nova to be Ready
+    kubectl wait --for=condition=Ready nova/nova-kuttl -n $NAMESPACE --timeout=300s
+
+    # Verify NovaNotificationMQReady condition exists and is True
+    kubectl get nova nova-kuttl -n $NAMESPACE -o jsonpath='{.status.conditions[?(@.type=="NovaNotificationMQReady")].status}' | grep -q "True"
+    echo "NovaNotificationMQReady condition is True"
+
+    # Count TransportURL CRs - should be exactly 2 (one for messaging, one for notifications)
+    api_transport_count=$(kubectl get transporturl -n $NAMESPACE -o name | grep "nova-kuttl-api-transport" | wc -l)
+    notification_transport_count=$(kubectl get transporturl -n $NAMESPACE -o name | grep "nova-kuttl-notification-transport" | wc -l)
+
+    if [ "$api_transport_count" -ne "1" ]; then
+      echo "Expected 1 api-transport TransportURL, found $api_transport_count"
+      exit 1
+    fi
+
+    if [ "$notification_transport_count" -ne "1" ]; then
+      echo "Expected 1 notification-transport TransportURL, found $notification_transport_count"
+      exit 1
+    fi
+
+    echo "Correctly found 2 TransportURLs (separate clusters: api and notification)"
+
+    # Verify api-transport has correct user and vhost
+    api_user=$(kubectl get transporturl nova-kuttl-api-transport -n $NAMESPACE -o jsonpath='{.spec.username}')
+    api_vhost=$(kubectl get transporturl nova-kuttl-api-transport -n $NAMESPACE -o jsonpath='{.spec.vhost}')
+    if [ "$api_user" != "nova-rpc" ]; then
+      echo "Expected api-transport username 'nova-rpc', found '$api_user'"
+      exit 1
+    fi
+    if [ "$api_vhost" != "nova-rpc" ]; then
+      echo "Expected api-transport vhost 'nova-rpc', found '$api_vhost'"
+      exit 1
+    fi
+    echo "API transport has correct user (nova-rpc) and vhost (nova-rpc)"
+
+    # Verify notification-transport has correct user and vhost
+    notif_user=$(kubectl get transporturl nova-kuttl-notification-transport -n $NAMESPACE -o jsonpath='{.spec.username}')
+    notif_vhost=$(kubectl get transporturl nova-kuttl-notification-transport -n $NAMESPACE -o jsonpath='{.spec.vhost}')
+    if [ "$notif_user" != "nova-notifications" ]; then
+      echo "Expected notification-transport username 'nova-notifications', found '$notif_user'"
+      exit 1
+    fi
+    if [ "$notif_vhost" != "nova-notifications" ]; then
+      echo "Expected notification-transport vhost 'nova-notifications', found '$notif_vhost'"
+      exit 1
+    fi
+    echo "Notification transport has correct user (nova-notifications) and vhost (nova-notifications)"
+
+    # Verify that nova.conf contains the notifications transport_url
+    NOVA_API_POD=$(kubectl get pods -n $NAMESPACE -l "service=nova-api" -o custom-columns=:metadata.name --no-headers | grep -v ^$ | head -1)
+    if [ -z "${NOVA_API_POD}" ]; then
+      echo "No nova-api pod found"
+      exit 1
+    fi
+    # Verify RPC transport_url in DEFAULT section
+    rpc_transport_url=$(kubectl exec -n $NAMESPACE ${NOVA_API_POD} -c nova-kuttl-api-api -- cat /etc/nova/nova.conf.d/01-nova.conf | grep -E '^\[DEFAULT\]' -A 50 | grep 'transport_url' | head -1 || true)
+    if [ -z "$rpc_transport_url" ]; then
+      echo "transport_url not found in DEFAULT section"
+      exit 1
+    fi
+    echo "Found RPC transport_url: $rpc_transport_url"
+
+    # Verify the RPC transport_url contains the correct vhost (nova-rpc)
+    if ! echo "$rpc_transport_url" | grep -q '/nova-rpc'; then
+      echo "RPC transport_url does not contain expected vhost '/nova-rpc'"
+      exit 1
+    fi
+    echo "Successfully verified vhost 'nova-rpc' in RPC transport_url"
+
+    # Verify the RPC transport_url contains the correct username (nova-rpc)
+    if ! echo "$rpc_transport_url" | grep -q 'nova-rpc:'; then
+      echo "RPC transport_url does not contain expected username 'nova-rpc:'"
+      exit 1
+    fi
+    echo "Successfully verified username 'nova-rpc' in RPC transport_url"
+
+    # Verify oslo_messaging_notifications section has transport_url configured
+    notif_transport_url=$(kubectl exec -n $NAMESPACE ${NOVA_API_POD} -c nova-kuttl-api-api -- cat /etc/nova/nova.conf.d/01-nova.conf | grep -A 2 '\[oslo_messaging_notifications\]' | grep 'transport_url' || true)
+    if [ -z "$notif_transport_url" ]; then
+      echo "transport_url not found in oslo_messaging_notifications section"
+      exit 1
+    fi
+    echo "Found notifications transport_url: $notif_transport_url"
+
+    # Verify the notifications transport_url contains the correct vhost (nova-notifications)
+    if ! echo "$notif_transport_url" | grep -q '/nova-notifications'; then
+      echo "Notifications transport_url does not contain expected vhost '/nova-notifications'"
+      exit 1
+    fi
+    echo "Successfully verified vhost 'nova-notifications' in notifications transport_url"
+
+    # Verify the notifications transport_url contains the correct username (nova-notifications)
+    if ! echo "$notif_transport_url" | grep -q 'nova-notifications:'; then
+      echo "Notifications transport_url does not contain expected username 'nova-notifications:'"
+      exit 1
+    fi
+    echo "Successfully verified username 'nova-notifications' in notifications transport_url"
+
+    exit 0

@@ -20,6 +20,8 @@ spec:
         replicas: 1
       rabbitmq-broadcaster:
         replicas: 1
+      rabbitmq-notifications:
+        replicas: 1
   memcached:
     templates:
       memcached:
