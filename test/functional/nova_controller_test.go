@@ -1188,9 +1188,11 @@ var _ = Describe("Nova controller", func() {
 				},
 			)
 			rawSpec := map[string]any{
-				"secret":                SecretName,
-				"apiDatabaseAccount":    novaNames.APIMariaDBDatabaseAccount.Name,
-				"apiMessageBusInstance": cell0.TransportURLName.Name,
+				"secret":             SecretName,
+				"apiDatabaseAccount": novaNames.APIMariaDBDatabaseAccount.Name,
+				"messagingBus": map[string]any{
+					"cluster": cell0.TransportURLName.Name,
+				},
 				"cellTemplates": map[string]any{
 					"cell0": map[string]any{
 						"apiDatabaseAccount":  novaNames.APIMariaDBDatabaseAccount.Name,
@@ -1484,7 +1486,9 @@ var _ = Describe("Nova controller", func() {
 			cell1Template := GetDefaultNovaCellTemplate()
 			cell1Template["cellDatabaseInstance"] = cell1.MariaDBDatabaseName.Name
 			cell1Template["cellDatabaseAccount"] = cell1.MariaDBAccountName.Name
-			cell1Template["cellMessageBusInstance"] = cell1.TransportURLName.Name
+			cell1Template["messagingBus"] = map[string]any{
+				"cluster": cell1.TransportURLName.Name,
+			}
 			// We reference the cell1 topology that is inherited by the cell1 conductor,
 			// metadata, and novncproxy
 			cell1Template["topologyRef"] = map[string]any{"name": topologyRefCell.Name}
@@ -1500,7 +1504,9 @@ var _ = Describe("Nova controller", func() {
 				"enabled": false,
 			}
 			spec["apiDatabaseInstance"] = novaNames.APIMariaDBDatabaseName.Name
-			spec["apiMessageBusInstance"] = cell0.TransportURLName.Name
+			spec["messagingBus"] = map[string]any{
+				"cluster": cell0.TransportURLName.Name,
+			}
 			// We reference the global topology and is inherited by the sub components
 			// except cell1 that has an override
 			spec["topologyRef"] = map[string]any{"name": topologyRefTopLevel.Name}

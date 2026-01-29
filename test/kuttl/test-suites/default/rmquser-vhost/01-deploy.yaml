@@ -4,12 +4,10 @@ metadata:
   name: nova-kuttl
 spec:
   secret: osp-secret
-  apiMessageBusInstance: ""
   messagingBus:
     cluster: rabbitmq
     user: nova-rpc
     vhost: nova-rpc
-  notificationsBusInstance: null
   notificationsBus:
     cluster: rabbitmq-notifications
     user: nova-notifications
