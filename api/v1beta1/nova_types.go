@@ -131,6 +131,11 @@ type NovaSpecCore struct {
 	// Avoid colocating it with RabbitMqClusterName, APIMessageBusInstance or CellMessageBusInstance used for RPC.
 	// For particular Nova cells, notifications cannot be disabled, nor configured differently.
 	NotificationsBusInstance *string `json:"notificationsBusInstance,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	// Auth - Parameters related to authentication (shared by all Nova services)
+	Auth AuthSpec `json:"auth,omitempty"`
 }
 
 // NovaSpec defines the desired state of Nova

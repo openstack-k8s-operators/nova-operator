@@ -1,0 +1,30 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+  - script: |-
+      set -euo pipefail
+      NS="${NAMESPACE}"
+
+      # Capture a pod UID before appcred is created; used to verify restart later.
+      old_uid=$(oc get pod -n "${NS}" nova-kuttl-cell1-conductor-0 -o jsonpath='{.metadata.uid}')
+      oc create configmap appcred-nova-pre \
+        --from-literal=cell1_conductor_uid="${old_uid}" \
+        --dry-run=client -o yaml | oc apply -n "${NS}" -f -
+
+      cat <<'EOF' | oc apply -n "${NS}" -f -
+      apiVersion: keystone.openstack.org/v1beta1
+      kind: KeystoneApplicationCredential
+      metadata:
+        name: ac-nova
+      spec:
+        secret: osp-secret
+        passwordSelector: NovaPassword
+        userName: nova
+        roles:
+          - admin
+          - service
+        unrestricted: false
+      EOF
+
+      # Ensure the service operator is configured to use the standard AC secret name.
+      oc patch nova nova-kuttl -n "${NS}" --type=merge -p '{"spec":{"auth":{"applicationCredentialSecret":"ac-nova-secret"}}}'
