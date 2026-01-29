@@ -46,11 +46,11 @@ type NovaCellTemplate struct {
 	CellDatabaseAccount string `json:"cellDatabaseAccount"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=rabbitmq
 	// CellMessageBusInstance is the name of the RabbitMqCluster CR to select
 	// the Message Bus Service instance used by the nova services to
 	// communicate in this cell. For cell0 it is unused.
-	CellMessageBusInstance string `json:"cellMessageBusInstance" deprecated:"true" deprecatedNew:"messagingBus.cluster"`
+	// Deprecated: Use MessagingBus.Cluster instead
+	CellMessageBusInstance string `json:"cellMessageBusInstance,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	// MessagingBus configuration (username, vhost, and cluster)

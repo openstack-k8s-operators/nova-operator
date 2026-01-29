@@ -10,7 +10,8 @@ spec:
   # This is the name of the single RabbitMqCluster CR we deploy today
   # The Service is labelled with
   # app.kubernetes.io/component=rabbitmq, app.kubernetes.io/name=<RabbitMqCluster.Name>
-  apiMessageBusInstance: rabbitmq
+  messagingBus:
+    cluster: rabbitmq
   # This is the name of the KeystoneAPI CR we deploy today
   # The Service is labelled with service=keystone,internal=true
   keystoneInstance: keystone
@@ -49,7 +50,8 @@ spec:
     cell0:
       cellDatabaseInstance: openstack
       cellDatabaseAccount: nova-cell0
-      cellMessageBusInstance: rabbitmq
+      messagingBus:
+        cluster: rabbitmq
       # cell0 always needs access to the API DB and MQ as it hosts the super
       # conductor. It will inherit the API DB and MQ access from the Nova CR
       # that creates it.
@@ -63,7 +65,8 @@ spec:
     cell1:
       cellDatabaseInstance: mariadb-cell1
       cellDatabaseAccount: nova-cell1
-      cellMessageBusInstance: rabbitmq-cell1
+      messagingBus:
+        cluster: rabbitmq-cell1
       # cell1 will have upcalls support. It will inherit the API DB and MQ
       # access from the Nova CR that creates it.
       hasAPIAccess: true
@@ -82,7 +85,8 @@ spec:
     cell2:
       cellDatabaseInstance: mariadb-cell2
       cellDatabaseAccount: nova-cell2
-      cellMessageBusInstance: rabbitmq-cell2
+      messagingBus:
+        cluster: rabbitmq-cell2
       # cell2 will not get the API DB and MQ connection info from the Nova CR
       hasAPIAccess: false
       conductorServiceTemplate:

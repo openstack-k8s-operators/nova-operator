@@ -26,7 +26,6 @@ import (
 	"fmt"
 
 	"github.com/google/go-cmp/cmp"
-	rabbitmqv1 "github.com/openstack-k8s-operators/infra-operator/apis/rabbitmq/v1beta1"
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	service "github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	"github.com/robfig/cron/v3"
@@ -89,23 +88,14 @@ func (spec *NovaSpecCore) Default() {
 		spec.APITimeout = novaDefaults.APITimeout
 	}
 
-	// Default MessagingBus.Cluster from APIMessageBusInstance if not already set
+	// Default MessagingBus.Cluster if not set
+	// Migration from deprecated fields is handled by openstack-operator
 	if spec.MessagingBus.Cluster == "" {
-		spec.MessagingBus.Cluster = spec.APIMessageBusInstance
+		spec.MessagingBus.Cluster = "rabbitmq"
 	}
 
-	// Default NotificationsBus if NotificationsBusInstance is specified
-	if spec.NotificationsBusInstance != nil && *spec.NotificationsBusInstance != "" {
-		if spec.NotificationsBus == nil {
-			// Initialize empty NotificationsBus - credentials will be created dynamically
-			// to ensure separation from MessagingBus (RPC and notifications should never share credentials)
-			spec.NotificationsBus = &rabbitmqv1.RabbitMqConfig{}
-		}
-		// Default cluster name if not already set
-		if spec.NotificationsBus.Cluster == "" {
-			spec.NotificationsBus.Cluster = *spec.NotificationsBusInstance
-		}
-	}
+	// NotificationsBus.Cluster is not defaulted - it must be explicitly set if NotificationsBus is configured
+	// This ensures users make a conscious choice about which cluster to use for notifications
 
 	for cellName, cellTemplate := range spec.CellTemplates {
 
@@ -125,9 +115,14 @@ func (spec *NovaSpecCore) Default() {
 			}
 		}
 
-		// Default MessagingBus.Cluster from CellMessageBusInstance if not already set
+		// Default MessagingBus.Cluster if not set
+		// Migration from deprecated fields is handled by openstack-operator
 		if cellTemplate.MessagingBus.Cluster == "" {
-			cellTemplate.MessagingBus.Cluster = cellTemplate.CellMessageBusInstance
+			if cellName == Cell0Name {
+				cellTemplate.MessagingBus.Cluster = "rabbitmq"
+			} else {
+				cellTemplate.MessagingBus.Cluster = "rabbitmq-" + cellName
+			}
 		}
 
 		// "cellTemplate" is a by-value copy, so we need to re-inject the updated version of it into the map

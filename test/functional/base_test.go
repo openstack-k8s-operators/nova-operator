@@ -112,10 +112,12 @@ func NovaSchedulerConditionGetter(name types.NamespacedName) condition.Condition
 
 func GetDefaultNovaSpec() map[string]any {
 	return map[string]any{
-		"secret":                SecretName,
-		"cellTemplates":         map[string]any{},
-		"apiMessageBusInstance": cell0.TransportURLName.Name,
-		"apiDatabaseAccount":    novaNames.APIMariaDBDatabaseAccount.Name,
+		"secret":             SecretName,
+		"cellTemplates":      map[string]any{},
+		"apiDatabaseAccount": novaNames.APIMariaDBDatabaseAccount.Name,
+		"messagingBus": map[string]any{
+			"cluster": cell0.TransportURLName.Name,
+		},
 	}
 }
 
@@ -161,7 +163,9 @@ func CreateNovaWithCell0(name types.NamespacedName) client.Object {
 					},
 				},
 			},
-			"apiMessageBusInstance": cell0.TransportURLName.Name,
+			"messagingBus": map[string]any{
+				"cluster": cell0.TransportURLName.Name,
+			},
 		},
 	}
 
@@ -1025,7 +1029,9 @@ func CreateNovaWithNCellsAndEnsureReady(cellNumber int, novaNames *NovaNames) {
 		template["cellDatabaseAccount"] = account.Name
 		if i != 0 {
 			// cell0
-			template["cellMessageBusInstance"] = cell.TransportURLName.Name
+			template["messagingBus"] = map[string]any{
+				"cluster": cell.TransportURLName.Name,
+			}
 		}
 
 		if i == 1 {
@@ -1046,7 +1052,9 @@ func CreateNovaWithNCellsAndEnsureReady(cellNumber int, novaNames *NovaNames) {
 	spec := GetDefaultNovaSpec()
 	spec["cellTemplates"] = cellTemplates
 	spec["apiDatabaseInstance"] = novaNames.APIMariaDBDatabaseName.Name
-	spec["apiMessageBusInstance"] = novaNames.Cells["cell0"].TransportURLName.Name
+	spec["messagingBus"] = map[string]any{
+		"cluster": novaNames.Cells["cell0"].TransportURLName.Name,
+	}
 
 	// Deploy Nova and simulate its dependencies
 	DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
