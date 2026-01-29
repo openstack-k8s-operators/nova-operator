@@ -19,6 +19,7 @@ package controller
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"maps"
 	"time"
@@ -66,6 +67,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
+)
+
+// Static errors for Application Credential handling
+var (
+	ErrACSecretNotFound    = errors.New("ApplicationCredential secret not found")
+	ErrACSecretMissingKeys = errors.New("ApplicationCredential secret missing required keys")
 )
 
 type conditionUpdater interface {
@@ -849,6 +856,7 @@ const (
 	tlsAPIInternalField     = ".spec.tls.api.internal.secretName"
 	tlsAPIPublicField       = ".spec.tls.api.public.secretName"
 	topologyField           = ".spec.topologyRef.Name"
+	authAppCredSecretField  = ".spec.auth.applicationCredentialSecret" // #nosec G101
 )
 
 var allWatchFields = []string{
@@ -857,6 +865,7 @@ var allWatchFields = []string{
 	tlsAPIInternalField,
 	tlsAPIPublicField,
 	topologyField,
+	authAppCredSecretField,
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -917,6 +926,18 @@ func (r *PlacementAPIReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			return nil
 		}
 		return []string{cr.Spec.TopologyRef.Name}
+	}); err != nil {
+		return err
+	}
+
+	// index authAppCredSecretField
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &placementv1.PlacementAPI{}, authAppCredSecretField, func(rawObj client.Object) []string {
+		// Extract the application credential secret name from the spec, if one is provided
+		cr := rawObj.(*placementv1.PlacementAPI)
+		if cr.Spec.Auth.ApplicationCredentialSecret == "" {
+			return nil
+		}
+		return []string{cr.Spec.Auth.ApplicationCredentialSecret}
 	}); err != nil {
 		return err
 	}
@@ -1377,6 +1398,30 @@ func (r *PlacementAPIReconciler) generateServiceConfigMaps(
 			instance.Status.DatabaseHostname,
 			placement.DatabaseName,
 		),
+	}
+
+	templateParameters["UseApplicationCredentials"] = false
+	// Try to get Application Credential for this service
+	if instance.Spec.Auth.ApplicationCredentialSecret != "" {
+		acSecretObj, _, err := secret.GetSecret(ctx, h, instance.Spec.Auth.ApplicationCredentialSecret, instance.Namespace)
+		if err != nil {
+			if k8s_errors.IsNotFound(err) {
+				h.GetLogger().Info("ApplicationCredential secret not found, waiting", "secret", instance.Spec.Auth.ApplicationCredentialSecret)
+				return fmt.Errorf("%w: %s", ErrACSecretNotFound, instance.Spec.Auth.ApplicationCredentialSecret)
+			}
+			h.GetLogger().Error(err, "Failed to get ApplicationCredential secret", "secret", instance.Spec.Auth.ApplicationCredentialSecret)
+			return err
+		}
+		acID, okID := acSecretObj.Data[keystonev1.ACIDSecretKey]
+		acSecretData, okSecret := acSecretObj.Data[keystonev1.ACSecretSecretKey]
+		if !okID || len(acID) == 0 || !okSecret || len(acSecretData) == 0 {
+			h.GetLogger().Info("ApplicationCredential secret missing required keys", "secret", instance.Spec.Auth.ApplicationCredentialSecret)
+			return fmt.Errorf("%w: %s", ErrACSecretMissingKeys, instance.Spec.Auth.ApplicationCredentialSecret)
+		}
+		templateParameters["UseApplicationCredentials"] = true
+		templateParameters["ACID"] = string(acID)
+		templateParameters["ACSecret"] = string(acSecretData)
+		h.GetLogger().Info("Using ApplicationCredentials auth", "secret", instance.Spec.Auth.ApplicationCredentialSecret)
 	}
 
 	// create httpd  vhost template parameters

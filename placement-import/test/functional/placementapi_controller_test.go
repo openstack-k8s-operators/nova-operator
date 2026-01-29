@@ -374,11 +374,10 @@ var _ = Describe("PlacementAPI controller", func() {
 			// Verify region_name is set in [keystone_authtoken] section
 			// GetRegion() returns Status.Region, so check that
 			Expect(keystoneAPI.Status.Region).ToNot(BeEmpty(), "KeystoneAPI should have a region set in status")
-			// The region_name should appear in the [keystone_authtoken] section
-			// It's conditionally rendered, so check it appears between password and www_authenticate_uri
+			// The region_name should appear in the [keystone_authtoken] section (before [oslo_policy])
 			Expect(conf).Should(
 				MatchRegexp(fmt.Sprintf(
-					"password = .*\\nregion_name = %s\\n", keystoneAPI.Status.Region)))
+					`\[keystone_authtoken\][\s\S]*region_name = %s[\s\S]*\[oslo_policy\]`, keystoneAPI.Status.Region)))
 		})
 
 		It("creates service account, role and rolebindig", func() {
@@ -1468,6 +1467,63 @@ var _ = Describe("PlacementAPI reconfiguration", func() {
 			}, timeout, interval).Should(Succeed())
 		})
 
+	})
+
+	When("an ApplicationCredential is created for Placement", func() {
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreatePlacementAPISecret(names.Namespace, SecretName))
+			keystoneAPIName := keystone.CreateKeystoneAPI(names.Namespace)
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystoneAPIName)
+
+			acSecretName := fmt.Sprintf("ac-%s-secret", placement.ServiceName)
+			acSecret := th.CreateSecret(
+				types.NamespacedName{Namespace: names.Namespace, Name: acSecretName},
+				map[string][]byte{
+					keystonev1.ACIDSecretKey:     []byte("test-ac-id"),
+					keystonev1.ACSecretSecretKey: []byte("test-ac-secret"),
+				},
+			)
+			DeferCleanup(th.DeleteInstance, acSecret)
+
+			spec := GetDefaultPlacementAPISpec()
+			spec["auth"] = map[string]any{
+				"applicationCredentialSecret": acSecretName,
+			}
+
+			DeferCleanup(th.DeleteInstance, CreatePlacementAPI(names.PlacementAPIName, spec))
+
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
+					names.Namespace,
+					GetDefaultPlacementAPISpec()["databaseInstance"].(string),
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+			mariadb.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBAccount)
+		})
+
+		It("should render ApplicationCredential auth in placement.conf", func() {
+			configSecret := th.GetSecret(names.ConfigMapName)
+			conf := configSecret.Data["placement.conf"]
+
+			// AC auth is configured
+			Expect(conf).To(ContainSubstring("auth_type = v3applicationcredential"))
+			Expect(conf).To(ContainSubstring("application_credential_id = test-ac-id"))
+			Expect(conf).To(ContainSubstring("application_credential_secret = test-ac-secret"))
+
+			// Password auth fields should not be present
+			Expect(conf).NotTo(ContainSubstring("auth_type = password"))
+			Expect(conf).NotTo(ContainSubstring("username ="))
+			Expect(conf).NotTo(ContainSubstring("password ="))
+			Expect(conf).NotTo(ContainSubstring("project_name ="))
+			Expect(conf).NotTo(ContainSubstring("user_domain_name ="))
+			Expect(conf).NotTo(ContainSubstring("project_domain_name ="))
+		})
 	})
 
 })

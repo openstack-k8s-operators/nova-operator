@@ -68,7 +68,6 @@ func (spec *PlacementAPISpec) Default() {
 	if spec.APITimeout == 0 {
 		spec.APITimeout = placementAPIDefaults.APITimeout
 	}
-
 }
 
 // Default - set defaults for this PlacementAPI core spec (this version is used by the OpenStackControlplane webhook)

@@ -24,6 +24,13 @@ spec:
       kind: PlacementAPI
       name: placementapis.placement.openstack.org
       specDescriptors:
+      - description: Auth - Parameters related to authentication
+        displayName: Auth
+        path: auth
+      - description: ApplicationCredentialSecret - Secret containing Application Credential
+          ID and Secret
+        displayName: Application Credential Secret
+        path: auth.applicationCredentialSecret
       - description: TLS - Parameters related to the TLS
         displayName: TLS
         path: tls
