@@ -12,13 +12,13 @@ spec:
     cell0:
       cellDatabaseInstance: openstack
       cellDatabaseAccount: nova-cell0
-      cellMessageBusInstance: rabbitmq
       hasAPIAccess: true
       memcachedInstance: memcached
     cell1:
       cellDatabaseInstance: openstack-cell1
       cellDatabaseAccount: nova-cell1
-      cellMessageBusInstance: rabbitmq-cell1
+      messagingBus:
+        cluster: rabbitmq-cell1
       memcachedInstance: memcached
       novaComputeTemplates:
         compute-fake1:

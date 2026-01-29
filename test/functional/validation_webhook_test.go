@@ -662,13 +662,17 @@ var _ = Describe("Nova validation", func() {
 			),
 		)
 	})
-	It("check Cell validation with duplicate cellMessageBusInstance", func() {
+	It("check Cell validation with duplicate messagingBus.cluster", func() {
 		spec := GetDefaultNovaSpec()
 		cell0 := GetDefaultNovaCellTemplate()
 		cell1 := GetDefaultNovaCellTemplate()
 		cell2 := GetDefaultNovaCellTemplate()
-		cell1["cellMessageBusInstance"] = "rabbitmq-of-caerbannog"
-		cell2["cellMessageBusInstance"] = "rabbitmq-of-caerbannog"
+		cell1["messagingBus"] = map[string]any{
+			"cluster": "rabbitmq-of-caerbannog",
+		}
+		cell2["messagingBus"] = map[string]any{
+			"cluster": "rabbitmq-of-caerbannog",
+		}
 		spec["cellTemplates"] = map[string]any{"cell0": cell0, "cell1": cell1, "cell2": cell2}
 		raw := map[string]any{
 			"apiVersion": "nova.openstack.org/v1beta1",

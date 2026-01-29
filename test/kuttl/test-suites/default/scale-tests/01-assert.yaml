@@ -8,7 +8,8 @@ metadata:
 spec:
   apiDatabaseInstance: openstack
   apiDatabaseAccount: nova-api
-  apiMessageBusInstance: rabbitmq
+  messagingBus:
+    cluster: rabbitmq
   apiServiceTemplate:
     customServiceConfig: ""
     replicas: 1
@@ -17,7 +18,8 @@ spec:
     cell0:
       cellDatabaseInstance: openstack
       cellDatabaseAccount: nova-cell0
-      cellMessageBusInstance: rabbitmq
+      messagingBus:
+        cluster: rabbitmq
       conductorServiceTemplate:
         customServiceConfig: ""
         replicas: 1
@@ -30,7 +32,8 @@ spec:
     cell1:
       cellDatabaseInstance: openstack-cell1
       cellDatabaseAccount: nova-cell1
-      cellMessageBusInstance: rabbitmq-cell1
+      messagingBus:
+        cluster: rabbitmq-cell1
       conductorServiceTemplate:
         customServiceConfig: ""
         replicas: 1

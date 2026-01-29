@@ -44,18 +44,18 @@ type NovaSpecCore struct {
 	APIDatabaseInstance string `json:"apiDatabaseInstance"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=rabbitmq
 	// APIMessageBusInstance is the name of the RabbitMqCluster CR to select
 	// the Message Bus Service instance used by the Nova top level services to
 	// communicate.
-	APIMessageBusInstance string `json:"apiMessageBusInstance" deprecated:"true" deprecatedNew:"messagingBus.cluster"`
+	// Deprecated: Use MessagingBus.Cluster instead
+	APIMessageBusInstance string `json:"apiMessageBusInstance,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	// MessagingBus configuration (username, vhost, and cluster)
 	MessagingBus rabbitmqv1.RabbitMqConfig `json:"messagingBus,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default={cell0: {cellDatabaseAccount: nova-cell0, hasAPIAccess: true}, cell1: {cellDatabaseAccount: nova-cell1, cellDatabaseInstance: openstack-cell1, cellMessageBusInstance: rabbitmq-cell1, hasAPIAccess: true}}
+	// +kubebuilder:default={cell0: {cellDatabaseAccount: nova-cell0, hasAPIAccess: true}, cell1: {cellDatabaseAccount: nova-cell1, cellDatabaseInstance: openstack-cell1, messagingBus: {cluster: rabbitmq-cell1}, hasAPIAccess: true}}
 	// Cells is a mapping of cell names to NovaCellTemplate objects defining
 	// the cells in the deployment. The "cell0" cell is a mandatory cell in
 	// every deployment. Moreover any real deployment needs at least one
