@@ -1313,3 +1313,72 @@ var _ = Describe("NovaConductor controller", func() {
 
 	})
 })
+
+var _ = Describe("NovaConductor controller", func() {
+	BeforeEach(func() {
+		mariadb.CreateMariaDBDatabase(cell0.MariaDBDatabaseName.Namespace, cell0.MariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
+		DeferCleanup(k8sClient.Delete, ctx, mariadb.GetMariaDBDatabase(cell0.MariaDBDatabaseName))
+
+		apiMariaDBAccount, apiMariaDBSecret := mariadb.CreateMariaDBAccountAndSecret(
+			novaNames.APIMariaDBDatabaseAccount, mariadbv1.MariaDBAccountSpec{})
+		DeferCleanup(k8sClient.Delete, ctx, apiMariaDBAccount)
+		DeferCleanup(k8sClient.Delete, ctx, apiMariaDBSecret)
+
+		cell0Account, cell0Secret := mariadb.CreateMariaDBAccountAndSecret(
+			cell0.MariaDBAccountName, mariadbv1.MariaDBAccountSpec{})
+		DeferCleanup(k8sClient.Delete, ctx, cell0Account)
+		DeferCleanup(k8sClient.Delete, ctx, cell0Secret)
+
+		DeferCleanup(
+			k8sClient.Delete, ctx, CreateDefaultCellInternalSecret(cell0))
+
+		memcachedSpec := infra.GetDefaultMemcachedSpec()
+		DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
+		infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
+	})
+
+	When("NovaConductor is created with ApplicationCredential data in parent secret", func() {
+		BeforeEach(func() {
+			spec := GetDefaultNovaConductorSpec(cell0)
+			conductor := CreateNovaConductor(cell0.ConductorName, spec)
+			DeferCleanup(th.DeleteInstance, conductor)
+
+			th.ExpectCondition(
+				cell0.ConductorName,
+				ConditionGetterFunc(NovaConductorConditionGetter),
+				condition.ServiceConfigReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
+
+		It("should render ApplicationCredential auth in config when AC data is in parent secret", func() {
+			acID := "test-ac-id"
+			acSecret := "test-ac-secret"
+
+			// Update parent secret with AC data (simulating what Nova controller does)
+			Eventually(func(g Gomega) {
+				sec := &corev1.Secret{}
+				g.Expect(k8sClient.Get(ctx, cell0.InternalCellSecretName, sec)).To(Succeed())
+				sec.Data["ACID"] = []byte(acID)
+				sec.Data["ACSecret"] = []byte(acSecret)
+				g.Expect(k8sClient.Update(ctx, sec)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				cfgSecret := th.GetSecret(cell0.ConductorConfigDataName)
+				g.Expect(cfgSecret).NotTo(BeNil())
+
+				conf := string(cfgSecret.Data["01-nova.conf"])
+
+				// AC auth is configured
+				g.Expect(conf).To(ContainSubstring("auth_type = v3applicationcredential"))
+				g.Expect(conf).To(ContainSubstring("application_credential_id = " + acID))
+				g.Expect(conf).To(ContainSubstring("application_credential_secret = " + acSecret))
+
+				// oslo_limit is configured
+				g.Expect(conf).To(ContainSubstring("[oslo_limit]"))
+				g.Expect(conf).NotTo(ContainSubstring("system_scope"))
+			}, timeout, interval).Should(Succeed())
+		})
+	})
+})

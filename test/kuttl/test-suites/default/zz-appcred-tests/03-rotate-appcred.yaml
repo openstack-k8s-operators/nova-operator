@@ -1,0 +1,17 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+  - script: |-
+      set -euo pipefail
+      NS="${NAMESPACE}"
+
+      old_uid=$(oc get pod -n "${NS}" nova-kuttl-cell1-conductor-0 -o jsonpath='{.metadata.uid}')
+      old_acid=$(oc get -n "${NS}" appcred/ac-nova -o jsonpath='{.status.acID}')
+      oc create configmap appcred-nova-rotate-pre \
+        --from-literal=cell1_conductor_uid="${old_uid}" \
+        --from-literal=ac_id="${old_acid}" \
+        --dry-run=client -o yaml | oc apply -n "${NS}" -f -
+
+      # Force rotation by setting expiresAt in the past.
+      oc patch -n "${NS}" keystoneapplicationcredential ac-nova --type=merge --subresource=status \
+        -p '{"status":{"expiresAt":"2001-05-19T00:00:00Z"}}'

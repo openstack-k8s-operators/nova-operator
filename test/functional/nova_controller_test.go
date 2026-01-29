@@ -36,6 +36,10 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
 	controllers "github.com/openstack-k8s-operators/nova-operator/internal/controller"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 )
 
 var _ = Describe("Nova controller - notifications", func() {
@@ -2008,5 +2012,75 @@ var _ = Describe("Nova controller without memcached", func() {
 			condition.ErrorReason,
 			" Memcached instance has not been provisioned",
 		)
+	})
+})
+
+var _ = Describe("application credentials", func() {
+	const (
+		appCredSecretName = "ac-nova-secret"
+	)
+
+	When("Nova CR is created with ApplicationCredential", func() {
+		const (
+			appCredID     = "test-appcred-id"     //nolint:gosec
+			appCredSecret = "test-appcred-secret" //nolint:gosec
+		)
+
+		BeforeEach(func() {
+			CreateNovaWithNCellsAndEnsureReady(2, &novaNames)
+
+			ac := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      appCredSecretName,
+					Namespace: novaNames.NovaName.Namespace,
+				},
+				Data: map[string][]byte{
+					keystonev1.ACIDSecretKey:     []byte(appCredID),
+					keystonev1.ACSecretSecretKey: []byte(appCredSecret),
+				},
+			}
+			Expect(k8sClient.Create(ctx, ac)).To(Succeed())
+			DeferCleanup(k8sClient.Delete, ctx, ac)
+
+			// Reference AC secret
+			Eventually(func(g Gomega) {
+				nova := GetNova(novaNames.NovaName)
+				nova.Spec.Auth.ApplicationCredentialSecret = appCredSecretName
+				g.Expect(k8sClient.Update(ctx, nova)).Should(Succeed())
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("should put ApplicationCredential data in parent secret", func() {
+			Eventually(func(g Gomega) {
+				parentSecret := th.GetSecret(novaNames.InternalTopLevelSecretName)
+				g.Expect(parentSecret).NotTo(BeNil())
+				g.Expect(parentSecret.Data).To(HaveKey("ACID"))
+				g.Expect(parentSecret.Data).To(HaveKey("ACSecret"))
+				g.Expect(string(parentSecret.Data["ACID"])).To(Equal(appCredID))
+				g.Expect(string(parentSecret.Data["ACSecret"])).To(Equal(appCredSecret))
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("should propagate ApplicationCredential data to cell secrets", func() {
+			// Verify that AC data is propagated to cell0 secret
+			Eventually(func(g Gomega) {
+				cell0Secret := th.GetSecret(cell0.InternalCellSecretName)
+				g.Expect(cell0Secret).NotTo(BeNil())
+				g.Expect(cell0Secret.Data).To(HaveKey("ACID"))
+				g.Expect(cell0Secret.Data).To(HaveKey("ACSecret"))
+				g.Expect(string(cell0Secret.Data["ACID"])).To(Equal(appCredID))
+				g.Expect(string(cell0Secret.Data["ACSecret"])).To(Equal(appCredSecret))
+			}, timeout, interval).Should(Succeed())
+
+			// Verify that AC data is propagated to cell1 secret
+			Eventually(func(g Gomega) {
+				cell1Secret := th.GetSecret(cell1.InternalCellSecretName)
+				g.Expect(cell1Secret).NotTo(BeNil())
+				g.Expect(cell1Secret.Data).To(HaveKey("ACID"))
+				g.Expect(cell1Secret.Data).To(HaveKey("ACSecret"))
+				g.Expect(string(cell1Secret.Data["ACID"])).To(Equal(appCredID))
+				g.Expect(string(cell1Secret.Data["ACSecret"])).To(Equal(appCredSecret))
+			}, timeout, interval).Should(Succeed())
+		})
 	})
 })

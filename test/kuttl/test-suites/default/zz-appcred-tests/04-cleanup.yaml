@@ -1,0 +1,35 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+  - script: |-
+      set -euo pipefail
+      NS="${NAMESPACE}"
+
+      # Remove the application credential secret from Nova spec
+      echo "Removing applicationCredentialSecret from Nova..."
+      oc patch nova nova-kuttl -n "${NS}" --type=json -p '[{"op": "remove", "path": "/spec/auth/applicationCredentialSecret"}]' || true
+
+      # Wait for Nova to reconcile
+      echo "Waiting for Nova to reconcile..."
+      sleep 10
+delete:
+  - apiVersion: nova.openstack.org/v1beta1
+    kind: Nova
+    name: nova-kuttl
+    namespace: nova-kuttl-default
+  - apiVersion: keystone.openstack.org/v1beta1
+    kind: KeystoneApplicationCredential
+    name: ac-nova
+    namespace: nova-kuttl-default
+  - apiVersion: v1
+    kind: Secret
+    name: ac-nova-secret
+    namespace: nova-kuttl-default
+  - apiVersion: v1
+    kind: ConfigMap
+    name: appcred-nova-pre
+    namespace: nova-kuttl-default
+  - apiVersion: v1
+    kind: ConfigMap
+    name: appcred-nova-rotate-pre
+    namespace: nova-kuttl-default

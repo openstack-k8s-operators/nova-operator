@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -249,7 +250,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		instance.Spec.PasswordSelectors.MetadataSecret,
 	}
 
-	_, result, secret, err := ensureSecret(
+	_, result, ospSecret, err := ensureSecret(
 		ctx,
 		types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.Secret},
 		expectedSelectors,
@@ -260,6 +261,48 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	if (err != nil || result != ctrl.Result{}) {
 		return result, err
 	}
+
+	// Try to get Application Credential from the secret specified in the CR
+	var acData *keystonev1.ApplicationCredentialData
+	if instance.Spec.Auth.ApplicationCredentialSecret != "" {
+		acSecretObj, _, err := secret.GetSecret(ctx, h, instance.Spec.Auth.ApplicationCredentialSecret, instance.Namespace)
+		if err != nil {
+			if k8s_errors.IsNotFound(err) {
+				Log.Info("ApplicationCredential secret not found, waiting", "secret", instance.Spec.Auth.ApplicationCredentialSecret)
+				instance.Status.Conditions.Set(condition.FalseCondition(
+					condition.InputReadyCondition,
+					condition.RequestedReason,
+					condition.SeverityInfo,
+					condition.InputReadyWaitingMessage))
+				return ctrl.Result{RequeueAfter: time.Second * 10}, nil
+			}
+			Log.Error(err, "Failed to get ApplicationCredential secret", "secret", instance.Spec.Auth.ApplicationCredentialSecret)
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				condition.InputReadyCondition,
+				condition.ErrorReason,
+				condition.SeverityWarning,
+				novav1.NovaApplicationCredentialSecretErrorMessage))
+			return ctrl.Result{}, err
+		}
+		acID, okID := acSecretObj.Data[keystonev1.ACIDSecretKey]
+		acSecretData, okSecret := acSecretObj.Data[keystonev1.ACSecretSecretKey]
+		if okID && len(acID) > 0 && okSecret && len(acSecretData) > 0 {
+			acData = &keystonev1.ApplicationCredentialData{
+				ID:     string(acID),
+				Secret: string(acSecretData),
+			}
+			Log.Info("Using ApplicationCredentials auth", "secret", instance.Spec.Auth.ApplicationCredentialSecret)
+		} else {
+			Log.Error(nil, "ApplicationCredential secret missing required keys", "secret", instance.Spec.Auth.ApplicationCredentialSecret)
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				condition.InputReadyCondition,
+				condition.ErrorReason,
+				condition.SeverityWarning,
+				novav1.NovaApplicationCredentialSecretErrorMessage))
+			return ctrl.Result{}, fmt.Errorf("%w: %s", ErrACSecretMissingKeys, instance.Spec.Auth.ApplicationCredentialSecret)
+		}
+	}
+
 	instance.Status.Conditions.MarkTrue(condition.InputReadyCondition, condition.InputReadyMessage)
 
 	err = r.ensureKeystoneServiceUser(ctx, h, instance)
@@ -545,7 +588,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		cell, status, err := r.ensureCell(
 			ctx, h, instance, cellName, cellTemplate,
 			cellDB.Database, apiDB, cellMQ.TransportURL, cellMQ.QuorumQueues, notificationTransportURL,
-			keystoneInternalAuthURL, region, secret,
+			keystoneInternalAuthURL, region, ospSecret, acData,
 		)
 		cells[cellName] = cell
 		switch status {
@@ -613,7 +656,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		ctx, h, instance,
 		apiTransportURL, apiQuorumQueues,
 		notificationTransportURL,
-		secret)
+		ospSecret, acData)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -687,7 +730,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 			toDeletCells[cr.Spec.CellName] = cr.Spec.CellName
 			result, err := r.ensureCellDeleted(ctx, h, instance,
 				cr.Spec.CellName, apiTransportURL,
-				secret, apiDB, cellDBs[novav1.Cell0Name].Database.GetDatabaseHostname(), cells[novav1.Cell0Name])
+				ospSecret, apiDB, cellDBs[novav1.Cell0Name].Database.GetDatabaseHostname(), cells[novav1.Cell0Name])
 			if err != nil {
 				deleteErrs = append(deleteErrs, fmt.Errorf("cell '%s' deletion failed, because: %w", cr.Spec.CellName, err))
 			}
@@ -1205,13 +1248,14 @@ func (r *NovaReconciler) ensureCell(
 	keystoneAuthURL string,
 	region string,
 	secret corev1.Secret,
+	acData *keystonev1.ApplicationCredentialData,
 ) (*novav1.NovaCell, nova.CellDeploymentStatus, error) {
 	Log := r.GetLogger(ctx)
 
 	cellSecretName, err := r.ensureCellSecret(
 		ctx, h, instance, cellName, cellTemplate,
 		cellTransportURL, cellQuorumQueues, notificationTransportURL,
-		secret)
+		secret, acData)
 	if err != nil {
 		return nil, nova.CellDeploying, err
 	}
@@ -2025,7 +2069,9 @@ func (r *NovaReconciler) ensureCellSecret(
 	cellQuorumQueues bool,
 	notificationTransportURL string,
 	externalSecret corev1.Secret,
+	acData *keystonev1.ApplicationCredentialData,
 ) (string, error) {
+
 	// NOTE(gibi): We can move other sensitive data to the internal Secret from
 	// the NovaCellSpec fields, possibly hostnames or usernames.
 	quorumQueuesValue := "false"
@@ -2038,6 +2084,12 @@ func (r *NovaReconciler) ensureCellSecret(
 		TransportURLSelector:             cellTransportURL,
 		NotificationTransportURLSelector: notificationTransportURL,
 		QuorumQueuesTemplateKey:          quorumQueuesValue,
+	}
+
+	// Add Application Credential data
+	if acData != nil {
+		data["ACID"] = acData.ID
+		data["ACSecret"] = acData.Secret
 	}
 
 	// If metadata is enabled in the cell then the cell secret needs the
@@ -2084,6 +2136,7 @@ func (r *NovaReconciler) ensureTopLevelSecret(
 	apiQuorumQueues bool,
 	notificationTransportURL string,
 	externalSecret corev1.Secret,
+	acData *keystonev1.ApplicationCredentialData,
 ) (string, error) {
 	// NOTE(gibi): We can move other sensitive data to the internal Secret from
 	// the subCR fields, possibly hostnames or usernames.
@@ -2098,6 +2151,12 @@ func (r *NovaReconciler) ensureTopLevelSecret(
 		TransportURLSelector:             apiTransportURL,
 		NotificationTransportURLSelector: notificationTransportURL,
 		QuorumQueuesTemplateKey:          quorumQueuesValue,
+	}
+
+	// Add Application Credential data if provided
+	if acData != nil {
+		data["ACID"] = acData.ID
+		data["ACSecret"] = acData.Secret
 	}
 
 	// NOTE(gibi): When we switch to immutable secrets then we need to include
@@ -2220,6 +2279,7 @@ func (r *NovaReconciler) memcachedNamespaceMapFunc(ctx context.Context, src clie
 var (
 	novaWatchFields = []string{
 		passwordSecretField,
+		authAppCredSecretField,
 	}
 )
 
@@ -2233,6 +2293,18 @@ func (r *NovaReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			return nil
 		}
 		return []string{cr.Spec.Secret}
+	}); err != nil {
+		return err
+	}
+
+	// index authAppCredSecretField
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &novav1.Nova{}, authAppCredSecretField, func(rawObj client.Object) []string {
+		// Extract the application credential secret name from the spec, if one is provided
+		cr := rawObj.(*novav1.Nova)
+		if cr.Spec.Auth.ApplicationCredentialSecret == "" {
+			return nil
+		}
+		return []string{cr.Spec.Auth.ApplicationCredentialSecret}
 	}); err != nil {
 		return err
 	}
