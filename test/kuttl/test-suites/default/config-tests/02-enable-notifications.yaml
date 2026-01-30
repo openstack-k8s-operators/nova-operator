@@ -4,4 +4,5 @@ metadata:
   name: nova-kuttl
 spec:
   secret: osp-secret
-  notificationsBusInstance: rabbitmq-broadcaster
+  notificationsBus:
+    cluster: rabbitmq-broadcaster

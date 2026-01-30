@@ -79,7 +79,9 @@ var _ = Describe("Nova multi cell", func() {
 			cell1Template := GetDefaultNovaCellTemplate()
 			cell1Template["cellDatabaseInstance"] = cell1.MariaDBDatabaseName.Name
 			cell1Template["cellDatabaseAccount"] = cell1.MariaDBAccountName.Name
-			cell1Template["cellMessageBusInstance"] = cell1.TransportURLName.Name
+			cell1Template["messagingBus"] = map[string]any{
+				"cluster": cell1.TransportURLName.Name,
+			}
 			cell1Template["passwordSelectors"] = map[string]any{
 				"database": "NovaCell1DatabasePassword",
 			}
@@ -92,7 +94,9 @@ var _ = Describe("Nova multi cell", func() {
 			cell2Template := GetDefaultNovaCellTemplate()
 			cell2Template["cellDatabaseInstance"] = cell2.MariaDBDatabaseName.Name
 			cell2Template["cellDatabaseAccount"] = cell2.MariaDBAccountName.Name
-			cell2Template["cellMessageBusInstance"] = cell2.TransportURLName.Name
+			cell2Template["messagingBus"] = map[string]any{
+				"cluster": cell2.TransportURLName.Name,
+			}
 			cell2Template["hasAPIAccess"] = false
 			cell2Template["passwordSelectors"] = map[string]any{
 				"database": "NovaCell2DatabasePassword",
@@ -104,7 +108,9 @@ var _ = Describe("Nova multi cell", func() {
 				"cell2": cell2Template,
 			}
 			spec["apiDatabaseInstance"] = novaNames.APIMariaDBDatabaseName.Name
-			spec["apiMessageBusInstance"] = cell0.TransportURLName.Name
+			spec["messagingBus"] = map[string]any{
+				"cluster": cell0.TransportURLName.Name,
+			}
 
 			DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace))
@@ -675,7 +681,9 @@ var _ = Describe("Nova multi cell", func() {
 			// will act both as a super conductor and as cell1 conductor
 			cell1Template["cellDatabaseInstance"] = novaNames.APIMariaDBDatabaseName.Name
 			cell1Template["cellDatabaseAccount"] = cell1.MariaDBAccountName.Name
-			cell1Template["cellMessageBusInstance"] = cell0.TransportURLName.Name
+			cell1Template["messagingBus"] = map[string]any{
+				"cluster": cell0.TransportURLName.Name,
+			}
 			cell1Template["hasAPIAccess"] = true
 
 			spec["cellTemplates"] = map[string]any{
@@ -683,7 +691,9 @@ var _ = Describe("Nova multi cell", func() {
 				"cell1": cell1Template,
 			}
 			spec["apiDatabaseInstance"] = novaNames.APIMariaDBDatabaseName.Name
-			spec["apiMessageBusInstance"] = cell0.TransportURLName.Name
+			spec["messagingBus"] = map[string]any{
+				"cluster": cell0.TransportURLName.Name,
+			}
 
 			DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
 			memcachedSpec := infra.GetDefaultMemcachedSpec()
@@ -790,14 +800,18 @@ var _ = Describe("Nova multi cell", func() {
 			cell1Template := GetDefaultNovaCellTemplate()
 			cell1Template["cellDatabaseInstance"] = cell1.MariaDBDatabaseName.Name
 			cell1Template["cellDatabaseAccount"] = cell1.MariaDBAccountName.Name
-			cell1Template["cellMessageBusInstance"] = cell1.TransportURLName.Name
+			cell1Template["messagingBus"] = map[string]any{
+				"cluster": cell1.TransportURLName.Name,
+			}
 
 			spec["cellTemplates"] = map[string]any{
 				"cell0": cell0Template,
 				"cell1": cell1Template,
 			}
 			spec["apiDatabaseInstance"] = novaNames.APIMariaDBDatabaseName.Name
-			spec["apiMessageBusInstance"] = cell0.TransportURLName.Name
+			spec["messagingBus"] = map[string]any{
+				"cluster": cell0.TransportURLName.Name,
+			}
 
 			DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
 			memcachedSpec := infra.GetDefaultMemcachedSpec()
@@ -849,7 +863,9 @@ var _ = Describe("Nova multi cell", func() {
 			cell1Template := GetDefaultNovaCellTemplate()
 			cell1Template["cellDatabaseInstance"] = cell1.MariaDBDatabaseName.Name
 			cell1Template["cellDatabaseAccount"] = cell1.MariaDBAccountName.Name
-			cell1Template["cellMessageBusInstance"] = cell1.TransportURLName.Name
+			cell1Template["messagingBus"] = map[string]any{
+				"cluster": cell1.TransportURLName.Name,
+			}
 			cell1Template["metadataServiceTemplate"] = map[string]any{
 				"enabled": true,
 			}
@@ -862,7 +878,9 @@ var _ = Describe("Nova multi cell", func() {
 				"enabled": false,
 			}
 			spec["apiDatabaseInstance"] = novaNames.APIMariaDBDatabaseName.Name
-			spec["apiMessageBusInstance"] = cell0.TransportURLName.Name
+			spec["messagingBus"] = map[string]any{
+				"cluster": cell0.TransportURLName.Name,
+			}
 
 			DeferCleanup(th.DeleteInstance, CreateNova(novaNames.NovaName, spec))
 			memcachedSpec := infra.GetDefaultMemcachedSpec()

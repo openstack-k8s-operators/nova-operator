@@ -28,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 
+	rabbitmqv1 "github.com/openstack-k8s-operators/infra-operator/apis/rabbitmq/v1beta1"
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	mariadb_test "github.com/openstack-k8s-operators/mariadb-operator/api/test/helpers"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
@@ -77,13 +78,15 @@ var _ = Describe("Nova controller - notifications", func() {
 
 		It("notification transport url is set with new rabbit", func() {
 
-			// add new-rabbit in Nova CR
+			// add new-rabbit in Nova CR using the new notificationsBus API
 			notificationsBus := GetNotificationsBusNames(novaNames.NovaName)
 			DeferCleanup(k8sClient.Delete, ctx, CreateNotificationTransportURLSecret(notificationsBus))
 
 			Eventually(func(g Gomega) {
 				nova := GetNova(novaNames.NovaName)
-				nova.Spec.NotificationsBusInstance = &notificationsBus.BusName
+				nova.Spec.NotificationsBus = &rabbitmqv1.RabbitMqConfig{
+					Cluster: notificationsBus.BusName,
+				}
 				g.Expect(k8sClient.Update(ctx, nova)).Should(Succeed())
 			}, timeout, interval).Should(Succeed())
 
@@ -123,10 +126,10 @@ var _ = Describe("Nova controller - notifications", func() {
 			configData = string(configDataMap.Data["01-nova.conf"])
 			AssertHaveNotificationTransportURL(notificationsBus.TransportURLName.Name, configData)
 
-			// cleanup notifications transporturl
+			// cleanup notifications transporturl by clearing the notificationsBus
 			Eventually(func(g Gomega) {
 				nova := GetNova(novaNames.NovaName)
-				nova.Spec.NotificationsBusInstance = nil
+				nova.Spec.NotificationsBus = nil
 				g.Expect(k8sClient.Update(ctx, nova)).Should(Succeed())
 			}, timeout, interval).Should(Succeed())
 
@@ -534,13 +537,17 @@ var _ = Describe("Nova controller", func() {
 			// proper content and the cell subCRs are configured to use the
 			// internal secret
 			internalCellSecret := th.GetSecret(cell0.InternalCellSecretName)
-			Expect(internalCellSecret.Data).To(HaveLen(4))
+			Expect(internalCellSecret.Data).To(HaveLen(6))
 			Expect(internalCellSecret.Data).To(
 				HaveKeyWithValue(controllers.ServicePasswordSelector, []byte("service-password")))
 			Expect(internalCellSecret.Data).To(
 				HaveKeyWithValue("transport_url", []byte("rabbit://cell0/fake")))
 			Expect(internalCellSecret.Data).To(
 				HaveKeyWithValue("notification_transport_url", []byte("")))
+			Expect(internalCellSecret.Data).To(
+				HaveKey(controllers.RabbitmqUserNameSelector))
+			Expect(internalCellSecret.Data).To(
+				HaveKey(controllers.NotificationRabbitmqUserNameSelector))
 
 			Expect(cell.Spec.Secret).To(Equal(cell0.InternalCellSecretName.Name))
 			Expect(conductor.Spec.Secret).To(Equal(cell0.InternalCellSecretName.Name))
@@ -650,7 +657,7 @@ var _ = Describe("Nova controller", func() {
 			// assert that a the top level internal internal secret is created
 			// with the proper data
 			internalTopLevelSecret := th.GetSecret(novaNames.InternalTopLevelSecretName)
-			Expect(internalTopLevelSecret.Data).To(HaveLen(5))
+			Expect(internalTopLevelSecret.Data).To(HaveLen(7))
 			Expect(internalTopLevelSecret.Data).To(
 				HaveKeyWithValue(controllers.ServicePasswordSelector, []byte("service-password")))
 			Expect(internalTopLevelSecret.Data).To(
@@ -659,6 +666,10 @@ var _ = Describe("Nova controller", func() {
 				HaveKeyWithValue("transport_url", []byte("rabbit://cell0/fake")))
 			Expect(internalTopLevelSecret.Data).To(
 				HaveKeyWithValue("notification_transport_url", []byte("")))
+			Expect(internalTopLevelSecret.Data).To(
+				HaveKey(controllers.RabbitmqUserNameSelector))
+			Expect(internalTopLevelSecret.Data).To(
+				HaveKey(controllers.NotificationRabbitmqUserNameSelector))
 		})
 
 		It("creates NovaAPI", func() {
@@ -1173,9 +1184,11 @@ var _ = Describe("Nova controller", func() {
 				},
 			)
 			rawSpec := map[string]any{
-				"secret":                SecretName,
-				"apiDatabaseAccount":    novaNames.APIMariaDBDatabaseAccount.Name,
-				"apiMessageBusInstance": cell0.TransportURLName.Name,
+				"secret":             SecretName,
+				"apiDatabaseAccount": novaNames.APIMariaDBDatabaseAccount.Name,
+				"messagingBus": map[string]any{
+					"cluster": cell0.TransportURLName.Name,
+				},
 				"cellTemplates": map[string]any{
 					"cell0": map[string]any{
 						"apiDatabaseAccount":  novaNames.APIMariaDBDatabaseAccount.Name,
@@ -1469,7 +1482,9 @@ var _ = Describe("Nova controller", func() {
 			cell1Template := GetDefaultNovaCellTemplate()
 			cell1Template["cellDatabaseInstance"] = cell1.MariaDBDatabaseName.Name
 			cell1Template["cellDatabaseAccount"] = cell1.MariaDBAccountName.Name
-			cell1Template["cellMessageBusInstance"] = cell1.TransportURLName.Name
+			cell1Template["messagingBus"] = map[string]any{
+				"cluster": cell1.TransportURLName.Name,
+			}
 			// We reference the cell1 topology that is inherited by the cell1 conductor,
 			// metadata, and novncproxy
 			cell1Template["topologyRef"] = map[string]any{"name": topologyRefCell.Name}
@@ -1485,7 +1500,9 @@ var _ = Describe("Nova controller", func() {
 				"enabled": false,
 			}
 			spec["apiDatabaseInstance"] = novaNames.APIMariaDBDatabaseName.Name
-			spec["apiMessageBusInstance"] = cell0.TransportURLName.Name
+			spec["messagingBus"] = map[string]any{
+				"cluster": cell0.TransportURLName.Name,
+			}
 			// We reference the global topology and is inherited by the sub components
 			// except cell1 that has an override
 			spec["topologyRef"] = map[string]any{"name": topologyRefTopLevel.Name}
