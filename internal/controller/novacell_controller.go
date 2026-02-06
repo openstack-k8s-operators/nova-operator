@@ -806,9 +806,16 @@ func (r *NovaCellReconciler) generateComputeConfigs(
 
 	hashes := make(map[string]env.Setter)
 
+	// Propagate RabbitMQ user names to compute-config secret so the
+	// openstack-operator can track which RabbitMQUser CRs are in use
+	extraData := map[string]string{
+		RabbitmqUserNameSelector:             string(secret.Data[RabbitmqUserNameSelector]),
+		NotificationRabbitmqUserNameSelector: string(secret.Data[NotificationRabbitmqUserNameSelector]),
+	}
+
 	configName := instance.GetName() + "-compute-config"
 	err := r.GenerateConfigs(
-		ctx, h, instance, configName, &hashes, templateParameters, map[string]string{}, cmLabels, map[string]string{},
+		ctx, h, instance, configName, &hashes, templateParameters, extraData, cmLabels, map[string]string{},
 	)
 	if err != nil {
 		return err
