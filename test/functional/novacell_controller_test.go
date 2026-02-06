@@ -339,6 +339,13 @@ var _ = Describe("NovaCell controller", func() {
 			)
 
 			Expect(GetNovaCell(cell1.CellCRName).Status.Hash).To(HaveKey(cell1.ComputeConfigSecretName.Name))
+
+			// Verify that RabbitMQ user names are propagated to the compute-config secret
+			// so the openstack-operator can track which RabbitMQUser CRs are in use
+			Expect(computeConfigData.Data).To(
+				HaveKey(controllers.RabbitmqUserNameSelector))
+			Expect(computeConfigData.Data).To(
+				HaveKey(controllers.NotificationRabbitmqUserNameSelector))
 		})
 
 		It("should have quorum queues disabled by default and enabled when configured", func() {
