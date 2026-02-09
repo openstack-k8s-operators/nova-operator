@@ -43,7 +43,7 @@ import (
 const (
 	SecretName     = "external-secret"
 	ContainerImage = "test://nova"
-	timeout        = 25 * time.Second
+	timeout        = 45 * time.Second
 	// have maximum 100 retries before the timeout hits
 	interval = timeout / 100
 	// consistencyTimeout is the amount of time we use to repeatedly check

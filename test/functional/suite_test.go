@@ -127,6 +127,10 @@ var _ = BeforeSuite(func() {
 			keystoneCRDs,
 			rabbitCRDs,
 		},
+		// Increase this to 60 or 120 seconds for the single-core run
+		ControlPlaneStartTimeout: 120 * time.Second,
+		// Give it plenty of time to wind down (e.g., 60-120 seconds)
+		ControlPlaneStopTimeout: 120 * time.Second,
 		CRDInstallOptions: envtest.CRDInstallOptions{
 			Paths: []string{
 				networkv1CRD,
@@ -139,6 +143,14 @@ var _ = BeforeSuite(func() {
 			// the webhook fails as it try to parse the address as ipv4 and
 			// failing on the colons in ::1
 			LocalServingHost: "127.0.0.1",
+		},
+		ControlPlane: envtest.ControlPlane{
+			APIServer: &envtest.APIServer{
+				Args: []string{
+					"--service-cluster-ip-range=10.0.0.0/12", // 65k+ IPs
+					"--disable-admission-plugins=ResourceQuota,ServiceAccount,NamespaceLifecycle",
+				},
+			},
 		},
 	}
 
