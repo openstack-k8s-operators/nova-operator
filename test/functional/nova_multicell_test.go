@@ -889,10 +889,8 @@ var _ = Describe("Nova multi cell", func() {
 			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
 			keystoneAPIName := keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace)
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystoneAPIName)
-			keystoneAPI := keystone.GetKeystoneAPI(keystoneAPIName)
-			Eventually(func(g Gomega) {
-				g.Expect(k8sClient.Status().Update(ctx, keystoneAPI.DeepCopy())).Should(Succeed())
-			}, timeout, interval).Should(Succeed())
+			// Note: Status update removed as it was updating with stale object and not setting any fields.
+			// The SimulateKeystoneServiceReady call below handles necessary setup.
 			keystone.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
 		})
 		It("cell0 becomes ready without metadata and the rest of nova is deployed", func() {
