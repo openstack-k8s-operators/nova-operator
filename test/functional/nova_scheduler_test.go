@@ -285,51 +285,54 @@ var _ = Describe("NovaScheduler controller", func() {
 			)
 
 			// Wait for config to be regenerated with region
+			var configData string
 			Eventually(func(g Gomega) {
 				configDataMap := th.GetSecret(novaNames.SchedulerConfigDataName)
 				g.Expect(configDataMap).ShouldNot(BeNil())
 				g.Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
-				configData := string(configDataMap.Data["01-nova.conf"])
-
-				// Parse the INI file to properly access sections
-				cfg, err := ini.Load([]byte(configData))
-				g.Expect(err).ShouldNot(HaveOccurred(), "Should be able to parse config as INI")
-
-				// Verify region_name in [keystone_authtoken]
-				section := cfg.Section("keystone_authtoken")
-				g.Expect(section).ShouldNot(BeNil(), "Should find [keystone_authtoken] section")
-				g.Expect(section.Key("region_name").String()).Should(Equal(testRegion))
-
-				// Verify region_name in [placement]
-				section = cfg.Section("placement")
-				g.Expect(section).ShouldNot(BeNil(), "Should find [placement] section")
-				g.Expect(section.Key("region_name").String()).Should(Equal(testRegion))
-
-				// Verify region_name in [glance]
-				section = cfg.Section("glance")
-				g.Expect(section).ShouldNot(BeNil(), "Should find [glance] section")
-				g.Expect(section.Key("region_name").String()).Should(Equal(testRegion))
-
-				// Verify region_name in [neutron]
-				section = cfg.Section("neutron")
-				g.Expect(section).ShouldNot(BeNil(), "Should find [neutron] section")
-				g.Expect(section.Key("region_name").String()).Should(Equal(testRegion))
-
-				// Verify os_region_name in [cinder]
-				section = cfg.Section("cinder")
-				g.Expect(section).ShouldNot(BeNil(), "Should find [cinder] section")
-				g.Expect(section.Key("os_region_name").String()).Should(Equal(testRegion))
-
-				// Verify barbican_region_name in [barbican]
-				section = cfg.Section("barbican")
-				g.Expect(section).ShouldNot(BeNil(), "Should find [barbican] section")
-				g.Expect(section.Key("barbican_region_name").String()).Should(Equal(testRegion))
-
-				// Verify endpoint_region_name in [oslo_limit]
-				section = cfg.Section("oslo_limit")
-				g.Expect(section).ShouldNot(BeNil(), "Should find [oslo_limit] section")
-				g.Expect(section.Key("endpoint_region_name").String()).Should(Equal(testRegion))
+				configData = string(configDataMap.Data["01-nova.conf"])
+				// Quick check that config contains the expected region before parsing
+				g.Expect(configData).To(ContainSubstring(testRegion))
 			}, timeout, interval).Should(Succeed())
+
+			// Parse the INI file once after Eventually succeeds (avoids repeated parsing)
+			cfg, err := ini.Load([]byte(configData))
+			Expect(err).ShouldNot(HaveOccurred(), "Should be able to parse config as INI")
+
+			// Verify region_name in [keystone_authtoken]
+			section := cfg.Section("keystone_authtoken")
+			Expect(section).ShouldNot(BeNil(), "Should find [keystone_authtoken] section")
+			Expect(section.Key("region_name").String()).Should(Equal(testRegion))
+
+			// Verify region_name in [placement]
+			section = cfg.Section("placement")
+			Expect(section).ShouldNot(BeNil(), "Should find [placement] section")
+			Expect(section.Key("region_name").String()).Should(Equal(testRegion))
+
+			// Verify region_name in [glance]
+			section = cfg.Section("glance")
+			Expect(section).ShouldNot(BeNil(), "Should find [glance] section")
+			Expect(section.Key("region_name").String()).Should(Equal(testRegion))
+
+			// Verify region_name in [neutron]
+			section = cfg.Section("neutron")
+			Expect(section).ShouldNot(BeNil(), "Should find [neutron] section")
+			Expect(section.Key("region_name").String()).Should(Equal(testRegion))
+
+			// Verify os_region_name in [cinder]
+			section = cfg.Section("cinder")
+			Expect(section).ShouldNot(BeNil(), "Should find [cinder] section")
+			Expect(section.Key("os_region_name").String()).Should(Equal(testRegion))
+
+			// Verify barbican_region_name in [barbican]
+			section = cfg.Section("barbican")
+			Expect(section).ShouldNot(BeNil(), "Should find [barbican] section")
+			Expect(section.Key("barbican_region_name").String()).Should(Equal(testRegion))
+
+			// Verify endpoint_region_name in [oslo_limit]
+			section = cfg.Section("oslo_limit")
+			Expect(section).ShouldNot(BeNil(), "Should find [oslo_limit] section")
+			Expect(section.Key("endpoint_region_name").String()).Should(Equal(testRegion))
 		})
 
 		It("stored the input hash in the Status", func() {

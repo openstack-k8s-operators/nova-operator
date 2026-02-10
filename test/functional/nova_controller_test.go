@@ -1516,10 +1516,8 @@ var _ = Describe("Nova controller", func() {
 			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
 			keystoneAPIName := keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace)
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystoneAPIName)
-			keystoneAPI := keystone.GetKeystoneAPI(keystoneAPIName)
-			Eventually(func(g Gomega) {
-				g.Expect(k8sClient.Status().Update(ctx, keystoneAPI.DeepCopy())).Should(Succeed())
-			}, timeout, interval).Should(Succeed())
+			// Note: Status update removed as it was updating with stale object and not setting any fields.
+			// The SimulateKeystoneServiceReady call below handles necessary setup.
 			keystone.SimulateKeystoneServiceReady(novaNames.KeystoneServiceName)
 		})
 		It("propagates topology to the Nova components except cell1 that has an override", func() {
@@ -1940,12 +1938,16 @@ var _ = Describe("Nova controller - region defaults", func() {
 		})
 
 		It("defaults the region to regionOne", func() {
+			// Clear region on KeystoneAPI spec first
+			keystoneAPI := keystone.GetKeystoneAPI(novaNames.KeystoneAPIName)
+			keystoneAPI.Spec.Region = ""
+			Expect(k8sClient.Update(ctx, keystoneAPI)).To(Succeed())
+
+			// Update status separately after spec is applied
 			Eventually(func(g Gomega) {
-				keystoneAPI := keystone.GetKeystoneAPI(novaNames.KeystoneAPIName)
-				keystoneAPI.Spec.Region = ""
-				g.Expect(k8sClient.Update(ctx, keystoneAPI)).To(Succeed())
-				keystoneAPI.Status.Region = ""
-				g.Expect(k8sClient.Status().Update(ctx, keystoneAPI)).To(Succeed())
+				ks := keystone.GetKeystoneAPI(novaNames.KeystoneAPIName)
+				ks.Status.Region = ""
+				g.Expect(k8sClient.Status().Update(ctx, ks)).To(Succeed())
 			}, timeout, interval).Should(Succeed())
 
 			Eventually(func(g Gomega) {
