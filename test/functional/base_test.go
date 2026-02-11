@@ -49,7 +49,7 @@ const (
 	// consistencyTimeout is the amount of time we use to repeatedly check
 	// that a condition is still valid. This is intended to be used in
 	// asserts using `Consistently`.
-	consistencyTimeout = timeout
+	consistencyTimeout = 25 * time.Second
 	ironicComputeName  = "ironic-compute"
 	MemcachedInstance  = "memcached"
 )
