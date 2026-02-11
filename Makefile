@@ -429,7 +429,7 @@ kuttl-test-cleanup:
 	fi
 
 CRD_SCHEMA_CHECKER_VERSION ?= release-4.16
-BRANCH ?= main
+BRANCH ?= 18.0-fr5
 .PHONY: force-bump
 force-bump: ## Force bump operator and lib-common dependencies
 	for dep in $$(cat go.mod | grep openstack-k8s-operators | grep -vE -- 'indirect|nova-operator|^replace' | awk '{print $$1}'); do \
