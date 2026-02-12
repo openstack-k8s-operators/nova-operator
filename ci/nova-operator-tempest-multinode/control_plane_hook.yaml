@@ -79,6 +79,7 @@
                           spec:
                             type: LoadBalancer
 
+
               - op: add
                 path: /spec/nova/template/metadataServiceTemplate/enabled
                 value: false
