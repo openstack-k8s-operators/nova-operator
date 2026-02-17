@@ -55,7 +55,7 @@ import (
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	test "github.com/openstack-k8s-operators/lib-common/modules/test"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
-	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
+	novav1 "github.com/openstack-k8s-operators/nova-operator/apis/nova/v1beta1"
 	controllers "github.com/openstack-k8s-operators/nova-operator/internal/controller"
 	webhookv1beta1 "github.com/openstack-k8s-operators/nova-operator/internal/webhook/v1beta1"
 
