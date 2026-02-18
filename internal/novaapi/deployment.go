@@ -17,6 +17,8 @@ limitations under the License.
 package novaapi
 
 import (
+	"math"
+
 	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
@@ -49,16 +51,31 @@ func StatefulSet(
 		FailureThreshold: 6,
 		PeriodSeconds:    10,
 	}
-	// After the first successful startupProbe, livenessProbe takes over
-	livenessProbe := &corev1.Probe{
-		// TODO might need tuning
-		TimeoutSeconds: 30,
-		PeriodSeconds:  30,
-	}
+	// After the first successful startupProbe, livenessProbe takes over.
+
+	// Set up the readiness probe to detect overload by scheduling
+	// frequent API calls and detect even within the APITimeout period
+	// if API requests are being queued up on the pod. If so the readiness
+	// prove will fail and k8s will pull the pod out from the load balancer
+	// letting it work through the queued work before it gets new requests
+	// forwarded to it.
+	t := float64(instance.Spec.APITimeout)
 	readinessProbe := &corev1.Probe{
-		// TODO might need tuning
-		TimeoutSeconds: 30,
-		PeriodSeconds:  30,
+		TimeoutSeconds:   int32(math.Floor(0.3 * t)),
+		PeriodSeconds:    int32(math.Floor(0.3 * t)),
+		FailureThreshold: 3,
+	}
+	// Set up the liveness probe to be lot more forgiving than readiness
+	// not to trigger a pod restart on overload directly and only fail if the
+	// pod hangs for a long time.
+	// Eventually we want to have a way to assess the health of the pod
+	// without directly calling its API and use a dedicated health check
+	// endpoint instead. But it needs upstream nova work first in
+	// https://blueprints.launchpad.net/nova/+spec/per-process-healthchecks
+	livenessProbe := &corev1.Probe{
+		TimeoutSeconds:   int32(math.Floor(0.5 * t)),
+		PeriodSeconds:    int32(math.Floor(0.5 * t)),
+		FailureThreshold: 10,
 	}
 
 	args := []string{"-c", nova.KollaServiceCommand}
