@@ -426,6 +426,13 @@ endpoint_service_type = compute`))
 			Expect(container.LivenessProbe.HTTPGet.Port.IntVal).To(Equal(int32(8774)))
 			Expect(container.ReadinessProbe.HTTPGet.Port.IntVal).To(Equal(int32(8774)))
 
+			Expect(container.ReadinessProbe.TimeoutSeconds).To(Equal(int32(18)))
+			Expect(container.ReadinessProbe.PeriodSeconds).To(Equal(int32(18)))
+			Expect(container.ReadinessProbe.FailureThreshold).To(Equal(int32(3)))
+
+			Expect(container.LivenessProbe.TimeoutSeconds).To(Equal(int32(30)))
+			Expect(container.LivenessProbe.PeriodSeconds).To(Equal(int32(30)))
+			Expect(container.LivenessProbe.FailureThreshold).To(Equal(int32(10)))
 		})
 
 		When("the StatefulSet has at least one Replica ready", func() {
