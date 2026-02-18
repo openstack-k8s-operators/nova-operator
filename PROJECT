@@ -18,7 +18,7 @@ resources:
   domain: openstack.org
   group: nova
   kind: NovaAPI
-  path: github.com/openstack-k8s-operators/nova-operator/api/v1beta1
+  path: github.com/openstack-k8s-operators/nova-operator/apis/nova/v1beta1
   version: v1beta1
   webhooks:
     defaulting: true
@@ -31,7 +31,7 @@ resources:
   domain: openstack.org
   group: nova
   kind: NovaScheduler
-  path: github.com/openstack-k8s-operators/nova-operator/api/v1beta1
+  path: github.com/openstack-k8s-operators/nova-operator/apis/nova/v1beta1
   version: v1beta1
   webhooks:
     defaulting: true
@@ -44,7 +44,7 @@ resources:
   domain: openstack.org
   group: nova
   kind: NovaConductor
-  path: github.com/openstack-k8s-operators/nova-operator/api/v1beta1
+  path: github.com/openstack-k8s-operators/nova-operator/apis/nova/v1beta1
   version: v1beta1
   webhooks:
     defaulting: true
@@ -57,7 +57,7 @@ resources:
   domain: openstack.org
   group: nova
   kind: NovaMetadata
-  path: github.com/openstack-k8s-operators/nova-operator/api/v1beta1
+  path: github.com/openstack-k8s-operators/nova-operator/apis/nova/v1beta1
   version: v1beta1
   webhooks:
     defaulting: true
@@ -70,7 +70,7 @@ resources:
   domain: openstack.org
   group: nova
   kind: NovaNoVNCProxy
-  path: github.com/openstack-k8s-operators/nova-operator/api/v1beta1
+  path: github.com/openstack-k8s-operators/nova-operator/apis/nova/v1beta1
   version: v1beta1
   webhooks:
     defaulting: true
@@ -83,7 +83,7 @@ resources:
   domain: openstack.org
   group: nova
   kind: NovaCell
-  path: github.com/openstack-k8s-operators/nova-operator/api/v1beta1
+  path: github.com/openstack-k8s-operators/nova-operator/apis/nova/v1beta1
   version: v1beta1
   webhooks:
     defaulting: true
@@ -96,7 +96,7 @@ resources:
   domain: openstack.org
   group: nova
   kind: Nova
-  path: github.com/openstack-k8s-operators/nova-operator/api/v1beta1
+  path: github.com/openstack-k8s-operators/nova-operator/apis/nova/v1beta1
   version: v1beta1
   webhooks:
     defaulting: true
@@ -109,7 +109,20 @@ resources:
   domain: openstack.org
   group: nova
   kind: NovaCompute
-  path: github.com/openstack-k8s-operators/nova-operator/api/v1beta1
+  path: github.com/openstack-k8s-operators/nova-operator/apis/nova/v1beta1
+  version: v1beta1
+  webhooks:
+    defaulting: true
+    validation: true
+    webhookVersion: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: openstack.org
+  group: placement
+  kind: PlacementAPI
+  path: github.com/openstack-k8s-operators/nova-operator/apis/placement/v1beta1
   version: v1beta1
   webhooks:
     defaulting: true

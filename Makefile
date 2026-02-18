@@ -112,14 +112,23 @@ docker-buildx: ## Build and push docker image for the manager for cross-platform
 
 ##@ Development
 
+# .PHONY: manifests
+# manifests: gowork controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
+# 	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases && \
+# 	rm -f apis/bases/* && cp -a config/crd/bases apis/
+
 .PHONY: manifests
 manifests: gowork controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
-	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases && \
- 	rm -f api/bases/* && cp -a config/crd/bases api/
+	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./apis/..." paths="./internal/..." paths="./cmd/..." output:crd:artifacts:config=config/crd/bases && \
+	rm -f apis/bases/* && cp -a config/crd/bases apis/
+
+# .PHONY: generate
+# generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
+# 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
 .PHONY: generate
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
-	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
+	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./apis/..."
 
 .PHONY: fmt
 fmt: ## Run go fmt against code.
@@ -128,7 +137,7 @@ fmt: ## Run go fmt against code.
 .PHONY: vet
 vet: gowork ## Run go vet against code.
 	go vet ./...
-	go vet ./api/...
+	go vet ./apis/...
 
 
 .PHONY: tidy
@@ -150,7 +159,7 @@ PROC_CMD = --procs ${PROCS}
 test: manifests generate fmt vet envtest ginkgo ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) -v debug --bin-dir $(LOCALBIN) use $(ENVTEST_K8S_VERSION) -p path)" \
 	OPERATOR_TEMPLATES="$(PWD)/templates" \
-	$(GINKGO) --trace --cover --coverpkg=../../internal/...,../../api/v1beta1 --coverprofile cover.out --covermode=atomic --randomize-all ${PROC_CMD} $(GINKGO_ARGS) ./test/...
+	$(GINKGO) --trace --cover --coverpkg=../../internal/...,../../apis/nova/v1beta1 --coverprofile cover.out --covermode=atomic --randomize-all ${PROC_CMD} $(GINKGO_ARGS) ./test/...
 
 ##@ Build
 
@@ -359,13 +368,13 @@ golint: get-ci-tools
 .PHONY: operator-lint
 operator-lint: $(LOCALBIN) gowork ## Runs operator-lint
 	GOBIN=$(LOCALBIN) go install github.com/gibizer/operator-lint@v0.5.0
-	go vet -vettool=$(LOCALBIN)/operator-lint ./... ./api/...
+	go vet -vettool=$(LOCALBIN)/operator-lint ./... ./apis/...
 
 .PHONY: gowork
 gowork: ## Generate go.work file
 	test -f go.work || GOTOOLCHAIN=$(GOTOOLCHAIN_VERSION) go work init
 	go work use .
-	go work use ./api
+	go work use ./apis
 	go work sync
 
 OPERATOR_NAMESPACE ?= openstack-operators
@@ -435,7 +444,7 @@ force-bump: ## Force bump operator and lib-common dependencies
 	for dep in $$(cat go.mod | grep openstack-k8s-operators | grep -vE -- 'indirect|nova-operator|^replace' | awk '{print $$1}'); do \
 		go get $$dep@$(BRANCH) ; \
 	done
-	for dep in $$(cat api/go.mod | grep openstack-k8s-operators | grep -vE -- 'indirect|nova-operator|^replace' | awk '{print $$1}'); do \
+	for dep in $$(cat apis/go.mod | grep openstack-k8s-operators | grep -vE -- 'indirect|nova-operator|^replace' | awk '{print $$1}'); do \
 		cd ./api && go get $$dep@$(BRANCH) && cd .. ; \
 	done
 

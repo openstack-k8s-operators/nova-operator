@@ -16,7 +16,7 @@ require (
 	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.6.1-0.20260128142552-e2c25eccae5a
 	github.com/openstack-k8s-operators/lib-common/modules/test v0.6.1-0.20260128142552-e2c25eccae5a
 	github.com/openstack-k8s-operators/mariadb-operator/api v0.6.1-0.20260120155328-e04f52e73f01
-	github.com/openstack-k8s-operators/nova-operator/api v0.0.0-20221209164002-f9e6b9363961
+	github.com/openstack-k8s-operators/nova-operator/apis v0.0.0-20221209164002-f9e6b9363961
 	go.uber.org/zap v1.27.1
 	golang.org/x/exp v0.0.0-20241217172543-b2144cdd0a67
 	gopkg.in/ini.v1 v1.67.0
@@ -117,7 +117,7 @@ require (
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )
 
-replace github.com/openstack-k8s-operators/nova-operator/api => ./api
+replace github.com/openstack-k8s-operators/nova-operator/apis => ./apis	//allow-merging
 
 // mschuppert: map to latest commit from release-4.18 tag
 // must consistent within modules and service operators
