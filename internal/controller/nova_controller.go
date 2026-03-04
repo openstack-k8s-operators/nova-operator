@@ -2345,7 +2345,8 @@ func (r *NovaReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&novav1.NovaScheduler{}).
 		Owns(&novav1.NovaCell{}).
 		Owns(&novav1.NovaMetadata{}).
-		Owns(&rabbitmqv1.TransportURL{}).
+		Owns(&rabbitmqv1.TransportURL{},
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{})).
 		Owns(&batchv1.Job{}).
 		Owns(&corev1.ServiceAccount{}).
 		Owns(&rbacv1.Role{}).
