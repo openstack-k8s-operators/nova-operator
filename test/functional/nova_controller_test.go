@@ -2103,3 +2103,74 @@ var _ = Describe("application credentials", func() {
 		})
 	})
 })
+
+var _ = Describe("Nova controller - predicates", func() {
+	When("Nova CR with child resources exists", func() {
+		BeforeEach(func() {
+			CreateNovaWithNCellsAndEnsureReady(1, &novaNames)
+		})
+
+		It("do not - reconcile Nova when NovaAPI CR status changes", func() {
+			nova := GetNova(novaNames.NovaName)
+			// get initial resourceVersion
+			initialResourceVersion := nova.ResourceVersion
+
+			// Update nova-api status (not spec)
+			Eventually(func(g Gomega) {
+				api := GetNovaAPI(novaNames.APIName)
+				api.Status.ReadyCount = 999
+				// here only updating status and not object spec
+				g.Expect(k8sClient.Status().Update(ctx, api)).Should(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			// Check nova resourceVersion did not change
+			// so above update call did not make any new reconciliation to change resourceversion
+			Consistently(func(g Gomega) {
+				nova = GetNova(novaNames.NovaName)
+				g.Expect(nova.ResourceVersion).To(Equal(initialResourceVersion))
+				// here we must wait for full duration to ensure no delayed reconciliation was triggered.
+				// checking consistently for 25 sec
+			}, consistencyTimeout, interval).Should(Succeed())
+		})
+
+		It("do - reconcile Nova when child CR spec changes", func() {
+			nova := GetNova(novaNames.NovaName)
+			initialResourceVersion := nova.ResourceVersion
+
+			Eventually(func(g Gomega) {
+				api := GetNovaAPI(novaNames.APIName)
+				api.Spec.Replicas = ptr.To(int32(3))
+				// update api spec
+				g.Expect(k8sClient.Update(ctx, api)).Should(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			// Verify Nova resourceVersion did change
+			// Nova should reconcile due to spec change
+			Eventually(func(g Gomega) {
+				nova = GetNova(novaNames.NovaName)
+				g.Expect(nova.ResourceVersion).ToNot(Equal(initialResourceVersion))
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("do - reconcile Nova when TransportURL spec changes", func() {
+			transportURL := infra.GetTransportURL(cell0.TransportURLName)
+			Expect(transportURL).ToNot(BeNil())
+
+			nova := GetNova(novaNames.NovaName)
+			initialResourceVersion := nova.ResourceVersion
+
+			// Update TransportURL spec
+			Eventually(func(g Gomega) {
+				transportURL = infra.GetTransportURL(cell0.TransportURLName)
+				transportURL.Spec.RabbitmqClusterName = "rabbitmq-notification"
+				g.Expect(k8sClient.Update(ctx, transportURL)).Should(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			// Verify Nova resourceVersion did change
+			Eventually(func(g Gomega) {
+				nova = GetNova(novaNames.NovaName)
+				g.Expect(nova.ResourceVersion).ToNot(Equal(initialResourceVersion))
+			}, timeout, interval).Should(Succeed())
+		})
+	})
+})
