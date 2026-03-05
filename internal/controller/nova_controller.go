@@ -2341,12 +2341,18 @@ func (r *NovaReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&mariadbv1.MariaDBDatabase{}).
 		Owns(&mariadbv1.MariaDBAccount{}).
 		Owns(&keystonev1.KeystoneService{}).
-		Owns(&novav1.NovaAPI{}).
-		Owns(&novav1.NovaScheduler{}).
-		Owns(&novav1.NovaCell{}).
-		Owns(&novav1.NovaMetadata{}).
+		Owns(&novav1.NovaAPI{},
+			builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		Owns(&novav1.NovaScheduler{},
+			builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		Owns(&novav1.NovaCell{},
+			builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		Owns(&novav1.NovaConductor{},
+			builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		Owns(&novav1.NovaMetadata{},
+			builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Owns(&rabbitmqv1.TransportURL{},
-			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{})).
+			builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Owns(&batchv1.Job{}).
 		Owns(&corev1.ServiceAccount{}).
 		Owns(&rbacv1.Role{}).
