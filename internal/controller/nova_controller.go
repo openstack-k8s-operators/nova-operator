@@ -458,6 +458,8 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 				novav1.NovaNotificationMQReadyErrorMessage,
 				notificationMQError.Error(),
 			))
+			Log.Error(notificationMQError, "Notification MQ failed, aborting.")
+			return ctrl.Result{}, notificationMQError
 		case nova.MQCreating:
 			instance.Status.Conditions.Set(condition.FalseCondition(
 				novav1.NovaNotificationMQReadyCondition,
@@ -465,6 +467,10 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 				condition.SeverityInfo,
 				novav1.NovaNotificationMQReadyCreatingMessage,
 			))
+			// return early - wait for notification MQ to be ready before continuing
+			// to avoid propagating empty transport_url to config generation
+			Log.Info("Notification MQ not ready yet, returning early.")
+			return ctrl.Result{}, nil
 		case nova.MQCompleted:
 			instance.Status.Conditions.MarkTrue(
 				novav1.NovaNotificationMQReadyCondition, novav1.NovaNotificationMQReadyMessage)
