@@ -27,7 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
-	novav1beta1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
+	novav1beta1 "github.com/openstack-k8s-operators/nova-operator/api/nova/v1beta1"
 )
 
 // nolint:unused
