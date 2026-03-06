@@ -114,12 +114,13 @@ docker-buildx: ## Build and push docker image for the manager for cross-platform
 
 .PHONY: manifests
 manifests: gowork controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
-	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases && \
- 	rm -f api/bases/* && cp -a config/crd/bases api/
+	$(CONTROLLER_GEN) crd webhook paths="./api/nova/..." output:crd:artifacts:config=config/crd/bases && \
+	$(CONTROLLER_GEN) rbac:roleName=manager-role paths="./..." output:dir=config/rbac && \
+	rm -f api/bases/* && cp -a config/crd/bases api/
 
 .PHONY: generate
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
-	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
+	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./api/nova/..."
 
 .PHONY: fmt
 fmt: ## Run go fmt against code.
@@ -150,7 +151,7 @@ PROC_CMD = --procs ${PROCS}
 test: manifests generate fmt vet envtest ginkgo ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) -v debug --bin-dir $(LOCALBIN) use $(ENVTEST_K8S_VERSION) -p path)" \
 	OPERATOR_TEMPLATES="$(PWD)/templates" \
-	$(GINKGO) --trace --cover --coverpkg=../../internal/...,../../api/v1beta1 --coverprofile cover.out --covermode=atomic --randomize-all ${PROC_CMD} $(GINKGO_ARGS) ./test/...
+	$(GINKGO) --trace --cover --coverpkg=../../internal/...,../../api/nova/v1beta1 --coverprofile cover.out --covermode=atomic --randomize-all ${PROC_CMD} $(GINKGO_ARGS) ./test/...
 
 ##@ Build
 
