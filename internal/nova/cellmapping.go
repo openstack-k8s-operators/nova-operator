@@ -7,7 +7,7 @@ import (
 	"k8s.io/utils/ptr"
 
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
-	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
+	novav1 "github.com/openstack-k8s-operators/nova-operator/api/nova/v1beta1"
 )
 
 // CellMappingJob creates a Kubernetes job to create Nova cell mappings

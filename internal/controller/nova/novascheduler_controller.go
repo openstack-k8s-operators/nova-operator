@@ -51,9 +51,9 @@ import (
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
-	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
+	novav1 "github.com/openstack-k8s-operators/nova-operator/api/nova/v1beta1"
 	"github.com/openstack-k8s-operators/nova-operator/internal/nova"
-	"github.com/openstack-k8s-operators/nova-operator/internal/novascheduler"
+	"github.com/openstack-k8s-operators/nova-operator/internal/nova/scheduler"
 )
 
 // NovaSchedulerReconciler reconciles a NovaScheduler object

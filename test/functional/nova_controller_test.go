@@ -35,8 +35,8 @@ import (
 
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
-	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
-	controllers "github.com/openstack-k8s-operators/nova-operator/internal/controller"
+	novav1 "github.com/openstack-k8s-operators/nova-operator/api/nova/v1beta1"
+	controllers "github.com/openstack-k8s-operators/nova-operator/internal/controller/nova"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 

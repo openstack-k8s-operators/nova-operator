@@ -47,9 +47,9 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 
-	novav1 "github.com/openstack-k8s-operators/nova-operator/api/v1beta1"
+	novav1 "github.com/openstack-k8s-operators/nova-operator/api/nova/v1beta1"
 	"github.com/openstack-k8s-operators/nova-operator/internal/nova"
-	"github.com/openstack-k8s-operators/nova-operator/internal/novacompute"
+	"github.com/openstack-k8s-operators/nova-operator/internal/nova/compute"
 
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
