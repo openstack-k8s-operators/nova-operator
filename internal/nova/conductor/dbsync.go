@@ -1,10 +1,11 @@
 /*
 Copyright 2022.
+
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-	http://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,49 +14,47 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package nova
+package novaconductor
 
 import (
-	env "github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/nova/v1beta1"
+	"github.com/openstack-k8s-operators/nova-operator/internal/nova"
 
+	env "github.com/openstack-k8s-operators/lib-common/modules/common/env"
+
+	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 )
 
-// HostDiscoveryJob creates a Kubernetes job to discover Nova compute hosts
-func HostDiscoveryJob(
-	instance *novav1.NovaCell,
-	configName string,
-	scriptName string,
-	inputHash string,
+// CellDBSyncJob - define a batchv1.Job to be run to apply the cel DB schema
+func CellDBSyncJob(
+	instance *novav1.NovaConductor,
 	labels map[string]string,
+	annotations map[string]string,
+	memcached *memcachedv1.Memcached,
 ) *batchv1.Job {
-	args := []string{"-c", KollaServiceCommand}
+	args := []string{"-c", nova.KollaServiceCommand}
 
 	envVars := map[string]env.Setter{}
 	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
 	envVars["KOLLA_BOOTSTRAP"] = env.SetValue("true")
 
-	// This is stored in the Job so that if the input of the job changes
-	// then it results in a new job hash and therefore lib-common will re-run
-	// the job
-	envVars["INPUT_HASH"] = env.SetValue(inputHash)
+	envVars["CELL_NAME"] = env.SetValue(instance.Spec.CellName)
 
 	env := env.MergeEnvs([]corev1.EnvVar{}, envVars)
 
-	jobName := instance.Name + "-host-discover"
-
+	// create Volume and VolumeMounts
 	volumes := []corev1.Volume{
-		GetConfigVolume(configName),
-		GetScriptVolume(scriptName),
+		nova.GetConfigVolume(nova.GetServiceConfigSecretName(instance.Name)),
+		nova.GetScriptVolume(nova.GetScriptSecretName(instance.Name)),
 	}
 	volumeMounts := []corev1.VolumeMount{
-		GetConfigVolumeMount(),
-		GetScriptVolumeMount(),
-		GetKollaConfigVolumeMount("host-discover"),
+		nova.GetConfigVolumeMount(),
+		nova.GetScriptVolumeMount(),
+		nova.GetKollaConfigVolumeMount("nova-conductor-dbsync"),
 	}
 
 	// add CA cert if defined
@@ -64,11 +63,18 @@ func HostDiscoveryJob(
 		volumeMounts = append(volumeMounts, instance.Spec.TLS.CreateVolumeMounts(nil)...)
 	}
 
+	// add MTLS cert if defined
+	if memcached.Status.MTLSCert != "" {
+		volumes = append(volumes, memcached.CreateMTLSVolume())
+		volumeMounts = append(volumeMounts, memcached.CreateMTLSVolumeMounts(nil, nil)...)
+	}
+
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      jobName,
-			Namespace: instance.Namespace,
-			Labels:    labels,
+			Name:        instance.Name + "-db-sync",
+			Namespace:   instance.Namespace,
+			Annotations: annotations,
+			Labels:      labels,
 		},
 		Spec: batchv1.JobSpec{
 			Template: corev1.PodTemplateSpec{
@@ -78,14 +84,14 @@ func HostDiscoveryJob(
 					Volumes:            volumes,
 					Containers: []corev1.Container{
 						{
-							Name: "nova-manage",
+							Name: instance.Name + "-db-sync",
 							Command: []string{
 								"/bin/bash",
 							},
 							Args:  args,
-							Image: instance.Spec.ConductorContainerImageURL,
+							Image: instance.Spec.ContainerImage,
 							SecurityContext: &corev1.SecurityContext{
-								RunAsUser: ptr.To(NovaUserID),
+								RunAsUser: ptr.To(nova.NovaUserID),
 							},
 							Env:          env,
 							VolumeMounts: volumeMounts,
