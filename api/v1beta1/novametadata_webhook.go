@@ -26,6 +26,7 @@ import (
 	"fmt"
 
 	"github.com/google/go-cmp/cmp"
+	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -33,7 +34,6 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
-	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 )
 
 // NovaMetadataDefaults -
@@ -156,7 +156,7 @@ func ValidateMetadataDefaultConfigOverwrite(
 	defaultConfigOverwrite map[string]string,
 ) field.ErrorList {
 	return ValidateDefaultConfigOverwrite(
-		basePath, defaultConfigOverwrite, []string{"api-paste.ini"})
+		basePath, defaultConfigOverwrite, []string{"api-paste.ini", "httpd.conf"})
 }
 
 // ValidateTopology validates the referenced TopoRef.Namespace.

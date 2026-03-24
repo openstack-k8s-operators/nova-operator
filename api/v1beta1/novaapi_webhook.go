@@ -34,8 +34,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
-	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 )
 
 // NovaAPIDefaults -
@@ -148,7 +148,7 @@ func ValidateAPIDefaultConfigOverwrite(
 	return ValidateDefaultConfigOverwrite(
 		basePath,
 		defaultConfigOverwrite,
-		[]string{"policy.yaml", "api-paste.ini"})
+		[]string{"policy.yaml", "api-paste.ini", "httpd.conf"})
 }
 
 // ValidateTopology validates the referenced TopoRef.Namespace.
