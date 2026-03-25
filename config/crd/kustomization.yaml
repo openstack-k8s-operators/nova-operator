@@ -11,6 +11,9 @@ resources:
 - bases/nova.openstack.org_nova.yaml
 - bases/nova.openstack.org_novacomputes.yaml
 - bases/placement.openstack.org_placementapis.yaml
+- bases/cyborg.openstack.org_cyborgs.yaml
+- bases/cyborg.openstack.org_cyborgapis.yaml
+- bases/cyborg.openstack.org_cyborgconductors.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 patches:
