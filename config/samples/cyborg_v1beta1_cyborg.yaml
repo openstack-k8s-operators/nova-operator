@@ -1,0 +1,9 @@
+apiVersion: cyborg.openstack.org/v1beta1
+kind: Cyborg
+metadata:
+  labels:
+    app.kubernetes.io/name: nova-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: cyborg-sample
+spec:
+  # TODO(user): Add fields here
