@@ -184,6 +184,26 @@ webhooks:
     resources:
     - placementapis
   sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /mutate-cyborg-openstack-org-v1beta1-cyborg
+  failurePolicy: Fail
+  name: mcyborg-v1beta1.kb.io
+  rules:
+  - apiGroups:
+    - cyborg.openstack.org
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - cyborgs
+  sideEffects: None
 ---
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
@@ -369,4 +389,64 @@ webhooks:
     - UPDATE
     resources:
     - placementapis
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-cyborg-openstack-org-v1beta1-cyborg
+  failurePolicy: Fail
+  name: vcyborg-v1beta1.kb.io
+  rules:
+  - apiGroups:
+    - cyborg.openstack.org
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - cyborgs
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-cyborg-openstack-org-v1beta1-cyborgapi
+  failurePolicy: Fail
+  name: vcyborgapi-v1beta1.kb.io
+  rules:
+  - apiGroups:
+    - cyborg.openstack.org
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - cyborgapis
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-cyborg-openstack-org-v1beta1-cyborgconductor
+  failurePolicy: Fail
+  name: vcyborgconductor-v1beta1.kb.io
+  rules:
+  - apiGroups:
+    - cyborg.openstack.org
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - cyborgconductors
   sideEffects: None
