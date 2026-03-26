@@ -23,6 +23,10 @@ spec:
       displayName: Cyborg API
       kind: CyborgAPI
       name: cyborgapis.cyborg.openstack.org
+      specDescriptors:
+      - description: TLS - Parameters related to the TLS
+        displayName: TLS
+        path: tls
       version: v1beta1
     - description: CyborgConductor is the Schema for the cyborgconductors API.
       displayName: Cyborg Conductor
@@ -33,6 +37,19 @@ spec:
       displayName: Cyborg
       kind: Cyborg
       name: cyborgs.cyborg.openstack.org
+      specDescriptors:
+      - description: TLS - Parameters related to the TLS
+        displayName: TLS
+        path: apiServiceTemplate.tls
+      - description: Auth - Parameters related to authentication (shared by all Cyborg
+          services)
+        displayName: Auth
+        path: auth
+      - description: |-
+          ApplicationCredentialSecret - the name of the k8s Secret that contains the
+          application credential data used for authentication
+        displayName: Application Credential Secret
+        path: auth.applicationCredentialSecret
       version: v1beta1
     - description: NovaAPI is the Schema for the novaapis API
       displayName: Nova API

@@ -17,16 +17,70 @@ limitations under the License.
 package v1beta1
 
 import (
+	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
+	service "github.com/openstack-k8s-operators/lib-common/modules/common/service"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// CyborgAPITemplate defines the input parameters specified by the user to
+// create a CyborgAPI via higher level CRDs.
+type CyborgAPITemplate struct {
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=1
+	// +kubebuilder:validation:Maximum=32
+	// +kubebuilder:validation:Minimum=0
+	// Replicas of the service to run
+	Replicas *int32 `json:"replicas"`
+
+	// +kubebuilder:validation:Optional
+	// NodeSelector to target subset of worker nodes running this service. Setting here overrides
+	// any global NodeSelector settings within the Cyborg CR.
+	NodeSelector *map[string]string `json:"nodeSelector,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// CustomServiceConfig - customize the service config using this parameter to change service defaults,
+	// or overwrite rendered information using raw OpenStack config format. The content gets added to
+	// to /etc/<service>/<service>.conf.d directory as custom.conf file.
+	CustomServiceConfig string `json:"customServiceConfig"`
+
+	// +kubebuilder:validation:Optional
+	// Resources - Compute Resources required by this service (Limits/Requests).
+	// https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// Override, provides the ability to override the generated manifest of several child resources.
+	Override APIOverrideSpec `json:"override,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	// TLS - Parameters related to the TLS
+	TLS tls.API `json:"tls,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// TopologyRef to apply the Topology defined by the associated CR referenced
+	// by name
+	TopologyRef *topologyv1.TopoRef `json:"topologyRef,omitempty"`
+}
+
+// APIOverrideSpec to override the generated manifest of several child resources.
+type APIOverrideSpec struct {
+	// Override configuration for the Service created to serve traffic to the cluster.
+	// The key must be the endpoint type (public, internal)
+	Service map[service.Endpoint]service.RoutedOverrideSpec `json:"service,omitempty"`
+}
+
 // CyborgAPISpec defines the desired state of CyborgAPI.
 type CyborgAPISpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	// +kubebuilder:validation:Optional
+	// API - define the cyborg-api service
+	CyborgAPITemplate `json:",inline"`
 
-	// Foo is an example field of CyborgAPI. Edit cyborgapi_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	// +kubebuilder:validation:Required
+	// ConfigSecret - containing all the configuration needed provided by Cyborg object
+	ConfigSecret *string `json:"configSecret"`
 }
 
 // CyborgAPIStatus defines the observed state of CyborgAPI.
