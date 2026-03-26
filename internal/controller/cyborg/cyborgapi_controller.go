@@ -28,6 +28,8 @@ import (
 )
 
 // CyborgAPIReconciler reconciles a CyborgAPI object
+//
+//nolint:revive
 type CyborgAPIReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
@@ -49,6 +51,7 @@ type CyborgAPIReconciler struct {
 func (r *CyborgAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = logf.FromContext(ctx)
 
+	_ = req
 	// TODO(user): your logic here
 
 	return ctrl.Result{}, nil

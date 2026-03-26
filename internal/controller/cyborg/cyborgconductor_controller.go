@@ -28,6 +28,8 @@ import (
 )
 
 // CyborgConductorReconciler reconciles a CyborgConductor object
+//
+//nolint:revive
 type CyborgConductorReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
@@ -46,7 +48,7 @@ type CyborgConductorReconciler struct {
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.21.0/pkg/reconcile
-func (r *CyborgConductorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *CyborgConductorReconciler) Reconcile(ctx context.Context, _ ctrl.Request) (ctrl.Result, error) {
 	_ = logf.FromContext(ctx)
 
 	// TODO(user): your logic here

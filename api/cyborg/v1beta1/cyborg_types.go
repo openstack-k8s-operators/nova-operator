@@ -64,7 +64,8 @@ type CyborgSpecCore struct {
 	// APITimeout for Route and Apache
 	APITimeout *int `json:"apiTimeout"`
 
-	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=osp-secret
 	// Secret is the name of the Secret instance containing password
 	// information for cyborg like the keystone service password and DB passwords
 	Secret *string `json:"secret"`
@@ -114,13 +115,21 @@ type CyborgStatus struct {
 	// Conditions
 	Conditions condition.Conditions `json:"conditions,omitempty" optional:"true"`
 
+	// ServiceID - The ID of the cyborg service registered in keystone
+	ServiceID string `json:"serviceID,omitempty"`
+
+	// Hash - Map of hashes to track e.g. job status
+	Hash map[string]string `json:"hash,omitempty"`
+
 	// APIServiceReadyCount defines the number or replicas ready from cyborg-api
 	APIServiceReadyCount int32 `json:"apiServiceReadyCount,omitempty"`
 
 	// ConductorServiceReadyCount defines the number or replicas ready from cyborg-conductor
 	ConductorServiceReadyCount int32 `json:"conductorServiceReadyCount,omitempty"`
 
-	//ObservedGeneration - the most recent generation observed for this service. If the observed generation is less than the spec generation, then the controller has not processed the latest changes.
+	// ObservedGeneration - the most recent generation observed for this
+	// service. If the observed generation is less than the spec generation,
+	// then the controller has not processed the latest changes.
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 }
 
@@ -143,6 +152,26 @@ type CyborgList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []Cyborg `json:"items"`
+}
+
+// RbacConditionsSet sets the conditions for the RBAC reconciliation
+func (instance Cyborg) RbacConditionsSet(c *condition.Condition) {
+	instance.Status.Conditions.Set(c)
+}
+
+// RbacNamespace returns the namespace
+func (instance Cyborg) RbacNamespace() string {
+	return instance.Namespace
+}
+
+// RbacResourceName returns the name to be used for RBAC objects (serviceaccount, role, rolebinding)
+func (instance Cyborg) RbacResourceName() string {
+	return "cyborg-" + instance.Name
+}
+
+// IsReady returns true if the ReadyCondition is true
+func (instance *Cyborg) IsReady() bool {
+	return instance.Status.Conditions.IsTrue(condition.ReadyCondition)
 }
 
 func init() {

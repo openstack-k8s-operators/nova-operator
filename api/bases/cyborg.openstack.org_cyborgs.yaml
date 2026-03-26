@@ -524,6 +524,7 @@ spec:
                   e.g. to check logs
                 type: boolean
               secret:
+                default: osp-secret
                 description: |-
                   Secret is the name of the Secret instance containing password
                   information for cyborg like the keystone service password and DB passwords
@@ -554,7 +555,6 @@ spec:
             - agentContainerImageURL
             - apiContainerImageURL
             - conductorContainerImageURL
-            - secret
             type: object
           status:
             description: CyborgStatus defines the observed state of Cyborg.
@@ -611,12 +611,22 @@ spec:
                   ready from cyborg-conductor
                 format: int32
                 type: integer
+              hash:
+                additionalProperties:
+                  type: string
+                description: Hash - Map of hashes to track e.g. job status
+                type: object
               observedGeneration:
-                description: ObservedGeneration - the most recent generation observed
-                  for this service. If the observed generation is less than the spec
-                  generation, then the controller has not processed the latest changes.
+                description: |-
+                  ObservedGeneration - the most recent generation observed for this
+                  service. If the observed generation is less than the spec generation,
+                  then the controller has not processed the latest changes.
                 format: int64
                 type: integer
+              serviceID:
+                description: ServiceID - The ID of the cyborg service registered in
+                  keystone
+                type: string
             type: object
         type: object
     served: true
