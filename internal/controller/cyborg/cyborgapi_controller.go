@@ -28,6 +28,8 @@ import (
 )
 
 // CyborgAPIReconciler reconciles a CyborgAPI object
+//
+//nolint:revive
 type CyborgAPIReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
@@ -48,6 +50,7 @@ type CyborgAPIReconciler struct {
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.21.0/pkg/reconcile
 func (r *CyborgAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = logf.FromContext(ctx)
+	_ = req
 
 	// TODO(user): your logic here
 
@@ -58,6 +61,6 @@ func (r *CyborgAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 func (r *CyborgAPIReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&cyborgv1beta1.CyborgAPI{}).
-		Named("cyborg-cyborgapi").
+		Named("cyborgapi").
 		Complete(r)
 }

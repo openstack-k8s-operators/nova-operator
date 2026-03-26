@@ -11,17 +11,17 @@ metadata:
   labels:
     app.kubernetes.io/name: nova-operator
     app.kubernetes.io/managed-by: kustomize
-  name: cyborg-cyborg-admin-role
+  name: cyborgconductor-admin-role
 rules:
 - apiGroups:
   - cyborg.openstack.org
   resources:
-  - cyborgs
+  - cyborgconductors
   verbs:
   - '*'
 - apiGroups:
   - cyborg.openstack.org
   resources:
-  - cyborgs/status
+  - cyborgconductors/status
   verbs:
   - get

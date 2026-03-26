@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package cyborg contains the Kubernetes controllers for managing Cyborg control plane components
 package cyborg
 
 import (
@@ -28,6 +29,8 @@ import (
 )
 
 // CyborgReconciler reconciles a Cyborg object
+//
+//nolint:revive
 type CyborgReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
@@ -48,6 +51,7 @@ type CyborgReconciler struct {
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.21.0/pkg/reconcile
 func (r *CyborgReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = logf.FromContext(ctx)
+	_ = req
 
 	// TODO(user): your logic here
 
@@ -58,6 +62,6 @@ func (r *CyborgReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 func (r *CyborgReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&cyborgv1beta1.Cyborg{}).
-		Named("cyborg-cyborg").
+		Named("cyborg").
 		Complete(r)
 }
