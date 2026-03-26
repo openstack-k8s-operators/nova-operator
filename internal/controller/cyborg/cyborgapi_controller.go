@@ -52,6 +52,7 @@ func (r *CyborgAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	_ = logf.FromContext(ctx)
 	_ = req
 
+	_ = req
 	// TODO(user): your logic here
 
 	return ctrl.Result{}, nil
