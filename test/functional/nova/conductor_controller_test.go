@@ -11,7 +11,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package functional_test
+package nova_test
 
 import (
 	"encoding/json"
@@ -259,7 +259,7 @@ var _ = Describe("NovaConductor controller", func() {
 				Expect(extraData).To(Equal("foo=bar"))
 
 				scriptMap := th.GetSecret(cell0.ConductorScriptDataName)
-				// Everything under templates/novaconductor are added automatically by
+				// Everything under templates/nova/conductor are added automatically by
 				// lib-common
 				Expect(scriptMap.Data).Should(HaveKey("dbsync.sh"))
 				scriptData := string(scriptMap.Data["dbsync.sh"])

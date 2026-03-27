@@ -13,7 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package functional_test
+package nova_test
 
 import (
 	"os"
@@ -25,7 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-const SamplesDir = "../../config/samples/"
+const SamplesDir = "../../../config/samples/"
 
 func ReadSample(sampleFileName string) map[string]any {
 	rawSample := make(map[string]any)

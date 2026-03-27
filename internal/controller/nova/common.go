@@ -169,6 +169,32 @@ type topologyHandler interface {
 	SetLastAppliedTopology(t *topologyv1.TopoRef)
 }
 
+// getTemplateInstanceType converts the CR Kind to the template directory path.
+// templates are in templates/nova/<component>/
+// e.g. NovaScheduler -> nova/scheduler, NovaAPI -> nova/api
+func getTemplateInstanceType(instance client.Object) string {
+	kind := instance.GetObjectKind().GroupVersionKind().Kind
+
+	// Kind to template dir mapping
+	switch kind {
+	case "NovaAPI":
+		return "nova/api"
+	case "NovaConductor":
+		return "nova/conductor"
+	case "NovaMetadata":
+		return "nova/metadata"
+	case "NovaScheduler":
+		return "nova/scheduler"
+	case "NovaNoVNCProxy":
+		return "nova/novncproxy"
+	case "NovaCompute":
+		return "nova/compute"
+	default:
+		// For other types (like Nova itself), use the kind as it is
+		return strings.ToLower(kind)
+	}
+}
+
 // ensureTopology - when a Topology CR is referenced, remove the
 // finalizer from a previous referenced Topology (if any), and retrieve the
 // newly referenced topology object
@@ -510,8 +536,8 @@ func (r *ReconcilerBase) generateConfigsGeneric(
 ) error {
 
 	extraTemplates := map[string]string{
-		"01-nova.conf":    "/nova.conf",
-		"nova-blank.conf": "/nova-blank.conf",
+		"01-nova.conf":    "/nova/nova.conf",
+		"nova-blank.conf": "/nova/nova-blank.conf",
 	}
 
 	maps.Copy(extraTemplates, additionalTemplates)
@@ -520,7 +546,7 @@ func (r *ReconcilerBase) generateConfigsGeneric(
 			Name:               configName,
 			Namespace:          instance.GetNamespace(),
 			Type:               util.TemplateTypeConfig,
-			InstanceType:       instance.GetObjectKind().GroupVersionKind().Kind,
+			InstanceType:       getTemplateInstanceType(instance),
 			ConfigOptions:      templateParameters,
 			Labels:             cmLabels,
 			CustomData:         extraData,
@@ -533,7 +559,7 @@ func (r *ReconcilerBase) generateConfigsGeneric(
 			Name:               nova.GetScriptSecretName(instance.GetName()),
 			Namespace:          instance.GetNamespace(),
 			Type:               util.TemplateTypeScripts,
-			InstanceType:       instance.GetObjectKind().GroupVersionKind().Kind,
+			InstanceType:       getTemplateInstanceType(instance),
 			AdditionalTemplate: map[string]string{},
 			Annotations:        map[string]string{},
 			Labels:             cmLabels,
