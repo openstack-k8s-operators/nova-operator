@@ -26,6 +26,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -47,18 +48,22 @@ const (
 )
 
 type CyborgNames struct {
-	CyborgName          types.NamespacedName
-	MariaDBServiceName  types.NamespacedName
-	MariaDBDatabaseName types.NamespacedName
-	MariaDBAccountName  types.NamespacedName
-	TransportURLName    types.NamespacedName
-	KeystoneServiceName types.NamespacedName
-	DBSyncJobName       types.NamespacedName
-	ConfigDataName      types.NamespacedName
-	SubLevelSecretName  types.NamespacedName
-	ServiceAccountName  types.NamespacedName
-	RoleName            types.NamespacedName
-	RoleBindingName     types.NamespacedName
+	CyborgName               types.NamespacedName
+	MariaDBServiceName       types.NamespacedName
+	MariaDBDatabaseName      types.NamespacedName
+	MariaDBAccountName       types.NamespacedName
+	TransportURLName         types.NamespacedName
+	KeystoneServiceName      types.NamespacedName
+	KeystoneAPIName          types.NamespacedName
+	DBSyncJobName            types.NamespacedName
+	ConfigDataName           types.NamespacedName
+	SubLevelSecretName       types.NamespacedName
+	ServiceAccountName       types.NamespacedName
+	RoleName                 types.NamespacedName
+	RoleBindingName          types.NamespacedName
+	ConductorName            types.NamespacedName
+	ConductorStatefulSetName types.NamespacedName
+	ConductorConfigDataName  types.NamespacedName
 }
 
 func GetCyborgNames(cyborgName types.NamespacedName) CyborgNames {
@@ -107,6 +112,18 @@ func GetCyborgNames(cyborgName types.NamespacedName) CyborgNames {
 		RoleBindingName: types.NamespacedName{
 			Namespace: cyborgName.Namespace,
 			Name:      "cyborg-" + cyborgName.Name + "-rolebinding",
+		},
+		ConductorName: types.NamespacedName{
+			Namespace: cyborgName.Namespace,
+			Name:      cyborgName.Name + "-conductor",
+		},
+		ConductorStatefulSetName: types.NamespacedName{
+			Namespace: cyborgName.Namespace,
+			Name:      cyborgName.Name + "-conductor",
+		},
+		ConductorConfigDataName: types.NamespacedName{
+			Namespace: cyborgName.Namespace,
+			Name:      cyborgName.Name + "-conductor-config-data",
 		},
 	}
 }
@@ -191,6 +208,9 @@ var _ = Describe("Cyborg controller", func() {
 			DeferCleanup(k8sClient.Delete, ctx, account)
 			DeferCleanup(k8sClient.Delete, ctx, secret)
 
+			cyborgNames.KeystoneAPIName = CreateKeystoneAPIForCyborg(cyborgNames.CyborgName.Namespace)
+			DeferCleanup(keystone.DeleteKeystoneAPI, cyborgNames.KeystoneAPIName)
+
 			DeferCleanup(
 				th.DeleteInstance,
 				CreateCyborg(cyborgNames.CyborgName, GetDefaultCyborgSpec()),
@@ -255,7 +275,7 @@ var _ = Describe("Cyborg controller", func() {
 			}, timeout, interval).Should(Succeed())
 		})
 
-		It("reaches Ready when all dependencies are resolved", func() {
+		It("reaches Ready when all dependencies are resolved including conductor", func() {
 			mariadb.SimulateMariaDBAccountCompleted(cyborgNames.MariaDBAccountName)
 			mariadb.SimulateMariaDBDatabaseCompleted(cyborgNames.MariaDBDatabaseName)
 
@@ -299,6 +319,23 @@ var _ = Describe("Cyborg controller", func() {
 				condition.DBSyncReadyCondition,
 				corev1.ConditionTrue,
 			)
+
+			// After dbsync, the conductor CR is created
+			th.ExpectCondition(
+				cyborgNames.CyborgName,
+				ConditionGetterFunc(CyborgConditionGetter),
+				cyborgv1beta1.CyborgConductorReadyCondition,
+				corev1.ConditionFalse,
+			)
+
+			th.SimulateStatefulSetReplicaReady(cyborgNames.ConductorStatefulSetName)
+
+			th.ExpectCondition(
+				cyborgNames.CyborgName,
+				ConditionGetterFunc(CyborgConditionGetter),
+				cyborgv1beta1.CyborgConductorReadyCondition,
+				corev1.ConditionTrue,
+			)
 		})
 	})
 
@@ -328,6 +365,9 @@ var _ = Describe("Cyborg controller", func() {
 				cyborgNames.MariaDBAccountName, mariadbv1.MariaDBAccountSpec{})
 			DeferCleanup(k8sClient.Delete, ctx, account)
 			DeferCleanup(k8sClient.Delete, ctx, dbSecret)
+
+			cyborgNames.KeystoneAPIName = CreateKeystoneAPIForCyborg(cyborgNames.CyborgName.Namespace)
+			DeferCleanup(keystone.DeleteKeystoneAPI, cyborgNames.KeystoneAPIName)
 
 			apiTLSSecret := th.CreateSecret(
 				types.NamespacedName{Namespace: cyborgNames.CyborgName.Namespace, Name: apiTLSSecretName},
@@ -410,13 +450,12 @@ var _ = Describe("Cyborg controller", func() {
 			DeferCleanup(k8sClient.Delete, ctx, account)
 			DeferCleanup(k8sClient.Delete, ctx, secret)
 
+			cyborgNames.KeystoneAPIName = CreateKeystoneAPIForCyborg(cyborgNames.CyborgName.Namespace)
+			DeferCleanup(keystone.DeleteKeystoneAPI, cyborgNames.KeystoneAPIName)
+
 			cyborg := CreateCyborg(cyborgNames.CyborgName, GetDefaultCyborgSpec())
 
-			mariadb.SimulateMariaDBAccountCompleted(cyborgNames.MariaDBAccountName)
-			mariadb.SimulateMariaDBDatabaseCompleted(cyborgNames.MariaDBDatabaseName)
-			infra.SimulateTransportURLReady(cyborgNames.TransportURLName)
-			keystone.SimulateKeystoneServiceReady(cyborgNames.KeystoneServiceName)
-			th.SimulateJobSuccess(cyborgNames.DBSyncJobName)
+			SimulateCyborgPrerequisitesReady(cyborgNames)
 
 			th.ExpectCondition(
 				cyborgNames.CyborgName,
@@ -529,5 +568,155 @@ var _ = Describe("Cyborg webhook validation", func() {
 
 		Expect(err).Should(Succeed())
 		DeferCleanup(th.DeleteInstance, unstructuredObj)
+	})
+})
+
+var _ = Describe("Cyborg controller creates CyborgConductor", func() {
+	BeforeEach(func() {
+		serviceSpec := corev1.ServiceSpec{Ports: []corev1.ServicePort{{Port: 3306}}}
+		DeferCleanup(k8sClient.Delete, ctx, CreateCyborgSecret(cyborgNames.CyborgName.Namespace))
+		DeferCleanup(k8sClient.Delete, ctx, CreateCyborgMessageBusSecret(cyborgNames))
+		DeferCleanup(
+			mariadb.DeleteDBService,
+			mariadb.CreateDBService(
+				cyborgNames.MariaDBServiceName.Namespace,
+				cyborgNames.MariaDBServiceName.Name,
+				serviceSpec,
+			),
+		)
+		account, secret := mariadb.CreateMariaDBAccountAndSecret(
+			cyborgNames.MariaDBAccountName, mariadbv1.MariaDBAccountSpec{})
+		DeferCleanup(k8sClient.Delete, ctx, account)
+		DeferCleanup(k8sClient.Delete, ctx, secret)
+
+		cyborgNames.KeystoneAPIName = CreateKeystoneAPIForCyborg(cyborgNames.CyborgName.Namespace)
+		DeferCleanup(keystone.DeleteKeystoneAPI, cyborgNames.KeystoneAPIName)
+	})
+
+	It("creates a CyborgConductor sub-CR with default values after dbsync", func() {
+		DeferCleanup(
+			th.DeleteInstance,
+			CreateCyborg(cyborgNames.CyborgName, GetDefaultCyborgSpec()),
+		)
+		SimulateCyborgPrerequisitesReady(cyborgNames)
+
+		Eventually(func(g Gomega) {
+			conductor := GetCyborgConductor(cyborgNames.ConductorName)
+			g.Expect(conductor.Spec.ContainerImage).To(Equal(CyborgConductorImage))
+			g.Expect(conductor.Spec.ServiceAccount).To(Equal("cyborg-" + cyborgNames.CyborgName.Name))
+			g.Expect(conductor.Spec.ConfigSecret).To(Equal(cyborgNames.CyborgName.Name))
+			g.Expect(conductor.Spec.Replicas).NotTo(BeNil())
+			g.Expect(*conductor.Spec.Replicas).To(Equal(int32(1)))
+		}, timeout, interval).Should(Succeed())
+
+		th.ExpectCondition(
+			cyborgNames.CyborgName,
+			ConditionGetterFunc(CyborgConditionGetter),
+			cyborgv1beta1.CyborgConductorReadyCondition,
+			corev1.ConditionFalse,
+		)
+	})
+
+	It("inherits the top-level TopologyRef when conductor template has none", func() {
+		spec := GetDefaultCyborgSpec()
+		spec["topologyRef"] = map[string]any{"name": "cyborg-topology"}
+
+		topologyObj := CreateCyborgTopology(cyborgNames.CyborgName.Namespace, "cyborg-topology")
+		DeferCleanup(k8sClient.Delete, ctx, topologyObj)
+
+		DeferCleanup(
+			th.DeleteInstance,
+			CreateCyborg(cyborgNames.CyborgName, spec),
+		)
+		SimulateCyborgPrerequisitesReady(cyborgNames)
+
+		Eventually(func(g Gomega) {
+			conductor := GetCyborgConductor(cyborgNames.ConductorName)
+			g.Expect(conductor.Spec.TopologyRef).NotTo(BeNil())
+			g.Expect(conductor.Spec.TopologyRef.Name).To(Equal("cyborg-topology"))
+		}, timeout, interval).Should(Succeed())
+	})
+
+	It("uses conductor-specific TopologyRef when defined", func() {
+		spec := GetDefaultCyborgSpec()
+		spec["topologyRef"] = map[string]any{"name": "global-topology"}
+		spec["conductorServiceTemplate"] = map[string]any{
+			"topologyRef": map[string]any{"name": "conductor-topology"},
+		}
+
+		globalTopo := CreateCyborgTopology(cyborgNames.CyborgName.Namespace, "global-topology")
+		DeferCleanup(k8sClient.Delete, ctx, globalTopo)
+		conductorTopo := CreateCyborgTopology(cyborgNames.CyborgName.Namespace, "conductor-topology")
+		DeferCleanup(k8sClient.Delete, ctx, conductorTopo)
+
+		DeferCleanup(
+			th.DeleteInstance,
+			CreateCyborg(cyborgNames.CyborgName, spec),
+		)
+		SimulateCyborgPrerequisitesReady(cyborgNames)
+
+		Eventually(func(g Gomega) {
+			conductor := GetCyborgConductor(cyborgNames.ConductorName)
+			g.Expect(conductor.Spec.TopologyRef).NotTo(BeNil())
+			g.Expect(conductor.Spec.TopologyRef.Name).To(Equal("conductor-topology"))
+		}, timeout, interval).Should(Succeed())
+	})
+
+	It("passes custom resources to the CyborgConductor", func() {
+		spec := GetDefaultCyborgSpec()
+		spec["conductorServiceTemplate"] = map[string]any{
+			"resources": map[string]any{
+				"requests": map[string]any{
+					"memory": "256Mi",
+					"cpu":    "500m",
+				},
+				"limits": map[string]any{
+					"memory": "512Mi",
+					"cpu":    "1",
+				},
+			},
+		}
+
+		DeferCleanup(
+			th.DeleteInstance,
+			CreateCyborg(cyborgNames.CyborgName, spec),
+		)
+		SimulateCyborgPrerequisitesReady(cyborgNames)
+
+		Eventually(func(g Gomega) {
+			conductor := GetCyborgConductor(cyborgNames.ConductorName)
+			g.Expect(conductor.Spec.Resources.Requests[corev1.ResourceMemory]).To(Equal(resource.MustParse("256Mi")))
+			g.Expect(conductor.Spec.Resources.Requests[corev1.ResourceCPU]).To(Equal(resource.MustParse("500m")))
+			g.Expect(conductor.Spec.Resources.Limits[corev1.ResourceMemory]).To(Equal(resource.MustParse("512Mi")))
+			g.Expect(conductor.Spec.Resources.Limits[corev1.ResourceCPU]).To(Equal(resource.MustParse("1")))
+		}, timeout, interval).Should(Succeed())
+	})
+
+	It("passes TLS CaBundleSecretName to the CyborgConductor", func() {
+		const caBundleSecretName = "cyborg-ca-bundle-for-conductor"
+
+		caBundleSecret := th.CreateSecret(
+			types.NamespacedName{Namespace: cyborgNames.CyborgName.Namespace, Name: caBundleSecretName},
+			map[string][]byte{common_tls.CABundleKey: []byte("dummy-ca-bundle")},
+		)
+		DeferCleanup(k8sClient.Delete, ctx, caBundleSecret)
+
+		spec := GetDefaultCyborgSpec()
+		spec["apiServiceTemplate"] = map[string]any{
+			"tls": map[string]any{
+				"caBundleSecretName": caBundleSecretName,
+			},
+		}
+
+		DeferCleanup(
+			th.DeleteInstance,
+			CreateCyborg(cyborgNames.CyborgName, spec),
+		)
+		SimulateCyborgPrerequisitesReady(cyborgNames)
+
+		Eventually(func(g Gomega) {
+			conductor := GetCyborgConductor(cyborgNames.ConductorName)
+			g.Expect(conductor.Spec.TLS.CaBundleSecretName).To(Equal(caBundleSecretName))
+		}, timeout, interval).Should(Succeed())
 	})
 })

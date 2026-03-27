@@ -1,0 +1,25 @@
+{
+    "command": "cyborg-conductor --config-dir /etc/cyborg/cyborg.conf.d",
+    "config_files": [
+        {
+            "source": "/var/lib/config-data/default/00-default.conf",
+            "dest": "/etc/cyborg/cyborg.conf.d/00-default.conf",
+            "owner": "cyborg",
+            "perm": "0600"
+        },
+        {
+            "source": "/var/lib/config-data/default/01-service-custom.conf",
+            "dest": "/etc/cyborg/cyborg.conf.d/01-service-custom.conf",
+            "owner": "cyborg",
+            "perm": "0600",
+            "optional": true
+        }
+    ],
+    "permissions": [
+        {
+            "path": "/var/log/cyborg",
+            "owner": "cyborg:cyborg",
+            "recurse": true
+        }
+    ]
+}

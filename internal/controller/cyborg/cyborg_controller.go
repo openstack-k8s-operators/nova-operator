@@ -42,6 +42,7 @@ import (
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/endpoint"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/job"
@@ -296,9 +297,23 @@ func (r *CyborgReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 	}
 
 	//
+	// Get keystone internal auth URL and region for service configuration
+	//
+	keystoneAuthURL, keystoneRegion, err := r.getKeystoneAuthURL(ctx, h, instance)
+	if err != nil {
+		Log.Info("Keystone internal endpoint not available yet, waiting")
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.InputReadyCondition,
+			condition.RequestedReason,
+			condition.SeverityInfo,
+			condition.InputReadyWaitingMessage))
+		return ctrl.Result{RequeueAfter: r.RequeueTimeout}, nil
+	}
+
+	//
 	// Create sub-level secret with required configuration
 	//
-	_, err = r.createSubLevelSecret(ctx, h, instance, transporturlSecret, inputSecret, db, acData)
+	_, err = r.createSubLevelSecret(ctx, h, instance, transporturlSecret, inputSecret, db, acData, keystoneAuthURL, keystoneRegion)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -349,6 +364,16 @@ func (r *CyborgReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 		*instance.Spec.DatabaseAccount, instance.Namespace)
 	if err != nil {
 		return ctrl.Result{}, err
+	}
+
+	//
+	// Create CyborgConductor sub-CR
+	//
+	ctrlResult, err = r.ensureConductor(ctx, h, instance, serviceLabels)
+	if err != nil {
+		return ctrl.Result{}, err
+	} else if (ctrlResult != ctrl.Result{}) {
+		return ctrlResult, nil
 	}
 
 	if instance.Status.Conditions.AllSubConditionIsTrue() {
@@ -414,6 +439,10 @@ func (r *CyborgReconciler) initConditions(instance *cyborgv1beta1.Cyborg) error 
 			condition.DBSyncReadyCondition,
 			condition.InitReason,
 			condition.DBSyncReadyInitMessage),
+		condition.UnknownCondition(
+			cyborgv1beta1.CyborgConductorReadyCondition,
+			condition.InitReason,
+			cyborgv1beta1.CyborgConductorReadyInitMessage),
 	)
 
 	instance.Status.Conditions.Init(&cl)
@@ -636,6 +665,8 @@ func (r *CyborgReconciler) createSubLevelSecret(
 	inputSecret corev1.Secret,
 	db *mariadbv1.Database,
 	acData *keystonev1.ApplicationCredentialData,
+	keystoneAuthURL string,
+	keystoneRegion string,
 ) (string, error) {
 	Log := r.GetLogger(ctx)
 	Log.Info(fmt.Sprintf("Creating SubCR Level Secret for '%s'", instance.Name))
@@ -643,8 +674,14 @@ func (r *CyborgReconciler) createSubLevelSecret(
 	databaseAccount := db.GetAccount()
 	databaseSecret := db.GetSecret()
 
+	servicePassword := string(inputSecret.Data[instance.Spec.PasswordSelectors.Service])
+
 	data := map[string]string{
-		instance.Spec.PasswordSelectors.Service: string(inputSecret.Data[instance.Spec.PasswordSelectors.Service]),
+		instance.Spec.PasswordSelectors.Service: servicePassword,
+		"ServicePassword":                       servicePassword,
+		"ServiceUser":                           *instance.Spec.ServiceUser,
+		"KeystoneAuthURL":                       keystoneAuthURL,
+		"Region":                                keystoneRegion,
 		TransportURLSelector:                    string(transportURLSecret.Data[TransportURLSelector]),
 		QuorumQueuesSelector:                    string(transportURLSecret.Data[QuorumQueuesSelector]),
 		DatabaseAccount:                         databaseAccount.Name,
@@ -816,6 +853,108 @@ func (r *CyborgReconciler) reconcileDelete(
 	return ctrl.Result{}, nil
 }
 
+func (r *CyborgReconciler) getKeystoneAuthURL(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *cyborgv1beta1.Cyborg,
+) (string, string, error) {
+	// returns internalAuthURL, region, error
+	keystoneAPI, err := keystonev1.GetKeystoneAPI(ctx, h, instance.Namespace, map[string]string{})
+	if err != nil {
+		return "", "", err
+	}
+
+	internalAuthURL, err := keystoneAPI.GetEndpoint(endpoint.EndpointInternal)
+	if err != nil {
+		return "", "", err
+	}
+
+	region := normalizeRegion(keystoneAPI.GetRegion())
+
+	return internalAuthURL, region, nil
+}
+
+func normalizeRegion(region string) string {
+	if region == "" {
+		return "regionOne"
+	}
+	return region
+}
+
+func (r *CyborgReconciler) ensureConductor(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *cyborgv1beta1.Cyborg,
+	serviceLabels map[string]string,
+) (ctrl.Result, error) {
+	Log := r.GetLogger(ctx)
+	Log.Info(fmt.Sprintf("Reconciling CyborgConductor for '%s'", instance.Name))
+
+	conductorName := fmt.Sprintf("%s-conductor", instance.Name)
+
+	conductorTemplate := *instance.Spec.ConductorServiceTemplate.DeepCopy()
+	if conductorTemplate.TopologyRef == nil && instance.Spec.TopologyRef != nil {
+		conductorTemplate.TopologyRef = instance.Spec.TopologyRef.DeepCopy()
+	}
+
+	conductorSpec := cyborgv1beta1.CyborgConductorSpec{
+		CyborgConductorTemplate: conductorTemplate,
+		ConfigSecret:            instance.Name,
+		ContainerImage:          instance.Spec.ConductorContainerImageURL,
+		ServiceAccount:          instance.RbacResourceName(),
+	}
+
+	if instance.Spec.APIServiceTemplate.TLS.CaBundleSecretName != "" {
+		conductorSpec.TLS.CaBundleSecretName = instance.Spec.APIServiceTemplate.TLS.CaBundleSecretName
+	}
+
+	conductor := &cyborgv1beta1.CyborgConductor{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      conductorName,
+			Namespace: instance.Namespace,
+		},
+	}
+
+	op, err := controllerutil.CreateOrPatch(ctx, h.GetClient(), conductor, func() error {
+		conductor.Spec = conductorSpec
+		conductor.Labels = serviceLabels
+
+		err := controllerutil.SetControllerReference(instance, conductor, r.Scheme)
+		return err
+	})
+	if err != nil {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			cyborgv1beta1.CyborgConductorReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			cyborgv1beta1.CyborgConductorReadyErrorMessage,
+			err.Error()))
+		return ctrl.Result{}, err
+	}
+	if op != controllerutil.OperationResultNone {
+		Log.Info(fmt.Sprintf("CyborgConductor CR %s - %s", conductorName, op))
+	}
+
+	conductorObj := &cyborgv1beta1.CyborgConductor{}
+	err = h.GetClient().Get(ctx, types.NamespacedName{Name: conductorName, Namespace: instance.Namespace}, conductorObj)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	if conductorObj.IsReady() {
+		instance.Status.ConductorServiceReadyCount = conductorObj.Status.ReadyCount
+		instance.Status.Conditions.MarkTrue(cyborgv1beta1.CyborgConductorReadyCondition, condition.DeploymentReadyMessage)
+	} else {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			cyborgv1beta1.CyborgConductorReadyCondition,
+			condition.RequestedReason,
+			condition.SeverityInfo,
+			condition.DeploymentReadyRunningMessage))
+	}
+
+	return ctrl.Result{}, nil
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *CyborgReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &cyborgv1beta1.Cyborg{}, passwordSecretField, func(rawObj client.Object) []string {
@@ -844,6 +983,7 @@ func (r *CyborgReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&mariadbv1.MariaDBAccount{}).
 		Owns(&rabbitmqv1.TransportURL{}).
 		Owns(&keystonev1.KeystoneService{}).
+		Owns(&cyborgv1beta1.CyborgConductor{}).
 		Owns(&corev1.ServiceAccount{}).
 		Owns(&rbacv1.Role{}).
 		Owns(&rbacv1.RoleBinding{}).

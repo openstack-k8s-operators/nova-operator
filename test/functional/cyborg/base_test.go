@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	cyborgv1beta1 "github.com/openstack-k8s-operators/nova-operator/api/cyborg/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -154,4 +155,53 @@ func CreateCyborgMessageBusSecret(names CyborgNames) *corev1.Secret {
 			"transport_url": []byte("rabbit://cyborg/fake"),
 		},
 	)
+}
+
+func GetCyborgConductor(name types.NamespacedName) *cyborgv1beta1.CyborgConductor {
+	instance := &cyborgv1beta1.CyborgConductor{}
+	Eventually(func(g Gomega) {
+		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
+	}, timeout, interval).Should(Succeed())
+	return instance
+}
+
+func CyborgConductorConditionGetter(name types.NamespacedName) condition.Conditions {
+	instance := GetCyborgConductor(name)
+	return instance.Status.Conditions
+}
+
+func CreateKeystoneAPIForCyborg(namespace string) types.NamespacedName {
+	keystoneAPIName := keystone.CreateKeystoneAPI(namespace)
+	keystoneAPI := keystone.GetKeystoneAPI(keystoneAPIName)
+	keystoneAPI.Spec.Region = "regionOne"
+	Expect(k8sClient.Update(ctx, keystoneAPI)).To(Succeed())
+	Eventually(func(g Gomega) {
+		ks := keystone.GetKeystoneAPI(keystoneAPIName)
+		ks.Status.Region = "regionOne"
+		g.Expect(k8sClient.Status().Update(ctx, ks)).To(Succeed())
+	}, timeout, interval).Should(Succeed())
+	return keystoneAPIName
+}
+
+func SimulateCyborgPrerequisitesReady(names CyborgNames) {
+	mariadb.SimulateMariaDBAccountCompleted(names.MariaDBAccountName)
+	mariadb.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
+	infra.SimulateTransportURLReady(names.TransportURLName)
+	keystone.SimulateKeystoneServiceReady(names.KeystoneServiceName)
+	th.SimulateJobSuccess(names.DBSyncJobName)
+}
+
+func CreateCyborgTopology(namespace, name string) *topologyv1.Topology {
+	topology := &topologyv1.Topology{}
+	topology.Name = name
+	topology.Namespace = namespace
+	topology.Spec.TopologySpreadConstraints = &[]corev1.TopologySpreadConstraint{
+		{
+			MaxSkew:           1,
+			TopologyKey:       "kubernetes.io/hostname",
+			WhenUnsatisfiable: corev1.ScheduleAnyway,
+		},
+	}
+	Expect(k8sClient.Create(ctx, topology)).To(Succeed())
+	return topology
 }

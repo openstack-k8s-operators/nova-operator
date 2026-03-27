@@ -18,12 +18,11 @@ package v1beta1
 
 import (
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
-
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
 // CyborgConductorTemplate defines the input parameters specified by the user to
 // create a CyborgConductor via higher level CRDs.
@@ -59,24 +58,49 @@ type CyborgConductorTemplate struct {
 
 // CyborgConductorSpec defines the desired state of CyborgConductor.
 type CyborgConductorSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
 	CyborgConductorTemplate `json:",inline"`
 
 	// +kubebuilder:validation:Required
-	// ConfigSecret - containing all the configuration needed provided by Cyborg object
+	// Secret is the name of the sub-level secret containing all required data
+	// (transport URL, DB creds, keystone auth, service password, etc.)
 	ConfigSecret string `json:"configSecret"`
+
+	// +kubebuilder:validation:Required
+	// ContainerImage is the container image URL for cyborg-conductor
+	ContainerImage string `json:"containerImage"`
+
+	// +kubebuilder:validation:Required
+	// ServiceAccount used by the conductor pods
+	ServiceAccount string `json:"serviceAccount"`
+
+	// +kubebuilder:validation:Optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	// TLS - Parameters related to the TLS
+	TLS tls.Ca `json:"tls,omitempty"`
 }
 
 // CyborgConductorStatus defines the observed state of CyborgConductor.
 type CyborgConductorStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	// ReadyCount defines the number of replicas ready
+	ReadyCount int32 `json:"readyCount,omitempty"`
+
+	// Conditions
+	Conditions condition.Conditions `json:"conditions,omitempty" optional:"true"`
+
+	// ObservedGeneration - the most recent generation observed
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+
+	// Hash - Map of hashes to track config changes
+	Hash map[string]string `json:"hash,omitempty"`
+
+	// LastAppliedTopology - the last applied Topology
+	LastAppliedTopology *topologyv1.TopoRef `json:"lastAppliedTopology,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.conditions[0].status",description="Status"
+// +kubebuilder:printcolumn:name="Message",type="string",JSONPath=".status.conditions[0].message",description="Message"
 
 // CyborgConductor is the Schema for the cyborgconductors API.
 type CyborgConductor struct {
@@ -94,6 +118,26 @@ type CyborgConductorList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []CyborgConductor `json:"items"`
+}
+
+// IsReady returns true if the ReadyCondition is true
+func (instance *CyborgConductor) IsReady() bool {
+	return instance.Status.Conditions.IsTrue(condition.ReadyCondition)
+}
+
+// GetSpecTopologyRef returns the TopologyRef defined in the Spec
+func (instance *CyborgConductor) GetSpecTopologyRef() *topologyv1.TopoRef {
+	return instance.Spec.TopologyRef
+}
+
+// GetLastAppliedTopology returns the LastAppliedTopology from the Status
+func (instance *CyborgConductor) GetLastAppliedTopology() *topologyv1.TopoRef {
+	return instance.Status.LastAppliedTopology
+}
+
+// SetLastAppliedTopology sets the LastAppliedTopology value in the Status
+func (instance *CyborgConductor) SetLastAppliedTopology(topologyRef *topologyv1.TopoRef) {
+	instance.Status.LastAppliedTopology = topologyRef
 }
 
 func init() {

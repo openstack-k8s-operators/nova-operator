@@ -18,11 +18,16 @@ limitations under the License.
 package cyborg
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"
+	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/helper"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -116,7 +121,17 @@ func NewReconcilers(mgr ctrl.Manager, kclient *kubernetes.Clientset) *Reconciler
 			"Cyborg": &CyborgReconciler{
 				ReconcilerBase: NewReconcilerBase(mgr, kclient),
 			},
+			"CyborgConductor": &CyborgConductorReconciler{
+				ReconcilerBase: NewReconcilerBase(mgr, kclient),
+			},
 		}}
+}
+
+// OverrideRequeueTimeout overrides the default RequeueTimeout of our reconcilers
+func (r *Reconcilers) OverrideRequeueTimeout(timeout time.Duration) {
+	for _, reconciler := range r.reconcilers {
+		reconciler.SetRequeueTimeout(timeout)
+	}
 }
 
 // Setup starts the reconcilers by connecting them to the Manager
@@ -134,4 +149,51 @@ func (r *Reconcilers) Setup(mgr ctrl.Manager, setupLog logr.Logger) error {
 type conditionUpdater interface {
 	Set(c *condition.Condition)
 	MarkTrue(t condition.Type, messageFormat string, messageArgs ...any)
+}
+
+type topologyHandler interface {
+	GetSpecTopologyRef() *topologyv1.TopoRef
+	GetLastAppliedTopology() *topologyv1.TopoRef
+	SetLastAppliedTopology(t *topologyv1.TopoRef)
+}
+
+// ensureTopology - when a Topology CR is referenced, remove the
+// finalizer from a previous referenced Topology (if any), and retrieve the
+// newly referenced topology object
+func ensureTopology(
+	ctx context.Context,
+	h *helper.Helper,
+	instance topologyHandler,
+	finalizer string,
+	condUpdater conditionUpdater,
+	defaultLabelSelector metav1.LabelSelector,
+) (*topologyv1.Topology, error) {
+	topology, err := topologyv1.EnsureServiceTopology(
+		ctx,
+		h,
+		instance.GetSpecTopologyRef(),
+		instance.GetLastAppliedTopology(),
+		finalizer,
+		defaultLabelSelector,
+	)
+	if err != nil {
+		condUpdater.Set(condition.FalseCondition(
+			condition.TopologyReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.TopologyReadyErrorMessage,
+			err.Error()))
+		return nil, fmt.Errorf("waiting for Topology requirements: %w", err)
+	}
+
+	tr := instance.GetSpecTopologyRef()
+	instance.SetLastAppliedTopology(tr)
+
+	if tr != nil {
+		condUpdater.MarkTrue(
+			condition.TopologyReadyCondition,
+			condition.TopologyReadyMessage,
+		)
+	}
+	return topology, nil
 }
