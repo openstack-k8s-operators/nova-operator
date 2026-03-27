@@ -50,6 +50,9 @@ const (
 	// CyborgConductorReadyInitMessage -
 	CyborgConductorReadyInitMessage = "CyborgConductor not started"
 
+	// CyborgConductorReadyErrorMessage -
+	CyborgConductorReadyErrorMessage = "CyborgConductor error occurred %s"
+
 	// CyborgApplicationCredentialSecretErrorMessage -
 	CyborgApplicationCredentialSecretErrorMessage = "Error with application credential secret"
 )

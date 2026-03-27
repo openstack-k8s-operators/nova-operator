@@ -32,6 +32,10 @@ spec:
       displayName: Cyborg Conductor
       kind: CyborgConductor
       name: cyborgconductors.cyborg.openstack.org
+      specDescriptors:
+      - description: TLS - Parameters related to the TLS
+        displayName: TLS
+        path: tls
       version: v1beta1
     - description: Cyborg is the Schema for the cyborgs API.
       displayName: Cyborg

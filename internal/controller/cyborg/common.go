@@ -18,16 +18,19 @@ package controller
 
 import (
 	"errors"
+	"fmt"
 
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 
+	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
 	internalcommon "github.com/openstack-k8s-operators/nova-operator/internal/common"
 )
 
 const (
-	passwordSecretField    = ".spec.secret"
-	authAppCredSecretField = ".spec.auth.applicationCredentialSecret" //nolint:gosec
+	passwordSecretField     = ".spec.secret"
+	authAppCredSecretField  = ".spec.auth.applicationCredentialSecret" //nolint:gosec
+	caBundleSecretNameField = ".spec.tls.caBundleSecretName"           //nolint:gosec
 
 	// TransportURLSelector is the key for the transport URL in secrets
 	TransportURLSelector = "transport_url"
@@ -80,10 +83,20 @@ func NewReconcilerBase(
 	}
 }
 
+func generateMyCnf(tlsCfg *tls.Service) string {
+	if tlsCfg != nil {
+		return fmt.Sprintf("[client]\nssl-ca=%s\nssl=1\n", tls.DownstreamTLSCABundlePath)
+	}
+	return "[client]\n"
+}
+
 // NewReconcilers constructs all cyborg Reconciler objects
 func NewReconcilers(mgr ctrl.Manager, kclient *kubernetes.Clientset) *internalcommon.Reconcilers {
 	return internalcommon.NewReconcilers(map[string]internalcommon.Reconciler{
 		"Cyborg": &CyborgReconciler{
+			ReconcilerBase: NewReconcilerBase(mgr, kclient),
+		},
+		"CyborgConductor": &CyborgConductorReconciler{
 			ReconcilerBase: NewReconcilerBase(mgr, kclient),
 		},
 	})
