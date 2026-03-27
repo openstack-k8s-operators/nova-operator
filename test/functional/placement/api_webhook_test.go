@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package functional_test
+package placement_test
 
 import (
 	"errors"
@@ -34,7 +34,7 @@ import (
 
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
-	placementv1 "github.com/openstack-k8s-operators/placement-operator/api/v1beta1"
+	placementv1 "github.com/openstack-k8s-operators/nova-operator/api/placement/v1beta1"
 )
 
 var _ = Describe("PlacementAPI Webhook", func() {

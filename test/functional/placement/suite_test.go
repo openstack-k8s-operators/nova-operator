@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package functional_test
+package placement_test
 
 import (
 	"context"
@@ -47,9 +47,9 @@ import (
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	test "github.com/openstack-k8s-operators/lib-common/modules/test"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
-	placementv1 "github.com/openstack-k8s-operators/placement-operator/api/v1beta1"
-	controllers "github.com/openstack-k8s-operators/placement-operator/internal/controller"
-	webhookv1 "github.com/openstack-k8s-operators/placement-operator/internal/webhook/v1beta1"
+	placementv1 "github.com/openstack-k8s-operators/nova-operator/api/placement/v1beta1"
+	controllers "github.com/openstack-k8s-operators/nova-operator/internal/controller/placement"
+	webhookv1 "github.com/openstack-k8s-operators/nova-operator/internal/webhook/placement/v1beta1"
 
 	keystone_test "github.com/openstack-k8s-operators/keystone-operator/api/test/helpers"
 	common_test "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
