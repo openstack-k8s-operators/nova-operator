@@ -28,7 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
-	placementv1beta1 "github.com/openstack-k8s-operators/placement-operator/api/v1beta1"
+	placementv1beta1 "github.com/openstack-k8s-operators/nova-operator/api/placement/v1beta1"
 )
 
 var (
