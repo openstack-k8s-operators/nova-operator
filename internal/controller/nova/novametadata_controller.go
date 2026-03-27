@@ -871,7 +871,7 @@ func (r *NovaMetadataReconciler) generateNeutronConfigs(
 	configName := instance.GetName() + "-neutron-config"
 
 	templates := map[string]string{
-		"05-nova-metadata.conf": "/neutron-metadata.conf",
+		"05-nova-metadata.conf": "/nova/neutron-metadata.conf",
 	}
 
 	endpointURL, err := url.Parse(endpoint)
@@ -898,7 +898,7 @@ func (r *NovaMetadataReconciler) generateNeutronConfigs(
 			Name:               configName,
 			Namespace:          instance.GetNamespace(),
 			Type:               util.TemplateTypeNone,
-			InstanceType:       instance.GetObjectKind().GroupVersionKind().Kind,
+			InstanceType:       getTemplateInstanceType(instance),
 			ConfigOptions:      templateParameters,
 			Labels:             labels,
 			AdditionalTemplate: templates,

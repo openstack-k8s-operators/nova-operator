@@ -1092,8 +1092,8 @@ func (r *NovaReconciler) ensureNovaManageJobSecret(
 	}
 
 	extraTemplates := map[string]string{
-		"01-nova.conf":    "/nova.conf",
-		"nova-blank.conf": "/nova-blank.conf",
+		"01-nova.conf":    "/nova/nova.conf",
+		"nova-blank.conf": "/nova/nova-blank.conf",
 	}
 
 	apiDatabaseAccount, apiDbSecret, err := mariadbv1.GetAccountAndSecret(ctx, h, instance.Spec.APIDatabaseAccount, instance.Namespace)
@@ -1146,14 +1146,14 @@ func (r *NovaReconciler) ensureNovaManageJobSecret(
 			Name:         scriptName,
 			Namespace:    instance.Namespace,
 			Type:         util.TemplateTypeScripts,
-			InstanceType: "nova-manage",
+			InstanceType: "nova/nova-manage",
 			Labels:       cmLabels,
 		},
 		{
 			Name:               configName,
 			Namespace:          instance.Namespace,
 			Type:               util.TemplateTypeConfig,
-			InstanceType:       "nova-manage",
+			InstanceType:       "nova/nova-manage",
 			ConfigOptions:      templateParameters,
 			Labels:             cmLabels,
 			CustomData:         extraData,
@@ -2145,7 +2145,7 @@ func (r *NovaReconciler) ensureCellSecret(
 		Name:         secretName,
 		Namespace:    instance.Namespace,
 		Type:         util.TemplateTypeNone,
-		InstanceType: instance.GetObjectKind().GroupVersionKind().Kind,
+		InstanceType: getTemplateInstanceType(instance),
 		Labels:       labels,
 		CustomData:   data,
 	}
@@ -2205,7 +2205,7 @@ func (r *NovaReconciler) ensureTopLevelSecret(
 		Name:         secretName,
 		Namespace:    instance.Namespace,
 		Type:         util.TemplateTypeNone,
-		InstanceType: instance.GetObjectKind().GroupVersionKind().Kind,
+		InstanceType: getTemplateInstanceType(instance),
 		Labels:       labels,
 		CustomData:   data,
 	}

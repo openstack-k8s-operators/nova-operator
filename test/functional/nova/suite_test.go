@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package functional_test
+package nova_test
 
 import (
 	"context"
@@ -101,7 +101,7 @@ var _ = BeforeSuite(func() {
 
 	ctx, cancel = context.WithCancel(context.TODO())
 
-	const gomod = "../../go.mod"
+	const gomod = "../../../go.mod"
 
 	keystoneCRDs, err := test.GetCRDDirFromModule(
 		"github.com/openstack-k8s-operators/keystone-operator/api", gomod, "bases")
@@ -121,7 +121,7 @@ var _ = BeforeSuite(func() {
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
 		CRDDirectoryPaths: []string{
-			filepath.Join("..", "..", "config", "crd", "bases"),
+			filepath.Join("..", "..", "..", "config", "crd", "bases"),
 			// NOTE(gibi): we need to list all the external CRDs our operator depends on
 			mariadbCRDs,
 			keystoneCRDs,
@@ -138,7 +138,7 @@ var _ = BeforeSuite(func() {
 		},
 		ErrorIfCRDPathMissing: true,
 		WebhookInstallOptions: envtest.WebhookInstallOptions{
-			Paths: []string{filepath.Join("..", "..", "config", "webhook")},
+			Paths: []string{filepath.Join("..", "..", "..", "config", "webhook")},
 			// NOTE(gibi): if localhost is resolved to ::1 (ipv6) then starting
 			// the webhook fails as it try to parse the address as ipv4 and
 			// failing on the colons in ::1
