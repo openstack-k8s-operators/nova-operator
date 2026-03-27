@@ -16,7 +16,7 @@ limitations under the License.
 package placement
 
 import (
-	placementv1 "github.com/openstack-k8s-operators/placement-operator/api/v1beta1"
+	placementv1 "github.com/openstack-k8s-operators/nova-operator/api/placement/v1beta1"
 
 	env "github.com/openstack-k8s-operators/lib-common/modules/common/env"
 

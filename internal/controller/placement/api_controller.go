@@ -59,8 +59,8 @@ import (
 
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 
-	placementv1 "github.com/openstack-k8s-operators/placement-operator/api/v1beta1"
-	placement "github.com/openstack-k8s-operators/placement-operator/internal/placement"
+	placementv1 "github.com/openstack-k8s-operators/nova-operator/api/placement/v1beta1"
+	placement "github.com/openstack-k8s-operators/nova-operator/internal/placement"
 
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
