@@ -48,7 +48,7 @@ var _ = Describe("PlacementAPI Webhook", func() {
 			Namespace: namespace,
 		}
 
-		err := os.Setenv("OPERATOR_TEMPLATES", "../../templates")
+		err := os.Setenv("OPERATOR_TEMPLATES", "../../../templates")
 		Expect(err).NotTo(HaveOccurred())
 	})
 

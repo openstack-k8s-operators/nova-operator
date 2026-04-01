@@ -41,7 +41,7 @@ var _ = Describe("PlacementAPI controller", func() {
 		// lib-common uses OPERATOR_TEMPLATES env var to locate the "templates"
 		// directory of the operator. We need to set them othervise lib-common
 		// will fail to generate the ConfigMap as it does not find common.sh
-		err := os.Setenv("OPERATOR_TEMPLATES", "../../templates")
+		err := os.Setenv("OPERATOR_TEMPLATES", "../../../templates")
 		Expect(err).NotTo(HaveOccurred())
 	})
 
@@ -1404,7 +1404,7 @@ var _ = Describe("PlacementAPI controller", func() {
 
 var _ = Describe("PlacementAPI reconfiguration", func() {
 	BeforeEach(func() {
-		err := os.Setenv("OPERATOR_TEMPLATES", "../../templates")
+		err := os.Setenv("OPERATOR_TEMPLATES", "../../../templates")
 		Expect(err).NotTo(HaveOccurred())
 	})
 
