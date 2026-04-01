@@ -148,6 +148,8 @@ PROCS?=$(shell expr $(shell nproc --ignore 2) / 2)
 PROC_CMD = --procs ${PROCS}
 
 .PHONY: test
+# TODO: Currently runs all tests (Nova + Placement). In future, optimize CI to run only tests
+# for the operator code that changed (e.g., skip Placement tests if only Nova code changed).
 test: manifests generate fmt vet envtest ginkgo ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) -v debug --bin-dir $(LOCALBIN) use $(ENVTEST_K8S_VERSION) -p path)" \
 	OPERATOR_TEMPLATES="$(PWD)/templates" \

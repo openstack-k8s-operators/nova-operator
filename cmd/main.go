@@ -38,8 +38,10 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	"github.com/openstack-k8s-operators/nova-operator/internal/controller/nova"
+	novacontroller "github.com/openstack-k8s-operators/nova-operator/internal/controller/nova"
+	placementcontroller "github.com/openstack-k8s-operators/nova-operator/internal/controller/placement"
 	webhookv1beta1 "github.com/openstack-k8s-operators/nova-operator/internal/webhook/nova/v1beta1"
+	placementwebhookv1 "github.com/openstack-k8s-operators/nova-operator/internal/webhook/placement/v1beta1"
 	// +kubebuilder:scaffold:imports
 	networkv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
@@ -49,6 +51,7 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/operator"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/nova/v1beta1"
+	placementv1 "github.com/openstack-k8s-operators/nova-operator/api/placement/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
@@ -63,6 +66,7 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(novav1.AddToScheme(scheme))
+	utilruntime.Must(placementv1.AddToScheme(scheme))
 	utilruntime.Must(mariadbv1.AddToScheme(scheme))
 	utilruntime.Must(keystonev1.AddToScheme(scheme))
 	utilruntime.Must(corev1.AddToScheme(scheme))
@@ -253,14 +257,25 @@ func main() {
 		os.Exit(1)
 	}
 
-	reconcilers := controller.NewReconcilers(mgr, kclient)
+	reconcilers := novacontroller.NewReconcilers(mgr, kclient)
 	err = reconcilers.Setup(mgr, setupLog)
 	if err != nil {
 		os.Exit(1)
 	}
 
+	// Setup PlacementAPI controller
+	if err = (&placementcontroller.PlacementAPIReconciler{
+		Client:  mgr.GetClient(),
+		Scheme:  mgr.GetScheme(),
+		Kclient: kclient,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "PlacementAPI")
+		os.Exit(1)
+	}
+
 	// Acquire environmental defaults and initialize operator defaults with them
 	novav1.SetupDefaults()
+	placementv1.SetupDefaults()
 
 	// nolint:goconst
 	checker := healthz.Ping
@@ -297,6 +312,10 @@ func main() {
 		}
 		if err := webhookv1beta1.SetupNovaComputeWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "NovaCompute")
+			os.Exit(1)
+		}
+		if err := placementwebhookv1.SetupPlacementAPIWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "PlacementAPI")
 			os.Exit(1)
 		}
 		checker = mgr.GetWebhookServer().StartedChecker()

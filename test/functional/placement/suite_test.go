@@ -103,13 +103,13 @@ var _ = BeforeSuite(func() {
 	ctx, cancel = context.WithCancel(context.TODO())
 
 	keystoneCRDs, err := test.GetCRDDirFromModule(
-		"github.com/openstack-k8s-operators/keystone-operator/api", "../../go.mod", "bases")
+		"github.com/openstack-k8s-operators/keystone-operator/api", "../../../go.mod", "bases")
 	Expect(err).ShouldNot(HaveOccurred())
 	mariaDBCRDs, err := test.GetCRDDirFromModule(
-		"github.com/openstack-k8s-operators/mariadb-operator/api", "../../go.mod", "bases")
+		"github.com/openstack-k8s-operators/mariadb-operator/api", "../../../go.mod", "bases")
 	Expect(err).ShouldNot(HaveOccurred())
 	topologyCRDs, err := test.GetCRDDirFromModule(
-		"github.com/openstack-k8s-operators/infra-operator/apis", "../../go.mod", "bases")
+		"github.com/openstack-k8s-operators/infra-operator/apis", "../../../go.mod", "bases")
 	Expect(err).ShouldNot(HaveOccurred())
 
 	By("bootstrapping test environment")
@@ -119,7 +119,7 @@ var _ = BeforeSuite(func() {
 		// Give it plenty of time to wind down (e.g., 60-120 seconds)
 		ControlPlaneStopTimeout: 120 * time.Second,
 		CRDDirectoryPaths: []string{
-			filepath.Join("..", "..", "config", "crd", "bases"),
+			filepath.Join("..", "..", "..", "config", "crd", "bases"),
 			// NOTE(gibi): we need to list all the external CRDs our operator depends on
 			keystoneCRDs,
 			mariaDBCRDs,
@@ -127,7 +127,7 @@ var _ = BeforeSuite(func() {
 		},
 		ErrorIfCRDPathMissing: true,
 		WebhookInstallOptions: envtest.WebhookInstallOptions{
-			Paths: []string{filepath.Join("..", "..", "config", "webhook")},
+			Paths: []string{filepath.Join("..", "..", "..", "config", "webhook")},
 			// NOTE(gibi): if localhost is resolved to ::1 (ipv6) then starting
 			// the webhook fails as it try to parse the address as ipv4 and
 			// failing on the colons in ::1
