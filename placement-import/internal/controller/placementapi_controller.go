@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"slices"
 	"time"
 
 	"k8s.io/apimachinery/pkg/fields"
@@ -524,7 +525,8 @@ func (r *PlacementAPIReconciler) ensureServiceExposed(
 	apiEndpoints := make(map[string]string)
 
 	serviceLabels := getServiceLabels(instance)
-	for endpointType, data := range placementEndpoints {
+	for _, endpointType := range slices.Sorted(maps.Keys(placementEndpoints)) {
+		data := placementEndpoints[endpointType]
 		endpointTypeStr := string(endpointType)
 		endpointName := placement.ServiceName + "-" + endpointTypeStr
 
