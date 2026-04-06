@@ -226,7 +226,7 @@ func (r *PlacementAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, err
 	}
 
-	// Save a copy of the condtions so that we can restore the LastTransitionTime
+	// Save a copy of the conditions so that we can restore the LastTransitionTime
 	// when a condition's state doesn't change.
 	savedConditions := instance.Status.Conditions.DeepCopy()
 	// initialize status fields
@@ -483,7 +483,7 @@ func (r *PlacementAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	// Only expose the service is the deployment succeeded
 	if !instance.Status.Conditions.IsTrue(condition.DeploymentReadyCondition) {
-		Log.Info("Waiting for the Deployment to become Ready before exposing the sevice in Keystone")
+		Log.Info("Waiting for the Deployment to become Ready before exposing the service in Keystone")
 		return ctrl.Result{}, nil
 	}
 	err = r.ensureKeystoneServiceUser(ctx, h, instance)
@@ -1431,7 +1431,7 @@ func (r *PlacementAPIReconciler) generateServiceConfigMaps(
 	for _, endpt := range []service.Endpoint{service.EndpointInternal, service.EndpointPublic} {
 		endptConfig := map[string]any{}
 		endptConfig["ServerName"] = fmt.Sprintf("placement-%s.%s.svc", endpt.String(), instance.Namespace)
-		endptConfig["TLS"] = false // default TLS to false, and set it bellow to true if enabled
+		endptConfig["TLS"] = false // default TLS to false, and set it below to true if enabled
 		if instance.Spec.TLS.API.Enabled(endpt) {
 			endptConfig["TLS"] = true
 			endptConfig["SSLCertificateFile"] = fmt.Sprintf("/etc/pki/tls/certs/%s.crt", endpt.String())
