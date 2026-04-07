@@ -1441,7 +1441,7 @@ func (r *PlacementAPIReconciler) generateServiceConfigMaps(
 	templateParameters["TimeOut"] = instance.Spec.APITimeout
 
 	extraTemplates := map[string]string{
-		"placement.conf": "placementapi/config/placement.conf",
+		"placement.conf": "placement/api/config/placement.conf",
 	}
 
 	cms := []util.Template{
@@ -1450,7 +1450,7 @@ func (r *PlacementAPIReconciler) generateServiceConfigMaps(
 			Name:         fmt.Sprintf("%s-scripts", instance.Name),
 			Namespace:    instance.Namespace,
 			Type:         util.TemplateTypeScripts,
-			InstanceType: instance.Kind,
+			InstanceType: getTemplateInstanceType(instance),
 			Labels:       cmLabels,
 		},
 		// ConfigMap
@@ -1458,7 +1458,7 @@ func (r *PlacementAPIReconciler) generateServiceConfigMaps(
 			Name:               fmt.Sprintf("%s-config-data", instance.Name),
 			Namespace:          instance.Namespace,
 			Type:               util.TemplateTypeConfig,
-			InstanceType:       instance.Kind,
+			InstanceType:       getTemplateInstanceType(instance),
 			CustomData:         customData,
 			ConfigOptions:      templateParameters,
 			Labels:             cmLabels,
