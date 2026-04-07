@@ -117,7 +117,7 @@ require (
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )
 
-replace github.com/openstack-k8s-operators/nova-operator/api => ./api //allow-merging
+replace github.com/openstack-k8s-operators/nova-operator/api => ./api
 
 // mschuppert: map to latest commit from release-4.18 tag
 // must consistent within modules and service operators
