@@ -114,7 +114,7 @@ docker-buildx: ## Build and push docker image for the manager for cross-platform
 
 .PHONY: manifests
 manifests: gowork controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
-	$(CONTROLLER_GEN) crd webhook paths="./api/nova/..." paths="./api/placement/..." output:crd:artifacts:config=config/crd/bases && \
+	$(CONTROLLER_GEN) crd webhook paths="./api/nova/..." paths="./api/placement/..." paths="./internal/webhook/nova/..." paths="./internal/webhook/placement/..." output:crd:artifacts:config=config/crd/bases output:webhook:artifacts:config=config/webhook && \
 	$(CONTROLLER_GEN) rbac:roleName=manager-role paths="./..." output:dir=config/rbac && \
 	rm -f api/bases/* && cp -a config/crd/bases api/
 
