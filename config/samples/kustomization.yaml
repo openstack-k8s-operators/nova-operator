@@ -8,4 +8,6 @@ resources:
 - nova_v1beta1_novacell1-upcall.yaml
 - nova_v1beta1_nova.yaml
 - nova_v1beta1_novacompute-ironic.yaml
+- placement_v1beta1_placementapi.yaml
+- placement_v1beta1_placementtls.yaml
 #+kubebuilder:scaffold:manifestskustomizesamples
