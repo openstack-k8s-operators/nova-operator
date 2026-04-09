@@ -815,7 +815,7 @@ func (r *NovaCellReconciler) generateComputeConfigs(
 
 	configName := instance.GetName() + "-compute-config"
 	err := r.GenerateConfigs(
-		ctx, h, instance, configName, &hashes, templateParameters, extraData, cmLabels, map[string]string{},
+		ctx, h, instance, configName, &hashes, templateParameters, extraData, cmLabels, map[string]string{}, "nova/compute",
 	)
 	if err != nil {
 		return err

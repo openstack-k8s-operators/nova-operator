@@ -580,7 +580,7 @@ func (r *NovaMetadataReconciler) generateConfigs(
 
 	err = r.GenerateConfigs(
 		ctx, h, instance, nova.GetServiceConfigSecretName(instance.GetName()),
-		hashes, templateParameters, extraData, cmLabels, map[string]string{},
+		hashes, templateParameters, extraData, cmLabels, map[string]string{}, "nova/metadata",
 	)
 	return err
 }
@@ -898,7 +898,7 @@ func (r *NovaMetadataReconciler) generateNeutronConfigs(
 			Name:               configName,
 			Namespace:          instance.GetNamespace(),
 			Type:               util.TemplateTypeNone,
-			InstanceType:       getTemplateInstanceType(instance),
+			InstanceType:       instance.GetObjectKind().GroupVersionKind().Kind,
 			ConfigOptions:      templateParameters,
 			Labels:             labels,
 			AdditionalTemplate: templates,
