@@ -55,7 +55,7 @@ import (
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/nova/v1beta1"
 	"github.com/openstack-k8s-operators/nova-operator/internal/nova"
-	"github.com/openstack-k8s-operators/nova-operator/internal/nova/api"
+	novaapi "github.com/openstack-k8s-operators/nova-operator/internal/nova/api"
 
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 )
@@ -477,7 +477,6 @@ func (r *NovaAPIReconciler) generateConfigs(
 	secret corev1.Secret,
 	memcachedInstance *memcachedv1.Memcached,
 ) error {
-
 	apiDB, err := mariadbv1.GetDatabaseByNameAndAccount(ctx, h, "nova-api", instance.Spec.APIDatabaseAccount, instance.Namespace)
 	if err != nil {
 		return err
@@ -575,7 +574,7 @@ func (r *NovaAPIReconciler) generateConfigs(
 	err = r.GenerateConfigs(
 		ctx, h, instance, nova.GetServiceConfigSecretName(instance.GetName()),
 		hashes, templateParameters, extraData, cmLabels, map[string]string{},
-		[]string{"ssl.conf"},
+		[]string{"ssl.conf"}, "nova/api",
 	)
 	return err
 }
@@ -1008,7 +1007,6 @@ var (
 )
 
 func (r *NovaAPIReconciler) memcachedNamespaceMapFunc(ctx context.Context, src client.Object) []reconcile.Request {
-
 	result := []reconcile.Request{}
 
 	// get all Nova CRs

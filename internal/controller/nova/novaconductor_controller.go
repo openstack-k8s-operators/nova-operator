@@ -54,7 +54,7 @@ import (
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/nova/v1beta1"
-	"github.com/openstack-k8s-operators/nova-operator/internal/nova/conductor"
+	novaconductor "github.com/openstack-k8s-operators/nova-operator/internal/nova/conductor"
 )
 
 // NovaConductorReconciler reconciles a NovaConductor object
@@ -444,7 +444,6 @@ func (r *NovaConductorReconciler) generateConfigs(
 	secret corev1.Secret,
 	memcachedInstance *memcachedv1.Memcached,
 ) error {
-
 	cellDB, err := mariadbv1.GetDatabaseByNameAndAccount(ctx, h, "nova-"+instance.Spec.CellName, instance.Spec.CellDatabaseAccount, instance.Namespace)
 	if err != nil {
 		return err
@@ -518,7 +517,7 @@ func (r *NovaConductorReconciler) generateConfigs(
 
 	return r.GenerateConfigsWithScripts(
 		ctx, h, instance, hashes, templateParameters, extraData, cmLabels, map[string]string{},
-		[]string{},
+		[]string{}, "nova/conductor",
 	)
 }
 
@@ -795,7 +794,6 @@ var (
 )
 
 func (r *NovaConductorReconciler) memcachedNamespaceMapFunc(ctx context.Context, src client.Object) []reconcile.Request {
-
 	result := []reconcile.Request{}
 
 	// get all Nova CRs

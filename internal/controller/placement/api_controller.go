@@ -350,7 +350,6 @@ func (r *PlacementAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		ctx, h, instance.Spec.DatabaseAccount,
 		instance.Namespace, false, placement.DatabaseName,
 	)
-
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			mariadbv1.MariaDBAccountReadyCondition,
@@ -1335,7 +1334,6 @@ func (r *PlacementAPIReconciler) ensureDeployment(
 
 	Log.Info("Reconciled Service successfully")
 	return ctrl.Result{}, nil
-
 }
 
 // generateServiceConfigMaps - create create configmaps which hold scripts and service configuration
@@ -1446,21 +1444,24 @@ func (r *PlacementAPIReconciler) generateServiceConfigMaps(
 		"placement.conf": "placement/api/config/placement.conf",
 	}
 
+	kind := instance.GetObjectKind().GroupVersionKind().Kind
 	cms := []util.Template{
 		// ScriptsConfigMap
 		{
-			Name:         fmt.Sprintf("%s-scripts", instance.Name),
-			Namespace:    instance.Namespace,
-			Type:         util.TemplateTypeScripts,
-			InstanceType: getTemplateInstanceType(instance),
-			Labels:       cmLabels,
+			Name:             fmt.Sprintf("%s-scripts", instance.Name),
+			Namespace:        instance.Namespace,
+			Type:             util.TemplateTypeScripts,
+			InstanceType:     kind,
+			MultiTemplateDir: "placement/api",
+			Labels:           cmLabels,
 		},
 		// ConfigMap
 		{
 			Name:               fmt.Sprintf("%s-config-data", instance.Name),
 			Namespace:          instance.Namespace,
 			Type:               util.TemplateTypeConfig,
-			InstanceType:       getTemplateInstanceType(instance),
+			InstanceType:       kind,
+			MultiTemplateDir:   "placement/api",
 			CustomData:         customData,
 			ConfigOptions:      templateParameters,
 			Labels:             cmLabels,

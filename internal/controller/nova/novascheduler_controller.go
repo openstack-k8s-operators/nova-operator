@@ -53,7 +53,7 @@ import (
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/nova/v1beta1"
 	"github.com/openstack-k8s-operators/nova-operator/internal/nova"
-	"github.com/openstack-k8s-operators/nova-operator/internal/nova/scheduler"
+	novascheduler "github.com/openstack-k8s-operators/nova-operator/internal/nova/scheduler"
 )
 
 // NovaSchedulerReconciler reconciles a NovaScheduler object
@@ -565,7 +565,6 @@ func (r *NovaSchedulerReconciler) generateConfigs(
 	secret corev1.Secret,
 	memcachedInstance *memcachedv1.Memcached,
 ) error {
-
 	apiDB, err := mariadbv1.GetDatabaseByNameAndAccount(ctx, h, "nova-api", instance.Spec.APIDatabaseAccount, instance.Namespace)
 	if err != nil {
 		return err
@@ -639,12 +638,11 @@ func (r *NovaSchedulerReconciler) generateConfigs(
 	return r.GenerateConfigs(
 		ctx, h, instance, nova.GetServiceConfigSecretName(instance.GetName()),
 		hashes, templateParameters, extraData, cmLabels, map[string]string{},
-		[]string{},
+		[]string{}, "nova/scheduler",
 	)
 }
 
 func (r *NovaSchedulerReconciler) memcachedNamespaceMapFunc(ctx context.Context, src client.Object) []reconcile.Request {
-
 	result := []reconcile.Request{}
 
 	// get all Nova CRs
@@ -771,7 +769,6 @@ func (r *NovaSchedulerReconciler) reconcileDelete(
 	ctx context.Context,
 	h *helper.Helper,
 	instance *novav1.NovaScheduler,
-
 ) error {
 	Log := r.GetLogger(ctx)
 
