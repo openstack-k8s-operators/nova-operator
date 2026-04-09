@@ -32,9 +32,13 @@
 apiVersion: kuttl.dev/v1beta1
 kind: TestSuite
 reportFormat: JSON
-reportName: kuttl-test-placement
+reportName: kuttl-placement-results
 namespace: placement-kuttl-tests
 timeout: 300
 parallel: 1
+skipDelete: true
+testDirs:
+  - test/kuttl/test-suites/placement/
 suppress:
   - events
+artifactsDir: test/kuttl/test-suites/placement/output
