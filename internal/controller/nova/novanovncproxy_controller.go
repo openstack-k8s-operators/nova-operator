@@ -464,7 +464,6 @@ func (r *NovaNoVNCProxyReconciler) generateConfigs(
 	secret corev1.Secret,
 	memcachedInstance *memcachedv1.Memcached,
 ) error {
-
 	cellDB, err := mariadbv1.GetDatabaseByNameAndAccount(ctx, h, "nova-"+instance.Spec.CellName, instance.Spec.CellDatabaseAccount, instance.Namespace)
 	if err != nil {
 		return err
@@ -537,7 +536,7 @@ func (r *NovaNoVNCProxyReconciler) generateConfigs(
 	err = r.GenerateConfigs(
 		ctx, h, instance, nova.GetServiceConfigSecretName(instance.GetName()),
 		hashes, templateParameters, extraData, cmLabels, map[string]string{},
-		[]string{},
+		[]string{}, "nova/novncproxy",
 	)
 	return err
 }
@@ -868,7 +867,6 @@ var (
 )
 
 func (r *NovaNoVNCProxyReconciler) memcachedNamespaceMapFunc(ctx context.Context, src client.Object) []reconcile.Request {
-
 	result := []reconcile.Request{}
 
 	// get all Nova CRs

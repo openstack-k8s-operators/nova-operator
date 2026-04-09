@@ -816,7 +816,7 @@ func (r *NovaCellReconciler) generateComputeConfigs(
 	configName := instance.GetName() + "-compute-config"
 	err := r.GenerateConfigs(
 		ctx, h, instance, configName, &hashes, templateParameters, extraData, cmLabels, map[string]string{},
-		[]string{},
+		[]string{}, "nova/compute",
 	)
 	if err != nil {
 		return err
@@ -908,7 +908,6 @@ var (
 )
 
 func (r *NovaCellReconciler) memcachedNamespaceMapFunc(ctx context.Context, src client.Object) []reconcile.Request {
-
 	result := []reconcile.Request{}
 
 	// get all Nova CRs

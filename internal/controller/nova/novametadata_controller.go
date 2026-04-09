@@ -55,7 +55,7 @@ import (
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/nova/v1beta1"
 	"github.com/openstack-k8s-operators/nova-operator/internal/nova"
-	"github.com/openstack-k8s-operators/nova-operator/internal/nova/metadata"
+	novametadata "github.com/openstack-k8s-operators/nova-operator/internal/nova/metadata"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 )
 
@@ -465,7 +465,6 @@ func (r *NovaMetadataReconciler) generateConfigs(
 	secret corev1.Secret,
 	memcachedInstance *memcachedv1.Memcached,
 ) error {
-
 	var cellDB *mariadbv1.Database
 	var cellDatabaseAccount *mariadbv1.MariaDBAccount
 	var cellDbSecret *corev1.Secret
@@ -479,7 +478,6 @@ func (r *NovaMetadataReconciler) generateConfigs(
 		}
 	} else {
 		cellDB, err = mariadbv1.GetDatabaseByNameAndAccount(ctx, h, "nova-"+instance.Spec.CellName, instance.Spec.CellDatabaseAccount, instance.Namespace)
-
 		if err != nil {
 			return err
 		}
@@ -581,7 +579,7 @@ func (r *NovaMetadataReconciler) generateConfigs(
 	err = r.GenerateConfigs(
 		ctx, h, instance, nova.GetServiceConfigSecretName(instance.GetName()),
 		hashes, templateParameters, extraData, cmLabels, map[string]string{},
-		[]string{"ssl.conf"},
+		[]string{"ssl.conf"}, "nova/metadata",
 	)
 	return err
 }
@@ -899,7 +897,7 @@ func (r *NovaMetadataReconciler) generateNeutronConfigs(
 			Name:               configName,
 			Namespace:          instance.GetNamespace(),
 			Type:               util.TemplateTypeNone,
-			InstanceType:       getTemplateInstanceType(instance),
+			InstanceType:       instance.GetObjectKind().GroupVersionKind().Kind,
 			ConfigOptions:      templateParameters,
 			Labels:             labels,
 			AdditionalTemplate: templates,
@@ -997,7 +995,6 @@ var (
 )
 
 func (r *NovaMetadataReconciler) memcachedNamespaceMapFunc(ctx context.Context, src client.Object) []reconcile.Request {
-
 	result := []reconcile.Request{}
 
 	// get all Nova CRs

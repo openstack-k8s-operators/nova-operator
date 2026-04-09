@@ -157,6 +157,8 @@ var (
 
 	// ErrACSecretMissingKeys indicates that the ApplicationCredential secret is missing required keys
 	ErrACSecretMissingKeys = errors.New("ApplicationCredential secret missing required keys")
+	// ErrTemplateDirUnset indicates that no template directory was provided.
+	ErrTemplateDirUnset = errors.New("templateDir must be set")
 )
 
 type conditionsGetter interface {
@@ -167,32 +169,6 @@ type topologyHandler interface {
 	GetSpecTopologyRef() *topologyv1.TopoRef
 	GetLastAppliedTopology() *topologyv1.TopoRef
 	SetLastAppliedTopology(t *topologyv1.TopoRef)
-}
-
-// getTemplateInstanceType converts the CR Kind to the template directory path.
-// templates are in templates/nova/<component>/
-// e.g. NovaScheduler -> nova/scheduler, NovaAPI -> nova/api
-func getTemplateInstanceType(instance client.Object) string {
-	kind := instance.GetObjectKind().GroupVersionKind().Kind
-
-	// Kind to template dir mapping
-	switch kind {
-	case "NovaAPI":
-		return "nova/api"
-	case "NovaConductor":
-		return "nova/conductor"
-	case "NovaMetadata":
-		return "nova/metadata"
-	case "NovaScheduler":
-		return "nova/scheduler"
-	case "NovaNoVNCProxy":
-		return "nova/novncproxy"
-	case "NovaCompute":
-		return "nova/compute"
-	default:
-		// For other types (like Nova itself), use the kind as it is
-		return strings.ToLower(kind)
-	}
 }
 
 // ensureTopology - when a Topology CR is referenced, remove the
@@ -206,7 +182,6 @@ func ensureTopology(
 	conditionUpdater conditionUpdater,
 	defaultLabelSelector metav1.LabelSelector,
 ) (*topologyv1.Topology, error) {
-
 	topology, err := topologyv1.EnsureServiceTopology(
 		ctx,
 		helper,
@@ -503,7 +478,8 @@ func NewReconcilers(mgr ctrl.Manager, kclient *kubernetes.Clientset) *Reconciler
 			"NovaCompute": &NovaComputeReconciler{
 				ReconcilerBase: NewReconcilerBase(mgr, kclient),
 			},
-		}}
+		},
+	}
 }
 
 // Setup starts the reconcilers by connecting them to the Manager
@@ -533,12 +509,15 @@ func (r *ReconcilerBase) generateConfigsGeneric(
 	extraData map[string]string, cmLabels map[string]string,
 	additionalTemplates map[string]string,
 	commonTemplates []string,
+	templateDir string,
 	withScripts bool,
 ) error {
-
 	extraTemplates := map[string]string{
 		"01-nova.conf":    "/nova/nova.conf",
 		"nova-blank.conf": "/nova/nova-blank.conf",
+	}
+	if templateDir == "" {
+		return ErrTemplateDirUnset
 	}
 
 	maps.Copy(extraTemplates, additionalTemplates)
@@ -547,7 +526,8 @@ func (r *ReconcilerBase) generateConfigsGeneric(
 			Name:               configName,
 			Namespace:          instance.GetNamespace(),
 			Type:               util.TemplateTypeConfig,
-			InstanceType:       getTemplateInstanceType(instance),
+			InstanceType:       instance.GetObjectKind().GroupVersionKind().Kind,
+			MultiTemplateDir:   templateDir,
 			ConfigOptions:      templateParameters,
 			Labels:             cmLabels,
 			CustomData:         extraData,
@@ -561,7 +541,8 @@ func (r *ReconcilerBase) generateConfigsGeneric(
 			Name:               nova.GetScriptSecretName(instance.GetName()),
 			Namespace:          instance.GetNamespace(),
 			Type:               util.TemplateTypeScripts,
-			InstanceType:       getTemplateInstanceType(instance),
+			InstanceType:       instance.GetObjectKind().GroupVersionKind().Kind,
+			MultiTemplateDir:   templateDir,
 			AdditionalTemplate: map[string]string{},
 			Annotations:        map[string]string{},
 			Labels:             cmLabels,
@@ -578,10 +559,11 @@ func (r *ReconcilerBase) GenerateConfigs(
 	extraData map[string]string, cmLabels map[string]string,
 	additionalTemplates map[string]string,
 	commonTemplates []string,
+	templateDir string,
 ) error {
 	return r.generateConfigsGeneric(
 		ctx, h, instance, configName, envVars, templateParameters, extraData,
-		cmLabels, additionalTemplates, commonTemplates, false,
+		cmLabels, additionalTemplates, commonTemplates, templateDir, false,
 	)
 }
 
@@ -594,11 +576,12 @@ func (r *ReconcilerBase) GenerateConfigsWithScripts(
 	extraData map[string]string, cmLabels map[string]string,
 	additionalTemplates map[string]string,
 	commonTemplates []string,
+	templateDir string,
 ) error {
 	return r.generateConfigsGeneric(
 		ctx, h, instance, nova.GetServiceConfigSecretName(instance.GetName()),
 		envVars, templateParameters, extraData,
-		cmLabels, additionalTemplates, commonTemplates, true,
+		cmLabels, additionalTemplates, commonTemplates, templateDir, true,
 	)
 }
 
@@ -614,7 +597,7 @@ func hashOfStringMap(input map[string]string) (string, error) {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
-	var keyValues = []string{}
+	keyValues := []string{}
 	for _, key := range keys {
 		value := input[key]
 		keyValues = append(keyValues, key+value)

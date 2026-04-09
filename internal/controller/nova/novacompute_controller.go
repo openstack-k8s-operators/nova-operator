@@ -49,7 +49,7 @@ import (
 
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/nova/v1beta1"
 	"github.com/openstack-k8s-operators/nova-operator/internal/nova"
-	"github.com/openstack-k8s-operators/nova-operator/internal/nova/compute"
+	novacompute "github.com/openstack-k8s-operators/nova-operator/internal/nova/compute"
 
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
@@ -397,7 +397,7 @@ func (r *NovaComputeReconciler) generateConfigs(
 
 	err := r.GenerateConfigs(
 		ctx, h, instance, nova.GetServiceConfigSecretName(instance.GetName()), hashes, templateParameters, extraData, cmLabels, map[string]string{},
-		[]string{},
+		[]string{}, "nova/compute",
 	)
 	return err
 }
