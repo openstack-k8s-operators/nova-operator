@@ -50,4 +50,7 @@ const (
 
 	// CyborgLogPath is the default path for the cyborg service logs
 	CyborgLogPath = "/var/log/cyborg/"
+
+	// LogVolume is the name of the EmptyDir volume used for log streaming
+	LogVolume = "logs"
 )
