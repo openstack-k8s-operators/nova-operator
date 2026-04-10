@@ -170,6 +170,19 @@ func CyborgConductorConditionGetter(name types.NamespacedName) condition.Conditi
 	return instance.Status.Conditions
 }
 
+func GetCyborgAPI(name types.NamespacedName) *cyborgv1beta1.CyborgAPI {
+	instance := &cyborgv1beta1.CyborgAPI{}
+	Eventually(func(g Gomega) {
+		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
+	}, timeout, interval).Should(Succeed())
+	return instance
+}
+
+func CyborgAPIConditionGetter(name types.NamespacedName) condition.Conditions {
+	instance := GetCyborgAPI(name)
+	return instance.Status.Conditions
+}
+
 func CreateKeystoneAPIForCyborg(namespace string) types.NamespacedName {
 	keystoneAPIName := keystone.CreateKeystoneAPI(namespace)
 	keystoneAPI := keystone.GetKeystoneAPI(keystoneAPIName)
