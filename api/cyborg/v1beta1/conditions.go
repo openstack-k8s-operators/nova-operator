@@ -47,6 +47,9 @@ const (
 	// CyborgAPIReadyInitMessage -
 	CyborgAPIReadyInitMessage = "CyborgAPI not started"
 
+	// CyborgAPIReadyErrorMessage -
+	CyborgAPIReadyErrorMessage = "CyborgAPI error occurred %s"
+
 	// CyborgConductorReadyInitMessage -
 	CyborgConductorReadyInitMessage = "CyborgConductor not started"
 
