@@ -18,7 +18,8 @@ package v1beta1
 
 import (
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
-	service "github.com/openstack-k8s-operators/lib-common/modules/common/service"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -80,15 +81,45 @@ type CyborgAPISpec struct {
 
 	// +kubebuilder:validation:Required
 	// ConfigSecret - containing all the configuration needed provided by Cyborg object
-	ConfigSecret *string `json:"configSecret"`
+	ConfigSecret string `json:"configSecret"`
+
+	// +kubebuilder:validation:Required
+	// ContainerImage is the container image URL for cyborg-api
+	ContainerImage string `json:"containerImage"`
+
+	// +kubebuilder:validation:Required
+	// ServiceAccount used by the api pods
+	ServiceAccount string `json:"serviceAccount"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=60
+	// +kubebuilder:validation:Minimum=10
+	// APITimeout for Route and Apache
+	APITimeout *int `json:"apiTimeout"`
 }
 
 // CyborgAPIStatus defines the observed state of CyborgAPI.
 type CyborgAPIStatus struct {
+	// ReadyCount defines the number of replicas ready
+	ReadyCount int32 `json:"readyCount,omitempty"`
+
+	// Conditions
+	Conditions condition.Conditions `json:"conditions,omitempty" optional:"true"`
+
+	// ObservedGeneration - the most recent generation observed
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+
+	// Hash - Map of hashes to track config changes
+	Hash map[string]string `json:"hash,omitempty"`
+
+	// LastAppliedTopology - the last applied Topology
+	LastAppliedTopology *topologyv1.TopoRef `json:"lastAppliedTopology,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.conditions[0].status",description="Status"
+// +kubebuilder:printcolumn:name="Message",type="string",JSONPath=".status.conditions[0].message",description="Message"
 
 // CyborgAPI is the Schema for the cyborgapis API.
 type CyborgAPI struct {
@@ -106,6 +137,26 @@ type CyborgAPIList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []CyborgAPI `json:"items"`
+}
+
+// IsReady returns true if the ReadyCondition is true
+func (instance *CyborgAPI) IsReady() bool {
+	return instance.Status.Conditions.IsTrue(condition.ReadyCondition)
+}
+
+// GetSpecTopologyRef returns the TopologyRef defined in the Spec
+func (instance *CyborgAPI) GetSpecTopologyRef() *topologyv1.TopoRef {
+	return instance.Spec.TopologyRef
+}
+
+// GetLastAppliedTopology returns the LastAppliedTopology from the Status
+func (instance *CyborgAPI) GetLastAppliedTopology() *topologyv1.TopoRef {
+	return instance.Status.LastAppliedTopology
+}
+
+// SetLastAppliedTopology sets the LastAppliedTopology value in the Status
+func (instance *CyborgAPI) SetLastAppliedTopology(topologyRef *topologyv1.TopoRef) {
+	instance.Status.LastAppliedTopology = topologyRef
 }
 
 func init() {

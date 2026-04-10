@@ -35,8 +35,11 @@ import (
 )
 
 const (
-	passwordSecretField    = ".spec.secret"
-	authAppCredSecretField = ".spec.auth.applicationCredentialSecret" //nolint:gosec
+	passwordSecretField     = ".spec.secret"
+	authAppCredSecretField  = ".spec.auth.applicationCredentialSecret" //nolint:gosec
+	caBundleSecretNameField = ".spec.tls.caBundleSecretName"           //nolint:gosec
+	tlsAPIInternalField     = ".spec.tls.api.internal.secretName"
+	tlsAPIPublicField       = ".spec.tls.api.public.secretName"
 
 	// TransportURLSelector is the key for the transport URL in secrets
 	TransportURLSelector = "transport_url"
@@ -122,6 +125,9 @@ func NewReconcilers(mgr ctrl.Manager, kclient *kubernetes.Clientset) *Reconciler
 				ReconcilerBase: NewReconcilerBase(mgr, kclient),
 			},
 			"CyborgConductor": &CyborgConductorReconciler{
+				ReconcilerBase: NewReconcilerBase(mgr, kclient),
+			},
+			"CyborgAPI": &CyborgAPIReconciler{
 				ReconcilerBase: NewReconcilerBase(mgr, kclient),
 			},
 		}}

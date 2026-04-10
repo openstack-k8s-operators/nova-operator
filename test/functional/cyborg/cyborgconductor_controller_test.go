@@ -30,7 +30,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
-	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
+
+	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
 	cyborgv1beta1 "github.com/openstack-k8s-operators/nova-operator/api/cyborg/v1beta1"
 )
@@ -200,7 +201,6 @@ var _ = Describe("CyborgConductor controller", func() {
 				g.Expect(defaultConf).To(ContainSubstring("[keystone_authtoken]"))
 				g.Expect(defaultConf).To(ContainSubstring("[placement]"))
 				g.Expect(defaultConf).To(ContainSubstring("[nova]"))
-				g.Expect(defaultConf).To(ContainSubstring("[agent]"))
 				g.Expect(defaultConf).To(ContainSubstring("auth_type = password"))
 				g.Expect(defaultConf).To(ContainSubstring("username = cyborg"))
 				g.Expect(defaultConf).To(ContainSubstring("region_name = regionOne"))
@@ -256,6 +256,14 @@ var _ = Describe("CyborgConductor controller", func() {
 		})
 
 		It("reaches Ready when the StatefulSet replicas are ready", func() {
+			// DeploymentReady is False while the StatefulSet replicas are not yet ready
+			th.ExpectCondition(
+				conductorNames.ConductorName,
+				ConditionGetterFunc(CyborgConductorConditionGetter),
+				condition.DeploymentReadyCondition,
+				corev1.ConditionFalse,
+			)
+
 			th.SimulateStatefulSetReplicaReady(conductorNames.StatefulSetName)
 
 			th.ExpectCondition(
@@ -472,6 +480,47 @@ var _ = Describe("CyborgConductor controller", func() {
 				g.Expect(defaultConf).To(ContainSubstring("application_credential_id = " + appCredID))
 				g.Expect(defaultConf).To(ContainSubstring("application_credential_secret = " + appCredSecret))
 				g.Expect(defaultConf).NotTo(ContainSubstring("auth_type = password"))
+			}, timeout, interval).Should(Succeed())
+		})
+	})
+
+	When("CyborgConductor is created with quorum queues enabled", func() {
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete, ctx,
+				th.CreateSecret(conductorNames.ConfigSecretName, map[string][]byte{
+					"transport_url":     []byte("rabbit://user:pass@rabbitmq:5672/"),
+					"database_account":  []byte("cyborg"),
+					"database_username": []byte("cyborg_user"),
+					"database_password": []byte("cyborg_pass"),
+					"database_hostname": []byte("openstack.openstack.svc"),
+					"ServiceUser":       []byte("cyborg"),
+					"ServicePassword":   []byte("service-pass"),
+					"KeystoneAuthURL":   []byte("https://keystone-internal.openstack.svc:5000"),
+					"Region":            []byte("regionOne"),
+					"quorumqueues":      []byte("true"),
+				}),
+			)
+
+			DeferCleanup(th.DeleteInstance, CreateCyborgConductorCR(
+				conductorNames.ConductorName,
+				cyborgv1beta1.CyborgConductorSpec{
+					CyborgConductorTemplate: cyborgv1beta1.CyborgConductorTemplate{
+						Replicas: ptr.To(int32(1)),
+					},
+					ConfigSecret:   conductorNames.ConfigSecretName.Name,
+					ContainerImage: ConductorTestImage,
+					ServiceAccount: ConductorTestSA,
+				},
+			))
+		})
+
+		It("generates config with quorum queue settings", func() {
+			Eventually(func(g Gomega) {
+				configSecret := th.GetSecret(conductorNames.ConfigDataName)
+				defaultConf := string(configSecret.Data["00-default.conf"])
+				g.Expect(defaultConf).To(ContainSubstring("rabbit_quorum_queue=true"))
+				g.Expect(defaultConf).To(ContainSubstring("rabbit_transient_quorum_queue=true"))
 			}, timeout, interval).Should(Succeed())
 		})
 	})

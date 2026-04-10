@@ -103,7 +103,7 @@ func DbSyncJob(
 
 	args := []string{"-c", DBSyncCommand}
 
-	envVars := map[string]env.Setter{}
+	envVars := make(map[string]env.Setter)
 	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
 	envVars["KOLLA_BOOTSTRAP"] = env.SetValue("TRUE")
 

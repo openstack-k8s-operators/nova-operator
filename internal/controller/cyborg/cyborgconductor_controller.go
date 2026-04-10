@@ -219,7 +219,7 @@ func (r *CyborgConductorReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 
 	ssObj := ss.GetStatefulSet()
 	instance.Status.ReadyCount = ssObj.Status.ReadyReplicas
-	if ssObj.Status.ReadyReplicas == ssObj.Status.Replicas && ssObj.Generation == ssObj.Status.ObservedGeneration {
+	if statefulset.IsReady(ssObj) {
 		instance.Status.Conditions.MarkTrue(condition.DeploymentReadyCondition, condition.DeploymentReadyMessage)
 	} else {
 		instance.Status.Conditions.Set(condition.FalseCondition(
@@ -231,6 +231,7 @@ func (r *CyborgConductorReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 
 	instance.Status.ObservedGeneration = instance.Generation
 
+	Log.Info("Successfully reconciled")
 	return ctrl.Result{}, nil
 }
 

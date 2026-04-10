@@ -194,7 +194,7 @@ func (r *CyborgReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 	//
 	// Create RabbitMQ TransportURL
 	//
-	transportURL, op, err := r.ensureMQ(ctx, instance, h, instance.Name+"-cyborg-transport", instance.Spec.MessagingBus, serviceLabels)
+	transportURL, _, err := r.ensureMQ(ctx, instance, h, instance.Name+"-cyborg-transport", instance.Spec.MessagingBus, serviceLabels)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			cyborgv1beta1.CyborgRabbitMQTransportURLReadyCondition,
@@ -218,8 +218,6 @@ func (r *CyborgReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 	instance.Status.Conditions.MarkTrue(
 		cyborgv1beta1.CyborgRabbitMQTransportURLReadyCondition,
 		cyborgv1beta1.CyborgRabbitMQTransportURLReadyMessage)
-
-	_ = op
 
 	//
 	// Validate input secret (password secret)
@@ -367,6 +365,16 @@ func (r *CyborgReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 	}
 
 	//
+	// Create CyborgAPI sub-CR
+	//
+	ctrlResult, err = r.ensureCyborgAPI(ctx, h, instance, serviceLabels)
+	if err != nil {
+		return ctrl.Result{}, err
+	} else if (ctrlResult != ctrl.Result{}) {
+		return ctrlResult, nil
+	}
+
+	//
 	// Create CyborgConductor sub-CR
 	//
 	ctrlResult, err = r.ensureConductor(ctx, h, instance, serviceLabels)
@@ -381,6 +389,7 @@ func (r *CyborgReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 			condition.ReadyCondition, condition.ReadyMessage)
 	}
 
+	Log.Info("Successfully reconciled")
 	return ctrl.Result{}, nil
 }
 
@@ -440,6 +449,10 @@ func (r *CyborgReconciler) initConditions(instance *cyborgv1beta1.Cyborg) error 
 			condition.InitReason,
 			condition.DBSyncReadyInitMessage),
 		condition.UnknownCondition(
+			cyborgv1beta1.CyborgAPIReadyCondition,
+			condition.InitReason,
+			cyborgv1beta1.CyborgAPIReadyInitMessage),
+		condition.UnknownCondition(
 			cyborgv1beta1.CyborgConductorReadyCondition,
 			condition.InitReason,
 			cyborgv1beta1.CyborgConductorReadyInitMessage),
@@ -470,11 +483,7 @@ func (r *CyborgReconciler) ensureRbac(
 	}
 
 	_, err := common_rbac.ReconcileRbac(ctx, h, instance, rbacRules)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 func (r *CyborgReconciler) ensureDB(
@@ -881,6 +890,77 @@ func normalizeRegion(region string) string {
 	return region
 }
 
+func (r *CyborgReconciler) ensureCyborgAPI(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *cyborgv1beta1.Cyborg,
+	serviceLabels map[string]string,
+) (ctrl.Result, error) {
+	Log := r.GetLogger(ctx)
+	Log.Info(fmt.Sprintf("Reconciling CyborgAPI for '%s'", instance.Name))
+
+	apiName := fmt.Sprintf("%s-api", instance.Name)
+
+	apiTemplate := *instance.Spec.APIServiceTemplate.DeepCopy()
+	if apiTemplate.TopologyRef == nil && instance.Spec.TopologyRef != nil {
+		apiTemplate.TopologyRef = instance.Spec.TopologyRef.DeepCopy()
+	}
+
+	apiSpec := cyborgv1beta1.CyborgAPISpec{
+		CyborgAPITemplate: apiTemplate,
+		ConfigSecret:      instance.Name,
+		ContainerImage:    instance.Spec.APIContainerImageURL,
+		ServiceAccount:    instance.RbacResourceName(),
+		APITimeout:        instance.Spec.APITimeout,
+	}
+
+	api := &cyborgv1beta1.CyborgAPI{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      apiName,
+			Namespace: instance.Namespace,
+		},
+	}
+
+	op, err := controllerutil.CreateOrPatch(ctx, h.GetClient(), api, func() error {
+		api.Spec = apiSpec
+		api.Labels = serviceLabels
+
+		err := controllerutil.SetControllerReference(instance, api, r.Scheme)
+		return err
+	})
+	if err != nil {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			cyborgv1beta1.CyborgAPIReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			cyborgv1beta1.CyborgAPIReadyErrorMessage,
+			err.Error()))
+		return ctrl.Result{}, err
+	}
+	if op != controllerutil.OperationResultNone {
+		Log.Info(fmt.Sprintf("CyborgAPI CR %s - %s", apiName, op))
+	}
+
+	apiObj := &cyborgv1beta1.CyborgAPI{}
+	err = h.GetClient().Get(ctx, types.NamespacedName{Name: apiName, Namespace: instance.Namespace}, apiObj)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	if apiObj.IsReady() {
+		instance.Status.APIServiceReadyCount = apiObj.Status.ReadyCount
+		instance.Status.Conditions.MarkTrue(cyborgv1beta1.CyborgAPIReadyCondition, condition.DeploymentReadyMessage)
+	} else {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			cyborgv1beta1.CyborgAPIReadyCondition,
+			condition.RequestedReason,
+			condition.SeverityInfo,
+			condition.DeploymentReadyRunningMessage))
+	}
+
+	return ctrl.Result{}, nil
+}
+
 func (r *CyborgReconciler) ensureConductor(
 	ctx context.Context,
 	h *helper.Helper,
@@ -983,6 +1063,7 @@ func (r *CyborgReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&mariadbv1.MariaDBAccount{}).
 		Owns(&rabbitmqv1.TransportURL{}).
 		Owns(&keystonev1.KeystoneService{}).
+		Owns(&cyborgv1beta1.CyborgAPI{}).
 		Owns(&cyborgv1beta1.CyborgConductor{}).
 		Owns(&corev1.ServiceAccount{}).
 		Owns(&rbacv1.Role{}).
