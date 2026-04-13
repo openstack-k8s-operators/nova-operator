@@ -101,6 +101,19 @@ spec:
                 description: NodeSelector to target subset of worker nodes running
                   this service
                 type: object
+              openStackServiceIdentity:
+                description: OpenStackServiceIdentity names the logical OpenStack
+                  service and component for this CR instance.
+                properties:
+                  openstackService:
+                    description: OpenstackService is the logical OpenStack service
+                      name (e.g. nova).
+                    type: string
+                  serviceComponent:
+                    description: ServiceComponent is the component within the service
+                      (e.g. api, scheduler, conductor).
+                    type: string
+                type: object
               region:
                 default: regionOne
                 description: Region - the region name to use for service endpoint

@@ -100,6 +100,19 @@ spec:
                       NodeSelector to target subset of worker nodes running this service. Setting here overrides
                       any global NodeSelector settings within the Nova CR.
                     type: object
+                  openStackServiceIdentity:
+                    description: OpenStackServiceIdentity names the logical OpenStack
+                      service and component for this CR instance.
+                    properties:
+                      openstackService:
+                        description: OpenstackService is the logical OpenStack service
+                          name (e.g. nova).
+                        type: string
+                      serviceComponent:
+                        description: ServiceComponent is the component within the
+                          service (e.g. api, scheduler, conductor).
+                        type: string
+                    type: object
                   replicas:
                     default: 1
                     description: Replicas of the service to run
@@ -265,6 +278,19 @@ spec:
                     description: |-
                       NodeSelector to target subset of worker nodes running this service. Setting here overrides
                       any global NodeSelector settings within the Nova CR.
+                    type: object
+                  openStackServiceIdentity:
+                    description: OpenStackServiceIdentity names the logical OpenStack
+                      service and component for this CR instance.
+                    properties:
+                      openstackService:
+                        description: OpenstackService is the logical OpenStack service
+                          name (e.g. nova).
+                        type: string
+                      serviceComponent:
+                        description: ServiceComponent is the component within the
+                          service (e.g. api, scheduler, conductor).
+                        type: string
                     type: object
                   override:
                     description: Override, provides the ability to override the generated
@@ -550,6 +576,19 @@ spec:
                       type: string
                     description: NodeSelector to target subset of worker nodes running
                       this service
+                    type: object
+                  openStackServiceIdentity:
+                    description: OpenStackServiceIdentity names the logical OpenStack
+                      service and component for this CR instance.
+                    properties:
+                      openstackService:
+                        description: OpenstackService is the logical OpenStack service
+                          name (e.g. nova).
+                        type: string
+                      serviceComponent:
+                        description: ServiceComponent is the component within the
+                          service (e.g. api, scheduler, conductor).
+                        type: string
                     type: object
                   override:
                     description: Override, provides the ability to override the generated
@@ -863,6 +902,19 @@ spec:
                       description: |-
                         NodeSelector to target subset of worker nodes running this service. Setting here overrides
                         any global NodeSelector settings within the Nova CR.
+                      type: object
+                    openStackServiceIdentity:
+                      description: OpenStackServiceIdentity names the logical OpenStack
+                        service and component for this CR instance.
+                      properties:
+                        openstackService:
+                          description: OpenstackService is the logical OpenStack service
+                            name (e.g. nova).
+                          type: string
+                        serviceComponent:
+                          description: ServiceComponent is the component within the
+                            service (e.g. api, scheduler, conductor).
+                          type: string
                       type: object
                     replicas:
                       default: 1

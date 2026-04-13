@@ -82,6 +82,9 @@ type NovaNoVNCProxyTemplate struct {
 	// TopologyRef to apply the Topology defined by the associated CR referenced
 	// by name
 	TopologyRef *topologyv1.TopoRef `json:"topologyRef,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	OpenStackServiceIdentity `json:"openStackServiceIdentity,omitempty"`
 }
 
 // TLSSection defines the desired state of TLS configuration

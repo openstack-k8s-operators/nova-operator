@@ -90,6 +90,9 @@ type NovaMetadataTemplate struct {
 	// TopologyRef to apply the Topology defined by the associated CR referenced
 	// by name
 	TopologyRef *topologyv1.TopoRef `json:"topologyRef,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	OpenStackServiceIdentity `json:"openStackServiceIdentity,omitempty"`
 }
 
 // MetadataOverrideSpec to override the generated manifest of several child resources.

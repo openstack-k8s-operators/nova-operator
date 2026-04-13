@@ -43,6 +43,16 @@ const (
 	ComputeDiscoverHashKey = "nova-compute-discovery"
 )
 
+// OpenStackServiceIdentity names the logical OpenStack service and component for this CR instance.
+type OpenStackServiceIdentity struct {
+	// +kubebuilder:validation:Optional
+	// OpenstackService is the logical OpenStack service name (e.g. nova).
+	OpenstackService string `json:"openstackService,omitempty"`
+	// +kubebuilder:validation:Optional
+	// ServiceComponent is the component within the service (e.g. api, scheduler, conductor).
+	ServiceComponent string `json:"serviceComponent,omitempty"`
+}
+
 // NovaServiceBase contains the fields that are needed for each nova service CRD
 type NovaServiceBase struct {
 	// +kubebuilder:validation:Optional
@@ -79,6 +89,9 @@ type NovaServiceBase struct {
 	// TopologyRef to apply the Topology defined by the associated CR referenced
 	// by name
 	TopologyRef *topologyv1.TopoRef `json:"topologyRef,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	OpenStackServiceIdentity `json:"openStackServiceIdentity,omitempty"`
 }
 
 // PasswordSelector to identify the DB and AdminUser password from the Secret

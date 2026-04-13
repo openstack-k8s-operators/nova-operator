@@ -66,6 +66,9 @@ type NovaComputeTemplate struct {
 	// NetworkAttachments is a list of NetworkAttachment resource names to expose the services to the given network
 	NetworkAttachments []string `json:"networkAttachments,omitempty"`
 
+	// +kubebuilder:validation:Optional
+	OpenStackServiceIdentity `json:"openStackServiceIdentity,omitempty"`
+
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Enum=ironic.IronicDriver;fake.FakeDriver
 	// ComputeDriver - defines which driver to use for controlling virtualization

@@ -104,6 +104,9 @@ type NovaCellTemplate struct {
 	// +kubebuilder:validation:Optional
 	// DBPurge defines the parameters for the DB archiving and purging cron job
 	DBPurge NovaCellDBPurge `json:"dbPurge"`
+
+	// +kubebuilder:validation:Optional
+	OpenStackServiceIdentity `json:"openStackServiceIdentity,omitempty"`
 }
 
 // NovaCellSpec defines the desired state of NovaCell
