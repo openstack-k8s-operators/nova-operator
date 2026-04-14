@@ -1,0 +1,51 @@
+# Resources listed here must NOT exist after the Cyborg CR is deleted.
+# kuttl polls until all are absent (or fails on timeout).
+apiVersion: cyborg.openstack.org/v1beta1
+kind: Cyborg
+metadata:
+  name: cyborg-kuttl
+---
+apiVersion: cyborg.openstack.org/v1beta1
+kind: CyborgAPI
+metadata:
+  name: cyborg-kuttl-api
+---
+apiVersion: cyborg.openstack.org/v1beta1
+kind: CyborgConductor
+metadata:
+  name: cyborg-kuttl-conductor
+---
+apiVersion: mariadb.openstack.org/v1beta1
+kind: MariaDBDatabase
+metadata:
+  name: cyborg
+---
+apiVersion: mariadb.openstack.org/v1beta1
+kind: MariaDBAccount
+metadata:
+  name: cyborg
+---
+apiVersion: rabbitmq.openstack.org/v1beta1
+kind: TransportURL
+metadata:
+  name: cyborg-kuttl-cyborg-transport
+---
+apiVersion: keystone.openstack.org/v1beta1
+kind: KeystoneService
+metadata:
+  name: cyborg
+---
+apiVersion: keystone.openstack.org/v1beta1
+kind: KeystoneEndpoint
+metadata:
+  name: cyborg
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: cyborg-kuttl-api-0
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: cyborg-kuttl-conductor-0
