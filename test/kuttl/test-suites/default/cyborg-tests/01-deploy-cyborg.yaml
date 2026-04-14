@@ -1,0 +1,8 @@
+apiVersion: cyborg.openstack.org/v1beta1
+kind: Cyborg
+metadata:
+  name: cyborg-kuttl
+spec:
+  secret: osp-secret
+  messagingBus:
+    cluster: rabbitmq
