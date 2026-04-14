@@ -1,3 +1,5 @@
+ENABLE_CYBORG=${ENABLE_CYBORG:-false}
+
 cat > ci/olm.yaml <<EOF_CAT
 ---
 apiVersion: v1
@@ -33,4 +35,8 @@ spec:
   channel: alpha
   source: nova-operator-index
   sourceNamespace: openstack-operators
+  config:
+    env:
+    - name: ENABLE_CYBORG
+      value: "${ENABLE_CYBORG}"
 EOF_CAT
