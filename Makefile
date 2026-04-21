@@ -447,6 +447,7 @@ crd-schema-check: manifests
 
 .PHONY: run_with_olm
 run_with_olm: export CATALOG_IMG=${CATALOG_IMAGE}
+run_with_olm: export ENABLE_CYBORG?=false
 run_with_olm: ## Install nova operator via olm
 	# explicitly to delete any running nova-operator deployments from openstack-operator here as
 	# label selectors can change and installing a service catalog/index like this alongside

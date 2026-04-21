@@ -1,0 +1,505 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestAssert
+timeout: 900
+commands:
+# --- Sub-level secret (cyborg-kuttl) content ---
+# transport_url must be a RabbitMQ URL created from the TransportURL CR
+- script: |
+    oc get secret cyborg-kuttl -n nova-kuttl-default \
+      -o jsonpath='{.data.transport_url}' | base64 -d | grep -q 'rabbit://'
+# database_hostname, ServiceUser and ServicePassword must be non-empty
+- script: |
+    test -n "$(oc get secret cyborg-kuttl -n nova-kuttl-default \
+      -o jsonpath='{.data.database_hostname}' | base64 -d)"
+- script: |
+    test -n "$(oc get secret cyborg-kuttl -n nova-kuttl-default \
+      -o jsonpath='{.data.ServiceUser}' | base64 -d)"
+- script: |
+    test -n "$(oc get secret cyborg-kuttl -n nova-kuttl-default \
+      -o jsonpath='{.data.ServicePassword}' | base64 -d)"
+# --- Cyborg config-data secret (cyborg-kuttl-config-data) content ---
+# 00-default.conf must contain the [DEFAULT] OpenStack config section
+- script: |
+    oc get secret cyborg-kuttl-config-data -n nova-kuttl-default \
+      -o jsonpath='{.data.00-default\.conf}' | base64 -d | grep -q '\[DEFAULT\]'
+# cyborg-dbsync-config.json must contain the dbsync kolla command
+- script: |
+    oc get secret cyborg-kuttl-config-data -n nova-kuttl-default \
+      -o jsonpath='{.data.cyborg-dbsync-config\.json}' | base64 -d | grep -q 'cyborg-dbsync'
+# --- CyborgAPI config-data secret (cyborg-kuttl-api-config-data) content ---
+# 00-default.conf must contain the [DEFAULT] OpenStack config section
+- script: |
+    oc get secret cyborg-kuttl-api-config-data -n nova-kuttl-default \
+      -o jsonpath='{.data.00-default\.conf}' | base64 -d | grep -q '\[DEFAULT\]'
+# 10-cyborg-wsgi-main.conf must contain the WSGI mount directive
+- script: |
+    oc get secret cyborg-kuttl-api-config-data -n nova-kuttl-default \
+      -o jsonpath='{.data.10-cyborg-wsgi-main\.conf}' | base64 -d | grep -q 'WSGIScriptAlias'
+# --- CyborgConductor config-data secret (cyborg-kuttl-conductor-config-data) content ---
+# cyborg-conductor-config.json must specify the conductor kolla command
+- script: |
+    oc get secret cyborg-kuttl-conductor-config-data -n nova-kuttl-default \
+      -o jsonpath='{.data.cyborg-conductor-config\.json}' | base64 -d | grep -q 'cyborg-conductor'
+# --- DB sync Job volumes ---
+# config-data volume in the Job pod must reference the Cyborg config-data secret
+- script: |
+    oc get job cyborg-kuttl-db-sync -n nova-kuttl-default \
+      -o jsonpath='{.spec.template.spec.volumes[?(@.name=="config-data")].secret.secretName}' \
+      | grep -q 'cyborg-kuttl-config-data'
+# db-sync-config-data volume must also reference the Cyborg config-data secret
+- script: |
+    oc get job cyborg-kuttl-db-sync -n nova-kuttl-default \
+      -o jsonpath='{.spec.template.spec.volumes[?(@.name=="db-sync-config-data")].secret.secretName}' \
+      | grep -q 'cyborg-kuttl-config-data'
+# --- CyborgAPI StatefulSet volumes ---
+# config-data volume must reference the CyborgAPI config-data secret
+- script: |
+    oc get statefulset cyborg-kuttl-api -n nova-kuttl-default \
+      -o jsonpath='{.spec.template.spec.volumes[?(@.name=="config-data")].secret.secretName}' \
+      | grep -q 'cyborg-kuttl-api-config-data'
+# logs volume must exist as an EmptyDir (used by the log-streaming sidecar)
+- script: |
+    oc get statefulset cyborg-kuttl-api -n nova-kuttl-default \
+      -o jsonpath='{.spec.template.spec.volumes[?(@.name=="logs")].name}' \
+      | grep -q 'logs'
+# --- CyborgConductor StatefulSet volumes ---
+# config-data volume must reference the CyborgConductor config-data secret
+- script: |
+    oc get statefulset cyborg-kuttl-conductor -n nova-kuttl-default \
+      -o jsonpath='{.spec.template.spec.volumes[?(@.name=="config-data")].secret.secretName}' \
+      | grep -q 'cyborg-kuttl-conductor-config-data'
+# --- CyborgAPI pod (cyborg-kuttl-api-0) volume mounts ---
+# cyborg-api container must mount config-data at /var/lib/config-data/default
+- script: |
+    oc get pod cyborg-kuttl-api-0 -n nova-kuttl-default -o json \
+      | grep -q '"mountPath": "/var/lib/config-data/default"'
+# cyborg-api container must expose the kolla config.json via cyborg-api-config.json subPath
+- script: |
+    oc get pod cyborg-kuttl-api-0 -n nova-kuttl-default -o json \
+      | grep -q '"subPath": "cyborg-api-config.json"'
+# cyborg-api container must mount my.cnf for the MariaDB client configuration
+- script: |
+    oc get pod cyborg-kuttl-api-0 -n nova-kuttl-default -o json \
+      | grep -q '"mountPath": "/etc/my.cnf"'
+# --- CyborgConductor pod (cyborg-kuttl-conductor-0) volume mounts ---
+# cyborg-conductor container must mount config-data at /var/lib/config-data/default
+- script: |
+    oc get pod cyborg-kuttl-conductor-0 -n nova-kuttl-default -o json \
+      | grep -q '"mountPath": "/var/lib/config-data/default"'
+# cyborg-conductor container must expose the kolla config.json via conductor subPath
+- script: |
+    oc get pod cyborg-kuttl-conductor-0 -n nova-kuttl-default -o json \
+      | grep -q '"subPath": "cyborg-conductor-config.json"'
+# cyborg-conductor container must mount my.cnf for the MariaDB client configuration
+- script: |
+    oc get pod cyborg-kuttl-conductor-0 -n nova-kuttl-default -o json \
+      | grep -q '"mountPath": "/etc/my.cnf"'
+---
+# Assert the top-level Cyborg CR is fully ready with all conditions True
+apiVersion: cyborg.openstack.org/v1beta1
+kind: Cyborg
+metadata:
+  name: cyborg-kuttl
+  namespace: nova-kuttl-default
+status:
+  apiServiceReadyCount: 1
+  conductorServiceReadyCount: 1
+  conditions:
+  - message: Setup complete
+    reason: Ready
+    status: "True"
+    type: Ready
+  - message: Deployment completed
+    reason: Ready
+    status: "True"
+    type: CyborgAPIReady
+  - message: Deployment completed
+    reason: Ready
+    status: "True"
+    type: CyborgConductorReady
+  - message: CyborgRabbitMQTransportURL successfully created
+    reason: Ready
+    status: "True"
+    type: CyborgRabbitMQTransportURLReady
+  - message: DB create completed
+    reason: Ready
+    status: "True"
+    type: DBReady
+  - message: DBsync completed
+    reason: Ready
+    status: "True"
+    type: DBSyncReady
+  - message: Input data complete
+    reason: Ready
+    status: "True"
+    type: InputReady
+  - message: Setup complete
+    reason: Ready
+    status: "True"
+    type: KeystoneServiceReady
+  - message: MariaDBAccount creation complete
+    reason: Ready
+    status: "True"
+    type: MariaDBAccountReady
+  - message: RoleBinding created
+    reason: Ready
+    status: "True"
+    type: RoleBindingReady
+  - message: Role created
+    reason: Ready
+    status: "True"
+    type: RoleReady
+  - message: ServiceAccount created
+    reason: Ready
+    status: "True"
+    type: ServiceAccountReady
+  - message: Service config create completed
+    reason: Ready
+    status: "True"
+    type: ServiceConfigReady
+---
+# Assert the CyborgAPI sub-CR is created and ready
+apiVersion: cyborg.openstack.org/v1beta1
+kind: CyborgAPI
+metadata:
+  name: cyborg-kuttl-api
+  namespace: nova-kuttl-default
+status:
+  readyCount: 1
+  conditions:
+  - message: Setup complete
+    reason: Ready
+    status: "True"
+    type: Ready
+  - message: Create service completed
+    reason: Ready
+    status: "True"
+    type: CreateServiceReady
+  - message: Deployment completed
+    reason: Ready
+    status: "True"
+    type: DeploymentReady
+  - message: Input data complete
+    reason: Ready
+    status: "True"
+    type: InputReady
+  - message: Setup complete
+    reason: Ready
+    status: "True"
+    type: KeystoneEndpointReady
+  - message: Service config create completed
+    reason: Ready
+    status: "True"
+    type: ServiceConfigReady
+  - message: Input data complete
+    reason: Ready
+    status: "True"
+    type: TLSInputReady
+---
+# Assert the CyborgConductor sub-CR is created and ready
+apiVersion: cyborg.openstack.org/v1beta1
+kind: CyborgConductor
+metadata:
+  name: cyborg-kuttl-conductor
+  namespace: nova-kuttl-default
+status:
+  readyCount: 1
+  conditions:
+  - message: Setup complete
+    reason: Ready
+    status: "True"
+    type: Ready
+  - message: Deployment completed
+    reason: Ready
+    status: "True"
+    type: DeploymentReady
+  - message: Input data complete
+    reason: Ready
+    status: "True"
+    type: InputReady
+  - message: Service config create completed
+    reason: Ready
+    status: "True"
+    type: ServiceConfigReady
+---
+# Assert the MariaDBDatabase CR for cyborg is created and ready
+apiVersion: mariadb.openstack.org/v1beta1
+kind: MariaDBDatabase
+metadata:
+  name: cyborg
+  namespace: nova-kuttl-default
+  finalizers:
+  - openstack.org/cyborg
+  - openstack.org/mariadbdatabase
+  - openstack.org/mariadbaccount-cyborg
+status:
+  conditions:
+  - message: Setup complete
+    reason: Ready
+    status: "True"
+    type: Ready
+  - message: MariaDBDatabase ready
+    reason: Ready
+    status: "True"
+    type: MariaDBDatabaseReady
+  - message: MariaDB / Galera server ready
+    reason: Ready
+    status: "True"
+    type: MariaDBServerReady
+---
+# Assert the MariaDBAccount CR for cyborg is created and ready
+apiVersion: mariadb.openstack.org/v1beta1
+kind: MariaDBAccount
+metadata:
+  name: cyborg
+  namespace: nova-kuttl-default
+  finalizers:
+  - openstack.org/cyborg
+  - openstack.org/mariadbaccount
+status:
+  conditions:
+  - message: Setup complete
+    reason: Ready
+    status: "True"
+    type: Ready
+  - message: MariaDBAccount creation complete
+    reason: Ready
+    status: "True"
+    type: MariaDBAccountReady
+  - message: MariaDBDatabase ready
+    reason: Ready
+    status: "True"
+    type: MariaDBDatabaseReady
+  - message: MariaDB / Galera server ready
+    reason: Ready
+    status: "True"
+    type: MariaDBServerReady
+---
+# Assert the TransportURL for cyborg is created and ready
+apiVersion: rabbitmq.openstack.org/v1beta1
+kind: TransportURL
+metadata:
+  name: cyborg-kuttl-cyborg-transport
+  namespace: nova-kuttl-default
+status:
+  conditions:
+  - message: Setup complete
+    reason: Ready
+    status: "True"
+    type: Ready
+  - message: TransportURL completed
+    reason: Ready
+    status: "True"
+    type: TransportURLReady
+---
+# Assert the KeystoneService for cyborg is created and ready
+apiVersion: keystone.openstack.org/v1beta1
+kind: KeystoneService
+metadata:
+  name: cyborg
+  namespace: nova-kuttl-default
+  finalizers:
+  - openstack.org/cyborg
+  - openstack.org/keystoneservice
+  - openstack.org/keystoneendpoint-cyborg
+status:
+  conditions:
+  - message: Setup complete
+    reason: Ready
+    status: "True"
+    type: Ready
+  - message: Admin client ready
+    reason: Ready
+    status: "True"
+    type: AdminServiceClientReady
+  - message: KeystoneAPI ready
+    reason: Ready
+    status: "True"
+    type: KeystoneAPIReady
+  - reason: Ready
+    status: "True"
+    type: KeystoneServiceOSServiceReady
+  - reason: Ready
+    status: "True"
+    type: KeystoneServiceOSUserReady
+---
+# Assert the KeystoneEndpoint for cyborg is created and ready
+apiVersion: keystone.openstack.org/v1beta1
+kind: KeystoneEndpoint
+metadata:
+  name: cyborg
+  namespace: nova-kuttl-default
+status:
+  conditions:
+  - message: Setup complete
+    reason: Ready
+    status: "True"
+    type: Ready
+  - message: Admin client ready
+    reason: Ready
+    status: "True"
+    type: AdminServiceClientReady
+  - message: KeystoneAPI ready
+    reason: Ready
+    status: "True"
+    type: KeystoneAPIReady
+  - reason: Ready
+    status: "True"
+    type: KeystoneServiceOSEndpointsReady
+  - message: Setup complete
+    reason: Ready
+    status: "True"
+    type: KeystoneServiceReady
+---
+# Assert the cyborg-api public Service is created with the correct port and selector
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    endpoint: public
+    service: cyborg-api
+  name: cyborg-public
+  namespace: nova-kuttl-default
+spec:
+  ports:
+  - name: cyborg-public
+    port: 6666
+    protocol: TCP
+    targetPort: 6666
+  selector:
+    service: cyborg-api
+  type: ClusterIP
+---
+# Assert the cyborg-api internal Service is created with the correct port and selector
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    endpoint: internal
+    service: cyborg-api
+  name: cyborg-internal
+  namespace: nova-kuttl-default
+spec:
+  ports:
+  - name: cyborg-internal
+    port: 6666
+    protocol: TCP
+    targetPort: 6666
+  selector:
+    service: cyborg-api
+  type: ClusterIP
+---
+# Assert the sub-level secret created by the Cyborg controller exists.
+# It aggregates DB credentials, transport URL and service password so that
+# CyborgAPI and CyborgConductor sub-CRs can read a single secret.
+# Content checks (transport_url, database_hostname, ServiceUser, ServicePassword)
+# are performed via the commands block above.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cyborg-kuttl
+  namespace: nova-kuttl-default
+---
+# Assert the Cyborg controller config-data secret exists.
+# Expected files: 00-default.conf, cyborg-dbsync-config.json, my.cnf
+# Content checks are performed via the commands block above.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cyborg-kuttl-config-data
+  namespace: nova-kuttl-default
+---
+# Assert the CyborgAPI controller config-data secret exists.
+# Expected files: 00-default.conf, cyborg-api-config.json, httpd.conf,
+# ssl.conf, 10-cyborg-wsgi-main.conf, my.cnf
+# Content checks are performed via the commands block above.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cyborg-kuttl-api-config-data
+  namespace: nova-kuttl-default
+---
+# Assert the CyborgConductor controller config-data secret exists.
+# Expected files: 00-default.conf, cyborg-conductor-config.json, my.cnf
+# Content checks are performed via the commands block above.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cyborg-kuttl-conductor-config-data
+  namespace: nova-kuttl-default
+---
+# Assert the DB sync Job ran to completion.
+# Volume source and mount checks are performed via the commands block above.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: cyborg-kuttl-db-sync
+  namespace: nova-kuttl-default
+status:
+  succeeded: 1
+---
+# Assert the CyborgAPI StatefulSet is deployed and all replicas are ready.
+# Volume source checks (config-data → cyborg-kuttl-api-config-data, logs EmptyDir)
+# are performed via the commands block above.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: cyborg-kuttl-api
+  namespace: nova-kuttl-default
+spec:
+  replicas: 1
+status:
+  readyReplicas: 1
+---
+# Assert the CyborgConductor StatefulSet is deployed and all replicas are ready.
+# Volume source check (config-data → cyborg-kuttl-conductor-config-data)
+# is performed via the commands block above.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: cyborg-kuttl-conductor
+  namespace: nova-kuttl-default
+spec:
+  replicas: 1
+status:
+  readyReplicas: 1
+---
+# Assert the cyborg-api pod is running with both containers ready.
+# Volume mount checks (/var/lib/config-data/default, /etc/my.cnf,
+# kolla config.json via cyborg-api-config.json subPath) are performed
+# via the commands block above.
+# containerStatuses are sorted alphabetically: cyborg-api before cyborg-api-log
+apiVersion: v1
+kind: Pod
+metadata:
+  annotations:
+    openshift.io/scc: anyuid
+  labels:
+    service: cyborg-api
+  name: cyborg-kuttl-api-0
+status:
+  containerStatuses:
+  - name: cyborg-api
+    ready: true
+    started: true
+  - name: cyborg-api-log
+    ready: true
+    started: true
+---
+# Assert the cyborg-conductor pod is running with its container ready.
+# Volume mount checks (/var/lib/config-data/default, /etc/my.cnf,
+# kolla config.json via cyborg-conductor-config.json subPath) are performed
+# via the commands block above.
+apiVersion: v1
+kind: Pod
+metadata:
+  annotations:
+    openshift.io/scc: anyuid
+  labels:
+    service: cyborg-conductor
+  name: cyborg-kuttl-conductor-0
+status:
+  containerStatuses:
+  - name: cyborg-conductor
+    ready: true
+    started: true

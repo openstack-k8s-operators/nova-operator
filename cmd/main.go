@@ -38,8 +38,12 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	"github.com/openstack-k8s-operators/nova-operator/internal/controller/nova"
+	cyborgv1 "github.com/openstack-k8s-operators/nova-operator/api/cyborg/v1beta1"
+	cyborgcontroller "github.com/openstack-k8s-operators/nova-operator/internal/controller/cyborg"
+	controller "github.com/openstack-k8s-operators/nova-operator/internal/controller/nova"
+	cyborgwebhookv1beta1 "github.com/openstack-k8s-operators/nova-operator/internal/webhook/cyborg/v1beta1"
 	webhookv1beta1 "github.com/openstack-k8s-operators/nova-operator/internal/webhook/nova/v1beta1"
+
 	// +kubebuilder:scaffold:imports
 	networkv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
@@ -48,11 +52,12 @@ import (
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/operator"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
-	novav1 "github.com/openstack-k8s-operators/nova-operator/api/nova/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
+
+	novav1 "github.com/openstack-k8s-operators/nova-operator/api/nova/v1beta1"
 )
 
 var (
@@ -71,6 +76,7 @@ func init() {
 	utilruntime.Must(networkv1.AddToScheme(scheme))
 	utilruntime.Must(memcachedv1.AddToScheme(scheme))
 	utilruntime.Must(topologyv1.AddToScheme(scheme))
+	utilruntime.Must(cyborgv1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
@@ -262,6 +268,16 @@ func main() {
 	// Acquire environmental defaults and initialize operator defaults with them
 	novav1.SetupDefaults()
 
+	if os.Getenv("ENABLE_CYBORG") == "true" {
+		cyborgreconcilers := cyborgcontroller.NewReconcilers(mgr, kclient)
+		err = cyborgreconcilers.Setup(mgr, setupLog)
+		if err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "Cyborg")
+			os.Exit(1)
+		}
+		cyborgv1.SetupDefaults()
+	}
+
 	// nolint:goconst
 	checker := healthz.Ping
 	if os.Getenv("ENABLE_WEBHOOKS") != "false" {
@@ -299,9 +315,23 @@ func main() {
 			setupLog.Error(err, "unable to create webhook", "webhook", "NovaCompute")
 			os.Exit(1)
 		}
+		if os.Getenv("ENABLE_CYBORG") == "true" {
+			if err := cyborgwebhookv1beta1.SetupCyborgWebhookWithManager(mgr); err != nil {
+				setupLog.Error(err, "unable to create webhook", "webhook", "Cyborg")
+				os.Exit(1)
+			}
+			if err := cyborgwebhookv1beta1.SetupCyborgAPIWebhookWithManager(mgr); err != nil {
+				setupLog.Error(err, "unable to create webhook", "webhook", "CyborgAPI")
+				os.Exit(1)
+			}
+			if err := cyborgwebhookv1beta1.SetupCyborgConductorWebhookWithManager(mgr); err != nil {
+				setupLog.Error(err, "unable to create webhook", "webhook", "CyborgConductor")
+				os.Exit(1)
+			}
+		}
 		checker = mgr.GetWebhookServer().StartedChecker()
-
 	}
+
 	// +kubebuilder:scaffold:builder
 
 	if metricsCertWatcher != nil {

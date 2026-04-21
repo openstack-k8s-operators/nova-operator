@@ -1,0 +1,61 @@
+# Resources listed here must NOT exist after the Cyborg CR is deleted.
+# kuttl polls until all are absent (or fails on timeout).
+apiVersion: cyborg.openstack.org/v1beta1
+kind: Cyborg
+metadata:
+  name: cyborg-kuttl
+  namespace: nova-kuttl-default
+---
+apiVersion: cyborg.openstack.org/v1beta1
+kind: CyborgAPI
+metadata:
+  name: cyborg-kuttl-api
+  namespace: nova-kuttl-default
+---
+apiVersion: cyborg.openstack.org/v1beta1
+kind: CyborgConductor
+metadata:
+  name: cyborg-kuttl-conductor
+  namespace: nova-kuttl-default
+---
+apiVersion: mariadb.openstack.org/v1beta1
+kind: MariaDBDatabase
+metadata:
+  name: cyborg
+  namespace: nova-kuttl-default
+---
+apiVersion: mariadb.openstack.org/v1beta1
+kind: MariaDBAccount
+metadata:
+  name: cyborg
+  namespace: nova-kuttl-default
+---
+apiVersion: rabbitmq.openstack.org/v1beta1
+kind: TransportURL
+metadata:
+  name: cyborg-kuttl-cyborg-transport
+  namespace: nova-kuttl-default
+---
+apiVersion: keystone.openstack.org/v1beta1
+kind: KeystoneService
+metadata:
+  name: cyborg
+  namespace: nova-kuttl-default
+---
+apiVersion: keystone.openstack.org/v1beta1
+kind: KeystoneEndpoint
+metadata:
+  name: cyborg
+  namespace: nova-kuttl-default
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: cyborg-kuttl-api-0
+  namespace: nova-kuttl-default
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: cyborg-kuttl-conductor-0
+  namespace: nova-kuttl-default
