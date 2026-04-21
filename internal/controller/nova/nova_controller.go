@@ -56,7 +56,7 @@ import (
 
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/nova/v1beta1"
 	"github.com/openstack-k8s-operators/nova-operator/internal/nova"
-	"github.com/openstack-k8s-operators/nova-operator/internal/nova/api"
+	novaapi "github.com/openstack-k8s-operators/nova-operator/internal/nova/api"
 
 	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
 	rabbitmqv1 "github.com/openstack-k8s-operators/infra-operator/apis/rabbitmq/v1beta1"
@@ -1143,17 +1143,19 @@ func (r *NovaReconciler) ensureNovaManageJobSecret(
 
 	cms := []util.Template{
 		{
-			Name:         scriptName,
-			Namespace:    instance.Namespace,
-			Type:         util.TemplateTypeScripts,
-			InstanceType: "nova/nova-manage",
-			Labels:       cmLabels,
+			Name:             scriptName,
+			Namespace:        instance.Namespace,
+			Type:             util.TemplateTypeScripts,
+			InstanceType:     instance.GetObjectKind().GroupVersionKind().Kind,
+			MultiTemplateDir: "nova/nova-manage",
+			Labels:           cmLabels,
 		},
 		{
 			Name:               configName,
 			Namespace:          instance.Namespace,
 			Type:               util.TemplateTypeConfig,
-			InstanceType:       "nova/nova-manage",
+			InstanceType:       instance.GetObjectKind().GroupVersionKind().Kind,
+			MultiTemplateDir:   "nova/nova-manage",
 			ConfigOptions:      templateParameters,
 			Labels:             cmLabels,
 			CustomData:         extraData,
@@ -2142,10 +2144,11 @@ func (r *NovaReconciler) ensureCellSecret(
 	)
 
 	template := util.Template{
-		Name:         secretName,
-		Namespace:    instance.Namespace,
-		Type:         util.TemplateTypeNone,
-		InstanceType: getTemplateInstanceType(instance),
+		Name:      secretName,
+		Namespace: instance.Namespace,
+		Type:      util.TemplateTypeNone,
+		// No MultiTemplateDir: TemplateTypeNone does not load templates from a directory.
+		InstanceType: instance.GetObjectKind().GroupVersionKind().Kind,
 		Labels:       labels,
 		CustomData:   data,
 	}
@@ -2202,10 +2205,11 @@ func (r *NovaReconciler) ensureTopLevelSecret(
 	)
 
 	template := util.Template{
-		Name:         secretName,
-		Namespace:    instance.Namespace,
-		Type:         util.TemplateTypeNone,
-		InstanceType: getTemplateInstanceType(instance),
+		Name:      secretName,
+		Namespace: instance.Namespace,
+		Type:      util.TemplateTypeNone,
+		// No MultiTemplateDir: TemplateTypeNone does not load templates from a directory.
+		InstanceType: instance.GetObjectKind().GroupVersionKind().Kind,
 		Labels:       labels,
 		CustomData:   data,
 	}
