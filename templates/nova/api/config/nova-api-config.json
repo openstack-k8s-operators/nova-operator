@@ -83,6 +83,13 @@
             "dest": "/etc/my.cnf",
             "owner": "nova",
             "perm": "0644"
+        },
+        {
+            "source": "/var/lib/openstack/config/nova_api_audit_map.conf",
+            "dest": "/etc/nova/nova_api_audit_map.conf",
+            "owner": "nova",
+            "perm": "0600",
+            "optional": true
         }
     ],
     "permissions": [
