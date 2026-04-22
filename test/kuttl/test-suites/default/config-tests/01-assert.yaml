@@ -142,3 +142,7 @@ commands:
       set -euxo pipefail
       RP_UUID=$(oc exec -n $NAMESPACE openstackclient -- openstack resource provider list --name nova-kuttl-cell1-compute-fake1-compute-0 -f value -c uuid)
       oc exec -n $NAMESPACE openstackclient -- openstack resource provider trait list $RP_UUID | grep CUSTOM_FOO
+  - script: |
+      set -euxo pipefail
+      oc exec -n $NAMESPACE openstackclient -- openstack server list
+      oc logs -n $NAMESPACE nova-kuttl-api-0 | grep oslo.messaging.notification

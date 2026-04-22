@@ -726,7 +726,7 @@ var _ = Describe("Nova validation", func() {
 			ContainSubstring(
 				"invalid: spec.defaultConfigOverwrite: " +
 					"Invalid value: \"foo.conf\": Only the following keys " +
-					"are valid: policy.yaml, api-paste.ini",
+					"are valid: policy.yaml, api-paste.ini, nova_api_audit_map.conf",
 			),
 		)
 	})
@@ -764,7 +764,7 @@ var _ = Describe("Nova validation", func() {
 			ContainSubstring(
 				"invalid: spec.apiServiceTemplate.defaultConfigOverwrite: " +
 					"Invalid value: \"provider.yaml\": Only the following " +
-					"keys are valid: policy.yaml, api-paste.ini"),
+					"keys are valid: policy.yaml, api-paste.ini, nova_api_audit_map.conf"),
 		)
 	})
 
