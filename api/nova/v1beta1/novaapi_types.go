@@ -54,7 +54,7 @@ type NovaAPITemplate struct {
 	CustomServiceConfig string `json:"customServiceConfig"`
 
 	// +kubebuilder:validation:Optional
-	// DefaultConfigOverwrite - interface to overwrite default config files like e.g. api-paste.ini or policy.yaml.
+	// DefaultConfigOverwrite - interface to overwrite default config files like e.g. api-paste.ini, policy.yaml or nova_api_audit_map.conf.
 	DefaultConfigOverwrite map[string]string `json:"defaultConfigOverwrite,omitempty"`
 
 	// +kubebuilder:validation:Optional
@@ -171,7 +171,7 @@ type NovaAPISpec struct {
 	TLS tls.API `json:"tls,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	// DefaultConfigOverwrite - interface to overwrite default config files like e.g. api-paste.ini or policy.yaml.
+	// DefaultConfigOverwrite - interface to overwrite default config files like e.g. api-paste.ini, policy.yaml or nova_api_audit_map.conf.
 	DefaultConfigOverwrite map[string]string `json:"defaultConfigOverwrite,omitempty"`
 
 	// +kubebuilder:validation:Required
