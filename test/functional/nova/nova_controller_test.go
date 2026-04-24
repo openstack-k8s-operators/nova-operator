@@ -37,6 +37,7 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/nova/v1beta1"
 	controllers "github.com/openstack-k8s-operators/nova-operator/internal/controller/nova"
+	nova "github.com/openstack-k8s-operators/nova-operator/internal/nova"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -2155,6 +2156,166 @@ var _ = Describe("application credentials", func() {
 				g.Expect(string(cell1Secret.Data["ACID"])).To(Equal(appCredID))
 				g.Expect(string(cell1Secret.Data["ACSecret"])).To(Equal(appCredSecret))
 			}, timeout, interval).Should(Succeed())
+		})
+	})
+
+	When("ApplicationCredential consumer finalizer is managed", func() {
+		var acSecretName string
+
+		BeforeEach(func() {
+			acSecretName = "ac-nova-a1b2c-secret" //nolint:gosec // G101
+			ac := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: novaNames.NovaName.Namespace,
+					Name:      acSecretName,
+				},
+				Data: map[string][]byte{
+					keystonev1.ACIDSecretKey:     []byte("a1b2ctest-ac-id"),
+					keystonev1.ACSecretSecretKey: []byte("test-ac-secret"),
+				},
+			}
+			DeferCleanup(k8sClient.Delete, ctx, ac)
+			Expect(k8sClient.Create(ctx, ac)).To(Succeed())
+
+			DeferCleanup(k8sClient.Delete, ctx, CreateNovaSecret(novaNames.NovaName.Namespace, SecretName))
+			DeferCleanup(k8sClient.Delete, ctx, CreateNovaMessageBusSecret(cell0))
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
+					novaNames.NovaName.Namespace,
+					"openstack",
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+			memcachedSpec := infra.GetDefaultMemcachedSpec()
+			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
+			infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
+
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(novaNames.NovaName.Namespace))
+
+			rawNova := map[string]any{
+				"apiVersion": "nova.openstack.org/v1beta1",
+				"kind":       "Nova",
+				"metadata": map[string]any{
+					"name":      novaNames.NovaName.Name,
+					"namespace": novaNames.NovaName.Namespace,
+				},
+				"spec": map[string]any{
+					"secret":             SecretName,
+					"apiDatabaseAccount": novaNames.APIMariaDBDatabaseAccount.Name,
+					"cellTemplates": map[string]any{
+						"cell0": map[string]any{
+							"cellDatabaseAccount": cell0.MariaDBAccountName.Name,
+							"apiDatabaseAccount":  novaNames.APIMariaDBDatabaseAccount.Name,
+							"hasAPIAccess":        true,
+							"dbPurge": map[string]any{
+								"schedule": "1 0 * * *",
+							},
+						},
+					},
+					"messagingBus": map[string]any{
+						"cluster": cell0.TransportURLName.Name,
+					},
+					"auth": map[string]any{
+						"applicationCredentialSecret": acSecretName,
+					},
+				},
+			}
+			DeferCleanup(th.DeleteInstance, th.CreateUnstructured(rawNova))
+		})
+
+		It("should add the consumer finalizer to the AC secret", func() {
+			Eventually(func(g Gomega) {
+				secret := th.GetSecret(types.NamespacedName{
+					Namespace: novaNames.NovaName.Namespace,
+					Name:      acSecretName,
+				})
+				g.Expect(secret.Finalizers).To(
+					ContainElement(nova.ACConsumerFinalizer))
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("should track the consumed AC secret in status", func() {
+			Eventually(func(g Gomega) {
+				n := GetNova(novaNames.NovaName)
+				g.Expect(n.Status.ApplicationCredentialSecret).To(Equal(acSecretName))
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("should move the finalizer from the old to the new secret on rotation", func() {
+			Eventually(func(g Gomega) {
+				secret := th.GetSecret(types.NamespacedName{
+					Namespace: novaNames.NovaName.Namespace,
+					Name:      acSecretName,
+				})
+				g.Expect(secret.Finalizers).To(
+					ContainElement(nova.ACConsumerFinalizer))
+			}, timeout, interval).Should(Succeed())
+
+			newACSecretName := "ac-nova-x9y8z-secret" //nolint:gosec // G101
+			newSecret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: novaNames.NovaName.Namespace,
+					Name:      newACSecretName,
+				},
+				Data: map[string][]byte{
+					keystonev1.ACIDSecretKey:     []byte("x9y8zrotated-ac-id"),
+					keystonev1.ACSecretSecretKey: []byte("rotated-ac-secret"),
+				},
+			}
+			DeferCleanup(k8sClient.Delete, ctx, newSecret)
+			Expect(k8sClient.Create(ctx, newSecret)).To(Succeed())
+
+			Eventually(func(g Gomega) {
+				n := GetNova(novaNames.NovaName)
+				n.Spec.Auth.ApplicationCredentialSecret = newACSecretName
+				g.Expect(k8sClient.Update(ctx, n)).Should(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				secret := th.GetSecret(types.NamespacedName{
+					Namespace: novaNames.NovaName.Namespace,
+					Name:      newACSecretName,
+				})
+				g.Expect(secret.Finalizers).To(
+					ContainElement(nova.ACConsumerFinalizer))
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				secret := th.GetSecret(types.NamespacedName{
+					Namespace: novaNames.NovaName.Namespace,
+					Name:      acSecretName,
+				})
+				g.Expect(secret.Finalizers).NotTo(
+					ContainElement(nova.ACConsumerFinalizer))
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				n := GetNova(novaNames.NovaName)
+				g.Expect(n.Status.ApplicationCredentialSecret).To(Equal(newACSecretName))
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("should remove the consumer finalizer from AC secret on CR deletion", func() {
+			Eventually(func(g Gomega) {
+				secret := th.GetSecret(types.NamespacedName{
+					Namespace: novaNames.NovaName.Namespace,
+					Name:      acSecretName,
+				})
+				g.Expect(secret.Finalizers).To(
+					ContainElement(nova.ACConsumerFinalizer))
+			}, timeout, interval).Should(Succeed())
+
+			th.DeleteInstance(GetNova(novaNames.NovaName))
+
+			secret := th.GetSecret(types.NamespacedName{
+				Namespace: novaNames.NovaName.Namespace,
+				Name:      acSecretName,
+			})
+			Expect(secret.Finalizers).NotTo(
+				ContainElement(nova.ACConsumerFinalizer))
 		})
 	})
 })

@@ -30,6 +30,11 @@ const (
 	NovaUserID int64 = 42436
 )
 
+const (
+	// ACConsumerFinalizer is added to AC secrets that nova is actively consuming
+	ACConsumerFinalizer = "openstack.org/nova-ac-consumer"
+)
+
 // GetScriptSecretName returns the name of the Secret used for the
 // db sync scripts
 func GetScriptSecretName(crName string) string {
