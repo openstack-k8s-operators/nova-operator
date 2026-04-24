@@ -29,7 +29,18 @@ commands:
       fi
       echo "✓ ACID rotated: ${prev_acid} -> ${ac_id}"
 
-      secret_ac_id=$(oc get -n "${NS}" secret/ac-nova-secret -o jsonpath='{.data.AC_ID}' | base64 -d)
+      ac_secret_name=$(oc get -n "${NS}" appcred/ac-nova -o jsonpath='{.status.secretName}')
+      if [ -z "${ac_secret_name}" ]; then
+        echo "ERROR: appcred/ac-nova.status.secretName is empty after rotation"
+        exit 1
+      fi
+      echo "AC secret name after rotation: ${ac_secret_name}"
+
+      # Patch the service CR with the new secret name
+      oc patch nova nova-kuttl -n "${NS}" --type=merge \
+        -p "{\"spec\":{\"auth\":{\"applicationCredentialSecret\":\"${ac_secret_name}\"}}}"
+
+      secret_ac_id=$(oc get -n "${NS}" secret/"${ac_secret_name}" -o jsonpath='{.data.AC_ID}' | base64 -d)
       if [ "${secret_ac_id}" != "${ac_id}" ]; then
         echo "ERROR: Secret AC_ID (${secret_ac_id}) != rotated appcred.status.acID (${ac_id})"
         exit 1

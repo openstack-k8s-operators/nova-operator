@@ -26,5 +26,14 @@ commands:
         unrestricted: false
       EOF
 
-      # Ensure the service operator is configured to use the standard AC secret name.
-      oc patch nova nova-kuttl -n "${NS}" --type=merge -p '{"spec":{"auth":{"applicationCredentialSecret":"ac-nova-secret"}}}'
+      echo "Waiting for KeystoneApplicationCredential ac-nova to be Ready..."
+      oc wait -n "${NS}" appcred/ac-nova --for=condition=Ready --timeout=300s
+
+      ac_secret_name=$(oc get -n "${NS}" appcred/ac-nova -o jsonpath='{.status.secretName}')
+      if [ -z "${ac_secret_name}" ]; then
+        echo "ERROR: appcred/ac-nova.status.secretName is empty"
+        exit 1
+      fi
+      echo "AC secret name: ${ac_secret_name}"
+
+      oc patch nova nova-kuttl -n "${NS}" --type=merge -p "{\"spec\":{\"auth\":{\"applicationCredentialSecret\":\"${ac_secret_name}\"}}}"
