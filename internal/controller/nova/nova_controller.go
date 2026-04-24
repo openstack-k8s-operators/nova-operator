@@ -303,6 +303,24 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		}
 	}
 
+	// Add consumer finalizer to the new AC secret early, before deployment.
+	// The old secret's finalizer is removed later (after all services deploy)
+	// so that rapid rotations don't revoke a credential still in use by pods.
+	if instance.Spec.Auth.ApplicationCredentialSecret != "" {
+		if err := keystonev1.ManageACSecretFinalizer(ctx, h, instance.Namespace,
+			instance.Spec.Auth.ApplicationCredentialSecret,
+			"",
+			nova.ACConsumerFinalizer); err != nil {
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				condition.InputReadyCondition,
+				condition.ErrorReason,
+				condition.SeverityWarning,
+				condition.InputReadyErrorMessage,
+				err.Error()))
+			return ctrl.Result{}, err
+		}
+	}
+
 	instance.Status.Conditions.MarkTrue(condition.InputReadyCondition, condition.InputReadyMessage)
 
 	err = r.ensureKeystoneServiceUser(ctx, h, instance)
@@ -772,6 +790,25 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 			novav1.NovaCellsDeletionCondition,
 			novav1.NovaCellsDeletionConditionReadyMessage,
 		)
+	}
+
+	// Manage the old AC secret's finalizer and status tracking.
+	// On rotation (old != new), only remove the old secret's finalizer after
+	// all sub-services are ready with the new credentials. This prevents
+	// premature revocation during rapid rotations.
+	isRotation := instance.Status.ApplicationCredentialSecret != "" && instance.Status.ApplicationCredentialSecret != instance.Spec.Auth.ApplicationCredentialSecret
+
+	if isRotation {
+		allServicesReady := instance.Status.Conditions.AllSubConditionIsTrue()
+		if allServicesReady {
+			if err := keystonev1.RemoveACSecretConsumerFinalizer(ctx, h, instance.Namespace,
+				instance.Status.ApplicationCredentialSecret, nova.ACConsumerFinalizer); err != nil {
+				return ctrl.Result{}, err
+			}
+			instance.Status.ApplicationCredentialSecret = instance.Spec.Auth.ApplicationCredentialSecret
+		}
+	} else if instance.Status.ApplicationCredentialSecret != instance.Spec.Auth.ApplicationCredentialSecret {
+		instance.Status.ApplicationCredentialSecret = instance.Spec.Auth.ApplicationCredentialSecret
 	}
 
 	Log.Info("Successfully reconciled")
@@ -1768,6 +1805,17 @@ func (r *NovaReconciler) reconcileDelete(
 	err = r.ensureKeystoneServiceUserDeletion(ctx, h, instance)
 	if err != nil {
 		return err
+	}
+
+	// Remove consumer finalizer from AC secrets nova was consuming.
+	for _, secretName := range []string{
+		instance.Status.ApplicationCredentialSecret,
+		instance.Spec.Auth.ApplicationCredentialSecret,
+	} {
+		if err := keystonev1.RemoveACSecretConsumerFinalizer(ctx, h, instance.Namespace,
+			secretName, nova.ACConsumerFinalizer); err != nil {
+			return err
+		}
 	}
 
 	// Successfully cleaned up everything. So as the final step let's remove the

@@ -22,10 +22,6 @@ delete:
     name: ac-nova
     namespace: nova-kuttl-default
   - apiVersion: v1
-    kind: Secret
-    name: ac-nova-secret
-    namespace: nova-kuttl-default
-  - apiVersion: v1
     kind: ConfigMap
     name: appcred-nova-pre
     namespace: nova-kuttl-default

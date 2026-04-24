@@ -16,16 +16,23 @@ commands:
       fi
       echo "ac-nova.status.acID=${ac_id}"
 
-      echo "Waiting for Secret ac-nova-secret..."
+      ac_secret_name=$(oc get -n "${NS}" appcred/ac-nova -o jsonpath='{.status.secretName}')
+      if [ -z "${ac_secret_name}" ]; then
+        echo "ERROR: appcred/ac-nova.status.secretName is empty"
+        exit 1
+      fi
+      echo "AC secret name: ${ac_secret_name}"
+
+      echo "Waiting for Secret ${ac_secret_name}..."
       for _ in $(seq 1 60); do
-        if oc get -n "${NS}" secret/ac-nova-secret >/dev/null 2>&1; then
+        if oc get -n "${NS}" secret/"${ac_secret_name}" >/dev/null 2>&1; then
           break
         fi
         sleep 2
       done
-      oc get -n "${NS}" secret/ac-nova-secret >/dev/null
+      oc get -n "${NS}" secret/"${ac_secret_name}" >/dev/null
 
-      secret_ac_id=$(oc get -n "${NS}" secret/ac-nova-secret -o jsonpath='{.data.AC_ID}' | base64 -d)
+      secret_ac_id=$(oc get -n "${NS}" secret/"${ac_secret_name}" -o jsonpath='{.data.AC_ID}' | base64 -d)
       if [ "${secret_ac_id}" != "${ac_id}" ]; then
         echo "ERROR: Secret AC_ID (${secret_ac_id}) != appcred.status.acID (${ac_id})"
         exit 1
