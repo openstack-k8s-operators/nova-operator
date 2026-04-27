@@ -185,6 +185,12 @@ type NovaStatus struct {
 
 	//ObservedGeneration - the most recent generation observed for this service. If the observed generation is less than the spec generation, then the controller has not processed the latest changes.
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+
+	// ApplicationCredentialSecret - the AC secret nova is currently
+	// consuming and protecting with the openstack.org/nova-ac-consumer
+	// finalizer. Tracked so the controller can remove its finalizer from the
+	// old secret when the openstack-operator rotates the reference.
+	ApplicationCredentialSecret string `json:"applicationCredentialSecret,omitempty"`
 }
 
 //+kubebuilder:object:root=true
