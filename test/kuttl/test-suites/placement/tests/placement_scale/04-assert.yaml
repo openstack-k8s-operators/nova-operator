@@ -1,0 +1,26 @@
+#
+# Check for:
+#
+# - 1 PlacementAPI CR
+# - 1 Pods for PlacementAPI CR
+#
+
+apiVersion: placement.openstack.org/v1beta1
+kind: PlacementAPI
+metadata:
+  finalizers:
+  - openstack.org/placementapi
+  name: placement
+spec:
+  replicas: 1
+status:
+  readyCount: 1
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: placement
+spec:
+  replicas: 1
+status:
+  availableReplicas: 1
