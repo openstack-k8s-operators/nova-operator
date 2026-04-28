@@ -139,6 +139,61 @@ var _ = Describe("Nova controller - notifications", func() {
 
 			infra.AssertTransportURLDoesNotExist(notificationsBus.TransportURLName)
 		})
+
+		It("returns early when notification TransportURL becomes not ready", func() {
+			notificationsBus := GetNotificationsBusNames(novaNames.NovaName)
+			DeferCleanup(k8sClient.Delete, ctx, CreateNotificationTransportURLSecret(notificationsBus))
+
+			// add notification bus and simulate it ready
+			Eventually(func(g Gomega) {
+				nova := GetNova(novaNames.NovaName)
+				nova.Spec.NotificationsBus = &rabbitmqv1.RabbitMqConfig{
+					Cluster: notificationsBus.BusName,
+				}
+				g.Expect(k8sClient.Update(ctx, nova)).Should(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			infra.SimulateTransportURLReady(notificationsBus.TransportURLName)
+
+			// wait for notification MQ to be ready
+			th.ExpectCondition(
+				novaNames.NovaName,
+				ConditionGetterFunc(NovaConditionGetter),
+				novav1.NovaNotificationMQReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			// get config resourceVersion
+			initialConfigDataMap := th.GetSecret(novaNames.APIConfigDataName)
+			initialResourceVersion := initialConfigDataMap.ResourceVersion
+
+			// simulate rabbitmq pod deleted - transportURL becoming not ready
+			Eventually(func(g Gomega) {
+				transportURL := infra.GetTransportURL(notificationsBus.TransportURLName)
+
+				transportURL.Status.Conditions.MarkFalse(
+					"TransportURLReady",
+					condition.RequestedReason,
+					condition.SeverityInfo,
+					"RabbitMQ not ready",
+				)
+				g.Expect(k8sClient.Status().Update(ctx, transportURL)).Should(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			// condition should become false
+			th.ExpectCondition(
+				novaNames.NovaName,
+				ConditionGetterFunc(NovaConditionGetter),
+				novav1.NovaNotificationMQReadyCondition,
+				corev1.ConditionFalse,
+			)
+
+			// assert resourceVersion unchanged - config was not updated
+			Consistently(func(g Gomega) {
+				configDataMap := th.GetSecret(novaNames.APIConfigDataName)
+				g.Expect(configDataMap.ResourceVersion).To(Equal(initialResourceVersion))
+			}, consistencyTimeout, interval).Should(Succeed())
+		})
 	})
 
 })
