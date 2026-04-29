@@ -148,7 +148,7 @@ func ValidateAPIDefaultConfigOverwrite(
 	return ValidateDefaultConfigOverwrite(
 		basePath,
 		defaultConfigOverwrite,
-		[]string{"policy.yaml", "api-paste.ini"})
+		[]string{"policy.yaml", "api-paste.ini", "nova_api_audit_map.conf"})
 }
 
 // ValidateTopology validates the referenced TopoRef.Namespace.
