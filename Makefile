@@ -114,12 +114,13 @@ docker-buildx: ## Build and push docker image for the manager for cross-platform
 
 .PHONY: manifests
 manifests: gowork controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
-	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases && \
+	$(CONTROLLER_GEN) crd webhook paths="./api/nova/..." paths="./api/placement/..." paths="./internal/webhook/nova/..." paths="./internal/webhook/placement/..." output:crd:artifacts:config=config/crd/bases output:webhook:artifacts:config=config/webhook && \
+	$(CONTROLLER_GEN) rbac:roleName=manager-role paths="./..." output:dir=config/rbac && \
 	rm -f api/bases/* && cp -a config/crd/bases api/
 
 .PHONY: generate
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
-	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
+	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./api/nova/..." paths="./api/placement/..."
 
 .PHONY: fmt
 fmt: ## Run go fmt against code.
@@ -147,10 +148,12 @@ PROCS?=$(shell expr $(shell nproc --ignore 2) / 2)
 PROC_CMD = --procs ${PROCS}
 
 .PHONY: test
+# TODO: Currently runs all tests (Nova + Placement). In future, optimize CI to run only tests
+# for the operator code that changed (e.g., skip Placement tests if only Nova code changed).
 test: manifests generate fmt vet envtest ginkgo ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) -v debug --bin-dir $(LOCALBIN) use $(ENVTEST_K8S_VERSION) -p path)" \
 	OPERATOR_TEMPLATES="$(PWD)/templates" \
-	$(GINKGO) --trace --cover --coverpkg=../../internal/...,../../api/nova/v1beta1 --coverprofile cover.out --covermode=atomic --randomize-all ${PROC_CMD} $(GINKGO_ARGS) ./test/...
+	$(GINKGO) --trace --cover --coverpkg=../../internal/...,../../api/nova/v1beta1,../../api/placement/v1beta1 --coverprofile cover.out --covermode=atomic --randomize-all ${PROC_CMD} $(GINKGO_ARGS) ./test/...
 
 ##@ Build
 

@@ -1,0 +1,23 @@
+{
+    "command": "placement-manage db sync",
+    "config_files": [
+        {
+            "source": "/var/lib/openstack/config/placement.conf",
+            "dest": "/etc/placement/placement.conf",
+            "owner": "placement",
+            "perm": "0600"
+        },
+        {
+            "source": "/var/lib/openstack/config/custom.conf",
+            "dest": "/etc/placement/placement.conf.d/custom.conf",
+            "owner": "placement",
+            "perm": "0600"
+        },
+        {
+            "source": "/var/lib/openstack/config/my.cnf",
+            "dest": "/etc/my.cnf",
+            "owner": "placement",
+            "perm": "0644"
+        }
+    ]
+}

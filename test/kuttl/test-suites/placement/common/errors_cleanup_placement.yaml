@@ -1,0 +1,94 @@
+#
+# Check for:
+#
+# No PlacementAPI CR
+# No Deployment for PlacementAPI CR
+# No Pods in placement Deployment
+# No Placement Services
+#
+apiVersion: placement.openstack.org/v1beta1
+kind: PlacementAPI
+metadata:
+  finalizers:
+  - openstack.org/placementapi
+  name: placement
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: placement
+---
+# the openshift annotations can't be checked through the deployment above
+apiVersion: v1
+kind: Pod
+metadata:
+  annotations:
+    openshift.io/scc: anyuid
+  labels:
+    service: placement
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    admin: "true"
+    service: placement
+  name: placement-admin
+spec:
+  ports:
+    - name: placement-admin
+  selector:
+    service: placement
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    endpoint: internal
+    service: placement
+  name: placement-internal
+spec:
+  ports:
+    - name: placement-internal
+  selector:
+    service: placement
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    endpoint: public
+    service: placement
+  name: placement-public
+spec:
+  ports:
+    - name: placement-public
+  selector:
+    service: placement
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  labels:
+    placement.openstack.org/name: placement
+  name: placement-scripts
+  ownerReferences:
+  - blockOwnerDeletion: true
+    controller: true
+    kind: PlacementAPI
+    name: placement
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  labels:
+    placement.openstack.org/name: placement
+  name: placement-config-data
+  ownerReferences:
+  - blockOwnerDeletion: true
+    controller: true
+    kind: PlacementAPI
+    name: placement
