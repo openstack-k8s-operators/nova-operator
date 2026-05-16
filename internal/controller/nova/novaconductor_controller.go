@@ -518,6 +518,7 @@ func (r *NovaConductorReconciler) generateConfigs(
 
 	return r.GenerateConfigsWithScripts(
 		ctx, h, instance, hashes, templateParameters, extraData, cmLabels, map[string]string{},
+		[]string{},
 	)
 }
 

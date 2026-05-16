@@ -581,6 +581,7 @@ func (r *NovaMetadataReconciler) generateConfigs(
 	err = r.GenerateConfigs(
 		ctx, h, instance, nova.GetServiceConfigSecretName(instance.GetName()),
 		hashes, templateParameters, extraData, cmLabels, map[string]string{},
+		[]string{"ssl.conf"},
 	)
 	return err
 }

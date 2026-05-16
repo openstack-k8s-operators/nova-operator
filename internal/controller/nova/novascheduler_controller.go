@@ -639,6 +639,7 @@ func (r *NovaSchedulerReconciler) generateConfigs(
 	return r.GenerateConfigs(
 		ctx, h, instance, nova.GetServiceConfigSecretName(instance.GetName()),
 		hashes, templateParameters, extraData, cmLabels, map[string]string{},
+		[]string{},
 	)
 }
 
