@@ -1465,6 +1465,7 @@ func (r *PlacementAPIReconciler) generateServiceConfigMaps(
 			ConfigOptions:      templateParameters,
 			Labels:             cmLabels,
 			AdditionalTemplate: extraTemplates,
+			CommonTemplates:    []string{"ssl.conf"},
 		},
 	}
 	return secret.EnsureSecrets(ctx, h, instance, cms, envVars)

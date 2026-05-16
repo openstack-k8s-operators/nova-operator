@@ -532,6 +532,7 @@ func (r *ReconcilerBase) generateConfigsGeneric(
 	templateParameters map[string]any,
 	extraData map[string]string, cmLabels map[string]string,
 	additionalTemplates map[string]string,
+	commonTemplates []string,
 	withScripts bool,
 ) error {
 
@@ -552,6 +553,7 @@ func (r *ReconcilerBase) generateConfigsGeneric(
 			CustomData:         extraData,
 			Annotations:        map[string]string{},
 			AdditionalTemplate: extraTemplates,
+			CommonTemplates:    commonTemplates,
 		},
 	}
 	if withScripts {
@@ -575,10 +577,11 @@ func (r *ReconcilerBase) GenerateConfigs(
 	templateParameters map[string]any,
 	extraData map[string]string, cmLabels map[string]string,
 	additionalTemplates map[string]string,
+	commonTemplates []string,
 ) error {
 	return r.generateConfigsGeneric(
 		ctx, h, instance, configName, envVars, templateParameters, extraData,
-		cmLabels, additionalTemplates, false,
+		cmLabels, additionalTemplates, commonTemplates, false,
 	)
 }
 
@@ -590,11 +593,12 @@ func (r *ReconcilerBase) GenerateConfigsWithScripts(
 	templateParameters map[string]any,
 	extraData map[string]string, cmLabels map[string]string,
 	additionalTemplates map[string]string,
+	commonTemplates []string,
 ) error {
 	return r.generateConfigsGeneric(
 		ctx, h, instance, nova.GetServiceConfigSecretName(instance.GetName()),
 		envVars, templateParameters, extraData,
-		cmLabels, additionalTemplates, true,
+		cmLabels, additionalTemplates, commonTemplates, true,
 	)
 }
 
