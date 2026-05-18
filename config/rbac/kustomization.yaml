@@ -46,3 +46,6 @@ resources:
 - novaapi_admin_role.yaml
 - novaapi_editor_role.yaml
 - novaapi_viewer_role.yaml
+- placementapi_admin_role.yaml
+- placementapi_editor_role.yaml
+- placementapi_viewer_role.yaml
