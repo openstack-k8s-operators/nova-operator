@@ -10,6 +10,7 @@ resources:
 - bases/nova.openstack.org_novacells.yaml
 - bases/nova.openstack.org_nova.yaml
 - bases/nova.openstack.org_novacomputes.yaml
+- bases/placement.openstack.org_placementapis.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 patches:
