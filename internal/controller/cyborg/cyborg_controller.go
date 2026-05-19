@@ -338,6 +338,16 @@ func (r *CyborgReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 	instance.Status.Conditions.MarkTrue(condition.InputReadyCondition, condition.InputReadyMessage)
 
 	//
+	// Generate agent config secret for dataplane
+	//
+	ctrlResult, err := r.ensureAgentConfig(ctx, h, instance, transporturlSecret, inputSecret, acData, keystoneAuthURL, keystoneRegion)
+	if err != nil {
+		return ctrl.Result{}, err
+	} else if (ctrlResult != ctrl.Result{}) {
+		return ctrlResult, nil
+	}
+
+	//
 	// Create Keystone Service
 	//
 	_, err = r.ensureKeystoneSvc(ctx, h, instance, serviceLabels)
@@ -366,7 +376,7 @@ func (r *CyborgReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 	//
 	// Create dbsync job
 	//
-	ctrlResult, err := r.ensureDBSync(ctx, h, instance, serviceLabels)
+	ctrlResult, err = r.ensureDBSync(ctx, h, instance, serviceLabels)
 	if err != nil {
 		return ctrl.Result{}, err
 	} else if (ctrlResult != ctrl.Result{}) {
@@ -494,6 +504,10 @@ func (r *CyborgReconciler) initConditions(instance *cyborgv1beta1.Cyborg) error 
 			cyborgv1beta1.CyborgConductorReadyCondition,
 			condition.InitReason,
 			cyborgv1beta1.CyborgConductorReadyInitMessage),
+		condition.UnknownCondition(
+			cyborgv1beta1.CyborgAgentConfigReadyCondition,
+			condition.InitReason,
+			cyborgv1beta1.CyborgAgentConfigReadyInitMessage),
 	)
 
 	instance.Status.Conditions.Init(&cl)
@@ -1220,4 +1234,79 @@ func ensureSecret(
 	}
 
 	return hash, ctrl.Result{}, *s, nil
+}
+
+func (r *CyborgReconciler) ensureAgentConfig(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *cyborgv1beta1.Cyborg,
+	transporturlSecret corev1.Secret,
+	inputSecret corev1.Secret,
+	acData *keystonev1.ApplicationCredentialData,
+	keystoneAuthURL string,
+	keystoneRegion string,
+) (ctrl.Result, error) {
+	err := r.generateAgentConfig(ctx, h, instance, transporturlSecret, inputSecret, acData, keystoneAuthURL, keystoneRegion)
+	if err != nil {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			cyborgv1beta1.CyborgAgentConfigReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			cyborgv1beta1.CyborgAgentConfigReadyErrorMessage,
+			err.Error()))
+		return ctrl.Result{}, err
+	}
+	instance.Status.Conditions.MarkTrue(
+		cyborgv1beta1.CyborgAgentConfigReadyCondition, condition.ServiceConfigReadyMessage,
+	)
+	return ctrl.Result{}, nil
+}
+
+func (r *CyborgReconciler) generateAgentConfig(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *cyborgv1beta1.Cyborg,
+	transporturlSecret corev1.Secret,
+	inputSecret corev1.Secret,
+	acData *keystonev1.ApplicationCredentialData,
+	keystoneAuthURL string,
+	keystoneRegion string,
+) error {
+	servicePassword := string(inputSecret.Data[instance.Spec.PasswordSelectors.Service])
+
+	templateParameters := map[string]any{
+		"TransportURL":    string(transporturlSecret.Data[TransportURLSelector]),
+		"QuorumQueues":    string(transporturlSecret.Data[QuorumQueuesSelector]) == "true",
+		"KeystoneAuthURL": keystoneAuthURL,
+		"ServiceUser":     *instance.Spec.ServiceUser,
+		"ServicePassword": servicePassword,
+		"Region":          keystoneRegion,
+	}
+
+	if acData != nil {
+		templateParameters["ACID"] = acData.ID
+		templateParameters["ACSecret"] = acData.Secret
+	}
+
+	if instance.Spec.APIServiceTemplate.TLS.CaBundleSecretName != "" {
+		templateParameters["CaFilePath"] = tls.DownstreamTLSCABundlePath
+	}
+
+	serviceLabels := labels.GetLabels(instance, labels.GetGroupLabel(cyborgservice.ServiceName), map[string]string{})
+
+	cms := []util.Template{
+		{
+			Name:          instance.GetName() + "-agent-config",
+			Namespace:     instance.GetNamespace(),
+			Type:          util.TemplateTypeConfig,
+			InstanceType:  instance.GetObjectKind().GroupVersionKind().Kind,
+			ConfigOptions: templateParameters,
+			Labels:        serviceLabels,
+			AdditionalTemplate: map[string]string{
+				"00-default.conf": "/cyborg/00-default.conf",
+			},
+		},
+	}
+
+	return secret.EnsureSecrets(ctx, h, instance, cms, nil)
 }

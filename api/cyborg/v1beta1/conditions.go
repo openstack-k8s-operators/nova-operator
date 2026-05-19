@@ -32,6 +32,9 @@ const (
 
 	// CyborgConductorReadyCondition indicates whether the CyborgConductor is ready
 	CyborgConductorReadyCondition condition.Type = "CyborgConductorReady"
+
+	// CyborgAgentConfigReadyCondition indicates whether the Cyborg agent config secret is ready
+	CyborgAgentConfigReadyCondition condition.Type = "CyborgAgentConfigReady"
 )
 
 const (
@@ -58,4 +61,10 @@ const (
 
 	// CyborgApplicationCredentialSecretErrorMessage -
 	CyborgApplicationCredentialSecretErrorMessage = "Error with application credential secret"
+
+	// CyborgAgentConfigReadyInitMessage -
+	CyborgAgentConfigReadyInitMessage = "CyborgAgent config not started"
+
+	// CyborgAgentConfigReadyErrorMessage -
+	CyborgAgentConfigReadyErrorMessage = "CyborgAgent config error occurred %s"
 )
