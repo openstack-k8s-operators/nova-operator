@@ -67,6 +67,7 @@ type CyborgNames struct {
 	ConductorName            types.NamespacedName
 	ConductorStatefulSetName types.NamespacedName
 	ConductorConfigDataName  types.NamespacedName
+	AgentConfigSecretName    types.NamespacedName
 }
 
 func GetCyborgNames(cyborgName types.NamespacedName) CyborgNames {
@@ -140,6 +141,10 @@ func GetCyborgNames(cyborgName types.NamespacedName) CyborgNames {
 			Namespace: cyborgName.Namespace,
 			Name:      cyborgName.Name + "-conductor-config-data",
 		},
+		AgentConfigSecretName: types.NamespacedName{
+			Namespace: cyborgName.Namespace,
+			Name:      cyborgName.Name + "-agent-config",
+		},
 	}
 }
 
@@ -164,6 +169,7 @@ var _ = Describe("Cyborg controller", func() {
 				g.Expect(cyborg.Status.Conditions.Has(condition.DBSyncReadyCondition)).To(BeTrue())
 				g.Expect(cyborg.Status.Conditions.Has(condition.KeystoneServiceReadyCondition)).To(BeTrue())
 				g.Expect(cyborg.Status.Conditions.Has(cyborgv1beta1.CyborgAPIReadyCondition)).To(BeTrue())
+				g.Expect(cyborg.Status.Conditions.Has(cyborgv1beta1.CyborgAgentConfigReadyCondition)).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 		})
 
@@ -274,6 +280,32 @@ var _ = Describe("Cyborg controller", func() {
 			}, timeout, interval).Should(Succeed())
 		})
 
+		It("creates an agent config secret for the dataplane", func() {
+			mariadb.SimulateMariaDBAccountCompleted(cyborgNames.MariaDBAccountName)
+			mariadb.SimulateMariaDBDatabaseCompleted(cyborgNames.MariaDBDatabaseName)
+			infra.SimulateTransportURLReady(cyborgNames.TransportURLName)
+
+			Eventually(func(g Gomega) {
+				agentSecret := th.GetSecret(cyborgNames.AgentConfigSecretName)
+				g.Expect(agentSecret.Data).To(HaveKey("00-default.conf"))
+
+				defaultConf := string(agentSecret.Data["00-default.conf"])
+				g.Expect(defaultConf).To(ContainSubstring("transport_url"))
+				g.Expect(defaultConf).To(ContainSubstring("[keystone_authtoken]"))
+				g.Expect(defaultConf).To(ContainSubstring("[placement]"))
+				g.Expect(defaultConf).To(ContainSubstring("[nova]"))
+				g.Expect(defaultConf).To(ContainSubstring("username = cyborg"))
+				g.Expect(defaultConf).NotTo(ContainSubstring("[database]"))
+			}, timeout, interval).Should(Succeed())
+
+			th.ExpectCondition(
+				cyborgNames.CyborgName,
+				ConditionGetterFunc(CyborgConditionGetter),
+				cyborgv1beta1.CyborgAgentConfigReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
+
 		It("creates a config data secret for dbsync", func() {
 			mariadb.SimulateMariaDBAccountCompleted(cyborgNames.MariaDBAccountName)
 			mariadb.SimulateMariaDBDatabaseCompleted(cyborgNames.MariaDBDatabaseName)
@@ -311,6 +343,13 @@ var _ = Describe("Cyborg controller", func() {
 				cyborgNames.CyborgName,
 				ConditionGetterFunc(CyborgConditionGetter),
 				cyborgv1beta1.CyborgRabbitMQTransportURLReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			th.ExpectCondition(
+				cyborgNames.CyborgName,
+				ConditionGetterFunc(CyborgConditionGetter),
+				cyborgv1beta1.CyborgAgentConfigReadyCondition,
 				corev1.ConditionTrue,
 			)
 
@@ -438,6 +477,23 @@ var _ = Describe("Cyborg controller", func() {
 					GetCyborgSpecWithTLSAndAppCred(apiTLSSecretName, caBundleSecretName, appCredSecretName),
 				),
 			)
+		})
+
+		It("creates an agent config secret with application credentials and TLS CA", func() {
+			mariadb.SimulateMariaDBAccountCompleted(cyborgNames.MariaDBAccountName)
+			mariadb.SimulateMariaDBTLSDatabaseCompleted(cyborgNames.MariaDBDatabaseName)
+			infra.SimulateTransportURLReady(cyborgNames.TransportURLName)
+
+			Eventually(func(g Gomega) {
+				agentSecret := th.GetSecret(cyborgNames.AgentConfigSecretName)
+				defaultConf := string(agentSecret.Data["00-default.conf"])
+				g.Expect(defaultConf).To(ContainSubstring("auth_type = v3applicationcredential"))
+				g.Expect(defaultConf).To(ContainSubstring("application_credential_id = " + appCredID))
+				g.Expect(defaultConf).To(ContainSubstring("application_credential_secret = " + appCredSecretValue))
+				g.Expect(defaultConf).To(ContainSubstring("cafile ="))
+				g.Expect(defaultConf).To(ContainSubstring("ssl_ca_file ="))
+				g.Expect(defaultConf).NotTo(ContainSubstring("[database]"))
+			}, timeout, interval).Should(Succeed())
 		})
 
 		It("creates dbsync job, TLS-aware config secret, and application credential data in the sub-level secret", func() {
