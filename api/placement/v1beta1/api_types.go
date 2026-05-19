@@ -182,6 +182,12 @@ type PlacementAPIStatus struct {
 
 	// LastAppliedTopology - the last applied Topology
 	LastAppliedTopology *topologyv1.TopoRef `json:"lastAppliedTopology,omitempty"`
+
+	// ApplicationCredentialSecret - the AC secret placement is currently
+	// consuming and protecting with the openstack.org/placementapi-ac-consumer
+	// finalizer. Tracked so the controller can remove its finalizer from the
+	// old secret when the openstack-operator rotates the reference.
+	ApplicationCredentialSecret string `json:"applicationCredentialSecret,omitempty"`
 }
 
 // PlacementAPI is the Schema for the placementapis API

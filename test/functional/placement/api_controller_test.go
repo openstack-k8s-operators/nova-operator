@@ -32,6 +32,7 @@ import (
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/nova-operator/internal/placement"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -1523,6 +1524,287 @@ var _ = Describe("PlacementAPI reconfiguration", func() {
 			Expect(conf).NotTo(ContainSubstring("project_name ="))
 			Expect(conf).NotTo(ContainSubstring("user_domain_name ="))
 			Expect(conf).NotTo(ContainSubstring("project_domain_name ="))
+		})
+	})
+
+	When("ApplicationCredential consumer finalizer is managed", func() {
+		var acSecretName string
+
+		BeforeEach(func() {
+			acSecretName = "ac-placement-a1b2c-secret" //nolint:gosec // G101
+			secret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: names.Namespace,
+					Name:      acSecretName,
+				},
+				Data: map[string][]byte{
+					keystonev1.ACIDSecretKey:     []byte("a1b2ctest-ac-id"),
+					keystonev1.ACSecretSecretKey: []byte("test-ac-secret"),
+				},
+			}
+			DeferCleanup(k8sClient.Delete, ctx, secret)
+			Expect(k8sClient.Create(ctx, secret)).To(Succeed())
+
+			spec := GetDefaultPlacementAPISpec()
+			spec["auth"] = map[string]any{
+				"applicationCredentialSecret": acSecretName,
+			}
+
+			DeferCleanup(th.DeleteInstance, CreatePlacementAPI(names.PlacementAPIName, spec))
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreatePlacementAPISecret(names.Namespace, SecretName))
+			keystoneAPIName := keystone.CreateKeystoneAPI(names.Namespace)
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystoneAPIName)
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
+					names.Namespace,
+					GetDefaultPlacementAPISpec()["databaseInstance"].(string),
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+			mariadb.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBAccount)
+		})
+
+		It("should add the consumer finalizer to the AC secret", func() {
+			Eventually(func(g Gomega) {
+				secret := th.GetSecret(types.NamespacedName{
+					Namespace: names.Namespace,
+					Name:      acSecretName,
+				})
+				g.Expect(secret.Finalizers).To(
+					ContainElement(placement.ACConsumerFinalizer))
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("should track the consumed AC secret in status", func() {
+			th.SimulateJobSuccess(names.DBSyncJobName)
+			th.SimulateDeploymentReplicaReady(names.DeploymentName)
+			keystone.SimulateKeystoneServiceReady(names.KeystoneServiceName)
+			keystone.SimulateKeystoneEndpointReady(names.KeystoneEndpointName)
+			Eventually(func(g Gomega) {
+				p := GetPlacementAPI(names.PlacementAPIName)
+				g.Expect(p.Status.ApplicationCredentialSecret).To(Equal(acSecretName))
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("should move the finalizer from the old to the new secret on rotation", func() {
+			Eventually(func(g Gomega) {
+				secret := th.GetSecret(types.NamespacedName{
+					Namespace: names.Namespace,
+					Name:      acSecretName,
+				})
+				g.Expect(secret.Finalizers).To(
+					ContainElement(placement.ACConsumerFinalizer))
+			}, timeout, interval).Should(Succeed())
+
+			th.SimulateJobSuccess(names.DBSyncJobName)
+			th.SimulateDeploymentReplicaReady(names.DeploymentName)
+			keystone.SimulateKeystoneServiceReady(names.KeystoneServiceName)
+			keystone.SimulateKeystoneEndpointReady(names.KeystoneEndpointName)
+			Eventually(func(g Gomega) {
+				p := GetPlacementAPI(names.PlacementAPIName)
+				g.Expect(p.Status.Conditions.IsTrue(condition.ReadyCondition)).To(BeTrue())
+			}, timeout, interval).Should(Succeed())
+
+			newACSecretName := "ac-placement-x9y8z-secret" //nolint:gosec // G101
+			newSecret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: names.Namespace,
+					Name:      newACSecretName,
+				},
+				Data: map[string][]byte{
+					keystonev1.ACIDSecretKey:     []byte("x9y8zrotated-ac-id"),
+					keystonev1.ACSecretSecretKey: []byte("rotated-ac-secret"),
+				},
+			}
+			DeferCleanup(k8sClient.Delete, ctx, newSecret)
+			Expect(k8sClient.Create(ctx, newSecret)).To(Succeed())
+
+			Eventually(func(g Gomega) {
+				p := GetPlacementAPI(names.PlacementAPIName)
+				p.Spec.Auth.ApplicationCredentialSecret = newACSecretName
+				g.Expect(k8sClient.Update(ctx, p)).Should(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				secret := th.GetSecret(types.NamespacedName{
+					Namespace: names.Namespace,
+					Name:      newACSecretName,
+				})
+				g.Expect(secret.Finalizers).To(
+					ContainElement(placement.ACConsumerFinalizer))
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				th.SimulateDeploymentReplicaReady(names.DeploymentName)
+				keystone.SimulateKeystoneEndpointReady(names.KeystoneEndpointName)
+				secret := th.GetSecret(types.NamespacedName{
+					Namespace: names.Namespace,
+					Name:      acSecretName,
+				})
+				g.Expect(secret.Finalizers).NotTo(
+					ContainElement(placement.ACConsumerFinalizer))
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				p := GetPlacementAPI(names.PlacementAPIName)
+				g.Expect(p.Status.ApplicationCredentialSecret).To(Equal(newACSecretName))
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("should remove the consumer finalizer from AC secret on CR deletion", func() {
+			Eventually(func(g Gomega) {
+				secret := th.GetSecret(types.NamespacedName{
+					Namespace: names.Namespace,
+					Name:      acSecretName,
+				})
+				g.Expect(secret.Finalizers).To(
+					ContainElement(placement.ACConsumerFinalizer))
+			}, timeout, interval).Should(Succeed())
+
+			th.DeleteInstance(GetPlacementAPI(names.PlacementAPIName))
+
+			secret := th.GetSecret(types.NamespacedName{
+				Namespace: names.Namespace,
+				Name:      acSecretName,
+			})
+			Expect(secret.Finalizers).NotTo(
+				ContainElement(placement.ACConsumerFinalizer))
+		})
+
+		It("should remove the consumer finalizer when AC auth is cleared from spec", func() {
+			Eventually(func(g Gomega) {
+				secret := th.GetSecret(types.NamespacedName{
+					Namespace: names.Namespace,
+					Name:      acSecretName,
+				})
+				g.Expect(secret.Finalizers).To(
+					ContainElement(placement.ACConsumerFinalizer))
+			}, timeout, interval).Should(Succeed())
+
+			th.SimulateJobSuccess(names.DBSyncJobName)
+			th.SimulateDeploymentReplicaReady(names.DeploymentName)
+			keystone.SimulateKeystoneServiceReady(names.KeystoneServiceName)
+			keystone.SimulateKeystoneEndpointReady(names.KeystoneEndpointName)
+			Eventually(func(g Gomega) {
+				p := GetPlacementAPI(names.PlacementAPIName)
+				g.Expect(p.Status.Conditions.IsTrue(condition.ReadyCondition)).To(BeTrue())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				p := GetPlacementAPI(names.PlacementAPIName)
+				p.Spec.Auth.ApplicationCredentialSecret = ""
+				g.Expect(k8sClient.Update(ctx, p)).Should(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				th.SimulateDeploymentReplicaReady(names.DeploymentName)
+				keystone.SimulateKeystoneEndpointReady(names.KeystoneEndpointName)
+				secret := th.GetSecret(types.NamespacedName{
+					Namespace: names.Namespace,
+					Name:      acSecretName,
+				})
+				g.Expect(secret.Finalizers).NotTo(
+					ContainElement(placement.ACConsumerFinalizer))
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				p := GetPlacementAPI(names.PlacementAPIName)
+				g.Expect(p.Status.ApplicationCredentialSecret).To(BeEmpty())
+			}, timeout, interval).Should(Succeed())
+		})
+	})
+
+	When("ApplicationCredential secret is not found", func() {
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreatePlacementAPISecret(names.Namespace, SecretName))
+			keystoneAPIName := keystone.CreateKeystoneAPI(names.Namespace)
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystoneAPIName)
+
+			spec := GetDefaultPlacementAPISpec()
+			spec["auth"] = map[string]any{
+				"applicationCredentialSecret": "nonexistent-ac-secret",
+			}
+
+			DeferCleanup(th.DeleteInstance, CreatePlacementAPI(names.PlacementAPIName, spec))
+
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
+					names.Namespace,
+					GetDefaultPlacementAPISpec()["databaseInstance"].(string),
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+			mariadb.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBAccount)
+		})
+
+		It("should set ServiceConfigReady to False", func() {
+			th.ExpectCondition(
+				names.PlacementAPIName,
+				ConditionGetterFunc(PlacementConditionGetter),
+				condition.ServiceConfigReadyCondition,
+				corev1.ConditionFalse,
+			)
+		})
+	})
+
+	When("ApplicationCredential secret is missing required keys", func() {
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreatePlacementAPISecret(names.Namespace, SecretName))
+			keystoneAPIName := keystone.CreateKeystoneAPI(names.Namespace)
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystoneAPIName)
+
+			badACSecretName := "ac-placement-bad-secret" //nolint:gosec // G101
+			badSecret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: names.Namespace,
+					Name:      badACSecretName,
+				},
+				Data: map[string][]byte{
+					"WRONG_KEY": []byte("some-value"),
+				},
+			}
+			DeferCleanup(k8sClient.Delete, ctx, badSecret)
+			Expect(k8sClient.Create(ctx, badSecret)).To(Succeed())
+
+			spec := GetDefaultPlacementAPISpec()
+			spec["auth"] = map[string]any{
+				"applicationCredentialSecret": badACSecretName,
+			}
+
+			DeferCleanup(th.DeleteInstance, CreatePlacementAPI(names.PlacementAPIName, spec))
+
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
+					names.Namespace,
+					GetDefaultPlacementAPISpec()["databaseInstance"].(string),
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+			mariadb.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBAccount)
+		})
+
+		It("should set ServiceConfigReady to False", func() {
+			th.ExpectCondition(
+				names.PlacementAPIName,
+				ConditionGetterFunc(PlacementConditionGetter),
+				condition.ServiceConfigReadyCondition,
+				corev1.ConditionFalse,
+			)
 		})
 	})
 

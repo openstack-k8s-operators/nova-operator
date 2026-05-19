@@ -36,4 +36,7 @@ const (
 	// PlacementUserID is the linux user ID used by Kolla for the placement
 	// user in the service containers
 	PlacementUserID int64 = 42482
+
+	// ACConsumerFinalizer is added to AC secrets that placement is actively consuming
+	ACConsumerFinalizer = "openstack.org/placementapi-ac-consumer"
 )
