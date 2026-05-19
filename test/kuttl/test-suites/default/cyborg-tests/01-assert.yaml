@@ -40,6 +40,11 @@ commands:
 - script: |
     oc get secret cyborg-kuttl-conductor-config-data -n $NAMESPACE \
       -o jsonpath='{.data.cyborg-conductor-config\.json}' | base64 -d | grep -q 'cyborg-conductor'
+# --- Cyborg agent config secret (cyborg-kuttl-agent-config) content ---
+# 00-default.conf must contain the [DEFAULT] OpenStack config section
+- script: |
+    oc get secret cyborg-kuttl-agent-config -n $NAMESPACE \
+      -o jsonpath='{.data.00-default\.conf}' | base64 -d | grep -q '\[DEFAULT\]'
 # --- DB sync Job volumes ---
 # config-data volume in the Job pod must reference the Cyborg config-data secret
 - script: |
@@ -112,6 +117,10 @@ status:
     reason: Ready
     status: "True"
     type: CyborgAPIReady
+  - message: Service config create completed
+    reason: Ready
+    status: "True"
+    type: CyborgAgentConfigReady
   - message: Deployment completed
     reason: Ready
     status: "True"
@@ -486,3 +495,11 @@ status:
   - name: cyborg-conductor
     ready: true
     started: true
+---
+# Assert the Cyborg agent config-data secret exists.
+# Expected files: 00-default.conf
+# Content checks are performed via the commands block above.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cyborg-kuttl-agent-config
