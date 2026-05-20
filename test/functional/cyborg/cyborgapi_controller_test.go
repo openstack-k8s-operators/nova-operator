@@ -232,7 +232,7 @@ var _ = Describe("CyborgAPI controller", func() {
 
 				wsgiConf := string(configSecret.Data["10-cyborg-wsgi-main.conf"])
 				g.Expect(wsgiConf).To(ContainSubstring("TimeOut 60"))
-				g.Expect(wsgiConf).To(ContainSubstring("WSGIScriptAlias / \"/var/lib/kolla/venv/lib/python3.12/site-packages/cyborg/wsgi/api.py\""))
+				g.Expect(wsgiConf).To(ContainSubstring("WSGIScriptAlias / \"/usr/lib/python3.12/site-packages/cyborg/wsgi/api.py\""))
 
 				defaultConf := string(configSecret.Data["00-default.conf"])
 				g.Expect(defaultConf).To(ContainSubstring("[database]"))
