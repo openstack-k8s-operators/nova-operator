@@ -22,9 +22,9 @@ import (
 
 // Container image fall-back defaults
 const (
-	CyborgAPIContainerImage       = "quay.io/openstack.kolla/cyborg-api:master-rocky-10"
-	CyborgConductorContainerImage = "quay.io/openstack.kolla/cyborg-conductor:master-rocky-10"
-	CyborgAgentContainerImage     = "quay.io/openstack.kolla/cyborg-agent:master-rocky-10"
+	CyborgAPIContainerImage       = "quay.io/openstack.kolla/cyborg-api:2025.2-rocky-10"
+	CyborgConductorContainerImage = "quay.io/openstack.kolla/cyborg-conductor:2025.2-rocky-10"
+	CyborgAgentContainerImage     = "quay.io/openstack.kolla/cyborg-agent:2025.2-rocky-10"
 )
 
 // PasswordSelector to identify the DB and AdminUser password from the Secret
