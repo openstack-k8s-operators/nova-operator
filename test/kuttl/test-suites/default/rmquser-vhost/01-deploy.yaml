@@ -10,5 +10,5 @@ spec:
     vhost: nova-rpc
   notificationsBus:
     cluster: rabbitmq-notifications
-    user: nova-notifications
-    vhost: nova-notifications
+    user: nova-notif
+    vhost: nova-notif
