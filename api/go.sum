@@ -78,10 +78,10 @@ github.com/onsi/ginkgo/v2 v2.28.2 h1:DTrMfpqxiNUyQ3Y0zhn1n3cOO2euFgQPYIpkWwxVFps
 github.com/onsi/ginkgo/v2 v2.28.2/go.mod h1:CLtbVInNckU3/+gC8LzkGUb9oF+e8W8TdUsxPwvdOgE=
 github.com/onsi/gomega v1.41.0 h1:OwKp4pXNgVxf6sCplzYo794OFNuoL2q2SBMU5NSWOjA=
 github.com/onsi/gomega v1.41.0/go.mod h1:M/Uqpu/8qTjtzCLUA2zJHX9Iilrau25x1PdoSRbWh5A=
-github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20260521141938-b817d49cac5c h1:9379F/g0DN6MiCnBNQvSdXV+LHzS79bSOFIviriqa0w=
-github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20260521141938-b817d49cac5c/go.mod h1:RFFB4Zs9IJv1jXs/yMjo+VswSW+rsrFZsoP0QrB1EbI=
-github.com/openstack-k8s-operators/lib-common/modules/common v0.6.1-0.20260518125357-72bdd580c587 h1:p03uEXoSreyu7LpFmb9YyYM8tEx2D2+7qqhLXNWHTq0=
-github.com/openstack-k8s-operators/lib-common/modules/common v0.6.1-0.20260518125357-72bdd580c587/go.mod h1:JC04T5G4E/he5ukonV1oCqa0QzFkLv761VbLruVghJM=
+github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20260528132651-48b751fb6dc8 h1:OhT9sijSXJDoyR/cSHxuWmnTB0Z1FPkYVd4UnpnoUrM=
+github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20260528132651-48b751fb6dc8/go.mod h1:RFFB4Zs9IJv1jXs/yMjo+VswSW+rsrFZsoP0QrB1EbI=
+github.com/openstack-k8s-operators/lib-common/modules/common v0.6.1-0.20260526114926-7ebfadd589db h1:wSTVKqPOgAboAX23GHHW6J1vJxaHCq/5InQDXFbE8EI=
+github.com/openstack-k8s-operators/lib-common/modules/common v0.6.1-0.20260526114926-7ebfadd589db/go.mod h1:JC04T5G4E/he5ukonV1oCqa0QzFkLv761VbLruVghJM=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
