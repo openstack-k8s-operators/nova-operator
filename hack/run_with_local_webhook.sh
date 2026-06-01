@@ -490,6 +490,118 @@ webhooks:
     scope: '*'
   sideEffects: None
   timeoutSeconds: 10
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: vcyborg.kb.io
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    caBundle: ${CA_BUNDLE}
+    url: https://${CRC_IP}:${WEBHOOK_PORT}/validate-cyborg-openstack-org-v1beta1-cyborg
+  failurePolicy: Fail
+  matchPolicy: Equivalent
+  name: vcyborg.kb.io
+  objectSelector: {}
+  rules:
+  - apiGroups:
+    - cyborg.openstack.org
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - cyborgs
+    scope: '*'
+  sideEffects: None
+  timeoutSeconds: 10
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: mcyborg.kb.io
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    caBundle: ${CA_BUNDLE}
+    url: https://${CRC_IP}:${WEBHOOK_PORT}/mutate-cyborg-openstack-org-v1beta1-cyborg
+  failurePolicy: Fail
+  matchPolicy: Equivalent
+  name: mcyborg.kb.io
+  objectSelector: {}
+  rules:
+  - apiGroups:
+    - cyborg.openstack.org
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - cyborgs
+    scope: '*'
+  sideEffects: None
+  timeoutSeconds: 10
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: vcyborgapi.kb.io
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    caBundle: ${CA_BUNDLE}
+    url: https://${CRC_IP}:${WEBHOOK_PORT}/validate-cyborg-openstack-org-v1beta1-cyborgapi
+  failurePolicy: Fail
+  matchPolicy: Equivalent
+  name: vcyborgapi.kb.io
+  objectSelector: {}
+  rules:
+  - apiGroups:
+    - cyborg.openstack.org
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - cyborgapis
+    scope: '*'
+  sideEffects: None
+  timeoutSeconds: 10
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: vcyborgconductor.kb.io
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    caBundle: ${CA_BUNDLE}
+    url: https://${CRC_IP}:${WEBHOOK_PORT}/validate-cyborg-openstack-org-v1beta1-cyborgconductor
+  failurePolicy: Fail
+  matchPolicy: Equivalent
+  name: vcyborgconductor.kb.io
+  objectSelector: {}
+  rules:
+  - apiGroups:
+    - cyborg.openstack.org
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - cyborgconductors
+    scope: '*'
+  sideEffects: None
+  timeoutSeconds: 10
 EOF_CAT
 
 oc apply -n openstack -f ${TMPDIR}/patch_webhook_configurations.yaml
