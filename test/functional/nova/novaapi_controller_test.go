@@ -62,8 +62,9 @@ var _ = Describe("NovaAPI controller", func() {
 			spec := GetDefaultNovaAPISpec(novaNames)
 			spec["customServiceConfig"] = "foo=bar"
 			spec["defaultConfigOverwrite"] = map[string]any{
-				"policy.yaml":   "\"os_compute_api:os-flavor-manage:create\": \"rule:project_member_or_admin\"",
-				"api-paste.ini": "pipeline = cors compute_req_id faultwrap request_log http_proxy_to_wsgi oscomputeversionapp_v2",
+				"policy.yaml":             "\"os_compute_api:os-flavor-manage:create\": \"rule:project_member_or_admin\"",
+				"api-paste.ini":           "pipeline = cors compute_req_id faultwrap request_log http_proxy_to_wsgi oscomputeversionapp_v2",
+				"nova_api_audit_map.conf": "sample audit map config",
 			}
 			DeferCleanup(th.DeleteInstance, CreateNovaAPI(novaNames.APIName, spec))
 		})
@@ -284,6 +285,10 @@ endpoint_service_type = compute`))
 				Expect(configDataMap.Data).Should(HaveKey("api-paste.ini"))
 				pasteData := string(configDataMap.Data["api-paste.ini"])
 				Expect(pasteData).To(Equal("pipeline = cors compute_req_id faultwrap request_log http_proxy_to_wsgi oscomputeversionapp_v2"))
+
+				Expect(configDataMap.Data).Should(HaveKey("nova_api_audit_map.conf"))
+				novaAPIAuditMapData := string(configDataMap.Data["nova_api_audit_map.conf"])
+				Expect(novaAPIAuditMapData).To(Equal("sample audit map config"))
 				myCnf := configDataMap.Data["my.cnf"]
 				Expect(myCnf).To(
 					ContainSubstring("[client]\nssl=0"))

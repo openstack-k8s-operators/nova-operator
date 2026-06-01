@@ -66,6 +66,9 @@ var _ = Describe("Nova controller - notifications", func() {
 			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
 			configData := string(configDataMap.Data["01-nova.conf"])
 			AssertNotHaveNotificationTransportURL(configData)
+			Expect(configData).Should(
+				ContainSubstring(`[audit_middleware_notifications]
+use_oslo_messaging = false`))
 
 			// assert in sch conf
 			configDataMap = th.GetSecret(novaNames.SchedulerConfigDataName)
@@ -118,6 +121,9 @@ var _ = Describe("Nova controller - notifications", func() {
 			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
 			configData := string(configDataMap.Data["01-nova.conf"])
 			AssertHaveNotificationTransportURL(notificationsBus.TransportURLName.Name, configData)
+			Expect(configData).Should(
+				ContainSubstring(`[audit_middleware_notifications]
+use_oslo_messaging = true`))
 
 			// assert in sch conf
 			configDataMap = th.GetSecret(novaNames.SchedulerConfigDataName)
