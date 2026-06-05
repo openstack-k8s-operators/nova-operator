@@ -1,28 +1,44 @@
-# Goals of the Nova operator
+# Goals of the nova-operator
 
 The high-level goal is to provide a set of APIs in a form of Kubernetes Custom
 Resource Definitions (CRD) implemented with Operator SDK to deploy OpenStack
-Nova control plane in OpenShift.
+Nova and Placement control plane services in OpenShift.
+
+The Placement service code that previously lived in placement-operator is now
+managed by the same nova-operator binary and OLM bundle. There is no separate
+placement-operator deployment.
 
 # Decisions
 
-1. The Nova operator provides a single top-level API for the OpenStack
+1. The nova-operator provides a single top-level Nova API for the OpenStack
 operator to instantiate a Nova control plane by creating a single Custom
 Resource (CR). We support this to hide any nova-specific deployment logic from
-the OpenStack operator.
+the OpenStack operator. Placement has no equivalent top-level CR; only the
+PlacementAPI service CR exists.
 
-2. The Nova operator allows deploying every Nova service independently by
-instantiating the matching Nova*ServiceType* CRD without the need to create
-higher-level CRDs. We support this to limit the dependency of each
-Nova*ServiceType* CRD to the minimum and by that to allow testing of each
-Nova*ServiceType* CRD in isolation. As a consequence the Nova*ServiceType* CRDs
-get their DB and message bus dependencies as Secret objects having user,
-password, and hostname fields. The top level Nova CRD is responsible to select
-the appropriate k8s Service instance to get the hostname of the service and to
-register a user there. Then the Nova CRD packages this connection information
-to Secret objects and pass those to lower level CRDs.
+2. The nova-operator allows deploying control plane services independently by
+instantiating a service-level CRD without the matching top-level CR. We support
+this to limit the dependency of each service CRD to the minimum and by that to
+allow testing of each service CRD in isolation. This applies to the
+Nova*ServiceType* CRDs and the PlacementAPI CRD.
 
-3. The Nova operator provides Nova Cells v2 aware deployment structure by
+    1. For the Nova*ServiceType* CRDs, they get their DB and message bus
+    dependencies as Secret objects having user, password, and hostname fields.
+    The top level Nova CRD is responsible to select the
+    appropriate k8s Service instance to get the hostname of the service and to
+    register a user there. Then the Nova CRD packages this connection
+    information to Secret objects and pass those to lower level CRDs.
+
+    2. For the PlacementAPI CRD, it gets its DB and service password
+    dependencies from the Secret referenced in
+    `PlacementAPI.Spec.Secret` and from the MariaDB instance referenced in
+    `PlacementAPI.Spec.DatabaseInstance`. The openstack-operator is responsible
+    to create the PlacementAPI CR and the supporting Secrets in the deployment
+    namespace. Nova services such as nova-scheduler consume the placement API
+    via a registered keystone endpoint; they do not deploy PlacementAPI as part
+    of the Nova CR reconciliation.
+
+3. The nova-operator provides Nova Cells v2 aware deployment structure by
 default to support scaling the deployment to more than one real cell without
 the need to restructure the existing deployment. This means:
 
@@ -34,8 +50,9 @@ the need to restructure the existing deployment. This means:
 
 # Design details
 
-## Configuration generation
-The configuration for the podified nova services are generated into Secrets.
+## Nova configuration generation
+
+The configuration for the podified Nova services are generated into Secrets.
 The top level services generate Secrets in the form of
 '`nova-<service-name>-config-data` (e.g. `nova-scheduler-config-data`). The
 cell level service config Secrets are named with the pattern
@@ -104,3 +121,20 @@ the neutron-metadata-agent:
 2. A secret that is shared between the nova-metadata service and the
 neutron-metadata-agent so the former can authenticate the requests from the
 latter.
+
+## PlacementAPI configuration generation
+
+The configuration for the podified placement-api service is generated into
+Secrets named after the PlacementAPI CR. For a PlacementAPI CR named
+`placement` the operator generates `<PlacementAPI name>-config-data` (e.g.
+`placement-config-data`) and `<PlacementAPI name>-scripts` (e.g.
+`placement-scripts`). Before the placement-api Deployment is created, the
+operator runs a db sync Job named `<PlacementAPI name>-db-sync`.
+
+The config secrets will contain multiple keys if the user provided
+`CustomServiceConfig` in the service CR. These config secrets are mounted to
+the pod and kolla is used to copy the resulting config files to
+`/etc/placement/placement.conf.d/`. The nova-operator will generate the default
+configuration from templates under `templates/placement/api/` and copy the user
+defined snippet to the Secret to key `custom.conf`. So the user defined
+configuration always override the default config.

@@ -1,17 +1,24 @@
 # nova-operator
 
-A golang operator for openstack nova lifecycle management
+A golang operator for OpenStack Nova and Placement lifecycle management
 
 ## nova-operator Goal
 
-The goal of nova-operator is to manage custom resource that define a nova control plane (CRD).
-Nova operator continuously monitors the state of Nova CR and takes actions to ensure that the desired state is applied and reflected in nova pods. These pods run actual nova services, nova-operators ensure they are deployed, scaled, and configured correctly.
-**Note:** Nova CR is created by openstack-operator as per user initial deployment.
+The goal of nova-operator is to manage custom resources that define an OpenStack
+Nova control plane and the Placement API service. The operator continuously
+monitors the state of Nova and PlacementAPI CRs and takes actions to ensure that
+the desired state is applied and reflected in the service pods. These pods run
+actual nova and placement services; nova-operator ensures they are deployed,
+scaled, and configured correctly.
+**Note:** Nova and PlacementAPI CRs are created by openstack-operator as part of
+the initial deployment.
 
 ## Description
 
 This operator is built using the operator-sdk framework to provide day one and day two
-lifecycle management of the OpenStack nova service on an OpenShift cluster.
+lifecycle management of the OpenStack Nova and Placement services on an OpenShift
+cluster. The Placement service code that previously lived in placement-operator is
+now managed by this operator.
 
 ## Getting Started
 
