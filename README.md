@@ -147,8 +147,9 @@ is not required but it won't break anything either.
 
 4. prepare kuttl deps
 
-The makefile supports specifying a kuttl test suite to use via `KUTTL_SUITE`
-currently only one suite exist `multi-cell` and this is the default.
+The makefile supports specifying a kuttl test suite to use via `KUTTL_SUITE`.
+The `default` suite is used when `KUTTL_SUITE` is not set. It includes Nova and
+PlacementAPI tests under `test/kuttl/test-suites/default/`.
 
 prepare the deps using
 
@@ -156,8 +157,8 @@ prepare the deps using
 make kuttl-test-prep
 ```
 
-This will use the openstack operator to deploy rabbitmq, galera, memcached,
-keystone and placement into a dedicated kuttl namespace via the OpenStackControlplane CR.
+This will use the openstack operator to deploy MariaDB, Keystone, Placement, and
+Nova into a dedicated kuttl namespace via the OpenStackControlPlane CR.
 
 5. run kuttl tests
 

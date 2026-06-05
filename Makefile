@@ -411,7 +411,7 @@ kuttl-test-prep:
 
 .PHONY: kuttl-test-run
 kuttl-test-run:
-	oc kuttl test --v 1 --start-kind=false --config $(KUTTL_SUITE_DIR)/config.yaml
+	KUTTL_SUITE_DIR=$(KUTTL_SUITE_DIR) oc kuttl test --v 1 --start-kind=false --config $(KUTTL_SUITE_DIR)/config.yaml
 
 .PHONY: kuttl-test
 kuttl-test: kuttl-test-prep kuttl-test-run
@@ -424,6 +424,7 @@ kuttl-test-cleanup:
 	# result in errors in mariadb- and keystone-operator and then
 	# finalizer removal get stuck blocking the namespace deletion.
 	if [ "${namespace_exists}" != "" ]; then \
+		oc delete --wait=true --all=true -n $(KUTTL_NAMESPACE) --timeout=120s PlacementAPI; \
 		oc delete --wait=true --all=true -n $(KUTTL_NAMESPACE) --timeout=120s Nova; \
 		oc delete --wait=true --all=true -n $(KUTTL_NAMESPACE) --timeout=120s OpenStackControlPlane; \
 		oc delete --wait=true namespace $(KUTTL_NAMESPACE); \
