@@ -156,7 +156,7 @@ var _ = Describe("Nova multi cell", func() {
 			Expect(configData).To(
 				ContainSubstring(
 					fmt.Sprintf(
-						"[database]\nconnection = mysql+pymysql://%s:%s@hostname-for-%s.%s.svc/nova_cell0?read_default_file=/etc/my.cnf",
+						"[database]\nmax_retries = 30\nretry_interval = 1\nconnection = mysql+pymysql://%s:%s@hostname-for-%s.%s.svc/nova_cell0?read_default_file=/etc/my.cnf",
 						cell0Account.Spec.UserName, cell0Secret.Data[mariadbv1.DatabasePasswordSelector],
 						cell0.MariaDBDatabaseName.Name, novaNames.Namespace)),
 			)
@@ -167,7 +167,7 @@ var _ = Describe("Nova multi cell", func() {
 			Expect(configData).To(
 				ContainSubstring(
 					fmt.Sprintf(
-						"[api_database]\nconnection = mysql+pymysql://%s:%s@hostname-for-%s.%s.svc/nova_api?read_default_file=/etc/my.cnf",
+						"[api_database]\nmax_retries = 30\nretry_interval = 1\nconnection = mysql+pymysql://%s:%s@hostname-for-%s.%s.svc/nova_api?read_default_file=/etc/my.cnf",
 						apiAccount.Spec.UserName, apiSecret.Data[mariadbv1.DatabasePasswordSelector],
 						novaNames.APIMariaDBDatabaseName.Name, novaNames.Namespace)),
 			)
@@ -229,7 +229,7 @@ var _ = Describe("Nova multi cell", func() {
 			Expect(configData).To(
 				ContainSubstring(
 					fmt.Sprintf(
-						"[database]\nconnection = mysql+pymysql://%s:%s@hostname-for-%s.%s.svc/nova_cell0?read_default_file=/etc/my.cnf",
+						"[database]\nmax_retries = 3\nretry_interval = 1\nconnection = mysql+pymysql://%s:%s@hostname-for-%s.%s.svc/nova_cell0?read_default_file=/etc/my.cnf",
 						cell0Account.Spec.UserName, cell0Secret.Data[mariadbv1.DatabasePasswordSelector],
 						cell0.MariaDBDatabaseName.Name, novaNames.Namespace)),
 			)
@@ -240,7 +240,7 @@ var _ = Describe("Nova multi cell", func() {
 			Expect(configData).To(
 				ContainSubstring(
 					fmt.Sprintf(
-						"[api_database]\nconnection = mysql+pymysql://%s:%s@hostname-for-%s.%s.svc/nova_api?read_default_file=/etc/my.cnf",
+						"[api_database]\nmax_retries = 3\nretry_interval = 1\nconnection = mysql+pymysql://%s:%s@hostname-for-%s.%s.svc/nova_api?read_default_file=/etc/my.cnf",
 						apiAccount.Spec.UserName, apiSecret.Data[mariadbv1.DatabasePasswordSelector],
 						novaNames.APIMariaDBDatabaseName.Name, novaNames.Namespace)),
 			)
@@ -354,7 +354,7 @@ var _ = Describe("Nova multi cell", func() {
 			Expect(configData).To(
 				ContainSubstring(
 					fmt.Sprintf(
-						"[database]\nconnection = mysql+pymysql://%s:%s@hostname-for-%s.%s.svc/nova_cell1?read_default_file=/etc/my.cnf",
+						"[database]\nmax_retries = 30\nretry_interval = 1\nconnection = mysql+pymysql://%s:%s@hostname-for-%s.%s.svc/nova_cell1?read_default_file=/etc/my.cnf",
 						cell1Account.Spec.UserName, cell1Secret.Data[mariadbv1.DatabasePasswordSelector],
 						cell1.MariaDBDatabaseName.Name, novaNames.Namespace)),
 			)
@@ -365,7 +365,7 @@ var _ = Describe("Nova multi cell", func() {
 			Expect(configData).To(
 				ContainSubstring(
 					fmt.Sprintf(
-						"[api_database]\nconnection = mysql+pymysql://%s:%s@hostname-for-%s.%s.svc/nova_api?read_default_file=/etc/my.cnf",
+						"[api_database]\nmax_retries = 30\nretry_interval = 1\nconnection = mysql+pymysql://%s:%s@hostname-for-%s.%s.svc/nova_api?read_default_file=/etc/my.cnf",
 						apiAccount.Spec.UserName, apiSecret.Data[mariadbv1.DatabasePasswordSelector],
 						novaNames.APIMariaDBDatabaseName.Name, novaNames.Namespace)),
 			)
@@ -477,7 +477,7 @@ var _ = Describe("Nova multi cell", func() {
 			Expect(configData).To(
 				ContainSubstring(
 					fmt.Sprintf(
-						"[database]\nconnection = mysql+pymysql://%s:%s@hostname-for-%s.%s.svc/nova_cell2?read_default_file=/etc/my.cnf",
+						"[database]\nmax_retries = 30\nretry_interval = 1\nconnection = mysql+pymysql://%s:%s@hostname-for-%s.%s.svc/nova_cell2?read_default_file=/etc/my.cnf",
 						cell2Account.Spec.UserName, cell2Secret.Data[mariadbv1.DatabasePasswordSelector],
 						cell2.MariaDBDatabaseName.Name, novaNames.Namespace)),
 			)
@@ -512,7 +512,7 @@ var _ = Describe("Nova multi cell", func() {
 			Expect(configData).To(
 				ContainSubstring(
 					fmt.Sprintf(
-						"[database]\nconnection = mysql+pymysql://%s:%s@hostname-for-%s.%s.svc/nova_cell2?read_default_file=/etc/my.cnf",
+						"[database]\nmax_retries = 30\nretry_interval = 1\nconnection = mysql+pymysql://%s:%s@hostname-for-%s.%s.svc/nova_cell2?read_default_file=/etc/my.cnf",
 						cell2Account.Spec.UserName, cell2Secret.Data[mariadbv1.DatabasePasswordSelector],
 						cell2.MariaDBDatabaseName.Name, novaNames.Namespace)),
 			)
@@ -523,7 +523,7 @@ var _ = Describe("Nova multi cell", func() {
 			Expect(configData).To(
 				ContainSubstring(
 					fmt.Sprintf(
-						"[api_database]\nconnection = mysql+pymysql://%s:%s@hostname-for-%s.%s.svc/nova_api?read_default_file=/etc/my.cnf",
+						"[api_database]\nmax_retries = 30\nretry_interval = 1\nconnection = mysql+pymysql://%s:%s@hostname-for-%s.%s.svc/nova_api?read_default_file=/etc/my.cnf",
 						apiAccount.Spec.UserName, apiSecret.Data[mariadbv1.DatabasePasswordSelector],
 						novaNames.APIMariaDBDatabaseName.Name, novaNames.Namespace)),
 			)
