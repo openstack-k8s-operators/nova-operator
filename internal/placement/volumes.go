@@ -16,6 +16,8 @@ limitations under the License.
 package placement
 
 import (
+	internalcommon "github.com/openstack-k8s-operators/nova-operator/internal/common"
+
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -30,7 +32,7 @@ func getVolumes(name string) []corev1.Volume {
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
 					DefaultMode: &scriptsVolumeDefaultMode,
-					SecretName:  name + "-scripts",
+					SecretName:  internalcommon.GetScriptSecretName(name),
 				},
 			},
 		},
@@ -39,7 +41,7 @@ func getVolumes(name string) []corev1.Volume {
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
 					DefaultMode: &configMode,
-					SecretName:  name + "-config-data",
+					SecretName:  internalcommon.GetServiceConfigSecretName(name),
 				},
 			},
 		},

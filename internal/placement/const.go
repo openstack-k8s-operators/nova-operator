@@ -16,6 +16,10 @@ limitations under the License.
 // Package placement provides constants and utilities for managing OpenStack Placement service
 package placement
 
+import (
+	internalcommon "github.com/openstack-k8s-operators/nova-operator/internal/common"
+)
+
 const (
 	// ServiceName -
 	ServiceName = "placement"
@@ -31,7 +35,7 @@ const (
 	PlacementInternalPort int32 = 8778
 
 	// KollaServiceCommand is the command used to start the placement service in Kolla containers
-	KollaServiceCommand = "/usr/local/bin/kolla_start"
+	KollaServiceCommand = internalcommon.ServiceCommand
 
 	// PlacementUserID is the linux user ID used by Kolla for the placement
 	// user in the service containers

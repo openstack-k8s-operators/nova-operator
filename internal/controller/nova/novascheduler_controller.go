@@ -52,7 +52,7 @@ import (
 
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/nova/v1beta1"
-	"github.com/openstack-k8s-operators/nova-operator/internal/nova"
+	internalcommon "github.com/openstack-k8s-operators/nova-operator/internal/common"
 	novascheduler "github.com/openstack-k8s-operators/nova-operator/internal/nova/scheduler"
 )
 
@@ -636,7 +636,7 @@ func (r *NovaSchedulerReconciler) generateConfigs(
 	)
 
 	return r.GenerateConfigs(
-		ctx, h, instance, nova.GetServiceConfigSecretName(instance.GetName()),
+		ctx, h, instance, internalcommon.GetServiceConfigSecretName(instance.GetName()),
 		hashes, templateParameters, extraData, cmLabels, map[string]string{},
 		[]string{}, "nova/scheduler",
 	)
