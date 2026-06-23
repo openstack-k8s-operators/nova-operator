@@ -103,3 +103,7 @@ go.work.sum
 # kuttl testing
 test/kuttl/test-suites/**/output/*
 kubeconfig
+
+# Local agent/IDE config and symlinks (make install-ai-skills)
+.claude/
+.cursor/

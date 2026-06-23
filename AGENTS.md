@@ -62,3 +62,9 @@ After modifying Go code, always run: `make generate manifests fmt vet`.
 - [keystone-operator](https://github.com/openstack-k8s-operators/keystone-operator): identity service registration.
 - [gophercloud](https://github.com/gophercloud/gophercloud): Go OpenStack SDK.
 - [Developer guide](https://github.com/openstack-k8s-operators/nova-operator/blob/main/doc/developer.md): local development setup, building, running, and debugging the operator.
+
+## AI skills
+
+Repo-local agent skills live under [ai/](ai/). Run `make install-ai-skills` once per
+clone, then invoke skills from Agent chat (e.g. `/explainer` for onboarding).
+See [ai/README.md](ai/README.md) for layout and usage.

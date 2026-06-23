@@ -448,6 +448,28 @@ crd-schema-check: manifests
 	INSTALL_DIR=$(LOCALBIN) BASE_REF="$${PULL_BASE_SHA:-$(BRANCH)}" hack/crd-schema-checker.sh
 
 
+##@ AI skills
+
+.PHONY: install-ai-skills uninstall-ai-skills
+
+install-ai-skills: ## Symlink ai/skills and ai/agents into .claude/ and .cursor/ for local agent discovery
+	@set -e; \
+	mkdir -p .claude .cursor; \
+	ln -sfn "$$(pwd)/ai/skills" .claude/skills; \
+	ln -sfn "$$(pwd)/ai/agents" .claude/agents; \
+	ln -sfn "$$(pwd)/ai/skills" .cursor/skills; \
+	ln -sfn "$$(pwd)/ai/agents" .cursor/agents; \
+	echo "Linked ai/skills -> .claude/skills, .cursor/skills"; \
+	echo "Linked ai/agents -> .claude/agents, .cursor/agents"; \
+	echo ""; \
+	echo "AI skills installed. Restart Cursor/Claude or reload the window to pick up new skills."
+
+uninstall-ai-skills: ## Remove local .claude/ and .cursor/ AI skill symlinks
+	@set -e; \
+	rm -f .claude/skills .claude/agents .cursor/skills .cursor/agents; \
+	rmdir .claude .cursor 2>/dev/null || true; \
+	echo "Removed AI skill symlinks."
+
 .PHONY: run_with_olm
 run_with_olm: export CATALOG_IMG=${CATALOG_IMAGE}
 run_with_olm: ## Install nova operator via olm
