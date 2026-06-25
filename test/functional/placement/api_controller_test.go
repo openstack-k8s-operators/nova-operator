@@ -372,13 +372,15 @@ var _ = Describe("PlacementAPI controller", func() {
 			cm := th.GetSecret(names.ConfigMapName)
 			conf := string(cm.Data["placement.conf"])
 
-			// Verify region_name is set in [keystone_authtoken] section
+			// Verify region_name and service_type are set in [keystone_authtoken] section
 			// GetRegion() returns Status.Region, so check that
 			Expect(keystoneAPI.Status.Region).ToNot(BeEmpty(), "KeystoneAPI should have a region set in status")
 			// The region_name should appear in the [keystone_authtoken] section (before [oslo_policy])
 			Expect(conf).Should(
 				MatchRegexp(fmt.Sprintf(
 					`\[keystone_authtoken\][\s\S]*region_name = %s[\s\S]*\[oslo_policy\]`, keystoneAPI.Status.Region)))
+			Expect(conf).Should(
+				MatchRegexp(`\[keystone_authtoken\][\s\S]*service_type = placement[\s\S]*\[oslo_policy\]`))
 		})
 
 		It("creates service account, role and rolebindig", func() {
