@@ -62,3 +62,15 @@ After modifying Go code, always run: `make generate manifests fmt vet`.
 - [keystone-operator](https://github.com/openstack-k8s-operators/keystone-operator): identity service registration.
 - [gophercloud](https://github.com/gophercloud/gophercloud): Go OpenStack SDK.
 - [Developer guide](https://github.com/openstack-k8s-operators/nova-operator/blob/main/doc/developer.md): local development setup, building, running, and debugging the operator.
+
+## AI-assisted development
+
+When an AI agent creates a commit on behalf of a developer, add a
+`Co-authored-by` trailer to the commit message body for the AI tool that
+authored the changes (e.g. `Co-authored-by: Cursor <cursoragent@cursor.com>`).
+Use `Assisted-by` only when the AI provided review or guidance but did not write
+the patch. Read this file before committing; do not wait for the user to request
+attribution each time.
+
+For interactive onboarding of this repository, see [doc/onboarding.md](doc/onboarding.md)
+and the devskills `/onboarding-buddy` skill.
