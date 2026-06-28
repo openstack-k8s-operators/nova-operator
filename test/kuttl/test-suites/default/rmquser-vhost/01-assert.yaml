@@ -14,8 +14,8 @@ metadata:
   name: nova-kuttl-notification-transport
 spec:
   rabbitmqClusterName: rabbitmq-notifications
-  username: nova-notifications
-  vhost: nova-notifications
+  username: nova-notif
+  vhost: nova-notif
 ---
 # Verify that 2 TransportURL CRs were created (separate clusters)
 apiVersion: kuttl.dev/v1beta1
@@ -63,15 +63,15 @@ commands:
     # Verify notification-transport has correct user and vhost
     notif_user=$(kubectl get transporturl nova-kuttl-notification-transport -n $NAMESPACE -o jsonpath='{.spec.username}')
     notif_vhost=$(kubectl get transporturl nova-kuttl-notification-transport -n $NAMESPACE -o jsonpath='{.spec.vhost}')
-    if [ "$notif_user" != "nova-notifications" ]; then
-      echo "Expected notification-transport username 'nova-notifications', found '$notif_user'"
+    if [ "$notif_user" != "nova-notif" ]; then
+      echo "Expected notification-transport username 'nova-notif', found '$notif_user'"
       exit 1
     fi
-    if [ "$notif_vhost" != "nova-notifications" ]; then
-      echo "Expected notification-transport vhost 'nova-notifications', found '$notif_vhost'"
+    if [ "$notif_vhost" != "nova-notif" ]; then
+      echo "Expected notification-transport vhost 'nova-notif', found '$notif_vhost'"
       exit 1
     fi
-    echo "Notification transport has correct user (nova-notifications) and vhost (nova-notifications)"
+    echo "Notification transport has correct user (nova-notif) and vhost (nova-notif)"
 
     # Verify that nova.conf contains the notifications transport_url
     NOVA_API_POD=$(kubectl get pods -n $NAMESPACE -l "service=nova-api" -o custom-columns=:metadata.name --no-headers | grep -v ^$ | head -1)
@@ -109,18 +109,18 @@ commands:
     fi
     echo "Found notifications transport_url: $notif_transport_url"
 
-    # Verify the notifications transport_url contains the correct vhost (nova-notifications)
-    if ! echo "$notif_transport_url" | grep -q '/nova-notifications'; then
-      echo "Notifications transport_url does not contain expected vhost '/nova-notifications'"
+    # Verify the notifications transport_url contains the correct vhost (nova-notif)
+    if ! echo "$notif_transport_url" | grep -q '/nova-notif'; then
+      echo "Notifications transport_url does not contain expected vhost '/nova-notif'"
       exit 1
     fi
-    echo "Successfully verified vhost 'nova-notifications' in notifications transport_url"
+    echo "Successfully verified vhost 'nova-notif' in notifications transport_url"
 
-    # Verify the notifications transport_url contains the correct username (nova-notifications)
-    if ! echo "$notif_transport_url" | grep -q 'nova-notifications:'; then
-      echo "Notifications transport_url does not contain expected username 'nova-notifications:'"
+    # Verify the notifications transport_url contains the correct username (nova-notif)
+    if ! echo "$notif_transport_url" | grep -q 'nova-notif:'; then
+      echo "Notifications transport_url does not contain expected username 'nova-notif:'"
       exit 1
     fi
-    echo "Successfully verified username 'nova-notifications' in notifications transport_url"
+    echo "Successfully verified username 'nova-notif' in notifications transport_url"
 
     exit 0
