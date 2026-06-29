@@ -1,0 +1,175 @@
+---
+- name: Deploy Cyborg service
+  hosts: "{{ cifmw_target_hook_host | default('localhost') }}"
+  gather_facts: false
+  environment:
+    KUBECONFIG: "{{ cifmw_openshift_kubeconfig }}"
+    PATH: "{{ cifmw_path }}"
+  tasks:
+    # NOTE(amoralej): Cyborg controllers and webhooks in the nova-operator
+    # are gated behind the ENABLE_CYBORG=true env var (cmd/main.go).
+    # The nova-operator deployment is owned and reconciled by the
+    # openstack-operator, which rebuilds its env vars from scratch on
+    # every reconcile loop (it Owns the Deployment). The OpenStack CRD
+    # does not expose a way to inject custom env vars into sub-operator
+    # deployments, so we must:
+    #   1. Scale down the openstack-operator via its CSV to stop it
+    #      from reconciling (OLM manages the deployment, so we patch
+    #      the CSV replicas rather than scaling the deployment directly).
+    #   2. Patch the nova-operator deployment directly to add ENABLE_CYBORG.
+    #   3. Wait for the nova-operator to roll out with Cyborg enabled.
+    - name: Get the openstack-operator CSV name
+      ansible.builtin.command:
+        cmd: >-
+          oc get csv -n openstack-operators
+          -l operators.coreos.com/openstack-operator.openstack-operators
+          -o name
+      register: csv_name
+
+    - name: Patch CSV to scale down openstack-operator
+      ansible.builtin.shell: |
+        oc patch -n openstack-operators {{ csv_name.stdout }} --type json -p='[
+          {"op": "replace",
+           "path": "/spec/install/spec/deployments/0/spec/replicas",
+           "value": 0}
+        ]'
+
+    - name: Wait for openstack-operator to scale down
+      ansible.builtin.command:
+        cmd: >-
+          oc rollout status deployment/openstack-operator-controller-init
+          -n openstack-operators --timeout=120s
+
+    - name: Patch nova-operator deployment to enable Cyborg
+      ansible.builtin.command:
+        cmd: >-
+          oc set env deployment/nova-operator-controller-manager
+          -n openstack-operators ENABLE_CYBORG=true
+
+    - name: Wait for nova-operator rollout
+      ansible.builtin.command:
+        cmd: >-
+          oc rollout status deployment/nova-operator-controller-manager
+          -n openstack-operators --timeout=300s
+
+    - name: Add CyborgPassword to osp-secret
+      ansible.builtin.shell: |
+        oc patch secret osp-secret \
+          --namespace={{ cifmw_install_yamls_defaults['NAMESPACE'] }} \
+          --type merge -p '{"data":{"CyborgPassword":"'"$(oc get secret osp-secret --namespace={{ cifmw_install_yamls_defaults['NAMESPACE'] }} -o jsonpath='{.data.AdminPassword}')"'"}}'
+
+    - name: Create Cyborg TLS certificates
+      ansible.builtin.shell: |
+        oc apply -f - <<EOF
+        apiVersion: cert-manager.io/v1
+        kind: Certificate
+        metadata:
+          name: cyborg-internal-svc
+          namespace: {{ cifmw_install_yamls_defaults['NAMESPACE'] }}
+        spec:
+          dnsNames:
+          - cyborg-internal.{{ cifmw_install_yamls_defaults['NAMESPACE'] }}.svc
+          - cyborg-internal.{{ cifmw_install_yamls_defaults['NAMESPACE'] }}.svc.cluster.local
+          duration: 43800h0m0s
+          issuerRef:
+            group: cert-manager.io
+            kind: Issuer
+            name: rootca-internal
+          secretName: cert-cyborg-internal-svc
+          usages:
+          - key encipherment
+          - digital signature
+          - server auth
+        ---
+        apiVersion: cert-manager.io/v1
+        kind: Certificate
+        metadata:
+          name: cyborg-public-svc
+          namespace: {{ cifmw_install_yamls_defaults['NAMESPACE'] }}
+        spec:
+          dnsNames:
+          - cyborg-public.{{ cifmw_install_yamls_defaults['NAMESPACE'] }}.svc
+          - cyborg-public.{{ cifmw_install_yamls_defaults['NAMESPACE'] }}.svc.cluster.local
+          duration: 43800h0m0s
+          issuerRef:
+            group: cert-manager.io
+            kind: Issuer
+            name: rootca-public
+          secretName: cert-cyborg-public-svc
+          usages:
+          - key encipherment
+          - digital signature
+          - server auth
+        EOF
+
+    - name: Wait for Cyborg certificate secrets to be created
+      ansible.builtin.command:
+        cmd: >-
+          oc wait certificate {{ item }}
+          --namespace={{ cifmw_install_yamls_defaults['NAMESPACE'] }}
+          --for=condition=Ready --timeout=300s
+      loop:
+        - cyborg-internal-svc
+        - cyborg-public-svc
+
+    - name: Create Cyborg CR
+      ansible.builtin.shell: |
+        oc apply -f - <<EOF
+        apiVersion: cyborg.openstack.org/v1beta1
+        kind: Cyborg
+        metadata:
+          name: cyborg
+          namespace: {{ cifmw_install_yamls_defaults['NAMESPACE'] }}
+        spec:
+          apiContainerImageURL: quay.io/amoralej/openstack-cyborg:master-latest
+          conductorContainerImageURL: quay.io/amoralej/openstack-cyborg:master-latest
+          agentContainerImageURL: quay.io/amoralej/openstack-cyborg-agent:master-latest
+          secret: osp-secret
+          messagingBus:
+            cluster: rabbitmq
+          apiServiceTemplate:
+            override:
+              service:
+                internal:
+                  metadata:
+                    annotations:
+                      metallb.universe.tf/address-pool: internalapi
+                      metallb.universe.tf/allow-shared-ip: internalapi
+                      metallb.universe.tf/loadBalancerIPs: 172.17.0.80
+                  spec:
+                    type: LoadBalancer
+            tls:
+              caBundleSecretName: combined-ca-bundle
+              api:
+                internal:
+                  secretName: cert-cyborg-internal-svc
+                public:
+                  secretName: cert-cyborg-public-svc
+        EOF
+
+    - name: Wait for Cyborg CR to be ready
+      ansible.builtin.command:
+        cmd: >-
+          oc wait cyborg cyborg
+          --namespace={{ cifmw_install_yamls_defaults['NAMESPACE'] }}
+          --for=condition=Ready --timeout=600s
+
+    - name: Create OpenStackDataPlaneService for cyborg
+      ansible.builtin.shell: |
+        oc apply -f - <<EOF
+        apiVersion: dataplane.openstack.org/v1beta1
+        kind: OpenStackDataPlaneService
+        metadata:
+          name: cyborg
+          namespace: {{ cifmw_install_yamls_defaults['NAMESPACE'] }}
+        spec:
+          dataSources:
+            - secretRef:
+                name: cyborg-agent-config
+            - configMapRef:
+                name: cyborg-extra-config
+                optional: true
+          playbook: osp.edpm.cyborg
+          caCerts: combined-ca-bundle
+          edpmServiceType: cyborg
+        EOF
