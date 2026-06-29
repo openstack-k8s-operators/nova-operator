@@ -1128,11 +1128,6 @@ func (r *NovaReconciler) ensureNovaManageJobSecret(
 		"my.cnf": cellDB.GetDatabaseClientConfig(tlsCfg), //(mschuppert) for now just get the default my.cnf
 	}
 
-	extraTemplates := map[string]string{
-		"01-nova.conf":    "/nova/nova.conf",
-		"nova-blank.conf": "/nova/nova-blank.conf",
-	}
-
 	apiDatabaseAccount, apiDbSecret, err := mariadbv1.GetAccountAndSecret(ctx, h, instance.Spec.APIDatabaseAccount, instance.Namespace)
 	if err != nil {
 		return nil, "", "", err
@@ -1197,7 +1192,7 @@ func (r *NovaReconciler) ensureNovaManageJobSecret(
 			Labels:             cmLabels,
 			CustomData:         extraData,
 			Annotations:        map[string]string{},
-			AdditionalTemplate: extraTemplates,
+			AdditionalTemplate: novaAdditionalTemplates(),
 		},
 	}
 

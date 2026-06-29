@@ -532,9 +532,9 @@ func (r *NovaNoVNCProxyReconciler) generateConfigs(
 		instance, labels.GetGroupLabel(NovaNoVNCProxyLabelPrefix), map[string]string{},
 	)
 
-	err = r.GenerateConfigs(
+	err = internalcommon.GenerateConfigs(
 		ctx, h, instance, internalcommon.GetServiceConfigSecretName(instance.GetName()),
-		hashes, templateParameters, extraData, cmLabels, map[string]string{},
+		hashes, templateParameters, extraData, cmLabels, novaAdditionalTemplates(),
 		[]string{}, "nova/novncproxy",
 	)
 	return err

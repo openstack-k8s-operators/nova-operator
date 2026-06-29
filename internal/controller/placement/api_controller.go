@@ -1316,32 +1316,12 @@ func (r *PlacementAPIReconciler) generateServiceConfigMaps(
 		"placement.conf": "placement/api/config/placement.conf",
 	}
 
-	kind := instance.GetObjectKind().GroupVersionKind().Kind
-	cms := []util.Template{
-		// ScriptsConfigMap
-		{
-			Name:             fmt.Sprintf("%s-scripts", instance.Name),
-			Namespace:        instance.Namespace,
-			Type:             util.TemplateTypeScripts,
-			InstanceType:     kind,
-			MultiTemplateDir: "placement/api",
-			Labels:           cmLabels,
-		},
-		// ConfigMap
-		{
-			Name:               fmt.Sprintf("%s-config-data", instance.Name),
-			Namespace:          instance.Namespace,
-			Type:               util.TemplateTypeConfig,
-			InstanceType:       kind,
-			MultiTemplateDir:   "placement/api",
-			CustomData:         customData,
-			ConfigOptions:      templateParameters,
-			Labels:             cmLabels,
-			AdditionalTemplate: extraTemplates,
-			CommonTemplates:    []string{"ssl.conf"},
-		},
-	}
-	return secret.EnsureSecrets(ctx, h, instance, cms, envVars)
+	return internalcommon.GenerateConfigsWithScripts(
+		ctx, h, instance, envVars, templateParameters, customData, cmLabels,
+		extraTemplates,
+		[]string{"ssl.conf"},
+		"placement/api",
+	)
 }
 
 // createHashOfInputHashes - creates a hash of hashes which gets added to the resources which requires a restart

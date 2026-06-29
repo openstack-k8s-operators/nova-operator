@@ -394,8 +394,8 @@ func (r *NovaComputeReconciler) generateConfigs(
 		instance, labels.GetGroupLabel(NovaComputeLabelPrefix), map[string]string{},
 	)
 
-	err := r.GenerateConfigs(
-		ctx, h, instance, internalcommon.GetServiceConfigSecretName(instance.GetName()), hashes, templateParameters, extraData, cmLabels, map[string]string{},
+	err := internalcommon.GenerateConfigs(
+		ctx, h, instance, internalcommon.GetServiceConfigSecretName(instance.GetName()), hashes, templateParameters, extraData, cmLabels, novaAdditionalTemplates(),
 		[]string{}, "nova/compute",
 	)
 	return err

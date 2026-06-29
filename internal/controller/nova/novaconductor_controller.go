@@ -515,8 +515,8 @@ func (r *NovaConductorReconciler) generateConfigs(
 	cmLabels := labels.GetLabels(
 		instance, labels.GetGroupLabel(NovaConductorLabelPrefix), map[string]string{})
 
-	return r.GenerateConfigsWithScripts(
-		ctx, h, instance, hashes, templateParameters, extraData, cmLabels, map[string]string{},
+	return internalcommon.GenerateConfigsWithScripts(
+		ctx, h, instance, hashes, templateParameters, extraData, cmLabels, novaAdditionalTemplates(),
 		[]string{}, "nova/conductor",
 	)
 }

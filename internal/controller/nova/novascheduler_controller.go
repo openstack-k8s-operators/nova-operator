@@ -590,9 +590,9 @@ func (r *NovaSchedulerReconciler) generateConfigs(
 		instance, labels.GetGroupLabel(NovaSchedulerLabelPrefix), map[string]string{},
 	)
 
-	return r.GenerateConfigs(
+	return internalcommon.GenerateConfigs(
 		ctx, h, instance, internalcommon.GetServiceConfigSecretName(instance.GetName()),
-		hashes, templateParameters, extraData, cmLabels, map[string]string{},
+		hashes, templateParameters, extraData, cmLabels, novaAdditionalTemplates(),
 		[]string{}, "nova/scheduler",
 	)
 }
