@@ -23,7 +23,6 @@ import (
 	"maps"
 	"slices"
 
-	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -874,68 +873,26 @@ func (r *PlacementAPIReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func (r *PlacementAPIReconciler) findObjectsForSrc(ctx context.Context, src client.Object) []reconcile.Request {
-	requests := []reconcile.Request{}
-
-	Log := r.GetLogger(context.Background())
-
-	for _, field := range allWatchFields {
-		crList := &placementv1.PlacementAPIList{}
-		listOps := &client.ListOptions{
-			FieldSelector: fields.OneTermEqualSelector(field, src.GetName()),
-			Namespace:     src.GetNamespace(),
-		}
-		err := r.Client.List(ctx, crList, listOps)
-		if err != nil {
-			Log.Error(err, fmt.Sprintf("listing %s for field: %s - %s", crList.GroupVersionKind().Kind, field, src.GetNamespace()))
-			return requests
-		}
-
-		for _, item := range crList.Items {
-			Log.Info(fmt.Sprintf("input source %s changed, reconcile: %s - %s", src.GetName(), item.GetName(), item.GetNamespace()))
-
-			requests = append(requests,
-				reconcile.Request{
-					NamespacedName: types.NamespacedName{
-						Name:      item.GetName(),
-						Namespace: item.GetNamespace(),
-					},
-				},
-			)
-		}
-	}
-
-	return requests
+	return internalcommon.FindObjectsForSrcByField(
+		ctx,
+		r.GetLogger(ctx),
+		r.Client,
+		src,
+		allWatchFields,
+		func() *placementv1.PlacementAPIList { return &placementv1.PlacementAPIList{} },
+		func(l *placementv1.PlacementAPIList) []placementv1.PlacementAPI { return l.Items },
+	)
 }
 
 func (r *PlacementAPIReconciler) findObjectForSrc(ctx context.Context, src client.Object) []reconcile.Request {
-	requests := []reconcile.Request{}
-
-	Log := r.GetLogger(ctx)
-
-	crList := &placementv1.PlacementAPIList{}
-	listOps := &client.ListOptions{
-		Namespace: src.GetNamespace(),
-	}
-	err := r.Client.List(ctx, crList, listOps)
-	if err != nil {
-		Log.Error(err, fmt.Sprintf("listing %s for namespace: %s", crList.GroupVersionKind().Kind, src.GetNamespace()))
-		return requests
-	}
-
-	for _, item := range crList.Items {
-		Log.Info(fmt.Sprintf("input source %s changed, reconcile: %s - %s", src.GetName(), item.GetName(), item.GetNamespace()))
-
-		requests = append(requests,
-			reconcile.Request{
-				NamespacedName: types.NamespacedName{
-					Name:      item.GetName(),
-					Namespace: item.GetNamespace(),
-				},
-			},
-		)
-	}
-
-	return requests
+	return internalcommon.FindObjectsForSrcInNamespace(
+		ctx,
+		r.GetLogger(ctx),
+		r.Client,
+		src,
+		func() *placementv1.PlacementAPIList { return &placementv1.PlacementAPIList{} },
+		func(l *placementv1.PlacementAPIList) []placementv1.PlacementAPI { return l.Items },
+	)
 }
 
 func (r *PlacementAPIReconciler) reconcileDelete(ctx context.Context, instance *placementv1.PlacementAPI, helper *helper.Helper) (ctrl.Result, error) {

@@ -24,7 +24,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -867,37 +866,15 @@ func (r *NovaCellReconciler) getVNCProxyURL(
 }
 
 func (r *NovaCellReconciler) findObjectsForSrc(ctx context.Context, src client.Object) []reconcile.Request {
-	requests := []reconcile.Request{}
-
-	Log := r.GetLogger(ctx)
-
-	for _, field := range cellWatchFields {
-		crList := &novav1.NovaCellList{}
-		listOps := &client.ListOptions{
-			FieldSelector: fields.OneTermEqualSelector(field, src.GetName()),
-			Namespace:     src.GetNamespace(),
-		}
-		err := r.Client.List(ctx, crList, listOps)
-		if err != nil {
-			Log.Error(err, fmt.Sprintf("listing %s for field: %s - %s", crList.GroupVersionKind().Kind, field, src.GetNamespace()))
-			return requests
-		}
-
-		for _, item := range crList.Items {
-			Log.Info(fmt.Sprintf("input source %s changed, reconcile: %s - %s", src.GetName(), item.GetName(), item.GetNamespace()))
-
-			requests = append(requests,
-				reconcile.Request{
-					NamespacedName: types.NamespacedName{
-						Name:      item.GetName(),
-						Namespace: item.GetNamespace(),
-					},
-				},
-			)
-		}
-	}
-
-	return requests
+	return internalcommon.FindObjectsForSrcByField(
+		ctx,
+		r.GetLogger(ctx),
+		r.Client,
+		src,
+		cellWatchFields,
+		func() *novav1.NovaCellList { return &novav1.NovaCellList{} },
+		func(l *novav1.NovaCellList) []novav1.NovaCell { return l.Items },
+	)
 }
 
 // fields to index to reconcile when change

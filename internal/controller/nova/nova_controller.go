@@ -28,7 +28,6 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -2269,68 +2268,26 @@ func (r *NovaReconciler) ensureTopLevelSecret(
 }
 
 func (r *NovaReconciler) findObjectsForSrc(ctx context.Context, src client.Object) []reconcile.Request {
-	requests := []reconcile.Request{}
-
-	Log := r.GetLogger(ctx)
-
-	for _, field := range novaWatchFields {
-		crList := &novav1.NovaList{}
-		listOps := &client.ListOptions{
-			FieldSelector: fields.OneTermEqualSelector(field, src.GetName()),
-			Namespace:     src.GetNamespace(),
-		}
-		err := r.Client.List(ctx, crList, listOps)
-		if err != nil {
-			Log.Error(err, fmt.Sprintf("listing %s for field: %s - %s", crList.GroupVersionKind().Kind, field, src.GetNamespace()))
-			return requests
-		}
-
-		for _, item := range crList.Items {
-			Log.Info(fmt.Sprintf("input source %s changed, reconcile: %s - %s", src.GetName(), item.GetName(), item.GetNamespace()))
-
-			requests = append(requests,
-				reconcile.Request{
-					NamespacedName: types.NamespacedName{
-						Name:      item.GetName(),
-						Namespace: item.GetNamespace(),
-					},
-				},
-			)
-		}
-	}
-
-	return requests
+	return internalcommon.FindObjectsForSrcByField(
+		ctx,
+		r.GetLogger(ctx),
+		r.Client,
+		src,
+		novaWatchFields,
+		func() *novav1.NovaList { return &novav1.NovaList{} },
+		func(l *novav1.NovaList) []novav1.Nova { return l.Items },
+	)
 }
 
 func (r *NovaReconciler) findObjectForSrc(ctx context.Context, src client.Object) []reconcile.Request {
-	requests := []reconcile.Request{}
-
-	Log := r.GetLogger(ctx)
-
-	crList := &novav1.NovaList{}
-	listOps := &client.ListOptions{
-		Namespace: src.GetNamespace(),
-	}
-	err := r.Client.List(ctx, crList, listOps)
-	if err != nil {
-		Log.Error(err, fmt.Sprintf("listing %s for namespace: %s", crList.GroupVersionKind().Kind, src.GetNamespace()))
-		return requests
-	}
-
-	for _, item := range crList.Items {
-		Log.Info(fmt.Sprintf("input source %s changed, reconcile: %s - %s", src.GetName(), item.GetName(), item.GetNamespace()))
-
-		requests = append(requests,
-			reconcile.Request{
-				NamespacedName: types.NamespacedName{
-					Name:      item.GetName(),
-					Namespace: item.GetNamespace(),
-				},
-			},
-		)
-	}
-
-	return requests
+	return internalcommon.FindObjectsForSrcInNamespace(
+		ctx,
+		r.GetLogger(ctx),
+		r.Client,
+		src,
+		func() *novav1.NovaList { return &novav1.NovaList{} },
+		func(l *novav1.NovaList) []novav1.Nova { return l.Items },
+	)
 }
 
 func (r *NovaReconciler) memcachedNamespaceMapFunc(ctx context.Context, src client.Object) []reconcile.Request {

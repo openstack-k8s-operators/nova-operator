@@ -24,7 +24,6 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -718,71 +717,27 @@ func (r *NovaConductorReconciler) cleanServiceFromNovaDb(
 }
 
 func (r *NovaConductorReconciler) findObjectsForSrc(ctx context.Context, src client.Object) []reconcile.Request {
-	requests := []reconcile.Request{}
-
-	Log := r.GetLogger(ctx)
-
-	for _, field := range cdWatchFields {
-		crList := &novav1.NovaConductorList{}
-		listOps := &client.ListOptions{
-			FieldSelector: fields.OneTermEqualSelector(field, src.GetName()),
-			Namespace:     src.GetNamespace(),
-		}
-		err := r.Client.List(ctx, crList, listOps)
-		if err != nil {
-			Log.Error(err, fmt.Sprintf("listing %s for field: %s - %s", crList.GroupVersionKind().Kind, field, src.GetNamespace()))
-			return requests
-		}
-
-		for _, item := range crList.Items {
-			Log.Info(fmt.Sprintf("input source %s changed, reconcile: %s - %s", src.GetName(), item.GetName(), item.GetNamespace()))
-
-			requests = append(requests,
-				reconcile.Request{
-					NamespacedName: types.NamespacedName{
-						Name:      item.GetName(),
-						Namespace: item.GetNamespace(),
-					},
-				},
-			)
-		}
-	}
-
-	return requests
+	return internalcommon.FindObjectsForSrcByField(
+		ctx,
+		r.GetLogger(ctx),
+		r.Client,
+		src,
+		cdWatchFields,
+		func() *novav1.NovaConductorList { return &novav1.NovaConductorList{} },
+		func(l *novav1.NovaConductorList) []novav1.NovaConductor { return l.Items },
+	)
 }
 
 func (r *NovaConductorReconciler) findObjectsWithAppSelectorLabelInNamespace(ctx context.Context, src client.Object) []reconcile.Request {
-	requests := []reconcile.Request{}
-
-	Log := r.GetLogger(ctx)
-
-	// if the endpoint has the service label and its in our endpointList, reconcile the CR in the namespace
-	if svc, ok := src.GetLabels()[common.AppSelector]; ok && util.StringInSlice(svc, endpointList) {
-		crList := &novav1.NovaConductorList{}
-		listOps := &client.ListOptions{
-			Namespace: src.GetNamespace(),
-		}
-		err := r.Client.List(ctx, crList, listOps)
-		if err != nil {
-			Log.Error(err, fmt.Sprintf("listing %s for namespace: %s", crList.GroupVersionKind().Kind, src.GetNamespace()))
-			return requests
-		}
-
-		for _, item := range crList.Items {
-			Log.Info(fmt.Sprintf("input source %s changed, reconcile: %s - %s", src.GetName(), item.GetName(), item.GetNamespace()))
-
-			requests = append(requests,
-				reconcile.Request{
-					NamespacedName: types.NamespacedName{
-						Name:      item.GetName(),
-						Namespace: item.GetNamespace(),
-					},
-				},
-			)
-		}
-	}
-
-	return requests
+	return internalcommon.FindObjectsWithAppSelectorLabelInNamespace(
+		ctx,
+		r.GetLogger(ctx),
+		r.Client,
+		src,
+		endpointList,
+		func() *novav1.NovaConductorList { return &novav1.NovaConductorList{} },
+		func(l *novav1.NovaConductorList) []novav1.NovaConductor { return l.Items },
+	)
 }
 
 // fields to index to reconcile when change
