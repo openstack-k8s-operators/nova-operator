@@ -207,6 +207,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 				Expect(configData).Should(ContainSubstring("transport_url=rabbit://cell1/fake"))
 				Expect(configData).Should(
 					ContainSubstring("[upgrade_levels]\ncompute = auto"))
+				Expect(configData).Should(ContainSubstring("debug=false"))
 				Expect(configDataMap.Data).Should(HaveKey("02-nova-override.conf"))
 				myCnf := configDataMap.Data["my.cnf"]
 				Expect(myCnf).To(
