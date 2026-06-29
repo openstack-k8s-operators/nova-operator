@@ -48,7 +48,7 @@ import (
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/nova/v1beta1"
-	"github.com/openstack-k8s-operators/nova-operator/internal/nova"
+	internalcommon "github.com/openstack-k8s-operators/nova-operator/internal/common"
 	novacompute "github.com/openstack-k8s-operators/nova-operator/internal/nova/compute"
 
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
@@ -396,7 +396,7 @@ func (r *NovaComputeReconciler) generateConfigs(
 	)
 
 	err := r.GenerateConfigs(
-		ctx, h, instance, nova.GetServiceConfigSecretName(instance.GetName()), hashes, templateParameters, extraData, cmLabels, map[string]string{},
+		ctx, h, instance, internalcommon.GetServiceConfigSecretName(instance.GetName()), hashes, templateParameters, extraData, cmLabels, map[string]string{},
 		[]string{}, "nova/compute",
 	)
 	return err
