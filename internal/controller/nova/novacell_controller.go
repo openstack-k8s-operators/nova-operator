@@ -24,7 +24,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -47,6 +46,7 @@ import (
 
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/nova/v1beta1"
+	internalcommon "github.com/openstack-k8s-operators/nova-operator/internal/common"
 )
 
 // NovaCellReconciler reconciles a NovaCell object
@@ -125,7 +125,7 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 			panic(r)
 		}
 		// update the Ready condition based on the sub conditions
-		if allSubConditionIsTrue(instance.Status) {
+		if instance.Status.Conditions.AllSubConditionIsTrue() {
 			instance.Status.Conditions.MarkTrue(
 				condition.ReadyCondition, condition.ReadyMessage)
 		} else {
@@ -151,7 +151,7 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 	}
 
 	// For the compute config generation we need to read the input secrets
-	_, result, secret, err := ensureSecret(
+	_, result, secret, err := internalcommon.EnsureSecret(
 		ctx,
 		types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.Secret},
 		requiredSecretFields,
@@ -814,8 +814,8 @@ func (r *NovaCellReconciler) generateComputeConfigs(
 	}
 
 	configName := instance.GetName() + "-compute-config"
-	err := r.GenerateConfigs(
-		ctx, h, instance, configName, &hashes, templateParameters, extraData, cmLabels, map[string]string{},
+	err := internalcommon.GenerateConfigs(
+		ctx, h, instance, configName, &hashes, templateParameters, extraData, cmLabels, novaAdditionalTemplates(),
 		[]string{}, "nova/compute",
 	)
 	if err != nil {
@@ -866,37 +866,15 @@ func (r *NovaCellReconciler) getVNCProxyURL(
 }
 
 func (r *NovaCellReconciler) findObjectsForSrc(ctx context.Context, src client.Object) []reconcile.Request {
-	requests := []reconcile.Request{}
-
-	Log := r.GetLogger(ctx)
-
-	for _, field := range cellWatchFields {
-		crList := &novav1.NovaCellList{}
-		listOps := &client.ListOptions{
-			FieldSelector: fields.OneTermEqualSelector(field, src.GetName()),
-			Namespace:     src.GetNamespace(),
-		}
-		err := r.Client.List(ctx, crList, listOps)
-		if err != nil {
-			Log.Error(err, fmt.Sprintf("listing %s for field: %s - %s", crList.GroupVersionKind().Kind, field, src.GetNamespace()))
-			return requests
-		}
-
-		for _, item := range crList.Items {
-			Log.Info(fmt.Sprintf("input source %s changed, reconcile: %s - %s", src.GetName(), item.GetName(), item.GetNamespace()))
-
-			requests = append(requests,
-				reconcile.Request{
-					NamespacedName: types.NamespacedName{
-						Name:      item.GetName(),
-						Namespace: item.GetNamespace(),
-					},
-				},
-			)
-		}
-	}
-
-	return requests
+	return internalcommon.FindObjectsForSrcByField(
+		ctx,
+		r.GetLogger(ctx),
+		r.Client,
+		src,
+		cellWatchFields,
+		func() *novav1.NovaCellList { return &novav1.NovaCellList{} },
+		func(l *novav1.NovaCellList) []novav1.NovaCell { return l.Items },
+	)
 }
 
 // fields to index to reconcile when change

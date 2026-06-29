@@ -24,7 +24,6 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -54,6 +53,7 @@ import (
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/nova/v1beta1"
+	internalcommon "github.com/openstack-k8s-operators/nova-operator/internal/common"
 	novaconductor "github.com/openstack-k8s-operators/nova-operator/internal/nova/conductor"
 )
 
@@ -139,7 +139,7 @@ func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			panic(r)
 		}
 		// update the Ready condition based on the sub conditions
-		if allSubConditionIsTrue(instance.Status) {
+		if instance.Status.Conditions.AllSubConditionIsTrue() {
 			instance.Status.Conditions.MarkTrue(
 				condition.ReadyCondition, condition.ReadyMessage)
 		} else {
@@ -204,7 +204,7 @@ func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		NotificationTransportURLSelector,
 	}
 
-	secretHash, result, secret, err := ensureSecret(
+	secretHash, result, secret, err := internalcommon.EnsureSecret(
 		ctx,
 		types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.Secret},
 		requiredSecretFields,
@@ -296,7 +296,7 @@ func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	instance.Status.Conditions.MarkTrue(condition.ServiceConfigReadyCondition, condition.ServiceConfigReadyMessage)
 
-	serviceAnnotations, result, err := ensureNetworkAttachments(ctx, h, instance.Spec.NetworkAttachments, &instance.Status.Conditions, r.RequeueTimeout)
+	serviceAnnotations, result, err := internalcommon.EnsureNetworkAttachments(ctx, h, instance.Spec.NetworkAttachments, &instance.Status.Conditions, r.RequeueTimeout)
 	if (err != nil || result != ctrl.Result{}) {
 		return result, err
 	}
@@ -515,8 +515,8 @@ func (r *NovaConductorReconciler) generateConfigs(
 	cmLabels := labels.GetLabels(
 		instance, labels.GetGroupLabel(NovaConductorLabelPrefix), map[string]string{})
 
-	return r.GenerateConfigsWithScripts(
-		ctx, h, instance, hashes, templateParameters, extraData, cmLabels, map[string]string{},
+	return internalcommon.GenerateConfigsWithScripts(
+		ctx, h, instance, hashes, templateParameters, extraData, cmLabels, novaAdditionalTemplates(),
 		[]string{}, "nova/conductor",
 	)
 }
@@ -580,7 +580,7 @@ func (r *NovaConductorReconciler) ensureDeployment(
 	//
 	// Handle Topology
 	//
-	topology, err := ensureTopology(
+	topology, err := internalcommon.EnsureTopology(
 		ctx,
 		h,
 		instance,      // topologyHandler
@@ -717,71 +717,27 @@ func (r *NovaConductorReconciler) cleanServiceFromNovaDb(
 }
 
 func (r *NovaConductorReconciler) findObjectsForSrc(ctx context.Context, src client.Object) []reconcile.Request {
-	requests := []reconcile.Request{}
-
-	Log := r.GetLogger(ctx)
-
-	for _, field := range cdWatchFields {
-		crList := &novav1.NovaConductorList{}
-		listOps := &client.ListOptions{
-			FieldSelector: fields.OneTermEqualSelector(field, src.GetName()),
-			Namespace:     src.GetNamespace(),
-		}
-		err := r.Client.List(ctx, crList, listOps)
-		if err != nil {
-			Log.Error(err, fmt.Sprintf("listing %s for field: %s - %s", crList.GroupVersionKind().Kind, field, src.GetNamespace()))
-			return requests
-		}
-
-		for _, item := range crList.Items {
-			Log.Info(fmt.Sprintf("input source %s changed, reconcile: %s - %s", src.GetName(), item.GetName(), item.GetNamespace()))
-
-			requests = append(requests,
-				reconcile.Request{
-					NamespacedName: types.NamespacedName{
-						Name:      item.GetName(),
-						Namespace: item.GetNamespace(),
-					},
-				},
-			)
-		}
-	}
-
-	return requests
+	return internalcommon.FindObjectsForSrcByField(
+		ctx,
+		r.GetLogger(ctx),
+		r.Client,
+		src,
+		cdWatchFields,
+		func() *novav1.NovaConductorList { return &novav1.NovaConductorList{} },
+		func(l *novav1.NovaConductorList) []novav1.NovaConductor { return l.Items },
+	)
 }
 
 func (r *NovaConductorReconciler) findObjectsWithAppSelectorLabelInNamespace(ctx context.Context, src client.Object) []reconcile.Request {
-	requests := []reconcile.Request{}
-
-	Log := r.GetLogger(ctx)
-
-	// if the endpoint has the service label and its in our endpointList, reconcile the CR in the namespace
-	if svc, ok := src.GetLabels()[common.AppSelector]; ok && util.StringInSlice(svc, endpointList) {
-		crList := &novav1.NovaConductorList{}
-		listOps := &client.ListOptions{
-			Namespace: src.GetNamespace(),
-		}
-		err := r.Client.List(ctx, crList, listOps)
-		if err != nil {
-			Log.Error(err, fmt.Sprintf("listing %s for namespace: %s", crList.GroupVersionKind().Kind, src.GetNamespace()))
-			return requests
-		}
-
-		for _, item := range crList.Items {
-			Log.Info(fmt.Sprintf("input source %s changed, reconcile: %s - %s", src.GetName(), item.GetName(), item.GetNamespace()))
-
-			requests = append(requests,
-				reconcile.Request{
-					NamespacedName: types.NamespacedName{
-						Name:      item.GetName(),
-						Namespace: item.GetNamespace(),
-					},
-				},
-			)
-		}
-	}
-
-	return requests
+	return internalcommon.FindObjectsWithAppSelectorLabelInNamespace(
+		ctx,
+		r.GetLogger(ctx),
+		r.Client,
+		src,
+		endpointList,
+		func() *novav1.NovaConductorList { return &novav1.NovaConductorList{} },
+		func(l *novav1.NovaConductorList) []novav1.NovaConductor { return l.Items },
+	)
 }
 
 // fields to index to reconcile when change

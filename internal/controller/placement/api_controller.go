@@ -19,16 +19,11 @@ package controller
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"maps"
 	"slices"
-	"time"
 
-	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -40,7 +35,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/go-logr/logr"
-	networkv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
@@ -61,6 +55,7 @@ import (
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 
 	placementv1 "github.com/openstack-k8s-operators/nova-operator/api/placement/v1beta1"
+	internalcommon "github.com/openstack-k8s-operators/nova-operator/internal/common"
 	placement "github.com/openstack-k8s-operators/nova-operator/internal/placement"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -70,91 +65,6 @@ import (
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 )
 
-// Static errors for Application Credential handling
-var (
-	ErrACSecretNotFound    = errors.New("ApplicationCredential secret not found")
-	ErrACSecretMissingKeys = errors.New("ApplicationCredential secret missing required keys")
-)
-
-type conditionUpdater interface {
-	Set(c *condition.Condition)
-	MarkTrue(t condition.Type, messageFormat string, messageArgs ...any)
-}
-
-// GetSecret interface defines methods for objects that can provide secret names
-type GetSecret interface {
-	GetSecret() string
-	client.Object
-}
-
-// ensureSecret - ensures that the Secret object exists and the expected fields
-// are in the Secret. It returns a hash of the values of the expected fields.
-func ensureSecret(
-	ctx context.Context,
-	secretName types.NamespacedName,
-	expectedFields []string,
-	reader client.Reader,
-	conditionUpdater conditionUpdater,
-) (string, ctrl.Result, corev1.Secret, error) {
-	secret := &corev1.Secret{}
-	err := reader.Get(ctx, secretName, secret)
-	if err != nil {
-		if k8s_errors.IsNotFound(err) {
-			// This is currently only used to acquire the password secret, which should have been
-			// manually created by the user and referenced in the spec, so we treat this as a
-			// warning because it means that the service will not be able to start.
-			conditionUpdater.Set(condition.FalseCondition(
-				condition.InputReadyCondition,
-				condition.ErrorReason,
-				condition.SeverityWarning,
-				"%s", fmt.Sprintf("Input data resources missing: %s", "secret/"+secretName.Name)))
-			return "",
-				ctrl.Result{},
-				*secret,
-				fmt.Errorf("%w: Secret %s not found", err, secretName)
-		}
-		conditionUpdater.Set(condition.FalseCondition(
-			condition.InputReadyCondition,
-			condition.ErrorReason,
-			condition.SeverityWarning,
-			condition.InputReadyErrorMessage,
-			err.Error()))
-		return "", ctrl.Result{}, *secret, err
-	}
-
-	// collect the secret values the caller expects to exist
-	values := [][]byte{}
-	for _, field := range expectedFields {
-		val, ok := secret.Data[field]
-		if !ok {
-			err := fmt.Errorf("%w: field '%s' not found in secret/%s", util.ErrFieldNotFound, field, secretName.Name)
-			conditionUpdater.Set(condition.FalseCondition(
-				condition.InputReadyCondition,
-				condition.ErrorReason,
-				condition.SeverityWarning,
-				condition.InputReadyErrorMessage,
-				err.Error()))
-			return "", ctrl.Result{}, *secret, err
-		}
-		values = append(values, val)
-	}
-
-	// TODO(gibi): Do we need to watch the Secret for changes?
-
-	hash, err := util.ObjectHash(values)
-	if err != nil {
-		conditionUpdater.Set(condition.FalseCondition(
-			condition.InputReadyCondition,
-			condition.ErrorReason,
-			condition.SeverityWarning,
-			condition.InputReadyErrorMessage,
-			err.Error()))
-		return "", ctrl.Result{}, *secret, err
-	}
-
-	return hash, ctrl.Result{}, *secret, nil
-}
-
 // GetLogger returns a logger object with a prefix of "controller.name" and additional controller context fields
 func (r *PlacementAPIReconciler) GetLogger(ctx context.Context) logr.Logger {
 	return log.FromContext(ctx).WithName("Controllers").WithName("PlacementAPI")
@@ -162,9 +72,7 @@ func (r *PlacementAPIReconciler) GetLogger(ctx context.Context) logr.Logger {
 
 // PlacementAPIReconciler reconciles a PlacementAPI object
 type PlacementAPIReconciler struct {
-	client.Client
-	Kclient kubernetes.Interface
-	Scheme  *runtime.Scheme
+	internalcommon.ReconcilerBase
 }
 
 // +kubebuilder:rbac:groups=placement.openstack.org,resources=placementapis,verbs=get;list;watch;create;update;patch;delete
@@ -200,7 +108,7 @@ func (r *PlacementAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	// Fetch the PlacementAPI instance
 	instance := &placementv1.PlacementAPI{}
-	err := r.Get(ctx, req.NamespacedName, instance)
+	err := r.Client.Get(ctx, req.NamespacedName, instance)
 	if err != nil {
 		if k8s_errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
@@ -307,33 +215,30 @@ func (r *PlacementAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	//
 	// check for required OpenStack secret holding passwords for service/admin user and add hash to the vars map
 	//
-	hash, result, secret, err := ensureSecret(
+	// EnsureSecret is shared with nova via internal/common. Compared to the former
+	// placement-local ensureSecret, a missing Secret returns
+	// (Result{RequeueAfter: r.RequeueTimeout}, nil) instead of a NotFound error with
+	// an empty Result, and sets InputReady before requeue. The caller below only logs
+	// and returns the Result without treating a missing Secret as a reconcile error.
+	hash, result, secret, err := internalcommon.EnsureSecret(
 		ctx,
 		types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.Secret},
 		[]string{
 			instance.Spec.PasswordSelectors.Service,
 		},
 		h.GetClient(),
-		&instance.Status.Conditions)
+		&instance.Status.Conditions,
+		r.RequeueTimeout,
+	)
 	if err != nil {
-		if k8s_errors.IsNotFound(err) {
-			// Since the service secret should have been manually created by the user and referenced in the spec,
-			// we treat this as a warning because it means that the service will not be able to start.
-			Log.Info(fmt.Sprintf("OpenStack secret %s not found", instance.Spec.Secret))
-			instance.Status.Conditions.Set(condition.FalseCondition(
-				condition.InputReadyCondition,
-				condition.ErrorReason,
-				condition.SeverityWarning,
-				condition.InputReadyWaitingMessage))
-			return ctrl.Result{RequeueAfter: time.Second * 10}, nil
-		}
-		instance.Status.Conditions.Set(condition.FalseCondition(
-			condition.InputReadyCondition,
-			condition.ErrorReason,
-			condition.SeverityWarning,
-			condition.InputReadyErrorMessage,
-			err.Error()))
 		return result, err
+	}
+	if (result != ctrl.Result{}) {
+		// Since the service secret should have been manually created by the user and referenced in the spec,
+		// we treat this as a warning because it means that the service will not be able to start.
+		// InputReady condition and requeue are already set by EnsureSecret above.
+		Log.Info(fmt.Sprintf("OpenStack secret %s not found", instance.Spec.Secret))
+		return result, nil
 	}
 	configMapVars[instance.Spec.Secret] = env.SetValue(hash)
 
@@ -374,6 +279,15 @@ func (r *PlacementAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	err = r.generateServiceConfigMaps(ctx, h, instance, secret, &configMapVars, db)
 	if err != nil {
+		if k8s_errors.IsNotFound(err) && instance.Spec.Auth.ApplicationCredentialSecret != "" {
+			Log.Info("ApplicationCredential secret not found, waiting", "secret", instance.Spec.Auth.ApplicationCredentialSecret)
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				condition.InputReadyCondition,
+				condition.RequestedReason,
+				condition.SeverityInfo,
+				condition.InputReadyWaitingMessage))
+			return ctrl.Result{RequeueAfter: r.RequeueTimeout}, nil
+		}
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.ServiceConfigReadyCondition,
 			condition.ErrorReason,
@@ -472,7 +386,7 @@ func (r *PlacementAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	instance.Status.Conditions.MarkTrue(condition.ServiceConfigReadyCondition, condition.ServiceConfigReadyMessage)
 
-	serviceAnnotations, result, err := r.ensureNetworkAttachments(ctx, h, instance)
+	serviceAnnotations, result, err := internalcommon.EnsureNetworkAttachments(ctx, h, instance.Spec.NetworkAttachments, &instance.Status.Conditions, r.RequeueTimeout)
 	if (err != nil || result != ctrl.Result{}) {
 		return result, err
 	}
@@ -660,54 +574,6 @@ func (r *PlacementAPIReconciler) ensureServiceExposed(
 	return apiEndpoints, ctrl.Result{}, nil
 }
 
-func (r *PlacementAPIReconciler) ensureNetworkAttachments(
-	ctx context.Context,
-	h *helper.Helper,
-	instance *placementv1.PlacementAPI,
-) (map[string]string, ctrl.Result, error) {
-	var nadAnnotations map[string]string
-	var err error
-
-	Log := r.GetLogger(ctx)
-	// networks to attach to
-	nadList := []networkv1.NetworkAttachmentDefinition{}
-	for _, netAtt := range instance.Spec.NetworkAttachments {
-		nad, err := nad.GetNADWithName(ctx, h, netAtt, instance.Namespace)
-		if err != nil {
-			if k8s_errors.IsNotFound(err) {
-				// Since the net-attach-def CR should have been manually created by the user and referenced in the spec,
-				// we treat this as a warning because it means that the service will not be able to start.
-				Log.Info(fmt.Sprintf("network-attachment-definition %s not found", netAtt))
-				instance.Status.Conditions.Set(condition.FalseCondition(
-					condition.NetworkAttachmentsReadyCondition,
-					condition.ErrorReason,
-					condition.SeverityWarning,
-					condition.NetworkAttachmentsReadyWaitingMessage,
-					netAtt))
-				return nadAnnotations, ctrl.Result{RequeueAfter: time.Second * 10}, nil
-			}
-			instance.Status.Conditions.Set(condition.FalseCondition(
-				condition.NetworkAttachmentsReadyCondition,
-				condition.ErrorReason,
-				condition.SeverityWarning,
-				condition.NetworkAttachmentsReadyErrorMessage,
-				err.Error()))
-			return nadAnnotations, ctrl.Result{}, err
-		}
-
-		if nad != nil {
-			nadList = append(nadList, *nad)
-		}
-	}
-
-	nadAnnotations, err = nad.EnsureNetworksAnnotation(nadList)
-	if err != nil {
-		return nadAnnotations, ctrl.Result{}, fmt.Errorf("failed create network annotation from %s: %w",
-			instance.Spec.NetworkAttachments, err)
-	}
-	return nadAnnotations, ctrl.Result{}, nil
-}
-
 func (r *PlacementAPIReconciler) ensureKeystoneServiceUser(
 	ctx context.Context,
 	h *helper.Helper,
@@ -726,7 +592,7 @@ func (r *PlacementAPIReconciler) ensureKeystoneServiceUser(
 		PasswordSelector:   instance.Spec.PasswordSelectors.Service,
 	}
 	serviceLabels := getServiceLabels(instance)
-	ksSvc := keystonev1.NewKeystoneService(ksSvcSpec, instance.Namespace, serviceLabels, time.Duration(10)*time.Second)
+	ksSvc := keystonev1.NewKeystoneService(ksSvcSpec, instance.Namespace, serviceLabels, r.RequeueTimeout)
 	_, err := ksSvc.CreateOrPatch(ctx, h)
 	if err != nil {
 		return err
@@ -757,7 +623,7 @@ func (r *PlacementAPIReconciler) ensureKeystoneEndpoint(
 		instance.Namespace,
 		ksEndptSpec,
 		getServiceLabels(instance),
-		time.Duration(10)*time.Second,
+		r.RequeueTimeout,
 	)
 	ctrlResult, err := ksEndpt.CreateOrPatch(ctx, h)
 	if err != nil {
@@ -1007,68 +873,26 @@ func (r *PlacementAPIReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func (r *PlacementAPIReconciler) findObjectsForSrc(ctx context.Context, src client.Object) []reconcile.Request {
-	requests := []reconcile.Request{}
-
-	Log := r.GetLogger(context.Background())
-
-	for _, field := range allWatchFields {
-		crList := &placementv1.PlacementAPIList{}
-		listOps := &client.ListOptions{
-			FieldSelector: fields.OneTermEqualSelector(field, src.GetName()),
-			Namespace:     src.GetNamespace(),
-		}
-		err := r.List(ctx, crList, listOps)
-		if err != nil {
-			Log.Error(err, fmt.Sprintf("listing %s for field: %s - %s", crList.GroupVersionKind().Kind, field, src.GetNamespace()))
-			return requests
-		}
-
-		for _, item := range crList.Items {
-			Log.Info(fmt.Sprintf("input source %s changed, reconcile: %s - %s", src.GetName(), item.GetName(), item.GetNamespace()))
-
-			requests = append(requests,
-				reconcile.Request{
-					NamespacedName: types.NamespacedName{
-						Name:      item.GetName(),
-						Namespace: item.GetNamespace(),
-					},
-				},
-			)
-		}
-	}
-
-	return requests
+	return internalcommon.FindObjectsForSrcByField(
+		ctx,
+		r.GetLogger(ctx),
+		r.Client,
+		src,
+		allWatchFields,
+		func() *placementv1.PlacementAPIList { return &placementv1.PlacementAPIList{} },
+		func(l *placementv1.PlacementAPIList) []placementv1.PlacementAPI { return l.Items },
+	)
 }
 
 func (r *PlacementAPIReconciler) findObjectForSrc(ctx context.Context, src client.Object) []reconcile.Request {
-	requests := []reconcile.Request{}
-
-	Log := r.GetLogger(ctx)
-
-	crList := &placementv1.PlacementAPIList{}
-	listOps := &client.ListOptions{
-		Namespace: src.GetNamespace(),
-	}
-	err := r.List(ctx, crList, listOps)
-	if err != nil {
-		Log.Error(err, fmt.Sprintf("listing %s for namespace: %s", crList.GroupVersionKind().Kind, src.GetNamespace()))
-		return requests
-	}
-
-	for _, item := range crList.Items {
-		Log.Info(fmt.Sprintf("input source %s changed, reconcile: %s - %s", src.GetName(), item.GetName(), item.GetNamespace()))
-
-		requests = append(requests,
-			reconcile.Request{
-				NamespacedName: types.NamespacedName{
-					Name:      item.GetName(),
-					Namespace: item.GetNamespace(),
-				},
-			},
-		)
-	}
-
-	return requests
+	return internalcommon.FindObjectsForSrcInNamespace(
+		ctx,
+		r.GetLogger(ctx),
+		r.Client,
+		src,
+		func() *placementv1.PlacementAPIList { return &placementv1.PlacementAPIList{} },
+		func(l *placementv1.PlacementAPIList) []placementv1.PlacementAPI { return l.Items },
+	)
 }
 
 func (r *PlacementAPIReconciler) reconcileDelete(ctx context.Context, instance *placementv1.PlacementAPI, helper *helper.Helper) (ctrl.Result, error) {
@@ -1105,7 +929,7 @@ func (r *PlacementAPIReconciler) reconcileDelete(ctx context.Context, instance *
 
 	if err == nil {
 		if controllerutil.RemoveFinalizer(keystoneEndpoint, helper.GetFinalizer()) {
-			err = r.Update(ctx, keystoneEndpoint)
+			err = r.Client.Update(ctx, keystoneEndpoint)
 			if err != nil && !k8s_errors.IsNotFound(err) {
 				return ctrl.Result{}, err
 			}
@@ -1121,7 +945,7 @@ func (r *PlacementAPIReconciler) reconcileDelete(ctx context.Context, instance *
 
 	if err == nil {
 		if controllerutil.RemoveFinalizer(keystoneService, helper.GetFinalizer()) {
-			err = r.Update(ctx, keystoneService)
+			err = r.Client.Update(ctx, keystoneService)
 			if err != nil && !k8s_errors.IsNotFound(err) {
 				return ctrl.Result{}, err
 			}
@@ -1220,7 +1044,7 @@ func (r *PlacementAPIReconciler) ensureDbSync(
 		jobDef,
 		placementv1.DbSyncHash,
 		instance.Spec.PreserveJobs,
-		time.Duration(5)*time.Second,
+		r.RequeueTimeout,
 		dbSyncHash,
 	)
 	ctrlResult, err := dbSyncjob.DoJob(
@@ -1268,35 +1092,19 @@ func (r *PlacementAPIReconciler) ensureDeployment(
 	//
 	// Handle Topology
 	//
-	topology, err := topologyv1.EnsureServiceTopology(
-		ctx,
-		h,
-		instance.Spec.TopologyRef,
-		instance.Status.LastAppliedTopology,
-		instance.Name,
-		labels.GetLabelSelector(serviceLabels),
-	)
-	if err != nil {
-		instance.Status.Conditions.Set(condition.FalseCondition(
-			condition.TopologyReadyCondition,
-			condition.ErrorReason,
-			condition.SeverityWarning,
-			condition.TopologyReadyErrorMessage,
-			err.Error()))
-		return ctrl.Result{}, fmt.Errorf("waiting for Topology requirements: %w", err)
-	}
-
 	// If TopologyRef is present and ensureServiceTopology returned a valid
 	// topology object, set .Status.LastAppliedTopology to the referenced one
 	// and mark the condition as true
-	if instance.Spec.TopologyRef != nil {
-		// update the Status with the last retrieved Topology name
-		instance.Status.LastAppliedTopology = instance.Spec.TopologyRef
-		// update the TopologyRef associated condition
-		instance.Status.Conditions.MarkTrue(condition.TopologyReadyCondition, condition.TopologyReadyMessage)
-	} else {
-		// remove LastAppliedTopology from the .Status
-		instance.Status.LastAppliedTopology = nil
+	topology, err := internalcommon.EnsureTopology(
+		ctx,
+		h,
+		instance,
+		instance.Name,
+		&instance.Status.Conditions,
+		labels.GetLabelSelector(serviceLabels),
+	)
+	if err != nil {
+		return ctrl.Result{}, err
 	}
 
 	// Define a new Deployment object
@@ -1312,7 +1120,7 @@ func (r *PlacementAPIReconciler) ensureDeployment(
 
 	depl := deployment.NewDeployment(
 		deplDef,
-		time.Duration(5)*time.Second,
+		r.RequeueTimeout,
 	)
 
 	ctrlResult, err := depl.CreateOrPatch(ctx, h)
@@ -1471,8 +1279,7 @@ func (r *PlacementAPIReconciler) generateServiceConfigMaps(
 		acSecretObj, _, err := secret.GetSecret(ctx, h, instance.Spec.Auth.ApplicationCredentialSecret, instance.Namespace)
 		if err != nil {
 			if k8s_errors.IsNotFound(err) {
-				h.GetLogger().Info("ApplicationCredential secret not found, waiting", "secret", instance.Spec.Auth.ApplicationCredentialSecret)
-				return fmt.Errorf("%w: %s", ErrACSecretNotFound, instance.Spec.Auth.ApplicationCredentialSecret)
+				return err
 			}
 			h.GetLogger().Error(err, "Failed to get ApplicationCredential secret", "secret", instance.Spec.Auth.ApplicationCredentialSecret)
 			return err
@@ -1481,7 +1288,7 @@ func (r *PlacementAPIReconciler) generateServiceConfigMaps(
 		acSecretData, okSecret := acSecretObj.Data[keystonev1.ACSecretSecretKey]
 		if !okID || len(acID) == 0 || !okSecret || len(acSecretData) == 0 {
 			h.GetLogger().Info("ApplicationCredential secret missing required keys", "secret", instance.Spec.Auth.ApplicationCredentialSecret)
-			return fmt.Errorf("%w: %s", ErrACSecretMissingKeys, instance.Spec.Auth.ApplicationCredentialSecret)
+			return fmt.Errorf("%w: %s", internalcommon.ErrACSecretMissingKeys, instance.Spec.Auth.ApplicationCredentialSecret)
 		}
 		templateParameters["UseApplicationCredentials"] = true
 		templateParameters["ACID"] = string(acID)
@@ -1509,32 +1316,12 @@ func (r *PlacementAPIReconciler) generateServiceConfigMaps(
 		"placement.conf": "placement/api/config/placement.conf",
 	}
 
-	kind := instance.GetObjectKind().GroupVersionKind().Kind
-	cms := []util.Template{
-		// ScriptsConfigMap
-		{
-			Name:             fmt.Sprintf("%s-scripts", instance.Name),
-			Namespace:        instance.Namespace,
-			Type:             util.TemplateTypeScripts,
-			InstanceType:     kind,
-			MultiTemplateDir: "placement/api",
-			Labels:           cmLabels,
-		},
-		// ConfigMap
-		{
-			Name:               fmt.Sprintf("%s-config-data", instance.Name),
-			Namespace:          instance.Namespace,
-			Type:               util.TemplateTypeConfig,
-			InstanceType:       kind,
-			MultiTemplateDir:   "placement/api",
-			CustomData:         customData,
-			ConfigOptions:      templateParameters,
-			Labels:             cmLabels,
-			AdditionalTemplate: extraTemplates,
-			CommonTemplates:    []string{"ssl.conf"},
-		},
-	}
-	return secret.EnsureSecrets(ctx, h, instance, cms, envVars)
+	return internalcommon.GenerateConfigsWithScripts(
+		ctx, h, instance, envVars, templateParameters, customData, cmLabels,
+		extraTemplates,
+		[]string{"ssl.conf"},
+		"placement/api",
+	)
 }
 
 // createHashOfInputHashes - creates a hash of hashes which gets added to the resources which requires a restart

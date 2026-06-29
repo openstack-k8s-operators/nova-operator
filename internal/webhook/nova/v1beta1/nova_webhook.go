@@ -19,7 +19,6 @@ package v1beta1
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -29,15 +28,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	novav1beta1 "github.com/openstack-k8s-operators/nova-operator/api/nova/v1beta1"
+	internalcommon "github.com/openstack-k8s-operators/nova-operator/internal/common"
 )
 
 // nolint:unused
 // log is for logging in this package.
 var novalog = logf.Log.WithName("nova-resource")
-
-var (
-	errUnexpectedObjectType = errors.New("unexpected object type")
-)
 
 // SetupNovaWebhookWithManager registers the webhook for Nova in the manager.
 func SetupNovaWebhookWithManager(mgr ctrl.Manager) error {
@@ -67,7 +63,7 @@ func (d *NovaCustomDefaulter) Default(_ context.Context, obj runtime.Object) err
 	nova, ok := obj.(*novav1beta1.Nova)
 
 	if !ok {
-		return fmt.Errorf("%w: expected an Nova object but got %T", errUnexpectedObjectType, obj)
+		return fmt.Errorf("expected a Nova object but got %T: %w", obj, internalcommon.ErrUnexpectedObjectType)
 	}
 	novalog.Info("Defaulting for Nova", "name", nova.GetName())
 
@@ -96,7 +92,7 @@ var _ webhook.CustomValidator = &NovaCustomValidator{}
 func (v *NovaCustomValidator) ValidateCreate(_ context.Context, obj runtime.Object) (admission.Warnings, error) {
 	nova, ok := obj.(*novav1beta1.Nova)
 	if !ok {
-		return nil, fmt.Errorf("%w: expected a Nova object but got %T", errUnexpectedObjectType, obj)
+		return nil, fmt.Errorf("expected a Nova object but got %T: %w", obj, internalcommon.ErrUnexpectedObjectType)
 	}
 	novalog.Info("Validation for Nova upon creation", "name", nova.GetName())
 
@@ -107,7 +103,7 @@ func (v *NovaCustomValidator) ValidateCreate(_ context.Context, obj runtime.Obje
 func (v *NovaCustomValidator) ValidateUpdate(_ context.Context, oldObj, newObj runtime.Object) (admission.Warnings, error) {
 	nova, ok := newObj.(*novav1beta1.Nova)
 	if !ok {
-		return nil, fmt.Errorf("%w: expected a Nova object for the newObj but got %T", errUnexpectedObjectType, newObj)
+		return nil, fmt.Errorf("expected a Nova object for the newObj but got %T: %w", newObj, internalcommon.ErrUnexpectedObjectType)
 	}
 	novalog.Info("Validation for Nova upon update", "name", nova.GetName())
 
@@ -118,7 +114,7 @@ func (v *NovaCustomValidator) ValidateUpdate(_ context.Context, oldObj, newObj r
 func (v *NovaCustomValidator) ValidateDelete(_ context.Context, obj runtime.Object) (admission.Warnings, error) {
 	nova, ok := obj.(*novav1beta1.Nova)
 	if !ok {
-		return nil, fmt.Errorf("%w: expected a Nova object but got %T", errUnexpectedObjectType, obj)
+		return nil, fmt.Errorf("expected a Nova object but got %T: %w", obj, internalcommon.ErrUnexpectedObjectType)
 	}
 	novalog.Info("Validation for Nova upon deletion", "name", nova.GetName())
 

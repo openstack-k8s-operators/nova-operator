@@ -23,7 +23,6 @@ import (
 
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -54,7 +53,7 @@ import (
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/nova/v1beta1"
-	"github.com/openstack-k8s-operators/nova-operator/internal/nova"
+	internalcommon "github.com/openstack-k8s-operators/nova-operator/internal/common"
 	novaapi "github.com/openstack-k8s-operators/nova-operator/internal/nova/api"
 
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
@@ -143,7 +142,7 @@ func (r *NovaAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (re
 			panic(r)
 		}
 		// update the Ready condition based on the sub conditions
-		if allSubConditionIsTrue(instance.Status) {
+		if instance.Status.Conditions.AllSubConditionIsTrue() {
 			instance.Status.Conditions.MarkTrue(
 				condition.ReadyCondition, condition.ReadyMessage)
 		} else {
@@ -209,7 +208,7 @@ func (r *NovaAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (re
 		NotificationTransportURLSelector,
 	}
 
-	secretHash, result, secret, err := ensureSecret(
+	secretHash, result, secret, err := internalcommon.EnsureSecret(
 		ctx,
 		types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.Secret},
 		requiredSecretFields,
@@ -331,7 +330,7 @@ func (r *NovaAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (re
 
 	instance.Status.Conditions.MarkTrue(condition.ServiceConfigReadyCondition, condition.ServiceConfigReadyMessage)
 
-	serviceAnnotations, result, err := ensureNetworkAttachments(ctx, h, instance.Spec.NetworkAttachments, &instance.Status.Conditions, r.RequeueTimeout)
+	serviceAnnotations, result, err := internalcommon.EnsureNetworkAttachments(ctx, h, instance.Spec.NetworkAttachments, &instance.Status.Conditions, r.RequeueTimeout)
 	if (err != nil || result != ctrl.Result{}) {
 		return result, err
 	}
@@ -571,12 +570,11 @@ func (r *NovaAPIReconciler) generateConfigs(
 		instance, labels.GetGroupLabel(NovaAPILabelPrefix), map[string]string{},
 	)
 
-	err = r.GenerateConfigs(
-		ctx, h, instance, nova.GetServiceConfigSecretName(instance.GetName()),
-		hashes, templateParameters, extraData, cmLabels, map[string]string{},
+	return internalcommon.GenerateConfigs(
+		ctx, h, instance, internalcommon.GetServiceConfigSecretName(instance.GetName()),
+		hashes, templateParameters, extraData, cmLabels, novaAdditionalTemplates(),
 		[]string{"ssl.conf"}, "nova/api",
 	)
-	return err
 }
 
 func (r *NovaAPIReconciler) ensureDeployment(
@@ -593,7 +591,7 @@ func (r *NovaAPIReconciler) ensureDeployment(
 	//
 	// Handle Topology
 	//
-	topology, err := ensureTopology(
+	topology, err := internalcommon.EnsureTopology(
 		ctx,
 		h,
 		instance,      // topologyHandler
@@ -928,71 +926,27 @@ func getAPIServiceLabels() map[string]string {
 }
 
 func (r *NovaAPIReconciler) findObjectsForSrc(ctx context.Context, src client.Object) []reconcile.Request {
-	requests := []reconcile.Request{}
-
-	Log := r.GetLogger(ctx)
-
-	for _, field := range apiWatchFields {
-		crList := &novav1.NovaAPIList{}
-		listOps := &client.ListOptions{
-			FieldSelector: fields.OneTermEqualSelector(field, src.GetName()),
-			Namespace:     src.GetNamespace(),
-		}
-		err := r.Client.List(ctx, crList, listOps)
-		if err != nil {
-			Log.Error(err, fmt.Sprintf("listing %s for field: %s - %s", crList.GroupVersionKind().Kind, field, src.GetNamespace()))
-			return requests
-		}
-
-		for _, item := range crList.Items {
-			Log.Info(fmt.Sprintf("input source %s changed, reconcile: %s - %s", src.GetName(), item.GetName(), item.GetNamespace()))
-
-			requests = append(requests,
-				reconcile.Request{
-					NamespacedName: types.NamespacedName{
-						Name:      item.GetName(),
-						Namespace: item.GetNamespace(),
-					},
-				},
-			)
-		}
-	}
-
-	return requests
+	return internalcommon.FindObjectsForSrcByField(
+		ctx,
+		r.GetLogger(ctx),
+		r.Client,
+		src,
+		apiWatchFields,
+		func() *novav1.NovaAPIList { return &novav1.NovaAPIList{} },
+		func(l *novav1.NovaAPIList) []novav1.NovaAPI { return l.Items },
+	)
 }
 
 func (r *NovaAPIReconciler) findObjectsWithAppSelectorLabelInNamespace(ctx context.Context, src client.Object) []reconcile.Request {
-	requests := []reconcile.Request{}
-
-	Log := r.GetLogger(ctx)
-
-	// if the endpoint has the service label and its in our endpointList, reconcile the CR in the namespace
-	if svc, ok := src.GetLabels()[common.AppSelector]; ok && util.StringInSlice(svc, endpointList) {
-		crList := &novav1.NovaAPIList{}
-		listOps := &client.ListOptions{
-			Namespace: src.GetNamespace(),
-		}
-		err := r.Client.List(ctx, crList, listOps)
-		if err != nil {
-			Log.Error(err, fmt.Sprintf("listing %s for namespace: %s", crList.GroupVersionKind().Kind, src.GetNamespace()))
-			return requests
-		}
-
-		for _, item := range crList.Items {
-			Log.Info(fmt.Sprintf("input source %s changed, reconcile: %s - %s", src.GetName(), item.GetName(), item.GetNamespace()))
-
-			requests = append(requests,
-				reconcile.Request{
-					NamespacedName: types.NamespacedName{
-						Name:      item.GetName(),
-						Namespace: item.GetNamespace(),
-					},
-				},
-			)
-		}
-	}
-
-	return requests
+	return internalcommon.FindObjectsWithAppSelectorLabelInNamespace(
+		ctx,
+		r.GetLogger(ctx),
+		r.Client,
+		src,
+		endpointList,
+		func() *novav1.NovaAPIList { return &novav1.NovaAPIList{} },
+		func(l *novav1.NovaAPIList) []novav1.NovaAPI { return l.Items },
+	)
 }
 
 // fields to index to reconcile when change

@@ -247,9 +247,24 @@ func SetupDefaults() {
 	SetupPlacementAPIDefaults(placementDefaults)
 }
 
-// GetSecret returns the value of the Nova.Spec.Secret
+// GetSecret returns the value of the PlacementAPI.Spec.Secret
 func (instance PlacementAPI) GetSecret() string {
 	return instance.Spec.Secret
+}
+
+// GetSpecTopologyRef returns the TopologyRef from the Spec
+func (instance *PlacementAPI) GetSpecTopologyRef() *topologyv1.TopoRef {
+	return instance.Spec.TopologyRef
+}
+
+// GetLastAppliedTopology returns the LastAppliedTopology from the Status
+func (instance *PlacementAPI) GetLastAppliedTopology() *topologyv1.TopoRef {
+	return instance.Status.LastAppliedTopology
+}
+
+// SetLastAppliedTopology sets the LastAppliedTopology value in the Status
+func (instance *PlacementAPI) SetLastAppliedTopology(topologyRef *topologyv1.TopoRef) {
+	instance.Status.LastAppliedTopology = topologyRef
 }
 
 // ValidateTopology -

@@ -150,10 +150,14 @@ PROC_CMD = --procs ${PROCS}
 .PHONY: test
 # TODO: Currently runs all tests (Nova + Placement). In future, optimize CI to run only tests
 # for the operator code that changed (e.g., skip Placement tests if only Nova code changed).
-test: manifests generate fmt vet envtest ginkgo ## Run tests.
+test: manifests generate fmt vet envtest gotest-unit ginkgo ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) -v debug --bin-dir $(LOCALBIN) use $(ENVTEST_K8S_VERSION) -p path)" \
 	OPERATOR_TEMPLATES="$(PWD)/templates" \
 	$(GINKGO) --trace --cover --coverpkg=../../internal/...,../../api/nova/v1beta1,../../api/placement/v1beta1 --coverprofile cover.out --covermode=atomic --randomize-all ${PROC_CMD} $(GINKGO_ARGS) ./test/...
+
+.PHONY: gotest-unit
+gotest-unit: ## Run unit tests under test/unit/.
+	go test ./test/unit/...
 
 ##@ Build
 

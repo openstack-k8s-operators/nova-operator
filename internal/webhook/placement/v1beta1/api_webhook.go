@@ -19,7 +19,6 @@ package v1beta1
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -29,11 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	placementv1beta1 "github.com/openstack-k8s-operators/nova-operator/api/placement/v1beta1"
-)
-
-var (
-	// ErrInvalidObjectType is returned when an unexpected object type is provided
-	ErrInvalidObjectType = errors.New("invalid object type")
+	internalcommon "github.com/openstack-k8s-operators/nova-operator/internal/common"
 )
 
 // nolint:unused
@@ -66,7 +61,7 @@ func (d *PlacementAPICustomDefaulter) Default(_ context.Context, obj runtime.Obj
 	placementapi, ok := obj.(*placementv1beta1.PlacementAPI)
 
 	if !ok {
-		return fmt.Errorf("expected an PlacementAPI object but got %T: %w", obj, ErrInvalidObjectType)
+		return fmt.Errorf("expected an PlacementAPI object but got %T: %w", obj, internalcommon.ErrUnexpectedObjectType)
 	}
 	placementapilog.Info("Defaulting for PlacementAPI", "name", placementapi.GetName())
 
@@ -96,7 +91,7 @@ var _ webhook.CustomValidator = &PlacementAPICustomValidator{}
 func (v *PlacementAPICustomValidator) ValidateCreate(_ context.Context, obj runtime.Object) (admission.Warnings, error) {
 	placementapi, ok := obj.(*placementv1beta1.PlacementAPI)
 	if !ok {
-		return nil, fmt.Errorf("expected a PlacementAPI object but got %T: %w", obj, ErrInvalidObjectType)
+		return nil, fmt.Errorf("expected a PlacementAPI object but got %T: %w", obj, internalcommon.ErrUnexpectedObjectType)
 	}
 	placementapilog.Info("Validation for PlacementAPI upon creation", "name", placementapi.GetName())
 
@@ -108,7 +103,7 @@ func (v *PlacementAPICustomValidator) ValidateCreate(_ context.Context, obj runt
 func (v *PlacementAPICustomValidator) ValidateUpdate(_ context.Context, oldObj, newObj runtime.Object) (admission.Warnings, error) {
 	placementapi, ok := newObj.(*placementv1beta1.PlacementAPI)
 	if !ok {
-		return nil, fmt.Errorf("expected a PlacementAPI object for the newObj but got %T: %w", newObj, ErrInvalidObjectType)
+		return nil, fmt.Errorf("expected a PlacementAPI object for the newObj but got %T: %w", newObj, internalcommon.ErrUnexpectedObjectType)
 	}
 	placementapilog.Info("Validation for PlacementAPI upon update", "name", placementapi.GetName())
 
@@ -120,7 +115,7 @@ func (v *PlacementAPICustomValidator) ValidateUpdate(_ context.Context, oldObj, 
 func (v *PlacementAPICustomValidator) ValidateDelete(_ context.Context, obj runtime.Object) (admission.Warnings, error) {
 	placementapi, ok := obj.(*placementv1beta1.PlacementAPI)
 	if !ok {
-		return nil, fmt.Errorf("expected a PlacementAPI object but got %T: %w", obj, ErrInvalidObjectType)
+		return nil, fmt.Errorf("expected a PlacementAPI object but got %T: %w", obj, internalcommon.ErrUnexpectedObjectType)
 	}
 	placementapilog.Info("Validation for PlacementAPI upon deletion", "name", placementapi.GetName())
 
