@@ -405,21 +405,7 @@ func ensureNetworkAttachments(
 
 // ReconcilerBase provides a common set of clients scheme and loggers for all reconcilers.
 type ReconcilerBase struct {
-	Client         client.Client
-	Kclient        kubernetes.Interface
-	Scheme         *runtime.Scheme
-	RequeueTimeout time.Duration
-}
-
-// Manageable all types that conform to this interface can be setup with a controller-runtime manager.
-type Manageable interface {
-	SetupWithManager(mgr ctrl.Manager) error
-}
-
-// Reconciler represents a generic interface for all Reconciler objects in nova
-type Reconciler interface {
-	Manageable
-	SetRequeueTimeout(timeout time.Duration)
+	internalcommon.ReconcilerBase
 }
 
 // NewReconcilerBase constructs a ReconcilerBase given a manager and Kclient.
@@ -427,73 +413,38 @@ func NewReconcilerBase(
 	mgr ctrl.Manager, kclient kubernetes.Interface,
 ) ReconcilerBase {
 	return ReconcilerBase{
-		Client:         mgr.GetClient(),
-		Scheme:         mgr.GetScheme(),
-		Kclient:        kclient,
-		RequeueTimeout: time.Duration(5) * time.Second,
+		ReconcilerBase: internalcommon.NewReconcilerBase(mgr, kclient),
 	}
-}
-
-// SetRequeueTimeout overrides the default RequeueTimeout of the Reconciler
-func (r *ReconcilerBase) SetRequeueTimeout(timeout time.Duration) {
-	r.RequeueTimeout = timeout
-}
-
-// Reconcilers holds all the Reconciler objects of the nova-operator to
-// allow generic management of them.
-type Reconcilers struct {
-	reconcilers map[string]Reconciler
 }
 
 // NewReconcilers constructs all nova Reconciler objects
-func NewReconcilers(mgr ctrl.Manager, kclient *kubernetes.Clientset) *Reconcilers {
-	return &Reconcilers{
-		reconcilers: map[string]Reconciler{
-			"Nova": &NovaReconciler{
-				ReconcilerBase: NewReconcilerBase(mgr, kclient),
-			},
-			"NovaCell": &NovaCellReconciler{
-				ReconcilerBase: NewReconcilerBase(mgr, kclient),
-			},
-			"NovaAPI": &NovaAPIReconciler{
-				ReconcilerBase: NewReconcilerBase(mgr, kclient),
-			},
-			"NovaScheduler": &NovaSchedulerReconciler{
-				ReconcilerBase: NewReconcilerBase(mgr, kclient),
-			},
-			"NovaConductor": &NovaConductorReconciler{
-				ReconcilerBase: NewReconcilerBase(mgr, kclient),
-			},
-			"NovaMetadata": &NovaMetadataReconciler{
-				ReconcilerBase: NewReconcilerBase(mgr, kclient),
-			},
-			"NovaNoVNCProxy": &NovaNoVNCProxyReconciler{
-				ReconcilerBase: NewReconcilerBase(mgr, kclient),
-			},
-			"NovaCompute": &NovaComputeReconciler{
-				ReconcilerBase: NewReconcilerBase(mgr, kclient),
-			},
+func NewReconcilers(mgr ctrl.Manager, kclient *kubernetes.Clientset) *internalcommon.Reconcilers {
+	return internalcommon.NewReconcilers(map[string]internalcommon.Reconciler{
+		"Nova": &NovaReconciler{
+			ReconcilerBase: NewReconcilerBase(mgr, kclient),
 		},
-	}
-}
-
-// Setup starts the reconcilers by connecting them to the Manager
-func (r *Reconcilers) Setup(mgr ctrl.Manager, setupLog logr.Logger) error {
-	var err error
-	for name, controller := range r.reconcilers {
-		if err = controller.SetupWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create controller", "controller", name)
-			return err
-		}
-	}
-	return nil
-}
-
-// OverrideRequeueTimeout overrides the default RequeueTimeout of our reconcilers
-func (r *Reconcilers) OverrideRequeueTimeout(timeout time.Duration) {
-	for _, reconciler := range r.reconcilers {
-		reconciler.SetRequeueTimeout(timeout)
-	}
+		"NovaCell": &NovaCellReconciler{
+			ReconcilerBase: NewReconcilerBase(mgr, kclient),
+		},
+		"NovaAPI": &NovaAPIReconciler{
+			ReconcilerBase: NewReconcilerBase(mgr, kclient),
+		},
+		"NovaScheduler": &NovaSchedulerReconciler{
+			ReconcilerBase: NewReconcilerBase(mgr, kclient),
+		},
+		"NovaConductor": &NovaConductorReconciler{
+			ReconcilerBase: NewReconcilerBase(mgr, kclient),
+		},
+		"NovaMetadata": &NovaMetadataReconciler{
+			ReconcilerBase: NewReconcilerBase(mgr, kclient),
+		},
+		"NovaNoVNCProxy": &NovaNoVNCProxyReconciler{
+			ReconcilerBase: NewReconcilerBase(mgr, kclient),
+		},
+		"NovaCompute": &NovaComputeReconciler{
+			ReconcilerBase: NewReconcilerBase(mgr, kclient),
+		},
+	})
 }
 
 // generateConfigsGeneric helper function to generate config maps

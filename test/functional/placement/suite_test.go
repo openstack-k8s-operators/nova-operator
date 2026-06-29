@@ -48,6 +48,7 @@ import (
 	test "github.com/openstack-k8s-operators/lib-common/modules/test"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	placementv1 "github.com/openstack-k8s-operators/nova-operator/api/placement/v1beta1"
+	internalcommon "github.com/openstack-k8s-operators/nova-operator/internal/common"
 	controllers "github.com/openstack-k8s-operators/nova-operator/internal/controller/placement"
 	webhookv1 "github.com/openstack-k8s-operators/nova-operator/internal/webhook/placement/v1beta1"
 
@@ -202,9 +203,7 @@ var _ = BeforeSuite(func() {
 	placementv1.SetupDefaults()
 
 	err = (&controllers.PlacementAPIReconciler{
-		Client:  k8sManager.GetClient(),
-		Scheme:  k8sManager.GetScheme(),
-		Kclient: kclient,
+		ReconcilerBase: internalcommon.NewReconcilerBase(k8sManager, kclient),
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
