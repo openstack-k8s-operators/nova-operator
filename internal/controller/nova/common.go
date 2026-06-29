@@ -29,10 +29,7 @@ import (
 
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -44,17 +41,14 @@ import (
 
 	gophercloud "github.com/gophercloud/gophercloud/v2"
 	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/services"
-	networkv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
-	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
-	nad "github.com/openstack-k8s-operators/lib-common/modules/common/networkattachment"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/secret"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	"github.com/openstack-k8s-operators/lib-common/modules/openstack"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	corev1 "k8s.io/api/core/v1"
 )
 
 const (
@@ -153,60 +147,10 @@ var (
 		endpointNeutron,
 		endpointPlacement,
 	}
-
 )
 
 type conditionsGetter interface {
 	GetConditions() condition.Conditions
-}
-
-type topologyHandler interface {
-	GetSpecTopologyRef() *topologyv1.TopoRef
-	GetLastAppliedTopology() *topologyv1.TopoRef
-	SetLastAppliedTopology(t *topologyv1.TopoRef)
-}
-
-// ensureTopology - when a Topology CR is referenced, remove the
-// finalizer from a previous referenced Topology (if any), and retrieve the
-// newly referenced topology object
-func ensureTopology(
-	ctx context.Context,
-	helper *helper.Helper,
-	instance topologyHandler,
-	finalizer string,
-	conditionUpdater conditionUpdater,
-	defaultLabelSelector metav1.LabelSelector,
-) (*topologyv1.Topology, error) {
-	topology, err := topologyv1.EnsureServiceTopology(
-		ctx,
-		helper,
-		instance.GetSpecTopologyRef(),
-		instance.GetLastAppliedTopology(),
-		finalizer,
-		defaultLabelSelector,
-	)
-	if err != nil {
-		conditionUpdater.Set(condition.FalseCondition(
-			condition.TopologyReadyCondition,
-			condition.ErrorReason,
-			condition.SeverityWarning,
-			condition.TopologyReadyErrorMessage,
-			err.Error()))
-		return nil, fmt.Errorf("waiting for Topology requirements: %w", err)
-	}
-	// update the Status with the last retrieved Topology (or set it to nil)
-	tr := instance.GetSpecTopologyRef()
-	instance.SetLastAppliedTopology(tr)
-	// update the Topology condition only when a Topology is referenced and has
-	// been retrieved (err == nil)
-	if tr != nil {
-		// update the TopologyRef associated condition
-		conditionUpdater.MarkTrue(
-			condition.TopologyReadyCondition,
-			condition.TopologyReadyMessage,
-		)
-	}
-	return topology, nil
 }
 
 func cleanNovaServiceFromNovaDb(
@@ -275,132 +219,6 @@ func allSubConditionIsTrue(conditionsGetter conditionsGetter) bool {
 		}
 	}
 	return true
-}
-
-type conditionUpdater interface {
-	Set(c *condition.Condition)
-	MarkTrue(t condition.Type, messageFormat string, messageArgs ...any)
-}
-
-func ensureSecret(
-	ctx context.Context,
-	secretName types.NamespacedName,
-	expectedFields []string,
-	reader client.Reader,
-	conditionUpdater conditionUpdater,
-	requeueTimeout time.Duration,
-) (string, ctrl.Result, corev1.Secret, error) {
-	secret := &corev1.Secret{}
-	err := reader.Get(ctx, secretName, secret)
-	if err != nil {
-		if k8s_errors.IsNotFound(err) {
-			// This is only currently used to get the password secret provided by the user in the spec.
-			// Therefore, since the secret should have been manually created by the user and referenced
-			// in the spec, we treat this as a warning because it means that the service will not be
-			// able to start.
-			log.FromContext(ctx).Info(fmt.Sprintf("secret %s not found", secretName))
-			conditionUpdater.Set(condition.FalseCondition(
-				condition.InputReadyCondition,
-				condition.ErrorReason,
-				condition.SeverityWarning,
-				novav1.InputReadyWaitingMessage, "secret/"+secretName.Name))
-			return "",
-				ctrl.Result{RequeueAfter: requeueTimeout},
-				*secret,
-				nil
-		}
-		conditionUpdater.Set(condition.FalseCondition(
-			condition.InputReadyCondition,
-			condition.ErrorReason,
-			condition.SeverityWarning,
-			condition.InputReadyErrorMessage,
-			err.Error()))
-		return "", ctrl.Result{}, *secret, err
-	}
-
-	// collect the secret values the caller expects to exist
-	values := [][]byte{}
-	for _, field := range expectedFields {
-		val, ok := secret.Data[field]
-		if !ok {
-			err := fmt.Errorf("%w: '%s' not found in secret/%s", util.ErrFieldNotFound, field, secretName.Name)
-			conditionUpdater.Set(condition.FalseCondition(
-				condition.InputReadyCondition,
-				condition.ErrorReason,
-				condition.SeverityWarning,
-				condition.InputReadyErrorMessage,
-				err.Error()))
-			return "", ctrl.Result{}, *secret, err
-		}
-		values = append(values, val)
-	}
-
-	// TODO(gibi): Do we need to watch the Secret for changes?
-
-	hash, err := util.ObjectHash(values)
-	if err != nil {
-		conditionUpdater.Set(condition.FalseCondition(
-			condition.InputReadyCondition,
-			condition.ErrorReason,
-			condition.SeverityWarning,
-			condition.InputReadyErrorMessage,
-			err.Error()))
-		return "", ctrl.Result{}, *secret, err
-	}
-
-	return hash, ctrl.Result{}, *secret, nil
-}
-
-// ensureNetworkAttachments - checks the requested network attachments exists and
-// returns the annotation to be set on the deployment objects.
-func ensureNetworkAttachments(
-	ctx context.Context,
-	h *helper.Helper,
-	networkAttachments []string,
-	conditionUpdater conditionUpdater,
-	requeueTimeout time.Duration,
-) (map[string]string, ctrl.Result, error) {
-	var nadAnnotations map[string]string
-	var err error
-
-	// networks to attach to
-	nadList := []networkv1.NetworkAttachmentDefinition{}
-	for _, netAtt := range networkAttachments {
-		nad, err := nad.GetNADWithName(ctx, h, netAtt, h.GetBeforeObject().GetNamespace())
-		if err != nil {
-			if k8s_errors.IsNotFound(err) {
-				// Since the net-attach-def CR should have been manually created by the user and referenced in the spec,
-				// we treat this as a warning because it means that the service will not be able to start.
-				log.FromContext(ctx).Info(fmt.Sprintf("network-attachment-definition %s not found", netAtt))
-				conditionUpdater.Set(condition.FalseCondition(
-					condition.NetworkAttachmentsReadyCondition,
-					condition.ErrorReason,
-					condition.SeverityWarning,
-					condition.NetworkAttachmentsReadyWaitingMessage,
-					netAtt))
-				return nadAnnotations, ctrl.Result{RequeueAfter: requeueTimeout}, nil
-			}
-			conditionUpdater.Set(condition.FalseCondition(
-				condition.NetworkAttachmentsReadyCondition,
-				condition.ErrorReason,
-				condition.SeverityWarning,
-				condition.NetworkAttachmentsErrorMessage,
-				err.Error()))
-			return nadAnnotations, ctrl.Result{}, err
-		}
-
-		if nad != nil {
-			nadList = append(nadList, *nad)
-		}
-	}
-
-	nadAnnotations, err = nad.EnsureNetworksAnnotation(nadList)
-	if err != nil {
-		return nadAnnotations, ctrl.Result{}, fmt.Errorf("failed create network annotation from %s: %w",
-			networkAttachments, err)
-	}
-
-	return nadAnnotations, ctrl.Result{}, nil
 }
 
 // ReconcilerBase provides a common set of clients scheme and loggers for all reconcilers.
@@ -700,7 +518,7 @@ func ensureMemcached(
 	h *helper.Helper,
 	namespaceName string,
 	memcachedName string,
-	conditionUpdater conditionUpdater,
+	conditionUpdater internalcommon.ConditionUpdater,
 ) (*memcachedv1.Memcached, error) {
 	memcached, err := memcachedv1.GetMemcachedByName(ctx, h, memcachedName, namespaceName)
 	if err != nil {

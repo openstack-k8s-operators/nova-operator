@@ -54,6 +54,7 @@ import (
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/nova/v1beta1"
+	internalcommon "github.com/openstack-k8s-operators/nova-operator/internal/common"
 	novaconductor "github.com/openstack-k8s-operators/nova-operator/internal/nova/conductor"
 )
 
@@ -204,7 +205,7 @@ func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		NotificationTransportURLSelector,
 	}
 
-	secretHash, result, secret, err := ensureSecret(
+	secretHash, result, secret, err := internalcommon.EnsureSecret(
 		ctx,
 		types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.Secret},
 		requiredSecretFields,
@@ -296,7 +297,7 @@ func (r *NovaConductorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	instance.Status.Conditions.MarkTrue(condition.ServiceConfigReadyCondition, condition.ServiceConfigReadyMessage)
 
-	serviceAnnotations, result, err := ensureNetworkAttachments(ctx, h, instance.Spec.NetworkAttachments, &instance.Status.Conditions, r.RequeueTimeout)
+	serviceAnnotations, result, err := internalcommon.EnsureNetworkAttachments(ctx, h, instance.Spec.NetworkAttachments, &instance.Status.Conditions, r.RequeueTimeout)
 	if (err != nil || result != ctrl.Result{}) {
 		return result, err
 	}
@@ -580,7 +581,7 @@ func (r *NovaConductorReconciler) ensureDeployment(
 	//
 	// Handle Topology
 	//
-	topology, err := ensureTopology(
+	topology, err := internalcommon.EnsureTopology(
 		ctx,
 		h,
 		instance,      // topologyHandler

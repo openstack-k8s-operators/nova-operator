@@ -14,24 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package common provides shared helpers for nova, placement, and cyborg controllers.
 package common //nolint:revive // common is the established package name for multi-group shared code
 
-import "fmt"
-
-const (
-	// ServiceCommand - the command to start the service binary in the kolla container
-	ServiceCommand = "/usr/local/bin/kolla_start"
+import (
+	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 )
 
-// GetScriptSecretName returns the name of the Secret used for the
-// db sync scripts
-func GetScriptSecretName(crName string) string {
-	return fmt.Sprintf("%s-scripts", crName)
-}
-
-// GetServiceConfigSecretName returns the name of the Secret used to
-// store the service configuration files
-func GetServiceConfigSecretName(crName string) string {
-	return fmt.Sprintf("%s-config-data", crName)
+// ConditionUpdater updates conditions on a reconciled object.
+type ConditionUpdater interface {
+	Set(c *condition.Condition)
+	MarkTrue(t condition.Type, messageFormat string, messageArgs ...any)
 }
