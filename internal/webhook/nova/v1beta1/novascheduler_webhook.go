@@ -18,7 +18,6 @@ package v1beta1
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -28,13 +27,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	novav1beta1 "github.com/openstack-k8s-operators/nova-operator/api/nova/v1beta1"
+	internalcommon "github.com/openstack-k8s-operators/nova-operator/internal/common"
 )
 
 // nolint:unused
 // log is for logging in this package.
 var novaschedulerlog = logf.Log.WithName("novascheduler-resource")
-
-var errExpectedNovaSchedulerObject = errors.New("expected a NovaScheduler object")
 
 // SetupNovaSchedulerWebhookWithManager registers the webhook for NovaScheduler in the manager.
 func SetupNovaSchedulerWebhookWithManager(mgr ctrl.Manager) error {
@@ -64,7 +62,7 @@ func (d *NovaSchedulerCustomDefaulter) Default(_ context.Context, obj runtime.Ob
 	novascheduler, ok := obj.(*novav1beta1.NovaScheduler)
 
 	if !ok {
-		return fmt.Errorf("%w but got %T", errExpectedNovaSchedulerObject, obj)
+		return fmt.Errorf("expected a NovaScheduler object but got %T: %w", obj, internalcommon.ErrUnexpectedObjectType)
 	}
 	novaschedulerlog.Info("Defaulting for NovaScheduler", "name", novascheduler.GetName())
 
@@ -93,7 +91,7 @@ var _ webhook.CustomValidator = &NovaSchedulerCustomValidator{}
 func (v *NovaSchedulerCustomValidator) ValidateCreate(_ context.Context, obj runtime.Object) (admission.Warnings, error) {
 	novascheduler, ok := obj.(*novav1beta1.NovaScheduler)
 	if !ok {
-		return nil, fmt.Errorf("%w but got %T", errExpectedNovaSchedulerObject, obj)
+		return nil, fmt.Errorf("expected a NovaScheduler object but got %T: %w", obj, internalcommon.ErrUnexpectedObjectType)
 	}
 	novaschedulerlog.Info("Validation for NovaScheduler upon creation", "name", novascheduler.GetName())
 
@@ -104,7 +102,7 @@ func (v *NovaSchedulerCustomValidator) ValidateCreate(_ context.Context, obj run
 func (v *NovaSchedulerCustomValidator) ValidateUpdate(_ context.Context, oldObj, newObj runtime.Object) (admission.Warnings, error) {
 	novascheduler, ok := newObj.(*novav1beta1.NovaScheduler)
 	if !ok {
-		return nil, fmt.Errorf("%w for the newObj but got %T", errExpectedNovaSchedulerObject, newObj)
+		return nil, fmt.Errorf("expected a NovaScheduler object for the newObj but got %T: %w", newObj, internalcommon.ErrUnexpectedObjectType)
 	}
 	novaschedulerlog.Info("Validation for NovaScheduler upon update", "name", novascheduler.GetName())
 
@@ -115,7 +113,7 @@ func (v *NovaSchedulerCustomValidator) ValidateUpdate(_ context.Context, oldObj,
 func (v *NovaSchedulerCustomValidator) ValidateDelete(_ context.Context, obj runtime.Object) (admission.Warnings, error) {
 	novascheduler, ok := obj.(*novav1beta1.NovaScheduler)
 	if !ok {
-		return nil, fmt.Errorf("%w but got %T", errExpectedNovaSchedulerObject, obj)
+		return nil, fmt.Errorf("expected a NovaScheduler object but got %T: %w", obj, internalcommon.ErrUnexpectedObjectType)
 	}
 	novaschedulerlog.Info("Validation for NovaScheduler upon deletion", "name", novascheduler.GetName())
 

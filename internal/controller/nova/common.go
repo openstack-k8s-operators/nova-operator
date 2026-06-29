@@ -19,7 +19,6 @@ package controller
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"maps"
 	"net/url"
@@ -155,10 +154,6 @@ var (
 		endpointPlacement,
 	}
 
-	// ErrACSecretMissingKeys indicates that the ApplicationCredential secret is missing required keys
-	ErrACSecretMissingKeys = errors.New("ApplicationCredential secret missing required keys")
-	// ErrTemplateDirUnset indicates that no template directory was provided.
-	ErrTemplateDirUnset = errors.New("templateDir must be set")
 )
 
 type conditionsGetter interface {
@@ -517,7 +512,7 @@ func (r *ReconcilerBase) generateConfigsGeneric(
 		"nova-blank.conf": "/nova/nova-blank.conf",
 	}
 	if templateDir == "" {
-		return ErrTemplateDirUnset
+		return internalcommon.ErrTemplateDirUnset
 	}
 
 	maps.Copy(extraTemplates, additionalTemplates)

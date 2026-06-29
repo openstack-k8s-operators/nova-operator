@@ -18,7 +18,6 @@ package v1beta1
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -28,13 +27,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	novav1beta1 "github.com/openstack-k8s-operators/nova-operator/api/nova/v1beta1"
+	internalcommon "github.com/openstack-k8s-operators/nova-operator/internal/common"
 )
 
 // nolint:unused
 // log is for logging in this package.
 var novametadatalog = logf.Log.WithName("novametadata-resource")
-
-var errExpectedNovaMetadataObject = errors.New("expected a NovaMetadata object")
 
 // SetupNovaMetadataWebhookWithManager registers the webhook for NovaMetadata in the manager.
 func SetupNovaMetadataWebhookWithManager(mgr ctrl.Manager) error {
@@ -64,7 +62,7 @@ func (d *NovaMetadataCustomDefaulter) Default(_ context.Context, obj runtime.Obj
 	novametadata, ok := obj.(*novav1beta1.NovaMetadata)
 
 	if !ok {
-		return fmt.Errorf("%w but got %T", errExpectedNovaMetadataObject, obj)
+		return fmt.Errorf("expected a NovaMetadata object but got %T: %w", obj, internalcommon.ErrUnexpectedObjectType)
 	}
 	novametadatalog.Info("Defaulting for NovaMetadata", "name", novametadata.GetName())
 
@@ -93,7 +91,7 @@ var _ webhook.CustomValidator = &NovaMetadataCustomValidator{}
 func (v *NovaMetadataCustomValidator) ValidateCreate(_ context.Context, obj runtime.Object) (admission.Warnings, error) {
 	novametadata, ok := obj.(*novav1beta1.NovaMetadata)
 	if !ok {
-		return nil, fmt.Errorf("%w but got %T", errExpectedNovaMetadataObject, obj)
+		return nil, fmt.Errorf("expected a NovaMetadata object but got %T: %w", obj, internalcommon.ErrUnexpectedObjectType)
 	}
 	novametadatalog.Info("Validation for NovaMetadata upon creation", "name", novametadata.GetName())
 
@@ -104,7 +102,7 @@ func (v *NovaMetadataCustomValidator) ValidateCreate(_ context.Context, obj runt
 func (v *NovaMetadataCustomValidator) ValidateUpdate(_ context.Context, oldObj, newObj runtime.Object) (admission.Warnings, error) {
 	novametadata, ok := newObj.(*novav1beta1.NovaMetadata)
 	if !ok {
-		return nil, fmt.Errorf("%w for the newObj but got %T", errExpectedNovaMetadataObject, newObj)
+		return nil, fmt.Errorf("expected a NovaMetadata object for the newObj but got %T: %w", newObj, internalcommon.ErrUnexpectedObjectType)
 	}
 	novametadatalog.Info("Validation for NovaMetadata upon update", "name", novametadata.GetName())
 
@@ -115,7 +113,7 @@ func (v *NovaMetadataCustomValidator) ValidateUpdate(_ context.Context, oldObj, 
 func (v *NovaMetadataCustomValidator) ValidateDelete(_ context.Context, obj runtime.Object) (admission.Warnings, error) {
 	novametadata, ok := obj.(*novav1beta1.NovaMetadata)
 	if !ok {
-		return nil, fmt.Errorf("%w but got %T", errExpectedNovaMetadataObject, obj)
+		return nil, fmt.Errorf("expected a NovaMetadata object but got %T: %w", obj, internalcommon.ErrUnexpectedObjectType)
 	}
 	novametadatalog.Info("Validation for NovaMetadata upon deletion", "name", novametadata.GetName())
 

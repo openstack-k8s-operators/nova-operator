@@ -18,7 +18,6 @@ package v1beta1
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -28,13 +27,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	novav1beta1 "github.com/openstack-k8s-operators/nova-operator/api/nova/v1beta1"
+	internalcommon "github.com/openstack-k8s-operators/nova-operator/internal/common"
 )
 
 // nolint:unused
 // log is for logging in this package.
 var novacelllog = logf.Log.WithName("novacell-resource")
-
-var errExpectedNovaCellObject = errors.New("expected a NovaCell object")
 
 // SetupNovaCellWebhookWithManager registers the webhook for NovaCell in the manager.
 func SetupNovaCellWebhookWithManager(mgr ctrl.Manager) error {
@@ -64,7 +62,7 @@ func (d *NovaCellCustomDefaulter) Default(_ context.Context, obj runtime.Object)
 	novacell, ok := obj.(*novav1beta1.NovaCell)
 
 	if !ok {
-		return fmt.Errorf("%w but got %T", errExpectedNovaCellObject, obj)
+		return fmt.Errorf("expected a NovaCell object but got %T: %w", obj, internalcommon.ErrUnexpectedObjectType)
 	}
 	novacelllog.Info("Defaulting for NovaCell", "name", novacell.GetName())
 
@@ -93,7 +91,7 @@ var _ webhook.CustomValidator = &NovaCellCustomValidator{}
 func (v *NovaCellCustomValidator) ValidateCreate(_ context.Context, obj runtime.Object) (admission.Warnings, error) {
 	novacell, ok := obj.(*novav1beta1.NovaCell)
 	if !ok {
-		return nil, fmt.Errorf("%w but got %T", errExpectedNovaCellObject, obj)
+		return nil, fmt.Errorf("expected a NovaCell object but got %T: %w", obj, internalcommon.ErrUnexpectedObjectType)
 	}
 	novacelllog.Info("Validation for NovaCell upon creation", "name", novacell.GetName())
 
@@ -104,7 +102,7 @@ func (v *NovaCellCustomValidator) ValidateCreate(_ context.Context, obj runtime.
 func (v *NovaCellCustomValidator) ValidateUpdate(_ context.Context, oldObj, newObj runtime.Object) (admission.Warnings, error) {
 	novacell, ok := newObj.(*novav1beta1.NovaCell)
 	if !ok {
-		return nil, fmt.Errorf("%w for the newObj but got %T", errExpectedNovaCellObject, newObj)
+		return nil, fmt.Errorf("expected a NovaCell object for the newObj but got %T: %w", newObj, internalcommon.ErrUnexpectedObjectType)
 	}
 	novacelllog.Info("Validation for NovaCell upon update", "name", novacell.GetName())
 
@@ -115,7 +113,7 @@ func (v *NovaCellCustomValidator) ValidateUpdate(_ context.Context, oldObj, newO
 func (v *NovaCellCustomValidator) ValidateDelete(_ context.Context, obj runtime.Object) (admission.Warnings, error) {
 	novacell, ok := obj.(*novav1beta1.NovaCell)
 	if !ok {
-		return nil, fmt.Errorf("%w but got %T", errExpectedNovaCellObject, obj)
+		return nil, fmt.Errorf("expected a NovaCell object but got %T: %w", obj, internalcommon.ErrUnexpectedObjectType)
 	}
 	novacelllog.Info("Validation for NovaCell upon deletion", "name", novacell.GetName())
 

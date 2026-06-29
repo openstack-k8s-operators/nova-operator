@@ -19,7 +19,6 @@ package controller
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"maps"
 	"slices"
@@ -61,6 +60,7 @@ import (
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 
 	placementv1 "github.com/openstack-k8s-operators/nova-operator/api/placement/v1beta1"
+	internalcommon "github.com/openstack-k8s-operators/nova-operator/internal/common"
 	placement "github.com/openstack-k8s-operators/nova-operator/internal/placement"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -70,11 +70,6 @@ import (
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 )
 
-// Static errors for Application Credential handling
-var (
-	ErrACSecretNotFound    = errors.New("ApplicationCredential secret not found")
-	ErrACSecretMissingKeys = errors.New("ApplicationCredential secret missing required keys")
-)
 
 type conditionUpdater interface {
 	Set(c *condition.Condition)
@@ -374,6 +369,15 @@ func (r *PlacementAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	err = r.generateServiceConfigMaps(ctx, h, instance, secret, &configMapVars, db)
 	if err != nil {
+		if k8s_errors.IsNotFound(err) && instance.Spec.Auth.ApplicationCredentialSecret != "" {
+			Log.Info("ApplicationCredential secret not found, waiting", "secret", instance.Spec.Auth.ApplicationCredentialSecret)
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				condition.InputReadyCondition,
+				condition.RequestedReason,
+				condition.SeverityInfo,
+				condition.InputReadyWaitingMessage))
+			return ctrl.Result{RequeueAfter: r.RequeueTimeout}, nil
+		}
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.ServiceConfigReadyCondition,
 			condition.ErrorReason,
@@ -1471,8 +1475,7 @@ func (r *PlacementAPIReconciler) generateServiceConfigMaps(
 		acSecretObj, _, err := secret.GetSecret(ctx, h, instance.Spec.Auth.ApplicationCredentialSecret, instance.Namespace)
 		if err != nil {
 			if k8s_errors.IsNotFound(err) {
-				h.GetLogger().Info("ApplicationCredential secret not found, waiting", "secret", instance.Spec.Auth.ApplicationCredentialSecret)
-				return fmt.Errorf("%w: %s", ErrACSecretNotFound, instance.Spec.Auth.ApplicationCredentialSecret)
+				return err
 			}
 			h.GetLogger().Error(err, "Failed to get ApplicationCredential secret", "secret", instance.Spec.Auth.ApplicationCredentialSecret)
 			return err
@@ -1481,7 +1484,7 @@ func (r *PlacementAPIReconciler) generateServiceConfigMaps(
 		acSecretData, okSecret := acSecretObj.Data[keystonev1.ACSecretSecretKey]
 		if !okID || len(acID) == 0 || !okSecret || len(acSecretData) == 0 {
 			h.GetLogger().Info("ApplicationCredential secret missing required keys", "secret", instance.Spec.Auth.ApplicationCredentialSecret)
-			return fmt.Errorf("%w: %s", ErrACSecretMissingKeys, instance.Spec.Auth.ApplicationCredentialSecret)
+			return fmt.Errorf("%w: %s", internalcommon.ErrACSecretMissingKeys, instance.Spec.Auth.ApplicationCredentialSecret)
 		}
 		templateParameters["UseApplicationCredentials"] = true
 		templateParameters["ACID"] = string(acID)
