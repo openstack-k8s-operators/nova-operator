@@ -1,0 +1,66 @@
+{
+    "command": "/usr/sbin/httpd -DFOREGROUND",
+    "config_files": [
+        {
+            "source": "/var/lib/config-data/default/00-default.conf",
+            "dest": "/etc/cyborg/cyborg.conf.d/00-default.conf",
+            "owner": "cyborg",
+            "perm": "0600"
+        },
+        {
+            "source": "/var/lib/config-data/default/01-service-custom.conf",
+            "dest": "/etc/cyborg/cyborg.conf.d/01-service-custom.conf",
+            "owner": "cyborg",
+            "perm": "0600",
+            "optional": true
+        },
+        {
+            "source": "/var/lib/config-data/default/10-cyborg-wsgi-main.conf",
+            "dest": "/etc/httpd/conf.d/10-cyborg-wsgi-main.conf",
+            "owner": "apache",
+            "perm": "0644",
+            "optional": true
+        },
+        {
+            "source": "/var/lib/config-data/default/httpd.conf",
+            "dest": "/etc/httpd/conf/httpd.conf",
+            "owner": "apache",
+            "perm": "0644",
+            "optional": true
+        },
+        {
+            "source": "/var/lib/config-data/default/ssl.conf",
+            "dest": "/etc/httpd/conf.d/ssl.conf",
+            "owner": "apache",
+            "perm": "0444"
+        },
+        {
+            "source": "/var/lib/config-data/tls/certs/*",
+            "dest": "/etc/pki/tls/certs/",
+            "owner": "cyborg",
+            "perm": "0640",
+            "optional": true,
+            "merge": true
+        },
+        {
+            "source": "/var/lib/config-data/tls/private/*",
+            "dest": "/etc/pki/tls/private/",
+            "owner": "cyborg",
+            "perm": "0600",
+            "optional": true,
+            "merge": true
+        }
+    ],
+    "permissions": [
+        {
+            "path": "/var/log/cyborg",
+            "owner": "cyborg:cyborg",
+            "recurse": true
+        },
+        {
+            "path": "/etc/httpd/run/",
+            "owner": "cyborg:apache",
+            "recurse": true
+        }
+    ]
+}

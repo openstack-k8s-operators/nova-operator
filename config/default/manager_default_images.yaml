@@ -23,3 +23,9 @@ spec:
           value: quay.io/podified-antelope-centos9/openstack-nova-compute:current-podified
         - name: RELATED_IMAGE_PLACEMENT_API_IMAGE_URL_DEFAULT
           value: quay.io/podified-antelope-centos9/openstack-placement-api:current-podified
+        - name: RELATED_IMAGE_CYBORG_API_IMAGE_URL_DEFAULT
+          value: quay.io/amoralej/openstack-cyborg:master-latest
+        - name: RELATED_IMAGE_CYBORG_CONDUCTOR_IMAGE_URL_DEFAULT
+          value: quay.io/amoralej/openstack-cyborg:master-latest
+        - name: RELATED_IMAGE_CYBORG_AGENT_IMAGE_URL_DEFAULT
+          value: quay.io/amoralej/openstack-cyborg-agent:master-latest

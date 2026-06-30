@@ -19,3 +19,7 @@ oc delete validatingwebhookconfiguration/vnovacompute.kb.io --ignore-not-found
 oc delete mutatingwebhookconfiguration/mnovacompute.kb.io --ignore-not-found
 oc delete validatingwebhookconfiguration/vplacementapi.kb.io --ignore-not-found
 oc delete mutatingwebhookconfiguration/mplacementapi.kb.io --ignore-not-found
+oc delete validatingwebhookconfiguration/vcyborg.kb.io --ignore-not-found
+oc delete mutatingwebhookconfiguration/mcyborg.kb.io --ignore-not-found
+oc delete validatingwebhookconfiguration/vcyborgapi.kb.io --ignore-not-found
+oc delete validatingwebhookconfiguration/vcyborgconductor.kb.io --ignore-not-found

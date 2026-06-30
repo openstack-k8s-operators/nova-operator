@@ -114,13 +114,13 @@ docker-buildx: ## Build and push docker image for the manager for cross-platform
 
 .PHONY: manifests
 manifests: gowork controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
-	$(CONTROLLER_GEN) crd webhook paths="./api/nova/..." paths="./api/placement/..." paths="./internal/webhook/nova/..." paths="./internal/webhook/placement/..." output:crd:artifacts:config=config/crd/bases output:webhook:artifacts:config=config/webhook && \
+	$(CONTROLLER_GEN) crd webhook paths="./api/nova/..." paths="./api/placement/..." paths="./api/cyborg/..." paths="./internal/webhook/nova/..." paths="./internal/webhook/placement/..." paths="./internal/webhook/cyborg/..." output:crd:artifacts:config=config/crd/bases output:webhook:artifacts:config=config/webhook && \
 	$(CONTROLLER_GEN) rbac:roleName=manager-role paths="./..." output:dir=config/rbac && \
 	rm -f api/bases/* && cp -a config/crd/bases api/
 
 .PHONY: generate
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
-	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./api/nova/..." paths="./api/placement/..."
+	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./api/nova/..." paths="./api/placement/..." paths="./api/cyborg/..."
 
 .PHONY: fmt
 fmt: ## Run go fmt against code.
@@ -450,6 +450,7 @@ crd-schema-check: manifests
 
 .PHONY: run_with_olm
 run_with_olm: export CATALOG_IMG=${CATALOG_IMAGE}
+run_with_olm: export ENABLE_CYBORG?=false
 run_with_olm: ## Install nova operator via olm
 	# explicitly to delete any running nova-operator deployments from openstack-operator here as
 	# label selectors can change and installing a service catalog/index like this alongside
