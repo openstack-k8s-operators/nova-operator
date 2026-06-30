@@ -19,3 +19,4 @@
         script: make run_with_olm
         extra_args:
           CATALOG_IMAGE: "{{ nova_catalog_image }}"
+          ENABLE_CYBORG: "true"

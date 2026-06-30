@@ -22,6 +22,15 @@ resources:
 # default, aiding admins in cluster management. Those roles are
 # not used by the nova-operator itself. You can comment the following lines
 # if you do not want those helpers be installed with your Project.
+- cyborgconductor_admin_role.yaml
+- cyborgconductor_editor_role.yaml
+- cyborgconductor_viewer_role.yaml
+- cyborgapi_admin_role.yaml
+- cyborgapi_editor_role.yaml
+- cyborgapi_viewer_role.yaml
+- cyborg_admin_role.yaml
+- cyborg_editor_role.yaml
+- cyborg_viewer_role.yaml
 - novacompute_admin_role.yaml
 - novacompute_editor_role.yaml
 - novacompute_viewer_role.yaml
