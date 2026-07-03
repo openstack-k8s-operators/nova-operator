@@ -48,7 +48,6 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	"github.com/openstack-k8s-operators/lib-common/modules/openstack"
-	corev1 "k8s.io/api/core/v1"
 )
 
 const (
@@ -149,10 +148,6 @@ var (
 	}
 )
 
-type conditionsGetter interface {
-	GetConditions() condition.Conditions
-}
-
 func cleanNovaServiceFromNovaDb(
 	ctx context.Context,
 	computeClient *gophercloud.ServiceClient,
@@ -206,19 +201,6 @@ func cleanNovaServiceFromNovaDb(
 	}
 
 	return err
-}
-
-func allSubConditionIsTrue(conditionsGetter conditionsGetter) bool {
-	// It assumes that all of our conditions report success via the True status
-	for _, c := range conditionsGetter.GetConditions() {
-		if c.Type == condition.ReadyCondition {
-			continue
-		}
-		if c.Status != corev1.ConditionTrue {
-			return false
-		}
-	}
-	return true
 }
 
 // ReconcilerBase provides a common set of clients scheme and loggers for all reconcilers.
