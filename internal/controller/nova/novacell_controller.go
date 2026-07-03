@@ -126,7 +126,7 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 			panic(r)
 		}
 		// update the Ready condition based on the sub conditions
-		if allSubConditionIsTrue(instance.Status) {
+		if instance.Status.Conditions.AllSubConditionIsTrue() {
 			instance.Status.Conditions.MarkTrue(
 				condition.ReadyCondition, condition.ReadyMessage)
 		} else {
