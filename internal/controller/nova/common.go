@@ -20,7 +20,6 @@ package controller
 import (
 	"context"
 	"fmt"
-	"maps"
 	"net/url"
 	"sort"
 	"strconv"
@@ -42,7 +41,6 @@ import (
 	gophercloud "github.com/gophercloud/gophercloud/v2"
 	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/services"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
-	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/secret"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
@@ -247,88 +245,12 @@ func NewReconcilers(mgr ctrl.Manager, kclient *kubernetes.Clientset) *internalco
 	})
 }
 
-// generateConfigsGeneric helper function to generate config maps
-func (r *ReconcilerBase) generateConfigsGeneric(
-	ctx context.Context, h *helper.Helper,
-	instance client.Object, configName string, envVars *map[string]env.Setter,
-	templateParameters map[string]any,
-	extraData map[string]string, cmLabels map[string]string,
-	additionalTemplates map[string]string,
-	commonTemplates []string,
-	templateDir string,
-	withScripts bool,
-) error {
-	extraTemplates := map[string]string{
+// novaAdditionalTemplates returns the default extra config templates for nova services.
+func novaAdditionalTemplates() map[string]string {
+	return map[string]string{
 		"01-nova.conf":    "/nova/nova.conf",
 		"nova-blank.conf": "/nova/nova-blank.conf",
 	}
-	if templateDir == "" {
-		return internalcommon.ErrTemplateDirUnset
-	}
-
-	maps.Copy(extraTemplates, additionalTemplates)
-	cms := []util.Template{
-		{
-			Name:               configName,
-			Namespace:          instance.GetNamespace(),
-			Type:               util.TemplateTypeConfig,
-			InstanceType:       instance.GetObjectKind().GroupVersionKind().Kind,
-			MultiTemplateDir:   templateDir,
-			ConfigOptions:      templateParameters,
-			Labels:             cmLabels,
-			CustomData:         extraData,
-			Annotations:        map[string]string{},
-			AdditionalTemplate: extraTemplates,
-			CommonTemplates:    commonTemplates,
-		},
-	}
-	if withScripts {
-		cms = append(cms, util.Template{
-			Name:               internalcommon.GetScriptSecretName(instance.GetName()),
-			Namespace:          instance.GetNamespace(),
-			Type:               util.TemplateTypeScripts,
-			InstanceType:       instance.GetObjectKind().GroupVersionKind().Kind,
-			MultiTemplateDir:   templateDir,
-			AdditionalTemplate: map[string]string{},
-			Annotations:        map[string]string{},
-			Labels:             cmLabels,
-		})
-	}
-	return secret.EnsureSecrets(ctx, h, instance, cms, envVars)
-}
-
-// GenerateConfigs helper function to generate config maps
-func (r *ReconcilerBase) GenerateConfigs(
-	ctx context.Context, h *helper.Helper,
-	instance client.Object, configName string, envVars *map[string]env.Setter,
-	templateParameters map[string]any,
-	extraData map[string]string, cmLabels map[string]string,
-	additionalTemplates map[string]string,
-	commonTemplates []string,
-	templateDir string,
-) error {
-	return r.generateConfigsGeneric(
-		ctx, h, instance, configName, envVars, templateParameters, extraData,
-		cmLabels, additionalTemplates, commonTemplates, templateDir, false,
-	)
-}
-
-// GenerateConfigsWithScripts helper function to generate config maps
-// for service configs and scripts
-func (r *ReconcilerBase) GenerateConfigsWithScripts(
-	ctx context.Context, h *helper.Helper,
-	instance client.Object, envVars *map[string]env.Setter,
-	templateParameters map[string]any,
-	extraData map[string]string, cmLabels map[string]string,
-	additionalTemplates map[string]string,
-	commonTemplates []string,
-	templateDir string,
-) error {
-	return r.generateConfigsGeneric(
-		ctx, h, instance, internalcommon.GetServiceConfigSecretName(instance.GetName()),
-		envVars, templateParameters, extraData,
-		cmLabels, additionalTemplates, commonTemplates, templateDir, true,
-	)
 }
 
 func getNovaCellCRName(novaCRName string, cellName string) string {
