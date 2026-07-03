@@ -47,6 +47,7 @@ import (
 
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/nova/v1beta1"
+	internalcommon "github.com/openstack-k8s-operators/nova-operator/internal/common"
 )
 
 // NovaCellReconciler reconciles a NovaCell object
@@ -151,7 +152,7 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 	}
 
 	// For the compute config generation we need to read the input secrets
-	_, result, secret, err := ensureSecret(
+	_, result, secret, err := internalcommon.EnsureSecret(
 		ctx,
 		types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.Secret},
 		requiredSecretFields,

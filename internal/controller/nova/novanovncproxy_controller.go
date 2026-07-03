@@ -195,7 +195,7 @@ func (r *NovaNoVNCProxyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 	hashes["endpointUrlsHash"] = env.SetValue(endpointUrlsHash)
 
-	secretHash, result, secret, err := ensureSecret(
+	secretHash, result, secret, err := internalcommon.EnsureSecret(
 		ctx,
 		types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.Secret},
 		[]string{
@@ -346,7 +346,7 @@ func (r *NovaNoVNCProxyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	instance.Status.Conditions.MarkTrue(condition.ServiceConfigReadyCondition, condition.ServiceConfigReadyMessage)
 
-	serviceAnnotations, result, err := ensureNetworkAttachments(ctx, h, instance.Spec.NetworkAttachments, &instance.Status.Conditions, r.RequeueTimeout)
+	serviceAnnotations, result, err := internalcommon.EnsureNetworkAttachments(ctx, h, instance.Spec.NetworkAttachments, &instance.Status.Conditions, r.RequeueTimeout)
 	if (err != nil || result != ctrl.Result{}) {
 		return result, err
 	}
@@ -555,7 +555,7 @@ func (r *NovaNoVNCProxyReconciler) ensureDeployment(
 	//
 	// Handle Topology
 	//
-	topology, err := ensureTopology(
+	topology, err := internalcommon.EnsureTopology(
 		ctx,
 		h,
 		instance,      // topologyHandler

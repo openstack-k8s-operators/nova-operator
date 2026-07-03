@@ -251,7 +251,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		instance.Spec.PasswordSelectors.MetadataSecret,
 	}
 
-	_, result, ospSecret, err := ensureSecret(
+	_, result, ospSecret, err := internalcommon.EnsureSecret(
 		ctx,
 		types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.Secret},
 		expectedSelectors,
