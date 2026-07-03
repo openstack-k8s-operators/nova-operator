@@ -25,9 +25,7 @@ import (
 	"time"
 
 	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -156,9 +154,7 @@ func (r *PlacementAPIReconciler) GetLogger(ctx context.Context) logr.Logger {
 
 // PlacementAPIReconciler reconciles a PlacementAPI object
 type PlacementAPIReconciler struct {
-	client.Client
-	Kclient kubernetes.Interface
-	Scheme  *runtime.Scheme
+	internalcommon.ReconcilerBase
 }
 
 // +kubebuilder:rbac:groups=placement.openstack.org,resources=placementapis,verbs=get;list;watch;create;update;patch;delete
@@ -194,7 +190,7 @@ func (r *PlacementAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	// Fetch the PlacementAPI instance
 	instance := &placementv1.PlacementAPI{}
-	err := r.Get(ctx, req.NamespacedName, instance)
+	err := r.Client.Get(ctx, req.NamespacedName, instance)
 	if err != nil {
 		if k8s_errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
@@ -375,7 +371,7 @@ func (r *PlacementAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request
 				condition.RequestedReason,
 				condition.SeverityInfo,
 				condition.InputReadyWaitingMessage))
-			return ctrl.Result{RequeueAfter: time.Second * 10}, nil
+			return ctrl.Result{RequeueAfter: r.RequeueTimeout}, nil
 		}
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.ServiceConfigReadyCondition,
@@ -1020,7 +1016,7 @@ func (r *PlacementAPIReconciler) findObjectsForSrc(ctx context.Context, src clie
 			FieldSelector: fields.OneTermEqualSelector(field, src.GetName()),
 			Namespace:     src.GetNamespace(),
 		}
-		err := r.List(ctx, crList, listOps)
+		err := r.Client.List(ctx, crList, listOps)
 		if err != nil {
 			Log.Error(err, fmt.Sprintf("listing %s for field: %s - %s", crList.GroupVersionKind().Kind, field, src.GetNamespace()))
 			return requests
@@ -1052,7 +1048,7 @@ func (r *PlacementAPIReconciler) findObjectForSrc(ctx context.Context, src clien
 	listOps := &client.ListOptions{
 		Namespace: src.GetNamespace(),
 	}
-	err := r.List(ctx, crList, listOps)
+	err := r.Client.List(ctx, crList, listOps)
 	if err != nil {
 		Log.Error(err, fmt.Sprintf("listing %s for namespace: %s", crList.GroupVersionKind().Kind, src.GetNamespace()))
 		return requests
@@ -1108,7 +1104,7 @@ func (r *PlacementAPIReconciler) reconcileDelete(ctx context.Context, instance *
 
 	if err == nil {
 		if controllerutil.RemoveFinalizer(keystoneEndpoint, helper.GetFinalizer()) {
-			err = r.Update(ctx, keystoneEndpoint)
+			err = r.Client.Update(ctx, keystoneEndpoint)
 			if err != nil && !k8s_errors.IsNotFound(err) {
 				return ctrl.Result{}, err
 			}
@@ -1124,7 +1120,7 @@ func (r *PlacementAPIReconciler) reconcileDelete(ctx context.Context, instance *
 
 	if err == nil {
 		if controllerutil.RemoveFinalizer(keystoneService, helper.GetFinalizer()) {
-			err = r.Update(ctx, keystoneService)
+			err = r.Client.Update(ctx, keystoneService)
 			if err != nil && !k8s_errors.IsNotFound(err) {
 				return ctrl.Result{}, err
 			}
