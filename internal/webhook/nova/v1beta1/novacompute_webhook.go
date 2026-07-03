@@ -18,7 +18,6 @@ package v1beta1
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -28,13 +27,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	novav1beta1 "github.com/openstack-k8s-operators/nova-operator/api/nova/v1beta1"
+	internalcommon "github.com/openstack-k8s-operators/nova-operator/internal/common"
 )
 
 // nolint:unused
 // log is for logging in this package.
 var novacomputelog = logf.Log.WithName("novacompute-resource")
-
-var errExpectedNovaComputeObject = errors.New("expected a NovaCompute object")
 
 // SetupNovaComputeWebhookWithManager registers the webhook for NovaCompute in the manager.
 func SetupNovaComputeWebhookWithManager(mgr ctrl.Manager) error {
@@ -64,7 +62,7 @@ func (d *NovaComputeCustomDefaulter) Default(_ context.Context, obj runtime.Obje
 	novacompute, ok := obj.(*novav1beta1.NovaCompute)
 
 	if !ok {
-		return fmt.Errorf("%w but got %T", errExpectedNovaComputeObject, obj)
+		return fmt.Errorf("expected a NovaCompute object but got %T: %w", obj, internalcommon.ErrUnexpectedObjectType)
 	}
 	novacomputelog.Info("Defaulting for NovaCompute", "name", novacompute.GetName())
 
@@ -93,7 +91,7 @@ var _ webhook.CustomValidator = &NovaComputeCustomValidator{}
 func (v *NovaComputeCustomValidator) ValidateCreate(_ context.Context, obj runtime.Object) (admission.Warnings, error) {
 	novacompute, ok := obj.(*novav1beta1.NovaCompute)
 	if !ok {
-		return nil, fmt.Errorf("%w but got %T", errExpectedNovaComputeObject, obj)
+		return nil, fmt.Errorf("expected a NovaCompute object but got %T: %w", obj, internalcommon.ErrUnexpectedObjectType)
 	}
 	novacomputelog.Info("Validation for NovaCompute upon creation", "name", novacompute.GetName())
 
@@ -104,7 +102,7 @@ func (v *NovaComputeCustomValidator) ValidateCreate(_ context.Context, obj runti
 func (v *NovaComputeCustomValidator) ValidateUpdate(_ context.Context, oldObj, newObj runtime.Object) (admission.Warnings, error) {
 	novacompute, ok := newObj.(*novav1beta1.NovaCompute)
 	if !ok {
-		return nil, fmt.Errorf("%w for the newObj but got %T", errExpectedNovaComputeObject, newObj)
+		return nil, fmt.Errorf("expected a NovaCompute object for the newObj but got %T: %w", newObj, internalcommon.ErrUnexpectedObjectType)
 	}
 	novacomputelog.Info("Validation for NovaCompute upon update", "name", novacompute.GetName())
 
@@ -115,7 +113,7 @@ func (v *NovaComputeCustomValidator) ValidateUpdate(_ context.Context, oldObj, n
 func (v *NovaComputeCustomValidator) ValidateDelete(_ context.Context, obj runtime.Object) (admission.Warnings, error) {
 	novacompute, ok := obj.(*novav1beta1.NovaCompute)
 	if !ok {
-		return nil, fmt.Errorf("%w but got %T", errExpectedNovaComputeObject, obj)
+		return nil, fmt.Errorf("expected a NovaCompute object but got %T: %w", obj, internalcommon.ErrUnexpectedObjectType)
 	}
 	novacomputelog.Info("Validation for NovaCompute upon deletion", "name", novacompute.GetName())
 

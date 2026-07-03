@@ -18,7 +18,6 @@ package v1beta1
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -28,13 +27,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	novav1beta1 "github.com/openstack-k8s-operators/nova-operator/api/nova/v1beta1"
+	internalcommon "github.com/openstack-k8s-operators/nova-operator/internal/common"
 )
 
 // nolint:unused
 // log is for logging in this package.
 var novaconductorlog = logf.Log.WithName("novaconductor-resource")
-
-var errExpectedNovaConductorObject = errors.New("expected a NovaConductor object")
 
 // SetupNovaConductorWebhookWithManager registers the webhook for NovaConductor in the manager.
 func SetupNovaConductorWebhookWithManager(mgr ctrl.Manager) error {
@@ -64,7 +62,7 @@ func (d *NovaConductorCustomDefaulter) Default(_ context.Context, obj runtime.Ob
 	novaconductor, ok := obj.(*novav1beta1.NovaConductor)
 
 	if !ok {
-		return fmt.Errorf("%w but got %T", errExpectedNovaConductorObject, obj)
+		return fmt.Errorf("expected a NovaConductor object but got %T: %w", obj, internalcommon.ErrUnexpectedObjectType)
 	}
 	novaconductorlog.Info("Defaulting for NovaConductor", "name", novaconductor.GetName())
 
@@ -93,7 +91,7 @@ var _ webhook.CustomValidator = &NovaConductorCustomValidator{}
 func (v *NovaConductorCustomValidator) ValidateCreate(_ context.Context, obj runtime.Object) (admission.Warnings, error) {
 	novaconductor, ok := obj.(*novav1beta1.NovaConductor)
 	if !ok {
-		return nil, fmt.Errorf("%w but got %T", errExpectedNovaConductorObject, obj)
+		return nil, fmt.Errorf("expected a NovaConductor object but got %T: %w", obj, internalcommon.ErrUnexpectedObjectType)
 	}
 	novaconductorlog.Info("Validation for NovaConductor upon creation", "name", novaconductor.GetName())
 
@@ -104,7 +102,7 @@ func (v *NovaConductorCustomValidator) ValidateCreate(_ context.Context, obj run
 func (v *NovaConductorCustomValidator) ValidateUpdate(_ context.Context, oldObj, newObj runtime.Object) (admission.Warnings, error) {
 	novaconductor, ok := newObj.(*novav1beta1.NovaConductor)
 	if !ok {
-		return nil, fmt.Errorf("%w for the newObj but got %T", errExpectedNovaConductorObject, newObj)
+		return nil, fmt.Errorf("expected a NovaConductor object for the newObj but got %T: %w", newObj, internalcommon.ErrUnexpectedObjectType)
 	}
 	novaconductorlog.Info("Validation for NovaConductor upon update", "name", novaconductor.GetName())
 
@@ -115,7 +113,7 @@ func (v *NovaConductorCustomValidator) ValidateUpdate(_ context.Context, oldObj,
 func (v *NovaConductorCustomValidator) ValidateDelete(_ context.Context, obj runtime.Object) (admission.Warnings, error) {
 	novaconductor, ok := obj.(*novav1beta1.NovaConductor)
 	if !ok {
-		return nil, fmt.Errorf("%w but got %T", errExpectedNovaConductorObject, obj)
+		return nil, fmt.Errorf("expected a NovaConductor object but got %T: %w", obj, internalcommon.ErrUnexpectedObjectType)
 	}
 	novaconductorlog.Info("Validation for NovaConductor upon deletion", "name", novaconductor.GetName())
 
