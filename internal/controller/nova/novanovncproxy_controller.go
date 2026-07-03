@@ -51,7 +51,7 @@ import (
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/nova/v1beta1"
-	"github.com/openstack-k8s-operators/nova-operator/internal/nova"
+	internalcommon "github.com/openstack-k8s-operators/nova-operator/internal/common"
 	"github.com/openstack-k8s-operators/nova-operator/internal/nova/novncproxy"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 )
@@ -534,7 +534,7 @@ func (r *NovaNoVNCProxyReconciler) generateConfigs(
 	)
 
 	err = r.GenerateConfigs(
-		ctx, h, instance, nova.GetServiceConfigSecretName(instance.GetName()),
+		ctx, h, instance, internalcommon.GetServiceConfigSecretName(instance.GetName()),
 		hashes, templateParameters, extraData, cmLabels, map[string]string{},
 		[]string{}, "nova/novncproxy",
 	)

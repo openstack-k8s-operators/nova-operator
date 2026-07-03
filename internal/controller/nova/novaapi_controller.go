@@ -54,7 +54,7 @@ import (
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/nova/v1beta1"
-	"github.com/openstack-k8s-operators/nova-operator/internal/nova"
+	internalcommon "github.com/openstack-k8s-operators/nova-operator/internal/common"
 	novaapi "github.com/openstack-k8s-operators/nova-operator/internal/nova/api"
 
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
@@ -572,7 +572,7 @@ func (r *NovaAPIReconciler) generateConfigs(
 	)
 
 	err = r.GenerateConfigs(
-		ctx, h, instance, nova.GetServiceConfigSecretName(instance.GetName()),
+		ctx, h, instance, internalcommon.GetServiceConfigSecretName(instance.GetName()),
 		hashes, templateParameters, extraData, cmLabels, map[string]string{},
 		[]string{"ssl.conf"}, "nova/api",
 	)
