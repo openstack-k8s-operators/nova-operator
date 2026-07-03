@@ -38,6 +38,8 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
+	placementv1 "github.com/openstack-k8s-operators/nova-operator/api/placement/v1beta1"
+	internalcommon "github.com/openstack-k8s-operators/nova-operator/internal/common"
 	novacontroller "github.com/openstack-k8s-operators/nova-operator/internal/controller/nova"
 	placementcontroller "github.com/openstack-k8s-operators/nova-operator/internal/controller/placement"
 	webhookv1beta1 "github.com/openstack-k8s-operators/nova-operator/internal/webhook/nova/v1beta1"
@@ -51,7 +53,6 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/operator"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/nova/v1beta1"
-	placementv1 "github.com/openstack-k8s-operators/nova-operator/api/placement/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
@@ -265,9 +266,7 @@ func main() {
 
 	// Setup PlacementAPI controller
 	if err = (&placementcontroller.PlacementAPIReconciler{
-		Client:  mgr.GetClient(),
-		Scheme:  mgr.GetScheme(),
-		Kclient: kclient,
+		ReconcilerBase: internalcommon.NewReconcilerBase(mgr, kclient),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "PlacementAPI")
 		os.Exit(1)
