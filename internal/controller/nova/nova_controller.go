@@ -55,6 +55,7 @@ import (
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/nova/v1beta1"
+	internalcommon "github.com/openstack-k8s-operators/nova-operator/internal/common"
 	"github.com/openstack-k8s-operators/nova-operator/internal/nova"
 	novaapi "github.com/openstack-k8s-operators/nova-operator/internal/nova/api"
 
@@ -299,7 +300,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 				condition.ErrorReason,
 				condition.SeverityWarning,
 				novav1.NovaApplicationCredentialSecretErrorMessage))
-			return ctrl.Result{}, fmt.Errorf("%w: %s", ErrACSecretMissingKeys, instance.Spec.Auth.ApplicationCredentialSecret)
+			return ctrl.Result{}, fmt.Errorf("%w: %s", internalcommon.ErrACSecretMissingKeys, instance.Spec.Auth.ApplicationCredentialSecret)
 		}
 	}
 
