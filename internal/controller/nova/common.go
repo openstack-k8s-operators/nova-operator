@@ -41,7 +41,7 @@ import (
 
 	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/nova/v1beta1"
-	"github.com/openstack-k8s-operators/nova-operator/internal/nova"
+	internalcommon "github.com/openstack-k8s-operators/nova-operator/internal/common"
 
 	gophercloud "github.com/gophercloud/gophercloud/v2"
 	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/services"
@@ -538,7 +538,7 @@ func (r *ReconcilerBase) generateConfigsGeneric(
 	}
 	if withScripts {
 		cms = append(cms, util.Template{
-			Name:               nova.GetScriptSecretName(instance.GetName()),
+			Name:               internalcommon.GetScriptSecretName(instance.GetName()),
 			Namespace:          instance.GetNamespace(),
 			Type:               util.TemplateTypeScripts,
 			InstanceType:       instance.GetObjectKind().GroupVersionKind().Kind,
@@ -579,7 +579,7 @@ func (r *ReconcilerBase) GenerateConfigsWithScripts(
 	templateDir string,
 ) error {
 	return r.generateConfigsGeneric(
-		ctx, h, instance, nova.GetServiceConfigSecretName(instance.GetName()),
+		ctx, h, instance, internalcommon.GetServiceConfigSecretName(instance.GetName()),
 		envVars, templateParameters, extraData,
 		cmLabels, additionalTemplates, commonTemplates, templateDir, true,
 	)

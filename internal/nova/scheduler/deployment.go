@@ -22,6 +22,7 @@ import (
 	affinity "github.com/openstack-k8s-operators/lib-common/modules/common/affinity"
 	env "github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/nova/v1beta1"
+	internalcommon "github.com/openstack-k8s-operators/nova-operator/internal/common"
 	"github.com/openstack-k8s-operators/nova-operator/internal/nova"
 
 	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
@@ -87,7 +88,7 @@ func StatefulSet(
 
 	// create Volume and VolumeMounts
 	volumes := []corev1.Volume{
-		nova.GetConfigVolume(nova.GetServiceConfigSecretName(instance.Name)),
+		nova.GetConfigVolume(internalcommon.GetServiceConfigSecretName(instance.Name)),
 	}
 	volumeMounts := []corev1.VolumeMount{
 		nova.GetConfigVolumeMount(),
