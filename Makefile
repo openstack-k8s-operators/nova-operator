@@ -155,6 +155,10 @@ test: manifests generate fmt vet envtest ginkgo ## Run tests.
 	OPERATOR_TEMPLATES="$(PWD)/templates" \
 	$(GINKGO) --trace --cover --coverpkg=../../internal/...,../../api/nova/v1beta1,../../api/placement/v1beta1 --coverprofile cover.out --covermode=atomic --randomize-all ${PROC_CMD} $(GINKGO_ARGS) ./test/...
 
+.PHONY: gotest-unit
+gotest-unit: ## Run unit tests under test/unit/ (also run via ginkgo in the test target).
+	go test -v ./test/unit/...
+
 ##@ Build
 
 .PHONY: build

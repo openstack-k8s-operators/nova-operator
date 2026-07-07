@@ -176,6 +176,35 @@ var _ = Describe("PlacementAPI controller", func() {
 		})
 	})
 
+	When("a PlacementAPI CR is created pointing to a non existent Secret", func() {
+		BeforeEach(func() {
+			DeferCleanup(
+				th.DeleteInstance,
+				CreatePlacementAPI(names.PlacementAPIName, GetDefaultPlacementAPISpec()),
+			)
+		})
+
+		It("is not Ready", func() {
+			th.ExpectCondition(
+				names.PlacementAPIName,
+				ConditionGetterFunc(PlacementConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+			)
+		})
+
+		It("is missing the secret", func() {
+			th.ExpectConditionWithDetails(
+				names.PlacementAPIName,
+				ConditionGetterFunc(PlacementConditionGetter),
+				condition.InputReadyCondition,
+				corev1.ConditionFalse,
+				condition.ErrorReason,
+				fmt.Sprintf("Input data resources missing: secret/%s", SecretName),
+			)
+		})
+	})
+
 	When("a secret is provided with missing fields", func() {
 		BeforeEach(func() {
 			DeferCleanup(
@@ -190,14 +219,19 @@ var _ = Describe("PlacementAPI controller", func() {
 			)
 		})
 		It("reports that input is not ready", func() {
-			// FIXME(gibi): This is a bug as placement controller does not
-			// check the content of the Secret so eventually a dbsync job is
-			// created with incorrect config
 			th.ExpectCondition(
 				names.PlacementAPIName,
 				ConditionGetterFunc(PlacementConditionGetter),
 				condition.InputReadyCondition,
 				corev1.ConditionFalse,
+			)
+			th.ExpectConditionWithDetails(
+				names.PlacementAPIName,
+				ConditionGetterFunc(PlacementConditionGetter),
+				condition.InputReadyCondition,
+				corev1.ConditionFalse,
+				condition.ErrorReason,
+				fmt.Sprintf("Input data error occurred field not found in Secret: 'PlacementPassword' not found in secret/%s", SecretName),
 			)
 		})
 	})
@@ -1749,11 +1783,11 @@ var _ = Describe("PlacementAPI reconfiguration", func() {
 			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBAccount)
 		})
 
-		It("should set ServiceConfigReady to False", func() {
+		It("should set InputReady to False while waiting for the ApplicationCredential secret", func() {
 			th.ExpectCondition(
 				names.PlacementAPIName,
 				ConditionGetterFunc(PlacementConditionGetter),
-				condition.ServiceConfigReadyCondition,
+				condition.InputReadyCondition,
 				corev1.ConditionFalse,
 			)
 		})
