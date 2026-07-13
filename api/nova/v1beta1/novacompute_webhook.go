@@ -140,6 +140,7 @@ func (spec *NovaComputeSpec) validate(basePath *field.Path, namespace string) fi
 
 	errors = append(errors, topologyv1.ValidateTopologyRef(
 		spec.TopologyRef, *basePath.Child("topologyRef"), namespace)...)
+	errors = append(errors, spec.Override.Probes.ValidateProbes(basePath.Child("override").Child("probes"))...)
 
 	return errors
 }

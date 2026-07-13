@@ -42,7 +42,7 @@ func StatefulSet(
 	topology *topologyv1.Topology,
 ) (*appsv1.StatefulSet, error) {
 	computeProbes, err := probes.CreateProbeSetV2(
-		probes.OverrideSpec{},
+		instance.Spec.Override.Probes,
 		internalcommon.GetDefaultProbesRPC(
 			internalcommon.DefaultServiceDownTime,
 			[]string{"/usr/bin/pgrep", "-r", "DRST", "nova-compute"},
