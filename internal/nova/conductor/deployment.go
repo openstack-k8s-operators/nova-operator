@@ -22,6 +22,7 @@ import (
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	affinity "github.com/openstack-k8s-operators/lib-common/modules/common/affinity"
 	env "github.com/openstack-k8s-operators/lib-common/modules/common/env"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/probes"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/nova/v1beta1"
 	internalcommon "github.com/openstack-k8s-operators/nova-operator/internal/common"
 	"github.com/openstack-k8s-operators/nova-operator/internal/nova"
@@ -32,7 +33,7 @@ import (
 	"k8s.io/utils/ptr"
 )
 
-// StatefulSet - returns the StatefulSet definition for the nova-api service
+// StatefulSet - returns the StatefulSet definition for the nova-conductor service
 func StatefulSet(
 	instance *novav1.NovaConductor,
 	configHash string,
@@ -40,37 +41,19 @@ func StatefulSet(
 	annotations map[string]string,
 	topology *topologyv1.Topology,
 	memcached *memcachedv1.Memcached,
-) *appsv1.StatefulSet {
-	livenessProbe := &corev1.Probe{
-		// TODO might need tuning
-		TimeoutSeconds:      5,
-		PeriodSeconds:       3,
-		InitialDelaySeconds: 3,
-	}
-	readinessProbe := &corev1.Probe{
-		// TODO might need tuning
-		TimeoutSeconds:      5,
-		PeriodSeconds:       5,
-		InitialDelaySeconds: 5,
+) (*appsv1.StatefulSet, error) {
+	conductorProbes, err := probes.CreateProbeSetV2(
+		probes.OverrideSpec{},
+		internalcommon.GetDefaultProbesRPC(
+			internalcommon.DefaultServiceDownTime,
+			[]string{"/usr/bin/pgrep", "-r", "DRST", "nova-conductor"},
+		),
+	)
+	if err != nil {
+		return nil, err
 	}
 
 	args := []string{"-c", nova.KollaServiceCommand}
-
-	// TODO(gibi): replace this with a proper health check once
-	// https://review.opendev.org/q/topic:per-process-healthchecks merges.
-	// NOTE(gibi): -r DRST means we consider nova-conductor processes
-	// healthy if they are not in zombie state.
-	livenessProbe.Exec = &corev1.ExecAction{
-		Command: []string{
-			"/usr/bin/pgrep", "-r", "DRST", "nova-conductor",
-		},
-	}
-
-	readinessProbe.Exec = &corev1.ExecAction{
-		Command: []string{
-			"/usr/bin/pgrep", "-r", "DRST", "nova-conductor",
-		},
-	}
 
 	envVars := map[string]env.Setter{}
 	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
@@ -135,8 +118,8 @@ func StatefulSet(
 							Env:            env,
 							VolumeMounts:   volumeMounts,
 							Resources:      instance.Spec.Resources,
-							ReadinessProbe: readinessProbe,
-							LivenessProbe:  livenessProbe,
+							ReadinessProbe: conductorProbes.Readiness,
+							LivenessProbe:  conductorProbes.Liveness,
 						},
 					},
 				},
@@ -162,5 +145,5 @@ func StatefulSet(
 		)
 	}
 
-	return statefulset
+	return statefulset, nil
 }

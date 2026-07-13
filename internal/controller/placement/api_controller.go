@@ -1114,6 +1114,7 @@ func (r *PlacementAPIReconciler) ensureDeployment(
 			condition.SeverityWarning,
 			condition.DeploymentReadyErrorMessage,
 			err.Error()))
+		return ctrl.Result{}, err
 	}
 
 	depl := deployment.NewDeployment(

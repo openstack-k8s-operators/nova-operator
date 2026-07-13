@@ -17,13 +17,12 @@ limitations under the License.
 package novaapi
 
 import (
-	"math"
-
 	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	affinity "github.com/openstack-k8s-operators/lib-common/modules/common/affinity"
 	env "github.com/openstack-k8s-operators/lib-common/modules/common/env"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/probes"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/nova/v1beta1"
@@ -33,7 +32,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/ptr"
 )
 
@@ -46,55 +44,22 @@ func StatefulSet(
 	topology *topologyv1.Topology,
 	memcached *memcachedv1.Memcached,
 ) (*appsv1.StatefulSet, error) {
-	// This allows the pod to start up slowly. The pod will only be killed
-	// if it does not succeed a probe in 60 seconds.
-	startupProbe := &corev1.Probe{
-		FailureThreshold: 6,
-		PeriodSeconds:    10,
+	scheme := corev1.URISchemeHTTP
+	if instance.Spec.TLS.API.Enabled(service.EndpointPublic) {
+		scheme = corev1.URISchemeHTTPS
 	}
-	// After the first successful startupProbe, livenessProbe takes over.
 
-	// Set up the readiness probe to detect overload by scheduling
-	// frequent API calls and detect even within the APITimeout period
-	// if API requests are being queued up on the pod. If so the readiness
-	// prove will fail and k8s will pull the pod out from the load balancer
-	// letting it work through the queued work before it gets new requests
-	// forwarded to it.
-	t := float64(instance.Spec.APITimeout)
-	readinessProbe := &corev1.Probe{
-		TimeoutSeconds:   int32(math.Floor(0.3 * t)),
-		PeriodSeconds:    int32(math.Floor(0.3 * t)),
-		FailureThreshold: 3,
-	}
-	// Set up the liveness probe to be lot more forgiving than readiness
-	// not to trigger a pod restart on overload directly and only fail if the
-	// pod hangs for a long time.
-	// Eventually we want to have a way to assess the health of the pod
-	// without directly calling its API and use a dedicated health check
-	// endpoint instead. But it needs upstream nova work first in
-	// https://blueprints.launchpad.net/nova/+spec/per-process-healthchecks
-	livenessProbe := &corev1.Probe{
-		TimeoutSeconds:   int32(math.Floor(0.5 * t)),
-		PeriodSeconds:    int32(math.Floor(0.5 * t)),
-		FailureThreshold: 10,
+	apiProbes, err := probes.CreateProbeSet(
+		int32(APIServicePort),
+		&scheme,
+		probes.OverrideSpec{},
+		internalcommon.GetDefaultProbesAPI(instance.Spec.APITimeout),
+	)
+	if err != nil {
+		return nil, err
 	}
 
 	args := []string{"-c", nova.KollaServiceCommand}
-	livenessProbe.HTTPGet = &corev1.HTTPGetAction{
-		Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(APIServicePort)},
-	}
-	readinessProbe.HTTPGet = &corev1.HTTPGetAction{
-		Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(APIServicePort)},
-	}
-	startupProbe.HTTPGet = &corev1.HTTPGetAction{
-		Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(APIServicePort)},
-	}
-
-	if instance.Spec.TLS.API.Enabled(service.EndpointPublic) {
-		livenessProbe.HTTPGet.Scheme = corev1.URISchemeHTTPS
-		readinessProbe.HTTPGet.Scheme = corev1.URISchemeHTTPS
-		startupProbe.HTTPGet.Scheme = corev1.URISchemeHTTPS
-	}
 
 	envVars := map[string]env.Setter{}
 	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
@@ -188,9 +153,9 @@ func StatefulSet(
 							Env:            env,
 							VolumeMounts:   []corev1.VolumeMount{nova.GetLogVolumeMount()},
 							Resources:      instance.Spec.Resources,
-							StartupProbe:   startupProbe,
-							ReadinessProbe: readinessProbe,
-							LivenessProbe:  livenessProbe,
+							ReadinessProbe: apiProbes.Readiness,
+							LivenessProbe:  apiProbes.Liveness,
+							StartupProbe:   apiProbes.Startup,
 						},
 						{
 							Name: instance.Name + "-api",
@@ -205,9 +170,9 @@ func StatefulSet(
 							Env:            env,
 							VolumeMounts:   volumeMounts,
 							Resources:      instance.Spec.Resources,
-							StartupProbe:   startupProbe,
-							ReadinessProbe: readinessProbe,
-							LivenessProbe:  livenessProbe,
+							ReadinessProbe: apiProbes.Readiness,
+							LivenessProbe:  apiProbes.Liveness,
+							StartupProbe:   apiProbes.Startup,
 						},
 					},
 				},

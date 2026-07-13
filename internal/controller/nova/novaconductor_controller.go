@@ -592,7 +592,11 @@ func (r *NovaConductorReconciler) ensureDeployment(
 		return ctrl.Result{}, fmt.Errorf("waiting for Topology requirements: %w", err)
 	}
 
-	ss := statefulset.NewStatefulSet(novaconductor.StatefulSet(instance, inputHash, serviceLabels, annotations, topology, memcached), r.RequeueTimeout)
+	ssDef, err := novaconductor.StatefulSet(instance, inputHash, serviceLabels, annotations, topology, memcached)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	ss := statefulset.NewStatefulSet(ssDef, r.RequeueTimeout)
 	ctrlResult, err := ss.CreateOrPatch(ctx, h)
 	if err != nil && !k8s_errors.IsNotFound(err) {
 		Log.Error(err, "Deployment failed")

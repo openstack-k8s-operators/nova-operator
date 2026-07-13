@@ -21,6 +21,7 @@ import (
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	affinity "github.com/openstack-k8s-operators/lib-common/modules/common/affinity"
 	env "github.com/openstack-k8s-operators/lib-common/modules/common/env"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/probes"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/nova/v1beta1"
 	internalcommon "github.com/openstack-k8s-operators/nova-operator/internal/common"
 	"github.com/openstack-k8s-operators/nova-operator/internal/nova"
@@ -39,31 +40,19 @@ func StatefulSet(
 	labels map[string]string,
 	annotations map[string]string,
 	topology *topologyv1.Topology,
-) *appsv1.StatefulSet {
-	// After the first successful startupProbe, livenessProbe takes over
-	livenessProbe := &corev1.Probe{
-		// TODO might need tuning
-		TimeoutSeconds: 10,
-		PeriodSeconds:  10,
-	}
-	readinessProbe := &corev1.Probe{
-		// TODO might need tuning
-		TimeoutSeconds: 5,
-		PeriodSeconds:  5,
+) (*appsv1.StatefulSet, error) {
+	computeProbes, err := probes.CreateProbeSetV2(
+		probes.OverrideSpec{},
+		internalcommon.GetDefaultProbesRPC(
+			internalcommon.DefaultServiceDownTime,
+			[]string{"/usr/bin/pgrep", "-r", "DRST", "nova-compute"},
+		),
+	)
+	if err != nil {
+		return nil, err
 	}
 
 	args := []string{"-c", nova.KollaServiceCommand}
-	livenessProbe.Exec = &corev1.ExecAction{
-		Command: []string{
-			"/usr/bin/pgrep", "-r", "DRST", "nova-compute",
-		},
-	}
-
-	readinessProbe.Exec = &corev1.ExecAction{
-		Command: []string{
-			"/usr/bin/pgrep", "-r", "DRST", "nova-compute",
-		},
-	}
 
 	envVars := map[string]env.Setter{}
 	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
@@ -122,8 +111,8 @@ func StatefulSet(
 							Env:            env,
 							VolumeMounts:   volumeMounts,
 							Resources:      instance.Spec.Resources,
-							ReadinessProbe: readinessProbe,
-							LivenessProbe:  livenessProbe,
+							ReadinessProbe: computeProbes.Readiness,
+							LivenessProbe:  computeProbes.Liveness,
 						},
 					},
 				},
@@ -149,5 +138,5 @@ func StatefulSet(
 		)
 	}
 
-	return statefulset
+	return statefulset, nil
 }

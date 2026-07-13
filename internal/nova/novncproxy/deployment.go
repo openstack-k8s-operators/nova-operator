@@ -22,6 +22,7 @@ import (
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	affinity "github.com/openstack-k8s-operators/lib-common/modules/common/affinity"
 	env "github.com/openstack-k8s-operators/lib-common/modules/common/env"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/probes"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/nova/v1beta1"
 	internalcommon "github.com/openstack-k8s-operators/nova-operator/internal/common"
 	"github.com/openstack-k8s-operators/nova-operator/internal/nova"
@@ -29,7 +30,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/ptr"
 )
 
@@ -42,43 +42,22 @@ func StatefulSet(
 	topology *topologyv1.Topology,
 	memcached *memcachedv1.Memcached,
 ) (*appsv1.StatefulSet, error) {
-	// This allows the pod to start up slowly. The pod will only be killed
-	// if it does not succeed a probe in 60 seconds.
-	startupProbe := &corev1.Probe{
-		FailureThreshold: 6,
-		PeriodSeconds:    10,
+	scheme := corev1.URISchemeHTTP
+	if instance.Spec.TLS.Service.Enabled() {
+		scheme = corev1.URISchemeHTTPS
 	}
-	// After the first successful startupProbe, livenessProbe takes over
-	livenessProbe := &corev1.Probe{
-		// TODO might need tuning
-		TimeoutSeconds: 10,
-		PeriodSeconds:  10,
-	}
-	readinessProbe := &corev1.Probe{
-		// TODO might need tuning
-		TimeoutSeconds: 5,
-		PeriodSeconds:  5,
+
+	novncProbes, err := probes.CreateProbeSet(
+		int32(NoVNCProxyPort),
+		&scheme,
+		probes.OverrideSpec{},
+		internalcommon.GetDefaultProbesNoVNC(),
+	)
+	if err != nil {
+		return nil, err
 	}
 
 	args := []string{"-c", nova.KollaServiceCommand}
-	livenessProbe.HTTPGet = &corev1.HTTPGetAction{
-		Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(NoVNCProxyPort)},
-		Path: "/vnc_lite.html",
-	}
-	readinessProbe.HTTPGet = &corev1.HTTPGetAction{
-		Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(NoVNCProxyPort)},
-		Path: "/vnc_lite.html",
-	}
-	startupProbe.HTTPGet = &corev1.HTTPGetAction{
-		Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(NoVNCProxyPort)},
-		Path: "/vnc_lite.html",
-	}
-
-	if instance.Spec.TLS.Service.Enabled() {
-		livenessProbe.HTTPGet.Scheme = corev1.URISchemeHTTPS
-		readinessProbe.HTTPGet.Scheme = corev1.URISchemeHTTPS
-		startupProbe.HTTPGet.Scheme = corev1.URISchemeHTTPS
-	}
 
 	envVars := map[string]env.Setter{}
 	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
@@ -163,9 +142,9 @@ func StatefulSet(
 							Env:            env,
 							VolumeMounts:   volumeMounts,
 							Resources:      instance.Spec.Resources,
-							StartupProbe:   startupProbe,
-							ReadinessProbe: readinessProbe,
-							LivenessProbe:  livenessProbe,
+							ReadinessProbe: novncProbes.Readiness,
+							LivenessProbe:  novncProbes.Liveness,
+							StartupProbe:   novncProbes.Startup,
 						},
 					},
 				},
