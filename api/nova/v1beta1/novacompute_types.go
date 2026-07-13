@@ -19,11 +19,18 @@ package v1beta1
 import (
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/probes"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+// ComputeOverrideSpec to override the generated manifest of several child resources.
+type ComputeOverrideSpec struct {
+	// Override probes and other common fields in the StatefulSet
+	Probes probes.OverrideSpec `json:"probes,omitempty"`
+}
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
@@ -65,6 +72,10 @@ type NovaComputeTemplate struct {
 	// +kubebuilder:validation:Optional
 	// NetworkAttachments is a list of NetworkAttachment resource names to expose the services to the given network
 	NetworkAttachments []string `json:"networkAttachments,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// Override, provides the ability to override the generated manifest of several child resources.
+	Override ComputeOverrideSpec `json:"override,omitempty"`
 
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Enum=ironic.IronicDriver;fake.FakeDriver
@@ -108,6 +119,10 @@ type NovaComputeSpec struct {
 
 	// NovaServiceBase specifies the generic fields of the service
 	NovaServiceBase `json:",inline"`
+
+	// +kubebuilder:validation:Optional
+	// Override, provides the ability to override the generated manifest of several child resources.
+	Override ComputeOverrideSpec `json:"override,omitempty"`
 
 	// +kubebuilder:validation:Required
 	// ServiceAccount - service account name used internally to provide Nova services the default SA name
@@ -225,6 +240,7 @@ func NewNovaComputeSpec(
 			Resources:           computeTemplate.Resources,
 			NetworkAttachments:  computeTemplate.NetworkAttachments,
 		},
+		Override:               computeTemplate.Override,
 		KeystoneAuthURL:        novaCell.KeystoneAuthURL,
 		ServiceUser:            novaCell.ServiceUser,
 		Region:                 novaCell.Region,

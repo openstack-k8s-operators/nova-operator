@@ -264,6 +264,9 @@ func (spec *NovaSpecCore) ValidateCellTemplates(basePath *field.Path, namespace 
 				errors, computeTemplate.ValidateTopology(
 					cellPath.Child("novaComputeTemplates").Key(computeName), namespace)...,
 			)
+			errors = append(errors,
+				computeTemplate.Override.Probes.ValidateProbes(
+					cellPath.Child("novaComputeTemplates").Key(computeName).Child("override").Child("probes"))...)
 		}
 	}
 
