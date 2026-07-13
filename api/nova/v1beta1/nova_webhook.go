@@ -198,6 +198,9 @@ func (spec *NovaSpecCore) ValidateCellTemplates(basePath *field.Path, namespace 
 			cell.MetadataServiceTemplate.ValidateTopology(
 				cellPath.Child("metadataServiceTemplate"),
 				namespace)...)
+		errors = append(errors,
+			cell.MetadataServiceTemplate.Override.Probes.ValidateProbes(
+				cellPath.Child("metadataServiceTemplate").Child("override").Child("probes"))...)
 
 		errors = append(errors,
 			cell.NoVNCProxyServiceTemplate.ValidateTopology(
@@ -326,6 +329,9 @@ func (spec *NovaSpecCore) ValidateCreate(basePath *field.Path, namespace string)
 		errors,
 		spec.MetadataServiceTemplate.ValidateDefaultConfigOverwrite(
 			basePath.Child("metadataServiceTemplate"))...)
+	errors = append(errors,
+		spec.MetadataServiceTemplate.Override.Probes.ValidateProbes(
+			basePath.Child("metadataServiceTemplate").Child("override").Child("probes"))...)
 
 	// validate top-level topology
 	errors = append(errors,

@@ -76,6 +76,7 @@ func (r *NovaMetadata) ValidateCreate() (admission.Warnings, error) {
 	errors = append(errors, ValidateMetadataDefaultConfigOverwrite(
 		basePath.Child("defaultConfigOverwrite"),
 		r.Spec.DefaultConfigOverwrite)...)
+	errors = append(errors, r.Spec.Override.Probes.ValidateProbes(basePath.Child("override").Child("probes"))...)
 
 	errors = append(errors, topologyv1.ValidateTopologyRef(
 		r.Spec.TopologyRef, *basePath.Child("topologyRef"), r.Namespace)...)
@@ -105,6 +106,7 @@ func (r *NovaMetadata) ValidateUpdate(old runtime.Object) (admission.Warnings, e
 	errors = append(errors, ValidateMetadataDefaultConfigOverwrite(
 		basePath.Child("defaultConfigOverwrite"),
 		r.Spec.DefaultConfigOverwrite)...)
+	errors = append(errors, r.Spec.Override.Probes.ValidateProbes(basePath.Child("override").Child("probes"))...)
 
 	errors = append(errors, topologyv1.ValidateTopologyRef(
 		r.Spec.TopologyRef, *basePath.Child("topologyRef"), r.Namespace)...)
