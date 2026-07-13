@@ -78,6 +78,7 @@ func (r *NovaAPI) ValidateCreate() (admission.Warnings, error) {
 
 	// validate the service override key is valid
 	errors = append(errors, service.ValidateRoutedOverrides(basePath.Child("override").Child("service"), r.Spec.Override.Service)...)
+	errors = append(errors, r.Spec.Override.Probes.ValidateProbes(basePath.Child("override").Child("probes"))...)
 
 	errors = append(errors,
 		ValidateAPIDefaultConfigOverwrite(
@@ -111,6 +112,7 @@ func (r *NovaAPI) ValidateUpdate(old runtime.Object) (admission.Warnings, error)
 
 	// validate the service override key is valid
 	errors = append(errors, service.ValidateRoutedOverrides(basePath.Child("override").Child("service"), r.Spec.Override.Service)...)
+	errors = append(errors, r.Spec.Override.Probes.ValidateProbes(basePath.Child("override").Child("probes"))...)
 
 	errors = append(errors,
 		ValidateAPIDefaultConfigOverwrite(
