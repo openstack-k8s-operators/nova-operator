@@ -50,7 +50,7 @@ func StatefulSet(
 	novncProbes, err := probes.CreateProbeSet(
 		int32(NoVNCProxyPort),
 		&scheme,
-		probes.OverrideSpec{},
+		instance.Spec.Override.Probes,
 		internalcommon.GetDefaultProbesNoVNC(),
 	)
 	if err != nil {
