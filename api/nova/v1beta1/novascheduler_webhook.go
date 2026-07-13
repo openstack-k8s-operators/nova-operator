@@ -75,6 +75,7 @@ func (r *NovaScheduler) ValidateCreate() (admission.Warnings, error) {
 
 	errors = append(errors, topologyv1.ValidateTopologyRef(
 		r.Spec.TopologyRef, *basePath.Child("topologyRef"), r.Namespace)...)
+	errors = append(errors, r.Spec.Override.Probes.ValidateProbes(basePath.Child("override").Child("probes"))...)
 
 	if len(errors) != 0 {
 		novaschedulerlog.Info("validation failed", "name", r.Name)
@@ -100,6 +101,7 @@ func (r *NovaScheduler) ValidateUpdate(old runtime.Object) (admission.Warnings, 
 
 	errors = append(errors, topologyv1.ValidateTopologyRef(
 		r.Spec.TopologyRef, *basePath.Child("topologyRef"), r.Namespace)...)
+	errors = append(errors, r.Spec.Override.Probes.ValidateProbes(basePath.Child("override").Child("probes"))...)
 
 	if len(errors) != 0 {
 		novaschedulerlog.Info("validation failed", "name", r.Name)

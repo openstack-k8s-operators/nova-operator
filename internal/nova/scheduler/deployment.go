@@ -44,7 +44,7 @@ func StatefulSet(
 	memcached *memcachedv1.Memcached,
 ) (*appsv1.StatefulSet, error) {
 	schedulerProbes, err := probes.CreateProbeSetV2(
-		probes.OverrideSpec{},
+		instance.Spec.Override.Probes,
 		internalcommon.GetDefaultProbesRPC(
 			internalcommon.DefaultServiceDownTime,
 			[]string{"/usr/bin/pgrep", "-r", "DRST", "nova-scheduler"},

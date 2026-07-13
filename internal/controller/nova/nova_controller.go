@@ -1588,6 +1588,7 @@ func (r *NovaReconciler) ensureScheduler(
 			NetworkAttachments:  instance.Spec.SchedulerServiceTemplate.NetworkAttachments,
 			TopologyRef:         instance.Spec.SchedulerServiceTemplate.TopologyRef,
 		},
+		Override:        instance.Spec.SchedulerServiceTemplate.Override,
 		KeystoneAuthURL: keystoneAuthURL,
 		Region:          region,
 		ServiceUser:     instance.Spec.ServiceUser,
