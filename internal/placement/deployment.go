@@ -56,7 +56,7 @@ func Deployment(
 	placementProbes, err := probes.CreateProbeSet(
 		int32(PlacementPublicPort),
 		&scheme,
-		probes.OverrideSpec{},
+		instance.Spec.Override.Probes,
 		placementDefaults,
 	)
 	if err != nil {

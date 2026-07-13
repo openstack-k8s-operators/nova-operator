@@ -125,6 +125,7 @@ func (r PlacementAPISpecCore) ValidateCreate(basePath *field.Path, namespace str
 
 	// validate the service override key is valid
 	allErrs = append(allErrs, service.ValidateRoutedOverrides(basePath.Child("override").Child("service"), r.Override.Service)...)
+	allErrs = append(allErrs, r.Override.Probes.ValidateProbes(basePath.Child("override").Child("probes"))...)
 
 	allErrs = append(allErrs, ValidateDefaultConfigOverwrite(basePath, r.DefaultConfigOverwrite)...)
 
@@ -140,6 +141,7 @@ func (r PlacementAPISpecCore) ValidateUpdate(old PlacementAPISpecCore, basePath 
 
 	// validate the service override key is valid
 	allErrs = append(allErrs, service.ValidateRoutedOverrides(basePath.Child("override").Child("service"), r.Override.Service)...)
+	allErrs = append(allErrs, r.Override.Probes.ValidateProbes(basePath.Child("override").Child("probes"))...)
 
 	allErrs = append(allErrs, ValidateDefaultConfigOverwrite(basePath, r.DefaultConfigOverwrite)...)
 
