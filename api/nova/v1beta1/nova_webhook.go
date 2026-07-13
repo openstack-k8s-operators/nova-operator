@@ -304,6 +304,9 @@ func (spec *NovaSpecCore) ValidateSchedulerServiceTemplate(basePath *field.Path,
 		spec.SchedulerServiceTemplate.ValidateTopology(
 			basePath.Child("schedulerServiceTemplate"),
 			namespace)...)
+	errors = append(errors,
+		spec.SchedulerServiceTemplate.Override.Probes.ValidateProbes(
+			basePath.Child("schedulerServiceTemplate").Child("override").Child("probes"))...)
 	return errors
 }
 

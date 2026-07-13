@@ -19,10 +19,17 @@ package v1beta1
 import (
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/probes"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+// SchedulerOverrideSpec to override the generated manifest of several child resources.
+type SchedulerOverrideSpec struct {
+	// Override probes and other common fields in the StatefulSet
+	Probes probes.OverrideSpec `json:"probes,omitempty"`
+}
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
@@ -61,6 +68,10 @@ type NovaSchedulerTemplate struct {
 	// TopologyRef to apply the Topology defined by the associated CR referenced
 	// by name
 	TopologyRef *topologyv1.TopoRef `json:"topologyRef,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// Override, provides the ability to override the generated manifest of several child resources.
+	Override SchedulerOverrideSpec `json:"override,omitempty"`
 }
 
 // NovaSchedulerSpec defines the desired state of NovaScheduler
@@ -111,6 +122,10 @@ type NovaSchedulerSpec struct {
 
 	// NovaServiceBase specifies the generic fields of the service
 	NovaServiceBase `json:",inline"`
+
+	// +kubebuilder:validation:Optional
+	// Override, provides the ability to override the generated manifest of several child resources.
+	Override SchedulerOverrideSpec `json:"override,omitempty"`
 
 	// +kubebuilder:validation:Required
 	// ServiceAccount - service account name used internally to provide Nova services the default SA name
