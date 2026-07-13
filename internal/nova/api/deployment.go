@@ -52,7 +52,7 @@ func StatefulSet(
 	apiProbes, err := probes.CreateProbeSet(
 		int32(APIServicePort),
 		&scheme,
-		probes.OverrideSpec{},
+		instance.Spec.Override.Probes,
 		internalcommon.GetDefaultProbesAPI(instance.Spec.APITimeout),
 	)
 	if err != nil {

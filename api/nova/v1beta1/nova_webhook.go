@@ -270,6 +270,9 @@ func (spec *NovaSpecCore) ValidateAPIServiceTemplate(basePath *field.Path, names
 		service.ValidateRoutedOverrides(
 			basePath.Child("apiServiceTemplate").Child("override").Child("service"),
 			spec.APIServiceTemplate.Override.Service)...)
+	errors = append(errors,
+		spec.APIServiceTemplate.Override.Probes.ValidateProbes(
+			basePath.Child("apiServiceTemplate").Child("override").Child("probes"))...)
 
 	errors = append(errors,
 		ValidateAPIDefaultConfigOverwrite(
