@@ -73,8 +73,9 @@ func (r *NovaConductor) ValidateCreate() (admission.Warnings, error) {
 	errors := field.ErrorList{}
 	basePath := field.NewPath("spec")
 
-	errors = append(errors,r.Spec.DBPurge.Validate(
+	errors = append(errors, r.Spec.DBPurge.Validate(
 		basePath.Child("dbPurge"))...)
+	errors = append(errors, r.Spec.Override.Probes.ValidateProbes(basePath.Child("override").Child("probes"))...)
 
 	errors = append(errors, topologyv1.ValidateTopologyRef(
 		r.Spec.TopologyRef, *basePath.Child("topologyRef"), r.Namespace)...)
@@ -103,6 +104,7 @@ func (r *NovaConductor) ValidateUpdate(old runtime.Object) (admission.Warnings, 
 
 	errors = append(errors, r.Spec.DBPurge.Validate(
 		basePath.Child("dbPurge"))...)
+	errors = append(errors, r.Spec.Override.Probes.ValidateProbes(basePath.Child("override").Child("probes"))...)
 
 	errors = append(errors, topologyv1.ValidateTopologyRef(
 		r.Spec.TopologyRef, *basePath.Child("topologyRef"), r.Namespace)...)
