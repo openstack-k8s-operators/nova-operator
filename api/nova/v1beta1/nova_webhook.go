@@ -217,6 +217,9 @@ func (spec *NovaSpecCore) ValidateCellTemplates(basePath *field.Path, namespace 
 			cell.ConductorServiceTemplate.ValidateTopology(
 				cellPath.Child("conductorServiceTemplate"),
 				namespace)...)
+		errors = append(errors,
+			cell.ConductorServiceTemplate.Override.Probes.ValidateProbes(
+				cellPath.Child("conductorServiceTemplate").Child("override").Child("probes"))...)
 
 		errors = append(
 			errors,
