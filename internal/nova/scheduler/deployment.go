@@ -21,6 +21,7 @@ import (
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	affinity "github.com/openstack-k8s-operators/lib-common/modules/common/affinity"
 	env "github.com/openstack-k8s-operators/lib-common/modules/common/env"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/probes"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/nova/v1beta1"
 	internalcommon "github.com/openstack-k8s-operators/nova-operator/internal/common"
 	"github.com/openstack-k8s-operators/nova-operator/internal/nova"
@@ -41,41 +42,19 @@ func StatefulSet(
 	annotations map[string]string,
 	topology *topologyv1.Topology,
 	memcached *memcachedv1.Memcached,
-) *appsv1.StatefulSet {
-	// This allows the pod to start up slowly. The pod will only be killed
-	// if it does not succeed a probe in 60 seconds.
-	startupProbe := &corev1.Probe{
-		FailureThreshold: 6,
-		PeriodSeconds:    10,
-	}
-	// After the first successful startupProbe, livenessProbe takes over
-	livenessProbe := &corev1.Probe{
-		// TODO might need tuning
-		TimeoutSeconds: 10,
-		PeriodSeconds:  10,
-	}
-	readinessProbe := &corev1.Probe{
-		// TODO might need tuning
-		TimeoutSeconds: 5,
-		PeriodSeconds:  5,
+) (*appsv1.StatefulSet, error) {
+	schedulerProbes, err := probes.CreateProbeSetV2(
+		probes.OverrideSpec{},
+		internalcommon.GetDefaultProbesRPC(
+			internalcommon.DefaultServiceDownTime,
+			[]string{"/usr/bin/pgrep", "-r", "DRST", "nova-scheduler"},
+		),
+	)
+	if err != nil {
+		return nil, err
 	}
 
 	args := []string{"-c", nova.KollaServiceCommand}
-	livenessProbe.Exec = &corev1.ExecAction{
-		Command: []string{
-			"/usr/bin/pgrep", "-r", "DRST", "nova-scheduler",
-		},
-	}
-	readinessProbe.Exec = &corev1.ExecAction{
-		Command: []string{
-			"/usr/bin/pgrep", "-r", "DRST", "nova-scheduler",
-		},
-	}
-	startupProbe.Exec = &corev1.ExecAction{
-		Command: []string{
-			"/usr/bin/pgrep", "-r", "DRST", "nova-scheduler",
-		},
-	}
 
 	envVars := map[string]env.Setter{}
 	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
@@ -140,9 +119,9 @@ func StatefulSet(
 							Env:            env,
 							VolumeMounts:   volumeMounts,
 							Resources:      instance.Spec.Resources,
-							StartupProbe:   startupProbe,
-							ReadinessProbe: readinessProbe,
-							LivenessProbe:  livenessProbe,
+							StartupProbe:   schedulerProbes.Startup,
+							ReadinessProbe: schedulerProbes.Readiness,
+							LivenessProbe:  schedulerProbes.Liveness,
 						},
 					},
 				},
@@ -169,5 +148,5 @@ func StatefulSet(
 		)
 	}
 
-	return statefulset
+	return statefulset, nil
 }

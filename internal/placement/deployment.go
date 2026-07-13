@@ -19,16 +19,17 @@ import (
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	affinity "github.com/openstack-k8s-operators/lib-common/modules/common/affinity"
 	env "github.com/openstack-k8s-operators/lib-common/modules/common/env"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/probes"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
 
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	placementv1 "github.com/openstack-k8s-operators/nova-operator/api/placement/v1beta1"
+	internalcommon "github.com/openstack-k8s-operators/nova-operator/internal/common"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/ptr"
 )
 
@@ -40,34 +41,29 @@ func Deployment(
 	annotations map[string]string,
 	topology *topologyv1.Topology,
 ) (*appsv1.Deployment, error) {
-	livenessProbe := &corev1.Probe{
-		// TODO might need tuning
-		TimeoutSeconds:      30,
-		PeriodSeconds:       30,
-		InitialDelaySeconds: 5,
+	scheme := corev1.URISchemeHTTP
+	if instance.Spec.TLS.API.Enabled(service.EndpointPublic) {
+		scheme = corev1.URISchemeHTTPS
 	}
-	readinessProbe := &corev1.Probe{
-		// TODO might need tuning
-		TimeoutSeconds:      30,
-		PeriodSeconds:       30,
-		InitialDelaySeconds: 5,
+
+	placementDefaults := internalcommon.GetDefaultProbesAPI(instance.Spec.APITimeout)
+	// Placement has no startup probe, so liveness and readiness need an initial
+	// delay to avoid firing before the service is ready. nova-api and
+	// nova-metadata rely on the startup probe for this instead.
+	placementDefaults.LivenessProbes.InitialDelaySeconds = 5
+	placementDefaults.ReadinessProbes.InitialDelaySeconds = 5
+
+	placementProbes, err := probes.CreateProbeSet(
+		int32(PlacementPublicPort),
+		&scheme,
+		probes.OverrideSpec{},
+		placementDefaults,
+	)
+	if err != nil {
+		return nil, err
 	}
 
 	args := []string{"-c", KollaServiceCommand}
-	//
-	// https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
-	//
-	livenessProbe.HTTPGet = &corev1.HTTPGetAction{
-		Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(PlacementPublicPort)},
-	}
-	readinessProbe.HTTPGet = &corev1.HTTPGetAction{
-		Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(PlacementPublicPort)},
-	}
-
-	if instance.Spec.TLS.API.Enabled(service.EndpointPublic) {
-		livenessProbe.HTTPGet.Scheme = corev1.URISchemeHTTPS
-		readinessProbe.HTTPGet.Scheme = corev1.URISchemeHTTPS
-	}
 
 	envVars := map[string]env.Setter{}
 	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
@@ -141,8 +137,8 @@ func Deployment(
 							Env:            env.MergeEnvs([]corev1.EnvVar{}, envVars),
 							VolumeMounts:   volumeMounts,
 							Resources:      instance.Spec.Resources,
-							ReadinessProbe: readinessProbe,
-							LivenessProbe:  livenessProbe,
+							ReadinessProbe: placementProbes.Readiness,
+							LivenessProbe:  placementProbes.Liveness,
 						},
 						{
 							Name: instance.Name + "-api",
@@ -157,8 +153,8 @@ func Deployment(
 							Env:            env.MergeEnvs([]corev1.EnvVar{}, envVars),
 							VolumeMounts:   volumeMounts,
 							Resources:      instance.Spec.Resources,
-							ReadinessProbe: readinessProbe,
-							LivenessProbe:  livenessProbe,
+							ReadinessProbe: placementProbes.Readiness,
+							LivenessProbe:  placementProbes.Liveness,
 						},
 					},
 				},
