@@ -269,7 +269,7 @@ var _ = Describe("NovaCompute controller", func() {
 				Expect(container.Image).To(Equal(ContainerImage))
 				Expect(container.LivenessProbe.Exec.Command).To(
 					Equal([]string{"/usr/bin/pgrep", "-r", "DRST", "nova-compute"}))
-				Expect(container.ReadinessProbe.Exec.Command).To(
+				Expect(container.StartupProbe.Exec.Command).To(
 					Equal([]string{"/usr/bin/pgrep", "-r", "DRST", "nova-compute"}))
 				Expect(container.VolumeMounts).To(HaveLen(2))
 

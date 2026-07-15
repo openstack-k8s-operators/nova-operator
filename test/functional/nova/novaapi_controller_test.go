@@ -1187,7 +1187,6 @@ var _ = Describe("NovaAPI controller", func() {
 
 			Expect(apiContainer.ReadinessProbe.HTTPGet.Scheme).To(Equal(corev1.URISchemeHTTPS))
 			Expect(apiContainer.LivenessProbe.HTTPGet.Scheme).To(Equal(corev1.URISchemeHTTPS))
-			Expect(apiContainer.StartupProbe.HTTPGet.Scheme).To(Equal(corev1.URISchemeHTTPS))
 
 			configDataMap := th.GetSecret(novaNames.APIConfigDataName)
 			Expect(configDataMap).ShouldNot(BeNil())

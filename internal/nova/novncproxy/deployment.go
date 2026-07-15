@@ -144,7 +144,6 @@ func StatefulSet(
 							Resources:      instance.Spec.Resources,
 							ReadinessProbe: novncProbes.Readiness,
 							LivenessProbe:  novncProbes.Liveness,
-							StartupProbe:   novncProbes.Startup,
 						},
 					},
 				},

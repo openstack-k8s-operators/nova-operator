@@ -155,7 +155,6 @@ func StatefulSet(
 							Resources:      instance.Spec.Resources,
 							ReadinessProbe: apiProbes.Readiness,
 							LivenessProbe:  apiProbes.Liveness,
-							StartupProbe:   apiProbes.Startup,
 						},
 						{
 							Name: instance.Name + "-api",
@@ -172,7 +171,6 @@ func StatefulSet(
 							Resources:      instance.Spec.Resources,
 							ReadinessProbe: apiProbes.Readiness,
 							LivenessProbe:  apiProbes.Liveness,
-							StartupProbe:   apiProbes.Startup,
 						},
 					},
 				},
