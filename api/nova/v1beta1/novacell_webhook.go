@@ -60,7 +60,7 @@ func SetupNovaCellDefaults(defaults NovaCellDefaults) {
 }
 
 
-// Default implements webhook.Defaulter so a webhook will be registered for the type
+// Default sets defaults for the type
 func (r *NovaCell) Default() {
 	novacelllog.Info("default", "name", r.Name)
 
@@ -168,7 +168,7 @@ func (spec *NovaCellSpec) ValidateCreate(basePath *field.Path, namespace string)
 	return spec.validate(basePath, namespace)
 }
 
-// ValidateCreate implements webhook.Validator so a webhook will be registered for the type
+// ValidateCreate validates the type on creation
 func (r *NovaCell) ValidateCreate() (admission.Warnings, error) {
 	novacelllog.Info("validate create", "name", r.Name)
 	errors := field.ErrorList{}
@@ -190,7 +190,7 @@ func (spec *NovaCellSpec) ValidateUpdate(old NovaCellSpec, basePath *field.Path,
 	return spec.validate(basePath, namespace)
 }
 
-// ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
+// ValidateUpdate validates the type on update
 func (r *NovaCell) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	novacelllog.Info("validate update", "name", r.Name)
 	errors := field.ErrorList{}
@@ -214,7 +214,7 @@ func (r *NovaCell) ValidateUpdate(old runtime.Object) (admission.Warnings, error
 	return nil, nil
 }
 
-// ValidateDelete implements webhook.Validator so a webhook will be registered for the type
+// ValidateDelete validates the type on deletion
 func (r *NovaCell) ValidateDelete() (admission.Warnings, error) {
 	novacelllog.Info("validate delete", "name", r.Name)
 

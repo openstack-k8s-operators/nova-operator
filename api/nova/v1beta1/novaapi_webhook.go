@@ -54,7 +54,7 @@ func SetupNovaAPIDefaults(defaults NovaAPIDefaults) {
 }
 
 
-// Default implements webhook.Defaulter so a webhook will be registered for the type
+// Default sets defaults for the type
 func (r *NovaAPI) Default() {
 	novaapilog.Info("default", "name", r.Name)
 
@@ -69,7 +69,7 @@ func (spec *NovaAPISpec) Default() {
 }
 
 
-// ValidateCreate implements webhook.Validator so a webhook will be registered for the type
+// ValidateCreate validates the type on creation
 func (r *NovaAPI) ValidateCreate() (admission.Warnings, error) {
 	novaapilog.Info("validate create", "name", r.Name)
 
@@ -97,7 +97,7 @@ func (r *NovaAPI) ValidateCreate() (admission.Warnings, error) {
 	return nil, nil
 }
 
-// ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
+// ValidateUpdate validates the type on update
 func (r *NovaAPI) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	novaapilog.Info("validate update", "name", r.Name)
 	oldNovaAPI, ok := old.(*NovaAPI)
@@ -131,7 +131,7 @@ func (r *NovaAPI) ValidateUpdate(old runtime.Object) (admission.Warnings, error)
 	return nil, nil
 }
 
-// ValidateDelete implements webhook.Validator so a webhook will be registered for the type
+// ValidateDelete validates the type on deletion
 func (r *NovaAPI) ValidateDelete() (admission.Warnings, error) {
 	novaapilog.Info("validate delete", "name", r.Name)
 

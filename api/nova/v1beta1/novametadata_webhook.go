@@ -52,7 +52,7 @@ func SetupNovaMetadataDefaults(defaults NovaMetadataDefaults) {
 }
 
 
-// Default implements webhook.Defaulter so a webhook will be registered for the type
+// Default sets defaults for the type
 func (r *NovaMetadata) Default() {
 	novametadatalog.Info("default", "name", r.Name)
 
@@ -67,7 +67,7 @@ func (spec *NovaMetadataSpec) Default() {
 }
 
 
-// ValidateCreate implements webhook.Validator so a webhook will be registered for the type
+// ValidateCreate validates the type on creation
 func (r *NovaMetadata) ValidateCreate() (admission.Warnings, error) {
 	novametadatalog.Info("validate create", "name", r.Name)
 	errors := field.ErrorList{}
@@ -90,7 +90,7 @@ func (r *NovaMetadata) ValidateCreate() (admission.Warnings, error) {
 	return nil, nil
 }
 
-// ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
+// ValidateUpdate validates the type on update
 func (r *NovaMetadata) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	novametadatalog.Info("validate update", "name", r.Name)
 	errors := field.ErrorList{}
@@ -120,7 +120,7 @@ func (r *NovaMetadata) ValidateUpdate(old runtime.Object) (admission.Warnings, e
 	return nil, nil
 }
 
-// ValidateDelete implements webhook.Validator so a webhook will be registered for the type
+// ValidateDelete validates the type on deletion
 func (r *NovaMetadata) ValidateDelete() (admission.Warnings, error) {
 	novametadatalog.Info("validate delete", "name", r.Name)
 

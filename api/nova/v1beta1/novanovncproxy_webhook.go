@@ -52,7 +52,7 @@ func SetupNovaNoVNCProxyDefaults(defaults NovaNoVNCProxyDefaults) {
 }
 
 
-// Default implements webhook.Defaulter so a webhook will be registered for the type
+// Default sets defaults for the type
 func (r *NovaNoVNCProxy) Default() {
 	novanovncproxylog.Info("default", "name", r.Name)
 
@@ -67,7 +67,7 @@ func (spec *NovaNoVNCProxySpec) Default() {
 }
 
 
-// ValidateCreate implements webhook.Validator so a webhook will be registered for the type
+// ValidateCreate validates the type on creation
 func (r *NovaNoVNCProxy) ValidateCreate() (admission.Warnings, error) {
 	novanovncproxylog.Info("validate create", "name", r.Name)
 
@@ -87,7 +87,7 @@ func (r *NovaNoVNCProxy) ValidateCreate() (admission.Warnings, error) {
 	return nil, nil
 }
 
-// ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
+// ValidateUpdate validates the type on update
 func (r *NovaNoVNCProxy) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	novanovncproxylog.Info("validate update", "name", r.Name)
 	errors := field.ErrorList{}
@@ -114,7 +114,7 @@ func (r *NovaNoVNCProxy) ValidateUpdate(old runtime.Object) (admission.Warnings,
 	return nil, nil
 }
 
-// ValidateDelete implements webhook.Validator so a webhook will be registered for the type
+// ValidateDelete validates the type on deletion
 func (r *NovaNoVNCProxy) ValidateDelete() (admission.Warnings, error) {
 	novanovncproxylog.Info("validate delete", "name", r.Name)
 

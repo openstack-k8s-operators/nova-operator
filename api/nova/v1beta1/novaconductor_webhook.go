@@ -52,7 +52,7 @@ func SetupNovaConductorDefaults(defaults NovaConductorDefaults) {
 }
 
 
-// Default implements webhook.Defaulter so a webhook will be registered for the type
+// Default sets defaults for the type
 func (r *NovaConductor) Default() {
 	novaconductorlog.Info("default", "name", r.Name)
 
@@ -67,7 +67,7 @@ func (spec *NovaConductorSpec) Default() {
 }
 
 
-// ValidateCreate implements webhook.Validator so a webhook will be registered for the type
+// ValidateCreate validates the type on creation
 func (r *NovaConductor) ValidateCreate() (admission.Warnings, error) {
 	novaconductorlog.Info("validate create", "name", r.Name)
 	errors := field.ErrorList{}
@@ -89,7 +89,7 @@ func (r *NovaConductor) ValidateCreate() (admission.Warnings, error) {
 	return nil, nil
 }
 
-// ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
+// ValidateUpdate validates the type on update
 func (r *NovaConductor) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	novaconductorlog.Info("validate update", "name", r.Name)
 	errors := field.ErrorList{}
@@ -118,7 +118,7 @@ func (r *NovaConductor) ValidateUpdate(old runtime.Object) (admission.Warnings, 
 	return nil, nil
 }
 
-// ValidateDelete implements webhook.Validator so a webhook will be registered for the type
+// ValidateDelete validates the type on deletion
 func (r *NovaConductor) ValidateDelete() (admission.Warnings, error) {
 	novaconductorlog.Info("validate delete", "name", r.Name)
 
