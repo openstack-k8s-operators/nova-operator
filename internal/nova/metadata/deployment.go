@@ -143,7 +143,6 @@ func StatefulSet(
 							Resources:      instance.Spec.Resources,
 							ReadinessProbe: metadataProbes.Readiness,
 							LivenessProbe:  metadataProbes.Liveness,
-							StartupProbe:   metadataProbes.Startup,
 						},
 						{
 							Name: instance.Name + "-metadata",
@@ -160,7 +159,6 @@ func StatefulSet(
 							Resources:      instance.Spec.Resources,
 							ReadinessProbe: metadataProbes.Readiness,
 							LivenessProbe:  metadataProbes.Liveness,
-							StartupProbe:   metadataProbes.Startup,
 						},
 					},
 				},

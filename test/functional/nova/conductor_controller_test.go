@@ -384,7 +384,7 @@ var _ = Describe("NovaConductor controller", func() {
 				container := ss.Spec.Template.Spec.Containers[0]
 				Expect(container.LivenessProbe.Exec.Command).To(
 					Equal([]string{"/usr/bin/pgrep", "-r", "DRST", "nova-conductor"}))
-				Expect(container.ReadinessProbe.Exec.Command).To(
+				Expect(container.StartupProbe.Exec.Command).To(
 					Equal([]string{"/usr/bin/pgrep", "-r", "DRST", "nova-conductor"}))
 
 				th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
