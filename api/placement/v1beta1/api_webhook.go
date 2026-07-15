@@ -50,7 +50,7 @@ func SetupPlacementAPIDefaults(defaults PlacementAPIDefaults) {
 	placementapilog.Info("PlacementAPI defaults initialized", "defaults", defaults)
 }
 
-// Default implements webhook.Defaulter so a webhook will be registered for the type
+// Default sets defaults for the PlacementAPI type
 func (r *PlacementAPI) Default() {
 	placementapilog.Info("default", "name", r.Name)
 
@@ -72,7 +72,7 @@ func (spec *PlacementAPISpecCore) Default() {
 	// nothing here yet
 }
 
-// ValidateCreate implements webhook.Validator so a webhook will be registered for the type
+// ValidateCreate validates the PlacementAPI on creation
 func (r *PlacementAPI) ValidateCreate() (admission.Warnings, error) {
 	placementapilog.Info("validate create", "name", r.Name)
 
@@ -86,7 +86,7 @@ func (r *PlacementAPI) ValidateCreate() (admission.Warnings, error) {
 	return nil, nil
 }
 
-// ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
+// ValidateUpdate validates the type on update
 func (r *PlacementAPI) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	placementapilog.Info("validate update", "name", r.Name)
 	oldPlacement, ok := old.(*PlacementAPI)
@@ -104,7 +104,7 @@ func (r *PlacementAPI) ValidateUpdate(old runtime.Object) (admission.Warnings, e
 	return nil, nil
 }
 
-// ValidateDelete implements webhook.Validator so a webhook will be registered for the type
+// ValidateDelete validates the type on deletion
 func (r *PlacementAPI) ValidateDelete() (admission.Warnings, error) {
 	placementapilog.Info("validate delete", "name", r.Name)
 

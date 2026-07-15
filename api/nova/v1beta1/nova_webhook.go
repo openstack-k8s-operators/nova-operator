@@ -59,7 +59,7 @@ func SetupNovaDefaults(defaults NovaDefaults) {
 }
 
 
-// Default implements webhook.Defaulter so a webhook will be registered for the type
+// Default sets defaults for the type
 func (r *Nova) Default() {
 	novalog.Info("default", "name", r.Name)
 
@@ -353,7 +353,7 @@ func (spec *NovaSpecCore) ValidateCreate(basePath *field.Path, namespace string)
 	return warnings, errors
 }
 
-// ValidateCreate implements webhook.Validator so a webhook will be registered for the type
+// ValidateCreate validates the type on creation
 func (r *Nova) ValidateCreate() (admission.Warnings, error) {
 	novalog.Info("validate create", "name", r.Name)
 
@@ -406,7 +406,7 @@ func (spec *NovaSpecCore) ValidateUpdate(old NovaSpecCore, basePath *field.Path,
 	return warnings, errors
 }
 
-// ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
+// ValidateUpdate validates the type on update
 func (r *Nova) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	novalog.Info("validate update", "name", r.Name)
 	oldNova, ok := old.(*Nova)
@@ -426,7 +426,7 @@ func (r *Nova) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	return warnings, nil
 }
 
-// ValidateDelete implements webhook.Validator so a webhook will be registered for the type
+// ValidateDelete validates the type on deletion
 func (r *Nova) ValidateDelete() (admission.Warnings, error) {
 	novalog.Info("validate delete", "name", r.Name)
 

@@ -53,7 +53,7 @@ func SetupNovaComputeDefaults(defaults NovaComputeDefaults) {
 }
 
 
-// Default implements webhook.Defaulter so a webhook will be registered for the type
+// Default sets defaults for the type
 func (r *NovaCompute) Default() {
 	novacomputelog.Info("default", "name", r.Name)
 
@@ -68,7 +68,7 @@ func (spec *NovaComputeSpec) Default() {
 }
 
 
-// ValidateCreate implements webhook.Validator so a webhook will be registered for the type
+// ValidateCreate validates the type on creation
 func (r *NovaCompute) ValidateCreate() (admission.Warnings, error) {
 	novacomputelog.Info("validate create", "name", r.Name)
 
@@ -83,7 +83,7 @@ func (r *NovaCompute) ValidateCreate() (admission.Warnings, error) {
 	return nil, nil
 }
 
-// ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
+// ValidateUpdate validates the type on update
 func (r *NovaCompute) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	novacomputelog.Info("validate update", "name", r.Name)
 	oldNovaCompute, ok := old.(*NovaCompute)
@@ -115,7 +115,7 @@ func (spec *NovaComputeSpec) ValidateUpdate(old NovaComputeSpec, basePath *field
 	return spec.validate(basePath, namespace)
 }
 
-// ValidateDelete implements webhook.Validator so a webhook will be registered for the type
+// ValidateDelete validates the type on deletion
 func (r *NovaCompute) ValidateDelete() (admission.Warnings, error) {
 	novacomputelog.Info("validate delete", "name", r.Name)
 
