@@ -40,6 +40,7 @@ import (
 
 	placementv1 "github.com/openstack-k8s-operators/nova-operator/api/placement/v1beta1"
 	internalcommon "github.com/openstack-k8s-operators/nova-operator/internal/common"
+	cyborgcontroller "github.com/openstack-k8s-operators/nova-operator/internal/controller/cyborg"
 	novacontroller "github.com/openstack-k8s-operators/nova-operator/internal/controller/nova"
 	placementcontroller "github.com/openstack-k8s-operators/nova-operator/internal/controller/placement"
 	webhookv1beta1 "github.com/openstack-k8s-operators/nova-operator/internal/webhook/nova/v1beta1"
@@ -52,6 +53,7 @@ import (
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/operator"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
+	cyborgv1beta1 "github.com/openstack-k8s-operators/nova-operator/api/cyborg/v1beta1"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/nova/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -76,6 +78,7 @@ func init() {
 	utilruntime.Must(networkv1.AddToScheme(scheme))
 	utilruntime.Must(memcachedv1.AddToScheme(scheme))
 	utilruntime.Must(topologyv1.AddToScheme(scheme))
+	utilruntime.Must(cyborgv1beta1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
@@ -319,6 +322,27 @@ func main() {
 		}
 		checker = mgr.GetWebhookServer().StartedChecker()
 
+	}
+	if err := (&cyborgcontroller.CyborgReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Cyborg")
+		os.Exit(1)
+	}
+	if err := (&cyborgcontroller.CyborgAPIReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "CyborgAPI")
+		os.Exit(1)
+	}
+	if err := (&cyborgcontroller.CyborgConductorReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "CyborgConductor")
+		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder
 
