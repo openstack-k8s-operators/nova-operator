@@ -30,7 +30,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
@@ -52,7 +51,6 @@ func SetupNovaNoVNCProxyDefaults(defaults NovaNoVNCProxyDefaults) {
 	novanovncproxylog.Info("NovaNoVNCProxy defaults initialized", "defaults", defaults)
 }
 
-var _ webhook.Defaulter = &NovaNoVNCProxy{}
 
 // Default implements webhook.Defaulter so a webhook will be registered for the type
 func (r *NovaNoVNCProxy) Default() {
@@ -68,7 +66,6 @@ func (spec *NovaNoVNCProxySpec) Default() {
 	}
 }
 
-var _ webhook.Validator = &NovaNoVNCProxy{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (r *NovaNoVNCProxy) ValidateCreate() (admission.Warnings, error) {

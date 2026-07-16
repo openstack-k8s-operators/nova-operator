@@ -29,7 +29,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
@@ -52,7 +51,6 @@ func SetupNovaSchedulerDefaults(defaults NovaSchedulerDefaults) {
 	novaschedulerlog.Info("NovaScheduler defaults initialized", "defaults", defaults)
 }
 
-var _ webhook.Defaulter = &NovaScheduler{}
 
 // Default implements webhook.Defaulter so a webhook will be registered for the type
 func (r *NovaScheduler) Default() {
@@ -68,7 +66,6 @@ func (spec *NovaSchedulerSpec) Default() {
 	}
 }
 
-var _ webhook.Validator = &NovaScheduler{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (r *NovaScheduler) ValidateCreate() (admission.Warnings, error) {

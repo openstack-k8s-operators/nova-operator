@@ -32,7 +32,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 )
@@ -53,7 +52,6 @@ func SetupNovaComputeDefaults(defaults NovaComputeDefaults) {
 	novacomputelog.Info("NovaCompute defaults initialized", "defaults", defaults)
 }
 
-var _ webhook.Defaulter = &NovaCompute{}
 
 // Default implements webhook.Defaulter so a webhook will be registered for the type
 func (r *NovaCompute) Default() {
@@ -69,7 +67,6 @@ func (spec *NovaComputeSpec) Default() {
 	}
 }
 
-var _ webhook.Validator = &NovaCompute{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (r *NovaCompute) ValidateCreate() (admission.Warnings, error) {

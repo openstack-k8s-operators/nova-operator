@@ -33,7 +33,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/utils/ptr"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 )
@@ -60,7 +59,6 @@ func SetupNovaCellDefaults(defaults NovaCellDefaults) {
 	novacelllog.Info("NovaCell defaults initialized", "defaults", defaults)
 }
 
-var _ webhook.Defaulter = &NovaCell{}
 
 // Default implements webhook.Defaulter so a webhook will be registered for the type
 func (r *NovaCell) Default() {
@@ -90,7 +88,6 @@ func (spec *NovaCellSpec) Default() {
 	}
 }
 
-var _ webhook.Validator = &NovaCell{}
 
 func (spec *NovaCellSpec) validate(basePath *field.Path, namespace string) field.ErrorList {
 	var errors field.ErrorList
