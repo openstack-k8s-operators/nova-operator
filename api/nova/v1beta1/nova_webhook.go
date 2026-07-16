@@ -36,7 +36,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/utils/ptr"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
@@ -59,7 +58,6 @@ func SetupNovaDefaults(defaults NovaDefaults) {
 	novalog.Info("Nova defaults initialized", "defaults", defaults)
 }
 
-var _ webhook.Defaulter = &Nova{}
 
 // Default implements webhook.Defaulter so a webhook will be registered for the type
 func (r *Nova) Default() {
@@ -130,7 +128,6 @@ func (spec *NovaSpecCore) Default() {
 	}
 }
 
-var _ webhook.Validator = &Nova{}
 
 // ValidateCellTemplates validates cell templates configuration
 func (spec *NovaSpecCore) ValidateCellTemplates(basePath *field.Path, namespace string) field.ErrorList {

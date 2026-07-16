@@ -31,7 +31,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 )
@@ -52,7 +51,6 @@ func SetupNovaMetadataDefaults(defaults NovaMetadataDefaults) {
 	novametadatalog.Info("NovaMetadata defaults initialized", "defaults", defaults)
 }
 
-var _ webhook.Defaulter = &NovaMetadata{}
 
 // Default implements webhook.Defaulter so a webhook will be registered for the type
 func (r *NovaMetadata) Default() {
@@ -68,7 +66,6 @@ func (spec *NovaMetadataSpec) Default() {
 	}
 }
 
-var _ webhook.Validator = &NovaMetadata{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (r *NovaMetadata) ValidateCreate() (admission.Warnings, error) {
