@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package controller implements the Cyborg service controllers
+// Package controller contains the Kubernetes controllers for managing Cyborg control plane components
 package controller
 
 import (
@@ -60,6 +60,6 @@ func (r *CyborgReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 func (r *CyborgReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&cyborgv1beta1.Cyborg{}).
-		Named("cyborg-cyborg").
+		Named("cyborg").
 		Complete(r)
 }

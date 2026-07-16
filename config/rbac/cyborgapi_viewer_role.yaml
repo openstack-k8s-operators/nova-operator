@@ -11,12 +11,12 @@ metadata:
   labels:
     app.kubernetes.io/name: nova-operator
     app.kubernetes.io/managed-by: kustomize
-  name: cyborg-cyborgconductor-viewer-role
+  name: cyborgapi-viewer-role
 rules:
 - apiGroups:
   - cyborg.openstack.org
   resources:
-  - cyborgconductors
+  - cyborgapis
   verbs:
   - get
   - list
@@ -24,6 +24,6 @@ rules:
 - apiGroups:
   - cyborg.openstack.org
   resources:
-  - cyborgconductors/status
+  - cyborgapis/status
   verbs:
   - get

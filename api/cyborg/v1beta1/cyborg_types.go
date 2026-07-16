@@ -17,22 +17,111 @@ limitations under the License.
 package v1beta1
 
 import (
+	rabbitmqv1 "github.com/openstack-k8s-operators/infra-operator/apis/rabbitmq/v1beta1"
+	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
+	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// CyborgSpecCore defines the template for CyborgSpec used in OpenStackControlPlane
+type CyborgSpecCore struct {
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=keystone
+	// KeystoneInstance to name of the KeystoneAPI CR to select the Service
+	// instance used by the Cyborg services to authenticate.
+	KeystoneInstance *string `json:"keystoneInstance"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=openstack
+	// DatabaseInstance is the name of the MariaDB CR to select the DB
+	// Service instance used for the Cyborg API DB.
+	DatabaseInstance *string `json:"databaseInstance"`
+
+	// +kubebuilder:validation:Optional
+	// MessagingBus configuration (username, vhost, and cluster)
+	MessagingBus rabbitmqv1.RabbitMqConfig `json:"messagingBus,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default="cyborg"
+	// ServiceUser - optional username used for this service to register in keystone
+	ServiceUser *string `json:"serviceUser"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default={service: CyborgPassword}
+	// PasswordSelectors - Selectors to identify the DB and ServiceUser
+	// passwords from the Secret
+	PasswordSelectors *PasswordSelector `json:"passwordSelectors"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default="cyborg"
+	// DatabaseAccount - MariaDBAccount to use when accessing the API DB
+	DatabaseAccount *string `json:"databaseAccount"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=60
+	// +kubebuilder:validation:Minimum=10
+	// APITimeout for Route and Apache
+	APITimeout *int `json:"apiTimeout"`
+
+	// +kubebuilder:validation:Required
+	// Secret is the name of the Secret instance containing password
+	// information for cyborg like the keystone service password and DB passwords
+	Secret *string `json:"secret"`
+
+	// +kubebuilder:validation:Optional
+	// NodeSelector to target subset of worker nodes running this service. Setting
+	// NodeSelector here acts as a default value and can be overridden by service
+	// specific NodeSelector Settings.
+	NodeSelector *map[string]string `json:"nodeSelector,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=false
+	// PreserveJobs - do not delete jobs after they finished e.g. to check logs
+	PreserveJobs bool `json:"preserveJobs"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default={replicas:1}
+	// APIServiceTemplate - define the cyborg-api service
+	APIServiceTemplate CyborgAPITemplate `json:"apiServiceTemplate"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default={replicas:1}
+	// ConductorServiceTemplate - define the cyborg-conductor service
+	ConductorServiceTemplate CyborgConductorTemplate `json:"conductorServiceTemplate"`
+
+	// +kubebuilder:validation:Optional
+	// TopologyRef to apply the Topology defined by the associated CR referenced
+	// by name
+	TopologyRef *topologyv1.TopoRef `json:"topologyRef,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	// Auth - Parameters related to authentication (shared by all Cyborg services)
+	Auth AuthSpec `json:"auth,omitempty"`
+}
+
 // CyborgSpec defines the desired state of Cyborg.
 type CyborgSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	CyborgSpecCore `json:",inline"`
 
-	// Foo is an example field of Cyborg. Edit cyborg_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	CyborgImages `json:",inline"`
 }
 
 // CyborgStatus defines the observed state of Cyborg.
 type CyborgStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+
+	// Conditions
+	Conditions condition.Conditions `json:"conditions,omitempty" optional:"true"`
+
+	// APIServiceReadyCount defines the number or replicas ready from cyborg-api
+	APIServiceReadyCount int32 `json:"apiServiceReadyCount,omitempty"`
+
+	// ConductorServiceReadyCount defines the number or replicas ready from cyborg-conductor
+	ConductorServiceReadyCount int32 `json:"conductorServiceReadyCount,omitempty"`
+
+	//ObservedGeneration - the most recent generation observed for this service. If the observed generation is less than the spec generation, then the controller has not processed the latest changes.
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 }
 
 // +kubebuilder:object:root=true
