@@ -59,6 +59,6 @@ func (r *CyborgConductorReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 func (r *CyborgConductorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&cyborgv1beta1.CyborgConductor{}).
-		Named("cyborg-cyborgconductor").
+		Named("cyborgconductor").
 		Complete(r)
 }

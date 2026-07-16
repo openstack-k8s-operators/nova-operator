@@ -59,6 +59,6 @@ func (r *CyborgAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 func (r *CyborgAPIReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&cyborgv1beta1.CyborgAPI{}).
-		Named("cyborg-cyborgapi").
+		Named("cyborgapi").
 		Complete(r)
 }
