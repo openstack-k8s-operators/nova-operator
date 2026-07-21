@@ -191,10 +191,6 @@
             vars:
               cifmw_install_yamls_sdk_version: v1.41.1
         - nova-operator-kuttl
-        - nova-operator-tempest-multinode:
-            nodeset: centos-9-medium-3x-centos-9-crc-cloud-ocp-4-18-1-3xl
-        - nova-operator-tempest-multinode-ceph:
-            nodeset: centos-9-medium-3x-centos-9-crc-cloud-ocp-4-18-1-3xl
 
 - pragma:
     implied-branch-matchers: True
