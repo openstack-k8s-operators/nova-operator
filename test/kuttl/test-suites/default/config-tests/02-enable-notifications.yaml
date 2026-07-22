@@ -1,3 +1,15 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+  - script: |
+      set -euxo pipefail
+      # Delete the nova-compute service record so that on restart
+      # nova-compute does not fail the _ensure_existing_node_identity
+      # check due to missing compute_id file (not written by FakeDriver).
+      oc exec -n $NAMESPACE openstackclient -- openstack compute service list \
+        --service nova-compute -f value -c ID | \
+        xargs -I{} oc exec -n $NAMESPACE openstackclient -- openstack compute service delete {}
+---
 apiVersion: nova.openstack.org/v1beta1
 kind: Nova
 metadata:
