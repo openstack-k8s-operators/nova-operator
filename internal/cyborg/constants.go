@@ -45,12 +45,13 @@ const (
 	// DefaultsConfigFileName is the file name with default configuration
 	DefaultsConfigFileName = "00-default.conf"
 
-	// DBSyncCommand is the kolla command to run the dbsync job
-	DBSyncCommand = "/usr/local/bin/kolla_set_configs && /usr/local/bin/kolla_start"
-
 	// CyborgLogPath is the default path for the cyborg service logs
 	CyborgLogPath = "/var/log/cyborg/"
 
 	// LogVolume is the name of the EmptyDir volume used for log streaming
 	LogVolume = "logs"
+
+	// CyborgUserID is the linux user ID used by Kolla for the cyborg user
+	// in the service containers
+	CyborgUserID int64 = 42483
 )

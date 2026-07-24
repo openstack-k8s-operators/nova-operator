@@ -58,7 +58,6 @@ func StatefulSet(
 	}
 
 	var config0644AccessMode int32 = 0644
-	runAsUser := int64(0)
 
 	envVars := make(map[string]env.Setter)
 	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
@@ -129,7 +128,7 @@ func StatefulSet(
 							Args:  args,
 							Image: instance.Spec.ContainerImage,
 							SecurityContext: &corev1.SecurityContext{
-								RunAsUser: ptr.To(runAsUser),
+								RunAsUser: ptr.To(cyborg.CyborgUserID),
 							},
 							Env:           env.MergeEnvs([]corev1.EnvVar{}, envVars),
 							VolumeMounts:  volumeMounts,
