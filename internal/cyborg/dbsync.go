@@ -17,7 +17,10 @@ limitations under the License.
 package cyborg
 
 import (
+	"k8s.io/utils/ptr"
+
 	cyborgv1beta1 "github.com/openstack-k8s-operators/nova-operator/api/cyborg/v1beta1"
+	internalcommon "github.com/openstack-k8s-operators/nova-operator/internal/common"
 
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	batchv1 "k8s.io/api/batch/v1"
@@ -31,7 +34,6 @@ func DbSyncJob(
 	labels map[string]string,
 	annotations map[string]string,
 ) *batchv1.Job {
-	runAsUser := int64(0)
 	completions := int32(1)
 	parallelism := int32(1)
 	var config0644AccessMode int32 = 0644
@@ -101,7 +103,7 @@ func DbSyncJob(
 		volumeMounts = append(volumeMounts, instance.Spec.APIServiceTemplate.TLS.CreateVolumeMounts(nil)...)
 	}
 
-	args := []string{"-c", DBSyncCommand}
+	args := []string{"-c", internalcommon.ServiceCommand}
 
 	envVars := make(map[string]env.Setter)
 	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
@@ -134,7 +136,7 @@ func DbSyncJob(
 							Args:  args,
 							Image: instance.Spec.ConductorContainerImageURL,
 							SecurityContext: &corev1.SecurityContext{
-								RunAsUser: &runAsUser,
+								RunAsUser: ptr.To(CyborgUserID),
 							},
 							Env:          env.MergeEnvs([]corev1.EnvVar{}, envVars),
 							VolumeMounts: volumeMounts,
