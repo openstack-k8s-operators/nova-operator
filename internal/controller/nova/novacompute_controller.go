@@ -68,7 +68,6 @@ func (r *NovaComputeReconciler) GetLogger(ctx context.Context) logr.Logger {
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=novacomputes/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=novacomputes/finalizers,verbs=update;patch
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch;delete;
-// +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;
 // +kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;list;watch;create;update;patch;delete;

@@ -196,7 +196,7 @@ var _ = Describe("Cyborg controller", func() {
 				corev1.ConditionTrue,
 			)
 			role := th.GetRole(cyborgNames.RoleName)
-			Expect(role.Rules).To(HaveLen(2))
+			Expect(role.Rules).To(HaveLen(1))
 			binding := th.GetRoleBinding(cyborgNames.RoleBindingName)
 			Expect(binding.RoleRef.Name).To(Equal(role.Name))
 			Expect(binding.Subjects).To(HaveLen(1))
