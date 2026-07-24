@@ -441,9 +441,8 @@ var _ = Describe("PlacementAPI controller", func() {
 				corev1.ConditionTrue,
 			)
 			role := th.GetRole(names.RoleName)
-			Expect(role.Rules).To(HaveLen(2))
+			Expect(role.Rules).To(HaveLen(1))
 			Expect(role.Rules[0].Resources).To(Equal([]string{"securitycontextconstraints"}))
-			Expect(role.Rules[1].Resources).To(Equal([]string{"pods"}))
 
 			th.ExpectCondition(
 				names.PlacementAPIName,

@@ -468,9 +468,8 @@ var _ = Describe("Nova controller", func() {
 				corev1.ConditionTrue,
 			)
 			role := th.GetRole(novaNames.RoleName)
-			Expect(role.Rules).To(HaveLen(2))
+			Expect(role.Rules).To(HaveLen(1))
 			Expect(role.Rules[0].Resources).To(Equal([]string{"securitycontextconstraints"}))
-			Expect(role.Rules[1].Resources).To(Equal([]string{"pods"}))
 
 			th.ExpectCondition(
 				novaNames.NovaName,
