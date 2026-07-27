@@ -70,6 +70,7 @@ func (r *NovaConductorReconciler) GetLogger(ctx context.Context) logr.Logger {
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=novaconductors,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=novaconductors/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=nova.openstack.org,resources=novaconductors/finalizers,verbs=update;patch
+//+kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;
 //+kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch;delete;
 //+kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete;
 //+kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete;
