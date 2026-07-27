@@ -95,8 +95,9 @@ func StatefulSet(
 					Labels:      labels,
 				},
 				Spec: corev1.PodSpec{
-					ServiceAccountName: instance.Spec.ServiceAccount,
-					Volumes:            volumes,
+					ServiceAccountName:           instance.Spec.ServiceAccount,
+					AutomountServiceAccountToken: ptr.To(false),
+					Volumes:                      volumes,
 					Containers: []corev1.Container{
 						{
 							Name: instance.Name + "-compute",
@@ -107,6 +108,9 @@ func StatefulSet(
 							Image: instance.Spec.ContainerImage,
 							SecurityContext: &corev1.SecurityContext{
 								RunAsUser: ptr.To(nova.NovaUserID),
+								SeccompProfile: &corev1.SeccompProfile{
+									Type: corev1.SeccompProfileTypeRuntimeDefault,
+								},
 							},
 							Env:           env,
 							VolumeMounts:  volumeMounts,

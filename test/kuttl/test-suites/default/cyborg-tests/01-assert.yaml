@@ -465,7 +465,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   annotations:
-    openshift.io/scc: anyuid
+    openshift.io/scc: nonroot-v2
   labels:
     service: cyborg-api
   name: cyborg-kuttl-api-0
@@ -486,7 +486,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   annotations:
-    openshift.io/scc: anyuid
+    openshift.io/scc: nonroot-v2
   labels:
     service: cyborg-conductor
   name: cyborg-kuttl-conductor-0
