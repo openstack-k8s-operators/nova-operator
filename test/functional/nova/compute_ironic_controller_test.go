@@ -261,6 +261,8 @@ var _ = Describe("NovaCompute controller", func() {
 
 				ss := th.GetStatefulSet(cell1.NovaComputeStatefulSetName)
 				Expect(int(*ss.Spec.Replicas)).To(Equal(1))
+				Expect(ss.Spec.Template.Spec.AutomountServiceAccountToken).NotTo(BeNil())
+				Expect(*ss.Spec.Template.Spec.AutomountServiceAccountToken).To(BeFalse())
 				Expect(ss.Spec.Template.Spec.Volumes).To(HaveLen(1))
 				Expect(ss.Spec.Template.Spec.Containers).To(HaveLen(1))
 				Expect(ss.Spec.Selector.MatchLabels).To(Equal(map[string]string{"service": "nova-compute", "cell": "cell1"}))

@@ -416,6 +416,8 @@ endpoint_service_type = compute`))
 
 			ss := th.GetStatefulSet(novaNames.APIStatefulSetName)
 			Expect(ss.Spec.Template.Spec.ServiceAccountName).To(Equal("nova-sa"))
+			Expect(ss.Spec.Template.Spec.AutomountServiceAccountToken).NotTo(BeNil())
+			Expect(*ss.Spec.Template.Spec.AutomountServiceAccountToken).To(BeFalse())
 			Expect(int(*ss.Spec.Replicas)).To(Equal(1))
 			Expect(ss.Spec.Template.Spec.Volumes).To(HaveLen(2))
 			Expect(ss.Spec.Template.Spec.Containers).To(HaveLen(2))

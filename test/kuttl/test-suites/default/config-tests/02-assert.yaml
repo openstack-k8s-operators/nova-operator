@@ -91,6 +91,8 @@ metadata:
   labels:
     service: nova-api
   name: nova-kuttl-api-0
+spec:
+  automountServiceAccountToken: false
 status:
   containerStatuses:
   - name: nova-kuttl-api-api
@@ -112,6 +114,8 @@ metadata:
     controller: true
     kind: StatefulSet
     name: nova-kuttl-scheduler
+spec:
+  automountServiceAccountToken: false
 status:
   containerStatuses:
   - name: nova-kuttl-scheduler-scheduler
@@ -134,6 +138,8 @@ metadata:
     controller: true
     kind: StatefulSet
     name: nova-kuttl-cell0-conductor
+spec:
+  automountServiceAccountToken: false
 status:
   containerStatuses:
   - name: nova-kuttl-cell0-conductor-conductor

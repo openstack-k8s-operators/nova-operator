@@ -26,6 +26,8 @@ metadata:
     openshift.io/scc: anyuid
   labels:
     service: placement
+spec:
+  automountServiceAccountToken: false
 ---
 apiVersion: v1
 kind: Service

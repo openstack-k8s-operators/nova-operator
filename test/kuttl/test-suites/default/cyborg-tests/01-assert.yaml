@@ -469,6 +469,8 @@ metadata:
   labels:
     service: cyborg-api
   name: cyborg-kuttl-api-0
+spec:
+  automountServiceAccountToken: false
 status:
   containerStatuses:
   - name: cyborg-api
@@ -490,6 +492,8 @@ metadata:
   labels:
     service: cyborg-conductor
   name: cyborg-kuttl-conductor-0
+spec:
+  automountServiceAccountToken: false
 status:
   containerStatuses:
   - name: cyborg-conductor

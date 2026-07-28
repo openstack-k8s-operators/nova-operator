@@ -73,9 +73,10 @@ func HostDiscoveryJob(
 		Spec: batchv1.JobSpec{
 			Template: corev1.PodTemplateSpec{
 				Spec: corev1.PodSpec{
-					RestartPolicy:      corev1.RestartPolicyOnFailure,
-					ServiceAccountName: instance.Spec.ServiceAccount,
-					Volumes:            volumes,
+					RestartPolicy:                corev1.RestartPolicyOnFailure,
+					ServiceAccountName:           instance.Spec.ServiceAccount,
+					AutomountServiceAccountToken: ptr.To(false),
+					Volumes:                      volumes,
 					Containers: []corev1.Container{
 						{
 							Name: "nova-manage",

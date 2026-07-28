@@ -314,6 +314,8 @@ var _ = Describe("NovaConductor controller", func() {
 			)
 			job := th.GetJob(cell0.DBSyncJobName)
 			Expect(job.Spec.Template.Spec.ServiceAccountName).To(Equal("nova-sa"))
+			Expect(job.Spec.Template.Spec.AutomountServiceAccountToken).NotTo(BeNil())
+			Expect(*job.Spec.Template.Spec.AutomountServiceAccountToken).To(BeFalse())
 			Expect(job.Spec.Template.Spec.Volumes).To(HaveLen(2))
 			Expect(job.Spec.Template.Spec.InitContainers).To(BeEmpty())
 			Expect(job.Spec.Template.Spec.Containers).To(HaveLen(1))
@@ -380,6 +382,8 @@ var _ = Describe("NovaConductor controller", func() {
 				)
 				ss := th.GetStatefulSet(cell0.ConductorStatefulSetName)
 				Expect(ss.Spec.Template.Spec.ServiceAccountName).To(Equal("nova-sa"))
+				Expect(ss.Spec.Template.Spec.AutomountServiceAccountToken).NotTo(BeNil())
+				Expect(*ss.Spec.Template.Spec.AutomountServiceAccountToken).To(BeFalse())
 				Expect(ss.Spec.Template.Spec.Containers).To(HaveLen(1))
 				container := ss.Spec.Template.Spec.Containers[0]
 				Expect(container.LivenessProbe.Exec.Command).To(

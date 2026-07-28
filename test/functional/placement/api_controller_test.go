@@ -528,6 +528,8 @@ var _ = Describe("PlacementAPI controller", func() {
 			)
 
 			job := th.GetJob(names.DBSyncJobName)
+			Expect(job.Spec.Template.Spec.AutomountServiceAccountToken).NotTo(BeNil())
+			Expect(*job.Spec.Template.Spec.AutomountServiceAccountToken).To(BeFalse())
 			Expect(job.Spec.Template.Spec.Volumes).To(HaveLen(3))
 			Expect(job.Spec.Template.Spec.Containers).To(HaveLen(1))
 
@@ -565,6 +567,8 @@ var _ = Describe("PlacementAPI controller", func() {
 			Expect(int(*deployment.Spec.Replicas)).To(Equal(1))
 			Expect(deployment.Spec.Selector.MatchLabels).To(Equal(map[string]string{"service": "placement", "owner": names.PlacementAPIName.Name}))
 			Expect(deployment.Spec.Template.Spec.ServiceAccountName).To(Equal(names.ServiceAccountName.Name))
+			Expect(deployment.Spec.Template.Spec.AutomountServiceAccountToken).NotTo(BeNil())
+			Expect(*deployment.Spec.Template.Spec.AutomountServiceAccountToken).To(BeFalse())
 			Expect(deployment.Spec.Template.Spec.Containers).To(HaveLen(2))
 
 			th.SimulateDeploymentReplicaReady(names.DeploymentName)
