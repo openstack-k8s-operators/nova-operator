@@ -197,6 +197,8 @@ metadata:
     openshift.io/scc: anyuid
   labels:
     service: placement
+spec:
+  automountServiceAccountToken: false
 status:
   phase: Running
 ---

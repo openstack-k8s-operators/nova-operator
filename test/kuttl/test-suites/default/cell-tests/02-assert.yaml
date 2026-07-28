@@ -87,6 +87,8 @@ metadata:
   labels:
     service: nova-api
   name: nova-kuttl-api-0
+spec:
+  automountServiceAccountToken: false
 status:
   containerStatuses:
   - name: nova-kuttl-api-api
@@ -111,6 +113,8 @@ metadata:
     controller: true
     kind: StatefulSet
     name: nova-kuttl-metadata
+spec:
+  automountServiceAccountToken: false
 status:
   containerStatuses:
   - name: nova-kuttl-metadata-log

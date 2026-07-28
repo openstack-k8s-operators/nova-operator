@@ -269,6 +269,8 @@ var _ = Describe("CyborgAPI controller", func() {
 				g.Expect(ss.Spec.Replicas).NotTo(BeNil())
 				g.Expect(*ss.Spec.Replicas).To(Equal(int32(1)))
 				g.Expect(ss.Spec.Template.Spec.ServiceAccountName).To(Equal(APITestSA))
+				g.Expect(ss.Spec.Template.Spec.AutomountServiceAccountToken).NotTo(BeNil())
+				g.Expect(*ss.Spec.Template.Spec.AutomountServiceAccountToken).To(BeFalse())
 				g.Expect(ss.Spec.Template.Spec.Containers).To(HaveLen(2))
 
 				// Log sidecar container (index 0)

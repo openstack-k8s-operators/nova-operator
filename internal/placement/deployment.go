@@ -114,8 +114,9 @@ func Deployment(
 					Labels:      labels,
 				},
 				Spec: corev1.PodSpec{
-					ServiceAccountName: instance.RbacResourceName(),
-					Volumes:            volumes,
+					ServiceAccountName:           instance.RbacResourceName(),
+					AutomountServiceAccountToken: ptr.To(false),
+					Volumes:                      volumes,
 					Containers: []corev1.Container{
 						{
 							Name: instance.Name + "-log",
