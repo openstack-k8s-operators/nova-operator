@@ -16,12 +16,17 @@ limitations under the License.
 package placement
 
 import (
+	"fmt"
+
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	affinity "github.com/openstack-k8s-operators/lib-common/modules/common/affinity"
 	env "github.com/openstack-k8s-operators/lib-common/modules/common/env"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/pod"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/probes"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/volume"
+	"github.com/openstack-k8s-operators/lib-common/modules/users"
 
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	placementv1 "github.com/openstack-k8s-operators/nova-operator/api/placement/v1beta1"
@@ -63,15 +68,22 @@ func Deployment(
 		return nil, err
 	}
 
-	args := []string{"-c", KollaServiceCommand}
+	args := []string{"-c", "/usr/sbin/httpd -DFOREGROUND"}
 
 	envVars := map[string]env.Setter{}
-	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
 	envVars["CONFIG_HASH"] = env.SetValue(configHash)
+
+	_, withPolicy := instance.Spec.DefaultConfigOverwrite["policy.yaml"]
 
 	// create Volume and VolumeMounts
 	volumes := getVolumes(instance.Name)
-	volumeMounts := getVolumeMounts("api")
+	volumeMounts := getVolumeMounts(withPolicy)
+
+	// httpd-specific writable directories
+	volumes = append(volumes,
+		volume.WritableDirVolume(volume.RunHttpdVolumeName),
+		volume.WritableDirVolume(volume.VarLogHttpdVolumeName),
+	)
 
 	// add CA cert if defined
 	if instance.Spec.TLS.CaBundleSecretName != "" {
@@ -93,10 +105,16 @@ func Deployment(
 			if err != nil {
 				return nil, err
 			}
+			certMount := fmt.Sprintf("/etc/pki/tls/certs/%s.crt", endpt.String())
+			keyMount := fmt.Sprintf("/etc/pki/tls/private/%s.key", endpt.String())
+			svc.CertMount = &certMount
+			svc.KeyMount = &keyMount
 			volumes = append(volumes, svc.CreateVolume(endpt.String()))
 			volumeMounts = append(volumeMounts, svc.CreateVolumeMounts(endpt.String())...)
 		}
 	}
+
+	podSecurityContext := pod.RestrictivePodSecurityContext(users.PlacementUID, users.PlacementGID)
 
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -116,6 +134,7 @@ func Deployment(
 				Spec: corev1.PodSpec{
 					ServiceAccountName:           instance.RbacResourceName(),
 					AutomountServiceAccountToken: ptr.To(false),
+					SecurityContext:              podSecurityContext,
 					Volumes:                      volumes,
 					Containers: []corev1.Container{
 						{
@@ -131,31 +150,27 @@ func Deployment(
 								"-F",
 								"/var/log/placement/placement-api.log",
 							},
-							Image: instance.Spec.ContainerImage,
-							SecurityContext: &corev1.SecurityContext{
-								RunAsUser: ptr.To(PlacementUserID),
-							},
-							Env:            env.MergeEnvs([]corev1.EnvVar{}, envVars),
-							VolumeMounts:   volumeMounts,
-							Resources:      instance.Spec.Resources,
-							ReadinessProbe: placementProbes.Readiness,
-							LivenessProbe:  placementProbes.Liveness,
+							Image:           instance.Spec.ContainerImage,
+							SecurityContext: pod.RestrictiveSecurityContext(users.PlacementUID, users.PlacementGID),
+							Env:             env.MergeEnvs([]corev1.EnvVar{}, envVars),
+							VolumeMounts:    []corev1.VolumeMount{volume.WritableDirVolumeMount("logs", "/var/log/placement")},
+							Resources:       instance.Spec.Resources,
+							ReadinessProbe:  placementProbes.Readiness,
+							LivenessProbe:   placementProbes.Liveness,
 						},
 						{
 							Name: instance.Name + "-api",
 							Command: []string{
 								"/bin/bash",
 							},
-							Args:  args,
-							Image: instance.Spec.ContainerImage,
-							SecurityContext: &corev1.SecurityContext{
-								RunAsUser: ptr.To(PlacementUserID),
-							},
-							Env:            env.MergeEnvs([]corev1.EnvVar{}, envVars),
-							VolumeMounts:   volumeMounts,
-							Resources:      instance.Spec.Resources,
-							ReadinessProbe: placementProbes.Readiness,
-							LivenessProbe:  placementProbes.Liveness,
+							Args:            args,
+							Image:           instance.Spec.ContainerImage,
+							SecurityContext: pod.RestrictiveSecurityContext(users.PlacementUID, users.PlacementGID),
+							Env:             env.MergeEnvs([]corev1.EnvVar{}, envVars),
+							VolumeMounts:    volumeMounts,
+							Resources:       instance.Spec.Resources,
+							ReadinessProbe:  placementProbes.Readiness,
+							LivenessProbe:   placementProbes.Liveness,
 						},
 					},
 				},
