@@ -19,6 +19,8 @@ import (
 	placementv1 "github.com/openstack-k8s-operators/nova-operator/api/placement/v1beta1"
 
 	env "github.com/openstack-k8s-operators/lib-common/modules/common/env"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/pod"
+	"github.com/openstack-k8s-operators/lib-common/modules/users"
 
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -32,15 +34,15 @@ func DbSyncJob(
 	labels map[string]string,
 	annotations map[string]string,
 ) *batchv1.Job {
-	args := []string{"-c", KollaServiceCommand}
+	args := []string{"-c", "placement-manage db sync"}
 
 	envVars := map[string]env.Setter{}
-	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
-	envVars["KOLLA_BOOTSTRAP"] = env.SetValue("true")
+
+	_, withPolicy := instance.Spec.DefaultConfigOverwrite["policy.yaml"]
 
 	// create Volume and VolumeMounts
 	volumes := getVolumes(instance.Name)
-	volumeMounts := getVolumeMounts("dbsync")
+	volumeMounts := getDBSyncVolumeMounts(withPolicy)
 
 	// add CA cert if defined
 	if instance.Spec.TLS.CaBundleSecretName != "" {
@@ -63,19 +65,18 @@ func DbSyncJob(
 					RestartPolicy:                corev1.RestartPolicyOnFailure,
 					ServiceAccountName:           instance.RbacResourceName(),
 					AutomountServiceAccountToken: ptr.To(false),
+					SecurityContext:              pod.RestrictivePodSecurityContext(users.PlacementUID, users.PlacementGID),
 					Containers: []corev1.Container{
 						{
 							Name: instance.Name + "-db-sync",
 							Command: []string{
 								"/bin/bash",
 							},
-							Args:  args,
-							Image: instance.Spec.ContainerImage,
-							SecurityContext: &corev1.SecurityContext{
-								RunAsUser: ptr.To(PlacementUserID),
-							},
-							Env:          env.MergeEnvs([]corev1.EnvVar{}, envVars),
-							VolumeMounts: volumeMounts,
+							Args:            args,
+							Image:           instance.Spec.ContainerImage,
+							SecurityContext: pod.RestrictiveSecurityContext(users.PlacementUID, users.PlacementGID),
+							Env:             env.MergeEnvs([]corev1.EnvVar{}, envVars),
+							VolumeMounts:    volumeMounts,
 						},
 					},
 					Volumes: volumes,

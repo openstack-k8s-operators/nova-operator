@@ -534,7 +534,7 @@ var _ = Describe("PlacementAPI controller", func() {
 			Expect(job.Spec.Template.Spec.Containers).To(HaveLen(1))
 
 			container := job.Spec.Template.Spec.Containers[0]
-			Expect(container.VolumeMounts).To(HaveLen(4))
+			Expect(container.VolumeMounts).To(HaveLen(6))
 			Expect(container.Image).To(Equal("quay.io/podified-antelope-centos9/openstack-placement-api:current-podified"))
 
 			th.SimulateJobSuccess(names.DBSyncJobName)
@@ -1030,22 +1030,22 @@ var _ = Describe("PlacementAPI controller", func() {
 
 			j := th.GetDeployment(names.DeploymentName)
 
-			container := j.Spec.Template.Spec.Containers[0]
+			apiContainer := j.Spec.Template.Spec.Containers[1]
 
 			// CA bundle
 			th.AssertVolumeExists(names.CaBundleSecretName.Name, j.Spec.Template.Spec.Volumes)
-			th.AssertVolumeMountExists(names.CaBundleSecretName.Name, "tls-ca-bundle.pem", j.Spec.Template.Spec.Containers[0].VolumeMounts)
+			th.AssertVolumeMountExists(names.CaBundleSecretName.Name, "tls-ca-bundle.pem", apiContainer.VolumeMounts)
 
 			// service certs
 			th.AssertVolumeExists(names.InternalCertSecretName.Name, j.Spec.Template.Spec.Volumes)
 			th.AssertVolumeExists(names.PublicCertSecretName.Name, j.Spec.Template.Spec.Volumes)
-			th.AssertVolumeMountExists(names.PublicCertSecretName.Name, "tls.key", j.Spec.Template.Spec.Containers[0].VolumeMounts)
-			th.AssertVolumeMountExists(names.PublicCertSecretName.Name, "tls.crt", j.Spec.Template.Spec.Containers[0].VolumeMounts)
-			th.AssertVolumeMountExists(names.InternalCertSecretName.Name, "tls.key", j.Spec.Template.Spec.Containers[0].VolumeMounts)
-			th.AssertVolumeMountExists(names.InternalCertSecretName.Name, "tls.crt", j.Spec.Template.Spec.Containers[0].VolumeMounts)
+			th.AssertVolumeMountExists(names.PublicCertSecretName.Name, "tls.key", apiContainer.VolumeMounts)
+			th.AssertVolumeMountExists(names.PublicCertSecretName.Name, "tls.crt", apiContainer.VolumeMounts)
+			th.AssertVolumeMountExists(names.InternalCertSecretName.Name, "tls.key", apiContainer.VolumeMounts)
+			th.AssertVolumeMountExists(names.InternalCertSecretName.Name, "tls.crt", apiContainer.VolumeMounts)
 
-			Expect(container.ReadinessProbe.HTTPGet.Scheme).To(Equal(corev1.URISchemeHTTPS))
-			Expect(container.LivenessProbe.HTTPGet.Scheme).To(Equal(corev1.URISchemeHTTPS))
+			Expect(apiContainer.ReadinessProbe.HTTPGet.Scheme).To(Equal(corev1.URISchemeHTTPS))
+			Expect(apiContainer.LivenessProbe.HTTPGet.Scheme).To(Equal(corev1.URISchemeHTTPS))
 
 			configDataMap := th.GetSecret(names.ConfigMapName)
 			Expect(configDataMap).ShouldNot(BeNil())
