@@ -144,8 +144,6 @@ github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20260730060158-2
 github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20260730060158-27ac5ce68f29/go.mod h1:TPCXRvzvMt3pQxLYeqWGxzy8oBOujoU6MpXvsOYwMIc=
 github.com/openstack-k8s-operators/keystone-operator/api v0.6.1-0.20260727152316-e841be643d15 h1:MP7hpPWV8oKhqQ1dpuyovJl6Dd8zReimBv8qGZaKEU0=
 github.com/openstack-k8s-operators/keystone-operator/api v0.6.1-0.20260727152316-e841be643d15/go.mod h1:qax+FGWmq6DomA4fC9oPt2EFP93+OSgnNxUtBmyT7Lk=
-github.com/openstack-k8s-operators/lib-common/modules/common v0.6.1-0.20260725150835-623a52fe0391 h1:vmMMeGnzA6BR2mssCdDYRJDYIg2vn+v1l2ocWefIIaU=
-github.com/openstack-k8s-operators/lib-common/modules/common v0.6.1-0.20260725150835-623a52fe0391/go.mod h1:LY+Q6ms3A6E8DAKCpmvQaUxO5O2CKYm0XMcmTZ6PCcM=
 github.com/openstack-k8s-operators/lib-common/modules/openstack v0.6.1-0.20260725150835-623a52fe0391 h1:cRyVdm28fshWzWkE5xgRYAzlNX4SreIluOL8s2dpm2U=
 github.com/openstack-k8s-operators/lib-common/modules/openstack v0.6.1-0.20260725150835-623a52fe0391/go.mod h1:Q5wcK4PnlDJ55H+M38CFNLzL53OHYiwq81mR/gKtJXs=
 github.com/openstack-k8s-operators/lib-common/modules/storage v0.6.1-0.20260724091355-a86f6d29e055 h1:yoCAKWZLE/d+ryC2rP+2uNezz5YrHdtNh+qgdMV0TEk=
@@ -191,6 +189,10 @@ github.com/stretchr/testify v1.8.1/go.mod h1:w2LPCIKwWwSfY2zedu0+kehJoqGctiVI29o
 github.com/stretchr/testify v1.8.4/go.mod h1:sz/lmYIOXD/1dqDmKjjqLyZ2RngseejIcXlSw2iwfAo=
 github.com/stretchr/testify v1.11.1 h1:7s2iGBzp5EwR7/aIZr8ao5+dra3wiQyKjjFuvgVKu7U=
 github.com/stretchr/testify v1.11.1/go.mod h1:wZwfW3scLgRK+23gO65QZefKpKQRnfz6sD981Nm4B6U=
+github.com/stuggi/lib-common/modules/common v0.0.0-20260807111253-08c9a0504119 h1:U7niTpzaR0W1vQ1xH6d+qAN33lNyof1ur2S+oMVFoIY=
+github.com/stuggi/lib-common/modules/common v0.0.0-20260807111253-08c9a0504119/go.mod h1:LY+Q6ms3A6E8DAKCpmvQaUxO5O2CKYm0XMcmTZ6PCcM=
+github.com/stuggi/lib-common/modules/serviceuser v0.0.0-20260807111253-08c9a0504119 h1:E//rVuf3aKe0or5ns98cliKkeWAuYcvtbBJJV7AFqek=
+github.com/stuggi/lib-common/modules/serviceuser v0.0.0-20260807111253-08c9a0504119/go.mod h1:Ar+E9jVSwWc5oSccDznucVW7UCPMltwpVQRgTwfUK5M=
 github.com/tidwall/gjson v1.18.0 h1:FIDeeyB800efLX89e5a8Y0BNH+LOngJyGrIWxG2FKQY=
 github.com/tidwall/gjson v1.18.0/go.mod h1:/wbyibRr2FHMks5tjHJ5F8dMZh3AcwJEMf5vlfC0lxk=
 github.com/tidwall/match v1.1.1 h1:+Ho715JplO36QYgwN9PGYNhgZvoUSc9X2c80KVTi+GA=

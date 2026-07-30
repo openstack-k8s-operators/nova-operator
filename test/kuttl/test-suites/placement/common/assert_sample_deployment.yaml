@@ -138,7 +138,15 @@ spec:
           timeoutSeconds: 18
         resources: {}
         securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          runAsGroup: 42482
+          runAsNonRoot: true
           runAsUser: 42482
+          seccompProfile:
+            type: RuntimeDefault
         terminationMessagePath: /dev/termination-log
         terminationMessagePolicy: File
         volumeMounts:
@@ -147,15 +155,35 @@ spec:
           readOnly: true
         - mountPath: /var/log/placement
           name: logs
-        - mountPath: /var/lib/openstack/config
-          name: config-data
-        - mountPath: /var/lib/kolla/config_files/config.json
+        - mountPath: /etc/placement/placement.conf
           name: config-data
           readOnly: true
-          subPath: placement-api-config.json
+          subPath: placement.conf
+        - mountPath: /etc/placement/placement.conf.d/custom.conf
+          name: config-data
+          readOnly: true
+          subPath: custom.conf
+        - mountPath: /etc/httpd/conf/httpd.conf
+          name: config-data
+          readOnly: true
+          subPath: httpd.conf
+        - mountPath: /etc/httpd/conf.d/ssl.conf
+          name: config-data
+          readOnly: true
+          subPath: ssl.conf
+        - mountPath: /etc/my.cnf
+          name: config-data
+          readOnly: true
+          subPath: my.cnf
+        - mountPath: /run/httpd
+          name: run-httpd
+        - mountPath: /tmp
+          name: tmp
+        - mountPath: /var/log/httpd
+          name: var-log-httpd
       - args:
         - -c
-        - /usr/local/bin/kolla_start
+        - /usr/sbin/httpd -DFOREGROUND
         command:
         - /bin/bash
         imagePullPolicy: IfNotPresent
@@ -181,8 +209,25 @@ spec:
           successThreshold: 1
           timeoutSeconds: 18
         resources: {}
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          runAsGroup: 42482
+          runAsNonRoot: true
+          runAsUser: 42482
+          seccompProfile:
+            type: RuntimeDefault
+      automountServiceAccountToken: false
       restartPolicy: Always
-      securityContext: {}
+      securityContext:
+        fsGroup: 42482
+        runAsGroup: 42482
+        runAsNonRoot: true
+        runAsUser: 42482
+        seccompProfile:
+          type: RuntimeDefault
       serviceAccount: placement-placement-kuttl
       serviceAccountName: placement-placement-kuttl
 status:
@@ -194,7 +239,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   annotations:
-    openshift.io/scc: anyuid
+    openshift.io/scc: nonroot-v2
   labels:
     service: placement
 spec:
