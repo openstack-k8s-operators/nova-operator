@@ -11,12 +11,12 @@ kind: PlacementAPI
 metadata:
   finalizers:
   - openstack.org/placementapi
-  name: placement
+  name: placement-kuttl
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: placement
+  name: placement-kuttl
 ---
 # the openshift annotations can't be checked through the deployment above
 apiVersion: v1
@@ -75,22 +75,22 @@ apiVersion: v1
 kind: Secret
 metadata:
   labels:
-    placement.openstack.org/name: placement
-  name: placement-scripts
+    placement.openstack.org/name: placement-kuttl
+  name: placement-kuttl-scripts
   ownerReferences:
   - blockOwnerDeletion: true
     controller: true
     kind: PlacementAPI
-    name: placement
+    name: placement-kuttl
 ---
 apiVersion: v1
 kind: Secret
 metadata:
   labels:
-    placement.openstack.org/name: placement
-  name: placement-config-data
+    placement.openstack.org/name: placement-kuttl
+  name: placement-kuttl-config-data
   ownerReferences:
   - blockOwnerDeletion: true
     controller: true
     kind: PlacementAPI
-    name: placement
+    name: placement-kuttl

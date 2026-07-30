@@ -4,7 +4,7 @@ metadata:
   finalizers:
   - openstack.org/nova
   name: nova-kuttl
-  namespace: nova-kuttl-default
+  namespace: nova-kuttl-tests
 spec:
   apiDatabaseInstance: openstack
   apiDatabaseAccount: nova-api
@@ -301,7 +301,7 @@ metadata:
   labels:
     nova-conductor.openstack.org/name: nova-kuttl-cell0-conductor
   name: nova-kuttl-cell0-conductor-config-data
-  namespace: nova-kuttl-default
+  namespace: nova-kuttl-tests
   ownerReferences:
   - blockOwnerDeletion: true
     controller: true
@@ -385,7 +385,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: nova-kuttl-api
-  namespace: nova-kuttl-default
+  namespace: nova-kuttl-tests
   ownerReferences:
   - apiVersion: nova.openstack.org/v1beta1
     blockOwnerDeletion: true
@@ -412,7 +412,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: nova-kuttl-metadata
-  namespace: nova-kuttl-default
+  namespace: nova-kuttl-tests
   ownerReferences:
   - apiVersion: nova.openstack.org/v1beta1
     blockOwnerDeletion: true
@@ -438,7 +438,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: nova-kuttl-scheduler
-  namespace: nova-kuttl-default
+  namespace: nova-kuttl-tests
   ownerReferences:
   - apiVersion: nova.openstack.org/v1beta1
     blockOwnerDeletion: true
@@ -464,7 +464,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: nova-kuttl-cell0-conductor
-  namespace: nova-kuttl-default
+  namespace: nova-kuttl-tests
   ownerReferences:
   - apiVersion: nova.openstack.org/v1beta1
     blockOwnerDeletion: true
@@ -492,7 +492,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: nova-kuttl-cell1-conductor
-  namespace: nova-kuttl-default
+  namespace: nova-kuttl-tests
   ownerReferences:
   - apiVersion: nova.openstack.org/v1beta1
     blockOwnerDeletion: true
@@ -522,7 +522,7 @@ metadata:
   labels:
     service: nova-conductor
   name: nova-kuttl-cell0-db-purge
-  namespace: nova-kuttl-default
+  namespace: nova-kuttl-tests
 spec:
   concurrencyPolicy: Forbid
   failedJobsHistoryLimit: 1
@@ -579,7 +579,7 @@ metadata:
   labels:
     service: nova-conductor
   name: nova-kuttl-cell1-db-purge
-  namespace: nova-kuttl-default
+  namespace: nova-kuttl-tests
 spec:
   concurrencyPolicy: Forbid
   failedJobsHistoryLimit: 1

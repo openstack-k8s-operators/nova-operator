@@ -404,8 +404,8 @@ run-with-webhook: manifests generate fmt vet ## Run a controller from your host.
 	/bin/bash hack/clean_local_webhook.sh
 	/bin/bash hack/run_with_local_webhook.sh
 
-KUTTL_SUITE ?= default
-KUTTL_NAMESPACE ?= nova-kuttl-$(KUTTL_SUITE)
+KUTTL_SUITE ?= nova
+KUTTL_NAMESPACE ?= $(KUTTL_SUITE)-kuttl-tests
 KUTTL_SUITE_DIR ?= test/kuttl/test-suites/$(KUTTL_SUITE)
 
 .PHONY: kuttl-test-prep
@@ -416,9 +416,6 @@ kuttl-test-prep:
 .PHONY: kuttl-test-run
 kuttl-test-run:
 	oc kuttl test --v 1 --start-kind=false --config $(KUTTL_SUITE_DIR)/config.yaml
-
-.PHONY: kuttl-test
-kuttl-test: kuttl-test-prep kuttl-test-run
 
 .PHONY: kuttl-test-cleanup
 kuttl-test-cleanup:
@@ -434,6 +431,9 @@ kuttl-test-cleanup:
 	else \
 		echo "Namespace already cleaned up. Nothing to do"; \
 	fi
+
+.PHONY: kuttl-test
+kuttl-test: kuttl-test-prep kuttl-test-run
 
 CRD_SCHEMA_CHECKER_VERSION ?= release-4.18
 BRANCH ?= main

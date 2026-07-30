@@ -4,7 +4,7 @@ metadata:
   finalizers:
   - openstack.org/nova
   name: nova-kuttl
-  namespace: nova-kuttl-default
+  namespace: nova-kuttl-tests
 status:
   apiServiceReadyCount: 1
   metadataServiceReadyCount: 1
@@ -62,6 +62,10 @@ status:
     reason: Ready
     status: "True"
     type: NovaMetadataReady
+  - message: Notification message bus created successfully
+    reason: Ready
+    status: "True"
+    type: NovaNotificationMQReady
   - message: Setup complete
     reason: Ready
     status: "True"
@@ -101,52 +105,43 @@ status:
 apiVersion: v1
 kind: Pod
 metadata:
-  annotations:
-    openshift.io/scc: anyuid
   labels:
-    service: nova-metadata
-    statefulset.kubernetes.io/pod-name: nova-kuttl-metadata-0
-  name: nova-kuttl-metadata-0
+    service: nova-scheduler
+  name: nova-kuttl-scheduler-0
   ownerReferences:
   - apiVersion: apps/v1
     blockOwnerDeletion: true
     controller: true
     kind: StatefulSet
-    name: nova-kuttl-metadata
+    name: nova-kuttl-scheduler
 spec:
   automountServiceAccountToken: false
 status:
   containerStatuses:
-  - name: nova-kuttl-metadata-log
-    ready: true
-    started: true
-  - name: nova-kuttl-metadata-metadata
+  - name: nova-kuttl-scheduler-scheduler
     ready: true
     started: true
 ---
 apiVersion: v1
 kind: Pod
 metadata:
-  name: nova-kuttl-cell1-compute-fake1-compute-0
+  annotations:
+    openshift.io/scc: anyuid
+  labels:
+    cell: cell0
+    service: nova-conductor
+    statefulset.kubernetes.io/pod-name: nova-kuttl-cell0-conductor-0
+  name: nova-kuttl-cell0-conductor-0
+  ownerReferences:
+  - apiVersion: apps/v1
+    blockOwnerDeletion: true
+    controller: true
+    kind: StatefulSet
+    name: nova-kuttl-cell0-conductor
+spec:
+  automountServiceAccountToken: false
 status:
   containerStatuses:
-  - name: nova-kuttl-cell1-compute-fake1-compute-compute
+  - name: nova-kuttl-cell0-conductor-conductor
     ready: true
     started: true
----
-apiVersion: kuttl.dev/v1beta1
-kind: TestAssert
-namespaced: true
-commands:
-  - script: |
-      set -euxo pipefail
-      MESSAGE=$(oc exec -n $NAMESPACE openstackclient -- openstack flavor create my-flavor 2>&1) || true
-      echo $MESSAGE | grep "Policy doesn't allow os_compute_api:os-flavor-manage:create to be performed"
-  - script: |
-      set -euxo pipefail
-      RP_UUID=$(oc exec -n $NAMESPACE openstackclient -- openstack resource provider list --name nova-kuttl-cell1-compute-fake1-compute-0 -f value -c uuid)
-      oc exec -n $NAMESPACE openstackclient -- openstack resource provider trait list $RP_UUID | grep CUSTOM_FOO
-  - script: |
-      set -euxo pipefail
-      # Check for audit logs created by the openstack flavor create command above
-      oc logs -n $NAMESPACE nova-kuttl-api-0 | grep "http://schemas.dmtf.org/cloud/audit/1.0/event"

@@ -1,12 +1,10 @@
 #
 # EXECUTION (from placement-operator repo root directory):
 #
-#  kubectl-kuttl test --config ${PLACEMENT_KUTTL_CONF} ${PLACEMENT_KUTTL_DIR}
+#  kubectl-kuttl test --config ${PLACEMENT_KUTTL_CONF}
 #
 #  PLACEMENT_KUTTL_CONF: path to 'kuttl-test.yaml' there is a default kuttl-test.yaml in the top directory
 #  of placement
-#  PLACEMENT_KUTTL_DIR: the test directory containing kuttl tests, relative to the placement repo
-#  that can be found in '/<path>/<to>/<repo>/placement-operator/test/kuttl/tests'
 #
 # ASSUMPTIONS:
 #
@@ -27,7 +25,7 @@
 #    2i. make mariadb_deploy
 #    2j. start placement-operator either through install_yamls via 'make placement' or in another
 #    terminal execute 'OPERATOR_TEMPLATES=./templates make run' within root of placement repo
-# 3. The above environment variables PLACEMENT_KUTTL_CONF and PLACEMENT_KUTTL_DIR are set
+# 3. The above environment variable PLACEMENT_KUTTL_CONF is set
 
 apiVersion: kuttl.dev/v1beta1
 kind: TestSuite
@@ -38,7 +36,7 @@ timeout: 300
 parallel: 1
 skipDelete: true
 testDirs:
-  - test/kuttl/test-suites/placement/
+  - test/kuttl/test-suites/placement/tests
 suppress:
   - events
-artifactsDir: test/kuttl/test-suites/placement/output
+artifactsDir: test/kuttl/test-suites/placement/tests/output

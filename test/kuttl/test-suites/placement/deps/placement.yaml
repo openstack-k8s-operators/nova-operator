@@ -1,1 +1,10 @@
-../../default/deps/placement.yaml
+apiVersion: core.openstack.org/v1beta1
+kind: OpenStackControlPlane
+metadata:
+  name: openstack
+spec:
+  placement:
+    enabled: false
+    template:
+      databaseInstance: openstack
+      secret: osp-secret
