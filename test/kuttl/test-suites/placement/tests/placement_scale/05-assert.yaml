@@ -11,13 +11,13 @@ kind: PlacementAPI
 metadata:
   finalizers:
   - openstack.org/placementapi
-  name: placement
+  name: placement-kuttl
 spec:
   replicas: 0
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: placement
+  name: placement-kuttl
 spec:
   replicas: 0

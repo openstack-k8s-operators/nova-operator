@@ -4,7 +4,7 @@ metadata:
   finalizers:
   - openstack.org/nova
   name: nova-kuttl
-  namespace: nova-kuttl-default
+  namespace: nova-kuttl-tests
 status:
   apiServiceReadyCount: 1
   metadataServiceReadyCount: 1
@@ -62,10 +62,6 @@ status:
     reason: Ready
     status: "True"
     type: NovaMetadataReady
-  - message: Notification message bus created successfully
-    reason: Ready
-    status: "True"
-    type: NovaNotificationMQReady
   - message: Setup complete
     reason: Ready
     status: "True"
@@ -105,43 +101,65 @@ status:
 apiVersion: v1
 kind: Pod
 metadata:
-  labels:
-    service: nova-scheduler
-  name: nova-kuttl-scheduler-0
-  ownerReferences:
-  - apiVersion: apps/v1
-    blockOwnerDeletion: true
-    controller: true
-    kind: StatefulSet
-    name: nova-kuttl-scheduler
-spec:
-  automountServiceAccountToken: false
-status:
-  containerStatuses:
-  - name: nova-kuttl-scheduler-scheduler
-    ready: true
-    started: true
----
-apiVersion: v1
-kind: Pod
-metadata:
   annotations:
     openshift.io/scc: anyuid
   labels:
-    cell: cell0
-    service: nova-conductor
-    statefulset.kubernetes.io/pod-name: nova-kuttl-cell0-conductor-0
-  name: nova-kuttl-cell0-conductor-0
+    service: nova-metadata
+    statefulset.kubernetes.io/pod-name: nova-kuttl-metadata-0
+  name: nova-kuttl-metadata-0
   ownerReferences:
   - apiVersion: apps/v1
     blockOwnerDeletion: true
     controller: true
     kind: StatefulSet
-    name: nova-kuttl-cell0-conductor
+    name: nova-kuttl-metadata
 spec:
   automountServiceAccountToken: false
 status:
   containerStatuses:
-  - name: nova-kuttl-cell0-conductor-conductor
+  - name: nova-kuttl-metadata-log
     ready: true
     started: true
+  - name: nova-kuttl-metadata-metadata
+    ready: true
+    started: true
+
+---
+apiVersion: kuttl.dev/v1beta1
+kind: TestAssert
+commands:
+  - script: |
+      oc get -n nova-kuttl-tests pod/nova-kuttl-cell1-novncproxy-0 || exit 0
+      exit 1
+  - script: |
+      oc get -n nova-kuttl-tests pod/nova-kuttl-cell1-conductor-0 || exit 0
+      exit 1
+  - script: |
+      oc get -n nova-kuttl-tests NovaCell/nova-cell1 || exit 0
+      exit 1
+  - script: |
+      oc get -n nova-kuttl-tests MariaDBAccount/nova-cell1 || exit 0
+      exit 1
+  - script: |
+      oc get -n nova-kuttl-tests MariaDBDatabase/nova-cell1 || exit 0
+      exit 1
+  - script: |
+      oc get -n nova-kuttl-tests TransportUrl/nova-cell1-transport || exit 0
+      exit 1
+  - script: |
+      oc get -n nova-kuttl-tests Secret/nova-cell1 || exit 0
+      exit 1
+  - script: |
+      oc get -n nova-kuttl-tests Secret/nova-cell1-db-secret || exit 0
+      exit 1
+  - script: |
+      oc get -n nova-kuttl-tests Secret/nova-cell1-compute-config || exit 0
+      exit 1
+  - script: |
+      oc get -n nova-kuttl-tests Secret/nova-cell1-manage-config-data || exit 0
+      exit 1
+  # TODO(gibi): this needs an openstack-operator change to clean up the cell1
+  # cert secrets
+  #- script: |
+  #    oc get -n nova-kuttl-tests Secret/cert-nova-novncproxy-cell1-public-svc || exit 0
+  #    exit 1

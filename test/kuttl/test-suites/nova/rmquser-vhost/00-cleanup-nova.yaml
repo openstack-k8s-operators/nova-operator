@@ -4,4 +4,4 @@ delete:
 - apiVersion: nova.openstack.org/v1beta1
   kind: Nova
   name: nova-kuttl
-  namespace: nova-kuttl-default
+  namespace: nova-kuttl-tests

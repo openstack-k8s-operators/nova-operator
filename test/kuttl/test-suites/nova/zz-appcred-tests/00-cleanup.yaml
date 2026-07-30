@@ -4,20 +4,20 @@ delete:
   - apiVersion: nova.openstack.org/v1beta1
     kind: Nova
     name: nova-kuttl
-    namespace: nova-kuttl-default
+    namespace: nova-kuttl-tests
   - apiVersion: keystone.openstack.org/v1beta1
     kind: KeystoneApplicationCredential
     name: ac-nova
-    namespace: nova-kuttl-default
+    namespace: nova-kuttl-tests
   - apiVersion: v1
     kind: Secret
     name: ac-nova-secret
-    namespace: nova-kuttl-default
+    namespace: nova-kuttl-tests
   - apiVersion: v1
     kind: ConfigMap
     name: appcred-nova-pre
-    namespace: nova-kuttl-default
+    namespace: nova-kuttl-tests
   - apiVersion: v1
     kind: ConfigMap
     name: appcred-nova-rotate-pre
-    namespace: nova-kuttl-default
+    namespace: nova-kuttl-tests

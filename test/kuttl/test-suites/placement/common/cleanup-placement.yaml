@@ -3,4 +3,4 @@ kind: TestStep
 delete:
 - apiVersion: placement.openstack.org/v1beta1
   kind: PlacementAPI
-  name: placement
+  name: placement-kuttl

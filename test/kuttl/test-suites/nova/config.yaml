@@ -1,14 +1,14 @@
 apiVersion: kuttl.dev/v1beta1
 kind: TestSuite
 reportFormat: JSON
-reportName: kuttl-default-results
-namespace: nova-kuttl-default
+reportName: kuttl-nova-results
+namespace: nova-kuttl-tests
 # we could set this lower, but the initial image pull can take a while
 timeout: 300
 parallel: 1
 skipDelete: true
 testDirs:
-  - test/kuttl/test-suites/default/
+  - test/kuttl/test-suites/nova/
 suppress:
   - events
-artifactsDir: test/kuttl/test-suites/default/output
+artifactsDir: test/kuttl/test-suites/nova/output

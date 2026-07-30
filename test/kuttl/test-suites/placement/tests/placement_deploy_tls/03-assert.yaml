@@ -3,7 +3,7 @@ kind: PlacementAPI
 metadata:
   finalizers:
   - openstack.org/placementapi
-  name: placement
+  name: placement-kuttl
 spec:
   customServiceConfig: |
     [DEFAULT]
@@ -91,7 +91,7 @@ status:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: placement
+  name: placement-kuttl
 spec:
   replicas: 1
   template:
@@ -123,7 +123,7 @@ spec:
         - /usr/bin/dumb-init
         imagePullPolicy: IfNotPresent
         livenessProbe:
-          failureThreshold: 3
+          failureThreshold: 10
           httpGet:
             path: /
             port: 8778
@@ -132,7 +132,7 @@ spec:
           periodSeconds: 30
           successThreshold: 1
           timeoutSeconds: 30
-        name: placement-log
+        name: placement-kuttl-log
         readinessProbe:
           failureThreshold: 3
           httpGet:
@@ -140,9 +140,9 @@ spec:
             port: 8778
             scheme: HTTPS
           initialDelaySeconds: 5
-          periodSeconds: 30
+          periodSeconds: 18
           successThreshold: 1
-          timeoutSeconds: 30
+          timeoutSeconds: 18
         resources: {}
         securityContext:
           runAsUser: 42482
@@ -187,7 +187,7 @@ spec:
         - /bin/bash
         imagePullPolicy: IfNotPresent
         livenessProbe:
-          failureThreshold: 3
+          failureThreshold: 10
           httpGet:
             path: /
             port: 8778
@@ -196,7 +196,7 @@ spec:
           periodSeconds: 30
           successThreshold: 1
           timeoutSeconds: 30
-        name: placement-api
+        name: placement-kuttl-api
         readinessProbe:
           failureThreshold: 3
           httpGet:
@@ -204,14 +204,14 @@ spec:
             port: 8778
             scheme: HTTPS
           initialDelaySeconds: 5
-          periodSeconds: 30
+          periodSeconds: 18
           successThreshold: 1
-          timeoutSeconds: 30
+          timeoutSeconds: 18
         resources: {}
       restartPolicy: Always
       securityContext: {}
-      serviceAccount: placement-placement
-      serviceAccountName: placement-placement
+      serviceAccount: placement-placement-kuttl
+      serviceAccountName: placement-placement-kuttl
 status:
   availableReplicas: 1
   replicas: 1

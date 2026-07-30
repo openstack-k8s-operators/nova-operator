@@ -3,7 +3,7 @@ kind: PlacementAPI
 metadata:
   finalizers:
   - openstack.org/placementapi
-  name: placement
+  name: placement-kuttl
 spec:
   customServiceConfig: |
     [DEFAULT]
@@ -84,7 +84,7 @@ status:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: placement
+  name: placement-kuttl
 spec:
   replicas: 1
   template:
@@ -116,7 +116,7 @@ spec:
         - /usr/bin/dumb-init
         imagePullPolicy: IfNotPresent
         livenessProbe:
-          failureThreshold: 3
+          failureThreshold: 10
           httpGet:
             path: /
             port: 8778
@@ -125,7 +125,7 @@ spec:
           periodSeconds: 30
           successThreshold: 1
           timeoutSeconds: 30
-        name: placement-log
+        name: placement-kuttl-log
         readinessProbe:
           failureThreshold: 3
           httpGet:
@@ -133,9 +133,9 @@ spec:
             port: 8778
             scheme: HTTP
           initialDelaySeconds: 5
-          periodSeconds: 30
+          periodSeconds: 18
           successThreshold: 1
-          timeoutSeconds: 30
+          timeoutSeconds: 18
         resources: {}
         securityContext:
           runAsUser: 42482
@@ -160,7 +160,7 @@ spec:
         - /bin/bash
         imagePullPolicy: IfNotPresent
         livenessProbe:
-          failureThreshold: 3
+          failureThreshold: 10
           httpGet:
             path: /
             port: 8778
@@ -169,7 +169,7 @@ spec:
           periodSeconds: 30
           successThreshold: 1
           timeoutSeconds: 30
-        name: placement-api
+        name: placement-kuttl-api
         readinessProbe:
           failureThreshold: 3
           httpGet:
@@ -177,14 +177,14 @@ spec:
             port: 8778
             scheme: HTTP
           initialDelaySeconds: 5
-          periodSeconds: 30
+          periodSeconds: 18
           successThreshold: 1
-          timeoutSeconds: 30
+          timeoutSeconds: 18
         resources: {}
       restartPolicy: Always
       securityContext: {}
-      serviceAccount: placement-placement
-      serviceAccountName: placement-placement
+      serviceAccount: placement-placement-kuttl
+      serviceAccountName: placement-placement-kuttl
 status:
   availableReplicas: 1
   replicas: 1
@@ -234,13 +234,13 @@ apiVersion: v1
 kind: Secret
 metadata:
   labels:
-    placement.openstack.org/name: placement
-  name: placement-config-data
+    placement.openstack.org/name: placement-kuttl
+  name: placement-kuttl-config-data
   ownerReferences:
   - blockOwnerDeletion: true
     controller: true
     kind: PlacementAPI
-    name: placement
+    name: placement-kuttl
 ---
 apiVersion: keystone.openstack.org/v1beta1
 kind: KeystoneEndpoint
@@ -251,7 +251,7 @@ metadata:
     blockOwnerDeletion: true
     controller: true
     kind: PlacementAPI
-    name: placement
+    name: placement-kuttl
 ---
 # the actual addresses of the api endpoints are platform specific, so we can't rely on
 # kuttl asserts to check them. This short script gathers the addresses and checks that
@@ -261,14 +261,14 @@ kind: TestAssert
 namespaced: true
 commands:
   - script: |
-      . $PLACEMENT_KUTTL_DIR/../lib/helper_functions.sh
-      apiEndpoints=$(oc get -n $NAMESPACE KeystoneEndpoint placement -o go-template-file=$PLACEMENT_KUTTL_DIR/../go_templates/apiEndpoints.gotemplate)
+      . ../../lib/helper_functions.sh
+      apiEndpoints=$(oc get -n $NAMESPACE KeystoneEndpoint placement -o go-template-file=../../go_templates/apiEndpoints.gotemplate)
       assert_regex $apiEndpoints 'http:\/\/placement-internal\..+\.svc.*'
       assert_regex $apiEndpoints 'http:\/\/placement-public\..+\.svc.*'
 
       # when using image digests the containerImage URLs are SHA's so we verify them with a script
       tupleTemplate='{{ range (index .spec.template.spec.containers 0).env }}{{ .name }}{{ "#" }}{{ .value}}{{"\n"}}{{ end }}'
-      imageTuples=$(oc get -n openstack-operators deployment placement-operator-controller-manager -o go-template="$tupleTemplate")
+      imageTuples=$(oc get -n openstack-operators deployment nova-operator-controller-manager -o go-template="$tupleTemplate")
       # format of imageTuple is: RELATED_IMAGE_PLACEMENT_<service>#<image URL with SHA> separated by newlines
       for ITEM in $(echo $imageTuples); do
         # it is an image
@@ -278,7 +278,7 @@ commands:
           template='{{.spec.containerImage}}'
           case $NAME in
             API)
-              SERVICE_IMAGE=$(oc get -n $NAMESPACE placementapi placement -o go-template="$template")
+              SERVICE_IMAGE=$(oc get -n $NAMESPACE placementapi placement-kuttl -o go-template="$template")
               ;;
           esac
           if [ "$SERVICE_IMAGE" != "$IMG_FROM_ENV" ]; then

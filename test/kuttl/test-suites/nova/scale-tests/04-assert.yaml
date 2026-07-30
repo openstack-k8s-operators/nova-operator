@@ -1,12 +1,56 @@
+#
+# Check for:
+#
+# - 1 Nova CR with 0 replicas
+# - Placement Deployment with 0 Pods
+# NOTE: This test is asserting for spec.replicas to be 0
+# NOT status.availableReplicas
+
 apiVersion: nova.openstack.org/v1beta1
 kind: Nova
 metadata:
   finalizers:
   - openstack.org/nova
   name: nova-kuttl
-status:
-  apiServiceReadyCount: 1
-  schedulerServiceReadyCount: 1
+spec:
+  apiDatabaseInstance: openstack
+  apiDatabaseAccount: nova-api
+  messagingBus:
+    cluster: rabbitmq
+  apiServiceTemplate:
+    replicas: 0
+  metadataServiceTemplate:
+    enabled: True
+    replicas: 0
+  cellTemplates:
+    cell0:
+      cellDatabaseInstance: openstack
+      cellDatabaseAccount: nova-cell0
+      messagingBus:
+        cluster: rabbitmq
+      conductorServiceTemplate:
+        customServiceConfig: ""
+        replicas: 0
+      hasAPIAccess: true
+      metadataServiceTemplate:
+        enabled: false
+      noVNCProxyServiceTemplate:
+        enabled: false
+    cell1:
+      cellDatabaseInstance: openstack-cell1
+      cellDatabaseAccount: nova-cell1
+      messagingBus:
+        cluster: rabbitmq-cell1
+      conductorServiceTemplate:
+        customServiceConfig: ""
+        replicas: 0
+      hasAPIAccess: true
+      metadataServiceTemplate:
+        enabled: false
+      noVNCProxyServiceTemplate:
+        enabled: true
+        customServiceConfig: ""
+        replicas: 1
 ---
 apiVersion: nova.openstack.org/v1beta1
 kind: NovaAPI
@@ -14,48 +58,42 @@ metadata:
   finalizers:
   - openstack.org/novaapi
   name: nova-kuttl-api
-  namespace: nova-kuttl-default
+  namespace: nova-kuttl-tests
 spec:
-  replicas: 1
+  replicas: 0
   secret: nova-kuttl
   serviceAccount: nova-nova-kuttl
   serviceUser: nova
-status:
-  readyCount: 1
 ---
 apiVersion: nova.openstack.org/v1beta1
 kind: NovaScheduler
 metadata:
   name: nova-kuttl-scheduler
-  namespace: nova-kuttl-default
+  namespace: nova-kuttl-tests
 spec:
-  apiDatabaseHostname: openstack.nova-kuttl-default.svc
+  apiDatabaseHostname: openstack.nova-kuttl-tests.svc
   apiDatabaseAccount: nova-api
-  cell0DatabaseHostname: openstack.nova-kuttl-default.svc
+  cell0DatabaseHostname: openstack.nova-kuttl-tests.svc
   cell0DatabaseAccount: nova-cell0
-  replicas: 1
-status:
-  readyCount: 1
+  replicas: 0
 ---
 apiVersion: nova.openstack.org/v1beta1
 kind: NovaMetadata
 metadata:
   name: nova-kuttl-metadata
-  namespace: nova-kuttl-default
+  namespace: nova-kuttl-tests
 spec:
-  apiDatabaseHostname: openstack.nova-kuttl-default.svc
+  apiDatabaseHostname: openstack.nova-kuttl-tests.svc
   apiDatabaseAccount: nova-api
-  cellDatabaseHostname: openstack.nova-kuttl-default.svc
+  cellDatabaseHostname: openstack.nova-kuttl-tests.svc
   cellDatabaseAccount: nova-cell0
-  replicas: 1
-status:
-  readyCount: 1
+  replicas: 0
 ---
 apiVersion: nova.openstack.org/v1beta1
 kind: NovaConductor
 metadata:
   name: nova-kuttl-cell0-conductor
-  namespace: nova-kuttl-default
+  namespace: nova-kuttl-tests
   ownerReferences:
   - apiVersion: nova.openstack.org/v1beta1
     blockOwnerDeletion: true
@@ -63,20 +101,18 @@ metadata:
     kind: NovaCell
     name: nova-kuttl-cell0
 spec:
-  apiDatabaseHostname: openstack.nova-kuttl-default.svc
+  apiDatabaseHostname: openstack.nova-kuttl-tests.svc
   apiDatabaseAccount: nova-api
-  cellDatabaseHostname: openstack.nova-kuttl-default.svc
+  cellDatabaseHostname: openstack.nova-kuttl-tests.svc
   cellDatabaseAccount: nova-cell0
   cellName: cell0
-  replicas: 1
-status:
-  readyCount: 1
+  replicas: 0
 ---
 apiVersion: nova.openstack.org/v1beta1
 kind: NovaConductor
 metadata:
   name: nova-kuttl-cell1-conductor
-  namespace: nova-kuttl-default
+  namespace: nova-kuttl-tests
   ownerReferences:
   - apiVersion: nova.openstack.org/v1beta1
     blockOwnerDeletion: true
@@ -84,20 +120,18 @@ metadata:
     kind: NovaCell
     name: nova-kuttl-cell1
 spec:
-  apiDatabaseHostname: openstack.nova-kuttl-default.svc
+  apiDatabaseHostname: openstack.nova-kuttl-tests.svc
   apiDatabaseAccount: nova-api
-  cellDatabaseHostname: openstack-cell1.nova-kuttl-default.svc
+  cellDatabaseHostname: openstack-cell1.nova-kuttl-tests.svc
   cellDatabaseAccount: nova-cell1
   cellName: cell1
-  replicas: 1
-status:
-  readyCount: 1
+  replicas: 0
 ---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: nova-kuttl-api
-  namespace: nova-kuttl-default
+  namespace: nova-kuttl-tests
   ownerReferences:
   - apiVersion: nova.openstack.org/v1beta1
     blockOwnerDeletion: true
@@ -105,7 +139,7 @@ metadata:
     kind: NovaAPI
     name: nova-kuttl-api
 spec:
-  replicas: 1
+  replicas: 0
   selector:
     matchLabels:
       service: nova-api
@@ -114,17 +148,12 @@ spec:
     metadata:
       labels:
         service: nova-api
-status:
-  availableReplicas: 1
-  currentReplicas: 1
-  readyReplicas: 1
-  replicas: 1
 ---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: nova-kuttl-metadata
-  namespace: nova-kuttl-default
+  namespace: nova-kuttl-tests
   ownerReferences:
   - apiVersion: nova.openstack.org/v1beta1
     blockOwnerDeletion: true
@@ -132,7 +161,7 @@ metadata:
     kind: NovaMetadata
     name: nova-kuttl-metadata
 spec:
-  replicas: 1
+  replicas: 0
   selector:
     matchLabels:
       service: nova-metadata
@@ -140,17 +169,12 @@ spec:
     metadata:
       labels:
         service: nova-metadata
-status:
-  availableReplicas: 1
-  currentReplicas: 1
-  readyReplicas: 1
-  replicas: 1
 ---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: nova-kuttl-scheduler
-  namespace: nova-kuttl-default
+  namespace: nova-kuttl-tests
   ownerReferences:
   - apiVersion: nova.openstack.org/v1beta1
     blockOwnerDeletion: true
@@ -158,7 +182,7 @@ metadata:
     kind: NovaScheduler
     name: nova-kuttl-scheduler
 spec:
-  replicas: 1
+  replicas: 0
   selector:
     matchLabels:
       service: nova-scheduler
@@ -166,17 +190,12 @@ spec:
     metadata:
       labels:
         service: nova-scheduler
-status:
-  availableReplicas: 1
-  currentReplicas: 1
-  readyReplicas: 1
-  replicas: 1
 ---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: nova-kuttl-cell0-conductor
-  namespace: nova-kuttl-default
+  namespace: nova-kuttl-tests
   ownerReferences:
   - apiVersion: nova.openstack.org/v1beta1
     blockOwnerDeletion: true
@@ -184,7 +203,7 @@ metadata:
     kind: NovaConductor
     name: nova-kuttl-cell0-conductor
 spec:
-  replicas: 1
+  replicas: 0
   selector:
     matchLabels:
       cell: cell0
@@ -194,17 +213,12 @@ spec:
       labels:
         cell: cell0
         service: nova-conductor
-status:
-  availableReplicas: 1
-  currentReplicas: 1
-  readyReplicas: 1
-  replicas: 1
 ---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: nova-kuttl-cell1-conductor
-  namespace: nova-kuttl-default
+  namespace: nova-kuttl-tests
   ownerReferences:
   - apiVersion: nova.openstack.org/v1beta1
     blockOwnerDeletion: true
@@ -212,7 +226,7 @@ metadata:
     kind: NovaConductor
     name: nova-kuttl-cell1-conductor
 spec:
-  replicas: 1
+  replicas: 0
   selector:
     matchLabels:
       cell: cell1
@@ -222,21 +236,3 @@ spec:
       labels:
         cell: cell1
         service: nova-conductor
-status:
-  availableReplicas: 1
-  currentReplicas: 1
-  readyReplicas: 1
-  replicas: 1
----
-# Scaled down to 1 replicas so the other service instances should be
-# removed from the DB.
-apiVersion: kuttl.dev/v1beta1
-kind: TestAssert
-namespaced: true
-commands:
-  - script: |
-      set -euxo pipefail
-      (( $(oc exec -n $NAMESPACE openstackclient -- openstack compute service list --service nova-scheduler -f value | wc -l) == 1 ))
-      (( $(oc exec -n $NAMESPACE openstackclient -- openstack compute service list --service nova-conductor -f value | grep cell1 | wc -l) == 1 ))
-      (( $(oc exec -n $NAMESPACE openstackclient -- openstack compute service list --service nova-conductor -f value | grep cell0 | wc -l) == 1 ))
----

@@ -4,7 +4,7 @@ metadata:
   finalizers:
   - openstack.org/nova
   name: nova-kuttl
-  namespace: nova-kuttl-default
+  namespace: nova-kuttl-tests
 status:
   apiServiceReadyCount: 1
   metadataServiceReadyCount: 1
@@ -123,43 +123,30 @@ status:
   - name: nova-kuttl-metadata-metadata
     ready: true
     started: true
-
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nova-kuttl-cell1-compute-fake1-compute-0
+status:
+  containerStatuses:
+  - name: nova-kuttl-cell1-compute-fake1-compute-compute
+    ready: true
+    started: true
 ---
 apiVersion: kuttl.dev/v1beta1
 kind: TestAssert
+namespaced: true
 commands:
   - script: |
-      oc get -n nova-kuttl-default pod/nova-kuttl-cell1-novncproxy-0 || exit 0
-      exit 1
+      set -euxo pipefail
+      MESSAGE=$(oc exec -n $NAMESPACE openstackclient -- openstack flavor create my-flavor 2>&1) || true
+      echo $MESSAGE | grep "Policy doesn't allow os_compute_api:os-flavor-manage:create to be performed"
   - script: |
-      oc get -n nova-kuttl-default pod/nova-kuttl-cell1-conductor-0 || exit 0
-      exit 1
+      set -euxo pipefail
+      RP_UUID=$(oc exec -n $NAMESPACE openstackclient -- openstack resource provider list --name nova-kuttl-cell1-compute-fake1-compute-0 -f value -c uuid)
+      oc exec -n $NAMESPACE openstackclient -- openstack resource provider trait list $RP_UUID | grep CUSTOM_FOO
   - script: |
-      oc get -n nova-kuttl-default NovaCell/nova-cell1 || exit 0
-      exit 1
-  - script: |
-      oc get -n nova-kuttl-default MariaDBAccount/nova-cell1 || exit 0
-      exit 1
-  - script: |
-      oc get -n nova-kuttl-default MariaDBDatabase/nova-cell1 || exit 0
-      exit 1
-  - script: |
-      oc get -n nova-kuttl-default TransportUrl/nova-cell1-transport || exit 0
-      exit 1
-  - script: |
-      oc get -n nova-kuttl-default Secret/nova-cell1 || exit 0
-      exit 1
-  - script: |
-      oc get -n nova-kuttl-default Secret/nova-cell1-db-secret || exit 0
-      exit 1
-  - script: |
-      oc get -n nova-kuttl-default Secret/nova-cell1-compute-config || exit 0
-      exit 1
-  - script: |
-      oc get -n nova-kuttl-default Secret/nova-cell1-manage-config-data || exit 0
-      exit 1
-  # TODO(gibi): this needs an openstack-operator change to clean up the cell1
-  # cert secrets
-  #- script: |
-  #    oc get -n nova-kuttl-default Secret/cert-nova-novncproxy-cell1-public-svc || exit 0
-  #    exit 1
+      set -euxo pipefail
+      # Check for audit logs created by the openstack flavor create command above
+      oc logs -n $NAMESPACE nova-kuttl-api-0 | grep "http://schemas.dmtf.org/cloud/audit/1.0/event"
