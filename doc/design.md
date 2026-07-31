@@ -2,25 +2,31 @@
 
 The high-level goal is to provide a set of APIs in a form of Kubernetes Custom
 Resource Definitions (CRD) implemented with Operator SDK to deploy OpenStack
-Nova and Placement control plane services in OpenShift.
+Nova, Placement, and Cyborg control plane services in OpenShift.
 
-The Placement service code that previously lived in placement-operator is now
-managed by the same nova-operator binary and OLM bundle. There is no separate
-placement-operator deployment.
+The Placement service code that previously lived in placement-operator and the
+Cyborg accelerator service are now managed by the same nova-operator binary and
+OLM bundle. There are no separate placement-operator or cyborg-operator
+deployments.
+
+**Note:** Cyborg support is disabled by default. Set `ENABLE_CYBORG=true` on
+the operator pod to activate the Cyborg controllers and webhooks.
 
 # Decisions
 
 1. The nova-operator provides a single top-level Nova API for the OpenStack
 operator to instantiate a Nova control plane by creating a single Custom
 Resource (CR). We support this to hide any nova-specific deployment logic from
-the OpenStack operator. Placement has no equivalent top-level CR; only the
-PlacementAPI service CR exists.
+the OpenStack operator. Similarly, the Cyborg CR is the top-level resource that
+manages the CyborgAPI and CyborgConductor service CRs. Placement has no
+equivalent top-level CR; only the PlacementAPI service CR exists.
 
 2. The nova-operator allows deploying control plane services independently by
 instantiating a service-level CRD without the matching top-level CR. We support
 this to limit the dependency of each service CRD to the minimum and by that to
 allow testing of each service CRD in isolation. This applies to the
-Nova*ServiceType* CRDs and the PlacementAPI CRD.
+Nova*ServiceType* CRDs, the PlacementAPI CRD, and the Cyborg service CRDs
+(CyborgAPI and CyborgConductor).
 
     1. For the Nova*ServiceType* CRDs, they get their DB and message bus
     dependencies as Secret objects having user, password, and hostname fields.
@@ -138,3 +144,20 @@ the pod and kolla is used to copy the resulting config files to
 configuration from templates under `templates/placement/api/` and copy the user
 defined snippet to the Secret to key `custom.conf`. So the user defined
 configuration always override the default config.
+
+## Cyborg configuration generation
+
+The configuration for the podified Cyborg services is generated into Secrets
+named after the Cyborg CR. The top-level Cyborg CR manages two service-level
+CRs: CyborgAPI (the REST API) and CyborgConductor. For a Cyborg CR named
+`cyborg` the operator generates `<Cyborg name>-config-data` (e.g.
+`cyborg-config-data`). Before any Cyborg Deployment is created, the operator
+runs a db sync Job.
+
+The config secrets will contain multiple keys if the user provided
+`CustomServiceConfig` in the service CR. These config secrets are mounted to
+the pod and kolla is used to copy the resulting config files to
+`/etc/cyborg/cyborg.conf.d/`. The nova-operator will generate the default
+configuration from templates under `templates/cyborg/` and copy the user
+defined snippet to the Secret. So the user defined configuration always
+overrides the default config.

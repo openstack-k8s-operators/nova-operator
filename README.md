@@ -1,24 +1,26 @@
 # nova-operator
 
-A golang operator for OpenStack Nova and Placement lifecycle management
+A golang operator for OpenStack Nova, Placement, and Cyborg lifecycle management
 
 ## nova-operator Goal
 
 The goal of nova-operator is to manage custom resources that define an OpenStack
-Nova control plane and the Placement API service. The operator continuously
-monitors the state of Nova and PlacementAPI CRs and takes actions to ensure that
-the desired state is applied and reflected in the service pods. These pods run
-actual nova and placement services; nova-operator ensures they are deployed,
-scaled, and configured correctly.
-**Note:** Nova and PlacementAPI CRs are created by openstack-operator as part of
-the initial deployment.
+Nova control plane, the Placement API service, and the Cyborg accelerator service.
+The operator continuously monitors the state of Nova, PlacementAPI, and Cyborg CRs
+and takes actions to ensure that the desired state is applied and reflected in the
+service pods. These pods run actual nova, placement, and cyborg services;
+nova-operator ensures they are deployed, scaled, and configured correctly.
+**Note:** Nova, PlacementAPI, and Cyborg CRs are created by openstack-operator as
+part of the initial deployment. Cyborg support is **disabled by default** and
+requires setting the `ENABLE_CYBORG=true` environment variable on the operator
+pod to activate its controllers and webhooks.
 
 ## Description
 
 This operator is built using the operator-sdk framework to provide day one and day two
-lifecycle management of the OpenStack Nova and Placement services on an OpenShift
-cluster. The Placement service code that previously lived in placement-operator is
-now managed by this operator.
+lifecycle management of the OpenStack Nova, Placement, and Cyborg services on an
+OpenShift cluster. The Placement service code that previously lived in placement-operator
+and the Cyborg accelerator service are now managed by this operator.
 
 ## Getting Started
 
