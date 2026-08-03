@@ -17,6 +17,8 @@ package nova
 
 import (
 	env "github.com/openstack-k8s-operators/lib-common/modules/common/env"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/pod"
+	"github.com/openstack-k8s-operators/lib-common/modules/users"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/nova/v1beta1"
 
 	batchv1 "k8s.io/api/batch/v1"
@@ -29,15 +31,10 @@ import (
 func HostDiscoveryJob(
 	instance *novav1.NovaCell,
 	configName string,
-	scriptName string,
 	inputHash string,
 	labels map[string]string,
 ) *batchv1.Job {
-	args := []string{"-c", KollaServiceCommand}
-
 	envVars := map[string]env.Setter{}
-	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
-	envVars["KOLLA_BOOTSTRAP"] = env.SetValue("true")
 
 	// This is stored in the Job so that if the input of the job changes
 	// then it results in a new job hash and therefore lib-common will re-run
@@ -50,13 +47,8 @@ func HostDiscoveryJob(
 
 	volumes := []corev1.Volume{
 		GetConfigVolume(configName),
-		GetScriptVolume(scriptName),
 	}
-	volumeMounts := []corev1.VolumeMount{
-		GetConfigVolumeMount(),
-		GetScriptVolumeMount(),
-		GetKollaConfigVolumeMount("host-discover"),
-	}
+	volumeMounts := GetConfVolumeMounts(false)
 
 	// add CA cert if defined
 	if instance.Spec.TLS.CaBundleSecretName != "" {
@@ -76,20 +68,16 @@ func HostDiscoveryJob(
 					RestartPolicy:                corev1.RestartPolicyOnFailure,
 					ServiceAccountName:           instance.Spec.ServiceAccount,
 					AutomountServiceAccountToken: ptr.To(false),
+					SecurityContext:              pod.RestrictivePodSecurityContext(users.NovaUID, users.NovaGID),
 					Volumes:                      volumes,
 					Containers: []corev1.Container{
 						{
-							Name: "nova-manage",
-							Command: []string{
-								"/bin/bash",
-							},
-							Args:  args,
-							Image: instance.Spec.ConductorContainerImageURL,
-							SecurityContext: &corev1.SecurityContext{
-								RunAsUser: ptr.To(NovaUserID),
-							},
-							Env:          env,
-							VolumeMounts: volumeMounts,
+							Name:            "nova-manage",
+							Command:         []string{"/bin/bash", "-c", "nova-manage cell_v2 discover_hosts --by-service --verbose"},
+							Image:           instance.Spec.ConductorContainerImageURL,
+							SecurityContext: pod.RestrictiveSecurityContext(users.NovaUID, users.NovaGID),
+							Env:             env,
+							VolumeMounts:    volumeMounts,
 						},
 					},
 				},

@@ -83,7 +83,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   annotations:
-    openshift.io/scc: anyuid
+    openshift.io/scc: nonroot-v2
   labels:
     service: nova-api
   name: nova-kuttl-api-0
@@ -102,7 +102,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   annotations:
-    openshift.io/scc: anyuid
+    openshift.io/scc: nonroot-v2
   labels:
     service: nova-metadata
     statefulset.kubernetes.io/pod-name: nova-kuttl-metadata-0

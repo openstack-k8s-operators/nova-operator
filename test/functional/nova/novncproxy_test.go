@@ -259,7 +259,7 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 				Expect(ss.Spec.Selector.MatchLabels).To(Equal(map[string]string{"service": "nova-novncproxy", "cell": "cell1"}))
 
 				container := ss.Spec.Template.Spec.Containers[0]
-				Expect(container.VolumeMounts).To(HaveLen(2))
+				Expect(container.VolumeMounts).To(HaveLen(4))
 				Expect(container.Image).To(Equal(ContainerImage))
 
 				Expect(container.LivenessProbe.HTTPGet.Port.IntVal).To(Equal(int32(6080)))

@@ -362,7 +362,6 @@ type CellNames struct {
 	ConductorName                    types.NamespacedName
 	DBSyncJobName                    types.NamespacedName
 	ConductorConfigDataName          types.NamespacedName
-	ConductorScriptDataName          types.NamespacedName
 	ConductorStatefulSetName         types.NamespacedName
 	TransportURLName                 types.NamespacedName
 	CellMappingJobName               types.NamespacedName
@@ -442,10 +441,6 @@ func GetCellNames(novaName types.NamespacedName, cell string) CellNames {
 		ConductorConfigDataName: types.NamespacedName{
 			Namespace: novaName.Namespace,
 			Name:      cellConductor.Name + "-config-data",
-		},
-		ConductorScriptDataName: types.NamespacedName{
-			Namespace: novaName.Namespace,
-			Name:      cellConductor.Name + "-scripts",
 		},
 		MetadataName:            metadataName,
 		MetadataStatefulSetName: metadataName,

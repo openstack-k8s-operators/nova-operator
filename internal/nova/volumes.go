@@ -17,43 +17,88 @@ limitations under the License.
 package nova
 
 import (
+	"fmt"
+
+	"github.com/openstack-k8s-operators/lib-common/modules/common/volume"
 	corev1 "k8s.io/api/core/v1"
 )
 
 const (
 	scriptVolume = "scripts"
-	configVolume = "config-data"
+	// ConfigVolume is the name of the volume for nova config data
+	ConfigVolume = "config-data"
 	logVolume    = "logs"
 )
 
 var (
-	configMode int32 = 0640
-	scriptMode int32 = 0740
+	configMode int32 = 0440
+	// scriptMode grants execute to the FSGroup-matched group, not just the
+	// (root-owned, per kubelet) file owner -- scripts are exec'd directly
+	// from this mount now that kolla no longer copies them elsewhere with
+	// its own chmod first.
+	scriptMode int32 = 0750
 )
 
-// GetConfigVolumeMount returns a volume mount for Nova configuration files
-func GetConfigVolumeMount() corev1.VolumeMount {
-	return corev1.VolumeMount{
-		Name:      configVolume,
-		MountPath: "/var/lib/openstack/config",
-		ReadOnly:  false,
+// GetConfVolumeMounts returns the final-path SubPath mounts for the config
+// snippets shared by every Nova service: nova.conf, nova.conf.d/01-nova.conf,
+// nova.conf.d/02-nova-override.conf (only when the service has a
+// CustomServiceConfig set, since that key is only added to the config Secret
+// in that case), and /etc/my.cnf.
+func GetConfVolumeMounts(hasCustomServiceConfig bool, mountMyCnf ...bool) []corev1.VolumeMount {
+	vm := []corev1.VolumeMount{
+		{
+			Name:      ConfigVolume,
+			MountPath: "/etc/nova/nova.conf",
+			SubPath:   "nova-blank.conf",
+			ReadOnly:  true,
+		},
+		{
+			Name:      ConfigVolume,
+			MountPath: "/etc/nova/nova.conf.d/01-nova.conf",
+			SubPath:   "01-nova.conf",
+			ReadOnly:  true,
+		},
 	}
+	if hasCustomServiceConfig {
+		vm = append(vm, corev1.VolumeMount{
+			Name:      ConfigVolume,
+			MountPath: "/etc/nova/nova.conf.d/02-nova-override.conf",
+			SubPath:   "02-nova-override.conf",
+			ReadOnly:  true,
+		})
+	}
+	if len(mountMyCnf) == 0 || mountMyCnf[0] {
+		vm = append(vm, corev1.VolumeMount{
+			Name:      ConfigVolume,
+			MountPath: "/etc/my.cnf",
+			SubPath:   "my.cnf",
+			ReadOnly:  true,
+		})
+	}
+	return vm
 }
 
-// GetKollaConfigVolumeMount returns a volume mount for Kolla configuration files
-func GetKollaConfigVolumeMount(serviceName string) corev1.VolumeMount {
-	return corev1.VolumeMount{
-		Name:      configVolume,
-		MountPath: "/var/lib/kolla/config_files/config.json",
-		SubPath:   serviceName + "-config.json",
-		ReadOnly:  false,
+// GetConfigOverwriteVolumeMounts returns SubPath volume mounts that place
+// each defaultConfigOverwrite key as an individual file under basePath
+// (e.g. /etc/nova/policy.yaml, /etc/nova/api-paste.ini). The overwrite data
+// lives in the same config Secret (merged in via CustomData).
+func GetConfigOverwriteVolumeMounts(overwriteKeys []string, basePath string) []corev1.VolumeMount {
+	mounts := make([]corev1.VolumeMount, 0, len(overwriteKeys))
+	for _, key := range overwriteKeys {
+		mounts = append(mounts, corev1.VolumeMount{
+			Name:      ConfigVolume,
+			MountPath: fmt.Sprintf("%s/%s", basePath, key),
+			SubPath:   key,
+			ReadOnly:  true,
+		})
 	}
+	return mounts
 }
 
 // GetConfigVolume returns a volume for Nova configuration files from a secret
 func GetConfigVolume(secretName string) corev1.Volume {
 	return corev1.Volume{
-		Name: configVolume,
+		Name: ConfigVolume,
 		VolumeSource: corev1.VolumeSource{
 			Secret: &corev1.SecretVolumeSource{
 				DefaultMode: &configMode,
@@ -74,20 +119,15 @@ func GetLogVolumeMount() corev1.VolumeMount {
 
 // GetLogVolume returns an empty directory volume for Nova log files
 func GetLogVolume() corev1.Volume {
-	return corev1.Volume{
-		Name: logVolume,
-		VolumeSource: corev1.VolumeSource{
-			EmptyDir: &corev1.EmptyDirVolumeSource{Medium: ""},
-		},
-	}
+	return volume.WritableDirVolume(logVolume)
 }
 
 // GetScriptVolumeMount returns a volume mount for Nova script files
 func GetScriptVolumeMount() corev1.VolumeMount {
 	return corev1.VolumeMount{
 		Name:      scriptVolume,
-		MountPath: "/var/lib/openstack/bin",
-		ReadOnly:  false,
+		MountPath: "/usr/local/bin/container-scripts",
+		ReadOnly:  true,
 	}
 }
 

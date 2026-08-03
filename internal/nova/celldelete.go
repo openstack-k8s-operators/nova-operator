@@ -8,6 +8,8 @@ import (
 	"k8s.io/utils/ptr"
 
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/pod"
+	"github.com/openstack-k8s-operators/lib-common/modules/users"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/nova/v1beta1"
 )
 
@@ -20,11 +22,7 @@ func CellDeleteJob(
 	inputHash string,
 	labels map[string]string,
 ) *batchv1.Job {
-	args := []string{"-c", KollaServiceCommand}
-
 	envVars := map[string]env.Setter{}
-	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
-	envVars["KOLLA_BOOTSTRAP"] = env.SetValue("true")
 	envVars["CELL_NAME"] = env.SetValue(cell.Spec.CellName)
 
 	// This is stored in the Job so that if the input of the job changes
@@ -40,11 +38,8 @@ func CellDeleteJob(
 		GetConfigVolume(configName),
 		GetScriptVolume(scriptName),
 	}
-	volumeMounts := []corev1.VolumeMount{
-		GetConfigVolumeMount(),
-		GetScriptVolumeMount(),
-		GetKollaConfigVolumeMount("cell-delete"),
-	}
+	volumeMounts := GetConfVolumeMounts(false)
+	volumeMounts = append(volumeMounts, GetScriptVolumeMount())
 
 	// add CA cert if defined
 	if instance.Spec.APIServiceTemplate.TLS.CaBundleSecretName != "" {
@@ -64,20 +59,18 @@ func CellDeleteJob(
 					RestartPolicy:                corev1.RestartPolicyOnFailure,
 					ServiceAccountName:           instance.RbacResourceName(),
 					AutomountServiceAccountToken: ptr.To(false),
+					SecurityContext:              pod.RestrictivePodSecurityContext(users.NovaUID, users.NovaGID),
 					Volumes:                      volumes,
 					Containers: []corev1.Container{
 						{
 							Name: "nova-manage",
 							Command: []string{
-								"/bin/bash",
+								"/usr/local/bin/container-scripts/delete_cell.sh",
 							},
-							Args:  args,
-							Image: cell.Spec.ConductorContainerImageURL,
-							SecurityContext: &corev1.SecurityContext{
-								RunAsUser: ptr.To(NovaUserID),
-							},
-							Env:          env,
-							VolumeMounts: volumeMounts,
+							Image:           cell.Spec.ConductorContainerImageURL,
+							SecurityContext: pod.RestrictiveSecurityContext(users.NovaUID, users.NovaGID),
+							Env:             env,
+							VolumeMounts:    volumeMounts,
 						},
 					},
 				},
