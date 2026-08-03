@@ -139,7 +139,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   annotations:
-    openshift.io/scc: anyuid
+    openshift.io/scc: nonroot-v2
   labels:
     service: nova-api
   name: nova-kuttl-api-0
@@ -178,7 +178,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   annotations:
-    openshift.io/scc: anyuid
+    openshift.io/scc: nonroot-v2
   labels:
     service: nova-metadata
     statefulset.kubernetes.io/pod-name: nova-kuttl-metadata-0
@@ -204,7 +204,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   annotations:
-    openshift.io/scc: anyuid
+    openshift.io/scc: nonroot-v2
   labels:
     cell: cell0
     service: nova-conductor
@@ -228,7 +228,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   annotations:
-    openshift.io/scc: anyuid
+    openshift.io/scc: nonroot-v2
   labels:
     cell: cell1
     service: nova-conductor
@@ -312,32 +312,8 @@ apiVersion: v1
 kind: Secret
 metadata:
   labels:
-    nova-conductor.openstack.org/name: nova-kuttl-cell0-conductor
-  name: nova-kuttl-cell0-conductor-scripts
-  ownerReferences:
-  - blockOwnerDeletion: true
-    controller: true
-    kind: NovaConductor
-    name: nova-kuttl-cell0-conductor
----
-apiVersion: v1
-kind: Secret
-metadata:
-  labels:
     nova-conductor.openstack.org/name: nova-kuttl-cell1-conductor
   name: nova-kuttl-cell1-conductor-config-data
-  ownerReferences:
-  - blockOwnerDeletion: true
-    controller: true
-    kind: NovaConductor
-    name: nova-kuttl-cell1-conductor
----
-apiVersion: v1
-kind: Secret
-metadata:
-  labels:
-    nova-conductor.openstack.org/name: nova-kuttl-cell1-conductor
-  name: nova-kuttl-cell1-conductor-scripts
   ownerReferences:
   - blockOwnerDeletion: true
     controller: true
@@ -533,31 +509,19 @@ spec:
       template:
         spec:
           containers:
-          - args:
-            - -c
-            - /usr/local/bin/kolla_start
-            command:
-            - /bin/bash
-            env:
-            - name: ARCHIVE_AGE
-              value: "30"
-            - name: KOLLA_BOOTSTRAP
-              value: "true"
-            - name: KOLLA_CONFIG_STRATEGY
-              value: COPY_ALWAYS
-            - name: PURGE_AGE
-              value: "90"
-            name: nova-manage
+          - name: nova-manage
             securityContext:
               runAsUser: 42436
             volumeMounts:
-            - mountPath: /var/lib/openstack/config
+            - mountPath: /etc/nova/nova.conf
               name: config-data
-            - mountPath: /var/lib/openstack/bin
-              name: scripts
-            - mountPath: /var/lib/kolla/config_files/config.json
+              subPath: nova-blank.conf
+            - mountPath: /etc/nova/nova.conf.d/01-nova.conf
               name: config-data
-              subPath: nova-conductor-dbpurge-config.json
+              subPath: 01-nova.conf
+            - mountPath: /etc/my.cnf
+              name: config-data
+              subPath: my.cnf
           restartPolicy: OnFailure
           serviceAccount: nova-nova-kuttl
           serviceAccountName: nova-nova-kuttl
@@ -565,9 +529,6 @@ spec:
           - name: config-data
             secret:
               secretName: nova-kuttl-cell0-conductor-config-data
-          - name: scripts
-            secret:
-              secretName: nova-kuttl-cell0-conductor-scripts
   schedule: 0 0 * * *
   successfulJobsHistoryLimit: 3
   suspend: false
@@ -590,31 +551,19 @@ spec:
       template:
         spec:
           containers:
-          - args:
-            - -c
-            - /usr/local/bin/kolla_start
-            command:
-            - /bin/bash
-            env:
-            - name: ARCHIVE_AGE
-              value: "30"
-            - name: KOLLA_BOOTSTRAP
-              value: "true"
-            - name: KOLLA_CONFIG_STRATEGY
-              value: COPY_ALWAYS
-            - name: PURGE_AGE
-              value: "90"
-            name: nova-manage
+          - name: nova-manage
             securityContext:
               runAsUser: 42436
             volumeMounts:
-            - mountPath: /var/lib/openstack/config
+            - mountPath: /etc/nova/nova.conf
               name: config-data
-            - mountPath: /var/lib/openstack/bin
-              name: scripts
-            - mountPath: /var/lib/kolla/config_files/config.json
+              subPath: nova-blank.conf
+            - mountPath: /etc/nova/nova.conf.d/01-nova.conf
               name: config-data
-              subPath: nova-conductor-dbpurge-config.json
+              subPath: 01-nova.conf
+            - mountPath: /etc/my.cnf
+              name: config-data
+              subPath: my.cnf
           restartPolicy: OnFailure
           serviceAccount: nova-nova-kuttl
           serviceAccountName: nova-nova-kuttl
@@ -622,9 +571,6 @@ spec:
           - name: config-data
             secret:
               secretName: nova-kuttl-cell1-conductor-config-data
-          - name: scripts
-            secret:
-              secretName: nova-kuttl-cell1-conductor-scripts
   schedule: 0 0 * * *
   successfulJobsHistoryLimit: 3
   suspend: false

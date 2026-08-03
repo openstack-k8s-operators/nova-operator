@@ -17,12 +17,16 @@ limitations under the License.
 package novncproxy
 
 import (
+	"fmt"
+
 	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	affinity "github.com/openstack-k8s-operators/lib-common/modules/common/affinity"
 	env "github.com/openstack-k8s-operators/lib-common/modules/common/env"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/pod"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/probes"
+	"github.com/openstack-k8s-operators/lib-common/modules/users"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/nova/v1beta1"
 	internalcommon "github.com/openstack-k8s-operators/nova-operator/internal/common"
 	"github.com/openstack-k8s-operators/nova-operator/internal/nova"
@@ -57,10 +61,7 @@ func StatefulSet(
 		return nil, err
 	}
 
-	args := []string{"-c", nova.KollaServiceCommand}
-
 	envVars := map[string]env.Setter{}
-	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
 	// NOTE(gibi): The statefulset does not use this hash directly. We store it
 	// in the environment to trigger a Pod restart if any input of the
 	// statefulset has changed. The k8s will trigger a restart automatically if
@@ -72,10 +73,7 @@ func StatefulSet(
 	volumes := []corev1.Volume{
 		nova.GetConfigVolume(internalcommon.GetServiceConfigSecretName(instance.Name)),
 	}
-	volumeMounts := []corev1.VolumeMount{
-		nova.GetConfigVolumeMount(),
-		nova.GetKollaConfigVolumeMount("nova-novncproxy"),
-	}
+	volumeMounts := nova.GetConfVolumeMounts(instance.Spec.CustomServiceConfig != "")
 
 	// add CA cert if defined
 	if instance.Spec.TLS.CaBundleSecretName != "" {
@@ -85,8 +83,10 @@ func StatefulSet(
 
 	// add MTLS cert if defined
 	if memcached.Status.MTLSCert != "" {
+		certMountPath := memcachedv1.CertPathDst
+		keyMountPath := memcachedv1.KeyPathDst
 		volumes = append(volumes, memcached.CreateMTLSVolume())
-		volumeMounts = append(volumeMounts, memcached.CreateMTLSVolumeMounts(nil, nil)...)
+		volumeMounts = append(volumeMounts, memcached.CreateMTLSVolumeMounts(&certMountPath, &keyMountPath)...)
 	}
 
 	// add service certs if defined
@@ -95,6 +95,8 @@ func StatefulSet(
 		if err != nil {
 			return nil, err
 		}
+		svc.CertMount = ptr.To(fmt.Sprintf("/etc/pki/tls/certs/%s.crt", ServiceName))
+		svc.KeyMount = ptr.To(fmt.Sprintf("/etc/pki/tls/private/%s.key", ServiceName))
 		volumes = append(volumes, svc.CreateVolume(ServiceName))
 		volumeMounts = append(volumeMounts, svc.CreateVolumeMounts(ServiceName)...)
 	}
@@ -105,6 +107,8 @@ func StatefulSet(
 		if err != nil {
 			return nil, err
 		}
+		svc.CertMount = ptr.To("/etc/pki/tls/certs/vencrypt.crt")
+		svc.KeyMount = ptr.To("/etc/pki/tls/private/vencrypt.key")
 		volumes = append(volumes, svc.CreateVolume(VencryptName))
 		volumeMounts = append(volumeMounts, svc.CreateVolumeMounts(VencryptName)...)
 	}
@@ -128,23 +132,22 @@ func StatefulSet(
 				Spec: corev1.PodSpec{
 					ServiceAccountName:           instance.Spec.ServiceAccount,
 					AutomountServiceAccountToken: ptr.To(false),
+					SecurityContext:              pod.RestrictivePodSecurityContext(users.NovaUID, users.NovaGID),
 					Volumes:                      volumes,
 					Containers: []corev1.Container{
 						{
 							Name: instance.Name + "-novncproxy",
 							Command: []string{
-								"/bin/bash",
+								"/usr/bin/nova-novncproxy",
 							},
-							Args:  args,
-							Image: instance.Spec.ContainerImage,
-							SecurityContext: &corev1.SecurityContext{
-								RunAsUser: ptr.To(nova.NovaUserID),
-							},
-							Env:            env,
-							VolumeMounts:   volumeMounts,
-							Resources:      instance.Spec.Resources,
-							ReadinessProbe: novncProbes.Readiness,
-							LivenessProbe:  novncProbes.Liveness,
+							Args:            []string{"--web", "/usr/share/novnc/"},
+							Image:           instance.Spec.ContainerImage,
+							SecurityContext: pod.RestrictiveSecurityContext(users.NovaUID, users.NovaGID),
+							Env:             env,
+							VolumeMounts:    volumeMounts,
+							Resources:       instance.Spec.Resources,
+							ReadinessProbe:  novncProbes.Readiness,
+							LivenessProbe:   novncProbes.Liveness,
 						},
 					},
 				},

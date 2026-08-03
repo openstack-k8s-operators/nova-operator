@@ -1032,9 +1032,9 @@ var _ = Describe("Nova reconfiguration", func() {
 			cron := GetCronJob(cell0.DBPurgeCronJobName)
 
 			g.Expect(cron.Spec.Schedule).To(Equal("3 0 * * *"))
-			jobEnv := cron.Spec.JobTemplate.Spec.Template.Spec.Containers[0].Env
-			g.Expect(GetEnvVarValue(jobEnv, "ARCHIVE_AGE", "")).To(Equal("33"))
-			g.Expect(GetEnvVarValue(jobEnv, "PURGE_AGE", "")).To(Equal("99"))
+			cmd := cron.Spec.JobTemplate.Spec.Template.Spec.Containers[0].Command
+			g.Expect(cmd).To(ContainElement(ContainSubstring(`date --date="33 days ago"`)))
+			g.Expect(cmd).To(ContainElement(ContainSubstring(`date --date="99 days ago"`)))
 		}, timeout, interval).Should(Succeed())
 	})
 	It("does not change status if label is added", func() {

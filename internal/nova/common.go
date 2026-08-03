@@ -18,15 +18,6 @@ package nova
 
 import (
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
-	internalcommon "github.com/openstack-k8s-operators/nova-operator/internal/common"
-)
-
-const (
-	// KollaServiceCommand - the command to start the service binary in the kolla container
-	KollaServiceCommand = internalcommon.ServiceCommand
-	// NovaUserID is the linux user ID used by Kolla for the nova user
-	// in the service containers
-	NovaUserID int64 = 42436
 )
 
 const (

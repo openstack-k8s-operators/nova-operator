@@ -257,18 +257,6 @@ var _ = Describe("NovaConductor controller", func() {
 					ContainSubstring("[client]\nssl=0"))
 				extraData := string(configDataMap.Data["02-nova-override.conf"])
 				Expect(extraData).To(Equal("foo=bar"))
-
-				scriptMap := th.GetSecret(cell0.ConductorScriptDataName)
-				// Everything under templates/nova/conductor are added automatically by
-				// lib-common
-				Expect(scriptMap.Data).Should(HaveKey("dbsync.sh"))
-				scriptData := string(scriptMap.Data["dbsync.sh"])
-				Expect(scriptData).Should(ContainSubstring("nova-manage db sync"))
-				Expect(scriptData).Should(ContainSubstring("nova-manage api_db sync"))
-				Expect(scriptMap.Data).Should(HaveKey("dbpurge.sh"))
-				scriptData = string(scriptMap.Data["dbpurge.sh"])
-				Expect(scriptData).Should(ContainSubstring("nova-manage db archive_deleted_rows"))
-				Expect(scriptData).Should(ContainSubstring("nova-manage db purge"))
 			})
 
 			It("stored the input hash in the Status", func() {
@@ -316,12 +304,14 @@ var _ = Describe("NovaConductor controller", func() {
 			Expect(job.Spec.Template.Spec.ServiceAccountName).To(Equal("nova-sa"))
 			Expect(job.Spec.Template.Spec.AutomountServiceAccountToken).NotTo(BeNil())
 			Expect(*job.Spec.Template.Spec.AutomountServiceAccountToken).To(BeFalse())
-			Expect(job.Spec.Template.Spec.Volumes).To(HaveLen(2))
+			Expect(job.Spec.Template.Spec.Volumes).To(HaveLen(1))
 			Expect(job.Spec.Template.Spec.InitContainers).To(BeEmpty())
 			Expect(job.Spec.Template.Spec.Containers).To(HaveLen(1))
 			container := job.Spec.Template.Spec.Containers[0]
-			Expect(container.VolumeMounts).To(HaveLen(3))
+			Expect(container.VolumeMounts).To(HaveLen(4))
 			Expect(container.Image).To(Equal(ContainerImage))
+			Expect(container.Command).To(ContainElement(ContainSubstring("nova-manage db sync")))
+			Expect(container.Command).To(ContainElement(ContainSubstring("nova-manage api_db sync")))
 		})
 
 		When("DB sync fails", func() {
@@ -415,11 +405,13 @@ var _ = Describe("NovaConductor controller", func() {
 				cron := GetCronJob(cell0.DBPurgeCronJobName)
 
 				Expect(cron.Spec.Schedule).To(Equal(*conductor.Spec.DBPurge.Schedule))
-				jobEnv := cron.Spec.JobTemplate.Spec.Template.Spec.Containers[0].Env
-				Expect(GetEnvVarValue(jobEnv, "ARCHIVE_AGE", "")).To(
-					Equal(fmt.Sprintf("%d", *conductor.Spec.DBPurge.ArchiveAge)))
-				Expect(GetEnvVarValue(jobEnv, "PURGE_AGE", "")).To(
-					Equal(fmt.Sprintf("%d", *conductor.Spec.DBPurge.PurgeAge)))
+				cmd := cron.Spec.JobTemplate.Spec.Template.Spec.Containers[0].Command
+				Expect(cmd).To(ContainElement(ContainSubstring("nova-manage db archive_deleted_rows")))
+				Expect(cmd).To(ContainElement(ContainSubstring(
+					fmt.Sprintf(`date --date="%d days ago"`, *conductor.Spec.DBPurge.ArchiveAge))))
+				Expect(cmd).To(ContainElement(ContainSubstring("nova-manage db purge")))
+				Expect(cmd).To(ContainElement(ContainSubstring(
+					fmt.Sprintf(`date --date="%d days ago"`, *conductor.Spec.DBPurge.PurgeAge))))
 				service := cron.Spec.JobTemplate.Labels["service"]
 				Expect(service).To(Equal("nova-conductor"))
 				nodeSelector := cron.Spec.JobTemplate.Spec.Template.Spec.NodeSelector

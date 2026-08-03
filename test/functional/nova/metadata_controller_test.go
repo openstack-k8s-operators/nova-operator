@@ -273,7 +273,7 @@ var _ = Describe("NovaMetadata controller", func() {
 				Expect(ss.Spec.Template.Spec.AutomountServiceAccountToken).NotTo(BeNil())
 				Expect(*ss.Spec.Template.Spec.AutomountServiceAccountToken).To(BeFalse())
 				Expect(int(*ss.Spec.Replicas)).To(Equal(1))
-				Expect(ss.Spec.Template.Spec.Volumes).To(HaveLen(2))
+				Expect(ss.Spec.Template.Spec.Volumes).To(HaveLen(4))
 				Expect(ss.Spec.Template.Spec.Containers).To(HaveLen(2))
 				Expect(ss.Spec.Selector.MatchLabels).To(Equal(map[string]string{"service": "nova-metadata"}))
 
@@ -282,7 +282,7 @@ var _ = Describe("NovaMetadata controller", func() {
 				Expect(container.Image).To(Equal(ContainerImage))
 
 				container = ss.Spec.Template.Spec.Containers[1]
-				Expect(container.VolumeMounts).To(HaveLen(3))
+				Expect(container.VolumeMounts).To(HaveLen(10))
 				Expect(container.Image).To(Equal(ContainerImage))
 
 				Expect(container.LivenessProbe.HTTPGet.Port.IntVal).To(Equal(int32(8775)))
@@ -995,7 +995,7 @@ var _ = Describe("NovaMetadata controller", func() {
 
 			// Check the resulting deployment fields
 			Expect(int(*ss.Spec.Replicas)).To(Equal(1))
-			Expect(ss.Spec.Template.Spec.Volumes).To(HaveLen(4))
+			Expect(ss.Spec.Template.Spec.Volumes).To(HaveLen(6))
 			Expect(ss.Spec.Template.Spec.Containers).To(HaveLen(2))
 
 			// cert deployment volumes
@@ -1066,7 +1066,7 @@ var _ = Describe("NovaMetadata controller", func() {
 
 			// Check the resulting deployment fields
 			Expect(int(*ss.Spec.Replicas)).To(Equal(1))
-			Expect(ss.Spec.Template.Spec.Volumes).To(HaveLen(4))
+			Expect(ss.Spec.Template.Spec.Volumes).To(HaveLen(6))
 			Expect(ss.Spec.Template.Spec.Containers).To(HaveLen(2))
 
 			// Grab the current config hash
@@ -1338,7 +1338,7 @@ var _ = Describe("NovaMetadata controller", func() {
 			Expect(int(*ss.Spec.Replicas)).To(Equal(1))
 
 			// MTLS additional volume
-			Expect(ss.Spec.Template.Spec.Volumes).To(HaveLen(5))
+			Expect(ss.Spec.Template.Spec.Volumes).To(HaveLen(7))
 			Expect(ss.Spec.Template.Spec.Containers).To(HaveLen(2))
 
 			// MTLS additional volume

@@ -21,7 +21,8 @@ import (
 	internalcommon "github.com/openstack-k8s-operators/nova-operator/internal/common"
 	"github.com/openstack-k8s-operators/nova-operator/internal/nova"
 
-	env "github.com/openstack-k8s-operators/lib-common/modules/common/env"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/pod"
+	"github.com/openstack-k8s-operators/lib-common/modules/users"
 
 	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -37,26 +38,18 @@ func CellDBSyncJob(
 	annotations map[string]string,
 	memcached *memcachedv1.Memcached,
 ) *batchv1.Job {
-	args := []string{"-c", nova.KollaServiceCommand}
-
-	envVars := map[string]env.Setter{}
-	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
-	envVars["KOLLA_BOOTSTRAP"] = env.SetValue("true")
-
-	envVars["CELL_NAME"] = env.SetValue(instance.Spec.CellName)
-
-	env := env.MergeEnvs([]corev1.EnvVar{}, envVars)
+	// cell0 additionally needs its API DB schema synced before the per-cell
+	// DB sync runs.
+	script := "nova-manage db sync --local_cell"
+	if instance.Spec.CellName == "cell0" {
+		script = "nova-manage api_db sync && " + script
+	}
 
 	// create Volume and VolumeMounts
 	volumes := []corev1.Volume{
 		nova.GetConfigVolume(internalcommon.GetServiceConfigSecretName(instance.Name)),
-		nova.GetScriptVolume(internalcommon.GetScriptSecretName(instance.Name)),
 	}
-	volumeMounts := []corev1.VolumeMount{
-		nova.GetConfigVolumeMount(),
-		nova.GetScriptVolumeMount(),
-		nova.GetKollaConfigVolumeMount("nova-conductor-dbsync"),
-	}
+	volumeMounts := nova.GetConfVolumeMounts(instance.Spec.CustomServiceConfig != "")
 
 	// add CA cert if defined
 	if instance.Spec.TLS.CaBundleSecretName != "" {
@@ -66,8 +59,10 @@ func CellDBSyncJob(
 
 	// add MTLS cert if defined
 	if memcached.Status.MTLSCert != "" {
+		certMountPath := memcachedv1.CertPathDst
+		keyMountPath := memcachedv1.KeyPathDst
 		volumes = append(volumes, memcached.CreateMTLSVolume())
-		volumeMounts = append(volumeMounts, memcached.CreateMTLSVolumeMounts(nil, nil)...)
+		volumeMounts = append(volumeMounts, memcached.CreateMTLSVolumeMounts(&certMountPath, &keyMountPath)...)
 	}
 
 	job := &batchv1.Job{
@@ -83,20 +78,15 @@ func CellDBSyncJob(
 					RestartPolicy:                corev1.RestartPolicyOnFailure,
 					ServiceAccountName:           instance.Spec.ServiceAccount,
 					AutomountServiceAccountToken: ptr.To(false),
+					SecurityContext:              pod.RestrictivePodSecurityContext(users.NovaUID, users.NovaGID),
 					Volumes:                      volumes,
 					Containers: []corev1.Container{
 						{
-							Name: instance.Name + "-db-sync",
-							Command: []string{
-								"/bin/bash",
-							},
-							Args:  args,
-							Image: instance.Spec.ContainerImage,
-							SecurityContext: &corev1.SecurityContext{
-								RunAsUser: ptr.To(nova.NovaUserID),
-							},
-							Env:          env,
-							VolumeMounts: volumeMounts,
+							Name:            instance.Name + "-db-sync",
+							Command:         []string{"/bin/bash", "-c", script},
+							Image:           instance.Spec.ContainerImage,
+							SecurityContext: pod.RestrictiveSecurityContext(users.NovaUID, users.NovaGID),
+							VolumeMounts:    volumeMounts,
 						},
 					},
 				},

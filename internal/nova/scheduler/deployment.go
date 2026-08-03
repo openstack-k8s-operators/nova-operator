@@ -21,7 +21,9 @@ import (
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	affinity "github.com/openstack-k8s-operators/lib-common/modules/common/affinity"
 	env "github.com/openstack-k8s-operators/lib-common/modules/common/env"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/pod"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/probes"
+	"github.com/openstack-k8s-operators/lib-common/modules/users"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/nova/v1beta1"
 	internalcommon "github.com/openstack-k8s-operators/nova-operator/internal/common"
 	"github.com/openstack-k8s-operators/nova-operator/internal/nova"
@@ -54,10 +56,7 @@ func StatefulSet(
 		return nil, err
 	}
 
-	args := []string{"-c", nova.KollaServiceCommand}
-
 	envVars := map[string]env.Setter{}
-	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
 	// NOTE(gibi): The statefulset does not use this hash directly. We store it
 	// in the environment to trigger a Pod restart if any input of the
 	// statefulset has changed. The k8s will trigger a restart automatically if
@@ -69,10 +68,7 @@ func StatefulSet(
 	volumes := []corev1.Volume{
 		nova.GetConfigVolume(internalcommon.GetServiceConfigSecretName(instance.Name)),
 	}
-	volumeMounts := []corev1.VolumeMount{
-		nova.GetConfigVolumeMount(),
-		nova.GetKollaConfigVolumeMount("nova-scheduler"),
-	}
+	volumeMounts := nova.GetConfVolumeMounts(instance.Spec.CustomServiceConfig != "")
 
 	// add CA cert if defined
 	if instance.Spec.TLS.CaBundleSecretName != "" {
@@ -82,8 +78,10 @@ func StatefulSet(
 
 	// add MTLS cert if defined
 	if memcached.Status.MTLSCert != "" {
+		certMountPath := memcachedv1.CertPathDst
+		keyMountPath := memcachedv1.KeyPathDst
 		volumes = append(volumes, memcached.CreateMTLSVolume())
-		volumeMounts = append(volumeMounts, memcached.CreateMTLSVolumeMounts(nil, nil)...)
+		volumeMounts = append(volumeMounts, memcached.CreateMTLSVolumeMounts(&certMountPath, &keyMountPath)...)
 	}
 
 	statefulset := &appsv1.StatefulSet{
@@ -105,23 +103,21 @@ func StatefulSet(
 				Spec: corev1.PodSpec{
 					ServiceAccountName:           instance.Spec.ServiceAccount,
 					AutomountServiceAccountToken: ptr.To(false),
+					SecurityContext:              pod.RestrictivePodSecurityContext(users.NovaUID, users.NovaGID),
 					Volumes:                      volumes,
 					Containers: []corev1.Container{
 						{
 							Name: instance.Name + "-scheduler",
 							Command: []string{
-								"/bin/bash",
+								"/usr/bin/nova-scheduler",
 							},
-							Args:  args,
-							Image: instance.Spec.ContainerImage,
-							SecurityContext: &corev1.SecurityContext{
-								RunAsUser: ptr.To(nova.NovaUserID),
-							},
-							Env:           env,
-							VolumeMounts:  volumeMounts,
-							Resources:     instance.Spec.Resources,
-							StartupProbe:  schedulerProbes.Startup,
-							LivenessProbe: schedulerProbes.Liveness,
+							Image:           instance.Spec.ContainerImage,
+							SecurityContext: pod.RestrictiveSecurityContext(users.NovaUID, users.NovaGID),
+							Env:             env,
+							VolumeMounts:    volumeMounts,
+							Resources:       instance.Spec.Resources,
+							StartupProbe:    schedulerProbes.Startup,
+							LivenessProbe:   schedulerProbes.Liveness,
 						},
 					},
 				},

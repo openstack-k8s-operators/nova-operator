@@ -93,7 +93,7 @@ func (r *NovaReconciler) GetLogger(ctx context.Context) logr.Logger {
 // +kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=roles,verbs=get;list;watch;create;update;patch
 // +kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=rolebindings,verbs=get;list;watch;create;update;patch
 // service account permissions that are needed to grant permission to the above
-// +kubebuilder:rbac:groups="security.openshift.io",resourceNames=anyuid,resources=securitycontextconstraints,verbs=use
+// +kubebuilder:rbac:groups="security.openshift.io",resourceNames=nonroot-v2,resources=securitycontextconstraints,verbs=use
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch;delete;
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
@@ -197,7 +197,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	rbacRules := []rbacv1.PolicyRule{
 		{
 			APIGroups:     []string{"security.openshift.io"},
-			ResourceNames: []string{"anyuid"},
+			ResourceNames: []string{"nonroot-v2"},
 			Resources:     []string{"securitycontextconstraints"},
 			Verbs:         []string{"use"},
 		},
@@ -1388,7 +1388,7 @@ func (r *NovaReconciler) ensureCell(
 
 	// We need to discover computes when cell have compute templates and mapping is done
 	status, err = r.ensureNovaComputeDiscover(
-		ctx, h, instance, cell, cellTemplate, scriptName, configName)
+		ctx, h, instance, cell, cellTemplate, configName)
 
 	if status == nova.CellComputeDiscoveryReady {
 		status = nova.CellReady
@@ -1415,7 +1415,6 @@ func (r *NovaReconciler) ensureNovaComputeDiscover(
 	instance *novav1.Nova,
 	cell *novav1.NovaCell,
 	cellTemplate novav1.NovaCellTemplate,
-	scriptName string,
 	configName string,
 ) (nova.CellDeploymentStatus, error) {
 	Log := r.GetLogger(ctx)
@@ -1429,7 +1428,7 @@ func (r *NovaReconciler) ensureNovaComputeDiscover(
 	labels := map[string]string{
 		common.AppSelector: NovaLabelPrefix,
 	}
-	jobDef := nova.HostDiscoveryJob(cell, configName, scriptName, cell.Status.Hash[novav1.ComputeDiscoverHashKey], labels)
+	jobDef := nova.HostDiscoveryJob(cell, configName, cell.Status.Hash[novav1.ComputeDiscoverHashKey], labels)
 
 	job := job.NewJob(
 		jobDef, cell.Name+"-host-discover",

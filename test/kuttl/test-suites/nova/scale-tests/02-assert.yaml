@@ -232,7 +232,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   annotations:
-    openshift.io/scc: anyuid
+    openshift.io/scc: nonroot-v2
   labels:
     service: nova-api
   name: nova-kuttl-api-0
@@ -251,7 +251,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   annotations:
-    openshift.io/scc: anyuid
+    openshift.io/scc: nonroot-v2
   labels:
     service: nova-api
     statefulset.kubernetes.io/pod-name: nova-kuttl-api-1
@@ -271,7 +271,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   annotations:
-    openshift.io/scc: anyuid
+    openshift.io/scc: nonroot-v2
   labels:
     service: nova-api
     statefulset.kubernetes.io/pod-name: nova-kuttl-api-2
@@ -353,7 +353,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   annotations:
-    openshift.io/scc: anyuid
+    openshift.io/scc: nonroot-v2
   labels:
     service: nova-metadata
     statefulset.kubernetes.io/pod-name: nova-kuttl-metadata-0
@@ -379,7 +379,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   annotations:
-    openshift.io/scc: anyuid
+    openshift.io/scc: nonroot-v2
   labels:
     service: nova-metadata
     statefulset.kubernetes.io/pod-name: nova-kuttl-metadata-1
@@ -405,7 +405,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   annotations:
-    openshift.io/scc: anyuid
+    openshift.io/scc: nonroot-v2
   labels:
     service: nova-metadata
     statefulset.kubernetes.io/pod-name: nova-kuttl-metadata-2
@@ -431,7 +431,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   annotations:
-    openshift.io/scc: anyuid
+    openshift.io/scc: nonroot-v2
   labels:
     cell: cell0
     service: nova-conductor
@@ -455,7 +455,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   annotations:
-    openshift.io/scc: anyuid
+    openshift.io/scc: nonroot-v2
   labels:
     cell: cell0
     service: nova-conductor
@@ -479,7 +479,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   annotations:
-    openshift.io/scc: anyuid
+    openshift.io/scc: nonroot-v2
   labels:
     cell: cell0
     service: nova-conductor
@@ -503,7 +503,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   annotations:
-    openshift.io/scc: anyuid
+    openshift.io/scc: nonroot-v2
   labels:
     cell: cell1
     service: nova-conductor
@@ -526,7 +526,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   annotations:
-    openshift.io/scc: anyuid
+    openshift.io/scc: nonroot-v2
   labels:
     cell: cell1
     service: nova-conductor
@@ -549,7 +549,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   annotations:
-    openshift.io/scc: anyuid
+    openshift.io/scc: nonroot-v2
   labels:
     cell: cell1
     service: nova-conductor
