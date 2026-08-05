@@ -191,7 +191,6 @@ var _ = Describe("CyborgConductor controller", func() {
 				configSecret := th.GetSecret(conductorNames.ConfigDataName)
 				g.Expect(configSecret.Data).To(HaveKey("00-default.conf"))
 				g.Expect(configSecret.Data).To(HaveKey("my.cnf"))
-				g.Expect(configSecret.Data).To(HaveKey("cyborg-conductor-config.json"))
 
 				defaultConf := string(configSecret.Data["00-default.conf"])
 				g.Expect(defaultConf).To(ContainSubstring("[database]"))
@@ -204,8 +203,6 @@ var _ = Describe("CyborgConductor controller", func() {
 				g.Expect(defaultConf).To(ContainSubstring("auth_type = password"))
 				g.Expect(defaultConf).To(ContainSubstring("username = cyborg"))
 				g.Expect(defaultConf).To(ContainSubstring("region_name = regionOne"))
-				configConf := string(configSecret.Data["cyborg-conductor-config.json"])
-				g.Expect(configConf).To(ContainSubstring("cyborg-conductor"))
 
 				// No TLS => my.cnf should be minimal
 				myCnf := string(configSecret.Data["my.cnf"])
@@ -235,19 +232,13 @@ var _ = Describe("CyborgConductor controller", func() {
 				g.Expect(container.Image).To(Equal(ConductorTestImage))
 
 				hasConfigHash := false
-				hasKollaStrategy := false
 				for _, envVar := range container.Env {
 					if envVar.Name == "CONFIG_HASH" {
 						hasConfigHash = true
 						g.Expect(envVar.Value).NotTo(BeEmpty())
 					}
-					if envVar.Name == "KOLLA_CONFIG_STRATEGY" {
-						hasKollaStrategy = true
-						g.Expect(envVar.Value).To(Equal("COPY_ALWAYS"))
-					}
 				}
 				g.Expect(hasConfigHash).To(BeTrue())
-				g.Expect(hasKollaStrategy).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 		})
 

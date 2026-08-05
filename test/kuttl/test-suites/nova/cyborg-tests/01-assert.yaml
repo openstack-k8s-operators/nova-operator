@@ -22,10 +22,6 @@ commands:
 - script: |
     oc get secret cyborg-kuttl-config-data -n $NAMESPACE \
       -o jsonpath='{.data.00-default\.conf}' | base64 -d | grep -q '\[DEFAULT\]'
-# cyborg-dbsync-config.json must contain the dbsync kolla command
-- script: |
-    oc get secret cyborg-kuttl-config-data -n $NAMESPACE \
-      -o jsonpath='{.data.cyborg-dbsync-config\.json}' | base64 -d | grep -q 'cyborg-dbsync'
 # --- CyborgAPI config-data secret (cyborg-kuttl-api-config-data) content ---
 # 00-default.conf must contain the [DEFAULT] OpenStack config section
 - script: |
@@ -35,11 +31,6 @@ commands:
 - script: |
     oc get secret cyborg-kuttl-api-config-data -n $NAMESPACE \
       -o jsonpath='{.data.10-cyborg-wsgi-main\.conf}' | base64 -d | grep -q 'WSGIScriptAlias'
-# --- CyborgConductor config-data secret (cyborg-kuttl-conductor-config-data) content ---
-# cyborg-conductor-config.json must specify the conductor kolla command
-- script: |
-    oc get secret cyborg-kuttl-conductor-config-data -n $NAMESPACE \
-      -o jsonpath='{.data.cyborg-conductor-config\.json}' | base64 -d | grep -q 'cyborg-conductor'
 # --- Cyborg agent config secret (cyborg-kuttl-agent-config) content ---
 # 00-default.conf must contain the [DEFAULT] OpenStack config section
 - script: |
@@ -74,27 +65,25 @@ commands:
       -o jsonpath='{.spec.template.spec.volumes[?(@.name=="config-data")].secret.secretName}' \
       | grep -q 'cyborg-kuttl-conductor-config-data'
 # --- CyborgAPI pod (cyborg-kuttl-api-0) volume mounts ---
-# cyborg-api container must mount config-data at /var/lib/config-data/default
+# cyborg-api container must mount 00-default.conf directly at its final
+# destination via SubPath (no more staging + kolla config.json copy)
 - script: |
     oc get pod cyborg-kuttl-api-0 -n $NAMESPACE -o json \
-      | grep -q '"mountPath": "/var/lib/config-data/default"'
-# cyborg-api container must expose the kolla config.json via cyborg-api-config.json subPath
+      | grep -q '"mountPath": "/etc/cyborg/cyborg.conf.d/00-default.conf"'
+# cyborg-api container must mount httpd.conf directly at its final destination
 - script: |
     oc get pod cyborg-kuttl-api-0 -n $NAMESPACE -o json \
-      | grep -q '"subPath": "cyborg-api-config.json"'
+      | grep -q '"subPath": "httpd.conf"'
 # cyborg-api container must mount my.cnf for the MariaDB client configuration
 - script: |
     oc get pod cyborg-kuttl-api-0 -n $NAMESPACE -o json \
       | grep -q '"mountPath": "/etc/my.cnf"'
 # --- CyborgConductor pod (cyborg-kuttl-conductor-0) volume mounts ---
-# cyborg-conductor container must mount config-data at /var/lib/config-data/default
+# cyborg-conductor container must mount 00-default.conf directly at its
+# final destination via SubPath (no more staging + kolla config.json copy)
 - script: |
     oc get pod cyborg-kuttl-conductor-0 -n $NAMESPACE -o json \
-      | grep -q '"mountPath": "/var/lib/config-data/default"'
-# cyborg-conductor container must expose the kolla config.json via conductor subPath
-- script: |
-    oc get pod cyborg-kuttl-conductor-0 -n $NAMESPACE -o json \
-      | grep -q '"subPath": "cyborg-conductor-config.json"'
+      | grep -q '"mountPath": "/etc/cyborg/cyborg.conf.d/00-default.conf"'
 # cyborg-conductor container must mount my.cnf for the MariaDB client configuration
 - script: |
     oc get pod cyborg-kuttl-conductor-0 -n $NAMESPACE -o json \
@@ -399,7 +388,7 @@ metadata:
   name: cyborg-kuttl
 ---
 # Assert the Cyborg controller config-data secret exists.
-# Expected files: 00-default.conf, cyborg-dbsync-config.json, my.cnf
+# Expected files: 00-default.conf, my.cnf
 # Content checks are performed via the commands block above.
 apiVersion: v1
 kind: Secret
@@ -407,8 +396,8 @@ metadata:
   name: cyborg-kuttl-config-data
 ---
 # Assert the CyborgAPI controller config-data secret exists.
-# Expected files: 00-default.conf, cyborg-api-config.json, httpd.conf,
-# ssl.conf, 10-cyborg-wsgi-main.conf, my.cnf
+# Expected files: 00-default.conf, httpd.conf, ssl.conf,
+# 10-cyborg-wsgi-main.conf, my.cnf
 # Content checks are performed via the commands block above.
 apiVersion: v1
 kind: Secret
@@ -416,7 +405,7 @@ metadata:
   name: cyborg-kuttl-api-config-data
 ---
 # Assert the CyborgConductor controller config-data secret exists.
-# Expected files: 00-default.conf, cyborg-conductor-config.json, my.cnf
+# Expected files: 00-default.conf, my.cnf
 # Content checks are performed via the commands block above.
 apiVersion: v1
 kind: Secret
@@ -457,15 +446,14 @@ status:
   readyReplicas: 1
 ---
 # Assert the cyborg-api pod is running with both containers ready.
-# Volume mount checks (/var/lib/config-data/default, /etc/my.cnf,
-# kolla config.json via cyborg-api-config.json subPath) are performed
-# via the commands block above.
+# Volume mount checks (final-path 00-default.conf/httpd.conf SubPath mounts,
+# /etc/my.cnf) are performed via the commands block above.
 # containerStatuses are sorted alphabetically: cyborg-api before cyborg-api-log
 apiVersion: v1
 kind: Pod
 metadata:
   annotations:
-    openshift.io/scc: anyuid
+    openshift.io/scc: nonroot-v2
   labels:
     service: cyborg-api
   name: cyborg-kuttl-api-0
@@ -481,14 +469,13 @@ status:
     started: true
 ---
 # Assert the cyborg-conductor pod is running with its container ready.
-# Volume mount checks (/var/lib/config-data/default, /etc/my.cnf,
-# kolla config.json via cyborg-conductor-config.json subPath) are performed
-# via the commands block above.
+# Volume mount checks (final-path 00-default.conf SubPath mount, /etc/my.cnf)
+# are performed via the commands block above.
 apiVersion: v1
 kind: Pod
 metadata:
   annotations:
-    openshift.io/scc: anyuid
+    openshift.io/scc: nonroot-v2
   labels:
     service: cyborg-conductor
   name: cyborg-kuttl-conductor-0

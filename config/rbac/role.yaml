@@ -275,14 +275,6 @@ rules:
 - apiGroups:
   - security.openshift.io
   resourceNames:
-  - anyuid
-  resources:
-  - securitycontextconstraints
-  verbs:
-  - use
-- apiGroups:
-  - security.openshift.io
-  resourceNames:
   - nonroot-v2
   resources:
   - securitycontextconstraints

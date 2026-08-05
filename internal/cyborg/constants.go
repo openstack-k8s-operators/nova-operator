@@ -45,13 +45,13 @@ const (
 	// DefaultsConfigFileName is the file name with default configuration
 	DefaultsConfigFileName = "00-default.conf"
 
+	// ServiceCustomConfigFileName is the file name with the CustomServiceConfig
+	// override, only present in the config Secret when actually set
+	ServiceCustomConfigFileName = "01-service-custom.conf"
+
 	// CyborgLogPath is the default path for the cyborg service logs
 	CyborgLogPath = "/var/log/cyborg/"
 
 	// LogVolume is the name of the EmptyDir volume used for log streaming
 	LogVolume = "logs"
-
-	// CyborgUserID is the linux user ID used by Kolla for the cyborg user
-	// in the service containers
-	CyborgUserID int64 = 42485
 )

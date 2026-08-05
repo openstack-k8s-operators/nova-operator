@@ -21,7 +21,9 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/affinity"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/pod"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/probes"
+	"github.com/openstack-k8s-operators/lib-common/modules/users"
 
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	cyborgv1beta1 "github.com/openstack-k8s-operators/nova-operator/api/cyborg/v1beta1"
@@ -57,44 +59,14 @@ func StatefulSet(
 		return nil, err
 	}
 
-	var config0644AccessMode int32 = 0644
-
 	envVars := make(map[string]env.Setter)
-	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
 	envVars["CONFIG_HASH"] = env.SetValue(configHash)
-	args := []string{"-c", internalcommon.ServiceCommand}
 
 	volumes := []corev1.Volume{
-		{
-			Name: cyborg.ConfigVolume,
-			VolumeSource: corev1.VolumeSource{
-				Secret: &corev1.SecretVolumeSource{
-					DefaultMode: &config0644AccessMode,
-					SecretName:  internalcommon.GetServiceConfigSecretName(instance.Name),
-				},
-			},
-		},
+		cyborg.GetConfigVolume(internalcommon.GetServiceConfigSecretName(instance.Name)),
 	}
 
-	volumeMounts := []corev1.VolumeMount{
-		{
-			Name:      cyborg.ConfigVolume,
-			MountPath: "/var/lib/config-data/default",
-			ReadOnly:  true,
-		},
-		{
-			Name:      cyborg.ConfigVolume,
-			MountPath: "/var/lib/kolla/config_files/config.json",
-			SubPath:   "cyborg-conductor-config.json",
-			ReadOnly:  true,
-		},
-		{
-			Name:      cyborg.ConfigVolume,
-			MountPath: "/etc/my.cnf",
-			SubPath:   "my.cnf",
-			ReadOnly:  true,
-		},
-	}
+	volumeMounts := cyborg.GetConfVolumeMounts(instance.Spec.CustomServiceConfig != "")
 
 	if instance.Spec.TLS.CaBundleSecretName != "" {
 		volumes = append(volumes, instance.Spec.TLS.CreateVolume())
@@ -120,22 +92,21 @@ func StatefulSet(
 				Spec: corev1.PodSpec{
 					ServiceAccountName:           instance.Spec.ServiceAccount,
 					AutomountServiceAccountToken: ptr.To(false),
+					SecurityContext:              pod.RestrictivePodSecurityContext(users.CyborgUID, users.CyborgGID),
 					Containers: []corev1.Container{
 						{
 							Name: ComponentName,
 							Command: []string{
-								"/bin/bash",
+								"cyborg-conductor",
 							},
-							Args:  args,
-							Image: instance.Spec.ContainerImage,
-							SecurityContext: &corev1.SecurityContext{
-								RunAsUser: ptr.To(cyborg.CyborgUserID),
-							},
-							Env:           env.MergeEnvs([]corev1.EnvVar{}, envVars),
-							VolumeMounts:  volumeMounts,
-							Resources:     instance.Spec.Resources,
-							StartupProbe:  conductorProbes.Startup,
-							LivenessProbe: conductorProbes.Liveness,
+							Args:            []string{"--config-dir", "/etc/cyborg/cyborg.conf.d"},
+							Image:           instance.Spec.ContainerImage,
+							SecurityContext: pod.RestrictiveSecurityContext(users.CyborgUID, users.CyborgGID),
+							Env:             env.MergeEnvs([]corev1.EnvVar{}, envVars),
+							VolumeMounts:    volumeMounts,
+							Resources:       instance.Spec.Resources,
+							StartupProbe:    conductorProbes.Startup,
+							LivenessProbe:   conductorProbes.Liveness,
 						},
 					},
 					Volumes: volumes,

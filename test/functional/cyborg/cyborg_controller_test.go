@@ -316,13 +316,10 @@ var _ = Describe("Cyborg controller", func() {
 				configSecret := th.GetSecret(cyborgNames.ConfigDataName)
 				g.Expect(configSecret.Data).To(HaveKey("00-default.conf"))
 				g.Expect(configSecret.Data).To(HaveKey("my.cnf"))
-				g.Expect(configSecret.Data).To(HaveKey("cyborg-dbsync-config.json"))
 
 				defaultConf := string(configSecret.Data["00-default.conf"])
 				g.Expect(defaultConf).To(ContainSubstring("[database]"))
 				g.Expect(defaultConf).To(ContainSubstring("connection = mysql+pymysql://"))
-				dbsyncConf := string(configSecret.Data["cyborg-dbsync-config.json"])
-				g.Expect(dbsyncConf).To(ContainSubstring("cyborg-dbsync"))
 			}, timeout, interval).Should(Succeed())
 		})
 
