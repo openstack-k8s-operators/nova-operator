@@ -226,7 +226,6 @@ var _ = Describe("CyborgAPI controller", func() {
 				configSecret := th.GetSecret(apiNames.ConfigDataName)
 				g.Expect(configSecret.Data).To(HaveKey("00-default.conf"))
 				g.Expect(configSecret.Data).To(HaveKey("my.cnf"))
-				g.Expect(configSecret.Data).To(HaveKey("cyborg-api-config.json"))
 				g.Expect(configSecret.Data).To(HaveKey("httpd.conf"))
 				g.Expect(configSecret.Data).To(HaveKey("ssl.conf"))
 				g.Expect(configSecret.Data).To(HaveKey("10-cyborg-wsgi-main.conf"))
@@ -247,8 +246,6 @@ var _ = Describe("CyborgAPI controller", func() {
 				g.Expect(defaultConf).To(ContainSubstring("username = cyborg"))
 				g.Expect(defaultConf).To(ContainSubstring("region_name = regionOne"))
 				g.Expect(defaultConf).To(ContainSubstring("log_file = /var/log/cyborg/cyborg-api-test.log"))
-				configConf := string(configSecret.Data["cyborg-api-config.json"])
-				g.Expect(configConf).To(ContainSubstring("httpd"))
 
 				// No TLS => my.cnf should be minimal
 				myCnf := string(configSecret.Data["my.cnf"])
@@ -293,19 +290,13 @@ var _ = Describe("CyborgAPI controller", func() {
 				g.Expect(container.Image).To(Equal(APITestImage))
 
 				hasConfigHash := false
-				hasKollaStrategy := false
 				for _, envVar := range container.Env {
 					if envVar.Name == "CONFIG_HASH" {
 						hasConfigHash = true
 						g.Expect(envVar.Value).NotTo(BeEmpty())
 					}
-					if envVar.Name == "KOLLA_CONFIG_STRATEGY" {
-						hasKollaStrategy = true
-						g.Expect(envVar.Value).To(Equal("COPY_ALWAYS"))
-					}
 				}
 				g.Expect(hasConfigHash).To(BeTrue())
-				g.Expect(hasKollaStrategy).To(BeTrue())
 
 				// Log volume (EmptyDir) must be present
 				hasLogVolume := false

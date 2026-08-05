@@ -17,15 +17,15 @@ limitations under the License.
 package cyborg
 
 import (
-	"k8s.io/utils/ptr"
-
 	cyborgv1beta1 "github.com/openstack-k8s-operators/nova-operator/api/cyborg/v1beta1"
-	internalcommon "github.com/openstack-k8s-operators/nova-operator/internal/common"
 
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/pod"
+	"github.com/openstack-k8s-operators/lib-common/modules/users"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 )
 
 // DbSyncJob creates the Job definition for running the Cyborg database migration
@@ -36,14 +36,14 @@ func DbSyncJob(
 ) *batchv1.Job {
 	completions := int32(1)
 	parallelism := int32(1)
-	var config0644AccessMode int32 = 0644
+	var config0440AccessMode int32 = 0440
 
 	dbSyncVolume := []corev1.Volume{
 		{
 			Name: "db-sync-config-data",
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
-					DefaultMode: &config0644AccessMode,
+					DefaultMode: &config0440AccessMode,
 					SecretName:  instance.Name + "-config-data",
 					Items: []corev1.KeyToPath{
 						{
@@ -62,33 +62,14 @@ func DbSyncJob(
 			MountPath: "/etc/cyborg/cyborg.conf.d",
 			ReadOnly:  true,
 		},
-		{
-			Name:      ConfigVolume,
-			MountPath: "/var/lib/kolla/config_files/config.json",
-			SubPath:   "cyborg-dbsync-config.json",
-			ReadOnly:  true,
-		},
 	}
 
 	volumes := []corev1.Volume{
-		{
-			Name: ConfigVolume,
-			VolumeSource: corev1.VolumeSource{
-				Secret: &corev1.SecretVolumeSource{
-					DefaultMode: &config0644AccessMode,
-					SecretName:  instance.Name + "-config-data",
-				},
-			},
-		},
+		GetConfigVolume(instance.Name + "-config-data"),
 	}
 	volumes = append(volumes, dbSyncVolume...)
 
 	volumeMounts := []corev1.VolumeMount{
-		{
-			Name:      ConfigVolume,
-			MountPath: "/var/lib/config-data/default",
-			ReadOnly:  true,
-		},
 		{
 			Name:      ConfigVolume,
 			MountPath: "/etc/my.cnf",
@@ -103,11 +84,7 @@ func DbSyncJob(
 		volumeMounts = append(volumeMounts, instance.Spec.APIServiceTemplate.TLS.CreateVolumeMounts(nil)...)
 	}
 
-	args := []string{"-c", internalcommon.ServiceCommand}
-
 	envVars := make(map[string]env.Setter)
-	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
-	envVars["KOLLA_BOOTSTRAP"] = env.SetValue("TRUE")
 
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
@@ -128,19 +105,18 @@ func DbSyncJob(
 					RestartPolicy:                corev1.RestartPolicyOnFailure,
 					ServiceAccountName:           instance.RbacResourceName(),
 					AutomountServiceAccountToken: ptr.To(false),
+					SecurityContext:              pod.RestrictivePodSecurityContext(users.CyborgUID, users.CyborgGID),
 					Containers: []corev1.Container{
 						{
 							Name: "cyborg-db-sync",
 							Command: []string{
-								"/bin/bash",
+								"cyborg-dbsync",
 							},
-							Args:  args,
-							Image: instance.Spec.ConductorContainerImageURL,
-							SecurityContext: &corev1.SecurityContext{
-								RunAsUser: ptr.To(CyborgUserID),
-							},
-							Env:          env.MergeEnvs([]corev1.EnvVar{}, envVars),
-							VolumeMounts: volumeMounts,
+							Args:            []string{"--config-dir", "/etc/cyborg/cyborg.conf.d/", "upgrade"},
+							Image:           instance.Spec.ConductorContainerImageURL,
+							SecurityContext: pod.RestrictiveSecurityContext(users.CyborgUID, users.CyborgGID),
+							Env:             env.MergeEnvs([]corev1.EnvVar{}, envVars),
+							VolumeMounts:    volumeMounts,
 						},
 					},
 					Volumes: volumes,

@@ -1,3 +1,0 @@
-{
-    "command": "cyborg-dbsync --config-dir /etc/cyborg/cyborg.conf.d/ upgrade"
-}
