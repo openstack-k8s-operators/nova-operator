@@ -53,5 +53,5 @@ const (
 
 	// CyborgUserID is the linux user ID used by Kolla for the cyborg user
 	// in the service containers
-	CyborgUserID int64 = 42483
+	CyborgUserID int64 = 42485
 )
