@@ -11,11 +11,11 @@ require (
 	github.com/onsi/ginkgo/v2 v2.28.2
 	github.com/onsi/gomega v1.42.0
 	github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20260728161627-6ab1c3a7c62e
-	github.com/openstack-k8s-operators/keystone-operator/api v0.6.1-0.20260726210333-475fa1038cb3
+	github.com/openstack-k8s-operators/keystone-operator/api v0.6.1-0.20260804061928-8a744dddf5e4
 	github.com/openstack-k8s-operators/lib-common/modules/common v0.6.1-0.20260618132757-fe8e60d1d8a6
 	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.6.1-0.20260618132757-fe8e60d1d8a6
 	github.com/openstack-k8s-operators/lib-common/modules/test v0.6.1-0.20260618132757-fe8e60d1d8a6
-	github.com/openstack-k8s-operators/mariadb-operator/api v0.6.1-0.20260722125248-d8f7927832bc
+	github.com/openstack-k8s-operators/mariadb-operator/api v0.6.1-0.20260804072340-2499cf8764b5
 	github.com/openstack-k8s-operators/nova-operator/api v0.0.0-20221209164002-f9e6b9363961
 	go.uber.org/zap v1.28.0
 	golang.org/x/exp v0.0.0-20241217172543-b2144cdd0a67
