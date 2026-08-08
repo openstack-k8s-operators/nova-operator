@@ -10,12 +10,12 @@ require (
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.7.7
 	github.com/onsi/ginkgo/v2 v2.32.0
 	github.com/onsi/gomega v1.42.1
-	github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20260730063539-63801d0ec158
-	github.com/openstack-k8s-operators/keystone-operator/api v0.6.1-0.20260728100426-1496c8fa744f
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.6.1-0.20260725150913-e043d277ea5b
-	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.6.1-0.20260725150913-e043d277ea5b
-	github.com/openstack-k8s-operators/lib-common/modules/test v0.6.1-0.20260725150913-e043d277ea5b
-	github.com/openstack-k8s-operators/mariadb-operator/api v0.6.1-0.20260731065237-8e4c3b07129d
+	github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20260803180400-360617619b9b
+	github.com/openstack-k8s-operators/keystone-operator/api v0.6.1-0.20260806145859-f9da79b53e12
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.6.1-0.20260803111648-57597e898a6c
+	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.6.1-0.20260803111648-57597e898a6c
+	github.com/openstack-k8s-operators/lib-common/modules/test v0.6.1-0.20260803111648-57597e898a6c
+	github.com/openstack-k8s-operators/mariadb-operator/api v0.6.1-0.20260803180407-ebc12281c5f9
 	github.com/openstack-k8s-operators/nova-operator/api v0.0.0-00010101000000-000000000000
 	go.uber.org/zap v1.28.0
 	golang.org/x/exp v0.0.0-20260611194520-c48552f49976
@@ -71,7 +71,7 @@ require (
 	github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/openshift/api v3.9.0+incompatible // indirect
-	github.com/openstack-k8s-operators/lib-common/modules/storage v0.6.1-0.20260720124130-43c2e8c4a368 // indirect
+	github.com/openstack-k8s-operators/lib-common/modules/storage v0.6.1-0.20260725150913-e043d277ea5b // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_golang v1.22.0 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
