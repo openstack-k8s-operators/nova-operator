@@ -21,11 +21,10 @@ import (
 )
 
 // Container image fall-back defaults
-// TODO(amoralej): replace by proper s2i images when exist in o-k-o namespace.
 const (
-	CyborgAPIContainerImage       = "quay.io/amoralej/openstack-cyborg:master-latest"
-	CyborgConductorContainerImage = "quay.io/amoralej/openstack-cyborg:master-latest"
-	CyborgAgentContainerImage     = "quay.io/amoralej/openstack-cyborg-agent:master-latest"
+	CyborgAPIContainerImage       = "quay.io/openstack-k8s-operators/openstack-cyborg:master-latest"
+	CyborgConductorContainerImage = "quay.io/openstack-k8s-operators/openstack-cyborg:master-latest"
+	CyborgAgentContainerImage     = "quay.io/openstack-k8s-operators/openstack-cyborg-agent:master-latest"
 )
 
 // PasswordSelector to identify the DB and AdminUser password from the Secret
