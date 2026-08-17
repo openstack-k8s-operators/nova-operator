@@ -908,10 +908,10 @@ func SimulateReadyOfNovaTopServices() {
 
 	keystone.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
 
-	th.SimulateStatefulSetReplicaReady(novaNames.SchedulerStatefulSetName)
-	th.SimulateStatefulSetReplicaReady(novaNames.MetadataStatefulSetName)
-	th.SimulateStatefulSetReplicaReady(novaNames.APIStatefulSetName)
 	Eventually(func(g Gomega) {
+		th.SimulateStatefulSetReplicaReady(novaNames.SchedulerStatefulSetName)
+		th.SimulateStatefulSetReplicaReady(novaNames.MetadataStatefulSetName)
+		th.SimulateStatefulSetReplicaReady(novaNames.APIStatefulSetName)
 		nova := GetNova(novaNames.NovaName)
 		g.Expect(nova.Status.APIServiceReadyCount).To(Equal(int32(1)))
 		g.Expect(nova.Status.SchedulerServiceReadyCount).To(Equal(int32(1)))

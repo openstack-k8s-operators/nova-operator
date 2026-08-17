@@ -23,6 +23,11 @@ import (
 const (
 	// ACConsumerFinalizer is added to AC secrets that nova is actively consuming
 	ACConsumerFinalizer = "openstack.org/nova-ac-consumer"
+
+	// TransportConsumerFinalizer is added to transport URL secrets that nova
+	// is actively consuming, preventing the infra-operator from cleaning up
+	// old RabbitMQ users before nova pods have rolled out new credentials
+	TransportConsumerFinalizer = "openstack.org/nova-transport-consumer"
 )
 
 // DatabaseStatus -
