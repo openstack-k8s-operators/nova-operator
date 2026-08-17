@@ -48,6 +48,7 @@ import (
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 	job "github.com/openstack-k8s-operators/lib-common/modules/common/job"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/labels"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/object"
 	common_rbac "github.com/openstack-k8s-operators/lib-common/modules/common/rbac"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/secret"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
@@ -422,7 +423,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	// Create TransportURLs to access the message buses of each cell. Cell0
 	// message bus is always the same as the top level API message bus so
 	// we create API MQ separately first
-	apiTransportURL, apiRabbitmqUserName, apiQuorumQueues, apiMQStatus, apiMQError := r.ensureMQ(
+	apiTransportURL, apiRabbitmqUserName, apiQuorumQueues, apiMQStatus, apiTransportURLSecretName, apiMQError := r.ensureMQ(
 		ctx, h, instance, instance.Name+"-api-transport", instance.Spec.MessagingBus)
 	switch apiMQStatus {
 	case nova.MQFailed:
@@ -447,18 +448,30 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		return ctrl.Result{}, fmt.Errorf("%w from  for the API MQ: %d", util.ErrInvalidStatus, apiMQStatus)
 	}
 
+	// Add a consumer finalizer to the current API transport URL secret early,
+	// before deployment. The old secret's finalizer is only removed later (once
+	// all services have rolled out with the new credentials) so that the
+	// infra-operator does not revoke a RabbitMQ user still in use by pods.
+	if apiTransportURLSecretName != "" {
+		if err := object.ManageSecretConsumerFinalizer(ctx, h, instance.Namespace,
+			apiTransportURLSecretName, nova.TransportConsumerFinalizer); err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+
 	// Determine if notifications are enabled by checking NotificationsBus.Cluster
 	// (the webhook defaults this from the deprecated NotificationsBusInstance field)
 	var notificationTransportURL string
 	var notificationRabbitmqUserName string
 	var notificationMQStatus nova.MessageBusStatus
 	var notificationMQError error
+	var currentNotifSecretName string
 
 	notificationTransportName := instance.Name + "-notification-transport"
 	if instance.Spec.NotificationsBus != nil && instance.Spec.NotificationsBus.Cluster != "" {
 		// Use NotificationsBus config (never fall back to MessagingBus to ensure separation)
 		notificationsRabbitMqConfig := *instance.Spec.NotificationsBus
-		notificationTransportURL, notificationRabbitmqUserName, _, notificationMQStatus, notificationMQError = r.ensureMQ(
+		notificationTransportURL, notificationRabbitmqUserName, _, notificationMQStatus, currentNotifSecretName, notificationMQError = r.ensureMQ(
 			ctx, h, instance, notificationTransportName, notificationsRabbitMqConfig)
 
 		switch notificationMQStatus {
@@ -490,6 +503,16 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 			return ctrl.Result{}, fmt.Errorf("%w from  for the Notification MQ: %d",
 				util.ErrInvalidStatus, notificationMQStatus)
 		}
+
+		// Protect the current notifications transport URL secret with a consumer
+		// finalizer while it is in use; released later on rotation once all
+		// services have rolled out.
+		if currentNotifSecretName != "" {
+			if err := object.ManageSecretConsumerFinalizer(ctx, h, instance.Namespace,
+				currentNotifSecretName, nova.TransportConsumerFinalizer); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
 	} else {
 		instance.Status.Conditions.Remove(novav1.NovaNotificationMQReadyCondition)
 
@@ -514,6 +537,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 
 	cellMQs := map[string]*nova.MessageBus{}
 	cellRabbitmqUserNames := map[string]string{}
+	cellSecretNames := map[string]string{}
 	var failedMQs []string
 	var creatingMQs []string
 	for _, cellName := range orderedCellNames {
@@ -523,6 +547,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		var err error
 		cellTemplate := instance.Spec.CellTemplates[cellName]
 		var cellQuorumQueues bool
+		var cellSecretName string
 		// cell0 does not need its own cell message bus it uses the
 		// API message bus instead
 		if cellName == novav1.Cell0Name {
@@ -532,7 +557,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 			status = apiMQStatus
 			err = apiMQError
 		} else {
-			cellTransportURL, cellRabbitmqUserName, cellQuorumQueues, status, err = r.ensureMQ(
+			cellTransportURL, cellRabbitmqUserName, cellQuorumQueues, status, cellSecretName, err = r.ensureMQ(
 				ctx, h, instance, instance.Name+"-"+cellName+"-transport", cellTemplate.MessagingBus)
 		}
 		switch status {
@@ -546,6 +571,26 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		}
 		cellMQs[cellName] = &nova.MessageBus{TransportURL: cellTransportURL, QuorumQueues: cellQuorumQueues, Status: status}
 		cellRabbitmqUserNames[cellName] = cellRabbitmqUserName
+
+		// cell0 shares the API transport URL secret (already protected above),
+		// so only track per-cell transport secrets here. The current secret is
+		// remembered in an annotation so that on rotation we still know the old
+		// secret whose consumer finalizer must be released once pods roll out.
+		if cellSecretName != "" && cellName != novav1.Cell0Name {
+			cellSecretNames[cellName] = cellSecretName
+			annKey := cellTransportAnnotationKey(cellName)
+			oldCellSecret := instance.Annotations[annKey]
+			if oldCellSecret == "" || oldCellSecret == cellSecretName {
+				if instance.Annotations == nil {
+					instance.Annotations = map[string]string{}
+				}
+				instance.Annotations[annKey] = cellSecretName
+			}
+			if err := object.ManageSecretConsumerFinalizer(ctx, h, instance.Namespace,
+				cellSecretName, nova.TransportConsumerFinalizer); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
 	}
 	if len(failedMQs) > 0 {
 		instance.Status.Conditions.Set(condition.FalseCondition(
@@ -819,6 +864,106 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		}
 	} else if instance.Status.ApplicationCredentialSecret != instance.Spec.Auth.ApplicationCredentialSecret {
 		instance.Status.ApplicationCredentialSecret = instance.Spec.Auth.ApplicationCredentialSecret
+	}
+
+	// Manage transport URL consumer finalizers and rotation. On rotation the
+	// old secret's finalizer is only released once all sub-services are ready
+	// with the new credentials (allServicesReady), so the infra-operator does
+	// not revoke a RabbitMQ user still referenced by running pods. The stale
+	// input handling in the ensure* helpers keeps a child's mirrored condition
+	// out of True until it has applied the current input, so AllSubConditionIsTrue
+	// is a valid rotation guard.
+	allServicesReady := instance.Status.Conditions.AllSubConditionIsTrue()
+
+	transportSecretName, err := object.FinalizeSecretRotation(
+		ctx, h, instance.Namespace,
+		instance.Status.TransportURLSecret,
+		apiTransportURLSecretName,
+		nova.TransportConsumerFinalizer,
+		allServicesReady,
+	)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	instance.Status.TransportURLSecret = transportSecretName
+
+	if currentNotifSecretName != "" {
+		notifSecretName, err := object.FinalizeSecretRotation(
+			ctx, h, instance.Namespace,
+			instance.Status.NotificationsTransportURLSecret,
+			currentNotifSecretName,
+			nova.TransportConsumerFinalizer,
+			allServicesReady,
+		)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+		instance.Status.NotificationsTransportURLSecret = notifSecretName
+	} else if instance.Status.NotificationsTransportURLSecret != "" && allServicesReady {
+		// Notifications bus disabled and the workloads have rolled out a config
+		// that no longer references it: now it is safe to release the consumer
+		// finalizer from the old notifications transport secret.
+		if err := object.RemoveSecretConsumerFinalizer(ctx, h, instance.Namespace,
+			instance.Status.NotificationsTransportURLSecret, nova.TransportConsumerFinalizer); err != nil {
+			return ctrl.Result{}, err
+		}
+		instance.Status.NotificationsTransportURLSecret = ""
+	}
+
+	for cellName, currentCellSecret := range cellSecretNames {
+		annKey := cellTransportAnnotationKey(cellName)
+		newCellSecret, err := object.FinalizeSecretRotation(
+			ctx, h, instance.Namespace,
+			instance.Annotations[annKey],
+			currentCellSecret,
+			nova.TransportConsumerFinalizer,
+			allServicesReady,
+		)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+		if instance.Annotations == nil {
+			instance.Annotations = map[string]string{}
+		}
+		instance.Annotations[annKey] = newCellSecret
+	}
+
+	// Self-heal consumer finalizers stranded on secrets superseded during rapid
+	// rotation (A -> B -> C before the workloads became ready): FinalizeSecretRotation
+	// only ever releases the single tracked "old" secret, so keep enumerates every
+	// transport secret that legitimately still holds the finalizer (API,
+	// notifications and every cell, both the tracked "old" value and the current
+	// one); all others in the namespace are pruned.
+	//
+	// The prune is gated on allServicesReady, like the releases above: a stranded
+	// intermediate (e.g. B) may still be referenced by pods mid-rollout, so its
+	// finalizer must be held until every service is ready on the current secret,
+	// at which point the intermediate is provably unused and safe to release.
+	transportKeep := []string{
+		instance.Status.TransportURLSecret,
+		apiTransportURLSecretName,
+	}
+	if instance.Status.NotificationsTransportURLSecret != "" {
+		transportKeep = append(transportKeep, instance.Status.NotificationsTransportURLSecret)
+	}
+	if currentNotifSecretName != "" {
+		transportKeep = append(transportKeep, currentNotifSecretName)
+	}
+	for _, cellName := range orderedCellNames {
+		if s := instance.Annotations[cellTransportAnnotationKey(cellName)]; s != "" {
+			transportKeep = append(transportKeep, s)
+		}
+		if s, ok := cellSecretNames[cellName]; ok && s != "" {
+			transportKeep = append(transportKeep, s)
+		}
+	}
+	if allServicesReady {
+		if err := object.PruneSecretConsumerFinalizers(
+			ctx, h, instance.Namespace, nova.TransportConsumerFinalizer,
+			transportKeep...,
+		); err != nil {
+			return ctrl.Result{}, err
+		}
 	}
 
 	Log.Info("Successfully reconciled")
@@ -1859,6 +2004,14 @@ func (r *NovaReconciler) reconcileDelete(
 		}
 	}
 
+	// Remove the transport consumer finalizer from every transport URL secret
+	// nova was protecting so their owning TransportURL CRs can be cleaned up.
+	if err := object.PruneSecretConsumerFinalizers(
+		ctx, h, instance.Namespace, nova.TransportConsumerFinalizer,
+	); err != nil {
+		return err
+	}
+
 	// Successfully cleaned up everything. So as the final step let's remove the
 	// finalizer from ourselves to allow the deletion of Nova CR itself
 	updated := controllerutil.RemoveFinalizer(instance, h.GetFinalizer())
@@ -1876,7 +2029,7 @@ func (r *NovaReconciler) ensureMQ(
 	instance *novav1.Nova,
 	transportName string,
 	rabbitMqConfig rabbitmqv1.RabbitMqConfig,
-) (string, string, bool, nova.MessageBusStatus, error) {
+) (string, string, bool, nova.MessageBusStatus, string, error) {
 	Log := r.GetLogger(ctx)
 	transportURL := &rabbitmqv1.TransportURL{
 		ObjectMeta: metav1.ObjectMeta{
@@ -1899,7 +2052,7 @@ func (r *NovaReconciler) ensureMQ(
 	})
 
 	if err != nil && !k8s_errors.IsNotFound(err) {
-		return "", "", false, nova.MQFailed, util.WrapErrorForObject(
+		return "", "", false, nova.MQFailed, "", util.WrapErrorForObject(
 			fmt.Sprintf("Error create or update TransportURL object %s", transportName),
 			transportURL,
 			err,
@@ -1908,12 +2061,12 @@ func (r *NovaReconciler) ensureMQ(
 
 	if op != controllerutil.OperationResultNone {
 		Log.Info(fmt.Sprintf("TransportURL object %s created or patched", transportName))
-		return "", "", false, nova.MQCreating, nil
+		return "", "", false, nova.MQCreating, "", nil
 	}
 
 	err = r.Client.Get(ctx, types.NamespacedName{Namespace: instance.Namespace, Name: transportName}, transportURL)
 	if err != nil && !k8s_errors.IsNotFound(err) {
-		return "", "", false, nova.MQFailed, util.WrapErrorForObject(
+		return "", "", false, nova.MQFailed, "", util.WrapErrorForObject(
 			fmt.Sprintf("Error reading TransportURL object %s", transportName),
 			transportURL,
 			err,
@@ -1921,7 +2074,7 @@ func (r *NovaReconciler) ensureMQ(
 	}
 
 	if k8s_errors.IsNotFound(err) || !transportURL.IsReady() || transportURL.Status.SecretName == "" {
-		return "", "", false, nova.MQCreating, nil
+		return "", "", false, nova.MQCreating, "", nil
 	}
 
 	secretName := types.NamespacedName{Namespace: instance.Namespace, Name: transportURL.Status.SecretName}
@@ -1930,14 +2083,14 @@ func (r *NovaReconciler) ensureMQ(
 	err = h.GetClient().Get(ctx, secretName, secret)
 	if err != nil {
 		if k8s_errors.IsNotFound(err) {
-			return "", "", false, nova.MQCreating, nil
+			return "", "", false, nova.MQCreating, "", nil
 		}
-		return "", "", false, nova.MQFailed, err
+		return "", "", false, nova.MQFailed, "", err
 	}
 
 	url, ok := secret.Data[TransportURLSelector]
 	if !ok {
-		return "", "", false, nova.MQFailed, fmt.Errorf(
+		return "", "", false, nova.MQFailed, "", fmt.Errorf(
 			"%w: the TransportURL secret %s does not have 'transport_url' field", util.ErrFieldNotFound, transportURL.Status.SecretName)
 	}
 
@@ -1953,7 +2106,15 @@ func (r *NovaReconciler) ensureMQ(
 	// Empty string means using default RabbitMQ user (no dedicated RabbitMQUser CR)
 	rabbitmqUserName := transportURL.Status.RabbitmqUserRef
 
-	return string(url), rabbitmqUserName, quorumQueues, nova.MQCompleted, nil
+	return string(url), rabbitmqUserName, quorumQueues, nova.MQCompleted, transportURL.Status.SecretName, nil
+}
+
+// cellTransportAnnotationKey returns the annotation key used to remember the
+// transport URL secret a given cell is currently consuming, so that on rotation
+// the controller still knows the old secret whose consumer finalizer must be
+// released once the cell's pods have rolled out with the new credentials.
+func cellTransportAnnotationKey(cellName string) string {
+	return "openstack.org/cell-transport-secret-" + cellName
 }
 
 func (r *NovaReconciler) ensureMQDeleted(
