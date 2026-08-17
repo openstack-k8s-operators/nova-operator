@@ -220,27 +220,34 @@ func NewReconcilers(mgr ctrl.Manager, kclient *kubernetes.Clientset) *internalco
 	return internalcommon.NewReconcilers(map[string]internalcommon.Reconciler{
 		"Nova": &NovaReconciler{
 			ReconcilerBase: NewReconcilerBase(mgr, kclient),
+			APIReader:      mgr.GetAPIReader(),
 		},
 		"NovaCell": &NovaCellReconciler{
 			ReconcilerBase: NewReconcilerBase(mgr, kclient),
 		},
 		"NovaAPI": &NovaAPIReconciler{
 			ReconcilerBase: NewReconcilerBase(mgr, kclient),
+			APIReader:      mgr.GetAPIReader(),
 		},
 		"NovaScheduler": &NovaSchedulerReconciler{
 			ReconcilerBase: NewReconcilerBase(mgr, kclient),
+			APIReader:      mgr.GetAPIReader(),
 		},
 		"NovaConductor": &NovaConductorReconciler{
 			ReconcilerBase: NewReconcilerBase(mgr, kclient),
+			APIReader:      mgr.GetAPIReader(),
 		},
 		"NovaMetadata": &NovaMetadataReconciler{
 			ReconcilerBase: NewReconcilerBase(mgr, kclient),
+			APIReader:      mgr.GetAPIReader(),
 		},
 		"NovaNoVNCProxy": &NovaNoVNCProxyReconciler{
 			ReconcilerBase: NewReconcilerBase(mgr, kclient),
+			APIReader:      mgr.GetAPIReader(),
 		},
 		"NovaCompute": &NovaComputeReconciler{
 			ReconcilerBase: NewReconcilerBase(mgr, kclient),
+			APIReader:      mgr.GetAPIReader(),
 		},
 	})
 }

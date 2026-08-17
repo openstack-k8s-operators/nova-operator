@@ -48,6 +48,7 @@ import (
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 	job "github.com/openstack-k8s-operators/lib-common/modules/common/job"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/labels"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/object"
 	common_rbac "github.com/openstack-k8s-operators/lib-common/modules/common/rbac"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/secret"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
@@ -67,6 +68,7 @@ import (
 // NovaReconciler reconciles a Nova object
 type NovaReconciler struct {
 	ReconcilerBase
+	APIReader client.Reader
 }
 
 // GetLogger returns a logger object with a prefix of "controller.name" and additional controller context fields
@@ -301,9 +303,8 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	// The old secret's finalizer is removed later (after all services deploy)
 	// so that rapid rotations don't revoke a credential still in use by pods.
 	if instance.Spec.Auth.ApplicationCredentialSecret != "" {
-		if err := keystonev1.ManageACSecretFinalizer(ctx, h, instance.Namespace,
+		if err := object.ManageSecretConsumerFinalizer(ctx, h, instance.Namespace,
 			instance.Spec.Auth.ApplicationCredentialSecret,
-			"",
 			nova.ACConsumerFinalizer); err != nil {
 			instance.Status.Conditions.Set(condition.FalseCondition(
 				condition.InputReadyCondition,
@@ -422,7 +423,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	// Create TransportURLs to access the message buses of each cell. Cell0
 	// message bus is always the same as the top level API message bus so
 	// we create API MQ separately first
-	apiTransportURL, apiRabbitmqUserName, apiQuorumQueues, apiMQStatus, apiMQError := r.ensureMQ(
+	apiTransportURL, apiRabbitmqUserName, apiQuorumQueues, apiMQStatus, apiTransportURLSecretName, apiMQError := r.ensureMQ(
 		ctx, h, instance, instance.Name+"-api-transport", instance.Spec.MessagingBus)
 	switch apiMQStatus {
 	case nova.MQFailed:
@@ -447,18 +448,37 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		return ctrl.Result{}, fmt.Errorf("%w from  for the API MQ: %d", util.ErrInvalidStatus, apiMQStatus)
 	}
 
+	oldTransportSecret := instance.Status.TransportURLSecret
+	currentTransportSecret := apiTransportURLSecretName
+
+	if currentTransportSecret != "" {
+		// Set status early for first-time setup so PatchInstance persists it
+		// even on early returns. During rotation (old != current), the status
+		// is only updated by FinalizeSecretRotation at end of reconcile.
+		if instance.Status.TransportURLSecret == "" ||
+			instance.Status.TransportURLSecret == currentTransportSecret {
+			instance.Status.TransportURLSecret = currentTransportSecret
+		}
+
+		if err := object.ManageSecretConsumerFinalizer(ctx, h, instance.Namespace,
+			currentTransportSecret, nova.TransportConsumerFinalizer); err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+
 	// Determine if notifications are enabled by checking NotificationsBus.Cluster
 	// (the webhook defaults this from the deprecated NotificationsBusInstance field)
 	var notificationTransportURL string
 	var notificationRabbitmqUserName string
 	var notificationMQStatus nova.MessageBusStatus
 	var notificationMQError error
+	var currentNotifSecretName string
 
 	notificationTransportName := instance.Name + "-notification-transport"
 	if instance.Spec.NotificationsBus != nil && instance.Spec.NotificationsBus.Cluster != "" {
 		// Use NotificationsBus config (never fall back to MessagingBus to ensure separation)
 		notificationsRabbitMqConfig := *instance.Spec.NotificationsBus
-		notificationTransportURL, notificationRabbitmqUserName, _, notificationMQStatus, notificationMQError = r.ensureMQ(
+		notificationTransportURL, notificationRabbitmqUserName, _, notificationMQStatus, currentNotifSecretName, notificationMQError = r.ensureMQ(
 			ctx, h, instance, notificationTransportName, notificationsRabbitMqConfig)
 
 		switch notificationMQStatus {
@@ -490,30 +510,32 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 			return ctrl.Result{}, fmt.Errorf("%w from  for the Notification MQ: %d",
 				util.ErrInvalidStatus, notificationMQStatus)
 		}
-	} else {
-		instance.Status.Conditions.Remove(novav1.NovaNotificationMQReadyCondition)
 
-		// Ensure to delete the previous notifications transport url
-		transportURLList := &rabbitmqv1.TransportURLList{}
-		listOpts := []client.ListOption{
-			client.InNamespace(instance.Namespace),
-		}
-		if err := r.Client.List(ctx, transportURLList, listOpts...); err != nil {
-			return ctrl.Result{}, err
-		}
+		if currentNotifSecretName != "" {
+			if instance.Status.NotificationsTransportURLSecret == "" ||
+				instance.Status.NotificationsTransportURLSecret == currentNotifSecretName {
+				instance.Status.NotificationsTransportURLSecret = currentNotifSecretName
+			}
 
-		for _, url := range transportURLList.Items {
-			if strings.Contains(url.Name, notificationTransportName) {
-				err = r.ensureMQDeleted(ctx, instance, url.Name)
-				if err != nil {
-					return ctrl.Result{}, err
-				}
+			if err := object.ManageSecretConsumerFinalizer(ctx, h, instance.Namespace,
+				currentNotifSecretName, nova.TransportConsumerFinalizer); err != nil {
+				return ctrl.Result{}, err
 			}
 		}
+	} else {
+		// Notifications bus disabled. The config regenerated below no longer
+		// references the notifications transport URL (currentNotifSecretName is
+		// empty, so it is dropped from the input hash), which rolls the
+		// workloads. Defer teardown of the TransportURL and its consumer
+		// finalizer until that rollout is complete (allServicesReady at the end
+		// of reconcile), otherwise the RabbitMQ user backing the secret would be
+		// revoked while pods still use it.
+		instance.Status.Conditions.Remove(novav1.NovaNotificationMQReadyCondition)
 	}
 
 	cellMQs := map[string]*nova.MessageBus{}
 	cellRabbitmqUserNames := map[string]string{}
+	cellSecretNames := map[string]string{}
 	var failedMQs []string
 	var creatingMQs []string
 	for _, cellName := range orderedCellNames {
@@ -523,6 +545,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		var err error
 		cellTemplate := instance.Spec.CellTemplates[cellName]
 		var cellQuorumQueues bool
+		var cellSecretName string
 		// cell0 does not need its own cell message bus it uses the
 		// API message bus instead
 		if cellName == novav1.Cell0Name {
@@ -532,7 +555,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 			status = apiMQStatus
 			err = apiMQError
 		} else {
-			cellTransportURL, cellRabbitmqUserName, cellQuorumQueues, status, err = r.ensureMQ(
+			cellTransportURL, cellRabbitmqUserName, cellQuorumQueues, status, cellSecretName, err = r.ensureMQ(
 				ctx, h, instance, instance.Name+"-"+cellName+"-transport", cellTemplate.MessagingBus)
 		}
 		switch status {
@@ -546,6 +569,22 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		}
 		cellMQs[cellName] = &nova.MessageBus{TransportURL: cellTransportURL, QuorumQueues: cellQuorumQueues, Status: status}
 		cellRabbitmqUserNames[cellName] = cellRabbitmqUserName
+
+		if cellSecretName != "" && cellName != novav1.Cell0Name {
+			cellSecretNames[cellName] = cellSecretName
+			annKey := cellTransportAnnotationKey(cellName)
+			oldCellSecret := instance.Annotations[annKey]
+			if oldCellSecret == "" || oldCellSecret == cellSecretName {
+				if instance.Annotations == nil {
+					instance.Annotations = map[string]string{}
+				}
+				instance.Annotations[annKey] = cellSecretName
+			}
+			if err := object.ManageSecretConsumerFinalizer(ctx, h, instance.Namespace,
+				cellSecretName, nova.TransportConsumerFinalizer); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
 	}
 	if len(failedMQs) > 0 {
 		instance.Status.Conditions.Set(condition.FalseCondition(
@@ -564,6 +603,23 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	} else { // we have no MQ in failed or creating status so all MQ is ready
 		instance.Status.Conditions.MarkTrue(
 			novav1.NovaAllCellsMQReadyCondition, novav1.NovaAllCellsMQReadyMessage)
+	}
+
+	secretNames := []string{currentTransportSecret}
+	if currentNotifSecretName != "" {
+		secretNames = append(secretNames, currentNotifSecretName)
+	}
+	for _, cellName := range orderedCellNames {
+		if s, ok := cellSecretNames[cellName]; ok {
+			secretNames = append(secretNames, s)
+		}
+	}
+	if instance.Spec.Auth.ApplicationCredentialSecret != "" {
+		secretNames = append(secretNames, instance.Spec.Auth.ApplicationCredentialSecret)
+	}
+	expectedInputHash, err := util.ObjectHash(secretNames)
+	if err != nil {
+		return ctrl.Result{}, err
 	}
 
 	// Kick of the creation of Cells. We skip over those cells where the cell
@@ -611,6 +667,7 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 			cellDB.Database, apiDB, cellMQ.TransportURL, cellRabbitmqUserNames[cellName], cellMQ.QuorumQueues,
 			notificationTransportURL, notificationRabbitmqUserName,
 			keystoneInternalAuthURL, region, ospSecret, acData,
+			expectedInputHash,
 		)
 		cells[cellName] = cell
 		switch status {
@@ -687,7 +744,8 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		ctx, instance, cell0Template,
 		cellDBs[novav1.Cell0Name].Database, apiDB,
 		keystoneInternalAuthURL, keystonePublicAuthURL, region,
-		topLevelSecretName,
+		topLevelSecretName, currentTransportSecret,
+		expectedInputHash,
 	)
 	if err != nil {
 		return result, err
@@ -696,7 +754,8 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	result, err = r.ensureScheduler(
 		ctx, instance, cell0Template,
 		cellDBs[novav1.Cell0Name].Database, apiDB, keystoneInternalAuthURL, region,
-		topLevelSecretName,
+		topLevelSecretName, currentTransportSecret,
+		expectedInputHash,
 	)
 	if err != nil {
 		return result, err
@@ -706,7 +765,8 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		result, err = r.ensureMetadata(
 			ctx, instance, cell0Template,
 			cellDBs[novav1.Cell0Name].Database, apiDB, keystoneInternalAuthURL, region,
-			topLevelSecretName,
+			topLevelSecretName, currentTransportSecret,
+			expectedInputHash,
 		)
 		if err != nil {
 			return result, err
@@ -786,23 +846,156 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		)
 	}
 
-	// Manage the old AC secret's finalizer and status tracking.
-	// On rotation (old != new), only remove the old secret's finalizer after
-	// all sub-services are ready with the new credentials. This prevents
-	// premature revocation during rapid rotations.
-	isRotation := instance.Status.ApplicationCredentialSecret != "" && instance.Status.ApplicationCredentialSecret != instance.Spec.Auth.ApplicationCredentialSecret
-
-	if isRotation {
-		allServicesReady := instance.Status.Conditions.AllSubConditionIsTrue()
-		if allServicesReady {
-			if err := keystonev1.RemoveACSecretConsumerFinalizer(ctx, h, instance.Namespace,
-				instance.Status.ApplicationCredentialSecret, nova.ACConsumerFinalizer); err != nil {
+	allServicesReady := allCellsReady
+	for _, cell := range cells {
+		if cell == nil || cell.Status.AppliedInputSecretHash != expectedInputHash {
+			allServicesReady = false
+			break
+		}
+	}
+	if allServicesReady {
+		api := &novav1.NovaAPI{}
+		if err := r.Client.Get(ctx, types.NamespacedName{Name: instance.Name + "-api", Namespace: instance.Namespace}, api); err != nil {
+			if !k8s_errors.IsNotFound(err) {
 				return ctrl.Result{}, err
 			}
-			instance.Status.ApplicationCredentialSecret = instance.Spec.Auth.ApplicationCredentialSecret
+			allServicesReady = false
+		} else if api.Status.AppliedInputSecretHash != expectedInputHash {
+			allServicesReady = false
 		}
-	} else if instance.Status.ApplicationCredentialSecret != instance.Spec.Auth.ApplicationCredentialSecret {
-		instance.Status.ApplicationCredentialSecret = instance.Spec.Auth.ApplicationCredentialSecret
+	}
+	if allServicesReady {
+		scheduler := &novav1.NovaScheduler{}
+		if err := r.Client.Get(ctx, types.NamespacedName{Name: instance.Name + "-scheduler", Namespace: instance.Namespace}, scheduler); err != nil {
+			if !k8s_errors.IsNotFound(err) {
+				return ctrl.Result{}, err
+			}
+			allServicesReady = false
+		} else if scheduler.Status.AppliedInputSecretHash != expectedInputHash {
+			allServicesReady = false
+		}
+	}
+	if allServicesReady && *instance.Spec.MetadataServiceTemplate.Enabled {
+		metadata := &novav1.NovaMetadata{}
+		metadataName := getNovaMetadataName(instance)
+		if err := r.Client.Get(ctx, metadataName, metadata); err != nil {
+			if !k8s_errors.IsNotFound(err) {
+				return ctrl.Result{}, err
+			}
+			allServicesReady = false
+		} else if metadata.Status.AppliedInputSecretHash != expectedInputHash {
+			allServicesReady = false
+		}
+	}
+
+	transportSecretName, err := object.FinalizeSecretRotation(
+		ctx, h, instance.Namespace,
+		oldTransportSecret,
+		currentTransportSecret,
+		nova.TransportConsumerFinalizer,
+		allServicesReady,
+	)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	instance.Status.TransportURLSecret = transportSecretName
+
+	if currentNotifSecretName != "" {
+		notifSecretName, err := object.FinalizeSecretRotation(
+			ctx, h, instance.Namespace,
+			instance.Status.NotificationsTransportURLSecret,
+			currentNotifSecretName,
+			nova.TransportConsumerFinalizer,
+			allServicesReady,
+		)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+		instance.Status.NotificationsTransportURLSecret = notifSecretName
+	} else if instance.Status.NotificationsTransportURLSecret != "" && allServicesReady {
+		// Notifications bus disabled and the workloads have rolled out a config
+		// that no longer references it: now it is safe to release the consumer
+		// finalizer and delete the notifications TransportURL.
+		if err := object.RemoveSecretConsumerFinalizer(ctx, h, instance.Namespace,
+			instance.Status.NotificationsTransportURLSecret, nova.TransportConsumerFinalizer); err != nil {
+			return ctrl.Result{}, err
+		}
+		if err := r.ensureMQDeleted(ctx, instance, notificationTransportName); err != nil {
+			Log.Error(err, fmt.Sprintf("Could not delete notification TransportURL %s", notificationTransportName))
+			return ctrl.Result{}, err
+		}
+		instance.Status.NotificationsTransportURLSecret = ""
+	}
+
+	for cellName, currentCellSecret := range cellSecretNames {
+		annKey := cellTransportAnnotationKey(cellName)
+		oldCellSecret := instance.Annotations[annKey]
+		newCellSecret, err := object.FinalizeSecretRotation(
+			ctx, h, instance.Namespace,
+			oldCellSecret,
+			currentCellSecret,
+			nova.TransportConsumerFinalizer,
+			allServicesReady,
+		)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+		if instance.Annotations == nil {
+			instance.Annotations = map[string]string{}
+		}
+		instance.Annotations[annKey] = newCellSecret
+	}
+
+	acSecretName, err := object.FinalizeSecretRotation(
+		ctx, h, instance.Namespace,
+		instance.Status.ApplicationCredentialSecret,
+		instance.Spec.Auth.ApplicationCredentialSecret,
+		nova.ACConsumerFinalizer,
+		allServicesReady,
+	)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	instance.Status.ApplicationCredentialSecret = acSecretName
+
+	// Self-heal consumer finalizers stranded on secrets superseded during
+	// rapid rotation (A -> B -> C before the workloads became ready):
+	// FinalizeSecretRotation only ever releases the single tracked "old"
+	// secret, so any intermediate secret's finalizer would otherwise leak.
+	// keep enumerates every secret that legitimately still holds the transport
+	// consumer finalizer (API, notifications and every cell transport secret,
+	// both the status/annotation "old" value and the current one); all others
+	// in the namespace are pruned.
+	transportKeep := []string{
+		instance.Status.TransportURLSecret,
+		currentTransportSecret,
+	}
+	if instance.Status.NotificationsTransportURLSecret != "" {
+		transportKeep = append(transportKeep, instance.Status.NotificationsTransportURLSecret)
+	}
+	if currentNotifSecretName != "" {
+		transportKeep = append(transportKeep, currentNotifSecretName)
+	}
+	for _, cellName := range orderedCellNames {
+		if s := instance.Annotations[cellTransportAnnotationKey(cellName)]; s != "" {
+			transportKeep = append(transportKeep, s)
+		}
+		if s, ok := cellSecretNames[cellName]; ok && s != "" {
+			transportKeep = append(transportKeep, s)
+		}
+	}
+	if err := object.PruneSecretConsumerFinalizers(
+		ctx, h, instance.Namespace, nova.TransportConsumerFinalizer,
+		transportKeep...,
+	); err != nil {
+		return ctrl.Result{}, err
+	}
+	if err := object.PruneSecretConsumerFinalizers(
+		ctx, h, instance.Namespace, nova.ACConsumerFinalizer,
+		instance.Status.ApplicationCredentialSecret,
+		instance.Spec.Auth.ApplicationCredentialSecret,
+	); err != nil {
+		return ctrl.Result{}, err
 	}
 
 	Log.Info("Successfully reconciled")
@@ -930,6 +1123,15 @@ func (r *NovaReconciler) ensureCellDeleted(
 	err = secret.DeleteSecretsWithName(ctx, h, scriptSecret, instance.Namespace)
 	if err != nil && !k8s_errors.IsNotFound(err) {
 		return nova.CellDeleteFailed, err
+	}
+
+	annKey := cellTransportAnnotationKey(cellName)
+	if secretName, ok := instance.Annotations[annKey]; ok {
+		if err := object.RemoveSecretConsumerFinalizer(ctx, h, instance.Namespace,
+			secretName, nova.TransportConsumerFinalizer); err != nil {
+			return nova.CellDeleteFailed, err
+		}
+		delete(instance.Annotations, annKey)
 	}
 
 	// Delete transportURL cr
@@ -1289,6 +1491,7 @@ func (r *NovaReconciler) ensureCell(
 	region string,
 	secret corev1.Secret,
 	acData *keystonev1.ApplicationCredentialData,
+	expectedInputHash string,
 ) (*novav1.NovaCell, nova.CellDeploymentStatus, error) {
 	Log := r.GetLogger(ctx)
 
@@ -1350,6 +1553,12 @@ func (r *NovaReconciler) ensureCell(
 		// TODO(gibi): Pass down a narrowed secret that only hold
 		// specific information but also holds user names
 		cell.Spec = cellSpec
+		if expectedInputHash != "" {
+			if cell.Annotations == nil {
+				cell.Annotations = map[string]string{}
+			}
+			cell.Annotations["openstack.org/input-secret-hash"] = expectedInputHash
+		}
 
 		err := controllerutil.SetControllerReference(instance, cell, r.Scheme)
 		if err != nil {
@@ -1466,6 +1675,8 @@ func (r *NovaReconciler) ensureAPI(
 	keystonePublicAuthURL string,
 	region string,
 	secretName string,
+	transportURLSecretName string,
+	expectedInputHash string,
 ) (ctrl.Result, error) {
 	Log := r.GetLogger(ctx)
 
@@ -1515,6 +1726,11 @@ func (r *NovaReconciler) ensureAPI(
 
 	op, err := controllerutil.CreateOrPatch(ctx, r.Client, api, func() error {
 		api.Spec = apiSpec
+		if api.Annotations == nil {
+			api.Annotations = map[string]string{}
+		}
+		api.Annotations["openstack.org/transport-url-secret"] = transportURLSecretName
+		api.Annotations["openstack.org/input-secret-hash"] = expectedInputHash
 		err := controllerutil.SetControllerReference(instance, api, r.Scheme)
 		if err != nil {
 			return err
@@ -1541,9 +1757,17 @@ func (r *NovaReconciler) ensureAPI(
 		// NOTE(gibi): it can be nil if the NovaAPI CR is created but no
 		// reconciliation is run on it to initialize the ReadyCondition yet.
 		if c != nil {
-			instance.Status.Conditions.Set(c)
+			// Surface a not-ready/failing child immediately, but only accept a
+			// Ready=True child once it has provably applied the current input
+			// secret (rotation in flight). While a previously-Ready child rolls
+			// out a new input, keep its last reported condition instead of
+			// flipping it, matching nova's original behavior for the True case.
+			if c.Status != corev1.ConditionTrue ||
+				api.Status.AppliedInputSecretHash == expectedInputHash {
+				instance.Status.Conditions.Set(c)
+				instance.Status.APIServiceReadyCount = api.Status.ReadyCount
+			}
 		}
-		instance.Status.APIServiceReadyCount = api.Status.ReadyCount
 	}
 
 	return ctrl.Result{}, nil
@@ -1558,6 +1782,8 @@ func (r *NovaReconciler) ensureScheduler(
 	keystoneAuthURL string,
 	region string,
 	secretName string,
+	transportURLSecretName string,
+	expectedInputHash string,
 ) (ctrl.Result, error) {
 	Log := r.GetLogger(ctx)
 	// TODO(gibi): Pass down a narrowed secret that only hold
@@ -1608,6 +1834,11 @@ func (r *NovaReconciler) ensureScheduler(
 
 	op, err := controllerutil.CreateOrPatch(ctx, r.Client, scheduler, func() error {
 		scheduler.Spec = schedulerSpec
+		if scheduler.Annotations == nil {
+			scheduler.Annotations = map[string]string{}
+		}
+		scheduler.Annotations["openstack.org/transport-url-secret"] = transportURLSecretName
+		scheduler.Annotations["openstack.org/input-secret-hash"] = expectedInputHash
 		err := controllerutil.SetControllerReference(instance, scheduler, r.Scheme)
 		if err != nil {
 			return err
@@ -1634,9 +1865,17 @@ func (r *NovaReconciler) ensureScheduler(
 		// NOTE(gibi): it can be nil if the NovaScheduler CR is created but no
 		// reconciliation is run on it to initialize the ReadyCondition yet.
 		if c != nil {
-			instance.Status.Conditions.Set(c)
+			// Surface a not-ready/failing child immediately, but only accept a
+			// Ready=True child once it has provably applied the current input
+			// secret (rotation in flight). While a previously-Ready child rolls
+			// out a new input, keep its last reported condition instead of
+			// flipping it, matching nova's original behavior for the True case.
+			if c.Status != corev1.ConditionTrue ||
+				scheduler.Status.AppliedInputSecretHash == expectedInputHash {
+				instance.Status.Conditions.Set(c)
+				instance.Status.SchedulerServiceReadyCount = scheduler.Status.ReadyCount
+			}
 		}
-		instance.Status.SchedulerServiceReadyCount = scheduler.Status.ReadyCount
 	}
 
 	return ctrl.Result{}, nil
@@ -1796,12 +2035,65 @@ func (r *NovaReconciler) reconcileDelete(
 		return err
 	}
 
+	// Remove consumer finalizer from transport URL secrets.
+	// Collect secret names from both status/annotations (old secrets during
+	// rotation) AND live TransportURL CRs (new/current secrets) so that
+	// mid-rotation deletions do not leak finalizers on the new secret.
+	transportSecrets := map[string]struct{}{}
+
+	// Add secrets known from status and annotations (old/rotated secrets)
+	if instance.Status.TransportURLSecret != "" {
+		transportSecrets[instance.Status.TransportURLSecret] = struct{}{}
+	}
+	if instance.Status.NotificationsTransportURLSecret != "" {
+		transportSecrets[instance.Status.NotificationsTransportURLSecret] = struct{}{}
+	}
+	for key, secretName := range instance.Annotations {
+		if strings.HasPrefix(key, "openstack.org/cell-transport-secret-") && secretName != "" {
+			transportSecrets[secretName] = struct{}{}
+		}
+	}
+
+	// Add secrets from live TransportURL CRs (current/new secrets)
+	transportURLNames := []string{
+		instance.Name + "-api-transport",
+		instance.Name + "-notification-transport",
+	}
+	for cellName := range instance.Spec.CellTemplates {
+		if cellName != novav1.Cell0Name {
+			transportURLNames = append(transportURLNames, instance.Name+"-"+cellName+"-transport")
+		}
+	}
+	for _, tuName := range transportURLNames {
+		tu := &rabbitmqv1.TransportURL{}
+		err := r.Client.Get(ctx, types.NamespacedName{
+			Name:      tuName,
+			Namespace: instance.Namespace,
+		}, tu)
+		if err != nil {
+			if !k8s_errors.IsNotFound(err) {
+				return fmt.Errorf("failed to get TransportURL %s: %w", tuName, err)
+			}
+			continue
+		}
+		if tu.Status.SecretName != "" {
+			transportSecrets[tu.Status.SecretName] = struct{}{}
+		}
+	}
+
+	for secretName := range transportSecrets {
+		if err := object.RemoveSecretConsumerFinalizer(ctx, h, instance.Namespace,
+			secretName, nova.TransportConsumerFinalizer); err != nil {
+			return err
+		}
+	}
+
 	// Remove consumer finalizer from AC secrets nova was consuming.
 	for _, secretName := range []string{
 		instance.Status.ApplicationCredentialSecret,
 		instance.Spec.Auth.ApplicationCredentialSecret,
 	} {
-		if err := keystonev1.RemoveACSecretConsumerFinalizer(ctx, h, instance.Namespace,
+		if err := object.RemoveSecretConsumerFinalizer(ctx, h, instance.Namespace,
 			secretName, nova.ACConsumerFinalizer); err != nil {
 			return err
 		}
@@ -1824,7 +2116,7 @@ func (r *NovaReconciler) ensureMQ(
 	instance *novav1.Nova,
 	transportName string,
 	rabbitMqConfig rabbitmqv1.RabbitMqConfig,
-) (string, string, bool, nova.MessageBusStatus, error) {
+) (string, string, bool, nova.MessageBusStatus, string, error) {
 	Log := r.GetLogger(ctx)
 	transportURL := &rabbitmqv1.TransportURL{
 		ObjectMeta: metav1.ObjectMeta{
@@ -1847,7 +2139,7 @@ func (r *NovaReconciler) ensureMQ(
 	})
 
 	if err != nil && !k8s_errors.IsNotFound(err) {
-		return "", "", false, nova.MQFailed, util.WrapErrorForObject(
+		return "", "", false, nova.MQFailed, "", util.WrapErrorForObject(
 			fmt.Sprintf("Error create or update TransportURL object %s", transportName),
 			transportURL,
 			err,
@@ -1856,12 +2148,12 @@ func (r *NovaReconciler) ensureMQ(
 
 	if op != controllerutil.OperationResultNone {
 		Log.Info(fmt.Sprintf("TransportURL object %s created or patched", transportName))
-		return "", "", false, nova.MQCreating, nil
+		return "", "", false, nova.MQCreating, "", nil
 	}
 
 	err = r.Client.Get(ctx, types.NamespacedName{Namespace: instance.Namespace, Name: transportName}, transportURL)
 	if err != nil && !k8s_errors.IsNotFound(err) {
-		return "", "", false, nova.MQFailed, util.WrapErrorForObject(
+		return "", "", false, nova.MQFailed, "", util.WrapErrorForObject(
 			fmt.Sprintf("Error reading TransportURL object %s", transportName),
 			transportURL,
 			err,
@@ -1869,7 +2161,7 @@ func (r *NovaReconciler) ensureMQ(
 	}
 
 	if k8s_errors.IsNotFound(err) || !transportURL.IsReady() || transportURL.Status.SecretName == "" {
-		return "", "", false, nova.MQCreating, nil
+		return "", "", false, nova.MQCreating, "", nil
 	}
 
 	secretName := types.NamespacedName{Namespace: instance.Namespace, Name: transportURL.Status.SecretName}
@@ -1878,14 +2170,14 @@ func (r *NovaReconciler) ensureMQ(
 	err = h.GetClient().Get(ctx, secretName, secret)
 	if err != nil {
 		if k8s_errors.IsNotFound(err) {
-			return "", "", false, nova.MQCreating, nil
+			return "", "", false, nova.MQCreating, "", nil
 		}
-		return "", "", false, nova.MQFailed, err
+		return "", "", false, nova.MQFailed, "", err
 	}
 
 	url, ok := secret.Data[TransportURLSelector]
 	if !ok {
-		return "", "", false, nova.MQFailed, fmt.Errorf(
+		return "", "", false, nova.MQFailed, "", fmt.Errorf(
 			"%w: the TransportURL secret %s does not have 'transport_url' field", util.ErrFieldNotFound, transportURL.Status.SecretName)
 	}
 
@@ -1901,7 +2193,7 @@ func (r *NovaReconciler) ensureMQ(
 	// Empty string means using default RabbitMQ user (no dedicated RabbitMQUser CR)
 	rabbitmqUserName := transportURL.Status.RabbitmqUserRef
 
-	return string(url), rabbitmqUserName, quorumQueues, nova.MQCompleted, nil
+	return string(url), rabbitmqUserName, quorumQueues, nova.MQCompleted, transportURL.Status.SecretName, nil
 }
 
 func (r *NovaReconciler) ensureMQDeleted(
@@ -1941,6 +2233,8 @@ func (r *NovaReconciler) ensureMetadata(
 	keystoneAuthURL string,
 	region string,
 	secretName string,
+	transportURLSecretName string,
+	expectedInputHash string,
 ) (ctrl.Result, error) {
 	Log := r.GetLogger(ctx)
 	// There is a case when the user manually created a NovaMetadata while it
@@ -2025,7 +2319,11 @@ func (r *NovaReconciler) ensureMetadata(
 
 	op, err := controllerutil.CreateOrPatch(ctx, r.Client, metadata, func() error {
 		metadata.Spec = metadataSpec
-
+		if metadata.Annotations == nil {
+			metadata.Annotations = map[string]string{}
+		}
+		metadata.Annotations["openstack.org/transport-url-secret"] = transportURLSecretName
+		metadata.Annotations["openstack.org/input-secret-hash"] = expectedInputHash
 		err := controllerutil.SetControllerReference(instance, metadata, r.Scheme)
 		if err != nil {
 			return err
@@ -2052,9 +2350,17 @@ func (r *NovaReconciler) ensureMetadata(
 		// NOTE(gibi): it can be nil if the NovaMetadata CR is created but no
 		// reconciliation is run on it to initialize the ReadyCondition yet.
 		if c != nil {
-			instance.Status.Conditions.Set(c)
+			// Surface a not-ready/failing child immediately, but only accept a
+			// Ready=True child once it has provably applied the current input
+			// secret (rotation in flight). While a previously-Ready child rolls
+			// out a new input, keep its last reported condition instead of
+			// flipping it, matching nova's original behavior for the True case.
+			if c.Status != corev1.ConditionTrue ||
+				metadata.Status.AppliedInputSecretHash == expectedInputHash {
+				instance.Status.Conditions.Set(c)
+				instance.Status.MetadataServiceReadyCount = metadata.Status.ReadyCount
+			}
 		}
-		instance.Status.MetadataServiceReadyCount = metadata.Status.ReadyCount
 	}
 	return ctrl.Result{}, nil
 }
@@ -2312,6 +2618,10 @@ var (
 		authAppCredSecretField,
 	}
 )
+
+func cellTransportAnnotationKey(cellName string) string {
+	return "openstack.org/cell-transport-secret-" + cellName
+}
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *NovaReconciler) SetupWithManager(mgr ctrl.Manager) error {

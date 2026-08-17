@@ -1617,6 +1617,11 @@ spec:
           status:
             description: NovaCellStatus defines the observed state of NovaCell
             properties:
+              appliedInputSecretHash:
+                description: |-
+                  AppliedInputSecretHash - hash of the input secrets that the cell has
+                  confirmed all its children are running with
+                type: string
               conditions:
                 description: Conditions
                 items:

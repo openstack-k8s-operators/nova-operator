@@ -62,6 +62,7 @@ import (
 // NovaAPIReconciler reconciles a NovaAPI object
 type NovaAPIReconciler struct {
 	ReconcilerBase
+	APIReader client.Reader
 }
 
 // GetLogger returns a logger object with a prefix of "controller.name" and additional controller context fields
@@ -666,9 +667,25 @@ func (r *NovaAPIReconciler) ensureDeployment(
 		return ctrl.Result{}, err
 	}
 
-	if instance.Status.ReadyCount == *instance.Spec.Replicas && statefulSet.Generation == statefulSet.Status.ObservedGeneration {
+	expectedHash := ""
+	if ann := instance.GetAnnotations(); ann != nil {
+		expectedHash = ann["openstack.org/input-secret-hash"]
+	}
+
+	ready := false
+	if statefulset.IsReady(statefulSet) {
+		ready, err = statefulset.IsReadyForInput(ctx, r.APIReader,
+			types.NamespacedName{Name: statefulSet.Name, Namespace: statefulSet.Namespace},
+			inputHash)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+
+	if ready {
 		Log.Info("Deployment is ready")
 		instance.Status.Conditions.MarkTrue(condition.DeploymentReadyCondition, condition.DeploymentReadyMessage)
+		instance.Status.AppliedInputSecretHash = expectedHash
 	} else {
 		Log.Info("Deployment is not ready", "Status", ss.GetStatefulSet().Status)
 		instance.Status.Conditions.Set(condition.FalseCondition(
@@ -676,7 +693,6 @@ func (r *NovaAPIReconciler) ensureDeployment(
 			condition.RequestedReason,
 			condition.SeverityInfo,
 			condition.DeploymentReadyRunningMessage))
-		// It is OK to return success as we are watching for StatefulSet changes
 		return ctrl.Result{}, nil
 	}
 	return ctrl.Result{}, nil

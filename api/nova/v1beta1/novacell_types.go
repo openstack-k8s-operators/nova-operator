@@ -280,6 +280,10 @@ type NovaCellStatus struct {
 	// then the controller has not processed the latest changes injected by
 	// the openstack-operator in the top-level CR (e.g. the ContainerImage)
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+
+	// AppliedInputSecretHash - hash of the input secrets that the cell has
+	// confirmed all its children are running with
+	AppliedInputSecretHash string `json:"appliedInputSecretHash,omitempty"`
 }
 
 //+kubebuilder:object:root=true
