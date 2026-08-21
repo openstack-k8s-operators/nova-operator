@@ -422,6 +422,7 @@ func (r *NovaCellReconciler) ensureConductor(
 			// out a new input, keep its last reported condition instead of
 			// flipping it, matching nova's original behavior for the True case.
 			if c.Status != corev1.ConditionTrue ||
+				expectedHash == "" ||
 				conductor.Status.AppliedInputSecretHash == expectedHash {
 				instance.Status.ConductorServiceReadyCount = conductor.Status.ReadyCount
 				instance.Status.Conditions.Set(c)
@@ -532,6 +533,7 @@ func (r *NovaCellReconciler) ensureNoVNCProxy(
 			// out a new input, keep its last reported condition instead of
 			// flipping it, matching nova's original behavior for the True case.
 			if c.Status != corev1.ConditionTrue ||
+				expectedHash == "" ||
 				novncproxy.Status.AppliedInputSecretHash == expectedHash {
 				instance.Status.NoVNCPRoxyServiceReadyCount = novncproxy.Status.ReadyCount
 				instance.Status.Conditions.Set(c)
@@ -671,6 +673,7 @@ func (r *NovaCellReconciler) ensureMetadata(
 			// out a new input, keep its last reported condition instead of
 			// flipping it, matching nova's original behavior for the True case.
 			if c.Status != corev1.ConditionTrue ||
+				expectedHash == "" ||
 				metadata.Status.AppliedInputSecretHash == expectedHash {
 				instance.Status.MetadataServiceReadyCount = metadata.Status.ReadyCount
 				instance.Status.Conditions.Set(c)
@@ -831,7 +834,7 @@ func (r *NovaCellReconciler) ensureNovaCompute(
 	}
 
 	if novacompute.Generation == novacompute.Status.ObservedGeneration &&
-		novacompute.Status.AppliedInputSecretHash == expectedHash &&
+		(expectedHash == "" || novacompute.Status.AppliedInputSecretHash == expectedHash) &&
 		novacompute.IsReady() {
 		computeStatus.Deployed = true
 	}
