@@ -13,7 +13,7 @@ metadata:
     features.operators.openshift.io/token-auth-gcp: "false"
     operatorframework.io/suggested-namespace: openstack
     operators.operatorframework.io/operator-type: non-standalone
-  name: nova-operator.v0.0.0
+  name: workloads-operator.v0.0.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -197,8 +197,10 @@ spec:
         displayName: TLS
         path: tls
       version: v1beta1
-  description: Nova Operator
-  displayName: Nova Operator
+  description: |
+    Manages OpenStack workload services including Nova (compute), Placement (resource tracking),
+    and Cyborg (accelerator management). Formerly known as Nova Operator.
+  displayName: Workloads Operator
   install:
     spec:
       deployments: null
@@ -215,8 +217,12 @@ spec:
   keywords:
   - OpenStack
   - Nova
+  - Placement
+  - Cyborg
+  - Compute
+  - Workloads
   links:
-  - name: Nova Operator
+  - name: Workloads Operator
     url: https://github.com/openstack-k8s-operators/nova-operator
   maturity: beta
   minKubeVersion: 0.0.0
