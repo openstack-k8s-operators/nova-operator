@@ -2331,15 +2331,23 @@ var _ = Describe("application credentials", func() {
 					ContainElement(nova.ACConsumerFinalizer))
 			}, timeout, interval).Should(Succeed())
 
-			SimulateReadyOfNovaTopServices()
+			// Rotating the AC secret changes the input secret hash, which bumps
+			// the child generations and drives them not-ready until their
+			// statefulsets roll out the new config. Re-simulate on every poll so
+			// the workloads converge and allServicesReady lets
+			// FinalizeSecretRotation release the old AC consumer finalizer.
 			Eventually(func(g Gomega) {
+				th.SimulateStatefulSetReplicaReady(novaNames.APIStatefulSetName)
+				th.SimulateStatefulSetReplicaReady(novaNames.SchedulerStatefulSetName)
+				th.SimulateStatefulSetReplicaReady(novaNames.MetadataStatefulSetName)
+				th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 				secret := th.GetSecret(types.NamespacedName{
 					Namespace: novaNames.NovaName.Namespace,
 					Name:      acSecretName,
 				})
 				g.Expect(secret.Finalizers).NotTo(
 					ContainElement(nova.ACConsumerFinalizer))
-			}, timeout, interval).Should(Succeed())
+			}, 2*timeout, interval).Should(Succeed())
 
 			Eventually(func(g Gomega) {
 				n := GetNova(novaNames.NovaName)
@@ -2390,16 +2398,23 @@ var _ = Describe("application credentials", func() {
 				g.Expect(k8sClient.Update(ctx, n)).Should(Succeed())
 			}, timeout, interval).Should(Succeed())
 
-			SimulateReadyOfNovaTopServices()
-
+			// Clearing the AC secret changes the input secret hash, which bumps
+			// the child generations and drives them not-ready until their
+			// statefulsets roll out the new config. Re-simulate on every poll so
+			// the workloads converge and allServicesReady lets
+			// FinalizeSecretRotation release the AC consumer finalizer.
 			Eventually(func(g Gomega) {
+				th.SimulateStatefulSetReplicaReady(novaNames.APIStatefulSetName)
+				th.SimulateStatefulSetReplicaReady(novaNames.SchedulerStatefulSetName)
+				th.SimulateStatefulSetReplicaReady(novaNames.MetadataStatefulSetName)
+				th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 				secret := th.GetSecret(types.NamespacedName{
 					Namespace: novaNames.NovaName.Namespace,
 					Name:      acSecretName,
 				})
 				g.Expect(secret.Finalizers).NotTo(
 					ContainElement(nova.ACConsumerFinalizer))
-			}, timeout, interval).Should(Succeed())
+			}, 2*timeout, interval).Should(Succeed())
 
 			Eventually(func(g Gomega) {
 				n := GetNova(novaNames.NovaName)
@@ -2611,8 +2626,11 @@ var _ = Describe("Nova controller - transport URL secret rotation", func() {
 
 			// The old secret's finalizer is only released once every Nova
 			// sub-service has rolled out the new transport config and reports
-			// ready (the allServicesReady guard). Re-simulate each StatefulSet
-			// as ready and poke a reconcile so the guarded release can fire.
+			// ready (the allServicesReady guard). The re-render bumps each
+			// StatefulSet generation and envtest does not advance
+			// ObservedGeneration on its own, and the re-render can lag behind
+			// the first poll, so re-simulate the current generation and poke a
+			// reconcile on every iteration until the finalizer has moved.
 			Eventually(func(g Gomega) {
 				th.SimulateStatefulSetReplicaReady(novaNames.APIStatefulSetName)
 				th.SimulateStatefulSetReplicaReady(novaNames.SchedulerStatefulSetName)
@@ -2624,18 +2642,16 @@ var _ = Describe("Nova controller - transport URL secret rotation", func() {
 				}
 				n.Annotations["test-reconcile-trigger"] = fmt.Sprintf("%d", time.Now().UnixNano())
 				g.Expect(k8sClient.Update(ctx, n)).To(Succeed())
-			}, timeout, interval).Should(Succeed())
 
-			Eventually(func(g Gomega) {
 				secret := th.GetSecret(types.NamespacedName{
 					Namespace: novaNames.NovaName.Namespace,
 					Name:      oldSecretName,
 				})
 				g.Expect(secret.Finalizers).NotTo(
 					ContainElement(nova.TransportConsumerFinalizer))
-				n := GetNova(novaNames.NovaName)
+				n = GetNova(novaNames.NovaName)
 				g.Expect(n.Status.TransportURLSecret).To(Equal(newSecretName))
-			}, timeout, interval).Should(Succeed())
+			}, 2*timeout, interval).Should(Succeed())
 		})
 
 		It("should move the finalizer from the old to the new secret on notification transport rotation", func() {
@@ -2697,6 +2713,13 @@ var _ = Describe("Nova controller - transport URL secret rotation", func() {
 					ContainElement(nova.TransportConsumerFinalizer))
 			}, timeout, interval).Should(Succeed())
 
+			// Rotating the notifications secret re-renders every top-level
+			// service config, bumping each StatefulSet generation. envtest does
+			// not advance ObservedGeneration on its own, so the services only
+			// report they have applied the new input once we simulate the new
+			// generation as Ready. The re-render may lag behind the first poll,
+			// so re-simulate the current generation on every iteration until the
+			// consumer finalizer has moved to the rotated secret.
 			Eventually(func(g Gomega) {
 				th.SimulateStatefulSetReplicaReady(novaNames.APIStatefulSetName)
 				th.SimulateStatefulSetReplicaReady(novaNames.SchedulerStatefulSetName)
@@ -2708,18 +2731,16 @@ var _ = Describe("Nova controller - transport URL secret rotation", func() {
 				}
 				n.Annotations["test-reconcile-trigger"] = fmt.Sprintf("%d", time.Now().UnixNano())
 				g.Expect(k8sClient.Update(ctx, n)).To(Succeed())
-			}, timeout, interval).Should(Succeed())
 
-			Eventually(func(g Gomega) {
 				secret := th.GetSecret(types.NamespacedName{
 					Namespace: novaNames.NovaName.Namespace,
 					Name:      oldNotifSecretName,
 				})
 				g.Expect(secret.Finalizers).NotTo(
 					ContainElement(nova.TransportConsumerFinalizer))
-				n := GetNova(novaNames.NovaName)
+				n = GetNova(novaNames.NovaName)
 				g.Expect(n.Status.NotificationsTransportURLSecret).To(Equal(newNotifSecretName))
-			}, timeout, interval).Should(Succeed())
+			}, 2*timeout, interval).Should(Succeed())
 		})
 
 	})
