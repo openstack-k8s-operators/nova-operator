@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -368,12 +369,22 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	// We need to create a list of cellNames to iterate on and as the map
 	// iteration order is undefined we need to make sure that cell0 is the
 	// first to allow dependency handling during ensureCell calls.
+	// Build a deterministic cell ordering: cell0 first, then the remaining
+	// cells sorted by name. Spec.CellTemplates is a map, so ranging it directly
+	// yields a random order each reconcile. Several derived values depend on
+	// this order being stable across reconciles - most importantly the input
+	// secret hash (util.ObjectHash(secretNames)) that gates secret rotation and
+	// child readiness. A non-deterministic order makes that hash flip-flop and
+	// churns the child Ready conditions.
 	orderedCellNames := []string{novav1.Cell0Name}
+	otherCellNames := []string{}
 	for cellName := range instance.Spec.CellTemplates {
 		if cellName != novav1.Cell0Name {
-			orderedCellNames = append(orderedCellNames, cellName)
+			otherCellNames = append(otherCellNames, cellName)
 		}
 	}
+	sort.Strings(otherCellNames)
+	orderedCellNames = append(orderedCellNames, otherCellNames...)
 
 	// Create the Cell DBs. Note that we are not returning on error or if the
 	// DB creation is still in progress. We move forward with whatever we can
