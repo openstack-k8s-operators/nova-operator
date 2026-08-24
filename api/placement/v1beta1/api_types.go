@@ -18,7 +18,7 @@ package v1beta1
 
 import (
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
-	condition 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
+	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/probes"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
@@ -191,6 +191,13 @@ type PlacementAPIStatus struct {
 	// finalizer. Tracked so the controller can remove its finalizer from the
 	// old secret when the openstack-operator rotates the reference.
 	ApplicationCredentialSecret string `json:"applicationCredentialSecret,omitempty"`
+
+	// AppliedInputSecretHash is the hash of the input Secret consumed by the
+	// last Deployment rollout that has been confirmed ready. It is only
+	// updated once the Deployment is observed to be running with this input,
+	// so consumers can correlate readiness with a specific applied input
+	// instead of relying on a possibly stale ReadyCondition.
+	AppliedInputSecretHash string `json:"appliedInputSecretHash,omitempty"`
 }
 
 // PlacementAPI is the Schema for the placementapis API

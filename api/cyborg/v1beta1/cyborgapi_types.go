@@ -119,6 +119,13 @@ type CyborgAPIStatus struct {
 
 	// LastAppliedTopology - the last applied Topology
 	LastAppliedTopology *topologyv1.TopoRef `json:"lastAppliedTopology,omitempty"`
+
+	// AppliedInputSecretHash is the hash of the input Secret consumed by the
+	// last StatefulSet rollout that has been confirmed ready. It is only
+	// updated once the StatefulSet is observed to be running with this
+	// input, so a parent CR can correlate readiness with a specific applied
+	// input instead of relying on a possibly stale ReadyCondition.
+	AppliedInputSecretHash string `json:"appliedInputSecretHash,omitempty"`
 }
 
 // +kubebuilder:object:root=true
