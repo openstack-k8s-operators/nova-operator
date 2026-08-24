@@ -280,6 +280,14 @@ type NovaCellStatus struct {
 	// then the controller has not processed the latest changes injected by
 	// the openstack-operator in the top-level CR (e.g. the ContainerImage)
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+
+	// AppliedInputSecretHash is the hash of the per-cell input Secret that
+	// all of this cell's child services (Conductor, Metadata, NoVNCProxy,
+	// Compute) have confirmed applied and rolled out with. It is only
+	// updated once all of them report readiness for this input, so the
+	// top-level Nova CR can correlate this cell's readiness with a specific
+	// applied input instead of relying on a possibly stale ReadyCondition.
+	AppliedInputSecretHash string `json:"appliedInputSecretHash,omitempty"`
 }
 
 //+kubebuilder:object:root=true
