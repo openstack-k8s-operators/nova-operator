@@ -683,30 +683,42 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		return ctrl.Result{}, err
 	}
 
-	result, err = r.ensureAPI(
+	topLevelSecretObj := &corev1.Secret{}
+	if err := r.Client.Get(
+		ctx, types.NamespacedName{Name: topLevelSecretName, Namespace: instance.Namespace}, topLevelSecretObj,
+	); err != nil {
+		return ctrl.Result{}, err
+	}
+	topLevelSecretHash, err := util.ObjectHash(topLevelSecretObj.Data)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	result, apiInputApplied, err := r.ensureAPI(
 		ctx, instance, cell0Template,
 		cellDBs[novav1.Cell0Name].Database, apiDB,
 		keystoneInternalAuthURL, keystonePublicAuthURL, region,
-		topLevelSecretName,
+		topLevelSecretName, topLevelSecretHash,
 	)
 	if err != nil {
 		return result, err
 	}
 
-	result, err = r.ensureScheduler(
+	result, schedulerInputApplied, err := r.ensureScheduler(
 		ctx, instance, cell0Template,
 		cellDBs[novav1.Cell0Name].Database, apiDB, keystoneInternalAuthURL, region,
-		topLevelSecretName,
+		topLevelSecretName, topLevelSecretHash,
 	)
 	if err != nil {
 		return result, err
 	}
 
+	metadataInputApplied := true
 	if *instance.Spec.MetadataServiceTemplate.Enabled {
-		result, err = r.ensureMetadata(
+		result, metadataInputApplied, err = r.ensureMetadata(
 			ctx, instance, cell0Template,
 			cellDBs[novav1.Cell0Name].Database, apiDB, keystoneInternalAuthURL, region,
-			topLevelSecretName,
+			topLevelSecretName, topLevelSecretHash,
 		)
 		if err != nil {
 			return result, err
@@ -720,6 +732,10 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		}
 		instance.Status.Conditions.Remove(novav1.NovaMetadataReadyCondition)
 		instance.Status.MetadataServiceReadyCount = 0
+	}
+
+	if apiInputApplied && schedulerInputApplied && metadataInputApplied {
+		instance.Status.AppliedInputSecretHash = topLevelSecretHash
 	}
 
 	// remove finalizers from unused MariaDBAccount records but ONLY if
@@ -1301,6 +1317,17 @@ func (r *NovaReconciler) ensureCell(
 		return nil, nova.CellDeploying, err
 	}
 
+	cellSecretObj := &corev1.Secret{}
+	if err := r.Client.Get(
+		ctx, types.NamespacedName{Name: cellSecretName, Namespace: instance.Namespace}, cellSecretObj,
+	); err != nil {
+		return nil, nova.CellFailed, err
+	}
+	cellSecretHash, err := util.ObjectHash(cellSecretObj.Data)
+	if err != nil {
+		return nil, nova.CellFailed, err
+	}
+
 	cellSpec := novav1.NovaCellSpec{
 		CellName:                  cellName,
 		Secret:                    cellSecretName,
@@ -1366,9 +1393,10 @@ func (r *NovaReconciler) ensureCell(
 		Log.Info(fmt.Sprintf("NovaCell %s.", string(op)), "NovaCell.Name", cell.Name)
 	}
 
-	if !cell.IsReady() || cell.Generation != cell.Status.ObservedGeneration {
-		// We wait for the cell to become Ready before we map it in the
-		// nova_api DB.
+	if !cell.IsReady() || cell.Generation != cell.Status.ObservedGeneration ||
+		cell.Status.AppliedInputSecretHash != cellSecretHash {
+		// We wait for the cell to become Ready with this input before we map
+		// it in the nova_api DB.
 		return cell, nova.CellDeploying, err
 	}
 	configHash, scriptName, configName, err := r.ensureNovaManageJobSecret(ctx, h, instance,
@@ -1466,7 +1494,8 @@ func (r *NovaReconciler) ensureAPI(
 	keystonePublicAuthURL string,
 	region string,
 	secretName string,
-) (ctrl.Result, error) {
+	expectedInputSecretHash string,
+) (ctrl.Result, bool, error) {
 	Log := r.GetLogger(ctx)
 
 	// TODO(gibi): Pass down a narrowed secret that only hold
@@ -1529,7 +1558,7 @@ func (r *NovaReconciler) ensureAPI(
 			condition.SeverityError,
 			novav1.NovaAPIReadyErrorMessage,
 			err.Error()))
-		return ctrl.Result{}, err
+		return ctrl.Result{}, false, err
 	}
 
 	if op != controllerutil.OperationResultNone {
@@ -1541,12 +1570,23 @@ func (r *NovaReconciler) ensureAPI(
 		// NOTE(gibi): it can be nil if the NovaAPI CR is created but no
 		// reconciliation is run on it to initialize the ReadyCondition yet.
 		if c != nil {
+			if c.Status == corev1.ConditionTrue && api.Status.AppliedInputSecretHash != expectedInputSecretHash {
+				// NovaAPI's own ReadyCondition may still read stale-true from
+				// before an input rotation. Don't propagate that until it has
+				// confirmed rollout of the currently expected input.
+				c.Status = corev1.ConditionFalse
+				c.Severity = condition.SeverityInfo
+				c.Reason = condition.RequestedReason
+				c.Message = condition.DeploymentReadyRunningMessage
+			}
 			instance.Status.Conditions.Set(c)
 		}
 		instance.Status.APIServiceReadyCount = api.Status.ReadyCount
 	}
 
-	return ctrl.Result{}, nil
+	inputApplied := api.Status.Conditions.IsTrue(condition.ReadyCondition) &&
+		api.Status.AppliedInputSecretHash == expectedInputSecretHash
+	return ctrl.Result{}, inputApplied, nil
 }
 
 func (r *NovaReconciler) ensureScheduler(
@@ -1558,7 +1598,8 @@ func (r *NovaReconciler) ensureScheduler(
 	keystoneAuthURL string,
 	region string,
 	secretName string,
-) (ctrl.Result, error) {
+	expectedInputSecretHash string,
+) (ctrl.Result, bool, error) {
 	Log := r.GetLogger(ctx)
 	// TODO(gibi): Pass down a narrowed secret that only hold
 	// specific information but also holds user names
@@ -1621,7 +1662,7 @@ func (r *NovaReconciler) ensureScheduler(
 			condition.SeverityError,
 			novav1.NovaSchedulerReadyErrorMessage,
 			err.Error()))
-		return ctrl.Result{}, err
+		return ctrl.Result{}, false, err
 	}
 
 	if op != controllerutil.OperationResultNone {
@@ -1634,12 +1675,23 @@ func (r *NovaReconciler) ensureScheduler(
 		// NOTE(gibi): it can be nil if the NovaScheduler CR is created but no
 		// reconciliation is run on it to initialize the ReadyCondition yet.
 		if c != nil {
+			if c.Status == corev1.ConditionTrue && scheduler.Status.AppliedInputSecretHash != expectedInputSecretHash {
+				// NovaScheduler's own ReadyCondition may still read stale-true
+				// from before an input rotation. Don't propagate that until it
+				// has confirmed rollout of the currently expected input.
+				c.Status = corev1.ConditionFalse
+				c.Severity = condition.SeverityInfo
+				c.Reason = condition.RequestedReason
+				c.Message = condition.DeploymentReadyRunningMessage
+			}
 			instance.Status.Conditions.Set(c)
 		}
 		instance.Status.SchedulerServiceReadyCount = scheduler.Status.ReadyCount
 	}
 
-	return ctrl.Result{}, nil
+	inputApplied := scheduler.Status.Conditions.IsTrue(condition.ReadyCondition) &&
+		scheduler.Status.AppliedInputSecretHash == expectedInputSecretHash
+	return ctrl.Result{}, inputApplied, nil
 }
 
 func (r *NovaReconciler) ensureKeystoneServiceUser(
@@ -1941,7 +1993,8 @@ func (r *NovaReconciler) ensureMetadata(
 	keystoneAuthURL string,
 	region string,
 	secretName string,
-) (ctrl.Result, error) {
+	expectedInputSecretHash string,
+) (ctrl.Result, bool, error) {
 	Log := r.GetLogger(ctx)
 	// There is a case when the user manually created a NovaMetadata while it
 	// was disabled in the Nova and then tries to enable it in Nova.
@@ -1958,7 +2011,7 @@ func (r *NovaReconciler) ensureMetadata(
 	metadata := &novav1.NovaMetadata{}
 	err := r.Client.Get(ctx, metadataName, metadata)
 	if err != nil && !k8s_errors.IsNotFound(err) {
-		return ctrl.Result{}, err
+		return ctrl.Result{}, false, err
 	}
 
 	// If it is not created by us, we don't touch it
@@ -1977,7 +2030,7 @@ func (r *NovaReconciler) ensureMetadata(
 			novav1.NovaMetadataReadyErrorMessage,
 			err.Error()))
 
-		return ctrl.Result{}, err
+		return ctrl.Result{}, false, err
 	}
 
 	// TODO(gibi): Pass down a narrowed secret that only hold
@@ -2040,7 +2093,7 @@ func (r *NovaReconciler) ensureMetadata(
 			condition.SeverityError,
 			novav1.NovaMetadataReadyErrorMessage,
 			err.Error()))
-		return ctrl.Result{}, err
+		return ctrl.Result{}, false, err
 	}
 
 	if op != controllerutil.OperationResultNone {
@@ -2052,11 +2105,22 @@ func (r *NovaReconciler) ensureMetadata(
 		// NOTE(gibi): it can be nil if the NovaMetadata CR is created but no
 		// reconciliation is run on it to initialize the ReadyCondition yet.
 		if c != nil {
+			if c.Status == corev1.ConditionTrue && metadata.Status.AppliedInputSecretHash != expectedInputSecretHash {
+				// NovaMetadata's own ReadyCondition may still read stale-true
+				// from before an input rotation. Don't propagate that until it
+				// has confirmed rollout of the currently expected input.
+				c.Status = corev1.ConditionFalse
+				c.Severity = condition.SeverityInfo
+				c.Reason = condition.RequestedReason
+				c.Message = condition.DeploymentReadyRunningMessage
+			}
 			instance.Status.Conditions.Set(c)
 		}
 		instance.Status.MetadataServiceReadyCount = metadata.Status.ReadyCount
 	}
-	return ctrl.Result{}, nil
+	inputApplied := metadata.Status.Conditions.IsTrue(condition.ReadyCondition) &&
+		metadata.Status.AppliedInputSecretHash == expectedInputSecretHash
+	return ctrl.Result{}, inputApplied, nil
 }
 
 // ensureCellMapped makes sure that the cell has a row in the

@@ -32,6 +32,7 @@ import (
 	controllers "github.com/openstack-k8s-operators/nova-operator/internal/controller/nova"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -457,6 +458,77 @@ var _ = Describe("NovaCell controller", func() {
 			)
 
 			Expect(cell.Status.NovaComputesStatus).To(HaveKey(ironicComputeName))
+		})
+
+		It("does not advance AppliedInputSecretHash until all cell services roll out the rotated input", func() {
+			th.SimulateJobSuccess(cell1.DBSyncJobName)
+			th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
+			th.SimulateStatefulSetReplicaReady(cell1.NovaComputeStatefulSetName)
+			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
+			th.SimulateStatefulSetReplicaReady(cell1.MetadataStatefulSetName)
+
+			th.ExpectCondition(
+				cell1.CellCRName,
+				ConditionGetterFunc(NovaCellConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			oldHash := GetNovaCell(cell1.CellCRName).Status.AppliedInputSecretHash
+			Expect(oldHash).NotTo(BeEmpty())
+
+			// conductor, novncproxy and metadata regenerate their config
+			// independently of readiness; the compute config is only
+			// regenerated once the NoVNCProxy is Ready again (it needs the
+			// proxy endpoint), so it rolls out last.
+			independentSS := []types.NamespacedName{
+				cell1.ConductorStatefulSetName,
+				cell1.NoVNCProxyStatefulSetName,
+				cell1.MetadataStatefulSetName,
+			}
+			originalHashes := map[string]string{}
+			for _, ss := range append(independentSS, cell1.NovaComputeStatefulSetName) {
+				h := GetEnvVarValue(
+					th.GetStatefulSet(ss).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
+				Expect(h).NotTo(BeEmpty())
+				originalHashes[ss.Name] = h
+			}
+
+			th.UpdateSecret(cell1.InternalCellSecretName, "ServicePassword", []byte("new-service-password"))
+
+			// The rotated input has not rolled out yet, so the cell must keep
+			// reporting the pre-rotation hash.
+			Consistently(func(g Gomega) {
+				g.Expect(GetNovaCell(cell1.CellCRName).Status.AppliedInputSecretHash).To(Equal(oldHash))
+			}, "2s", interval).Should(Succeed())
+
+			for _, ss := range independentSS {
+				Eventually(func(g Gomega) {
+					newHash := GetEnvVarValue(
+						th.GetStatefulSet(ss).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
+					g.Expect(newHash).NotTo(BeEmpty())
+					g.Expect(newHash).NotTo(Equal(originalHashes[ss.Name]))
+				}, timeout, interval).Should(Succeed())
+				th.SimulateStatefulSetReplicaReady(ss)
+			}
+
+			// Now that the NoVNCProxy has rolled out, the compute config is
+			// regenerated with the rotated input and the compute rolls out.
+			Eventually(func(g Gomega) {
+				newHash := GetEnvVarValue(
+					th.GetStatefulSet(cell1.NovaComputeStatefulSetName).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
+				g.Expect(newHash).NotTo(BeEmpty())
+				g.Expect(newHash).NotTo(Equal(originalHashes[cell1.NovaComputeStatefulSetName.Name]))
+			}, timeout, interval).Should(Succeed())
+			th.SimulateStatefulSetReplicaReady(cell1.NovaComputeStatefulSetName)
+
+			// With every cell service confirming the rollout, the NovaCell
+			// advances its applied-input hash to the rotated value.
+			Eventually(func(g Gomega) {
+				newHash := GetNovaCell(cell1.CellCRName).Status.AppliedInputSecretHash
+				g.Expect(newHash).NotTo(BeEmpty())
+				g.Expect(newHash).NotTo(Equal(oldHash))
+			}, timeout, interval).Should(Succeed())
 		})
 
 		It("deletes NoVNCProxy if it is disabled later", func() {
