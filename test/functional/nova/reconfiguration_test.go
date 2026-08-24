@@ -866,6 +866,20 @@ var _ = Describe("Nova reconfiguration", func() {
 			secretName := types.NamespacedName{Namespace: novaNames.NovaName.Namespace, Name: SecretName}
 			th.UpdateSecret(secretName, "NovaPassword", []byte("new-service-password"))
 
+			// cell1 and cell2 need API DB access, which Nova only grants once
+			// cell0 has confirmed it rolled out this rotated input. Since
+			// envtest has no StatefulSet controller, cell0's conductor won't
+			// self-report that rollout until its StatefulSet is simulated
+			// ready at the new generation, so do that first to unblock the
+			// other cells' secret regeneration below.
+			Eventually(func(g Gomega) {
+				newHash := GetEnvVarValue(
+					th.GetStatefulSet(cell0.ConductorStatefulSetName).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
+				g.Expect(newHash).NotTo(BeEmpty())
+				g.Expect(newHash).NotTo(Equal(originalHashes[0]))
+			}, timeout, interval).Should(Succeed())
+			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
+
 			// Assert that the config hash is updated in each stateful set
 			for i, ss := range ssNames {
 				Eventually(func(g Gomega) {
@@ -875,6 +889,73 @@ var _ = Describe("Nova reconfiguration", func() {
 					g.Expect(newHash).NotTo(Equal(originalHashes[i]))
 				}, timeout, interval).Should(Succeed())
 			}
+		})
+		It("does not advance the top-level AppliedInputSecretHash until the services roll out the rotated input", func() {
+			// The top-level Nova CR only reports an applied-input hash once
+			// NovaAPI, NovaScheduler and NovaMetadata have each confirmed
+			// (via their own AppliedInputSecretHash) that their StatefulSets
+			// rolled out pods carrying the rotated secret. This is what lets a
+			// higher-level control-plane CR safely release a rotated secret's
+			// finalizer only after the credentials are truly in use.
+			oldHash := GetNova(novaNames.NovaName).Status.AppliedInputSecretHash
+			Expect(oldHash).NotTo(BeEmpty())
+
+			topLevelSS := []types.NamespacedName{
+				novaNames.APIStatefulSetName,
+				novaNames.SchedulerStatefulSetName,
+				novaNames.MetadataStatefulSetName,
+			}
+			// Nova only progresses the top-level services once cell0 has
+			// confirmed it rolled out the rotated input (they depend on cell0's
+			// API DB access), so cell0's conductor must be resimulated first.
+			originalHashes := map[string]string{}
+			for _, ss := range append(topLevelSS, cell0.ConductorStatefulSetName) {
+				h := GetEnvVarValue(
+					th.GetStatefulSet(ss).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
+				Expect(h).NotTo(BeEmpty())
+				originalHashes[ss.Name] = h
+			}
+
+			secretName := types.NamespacedName{Namespace: novaNames.NovaName.Namespace, Name: SecretName}
+			th.UpdateSecret(secretName, "NovaPassword", []byte("new-service-password"))
+
+			// Until the rotated input has demonstrably rolled out, the
+			// top-level CR must keep reporting the pre-rotation hash rather
+			// than optimistically advancing to the new one.
+			Consistently(func(g Gomega) {
+				g.Expect(GetNova(novaNames.NovaName).Status.AppliedInputSecretHash).To(Equal(oldHash))
+			}, "2s", interval).Should(Succeed())
+
+			// cell0's conductor must confirm the rollout of the rotated input
+			// before Nova will reconcile the top-level services (envtest has no
+			// StatefulSet controller, so this must be simulated).
+			Eventually(func(g Gomega) {
+				newHash := GetEnvVarValue(
+					th.GetStatefulSet(cell0.ConductorStatefulSetName).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
+				g.Expect(newHash).NotTo(BeEmpty())
+				g.Expect(newHash).NotTo(Equal(originalHashes[cell0.ConductorStatefulSetName.Name]))
+			}, timeout, interval).Should(Succeed())
+			th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
+
+			// Wait for the controller to propagate the rotated secret into each
+			// StatefulSet, then simulate the rollout completing.
+			for _, ss := range topLevelSS {
+				Eventually(func(g Gomega) {
+					newHash := GetEnvVarValue(
+						th.GetStatefulSet(ss).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
+					g.Expect(newHash).NotTo(BeEmpty())
+					g.Expect(newHash).NotTo(Equal(originalHashes[ss.Name]))
+				}, timeout, interval).Should(Succeed())
+				th.SimulateStatefulSetReplicaReady(ss)
+			}
+
+			// Now that every top-level service confirmed the rollout, the Nova
+			// CR advances its applied-input hash to the rotated value.
+			Eventually(func(g Gomega) {
+				newHash := GetNova(novaNames.NovaName).Status.AppliedInputSecretHash
+				g.Expect(newHash).NotTo(BeEmpty())
+				g.Expect(newHash).NotTo(Equal(oldHash))
+			}, timeout, interval).Should(Succeed())
 		})
 	})
 	It("deletes NovaMetadata if it is disabled", func() {

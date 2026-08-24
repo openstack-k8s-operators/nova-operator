@@ -28,6 +28,7 @@ import (
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
+	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	mariadb_test "github.com/openstack-k8s-operators/mariadb-operator/api/test/helpers"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/nova-operator/internal/placement"
@@ -966,6 +967,49 @@ var _ = Describe("PlacementAPI controller", func() {
 				g.Expect(newConfigHash).NotTo(Equal(oldConfigHash))
 				// TODO(gibi): once the password is in the generated config
 				// assert it there
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("does not advance AppliedInputSecretHash until the rotated secret rolls out", func() {
+			// PlacementAPI has no intermediate child CR, so it folds the leaf
+			// and parent behaviour together: it records AppliedInputSecretHash
+			// only once IsReadyForInput confirms - via an uncached read - that
+			// the Deployment rolled out pods carrying the current CONFIG_HASH.
+			oldHash := GetPlacementAPI(names.PlacementAPIName).Status.AppliedInputSecretHash
+			Expect(oldHash).NotTo(BeEmpty())
+
+			oldConfigHash := GetEnvVarValue(
+				th.GetDeployment(names.DeploymentName).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
+			Expect(oldConfigHash).NotTo(BeEmpty())
+
+			th.UpdateSecret(
+				types.NamespacedName{Namespace: namespace, Name: SecretName},
+				"PlacementPassword", []byte("foobar"))
+			rotatedSecret := th.GetSecret(types.NamespacedName{Namespace: namespace, Name: SecretName})
+			expectedHash, err := util.ObjectHash(rotatedSecret.Data)
+			Expect(err).NotTo(HaveOccurred())
+
+			// The rotated input has not rolled out yet (envtest has no
+			// Deployment controller to bump ObservedGeneration), so the applied
+			// hash must not advance to the new value.
+			Consistently(func(g Gomega) {
+				g.Expect(GetPlacementAPI(names.PlacementAPIName).Status.AppliedInputSecretHash).To(Equal(oldHash))
+			}, "2s", interval).Should(Succeed())
+
+			// Once the controller propagates the rotated secret into the
+			// Deployment and the rollout is simulated complete, the applied hash
+			// advances to the rotated value.
+			Eventually(func(g Gomega) {
+				newConfigHash := GetEnvVarValue(
+					th.GetDeployment(names.DeploymentName).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
+				g.Expect(newConfigHash).NotTo(BeEmpty())
+				g.Expect(newConfigHash).NotTo(Equal(oldConfigHash))
+			}, timeout, interval).Should(Succeed())
+			th.SimulateDeploymentReplicaReady(names.DeploymentName)
+
+			Eventually(func(g Gomega) {
+				newHash := GetPlacementAPI(names.PlacementAPIName).Status.AppliedInputSecretHash
+				g.Expect(newHash).To(Equal(expectedHash))
 			}, timeout, interval).Should(Succeed())
 		})
 
