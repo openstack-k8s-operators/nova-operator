@@ -408,6 +408,7 @@ func (r *PlacementAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		Log.Info("Waiting for the Deployment to become Ready before exposing the service in Keystone")
 		return ctrl.Result{}, nil
 	}
+	instance.Status.AppliedInputSecretHash = hash
 	err = r.ensureKeystoneServiceUser(ctx, h, instance)
 	if err != nil {
 		return ctrl.Result{}, err
@@ -1165,7 +1166,15 @@ func (r *PlacementAPIReconciler) ensureDeployment(
 	// Replicas > ReadyReplicas.
 	// In addition, make sure the controller sees the last Generation
 	// by comparing it with the ObservedGeneration.
-	if deployment.IsReady(deploy) {
+	ready, err := deployment.IsReadyForInput(
+		ctx, r.APIReader,
+		types.NamespacedName{Name: deploy.Name, Namespace: deploy.Namespace},
+		inputHash,
+	)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	if ready {
 		instance.Status.Conditions.MarkTrue(condition.DeploymentReadyCondition, condition.DeploymentReadyMessage)
 	} else {
 		Log.Info("Deployment is not ready")

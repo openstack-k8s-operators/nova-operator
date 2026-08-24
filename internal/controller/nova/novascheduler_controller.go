@@ -310,7 +310,7 @@ func (r *NovaSchedulerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return result, err
 	}
 
-	result, err = r.ensureDeployment(ctx, h, instance, inputHash, serviceAnnotations, memcached)
+	result, err = r.ensureDeployment(ctx, h, instance, inputHash, serviceAnnotations, memcached, secret)
 	if (err != nil || result != ctrl.Result{}) {
 		return result, err
 	}
@@ -629,6 +629,7 @@ func (r *NovaSchedulerReconciler) ensureDeployment(
 	inputHash string,
 	annotations map[string]string,
 	memcached *memcachedv1.Memcached,
+	secret corev1.Secret,
 ) (ctrl.Result, error) {
 	serviceLabels := map[string]string{
 		common.AppSelector: NovaSchedulerLabelPrefix,
@@ -706,8 +707,22 @@ func (r *NovaSchedulerReconciler) ensureDeployment(
 		return ctrl.Result{}, err
 	}
 
-	if instance.Status.ReadyCount == *instance.Spec.Replicas && statefulSet.Generation == statefulSet.Status.ObservedGeneration {
+	ready, err := statefulset.IsReadyForInput(
+		ctx, r.APIReader,
+		types.NamespacedName{Name: statefulSet.Name, Namespace: statefulSet.Namespace},
+		inputHash,
+	)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	if ready {
 		Log.Info("Deployment is ready")
+		appliedSecretHash, err := util.ObjectHash(secret.Data)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+		instance.Status.AppliedInputSecretHash = appliedSecretHash
 		instance.Status.Conditions.MarkTrue(condition.DeploymentReadyCondition, condition.DeploymentReadyMessage)
 	} else {
 		Log.Info("Deployment is not ready", "Status", ss.GetStatefulSet().Status)
