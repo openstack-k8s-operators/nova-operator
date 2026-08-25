@@ -9,7 +9,7 @@ layout:
 plugins:
   manifests.sdk.operatorframework.io/v2: {}
   scorecard.sdk.operatorframework.io/v2: {}
-projectName: nova-operator
+projectName: workloads-operator
 repo: github.com/openstack-k8s-operators/nova-operator
 resources:
 - api:

@@ -1,15 +1,15 @@
-# nova-operator
+# workloads-operator
 
 A golang operator for OpenStack Nova, Placement, and Cyborg lifecycle management
 
-## nova-operator Goal
+## workloads-operator Goal
 
-The goal of nova-operator is to manage custom resources that define an OpenStack
+The goal of workloads-operator is to manage custom resources that define an OpenStack
 Nova control plane, the Placement API service, and the Cyborg accelerator service.
 The operator continuously monitors the state of Nova, PlacementAPI, and Cyborg CRs
 and takes actions to ensure that the desired state is applied and reflected in the
 service pods. These pods run actual nova, placement, and cyborg services;
-nova-operator ensures they are deployed, scaled, and configured correctly.
+workloads-operator ensures they are deployed, scaled, and configured correctly.
 **Note:** Nova, PlacementAPI, and Cyborg CRs are created by openstack-operator as
 part of the initial deployment. Cyborg support is **disabled by default** and
 requires setting the `ENABLE_CYBORG=true` environment variable on the operator
@@ -68,7 +68,7 @@ fi
 confirm golangci-lint is installed
 
 ```sh
-[stack@crc nova-operator]$ golangci-lint --version
+[stack@crc workloads-operator]$ golangci-lint --version
 golangci-lint has version 1.50.0 built from 704109c6 on 2022-10-04T10:25:07Z
 ```
 
@@ -77,7 +77,7 @@ golangci-lint has version 1.50.0 built from 704109c6 on 2022-10-04T10:25:07Z
 **NOTE:** this might take some time on the first run as it need to build the operator
 
 ```sh
-(.venv) [stack@crc nova-operator]$ pre-commit run -a
+(.venv) [stack@crc workloads-operator]$ pre-commit run -a
 make-manifests...........................................................Passed
 make-generate............................................................Passed
 go fmt...................................................................Passed
@@ -198,13 +198,13 @@ make install
 2. Build and push your image to the location specified by `IMG`:
 
 ```sh
-make docker-build docker-push IMG=<some-registry>/nova-operator:tag
+make docker-build docker-push IMG=<some-registry>/workloads-operator:tag
 ```
 
 3. Deploy the controller to the cluster with the image specified by `IMG`:
 
 ```sh
-make deploy IMG=<some-registry>/nova-operator:tag
+make deploy IMG=<some-registry>/workloads-operator:tag
 ```
 
 ### Uninstall CRDs
@@ -274,22 +274,22 @@ make crc_attach_default_interface
 make openstack
 ```
 
-3. From nova-operator deploy openstack
+3. From workloads-operator deploy openstack
 ```sh
-ansible-playbook ci/nova-operator-compute-kit/playbooks/deploy-openstack.yaml -e @${HOME}/my-envs.yml
+ansible-playbook ci/workloads-operator-compute-kit/playbooks/deploy-openstack.yaml -e @${HOME}/my-envs.yml
 ```
 
-**NOTE:** The my-envs.yaml contains overrides pointing to base directory of nova operator and sets target host to localhost
+**NOTE:** The my-envs.yaml contains overrides pointing to base directory of workloads operator and sets target host to localhost
 ```sh
 cat ~/my-envs.yml
 ---
-nova_operator_basedir: '/home/stack/nova-operator'
+workloads_operator_basedir: '/home/stack/workloads-operator'
 target_host: 'localhost'
 ```
 
 4. Run tempest playbook
 ```sh
-ansible-playbook ci/nova-operator-compute-kit/playbooks/tempest.yaml -e @${HOME}/my-envs.yml
+ansible-playbook ci/workloads-operator-compute-kit/playbooks/tempest.yaml -e @${HOME}/my-envs.yml
 ```
 
 ## License

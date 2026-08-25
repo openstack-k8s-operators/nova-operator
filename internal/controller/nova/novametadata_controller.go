@@ -877,7 +877,7 @@ func (r *NovaMetadataReconciler) generateNeutronConfigs(
 		return err
 	}
 
-	// NOTE(gibi): We are generating this data in the nova-operator to:
+	// NOTE(gibi): We are generating this data in the workloads-operator to:
 	// 1. avoid the work needed to teach cells to neutron
 	// 2. avoid the need to synchronize the shared secret between nova- and
 	//    neutron-operator externally

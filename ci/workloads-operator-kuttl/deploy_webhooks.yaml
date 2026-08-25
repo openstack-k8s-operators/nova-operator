@@ -12,7 +12,7 @@
     - name: Scale down deployment
       ansible.builtin.shell: |
         oc patch csv -n openstack-operators {{ csv_name.stdout }} --type json -p="[{"op": "replace", "path": "/spec/install/spec/deployments/0/spec/replicas", "value": "0"}]"
-    - name: Install Nova Operator
+    - name: Install Workloads Operator
       cifmw.general.ci_script:
         output_dir: "{{ cifmw_basedir }}/artifacts"
         chdir: "{{ ansible_user_dir }}/src/github.com/openstack-k8s-operators/nova-operator"

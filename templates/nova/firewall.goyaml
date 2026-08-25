@@ -1,5 +1,5 @@
 ---
-# Generated via nova-operator
+# Generated via workloads-operator
 - rule_name: 005 Allow vnc access on all networks.
   rule:
     proto: tcp

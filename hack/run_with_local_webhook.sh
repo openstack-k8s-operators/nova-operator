@@ -663,7 +663,7 @@ EOF_CAT
 oc apply -n openstack -f ${TMPDIR}/patch_webhook_configurations.yaml
 
 # Scale-down operator deployment replicas to zero and remove OLM webhooks
-CSV_NAME="$(oc get csv -n openstack-operators -l operators.coreos.com/nova-operator.openstack-operators -o name)"
+CSV_NAME="$(oc get csv -n openstack-operators -l operators.coreos.com/workloads-operator.openstack-operators -o name)"
 
 if [ -n "${CSV_NAME}" ]; then
     CUR_REPLICAS=$(oc get -n openstack-operators "${CSV_NAME}" -o=jsonpath='{.spec.install.spec.deployments[0].spec.replicas}')

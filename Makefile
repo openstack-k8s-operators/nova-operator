@@ -28,8 +28,8 @@ BUNDLE_METADATA_OPTS ?= $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
 # This variable is used to construct full image tags for bundle and catalog images.
 #
 # For example, running 'make bundle-build bundle-push catalog-build catalog-push' will build and push both
-# openstack.org/nova-operator-bundle:$VERSION and openstack.org/nova-operator-catalog:$VERSION.
-IMAGE_TAG_BASE ?= quay.io/$(USER)/nova-operator
+# openstack.org/workloads-operator-bundle:$VERSION and openstack.org/workloads-operator-catalog:$VERSION.
+IMAGE_TAG_BASE ?= quay.io/$(USER)/workloads-operator
 
 # BUNDLE_IMG defines the image:tag used for the bundle.
 # You can use it as an arg. (E.g make bundle-build BUNDLE_IMG=<some-registry>/<project-name-bundle>:<tag>)
@@ -51,13 +51,13 @@ endif
 OPERATOR_SDK_VERSION ?= v1.42.3
 
 # Image URL to use all building/pushing image targets
-DEFAULT_IMG ?= quay.io/openstack-k8s-operators/nova-operator:latest
+DEFAULT_IMG ?= quay.io/openstack-k8s-operators/workloads-operator:latest
 IMG ?= $(DEFAULT_IMG)
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.33
 
 SETUP_ENVTEST_VERSION ?= release-0.22
-CATALOG_IMAGE ?= quay.io/openstack-k8s-operators/nova-operator-index:latest
+CATALOG_IMAGE ?= quay.io/openstack-k8s-operators/workloads-operator-index:latest
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -439,10 +439,10 @@ CRD_SCHEMA_CHECKER_VERSION ?= release-4.18
 BRANCH ?= main
 .PHONY: force-bump
 force-bump: ## Force bump operator and lib-common dependencies
-	for dep in $$(cat go.mod | grep openstack-k8s-operators | grep -vE -- 'indirect|nova-operator|^replace' | awk '{print $$1}'); do \
+	for dep in $$(cat go.mod | grep openstack-k8s-operators | grep -vE -- 'indirect|workloads-operator|^replace' | awk '{print $$1}'); do \
 		go get $$dep@$(BRANCH) ; \
 	done
-	for dep in $$(cat api/go.mod | grep openstack-k8s-operators | grep -vE -- 'indirect|nova-operator|^replace' | awk '{print $$1}'); do \
+	for dep in $$(cat api/go.mod | grep openstack-k8s-operators | grep -vE -- 'indirect|workloads-operator|^replace' | awk '{print $$1}'); do \
 		cd ./api && go get $$dep@$(BRANCH) && cd .. ; \
 	done
 
@@ -455,11 +455,11 @@ crd-schema-check: manifests
 .PHONY: run_with_olm
 run_with_olm: export CATALOG_IMG=${CATALOG_IMAGE}
 run_with_olm: export ENABLE_CYBORG?=false
-run_with_olm: ## Install nova operator via olm
-	# explicitly to delete any running nova-operator deployments from openstack-operator here as
+run_with_olm: ## Install workloads operator via olm
+	# explicitly to delete any running workloads-operator deployments from openstack-operator here as
 	# label selectors can change and installing a service catalog/index like this alongside
 	# openstack-operator (what CI appears to do?) is not recommended
-	oc delete deployment nova-operator-controller-manager -n openstack-operators --ignore-not-found=true
+	oc delete deployment workloads-operator-controller-manager -n openstack-operators --ignore-not-found=true
 	bash ci/olm.sh
 	oc apply -f ci/olm.yaml
-	timeout 300s bash -c "while ! (oc get csv -n openstack-operators -l operators.coreos.com/nova-operator.openstack-operators -o jsonpath='{.items[*].status.phase}' | grep Succeeded); do sleep 1; done"
+	timeout 300s bash -c "while ! (oc get csv -n openstack-operators -l operators.coreos.com/workloads-operator.openstack-operators -o jsonpath='{.items[*].status.phase}' | grep Succeeded); do sleep 1; done"

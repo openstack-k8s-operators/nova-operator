@@ -1,10 +1,11 @@
-# AGENTS.md - nova-operator
+# AGENTS.md - workloads-operator
 
 ## Project overview
 
-nova-operator is a Kubernetes operator that manages
-[OpenStack Nova](https://docs.openstack.org/nova/latest/) and
-[OpenStack Placement](https://docs.openstack.org/placement/latest/)
+workloads-operator is a Kubernetes operator that manages
+[OpenStack Nova](https://docs.openstack.org/nova/latest/),
+[OpenStack Placement](https://docs.openstack.org/placement/latest/),
+and [OpenStack Cyborg](https://docs.openstack.org/cyborg/latest/)
 on OpenShift/Kubernetes. It is part of the
 [openstack-k8s-operators](https://github.com/openstack-k8s-operators) project.
 

@@ -13,7 +13,7 @@ metadata:
 apiVersion: operators.coreos.com/v1alpha1
 kind: CatalogSource
 metadata:
-  name: nova-operator-index
+  name: workloads-operator-index
   namespace: openstack-operators
 spec:
   image: ${CATALOG_IMG}
@@ -28,12 +28,12 @@ metadata:
 apiVersion: operators.coreos.com/v1alpha1
 kind: Subscription
 metadata:
-  name: nova-operator
+  name: workloads-operator
   namespace: openstack-operators
 spec:
-  name: nova-operator
+  name: workloads-operator
   channel: alpha
-  source: nova-operator-index
+  source: workloads-operator-index
   sourceNamespace: openstack-operators
   config:
     env:
