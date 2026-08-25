@@ -6,7 +6,7 @@ on:
       - '*'
 
 jobs:
-  build-nova-operator-with-bundle-and-index:
+  build-workloads-operator-with-bundle-and-index:
     name: Build
     runs-on: ubuntu-latest
 
@@ -16,13 +16,13 @@ jobs:
       with:
         go-version: 1.26.x
 
-    - name: Checkout nova-operator repository
+    - name: Checkout workloads-operator repository
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
     - name: Build
       env:
         # By not providing any remote repository here the build artifact will not be pushed
-        IMAGE_TAG_BASE: nova-operator
+        IMAGE_TAG_BASE: workloads-operator
         # To avoid getting rate limited during kustomize install
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

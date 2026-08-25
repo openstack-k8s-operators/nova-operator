@@ -1,4 +1,4 @@
-name: Release Nova Operator
+name: Release Workloads Operator
 
 on:
   release:

@@ -1,4 +1,4 @@
-name: nova operator image builder
+name: workloads operator image builder
 
 on:
   push:
@@ -15,7 +15,7 @@ jobs:
   call-build-workflow:
     uses: openstack-k8s-operators/openstack-k8s-operators-ci/.github/workflows/reusable-build-operator.yaml@main
     with:
-      operator_name: nova
+      operator_name: workloads
       go_version: 1.26.x
       operator_sdk_version: 1.42.3
     secrets:

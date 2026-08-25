@@ -6,9 +6,9 @@
     KUBECONFIG: "{{ cifmw_openshift_kubeconfig }}"
     PATH: "{{ cifmw_path }}"
   tasks:
-    # NOTE(amoralej): Cyborg controllers and webhooks in the nova-operator
+    # NOTE(amoralej): Cyborg controllers and webhooks in the workloads-operator
     # are gated behind the ENABLE_CYBORG=true env var (cmd/main.go).
-    # The nova-operator deployment is owned and reconciled by the
+    # The workloads-operator deployment is owned and reconciled by the
     # openstack-operator, which rebuilds its env vars from scratch on
     # every reconcile loop (it Owns the Deployment). The OpenStack CRD
     # does not expose a way to inject custom env vars into sub-operator
@@ -16,8 +16,8 @@
     #   1. Scale down the openstack-operator via its CSV to stop it
     #      from reconciling (OLM manages the deployment, so we patch
     #      the CSV replicas rather than scaling the deployment directly).
-    #   2. Patch the nova-operator deployment directly to add ENABLE_CYBORG.
-    #   3. Wait for the nova-operator to roll out with Cyborg enabled.
+    #   2. Patch the workloads-operator deployment directly to add ENABLE_CYBORG.
+    #   3. Wait for the workloads-operator to roll out with Cyborg enabled.
     - name: Get the openstack-operator CSV name
       ansible.builtin.command:
         cmd: >-
@@ -40,16 +40,16 @@
           oc rollout status deployment/openstack-operator-controller-init
           -n openstack-operators --timeout=120s
 
-    - name: Patch nova-operator deployment to enable Cyborg
+    - name: Patch workloads-operator deployment to enable Cyborg
       ansible.builtin.command:
         cmd: >-
-          oc set env deployment/nova-operator-controller-manager
+          oc set env deployment/workloads-operator-controller-manager
           -n openstack-operators ENABLE_CYBORG=true
 
-    - name: Wait for nova-operator rollout
+    - name: Wait for workloads-operator rollout
       ansible.builtin.command:
         cmd: >-
-          oc rollout status deployment/nova-operator-controller-manager
+          oc rollout status deployment/workloads-operator-controller-manager
           -n openstack-operators --timeout=300s
 
     - name: Add CyborgPassword to osp-secret
