@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package main is the entry point for the nova-operator
+// Package main is the entry point for the workloads-operator
 package main
 
 import (

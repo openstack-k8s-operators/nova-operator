@@ -62,7 +62,7 @@ func (r *ReconcilerBase) SetRequeueTimeout(timeout time.Duration) {
 	r.RequeueTimeout = timeout
 }
 
-// Reconcilers holds all the Reconciler objects of the nova-operator to
+// Reconcilers holds all the Reconciler objects of the workloads-operator to
 // allow generic management of them.
 type Reconcilers struct {
 	reconcilers map[string]Reconciler
