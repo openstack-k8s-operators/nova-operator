@@ -41,9 +41,9 @@ func GetConfigVolume(secretName string) corev1.Volume {
 // in that case), and /etc/my.cnf. Neither service needs a primary
 // /etc/cyborg/cyborg.conf file -- both discover config purely from
 // --config-dir/oslo.config's default config-dir search, matching what
-// cyborg-conductor's own kolla config.json command already did
-// (--config-dir /etc/cyborg/cyborg.conf.d) and cyborg-api's WSGI app relies
-// on implicitly (its config.json never copied a primary cyborg.conf either).
+// the old entrypoint already did (--config-dir /etc/cyborg/cyborg.conf.d)
+// for cyborg-conductor and what cyborg-api's WSGI app relies on implicitly
+// (the old entrypoint never copied a primary cyborg.conf for it either).
 func GetConfVolumeMounts(hasCustomServiceConfig bool) []corev1.VolumeMount {
 	vm := []corev1.VolumeMount{
 		{

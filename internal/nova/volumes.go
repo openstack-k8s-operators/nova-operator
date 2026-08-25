@@ -34,8 +34,7 @@ var (
 	configMode int32 = 0440
 	// scriptMode grants execute to the FSGroup-matched group, not just the
 	// (root-owned, per kubelet) file owner -- scripts are exec'd directly
-	// from this mount now that kolla no longer copies them elsewhere with
-	// its own chmod first.
+	// from this mount (no entrypoint copies them elsewhere with chmod).
 	scriptMode int32 = 0750
 )
 

@@ -71,13 +71,13 @@ mapping job. They are named `nova-cell0-manage-config-data` and
 `nova-cell0-manage-scripts`.
 
 The config secrets will contain multiple keys if the user provided
-`CustomServiceConfig` in the service CR. These config secrets are mounted to
-the pod and kolla is used to copy the resulting config files to
-`/etc/nova/nova.conf.d/`. So the key names in the Secret defines the order how
-oslo.config will apply the different config snippets. The nova-operator will
-generate the default configuration under the key `01-nova.conf` and copy the
-user defined snippet to the Secret to key `02-nova-override.conf`. So the user
-defined configuration always override the default config.
+`CustomServiceConfig` in the service CR. These config secrets are mounted
+directly to the pod at `/etc/nova/nova.conf.d/`. The key names in the Secret
+define the order how oslo.config will apply the different config snippets.
+The nova-operator will generate the default configuration under the key
+`01-nova.conf` and copy the user defined snippet to the Secret to key
+`02-nova-override.conf`. So the user defined configuration always overrides
+the default config.
 
 ### Config generation for the services running on the external data plane node
 
@@ -138,12 +138,12 @@ Secrets named after the PlacementAPI CR. For a PlacementAPI CR named
 operator runs a db sync Job named `<PlacementAPI name>-db-sync`.
 
 The config secrets will contain multiple keys if the user provided
-`CustomServiceConfig` in the service CR. These config secrets are mounted to
-the pod and kolla is used to copy the resulting config files to
-`/etc/placement/placement.conf.d/`. The nova-operator will generate the default
-configuration from templates under `templates/placement/api/` and copy the user
-defined snippet to the Secret to key `custom.conf`. So the user defined
-configuration always override the default config.
+`CustomServiceConfig` in the service CR. These config secrets are mounted
+directly to the pod at `/etc/placement/placement.conf.d/`. The nova-operator
+will generate the default configuration from templates under
+`templates/placement/api/` and copy the user defined snippet to the Secret to
+key `custom.conf`. So the user defined configuration always overrides the
+default config.
 
 ## Cyborg configuration generation
 
@@ -155,9 +155,8 @@ CRs: CyborgAPI (the REST API) and CyborgConductor. For a Cyborg CR named
 runs a db sync Job.
 
 The config secrets will contain multiple keys if the user provided
-`CustomServiceConfig` in the service CR. These config secrets are mounted to
-the pod and kolla is used to copy the resulting config files to
-`/etc/cyborg/cyborg.conf.d/`. The nova-operator will generate the default
-configuration from templates under `templates/cyborg/` and copy the user
-defined snippet to the Secret. So the user defined configuration always
-overrides the default config.
+`CustomServiceConfig` in the service CR. These config secrets are mounted
+directly to the pod at `/etc/cyborg/cyborg.conf.d/`. The nova-operator will
+generate the default configuration from templates under `templates/cyborg/`
+and copy the user defined snippet to the Secret. So the user defined
+configuration always overrides the default config.
