@@ -1,11 +1,11 @@
-# Goals of the nova-operator
+# Goals of the workloads-operator
 
 The high-level goal is to provide a set of APIs in a form of Kubernetes Custom
 Resource Definitions (CRD) implemented with Operator SDK to deploy OpenStack
 Nova, Placement, and Cyborg control plane services in OpenShift.
 
 The Placement service code that previously lived in placement-operator and the
-Cyborg accelerator service are now managed by the same nova-operator binary and
+Cyborg accelerator service are now managed by the same workloads-operator binary and
 OLM bundle. There are no separate placement-operator or cyborg-operator
 deployments.
 
@@ -14,14 +14,14 @@ the operator pod to activate the Cyborg controllers and webhooks.
 
 # Decisions
 
-1. The nova-operator provides a single top-level Nova API for the OpenStack
+1. The workloads-operator provides a single top-level Nova API for the OpenStack
 operator to instantiate a Nova control plane by creating a single Custom
 Resource (CR). We support this to hide any nova-specific deployment logic from
 the OpenStack operator. Similarly, the Cyborg CR is the top-level resource that
 manages the CyborgAPI and CyborgConductor service CRs. Placement has no
 equivalent top-level CR; only the PlacementAPI service CR exists.
 
-2. The nova-operator allows deploying control plane services independently by
+2. The workloads-operator allows deploying control plane services independently by
 instantiating a service-level CRD without the matching top-level CR. We support
 this to limit the dependency of each service CRD to the minimum and by that to
 allow testing of each service CRD in isolation. This applies to the
@@ -44,7 +44,7 @@ Nova*ServiceType* CRDs, the PlacementAPI CRD, and the Cyborg service CRDs
     via a registered keystone endpoint; they do not deploy PlacementAPI as part
     of the Nova CR reconciliation.
 
-3. The nova-operator provides Nova Cells v2 aware deployment structure by
+3. The workloads-operator provides Nova Cells v2 aware deployment structure by
 default to support scaling the deployment to more than one real cell without
 the need to restructure the existing deployment. This means:
 
@@ -74,7 +74,7 @@ The config secrets will contain multiple keys if the user provided
 `CustomServiceConfig` in the service CR. These config secrets are mounted to
 the pod and kolla is used to copy the resulting config files to
 `/etc/nova/nova.conf.d/`. So the key names in the Secret defines the order how
-oslo.config will apply the different config snippets. The nova-operator will
+oslo.config will apply the different config snippets. The workloads-operator will
 generate the default configuration under the key `01-nova.conf` and copy the
 user defined snippet to the Secret to key `02-nova-override.conf`. So the user
 defined configuration always override the default config.
@@ -83,10 +83,10 @@ defined configuration always override the default config.
 
 #### nova-compute
 The main nova service running on the EDP node is nova-compute. However the
-nova-operator is not responsible to deploy or manage such service. It is
+workloads-operator is not responsible to deploy or manage such service. It is
 managed by the dataplane controller that runs in the openstack-operator. Users
 interact with this via the generic OpenStackDataPlaneService CR.
-The only responsibility of nova-operator in regards of nova-compute is to
+The only responsibility of workloads-operator in regards of nova-compute is to
 generate the basic control plane configuration needed for the nova-compute
 service to connect to the control plane properly. It is done by generating a
 Secret per NovaCell with the name of
@@ -96,10 +96,10 @@ in the Secrets field of the OpenStackDataPlaneService CR describing the
 nova-compute service.
 
 #### neutron-metadata-agent
-The nova-metadata service is deployed by the nova-operator. For the guest VMs
+The nova-metadata service is deployed by the workloads-operator. For the guest VMs
 to be able to access this metadata service the neutron-metadata-agent needs to
 be deployed on the EDPM side and it needs to be able to talk to the
-nova-metadata service running in k8s. The nova-operator generates the
+nova-metadata service running in k8s. The workloads-operator generates the
 necessary neutron-metadata-agent config snippet that defines how the
 nova-metadata service can be accessed by the neutron-metadata-agent.
 
@@ -140,7 +140,7 @@ operator runs a db sync Job named `<PlacementAPI name>-db-sync`.
 The config secrets will contain multiple keys if the user provided
 `CustomServiceConfig` in the service CR. These config secrets are mounted to
 the pod and kolla is used to copy the resulting config files to
-`/etc/placement/placement.conf.d/`. The nova-operator will generate the default
+`/etc/placement/placement.conf.d/`. The workloads-operator will generate the default
 configuration from templates under `templates/placement/api/` and copy the user
 defined snippet to the Secret to key `custom.conf`. So the user defined
 configuration always override the default config.
@@ -157,7 +157,7 @@ runs a db sync Job.
 The config secrets will contain multiple keys if the user provided
 `CustomServiceConfig` in the service CR. These config secrets are mounted to
 the pod and kolla is used to copy the resulting config files to
-`/etc/cyborg/cyborg.conf.d/`. The nova-operator will generate the default
+`/etc/cyborg/cyborg.conf.d/`. The workloads-operator will generate the default
 configuration from templates under `templates/cyborg/` and copy the user
 defined snippet to the Secret. So the user defined configuration always
 overrides the default config.
