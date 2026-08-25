@@ -66,7 +66,7 @@ commands:
       | grep -q 'cyborg-kuttl-conductor-config-data'
 # --- CyborgAPI pod (cyborg-kuttl-api-0) volume mounts ---
 # cyborg-api container must mount 00-default.conf directly at its final
-# destination via SubPath (no more staging + kolla config.json copy)
+# destination via SubPath (no more staging + entrypoint copy)
 - script: |
     oc get pod cyborg-kuttl-api-0 -n $NAMESPACE -o json \
       | grep -q '"mountPath": "/etc/cyborg/cyborg.conf.d/00-default.conf"'
@@ -80,7 +80,7 @@ commands:
       | grep -q '"mountPath": "/etc/my.cnf"'
 # --- CyborgConductor pod (cyborg-kuttl-conductor-0) volume mounts ---
 # cyborg-conductor container must mount 00-default.conf directly at its
-# final destination via SubPath (no more staging + kolla config.json copy)
+# final destination via SubPath (no more staging + entrypoint copy)
 - script: |
     oc get pod cyborg-kuttl-conductor-0 -n $NAMESPACE -o json \
       | grep -q '"mountPath": "/etc/cyborg/cyborg.conf.d/00-default.conf"'

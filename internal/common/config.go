@@ -18,6 +18,7 @@ package common //nolint:revive // common is the established package name for mul
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
@@ -25,6 +26,18 @@ import (
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
+
+// GetScriptSecretName returns the name of the Secret used for the
+// db sync scripts
+func GetScriptSecretName(crName string) string {
+	return fmt.Sprintf("%s-scripts", crName)
+}
+
+// GetServiceConfigSecretName returns the name of the Secret used to
+// store the service configuration files
+func GetServiceConfigSecretName(crName string) string {
+	return fmt.Sprintf("%s-config-data", crName)
+}
 
 // GenerateConfigs helper function to generate config maps
 func GenerateConfigs(

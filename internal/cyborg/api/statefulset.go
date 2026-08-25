@@ -129,8 +129,8 @@ func StatefulSet(
 			// Final paths, matching what generateServiceConfig renders into
 			// 10-cyborg-wsgi-main.conf's SSLCertificateFile/SSLCertificateKeyFile
 			// -- without this, CreateVolumeMounts defaults to lib-common's
-			// staging path, which nothing copies from once kolla's
-			// config.json is gone.
+			// staging path, which nothing copies from now that entrypoint-based
+			// copying is gone.
 			certMount := fmt.Sprintf("/etc/pki/tls/certs/%s.crt", endpt.String())
 			keyMount := fmt.Sprintf("/etc/pki/tls/private/%s.key", endpt.String())
 			svc.CertMount = &certMount
