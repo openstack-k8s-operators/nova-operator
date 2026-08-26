@@ -166,13 +166,19 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 	// all our input checks out so report InputReady
 	instance.Status.Conditions.MarkTrue(condition.InputReadyCondition, condition.InputReadyMessage)
 
-	result, err = r.ensureConductor(ctx, instance)
+	cellSecretHash, err := util.ObjectHash(secret.Data)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	result, conductorInputApplied, err := r.ensureConductor(ctx, instance, cellSecretHash)
 	if err != nil {
 		return result, err
 	}
 
+	metadataInputApplied := true
 	if *instance.Spec.MetadataServiceTemplate.Enabled {
-		result, err = r.ensureMetadata(ctx, instance)
+		result, metadataInputApplied, err = r.ensureMetadata(ctx, instance, cellSecretHash)
 		if err != nil {
 			return result, err
 		}
@@ -193,7 +199,7 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 	// to run discover job only when all computes are deployed and never discovered
 	computeTemplatesHashMap := make(map[string]string)
 	for computeName, computeTemplate := range instance.Spec.NovaComputeTemplates {
-		computeStatus := r.ensureNovaCompute(ctx, instance, computeTemplate, computeName)
+		computeStatus := r.ensureNovaCompute(ctx, instance, computeTemplate, computeName, cellSecretHash)
 		instance.Status.NovaComputesStatus[computeName] = computeStatus
 		// We hash the entire compute template to keep track of changes in the number of replicas,
 		// allowing us to discover nodes accordingly
@@ -214,6 +220,7 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 	}
 
 	// We need to check if all computes are deployed
+	allComputesApplied := true
 	if len(instance.Spec.NovaComputeTemplates) == 0 {
 		Log.Info("No nova compute ironic/fake driver service definition in cell")
 		instance.Status.Conditions.Remove(novav1.NovaAllControlPlaneComputesReadyCondition)
@@ -228,7 +235,8 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 				failedComputes = append(failedComputes, computeName)
 			}
 		}
-		if len(instance.Spec.NovaComputeTemplates) == len(readyComputes) {
+		allComputesApplied = len(instance.Spec.NovaComputeTemplates) == len(readyComputes)
+		if allComputesApplied {
 			instance.Status.Conditions.MarkTrue(
 				novav1.NovaAllControlPlaneComputesReadyCondition, condition.ServiceConfigReadyMessage,
 			)
@@ -247,8 +255,9 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 	instance.Status.Hash[novav1.ComputeDiscoverHashKey] = computeTemplatesHash
 
 	cellHasVNCService := (*instance.Spec.NoVNCProxyServiceTemplate.Enabled)
+	novncproxyInputApplied := true
 	if cellHasVNCService {
-		result, err = r.ensureNoVNCProxy(ctx, instance)
+		result, novncproxyInputApplied, err = r.ensureNoVNCProxy(ctx, instance, cellSecretHash)
 		if err != nil {
 			return result, err
 		}
@@ -260,6 +269,10 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 			return ctrl.Result{}, err
 		}
 		instance.Status.Conditions.Remove(novav1.NovaNoVNCProxyReadyCondition)
+	}
+
+	if conductorInputApplied && metadataInputApplied && novncproxyInputApplied && allComputesApplied {
+		instance.Status.AppliedInputSecretHash = cellSecretHash
 	}
 
 	// We need to wait for the NovaNoVNCProxy to become Ready before we can try
@@ -359,7 +372,8 @@ func (r *NovaCellReconciler) initConditions(
 func (r *NovaCellReconciler) ensureConductor(
 	ctx context.Context,
 	instance *novav1.NovaCell,
-) (ctrl.Result, error) {
+	expectedInputSecretHash string,
+) (ctrl.Result, bool, error) {
 	Log := r.GetLogger(ctx)
 
 	conductorSpec := novav1.NewNovaConductorSpec(instance.Spec)
@@ -386,7 +400,7 @@ func (r *NovaCellReconciler) ensureConductor(
 			condition.SeverityError,
 			novav1.NovaConductorReadyErrorMessage,
 			err.Error()))
-		return ctrl.Result{}, err
+		return ctrl.Result{}, false, err
 	}
 
 	if op != controllerutil.OperationResultNone {
@@ -403,7 +417,9 @@ func (r *NovaCellReconciler) ensureConductor(
 		}
 	}
 
-	return ctrl.Result{}, nil
+	inputApplied := conductor.Status.Conditions.IsTrue(condition.ReadyCondition) &&
+		conductor.Status.AppliedInputSecretHash == expectedInputSecretHash
+	return ctrl.Result{}, inputApplied, nil
 }
 
 func getNoVNCProxyName(instance *novav1.NovaCell) types.NamespacedName {
@@ -413,7 +429,8 @@ func getNoVNCProxyName(instance *novav1.NovaCell) types.NamespacedName {
 func (r *NovaCellReconciler) ensureNoVNCProxy(
 	ctx context.Context,
 	instance *novav1.NovaCell,
-) (ctrl.Result, error) {
+	expectedInputSecretHash string,
+) (ctrl.Result, bool, error) {
 	Log := r.GetLogger(ctx)
 	// There is a case when the user manually created a NoVNCProxy while it
 	// was disabled in the cell and then tries to enable it in the cell.
@@ -430,7 +447,7 @@ func (r *NovaCellReconciler) ensureNoVNCProxy(
 	novncproxy := &novav1.NovaNoVNCProxy{}
 	err := r.Client.Get(ctx, novncproxyName, novncproxy)
 	if err != nil && !k8s_errors.IsNotFound(err) {
-		return ctrl.Result{}, err
+		return ctrl.Result{}, false, err
 	}
 
 	// If it is not created by us, we don't touch it
@@ -449,7 +466,7 @@ func (r *NovaCellReconciler) ensureNoVNCProxy(
 			novav1.NovaNoVNCProxyReadyErrorMessage,
 			err.Error()))
 
-		return ctrl.Result{}, err
+		return ctrl.Result{}, false, err
 	}
 
 	// NoVNCProxy is either not exists, or it exists but owned by us so we can
@@ -478,7 +495,7 @@ func (r *NovaCellReconciler) ensureNoVNCProxy(
 			condition.SeverityError,
 			novav1.NovaNoVNCProxyReadyErrorMessage,
 			err.Error()))
-		return ctrl.Result{}, err
+		return ctrl.Result{}, false, err
 	}
 
 	if op != controllerutil.OperationResultNone {
@@ -495,7 +512,9 @@ func (r *NovaCellReconciler) ensureNoVNCProxy(
 		}
 	}
 
-	return ctrl.Result{}, nil
+	inputApplied := novncproxy.Status.Conditions.IsTrue(condition.ReadyCondition) &&
+		novncproxy.Status.AppliedInputSecretHash == expectedInputSecretHash
+	return ctrl.Result{}, inputApplied, nil
 }
 
 func (r *NovaCellReconciler) ensureNoVNCProxyDeleted(
@@ -535,7 +554,8 @@ func (r *NovaCellReconciler) ensureNoVNCProxyDeleted(
 func (r *NovaCellReconciler) ensureMetadata(
 	ctx context.Context,
 	instance *novav1.NovaCell,
-) (ctrl.Result, error) {
+	expectedInputSecretHash string,
+) (ctrl.Result, bool, error) {
 	Log := r.GetLogger(ctx)
 	// There is a case when the user manually created a NovaMetadata while it
 	// was disabled in the NovaCell and then tries to enable it in NovaCell.
@@ -552,7 +572,7 @@ func (r *NovaCellReconciler) ensureMetadata(
 	metadata := &novav1.NovaMetadata{}
 	err := r.Client.Get(ctx, metadataName, metadata)
 	if err != nil && !k8s_errors.IsNotFound(err) {
-		return ctrl.Result{}, err
+		return ctrl.Result{}, false, err
 	}
 
 	// If it is not created by us, we don't touch it
@@ -571,7 +591,7 @@ func (r *NovaCellReconciler) ensureMetadata(
 			novav1.NovaMetadataReadyErrorMessage,
 			err.Error()))
 
-		return ctrl.Result{}, err
+		return ctrl.Result{}, false, err
 	}
 
 	metadataSpec := novav1.NewNovaMetadataSpec(instance.Spec)
@@ -599,7 +619,7 @@ func (r *NovaCellReconciler) ensureMetadata(
 			condition.SeverityError,
 			novav1.NovaMetadataReadyErrorMessage,
 			err.Error()))
-		return ctrl.Result{}, err
+		return ctrl.Result{}, false, err
 	}
 
 	if op != controllerutil.OperationResultNone {
@@ -616,7 +636,9 @@ func (r *NovaCellReconciler) ensureMetadata(
 		}
 	}
 
-	return ctrl.Result{}, nil
+	inputApplied := metadata.Status.Conditions.IsTrue(condition.ReadyCondition) &&
+		metadata.Status.AppliedInputSecretHash == expectedInputSecretHash
+	return ctrl.Result{}, inputApplied, nil
 }
 
 // ensureComputeConfig ensures the the compute config Secret exists and up to
@@ -689,6 +711,7 @@ func (r *NovaCellReconciler) ensureNovaCompute(
 	instance *novav1.NovaCell,
 	compute novav1.NovaComputeTemplate,
 	computeName string,
+	expectedInputSecretHash string,
 ) novav1.NovaComputeCellStatus {
 	Log := r.GetLogger(ctx)
 	// There is a case when the user manually created a NovaCompute with selected name.
@@ -757,8 +780,9 @@ func (r *NovaCellReconciler) ensureNovaCompute(
 		Log.Info(fmt.Sprintf("NovaCompute %s, NovaCompute.Name %s .", string(op), novacompute.Name))
 	}
 
-	if novacompute.Generation == novacompute.Status.ObservedGeneration && novacompute.IsReady() {
-		// We wait for the novacompute to become Ready before we map it deployed.
+	if novacompute.Generation == novacompute.Status.ObservedGeneration && novacompute.IsReady() &&
+		novacompute.Status.AppliedInputSecretHash == expectedInputSecretHash {
+		// We wait for the novacompute to become Ready with this input before we map it deployed.
 		computeStatus.Deployed = true
 	}
 

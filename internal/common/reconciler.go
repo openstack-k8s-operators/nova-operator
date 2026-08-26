@@ -28,7 +28,11 @@ import (
 
 // ReconcilerBase provides a common set of clients scheme and loggers for all reconcilers.
 type ReconcilerBase struct {
-	Client         client.Client
+	Client client.Client
+	// APIReader is an uncached client.Reader, used where reads must bypass
+	// the informer cache (e.g. to confirm a workload has actually rolled out
+	// with a specific input before reporting readiness).
+	APIReader      client.Reader
 	Kclient        kubernetes.Interface
 	Scheme         *runtime.Scheme
 	RequeueTimeout time.Duration
@@ -51,6 +55,7 @@ func NewReconcilerBase(
 ) ReconcilerBase {
 	return ReconcilerBase{
 		Client:         mgr.GetClient(),
+		APIReader:      mgr.GetAPIReader(),
 		Scheme:         mgr.GetScheme(),
 		Kclient:        kclient,
 		RequeueTimeout: time.Duration(5) * time.Second,

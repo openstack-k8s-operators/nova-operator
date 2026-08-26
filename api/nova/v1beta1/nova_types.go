@@ -191,6 +191,14 @@ type NovaStatus struct {
 	// finalizer. Tracked so the controller can remove its finalizer from the
 	// old secret when the openstack-operator rotates the reference.
 	ApplicationCredentialSecret string `json:"applicationCredentialSecret,omitempty"`
+
+	// AppliedInputSecretHash is the hash of the top-level input Secret that
+	// all of NovaAPI, NovaScheduler, NovaMetadata, and cell0 have confirmed
+	// applied and rolled out with. It is only updated once all of them
+	// report readiness for this input, so a higher-level control-plane CR
+	// can correlate Nova's readiness with a specific applied input instead
+	// of relying on a possibly stale ReadyCondition.
+	AppliedInputSecretHash string `json:"appliedInputSecretHash,omitempty"`
 }
 
 //+kubebuilder:object:root=true

@@ -327,7 +327,17 @@ func (r *CyborgReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 	//
 	// Create sub-level secret with required configuration
 	//
-	_, err = r.createSubLevelSecret(ctx, h, instance, transporturlSecret, inputSecret, db, acData, keystoneAuthURL, keystoneRegion)
+	subLevelSecretName, err := r.createSubLevelSecret(ctx, h, instance, transporturlSecret, inputSecret, db, acData, keystoneAuthURL, keystoneRegion)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	subLevelSecretObj := &corev1.Secret{}
+	if err := r.Client.Get(
+		ctx, types.NamespacedName{Name: subLevelSecretName, Namespace: instance.Namespace}, subLevelSecretObj,
+	); err != nil {
+		return ctrl.Result{}, err
+	}
+	subLevelSecretHash, err := util.ObjectHash(subLevelSecretObj.Data)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -383,7 +393,7 @@ func (r *CyborgReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 	//
 	// Create CyborgAPI sub-CR
 	//
-	ctrlResult, err = r.ensureCyborgAPI(ctx, h, instance, serviceLabels)
+	ctrlResult, apiInputApplied, err := r.ensureCyborgAPI(ctx, h, instance, serviceLabels, subLevelSecretHash)
 	if err != nil {
 		return ctrl.Result{}, err
 	} else if (ctrlResult != ctrl.Result{}) {
@@ -393,11 +403,15 @@ func (r *CyborgReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 	//
 	// Create CyborgConductor sub-CR
 	//
-	ctrlResult, err = r.ensureConductor(ctx, h, instance, serviceLabels)
+	ctrlResult, conductorInputApplied, err := r.ensureConductor(ctx, h, instance, serviceLabels, subLevelSecretHash)
 	if err != nil {
 		return ctrl.Result{}, err
 	} else if (ctrlResult != ctrl.Result{}) {
 		return ctrlResult, nil
+	}
+
+	if apiInputApplied && conductorInputApplied {
+		instance.Status.AppliedInputSecretHash = subLevelSecretHash
 	}
 
 	//
@@ -939,7 +953,8 @@ func (r *CyborgReconciler) ensureCyborgAPI(
 	h *helper.Helper,
 	instance *cyborgv1beta1.Cyborg,
 	serviceLabels map[string]string,
-) (ctrl.Result, error) {
+	expectedInputSecretHash string,
+) (ctrl.Result, bool, error) {
 	Log := r.GetLogger(ctx)
 	Log.Info(fmt.Sprintf("Reconciling CyborgAPI for '%s'", instance.Name))
 
@@ -979,7 +994,7 @@ func (r *CyborgReconciler) ensureCyborgAPI(
 			condition.SeverityWarning,
 			cyborgv1beta1.CyborgAPIReadyErrorMessage,
 			err.Error()))
-		return ctrl.Result{}, err
+		return ctrl.Result{}, false, err
 	}
 	if op != controllerutil.OperationResultNone {
 		Log.Info(fmt.Sprintf("CyborgAPI CR %s - %s", apiName, op))
@@ -988,10 +1003,13 @@ func (r *CyborgReconciler) ensureCyborgAPI(
 	apiObj := &cyborgv1beta1.CyborgAPI{}
 	err = h.GetClient().Get(ctx, types.NamespacedName{Name: apiName, Namespace: instance.Namespace}, apiObj)
 	if err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{}, false, err
 	}
 
-	if apiObj.IsReady() {
+	inputApplied := apiObj.Generation == apiObj.Status.ObservedGeneration &&
+		apiObj.Status.AppliedInputSecretHash == expectedInputSecretHash &&
+		apiObj.IsReady()
+	if inputApplied {
 		instance.Status.APIServiceReadyCount = apiObj.Status.ReadyCount
 		instance.Status.Conditions.MarkTrue(cyborgv1beta1.CyborgAPIReadyCondition, condition.DeploymentReadyMessage)
 	} else {
@@ -1002,7 +1020,7 @@ func (r *CyborgReconciler) ensureCyborgAPI(
 			condition.DeploymentReadyRunningMessage))
 	}
 
-	return ctrl.Result{}, nil
+	return ctrl.Result{}, inputApplied, nil
 }
 
 func (r *CyborgReconciler) ensureConductor(
@@ -1010,7 +1028,8 @@ func (r *CyborgReconciler) ensureConductor(
 	h *helper.Helper,
 	instance *cyborgv1beta1.Cyborg,
 	serviceLabels map[string]string,
-) (ctrl.Result, error) {
+	expectedInputSecretHash string,
+) (ctrl.Result, bool, error) {
 	Log := r.GetLogger(ctx)
 	Log.Info(fmt.Sprintf("Reconciling CyborgConductor for '%s'", instance.Name))
 
@@ -1053,7 +1072,7 @@ func (r *CyborgReconciler) ensureConductor(
 			condition.SeverityWarning,
 			cyborgv1beta1.CyborgConductorReadyErrorMessage,
 			err.Error()))
-		return ctrl.Result{}, err
+		return ctrl.Result{}, false, err
 	}
 	if op != controllerutil.OperationResultNone {
 		Log.Info(fmt.Sprintf("CyborgConductor CR %s - %s", conductorName, op))
@@ -1062,10 +1081,13 @@ func (r *CyborgReconciler) ensureConductor(
 	conductorObj := &cyborgv1beta1.CyborgConductor{}
 	err = h.GetClient().Get(ctx, types.NamespacedName{Name: conductorName, Namespace: instance.Namespace}, conductorObj)
 	if err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{}, false, err
 	}
 
-	if conductorObj.IsReady() {
+	inputApplied := conductorObj.Generation == conductorObj.Status.ObservedGeneration &&
+		conductorObj.Status.AppliedInputSecretHash == expectedInputSecretHash &&
+		conductorObj.IsReady()
+	if inputApplied {
 		instance.Status.ConductorServiceReadyCount = conductorObj.Status.ReadyCount
 		instance.Status.Conditions.MarkTrue(cyborgv1beta1.CyborgConductorReadyCondition, condition.DeploymentReadyMessage)
 	} else {
@@ -1076,7 +1098,7 @@ func (r *CyborgReconciler) ensureConductor(
 			condition.DeploymentReadyRunningMessage))
 	}
 
-	return ctrl.Result{}, nil
+	return ctrl.Result{}, inputApplied, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

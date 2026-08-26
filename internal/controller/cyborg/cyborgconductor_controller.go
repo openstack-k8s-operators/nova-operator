@@ -225,7 +225,16 @@ func (r *CyborgConductorReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 
 	ssObj := ss.GetStatefulSet()
 	instance.Status.ReadyCount = ssObj.Status.ReadyReplicas
-	if statefulset.IsReady(ssObj) {
+	ready, err := statefulset.IsReadyForInput(
+		ctx, r.APIReader,
+		types.NamespacedName{Name: ssObj.Name, Namespace: ssObj.Namespace},
+		inputHash,
+	)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	if ready {
+		instance.Status.AppliedInputSecretHash = secretHash
 		instance.Status.Conditions.MarkTrue(condition.DeploymentReadyCondition, condition.DeploymentReadyMessage)
 	} else {
 		instance.Status.Conditions.Set(condition.FalseCondition(

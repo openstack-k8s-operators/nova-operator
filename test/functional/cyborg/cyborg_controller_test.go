@@ -409,6 +409,70 @@ var _ = Describe("Cyborg controller", func() {
 				corev1.ConditionTrue,
 			)
 		})
+
+		It("does not advance AppliedInputSecretHash until the API and conductor roll out the rotated input", func() {
+			// Bring Cyborg fully Ready first.
+			mariadb.SimulateMariaDBAccountCompleted(cyborgNames.MariaDBAccountName)
+			mariadb.SimulateMariaDBDatabaseCompleted(cyborgNames.MariaDBDatabaseName)
+			infra.SimulateTransportURLReady(cyborgNames.TransportURLName)
+			keystone.SimulateKeystoneServiceReady(cyborgNames.KeystoneServiceName)
+			th.SimulateJobSuccess(cyborgNames.DBSyncJobName)
+			th.SimulateStatefulSetReplicaReady(cyborgNames.APIStatefulSetName)
+			keystone.SimulateKeystoneEndpointReady(cyborgNames.KeystoneEndpointName)
+			th.SimulateStatefulSetReplicaReady(cyborgNames.ConductorStatefulSetName)
+
+			th.ExpectCondition(
+				cyborgNames.CyborgName,
+				ConditionGetterFunc(CyborgConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			var oldHash string
+			Eventually(func(g Gomega) {
+				oldHash = GetCyborg(cyborgNames.CyborgName).Status.AppliedInputSecretHash
+				g.Expect(oldHash).NotTo(BeEmpty())
+			}, timeout, interval).Should(Succeed())
+
+			apiSS := cyborgNames.APIStatefulSetName
+			condSS := cyborgNames.ConductorStatefulSetName
+			oldAPIHash := GetEnvVarValue(
+				th.GetStatefulSet(apiSS).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
+			oldCondHash := GetEnvVarValue(
+				th.GetStatefulSet(condSS).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
+			Expect(oldAPIHash).NotTo(BeEmpty())
+			Expect(oldCondHash).NotTo(BeEmpty())
+
+			th.UpdateSecret(
+				types.NamespacedName{Namespace: cyborgNames.CyborgName.Namespace, Name: CyborgSecretName},
+				CyborgPasswordSelectorValue, []byte("new-cyborg-password"))
+
+			// The rotated input has not rolled out yet (envtest has no
+			// StatefulSet controller to bump ObservedGeneration), so the parent
+			// must keep reporting the pre-rotation hash.
+			Consistently(func(g Gomega) {
+				g.Expect(GetCyborg(cyborgNames.CyborgName).Status.AppliedInputSecretHash).To(Equal(oldHash))
+			}, "2s", interval).Should(Succeed())
+
+			// Wait for the rotated secret to reach both StatefulSets, then
+			// simulate the rollouts completing.
+			Eventually(func(g Gomega) {
+				g.Expect(GetEnvVarValue(
+					th.GetStatefulSet(apiSS).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")).NotTo(Equal(oldAPIHash))
+				g.Expect(GetEnvVarValue(
+					th.GetStatefulSet(condSS).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")).NotTo(Equal(oldCondHash))
+			}, timeout, interval).Should(Succeed())
+			th.SimulateStatefulSetReplicaReady(apiSS)
+			th.SimulateStatefulSetReplicaReady(condSS)
+
+			// Both children confirmed the rollout, so the Cyborg CR advances its
+			// applied-input hash to the rotated value.
+			Eventually(func(g Gomega) {
+				newHash := GetCyborg(cyborgNames.CyborgName).Status.AppliedInputSecretHash
+				g.Expect(newHash).NotTo(BeEmpty())
+				g.Expect(newHash).NotTo(Equal(oldHash))
+			}, timeout, interval).Should(Succeed())
+		})
 	})
 
 	When("Cyborg CR is created with TLS and ApplicationCredentials", func() {
@@ -636,6 +700,13 @@ var _ = Describe("Cyborg controller", func() {
 				g.Expect(string(subSecret.Data["ACSecret"])).To(Equal(appCredSecretValue + "-rotated"))
 			}, timeout, interval).Should(Succeed())
 
+			// The old secret's finalizer must not be removed until the
+			// sub-CRs have actually rolled out with the rotated input. Since
+			// envtest has no StatefulSet controller, simulate that rollout
+			// now to unblock the finalizer removal below.
+			th.SimulateStatefulSetReplicaReady(cyborgNames.ConductorStatefulSetName)
+			th.SimulateStatefulSetReplicaReady(cyborgNames.APIStatefulSetName)
+
 			// the finalizer is removed from the old secret
 			Eventually(func(g Gomega) {
 				secret := th.GetSecret(types.NamespacedName{
@@ -692,6 +763,22 @@ var _ = Describe("Cyborg controller", func() {
 				cyborg.Spec.Auth.ApplicationCredentialSecret = ""
 				g.Expect(k8sClient.Update(ctx, cyborg)).Should(Succeed())
 			}, timeout, interval).Should(Succeed())
+
+			// Wait for the sub-CRs to have picked up the updated sub-level
+			// secret (i.e. reconciled at least once past the spec change)
+			// before simulating their StatefulSet rollout below.
+			Eventually(func(g Gomega) {
+				subSecret := th.GetSecret(cyborgNames.SubLevelSecretName)
+				g.Expect(subSecret.Data).NotTo(HaveKey("ACID"))
+				g.Expect(subSecret.Data).NotTo(HaveKey("ACSecret"))
+			}, timeout, interval).Should(Succeed())
+
+			// The old secret's finalizer must not be removed until the
+			// sub-CRs have actually rolled out with the updated input. Since
+			// envtest has no StatefulSet controller, simulate that rollout
+			// now to unblock the finalizer removal below.
+			th.SimulateStatefulSetReplicaReady(cyborgNames.ConductorStatefulSetName)
+			th.SimulateStatefulSetReplicaReady(cyborgNames.APIStatefulSetName)
 
 			// the finalizer is removed from the secret
 			Eventually(func(g Gomega) {
