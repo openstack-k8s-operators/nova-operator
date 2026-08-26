@@ -537,6 +537,11 @@ spec:
           status:
             description: NovaNoVNCProxyStatus defines the observed state of NovaNoVNCProxy
             properties:
+              appliedInputSecretHash:
+                description: |-
+                  AppliedInputSecretHash - hash of the input secrets that the child has
+                  confirmed it is running with (set after IsReadyForInput succeeds)
+                type: string
               conditions:
                 description: Conditions
                 items:

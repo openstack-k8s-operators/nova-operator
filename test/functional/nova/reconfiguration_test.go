@@ -818,6 +818,25 @@ var _ = Describe("Nova reconfiguration", func() {
 			secretName := types.NamespacedName{Namespace: novaNames.NovaName.Namespace, Name: SecretName}
 			th.UpdateSecret(secretName, "NovaPassword", []byte("new-service-password"))
 
+			// Changing the password regenerates the NoVNCProxy config which
+			// bumps its StatefulSet generation, so the proxy reports it has not
+			// yet applied the new input. The cell only regenerates the
+			// (dataplane) compute-config once the proxy has rolled out the new
+			// input, so first wait for the proxy config to pick up the new
+			// password and then simulate the StatefulSet rollout (mirroring the
+			// transport-URL rotation test).
+			for _, cmName := range []types.NamespacedName{
+				cell1.CellNoVNCProxyNameConfigDataName,
+				cell2.CellNoVNCProxyNameConfigDataName,
+			} {
+				Eventually(func(g Gomega) {
+					conf := string(th.GetSecret(cmName).Data["01-nova.conf"])
+					g.Expect(conf).Should(ContainSubstring("password = new-service-password"))
+				}, timeout, interval).Should(Succeed(), fmt.Sprintf("Failed on %s", cmName))
+			}
+			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
+			th.SimulateStatefulSetReplicaReady(cell2.NoVNCProxyStatefulSetName)
+
 			// Expect that every service config is updated with the new service password
 			for _, cmName := range []types.NamespacedName{
 				cell0.ConductorConfigDataName,

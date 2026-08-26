@@ -290,6 +290,14 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 		instance.Status.Conditions.Remove(novav1.NovaComputeServiceConfigReady)
 	}
 
+	expectedHash := ""
+	if ann := instance.GetAnnotations(); ann != nil {
+		expectedHash = ann["openstack.org/input-secret-hash"]
+	}
+	if instance.Status.Conditions.AllSubConditionIsTrue() {
+		instance.Status.AppliedInputSecretHash = expectedHash
+	}
+
 	Log.Info("Successfully reconciled")
 	return ctrl.Result{}, nil
 }
@@ -370,8 +378,19 @@ func (r *NovaCellReconciler) ensureConductor(
 		},
 	}
 
+	expectedHash := ""
+	if ann := instance.GetAnnotations(); ann != nil {
+		expectedHash = ann["openstack.org/input-secret-hash"]
+	}
+
 	op, err := controllerutil.CreateOrPatch(ctx, r.Client, conductor, func() error {
 		conductor.Spec = conductorSpec
+		if expectedHash != "" {
+			if conductor.Annotations == nil {
+				conductor.Annotations = map[string]string{}
+			}
+			conductor.Annotations["openstack.org/input-secret-hash"] = expectedHash
+		}
 		err := controllerutil.SetControllerReference(instance, conductor, r.Scheme)
 		if err != nil {
 			return err
@@ -393,13 +412,21 @@ func (r *NovaCellReconciler) ensureConductor(
 		Log.Info(fmt.Sprintf("NovaConductor %s.", string(op)))
 	}
 	if conductor.Generation == conductor.Status.ObservedGeneration {
-		instance.Status.ConductorServiceReadyCount = conductor.Status.ReadyCount
-
 		c := conductor.Status.Conditions.Mirror(novav1.NovaConductorReadyCondition)
 		// NOTE(gibi): it can be nil if the NovaConductor CR is created but no
 		// reconciliation is run on it to initialize the ReadyCondition yet.
 		if c != nil {
-			instance.Status.Conditions.Set(c)
+			// Surface a not-ready/failing child immediately, but only accept a
+			// Ready=True child once it has provably applied the current input
+			// secret (rotation in flight). While a previously-Ready child rolls
+			// out a new input, keep its last reported condition instead of
+			// flipping it, matching nova's original behavior for the True case.
+			if c.Status != corev1.ConditionTrue ||
+				expectedHash == "" ||
+				conductor.Status.AppliedInputSecretHash == expectedHash {
+				instance.Status.ConductorServiceReadyCount = conductor.Status.ReadyCount
+				instance.Status.Conditions.Set(c)
+			}
 		}
 	}
 
@@ -462,8 +489,19 @@ func (r *NovaCellReconciler) ensureNoVNCProxy(
 		},
 	}
 
+	expectedHash := ""
+	if ann := instance.GetAnnotations(); ann != nil {
+		expectedHash = ann["openstack.org/input-secret-hash"]
+	}
+
 	op, err := controllerutil.CreateOrPatch(ctx, r.Client, novncproxy, func() error {
 		novncproxy.Spec = novncproxySpec
+		if expectedHash != "" {
+			if novncproxy.Annotations == nil {
+				novncproxy.Annotations = map[string]string{}
+			}
+			novncproxy.Annotations["openstack.org/input-secret-hash"] = expectedHash
+		}
 		err := controllerutil.SetControllerReference(instance, novncproxy, r.Scheme)
 		if err != nil {
 			return err
@@ -486,12 +524,20 @@ func (r *NovaCellReconciler) ensureNoVNCProxy(
 	}
 
 	if novncproxy.Generation == novncproxy.Status.ObservedGeneration {
-		instance.Status.NoVNCPRoxyServiceReadyCount = novncproxy.Status.ReadyCount
-
 		c := novncproxy.Status.Conditions.Mirror(novav1.NovaNoVNCProxyReadyCondition)
 
 		if c != nil {
-			instance.Status.Conditions.Set(c)
+			// Surface a not-ready/failing child immediately, but only accept a
+			// Ready=True child once it has provably applied the current input
+			// secret (rotation in flight). While a previously-Ready child rolls
+			// out a new input, keep its last reported condition instead of
+			// flipping it, matching nova's original behavior for the True case.
+			if c.Status != corev1.ConditionTrue ||
+				expectedHash == "" ||
+				novncproxy.Status.AppliedInputSecretHash == expectedHash {
+				instance.Status.NoVNCPRoxyServiceReadyCount = novncproxy.Status.ReadyCount
+				instance.Status.Conditions.Set(c)
+			}
 		}
 	}
 
@@ -583,8 +629,19 @@ func (r *NovaCellReconciler) ensureMetadata(
 		},
 	}
 
+	expectedHash := ""
+	if ann := instance.GetAnnotations(); ann != nil {
+		expectedHash = ann["openstack.org/input-secret-hash"]
+	}
+
 	op, err := controllerutil.CreateOrPatch(ctx, r.Client, metadata, func() error {
 		metadata.Spec = metadataSpec
+		if expectedHash != "" {
+			if metadata.Annotations == nil {
+				metadata.Annotations = map[string]string{}
+			}
+			metadata.Annotations["openstack.org/input-secret-hash"] = expectedHash
+		}
 		err := controllerutil.SetControllerReference(instance, metadata, r.Scheme)
 		if err != nil {
 			return err
@@ -606,13 +663,21 @@ func (r *NovaCellReconciler) ensureMetadata(
 		Log.Info(fmt.Sprintf("NovaMetadata %s.", string(op)))
 	}
 	if metadata.Generation == metadata.Status.ObservedGeneration {
-		instance.Status.MetadataServiceReadyCount = metadata.Status.ReadyCount
-
 		c := metadata.Status.Conditions.Mirror(novav1.NovaMetadataReadyCondition)
 		// NOTE(gibi): it can be nil if the NovaMetadata CR is created but no
 		// reconciliation is run on it to initialize the ReadyCondition yet.
 		if c != nil {
-			instance.Status.Conditions.Set(c)
+			// Surface a not-ready/failing child immediately, but only accept a
+			// Ready=True child once it has provably applied the current input
+			// secret (rotation in flight). While a previously-Ready child rolls
+			// out a new input, keep its last reported condition instead of
+			// flipping it, matching nova's original behavior for the True case.
+			if c.Status != corev1.ConditionTrue ||
+				expectedHash == "" ||
+				metadata.Status.AppliedInputSecretHash == expectedHash {
+				instance.Status.MetadataServiceReadyCount = metadata.Status.ReadyCount
+				instance.Status.Conditions.Set(c)
+			}
 		}
 	}
 
@@ -738,8 +803,19 @@ func (r *NovaCellReconciler) ensureNovaCompute(
 		},
 	}
 
+	expectedHash := ""
+	if ann := instance.GetAnnotations(); ann != nil {
+		expectedHash = ann["openstack.org/input-secret-hash"]
+	}
+
 	op, err := controllerutil.CreateOrPatch(ctx, r.Client, novacompute, func() error {
 		novacompute.Spec = novacomputeSpec
+		if expectedHash != "" {
+			if novacompute.Annotations == nil {
+				novacompute.Annotations = map[string]string{}
+			}
+			novacompute.Annotations["openstack.org/input-secret-hash"] = expectedHash
+		}
 		err := controllerutil.SetControllerReference(instance, novacompute, r.Scheme)
 		if err != nil {
 			return err
@@ -757,8 +833,9 @@ func (r *NovaCellReconciler) ensureNovaCompute(
 		Log.Info(fmt.Sprintf("NovaCompute %s, NovaCompute.Name %s .", string(op), novacompute.Name))
 	}
 
-	if novacompute.Generation == novacompute.Status.ObservedGeneration && novacompute.IsReady() {
-		// We wait for the novacompute to become Ready before we map it deployed.
+	if novacompute.Generation == novacompute.Status.ObservedGeneration &&
+		(expectedHash == "" || novacompute.Status.AppliedInputSecretHash == expectedHash) &&
+		novacompute.IsReady() {
 		computeStatus.Deployed = true
 	}
 
