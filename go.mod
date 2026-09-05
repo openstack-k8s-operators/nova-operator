@@ -8,14 +8,14 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/gophercloud/gophercloud/v2 v2.13.0
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.7.7
-	github.com/onsi/ginkgo/v2 v2.32.0
+	github.com/onsi/ginkgo/v2 v2.32.1
 	github.com/onsi/gomega v1.42.1
-	github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20260812092328-911d125dfd74
-	github.com/openstack-k8s-operators/keystone-operator/api v0.6.1-0.20260808153013-66d07bd8a09c
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.6.1-0.20260803111648-57597e898a6c
-	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.6.1-0.20260803111648-57597e898a6c
-	github.com/openstack-k8s-operators/lib-common/modules/test v0.6.1-0.20260803111648-57597e898a6c
-	github.com/openstack-k8s-operators/mariadb-operator/api v0.6.1-0.20260808153013-2c19a2626963
+	github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20260831095224-2f23472f5f39
+	github.com/openstack-k8s-operators/keystone-operator/api v0.6.1-0.20260901090745-572918f38abd
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.6.1-0.20260815072020-5930e2a9258e
+	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.6.1-0.20260815072020-5930e2a9258e
+	github.com/openstack-k8s-operators/lib-common/modules/test v0.6.1-0.20260815072020-5930e2a9258e
+	github.com/openstack-k8s-operators/mariadb-operator/api v0.6.1-0.20260822071634-259ce9c1164b
 	github.com/openstack-k8s-operators/nova-operator/api v0.0.0-00010101000000-000000000000
 	go.uber.org/zap v1.28.0
 	golang.org/x/exp v0.0.0-20260611194520-c48552f49976
@@ -71,7 +71,7 @@ require (
 	github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/openshift/api v3.9.0+incompatible // indirect
-	github.com/openstack-k8s-operators/lib-common/modules/storage v0.6.1-0.20260803111648-57597e898a6c // indirect
+	github.com/openstack-k8s-operators/lib-common/modules/storage v0.6.1-0.20260815072020-5930e2a9258e // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_golang v1.22.0 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
