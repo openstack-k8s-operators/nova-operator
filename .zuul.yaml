@@ -91,7 +91,7 @@
       - workloads-s2i-content-provider
     post-run:
       - ci/nova-operator-base/playbooks/collect-logs.yaml
-    vars:
+    vars: &nova-operator-tempest-multinode-vars
       cifmw_extras:
         - "@scenarios/centos-10/base.yml"
         - "@scenarios/centos-10/multinode-ci.yml"
@@ -152,6 +152,7 @@
         [libvirt]
         cpu_mode = custom
         cpu_models = Nehalem
+
 - job:
     name: nova-operator-cyborg-tempest-multinode
     parent: nova-operator-tempest-multinode
@@ -169,6 +170,26 @@
           changeRefspec: "e98dfff4bacdaeffe1fa79d3cfd5f2e28002cd98"
       cifmw_test_operator_tempest_include_list: |
           cyborg_tempest_plugin
+      cifmw_test_operator_tempest_tempestconf_config:
+          overrides: |
+            identity.v3_endpoint_type public
+            compute-feature-enabled.vnc_console true
+            compute-feature-enabled.stable_rescue true
+            compute-feature-enabled.hostname_fqdn_sanitization true
+            compute-feature-enabled.live_migration true
+            compute-feature-enabled.live_migrate_back_and_forth true
+            compute-feature-enabled.block_migration_for_live_migration true
+            compute-feature-enabled.ide_bus false
+            service_available.swift false
+            service_available.cinder false
+            validation.image_ssh_user cirros
+            validation.image_ssh_password cubswin:)
+            validation.image_alt_ssh_user cirros
+            validation.image_alt_ssh_password cubswin:)
+            validation.allowed_network_downtime 10
+            cyborg_pci.device_profile_name pci-sim-cyborg-dp
+            cyborg_pci.vendor_id 1d55
+            cyborg_pci.product_id 1000
 
 - job:
     name: nova-operator-tempest-multinode-ceph
