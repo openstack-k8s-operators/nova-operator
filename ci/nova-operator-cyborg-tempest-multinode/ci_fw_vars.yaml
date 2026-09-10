@@ -29,6 +29,11 @@ post_ctlplane_deploy:
     source: "{{ ansible_user_dir }}/{{ zuul.projects['github.com/openstack-k8s-operators/nova-operator'].src_dir }}/ci/nova-operator-cyborg-tempest-multinode/deploy_cyborg_service.yaml"
 
 
+pre_tests:
+  - name: 92 Create cyborg resources
+    type: playbook
+    source: "{{ ansible_user_dir }}/{{ zuul.projects['github.com/openstack-k8s-operators/nova-operator'].src_dir }}/ci/nova-operator-cyborg-tempest-multinode/cyborg_post_deploy_resources.yml"
+
 
 cifmw_run_tests: true
 cifmw_tempest_container: openstack-tempest-extras
