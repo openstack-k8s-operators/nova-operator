@@ -113,6 +113,9 @@
         - cyborg-public-svc
 
     - name: Create Cyborg CR
+      vars:
+        cyborg_image: "{{ s2i_content_provider_registry_ip }}:5001/{{ s2i_ci_content.namespace }}/openstack-cyborg:{{ s2i_ci_content.tag }}"
+        cyborg_agent_image: "{{ s2i_content_provider_registry_ip }}:5001/{{ s2i_ci_content.namespace }}/openstack-cyborg-agent:{{ s2i_ci_content.tag }}"
       ansible.builtin.shell: |
         oc apply -f - <<EOF
         apiVersion: cyborg.openstack.org/v1beta1
@@ -121,9 +124,9 @@
           name: cyborg
           namespace: {{ cifmw_install_yamls_defaults['NAMESPACE'] }}
         spec:
-          agentContainerImageURL: quay.io/openstack-k8s-operators/openstack-cyborg-agent:master-latest
-          apiContainerImageURL: quay.io/openstack-k8s-operators/openstack-cyborg:master-latest
-          conductorContainerImageURL: quay.io/openstack-k8s-operators/openstack-cyborg:master-latest
+          agentContainerImageURL: {{ cyborg_agent_image }}
+          apiContainerImageURL: {{ cyborg_image }}
+          conductorContainerImageURL: {{ cyborg_image }}
           secret: osp-secret
           messagingBus:
             cluster: rabbitmq
