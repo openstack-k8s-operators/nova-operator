@@ -1,0 +1,12 @@
+- name: Create pci-sim device profile for tempest run
+  hosts: "{{ cifmw_target_hook_host | default('localhost') }}"
+  gather_facts: false
+  tasks:
+    - name: Create pci-sim device profile for cyborg tempest plugin tests
+      environment:
+        KUBECONFIG: "{{ cifmw_openshift_kubeconfig }}"
+        PATH: "{{ cifmw_path }}"
+      ansible.builtin.command: |
+        oc -n {{ namespace }} exec -it pod/openstackclient \
+          -- openstack accelerator device profile create pci-sim-cyborg-dp \
+          '[{"resources:CUSTOM_PCI":"1","trait:CUSTOM_PCI_PRODUCT_ID_1001":"required"}]'
