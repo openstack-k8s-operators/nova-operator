@@ -28,6 +28,7 @@
                   - run-os
                   - reboot-os
                   - install-certs
+                  - cyborg-pci-sim
                   - ovn
                   - neutron-metadata-custom
                   - libvirt
@@ -69,4 +70,87 @@
               - client auth
               networks:
               - ctlplane
+        EOF
+    - name: Create cyborg pci-sim service
+      environment:
+        KUBECONFIG: "{{ cifmw_openshift_kubeconfig }}"
+        PATH: "{{ cifmw_path }}"
+      ansible.builtin.shell: |
+        oc apply -f - <<EOF
+        apiVersion: dataplane.openstack.org/v1beta1
+        kind: OpenStackDataPlaneService
+        metadata:
+          labels:
+            app.kubernetes.io/name: openstackdataplaneservice
+            app.kubernetes.io/instance: openstackdataplaneservice-cyborg
+            app.kubernetes.io/part-of: openstack-operator
+            app.kubernetes.io/managed-by: kustomize
+            app.kubernetes.io/created-by: install_yamls
+          name: cyborg-pci-sim
+          namespace: {{ cifmw_install_yamls_defaults['NAMESPACE'] }}
+        spec:
+          label: cyborg
+          playbookContents: |
+            - hosts: all
+              strategy: linear
+              tasks:
+                - name: Install required dependencies for Cyborg
+                  become: true
+                  ansible.builtin.dnf:
+                    name:
+                      - kernel-devel
+                      - gcc
+                      - make
+                      - pciutils
+                    state: present
+
+                - name: Clone Cyborg repository
+                  ansible.builtin.git:
+                    repo: https://github.com/openstack/cyborg
+                    dest: /var/tmp/cyborg
+                    version: master
+
+                - name: Check kernel configuration compatibility
+                  become: true
+                  ansible.builtin.shell: |
+                    set -euxo pipefail
+                    cd /var/tmp/cyborg
+                    bash tools/check-kernel-config.sh
+
+                - name: Build PCI simulator modules
+                  ansible.builtin.shell: |
+                    set -euxo pipefail
+                    cd /var/tmp/cyborg
+                    make -C pci-sim modules
+
+                - name: Load vfio-pci module
+                  become: true
+                  ansible.builtin.modprobe:
+                    name: vfio-pci
+                    state: present
+
+                - name: Enable unsafe VFIO interrupts at runtime
+                  become: true
+                  ansible.builtin.shell: |
+                    set -euxo pipefail
+                    echo 1 > /sys/module/vfio_iommu_type1/parameters/allow_unsafe_interrupts
+
+                - name: Persist unsafe VFIO interrupts across host reboots
+                  become: true
+                  ansible.builtin.copy:
+                    dest: /etc/modprobe.d/vfio_iommu_type1.conf
+                    content: "options vfio_iommu_type1 allow_unsafe_interrupts=1\n"
+                    mode: "0644"
+
+                - name: Verify unsafe VFIO interrupts are enabled
+                  ansible.builtin.command:
+                    cmd: cat /sys/module/vfio_iommu_type1/parameters/allow_unsafe_interrupts
+                  changed_when: false
+
+                - name: Load fake PCI SRIOV module
+                  become: true
+                  ansible.builtin.shell: |
+                    set -euxo pipefail
+                    cd /var/tmp/cyborg
+                    insmod pci-sim/fake_pci_sriov.ko num_pfs=4
         EOF
