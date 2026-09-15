@@ -66,8 +66,10 @@
         KUTTL_SUITE: placement
 - job:
     name: nova-operator-tempest-multinode
-    parent: podified-multinode-edpm-deployment-crc-3comp
-    dependencies: ["openstack-meta-content-provider"]
+    parent: s2i-test-base
+    dependencies:
+      - workloads-s2i-content-provider
+      - openstack-meta-content-provider
     post-run:
       - ci/nova-operator-base/playbooks/collect-logs.yaml
     vars:
@@ -143,8 +145,10 @@
           cyborg_tempest_plugin
 - job:
     name: nova-operator-tempest-multinode-ceph
-    parent: podified-multinode-hci-deployment-crc-3comp
-    dependencies: ["openstack-meta-content-provider"]
+    parent: s2i-test-base-ceph
+    dependencies:
+      - workloads-s2i-content-provider
+      - openstack-meta-content-provider
     # Note:  When inheriting from a job (or creating a variant of a job) vars are merged with previous definitions
     post-run:
       - ci/nova-operator-base/playbooks/collect-logs.yaml
@@ -212,6 +216,26 @@
         cpu_mode = custom
         cpu_models = Nehalem
 
+- job:
+    name: workloads-s2i-content-provider
+    parent: s2i-openstack-container-content-provider
+    description: |
+      Build s2i nova, placement, and cyborg service images for
+      nova-operator tempest jobs.
+    required-projects:
+      - name: openstack-k8s-operators/s2i-openstack-containers
+        override-checkout: main
+    vars:
+      s2i_ci_images:
+        - nova/nova-api
+        - nova/nova-compute
+        - nova/nova-conductor
+        - nova/nova-novncproxy
+        - nova/nova-scheduler
+        - placement/placement-api
+        - cyborg/cyborg
+        - cyborg/cyborg-agent
+
 - project:
     name: openstack-k8s-operators/nova-operator
     default-branch: main
@@ -223,10 +247,9 @@
               cifmw_install_yamls_sdk_version: v1.41.1
         - nova-operator-kuttl
         - nova-operator-kuttl-placement
-        - nova-operator-tempest-multinode:
-            nodeset: centos-9-medium-3x-centos-9-crc-cloud-ocp-4-18-1-3xl
-        - nova-operator-tempest-multinode-ceph:
-            nodeset: centos-9-medium-3x-centos-9-crc-cloud-ocp-4-18-1-3xl
+        - workloads-s2i-content-provider
+        - nova-operator-tempest-multinode
+        - nova-operator-tempest-multinode-ceph
         - nova-operator-cyborg-tempest-multinode:
             nodeset: centos-9-medium-3x-centos-9-crc-cloud-ocp-4-18-1-3xl
             voting: false
@@ -277,6 +300,8 @@
               cifmw_bop_dlrn_baseurl: "https://trunk.rdoproject.org/centos9-master"
               cifmw_repo_setup_branch: master
               cifmw_install_yamls_sdk_version: v1.41.1
+        - workloads-s2i-content-provider:
+            override-checkout: main
         - nova-operator-tempest-multinode: &job_vars
             override-checkout: main
             # when run from nova we need to ensure we list the nova-operator
