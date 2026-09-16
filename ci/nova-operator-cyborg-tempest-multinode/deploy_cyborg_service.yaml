@@ -154,6 +154,23 @@
           --namespace={{ cifmw_install_yamls_defaults['NAMESPACE'] }}
           --for=condition=Ready --timeout=600s
 
+    - name: Create cyborg-extra-config ConfigMap
+      ansible.builtin.shell: |
+        oc apply -f - <<EOF
+        apiVersion: v1
+        kind: ConfigMap
+        metadata:
+          name: cyborg-extra-config
+          namespace: {{ cifmw_install_yamls_defaults['NAMESPACE'] }}
+        data:
+          cyborg-agent.conf: |
+            [agent]
+            enabled_drivers = pci_driver
+
+            [pci]
+            passthrough_whitelist = {"vendor_id": "1d55", "product_id": "1000"}
+        EOF
+
     - name: Create OpenStackDataPlaneService for cyborg
       ansible.builtin.shell: |
         oc apply -f - <<EOF
