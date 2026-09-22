@@ -8,7 +8,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/gophercloud/gophercloud/v2 v2.15.0
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.7.7
-	github.com/onsi/ginkgo/v2 v2.32.1
+	github.com/onsi/ginkgo/v2 v2.33.0
 	github.com/onsi/gomega v1.43.0
 	github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20260917133014-aa9523bc1a12
 	github.com/openstack-k8s-operators/keystone-operator/api v0.6.1-0.20260915132739-c1207a97b9a2
