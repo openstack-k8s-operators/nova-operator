@@ -97,6 +97,15 @@
       cifmw_test_operator_timeout: 7200
       cifmw_test_operator_tempest_network_attachments:
         - ctlplane
+      # The test_operator default is the antelope openstack-tempest-extras
+      # image, which would test a 2026.2 deploy with antelope tempest.
+      # Pin the s2i master tempest image instead. nova's tests
+      # (tempest.api.compute, tempest.scenario) live in the base
+      # openstack-tempest image; -extras is not published in the s2i org.
+      cifmw_test_operator_tempest_registry: quay.io
+      cifmw_test_operator_tempest_namespace: openstack-s2i-containers
+      cifmw_test_operator_tempest_image_tag: master-latest
+      cifmw_test_operator_tempest_container: openstack-tempest
       # avoid using default test_operator exclude list
       cifmw_test_operator_tempest_tests_exclude_override_scenario: false
       # NOTE(gibi): identity.v3_endpoint_type override is a WA to force the
@@ -146,12 +155,8 @@
       cifmw_extras:
         - "@scenarios/centos-9/multinode-ci.yml"
         - "@{{ ansible_user_dir }}/{{ zuul.projects['github.com/openstack-k8s-operators/nova-operator'].src_dir }}/ci/nova-operator-cyborg-tempest-multinode/ci_fw_vars.yaml"
-      # Antelope tempest-extras is the parent/default; cyborg against
-      # 2026.2 needs the s2i master tempest image.
-      cifmw_test_operator_tempest_registry: quay.io
-      cifmw_test_operator_tempest_namespace: openstack-s2i-containers
-      cifmw_test_operator_tempest_image_tag: master-latest
-      cifmw_test_operator_tempest_container: openstack-tempest
+      # The s2i master tempest image is inherited from
+      # nova-operator-tempest-multinode.
       # Pin cyborg tempest plugin as newer commits require roles that are not created in RHOSO18
       cifmw_test_operator_tempest_external_plugin:
         - repository: https://opendev.org/openstack/cyborg-tempest-plugin.git
@@ -178,6 +183,15 @@
       cifmw_test_operator_timeout: 7200
       cifmw_test_operator_tempest_network_attachments:
         - ctlplane
+      # The test_operator default is the antelope openstack-tempest-extras
+      # image, which would test a 2026.2 deploy with antelope tempest.
+      # Pin the s2i master tempest image instead. nova's tests
+      # (tempest.api.compute, tempest.scenario) live in the base
+      # openstack-tempest image; -extras is not published in the s2i org.
+      cifmw_test_operator_tempest_registry: quay.io
+      cifmw_test_operator_tempest_namespace: openstack-s2i-containers
+      cifmw_test_operator_tempest_image_tag: master-latest
+      cifmw_test_operator_tempest_container: openstack-tempest
       # NOTE(gibi): identity.v3_endpoint_type override is a WA to force the
       # publicURL as otherwise tempest gets configured with adminURL and that
       # causes test instability.
