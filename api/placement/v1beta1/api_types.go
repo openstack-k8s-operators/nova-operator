@@ -38,7 +38,7 @@ const (
 	// Container image fall-back defaults
 
 	// PlacementAPIContainerImage is the fall-back container image for PlacementAPI
-	PlacementAPIContainerImage = "quay.io/podified-antelope-centos9/openstack-placement-api:current-podified"
+	PlacementAPIContainerImage = "quay.io/openstack-s2i-containers/openstack-placement-api:master-latest"
 )
 
 // PlacementAPISpec defines the desired state of PlacementAPI
