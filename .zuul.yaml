@@ -314,6 +314,45 @@
 ##########################################################
 
 - project-template:
+    name: nova-operator-s2i-component-jobs
+    description: |
+      Project template to be used in the s2i-openstack-containers
+      repository to validate container changes impacting Nova,
+      Placement, and Cyborg.
+    github-check:
+      jobs:
+        - nova-operator-tempest-multinode:
+            required-projects:
+              - name: openstack-k8s-operators/s2i-openstack-containers
+                override-checkout: main
+              - name: openstack-k8s-operators/nova-operator
+                override-checkout: main
+            vars:
+              content_provider_registry_ip: '{{ s2i_content_provider_registry_ip }}'
+            files:
+              - ^containers/nova/
+              - ^containers/placement/
+              - ^containers/base/
+            dependencies:
+              - s2i-openstack-container-content-provider
+              - s2i-openstack-container-consumer-smoke
+        - nova-operator-cyborg-tempest-multinode:
+            voting: false
+            required-projects:
+              - name: openstack-k8s-operators/s2i-openstack-containers
+                override-checkout: main
+              - name: openstack-k8s-operators/nova-operator
+                override-checkout: main
+            vars:
+              content_provider_registry_ip: '{{ s2i_content_provider_registry_ip }}'
+            files:
+              - ^containers/cyborg/
+              - ^containers/base/
+            dependencies:
+              - s2i-openstack-container-content-provider
+              - s2i-openstack-container-consumer-smoke
+
+- project-template:
     name: opendev-nova-edpm-pipeline
     # Operator images from openstack-k8s-operators-content-provider;
     # nova/placement/cyborg service images from s2i. The old meta CP +
