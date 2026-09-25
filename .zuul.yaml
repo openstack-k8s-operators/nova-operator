@@ -280,9 +280,12 @@
         - workloads-s2i-content-provider
         - nova-operator-kuttl
         - nova-operator-kuttl-placement
-        - nova-operator-tempest-multinode
-        - nova-operator-tempest-multinode-ceph
+        - nova-operator-tempest-multinode:
+            nodeset: centos-9-medium-2x-centos-9-crc-cloud-ocp-4-22-1-3xl
+        - nova-operator-tempest-multinode-ceph:
+            nodeset: centos-9-medium-2x-centos-9-crc-cloud-ocp-4-22-1-3xl
         - nova-operator-cyborg-tempest-multinode:
+            nodeset: centos-9-medium-2x-centos-9-crc-cloud-ocp-4-22-1-3xl
             voting: false
             files:
               - ^api/cyborg/
