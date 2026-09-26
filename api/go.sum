@@ -6,6 +6,7 @@ github.com/blang/semver/v4 v4.0.0 h1:1PFHFE6yCCTv8C1TeyNNarDzntLi7wMI5i/pzqYIsAM
 github.com/blang/semver/v4 v4.0.0/go.mod h1:IbckMUScFkM3pff0VJDNKRiT6TG/YpiHIM2yvyW5YoQ=
 github.com/cespare/xxhash/v2 v2.3.0 h1:UL815xU9SqsFlibzuggzjXhog7bL6oX9BbNZnL2UFvs=
 github.com/cespare/xxhash/v2 v2.3.0/go.mod h1:VGX0DQ3Q6kWi7AoAeZDth3/j3BFtOZR5XLFGgcrjCOs=
+github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc h1:U9qPSI2PIWSS1VwoXQT9A3Wy9MM3WgvqSxFWenqJduM=
@@ -100,10 +101,10 @@ github.com/onsi/ginkgo/v2 v2.33.0 h1:C8gBA6Uc2ZEubiV+SXiu5tZnMTwEmXHgkJwGozKtZf8
 github.com/onsi/ginkgo/v2 v2.33.0/go.mod h1:+aXOY+vzZ5mu2iI2HpTZUPmM//oQfsNFX6gU9kNcA44=
 github.com/onsi/gomega v1.43.1 h1:vGIPFuYrIO6/0Z09s0I0QQQgFchiX4+tb1re3MScJYo=
 github.com/onsi/gomega v1.43.1/go.mod h1:e/C2HwaZ1DhvjzXXuFhcR7hY7Sh9pl7MmoWKEjzwcdA=
-github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20260912123221-4c04f3294593 h1:EtXmtUe8Rzs2mdmS5cYP0lU1MJlmik529UFDdl0vcSA=
-github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20260912123221-4c04f3294593/go.mod h1:SKe8p5rf8NIvqRWlb2W2ySgRAXEKi3rUVw7gnKSeYZk=
-github.com/openstack-k8s-operators/lib-common/modules/common v0.6.1-0.20260906094540-d1f379df10ce h1:fD/nzS6vKGkmTRoOGqc+cz1SCogjNCN0j8UaNVi6TRo=
-github.com/openstack-k8s-operators/lib-common/modules/common v0.6.1-0.20260906094540-d1f379df10ce/go.mod h1:HqF1PQbKmgDVsmSk+c9TGmusD4TrlV049qft+SLVTcI=
+github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20260925072056-d5c599ea583f h1:tJ7gAkFWzHOL/96IkVG7A1Trry1kFrJlKEZaYklHXP4=
+github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20260925072056-d5c599ea583f/go.mod h1:eSbnr2Oh6tHv4Lz60ea3SXCee7xDaZwxFTZQz81iuEI=
+github.com/openstack-k8s-operators/lib-common/modules/common v0.6.1-0.20260920095155-a193dedd4c06 h1:7ooMl/3CTDpaKwg9reMyG11O2I8hkuJywd9vd0hsszA=
+github.com/openstack-k8s-operators/lib-common/modules/common v0.6.1-0.20260920095155-a193dedd4c06/go.mod h1:Eblz2kPfTM+uA5SIQqNH0YmwlE1ONvktPMasLW4fXYU=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
