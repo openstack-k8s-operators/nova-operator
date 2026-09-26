@@ -25,12 +25,12 @@ import (
 
 // Container image fall-back defaults
 const (
-	NovaAPIContainerImage       = "quay.io/podified-antelope-centos9/openstack-nova-api:current-podified"
-	NovaConductorContainerImage = "quay.io/podified-antelope-centos9/openstack-nova-conductor:current-podified"
-	NovaMetadataContainerImage  = "quay.io/podified-antelope-centos9/openstack-nova-api:current-podified"
-	NovaNoVNCContainerImage     = "quay.io/podified-antelope-centos9/openstack-nova-novncproxy:current-podified"
-	NovaSchedulerContainerImage = "quay.io/podified-antelope-centos9/openstack-nova-scheduler:current-podified"
-	NovaComputeContainerImage   = "quay.io/podified-antelope-centos9/openstack-nova-compute:current-podified"
+	NovaAPIContainerImage       = "quay.io/openstack-s2i-containers/openstack-nova-api:master-latest"
+	NovaConductorContainerImage = "quay.io/openstack-s2i-containers/openstack-nova-conductor:master-latest"
+	NovaMetadataContainerImage  = "quay.io/openstack-s2i-containers/openstack-nova-api:master-latest"
+	NovaNoVNCContainerImage     = "quay.io/openstack-s2i-containers/openstack-nova-novncproxy:master-latest"
+	NovaSchedulerContainerImage = "quay.io/openstack-s2i-containers/openstack-nova-scheduler:master-latest"
+	NovaComputeContainerImage   = "quay.io/openstack-s2i-containers/openstack-nova-compute:master-latest"
 )
 
 // Compute drivers names

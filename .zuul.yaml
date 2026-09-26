@@ -2,13 +2,17 @@
 - job:
     name: nova-operator-kuttl
     parent: cifmw-multinode-kuttl-operator-target
-    dependencies: ["openstack-meta-content-provider"]
+    dependencies:
+      - openstack-k8s-operators-content-provider
+      - workloads-s2i-content-provider
     roles:
       - zuul: github.com/openstack-k8s-operators/ci-framework
     description: |
       This job deploy a basic "Compute Starter Kit" topology
       https://www.openstack.org/software/sample-configs#compute-starter-kit
       that is the minimum set of openstack services required to boot a vm.
+      Operator images come from openstack-k8s-operators-content-provider;
+      nova/placement/cyborg service images come from workloads-s2i-content-provider.
     post-run:
       - ci/nova-operator-base/playbooks/collect-logs.yaml
     vars:
@@ -25,6 +29,18 @@
           source: "{{ nova_hook }}"
           extra_vars:
             nova_catalog_image: "{{ content_provider_registry_ip }}:5001/openstack-k8s-operators/nova-operator-index:{{ zuul.patchset }}"
+      # Operator CP owns content_provider_registry_ip. Trust the s2i
+      # registry and inject built service images during prepare.
+      cifmw_crc_additional_insecure_registries:
+        - "{{ s2i_content_provider_registry_ip }}:5001"
+      cifmw_crc_additional_allowed_registries:
+        - "{{ s2i_content_provider_registry_ip }}:5001"
+      cifmw_set_containers_preserve_unlisted: true
+      cifmw_set_containers_images: >-
+        {{
+          s2i_content_provider_os_custom_container_images | dict2items |
+          json_query('[].{name: key, full_registry: value}')
+        }}
     extra-vars:
       crc_ci_bootstrap_networking:
         networks:
@@ -66,8 +82,10 @@
         KUTTL_SUITE: placement
 - job:
     name: nova-operator-tempest-multinode
-    parent: podified-multinode-edpm-deployment-crc-3comp
-    dependencies: ["openstack-meta-content-provider"]
+    parent: s2i-test-base
+    dependencies:
+      - openstack-k8s-operators-content-provider
+      - workloads-s2i-content-provider
     post-run:
       - ci/nova-operator-base/playbooks/collect-logs.yaml
     vars:
@@ -79,6 +97,15 @@
       cifmw_test_operator_timeout: 7200
       cifmw_test_operator_tempest_network_attachments:
         - ctlplane
+      # The test_operator default is the antelope openstack-tempest-extras
+      # image, which would test a 2026.2 deploy with antelope tempest.
+      # Pin the s2i master tempest image instead. nova's tests
+      # (tempest.api.compute, tempest.scenario) live in the base
+      # openstack-tempest image; -extras is not published in the s2i org.
+      cifmw_test_operator_tempest_registry: quay.io
+      cifmw_test_operator_tempest_namespace: openstack-s2i-containers
+      cifmw_test_operator_tempest_image_tag: master-latest
+      cifmw_test_operator_tempest_container: openstack-tempest
       # avoid using default test_operator exclude list
       cifmw_test_operator_tempest_tests_exclude_override_scenario: false
       # NOTE(gibi): identity.v3_endpoint_type override is a WA to force the
@@ -128,12 +155,8 @@
       cifmw_extras:
         - "@scenarios/centos-9/multinode-ci.yml"
         - "@{{ ansible_user_dir }}/{{ zuul.projects['github.com/openstack-k8s-operators/nova-operator'].src_dir }}/ci/nova-operator-cyborg-tempest-multinode/ci_fw_vars.yaml"
-      cifmw_update_containers_registry: quay.rdoproject.org
-      cifmw_update_containers_org: podified-master-centos10
-      cifmw_update_containers_tag: current-tested
-      cifmw_test_operator_tempest_registry: "{{ cifmw_update_containers_registry }}"
-      cifmw_test_operator_tempest_namespace: "{{ cifmw_update_containers_org }}"
-      cifmw_test_operator_tempest_image_tag: "{{ cifmw_update_containers_tag }}"
+      # The s2i master tempest image is inherited from
+      # nova-operator-tempest-multinode.
       # Pin cyborg tempest plugin as newer commits require roles that are not created in RHOSO18
       cifmw_test_operator_tempest_external_plugin:
         - repository: https://opendev.org/openstack/cyborg-tempest-plugin.git
@@ -143,8 +166,10 @@
           cyborg_tempest_plugin
 - job:
     name: nova-operator-tempest-multinode-ceph
-    parent: podified-multinode-hci-deployment-crc-3comp
-    dependencies: ["openstack-meta-content-provider"]
+    parent: s2i-test-base-ceph
+    dependencies:
+      - openstack-k8s-operators-content-provider
+      - workloads-s2i-content-provider
     # Note:  When inheriting from a job (or creating a variant of a job) vars are merged with previous definitions
     post-run:
       - ci/nova-operator-base/playbooks/collect-logs.yaml
@@ -158,23 +183,31 @@
       cifmw_test_operator_timeout: 7200
       cifmw_test_operator_tempest_network_attachments:
         - ctlplane
+      # The test_operator default is the antelope openstack-tempest-extras
+      # image, which would test a 2026.2 deploy with antelope tempest.
+      # Pin the s2i master tempest image instead. nova's tests
+      # (tempest.api.compute, tempest.scenario) live in the base
+      # openstack-tempest image; -extras is not published in the s2i org.
+      cifmw_test_operator_tempest_registry: quay.io
+      cifmw_test_operator_tempest_namespace: openstack-s2i-containers
+      cifmw_test_operator_tempest_image_tag: master-latest
+      cifmw_test_operator_tempest_container: openstack-tempest
       # NOTE(gibi): identity.v3_endpoint_type override is a WA to force the
       # publicURL as otherwise tempest gets configured with adminURL and that
       # causes test instability.
       # TODO(sean-k-mooney): we are currently using cirros 0.5.2 we should be using 0.6.2
       # for now we need to use the old password cubswin:) but we should update this to gocubsgo!
       # once we update the image
+      # s2i-test-base-ceph is 1comp HCI, so live migration cannot run.
       cifmw_test_operator_tempest_tempestconf_config:
           overrides: |
             identity.v3_endpoint_type public
             compute-feature-enabled.vnc_console true
             compute-feature-enabled.stable_rescue true
             compute-feature-enabled.hostname_fqdn_sanitization true
-            compute-feature-enabled.live_migration true
-            compute-feature-enabled.live_migrate_back_and_forth true
-            compute-feature-enabled.block_migration_for_live_migration false
+            compute-feature-enabled.live_migration false
             compute-feature-enabled.ide_bus false
-            compute-feature-enabled.volume_backed_live_migration true
+            compute-feature-enabled.volume_backed_live_migration false
             compute-feature-enabled.volume_multiattach true
             volume.volume_type_multiattach multiattach
             volume.storage_protocol ceph
@@ -212,23 +245,47 @@
         cpu_mode = custom
         cpu_models = Nehalem
 
+- job:
+    name: workloads-s2i-content-provider
+    parent: s2i-openstack-container-content-provider
+    description: |
+      Build s2i nova, placement, and cyborg service images for
+      nova-operator kuttl and tempest jobs. Operator images come from
+      openstack-k8s-operators-content-provider.
+    required-projects:
+      - name: openstack-k8s-operators/s2i-openstack-containers
+        override-checkout: main
+    vars:
+      s2i_ci_images:
+        - nova/nova-api
+        - nova/nova-compute
+        - nova/nova-conductor
+        - nova/nova-novncproxy
+        - nova/nova-scheduler
+        - placement/placement-api
+        - cyborg/cyborg
+        - cyborg/cyborg-agent
+
 - project:
     name: openstack-k8s-operators/nova-operator
     default-branch: main
     merge-mode: rebase
     github-check:
       jobs:
-        - openstack-meta-content-provider:
+        # Operator images only. Nova, placement, and cyborg service
+        # images come from workloads-s2i-content-provider.
+        - openstack-k8s-operators-content-provider:
             vars:
               cifmw_install_yamls_sdk_version: v1.41.1
+        - workloads-s2i-content-provider
         - nova-operator-kuttl
         - nova-operator-kuttl-placement
         - nova-operator-tempest-multinode:
-            nodeset: centos-9-medium-3x-centos-9-crc-cloud-ocp-4-18-1-3xl
+            nodeset: centos-9-medium-2x-centos-9-crc-cloud-ocp-4-22-1-3xl
         - nova-operator-tempest-multinode-ceph:
-            nodeset: centos-9-medium-3x-centos-9-crc-cloud-ocp-4-18-1-3xl
+            nodeset: centos-9-medium-centos-9-crc-cloud-ocp-4-22-1-3xl
         - nova-operator-cyborg-tempest-multinode:
-            nodeset: centos-9-medium-3x-centos-9-crc-cloud-ocp-4-18-1-3xl
+            nodeset: centos-9-medium-2x-centos-9-crc-cloud-ocp-4-22-1-3xl
             voting: false
             files:
               - ^api/cyborg/
@@ -260,27 +317,61 @@
 ##########################################################
 
 - project-template:
+    name: nova-operator-s2i-component-jobs
+    description: |
+      Project template to be used in the s2i-openstack-containers
+      repository to validate container changes impacting Nova,
+      Placement, and Cyborg.
+    github-check:
+      jobs:
+        - nova-operator-tempest-multinode:
+            required-projects:
+              - name: openstack-k8s-operators/s2i-openstack-containers
+                override-checkout: main
+              - name: openstack-k8s-operators/nova-operator
+                override-checkout: main
+            vars:
+              content_provider_registry_ip: '{{ s2i_content_provider_registry_ip }}'
+            files:
+              - ^containers/nova/
+              - ^containers/placement/
+              - ^containers/base/
+            dependencies:
+              - s2i-openstack-container-content-provider
+              - s2i-openstack-container-consumer-smoke
+        - nova-operator-cyborg-tempest-multinode:
+            voting: false
+            required-projects:
+              - name: openstack-k8s-operators/s2i-openstack-containers
+                override-checkout: main
+              - name: openstack-k8s-operators/nova-operator
+                override-checkout: main
+            vars:
+              content_provider_registry_ip: '{{ s2i_content_provider_registry_ip }}'
+            files:
+              - ^containers/cyborg/
+              - ^containers/base/
+            dependencies:
+              - s2i-openstack-container-content-provider
+              - s2i-openstack-container-consumer-smoke
+
+- project-template:
     name: opendev-nova-edpm-pipeline
-    # Project template to run meta content provider and
-    # EDPM job with master opendev and github operator content in
-    # openstack-experimental pipeline.
+    # Operator images from openstack-k8s-operators-content-provider;
+    # nova/placement/cyborg service images from s2i. The old meta CP +
+    # RDO centos9-master RPM path is not functional.
     openstack-experimental: &experimentalJobs
       jobs:
-        - openstack-meta-content-provider:
+        - openstack-k8s-operators-content-provider:
             override-checkout: main
-            # when run from nova we need to ensure we list the nova-operator
-            # so that it will be built by the meta content provider
             required-projects:
               - github.com/openstack-k8s-operators/nova-operator
             vars:
-              cifmw_bop_openstack_release: master
-              cifmw_bop_dlrn_baseurl: "https://trunk.rdoproject.org/centos9-master"
-              cifmw_repo_setup_branch: master
               cifmw_install_yamls_sdk_version: v1.41.1
+        - workloads-s2i-content-provider:
+            override-checkout: main
         - nova-operator-tempest-multinode: &job_vars
             override-checkout: main
-            # when run from nova we need to ensure we list the nova-operator
-            # so that it will be built by the meta content provider
             required-projects:
               - github.com/openstack-k8s-operators/nova-operator
             vars:
