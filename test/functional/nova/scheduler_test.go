@@ -31,6 +31,7 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/nova/v1beta1"
+	nova "github.com/openstack-k8s-operators/nova-operator/internal/nova"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -372,6 +373,8 @@ var _ = Describe("NovaScheduler controller", func() {
 
 			ss := th.GetStatefulSet(novaNames.SchedulerStatefulSetName)
 			Expect(ss.Spec.Template.Spec.ServiceAccountName).To(Equal("nova-sa"))
+			Expect(ss.Spec.Template.Spec.TerminationGracePeriodSeconds).To(
+				HaveValue(Equal(nova.TerminationGracePeriodSeconds)))
 			Expect(ss.Spec.Template.Spec.AutomountServiceAccountToken).NotTo(BeNil())
 			Expect(*ss.Spec.Template.Spec.AutomountServiceAccountToken).To(BeFalse())
 			Expect(int(*ss.Spec.Replicas)).To(Equal(1))
