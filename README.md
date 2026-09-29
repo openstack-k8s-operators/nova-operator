@@ -223,6 +223,10 @@ UnDeploy the controller to the cluster:
 make undeploy
 ```
 
+## Configuration
+
+- [Graceful shutdown of nova services](doc/graceful_shutdown.md)
+
 ## Contributing
 
 // TODO(user): Add detailed information on how you would like others to contribute to this project
