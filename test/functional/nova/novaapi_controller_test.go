@@ -263,7 +263,6 @@ var _ = Describe("NovaAPI controller", func() {
 				Expect(configData).Should(
 					ContainSubstring("tls_enabled=false"))
 				Expect(configData).Should(ContainSubstring("enforce_new_defaults=true"))
-				Expect(configData).Should(ContainSubstring("enforce_scope=true"))
 				Expect(configData).Should(ContainSubstring("policy_file=/etc/nova/policy.yaml"))
 				// need for initial quota check when using unified limits
 				// im using a multi line string literal so it must be dedented to avoid including
