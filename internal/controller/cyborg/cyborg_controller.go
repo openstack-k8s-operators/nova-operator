@@ -47,6 +47,7 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/job"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/labels"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/object"
 	common_rbac "github.com/openstack-k8s-operators/lib-common/modules/common/rbac"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/secret"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
@@ -296,9 +297,8 @@ func (r *CyborgReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 	// The old secret's finalizer is removed later (after all services deploy)
 	// so that rapid rotations don't revoke a credential still in use by pods.
 	if instance.Spec.Auth.ApplicationCredentialSecret != "" {
-		if err := keystonev1.ManageACSecretFinalizer(ctx, h, instance.Namespace,
+		if err := object.ManageSecretConsumerFinalizer(ctx, h, instance.Namespace,
 			instance.Spec.Auth.ApplicationCredentialSecret,
-			"",
 			ACConsumerFinalizer); err != nil {
 			instance.Status.Conditions.Set(condition.FalseCondition(
 				condition.InputReadyCondition,
@@ -428,20 +428,19 @@ func (r *CyborgReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 	// On rotation (old != new), only remove the old secret's finalizer after
 	// all sub-services are ready with the new credentials. This prevents
 	// premature revocation during rapid rotations.
-	isRotation := instance.Status.ApplicationCredentialSecret != "" && instance.Status.ApplicationCredentialSecret != instance.Spec.Auth.ApplicationCredentialSecret
+	allServicesReady := instance.Status.Conditions.AllSubConditionIsTrue()
 
-	if isRotation {
-		allServicesReady := instance.Status.Conditions.AllSubConditionIsTrue()
-		if allServicesReady {
-			if err := keystonev1.RemoveACSecretConsumerFinalizer(ctx, h, instance.Namespace,
-				instance.Status.ApplicationCredentialSecret, ACConsumerFinalizer); err != nil {
-				return ctrl.Result{}, err
-			}
-			instance.Status.ApplicationCredentialSecret = instance.Spec.Auth.ApplicationCredentialSecret
-		}
-	} else if instance.Status.ApplicationCredentialSecret != instance.Spec.Auth.ApplicationCredentialSecret {
-		instance.Status.ApplicationCredentialSecret = instance.Spec.Auth.ApplicationCredentialSecret
+	acSecretName, err := object.FinalizeSecretRotation(
+		ctx, h, instance.Namespace,
+		instance.Status.ApplicationCredentialSecret,
+		instance.Spec.Auth.ApplicationCredentialSecret,
+		ACConsumerFinalizer,
+		allServicesReady,
+	)
+	if err != nil {
+		return ctrl.Result{}, err
 	}
+	instance.Status.ApplicationCredentialSecret = acSecretName
 
 	Log.Info("Successfully reconciled")
 	return ctrl.Result{}, nil
@@ -898,15 +897,12 @@ func (r *CyborgReconciler) reconcileDelete(
 		}
 	}
 
-	// Remove consumer finalizer from AC secrets cyborg was consuming.
-	for _, secretName := range []string{
-		instance.Status.ApplicationCredentialSecret,
-		instance.Spec.Auth.ApplicationCredentialSecret,
-	} {
-		if err := keystonev1.RemoveACSecretConsumerFinalizer(ctx, h, instance.Namespace,
-			secretName, ACConsumerFinalizer); err != nil {
-			return ctrl.Result{}, err
-		}
+	// Remove the AC consumer finalizer from every AC secret cyborg was
+	// protecting so their owning application credentials can be revoked.
+	if err := object.PruneSecretConsumerFinalizers(
+		ctx, h, instance.Namespace, ACConsumerFinalizer,
+	); err != nil {
+		return ctrl.Result{}, err
 	}
 
 	// Successfully cleaned up everything. So as the final step let's remove the
