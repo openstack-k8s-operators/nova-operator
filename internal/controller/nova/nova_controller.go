@@ -303,9 +303,8 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 	// The old secret's finalizer is removed later (after all services deploy)
 	// so that rapid rotations don't revoke a credential still in use by pods.
 	if instance.Spec.Auth.ApplicationCredentialSecret != "" {
-		if err := keystonev1.ManageACSecretFinalizer(ctx, h, instance.Namespace,
+		if err := object.ManageSecretConsumerFinalizer(ctx, h, instance.Namespace,
 			instance.Spec.Auth.ApplicationCredentialSecret,
-			"",
 			nova.ACConsumerFinalizer); err != nil {
 			instance.Status.Conditions.Set(condition.FalseCondition(
 				condition.InputReadyCondition,
@@ -858,33 +857,27 @@ func (r *NovaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (resul
 		)
 	}
 
-	// Manage the old AC secret's finalizer and status tracking.
-	// On rotation (old != new), only remove the old secret's finalizer after
-	// all sub-services are ready with the new credentials. This prevents
-	// premature revocation during rapid rotations.
-	isRotation := instance.Status.ApplicationCredentialSecret != "" && instance.Status.ApplicationCredentialSecret != instance.Spec.Auth.ApplicationCredentialSecret
-
-	if isRotation {
-		allServicesReady := instance.Status.Conditions.AllSubConditionIsTrue()
-		if allServicesReady {
-			if err := keystonev1.RemoveACSecretConsumerFinalizer(ctx, h, instance.Namespace,
-				instance.Status.ApplicationCredentialSecret, nova.ACConsumerFinalizer); err != nil {
-				return ctrl.Result{}, err
-			}
-			instance.Status.ApplicationCredentialSecret = instance.Spec.Auth.ApplicationCredentialSecret
-		}
-	} else if instance.Status.ApplicationCredentialSecret != instance.Spec.Auth.ApplicationCredentialSecret {
-		instance.Status.ApplicationCredentialSecret = instance.Spec.Auth.ApplicationCredentialSecret
-	}
-
-	// Manage transport URL consumer finalizers and rotation. On rotation the
-	// old secret's finalizer is only released once all sub-services are ready
-	// with the new credentials (allServicesReady), so the infra-operator does
-	// not revoke a RabbitMQ user still referenced by running pods. The stale
-	// input handling in the ensure* helpers keeps a child's mirrored condition
-	// out of True until it has applied the current input, so AllSubConditionIsTrue
-	// is a valid rotation guard.
+	// Manage the old AC secret's and transport URL secret's finalizers and
+	// status tracking. On rotation the old secret's finalizer is only
+	// released once all sub-services are ready with the new credentials
+	// (allServicesReady), so the credential/RabbitMQ user isn't revoked
+	// while still referenced by running pods. The stale input handling in
+	// the ensure* helpers keeps a child's mirrored condition out of True
+	// until it has applied the current input, so AllSubConditionIsTrue is a
+	// valid rotation guard.
 	allServicesReady := instance.Status.Conditions.AllSubConditionIsTrue()
+
+	acSecretName, err := object.FinalizeSecretRotation(
+		ctx, h, instance.Namespace,
+		instance.Status.ApplicationCredentialSecret,
+		instance.Spec.Auth.ApplicationCredentialSecret,
+		nova.ACConsumerFinalizer,
+		allServicesReady,
+	)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	instance.Status.ApplicationCredentialSecret = acSecretName
 
 	transportSecretName, err := object.FinalizeSecretRotation(
 		ctx, h, instance.Namespace,
@@ -2004,15 +1997,12 @@ func (r *NovaReconciler) reconcileDelete(
 		return err
 	}
 
-	// Remove consumer finalizer from AC secrets nova was consuming.
-	for _, secretName := range []string{
-		instance.Status.ApplicationCredentialSecret,
-		instance.Spec.Auth.ApplicationCredentialSecret,
-	} {
-		if err := keystonev1.RemoveACSecretConsumerFinalizer(ctx, h, instance.Namespace,
-			secretName, nova.ACConsumerFinalizer); err != nil {
-			return err
-		}
+	// Remove the AC consumer finalizer from every AC secret nova was
+	// protecting so their owning application credentials can be revoked.
+	if err := object.PruneSecretConsumerFinalizers(
+		ctx, h, instance.Namespace, nova.ACConsumerFinalizer,
+	); err != nil {
+		return err
 	}
 
 	// Remove the transport consumer finalizer from every transport URL secret
