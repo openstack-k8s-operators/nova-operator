@@ -12,11 +12,48 @@
     - name: Scale down deployment
       ansible.builtin.shell: |
         oc patch csv -n openstack-operators {{ csv_name.stdout }} --type json -p="[{"op": "replace", "path": "/spec/install/spec/deployments/0/spec/replicas", "value": "0"}]"
-    - name: Install Nova Operator
-      cifmw.general.ci_script:
-        output_dir: "{{ cifmw_basedir }}/artifacts"
-        chdir: "{{ ansible_user_dir }}/src/github.com/openstack-k8s-operators/nova-operator"
-        script: make run_with_olm
-        extra_args:
-          CATALOG_IMAGE: "{{ nova_catalog_image }}"
-          ENABLE_CYBORG: "true"
+    - name: Install Nova Operator (dump disk usage and fail explicitly on error)
+      block:
+        - name: Install Nova Operator
+          cifmw.general.ci_script:
+            output_dir: "{{ cifmw_basedir }}/artifacts"
+            chdir: "{{ ansible_user_dir }}/src/github.com/openstack-k8s-operators/nova-operator"
+            script: make run_with_olm
+            extra_args:
+              CATALOG_IMAGE: "{{ nova_catalog_image }}"
+              ENABLE_CYBORG: "true"
+      rescue:
+        # The install commonly fails because the CRC node ran out of disk,
+        # which crashes etcd and makes the API server unresponsive. Capture
+        # disk usage before failing so a held node can be investigated.
+        - name: Collect disk usage on the hook host
+          ansible.builtin.shell: |
+            set -x
+            df -h
+            df -hi
+          register: _hook_disk_usage
+          changed_when: false
+          failed_when: false
+        - name: Print hook host disk usage
+          ansible.builtin.debug:
+            var: _hook_disk_usage.stdout_lines
+        - name: Collect disk usage from the CRC node (best effort)
+          ansible.builtin.shell: |
+            set -x
+            for node in $(oc --request-timeout=30s get nodes -o name); do
+              echo "### ${node} ###"
+              timeout 120 oc --request-timeout=30s debug "${node}" --quiet -- \
+                chroot /host sh -c 'df -h; df -hi' || true
+            done
+          register: _crc_disk_usage
+          changed_when: false
+          failed_when: false
+        - name: Print CRC node disk usage
+          ansible.builtin.debug:
+            var: _crc_disk_usage.stdout_lines
+        - name: Fail the job explicitly after collecting diagnostics
+          ansible.builtin.fail:
+            msg: >-
+              Nova operator OLM install failed (see disk usage above). Failing
+              explicitly in the run phase so the job reports FAILURE instead of
+              POST_FAILURE, allowing autohold to trigger for investigation.
