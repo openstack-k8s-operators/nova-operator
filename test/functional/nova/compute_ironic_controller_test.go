@@ -33,7 +33,7 @@ import (
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/nova/v1beta1"
-        nova "github.com/openstack-k8s-operators/nova-operator/internal/nova"
+	nova "github.com/openstack-k8s-operators/nova-operator/internal/nova"
 	"k8s.io/utils/ptr"
 )
 
