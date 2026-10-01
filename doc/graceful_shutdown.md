@@ -5,7 +5,8 @@ and waits for the pod's `terminationGracePeriodSeconds` before force stop using
 `SIGKILL`. Nova service uses this window to shutdown gracefully.
 
 This applies to the oslo.service based nova services that nova-operator
-deploys: nova-compute, nova-conductor, and nova-scheduler.
+deploys as k8s pods: nova-conductor, nova-scheduler, and nova-compute with
+the ironic driver.
 
 nova-api and nova-metadata run under httpd and nova-novncproxy is a
 websockify server, so the settings below do not apply to them.
@@ -50,7 +51,7 @@ nova-operator does not set `graceful_shutdown_timeout` or
 defaults apply.
 
 nova-operator sets `terminationGracePeriodSeconds` to 200 seconds on the
-nova-conductor, nova-scheduler and nova-compute pods. The value is the
+nova-conductor, nova-scheduler and nova-compute (ironic) pods. The value is the
 `TerminationGracePeriodSeconds` constant in
 [internal/nova/common.go](../internal/nova/common.go). It is not exposed in the
 CRDs (which we can do if needed).
