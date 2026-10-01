@@ -33,6 +33,7 @@ import (
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/nova/v1beta1"
+	nova "github.com/openstack-k8s-operators/nova-operator/internal/nova"
 )
 
 var _ = Describe("NovaCompute controller", func() {
@@ -261,6 +262,8 @@ var _ = Describe("NovaCompute controller", func() {
 
 				ss := th.GetStatefulSet(cell1.NovaComputeStatefulSetName)
 				Expect(int(*ss.Spec.Replicas)).To(Equal(1))
+				Expect(ss.Spec.Template.Spec.TerminationGracePeriodSeconds).To(
+					HaveValue(Equal(nova.TerminationGracePeriodSeconds)))
 				Expect(ss.Spec.Template.Spec.AutomountServiceAccountToken).NotTo(BeNil())
 				Expect(*ss.Spec.Template.Spec.AutomountServiceAccountToken).To(BeFalse())
 				Expect(ss.Spec.Template.Spec.Volumes).To(HaveLen(1))
