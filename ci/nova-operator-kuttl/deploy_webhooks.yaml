@@ -12,6 +12,32 @@
     - name: Scale down deployment
       ansible.builtin.shell: |
         oc patch csv -n openstack-operators {{ csv_name.stdout }} --type json -p="[{"op": "replace", "path": "/spec/install/spec/deployments/0/spec/replicas", "value": "0"}]"
+    # The CRC node's /var/lib/etcd is a 1G tmpfs. The high-churn kuttl run
+    # accumulates uncompacted MVCC revisions faster than the apiserver's 5-min
+    # compaction retires them, filling the tmpfs and crashing etcd (which makes
+    # the API server time out and the OLM install fail with Error 124). Run a
+    # background compact+defrag loop for the duration of the job to keep the
+    # etcd db collapsed to roughly its live size.
+    - name: Start background etcd compact/defrag loop
+      ansible.builtin.shell: |
+        cat > /tmp/etcd-compactor.sh <<'SCRIPT'
+        #!/bin/bash
+        while true; do
+          pod=$(oc -n openshift-etcd get pod -l app=etcd -o name | head -1)
+          if [ -n "$pod" ]; then
+            oc -n openshift-etcd rsh -c etcdctl "$pod" sh -c '
+              rev=$(etcdctl endpoint status -w json | grep -o "\"revision\":[0-9]*" | head -1 | cut -d: -f2)
+              [ -n "$rev" ] && etcdctl compact "$rev"
+              etcdctl defrag
+            ' || true
+          fi
+          sleep 60
+        done
+        SCRIPT
+        chmod +x /tmp/etcd-compactor.sh
+        nohup setsid /tmp/etcd-compactor.sh \
+          > "{{ cifmw_basedir }}/artifacts/etcd-compactor.log" 2>&1 < /dev/null &
+      changed_when: false
     - name: Install Nova Operator
       cifmw.general.ci_script:
         output_dir: "{{ cifmw_basedir }}/artifacts"
