@@ -1,0 +1,91 @@
+---
+- name: Monitor Nova service PIDs during KUTTL
+  hosts: "{{ cifmw_target_hook_host | default('localhost') }}"
+  environment:
+    KUBECONFIG: "{{ cifmw_openshift_kubeconfig }}"
+    PATH: "{{ cifmw_path }}"
+  gather_facts: false
+  vars:
+    collection_namespace: "{{ collection_namespace_override | default('openstack') }}"
+    monitor_dir: "{{ ansible_user_dir }}/zuul-output/logs/controller"
+  tasks:
+    - name: Create PID monitor log directory
+      ansible.builtin.file:
+        path: "{{ monitor_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Install Nova service PID monitor
+      ansible.builtin.copy:
+        dest: /tmp/nova-service-pid-monitor.sh
+        mode: "0755"
+        content: |
+          #!/usr/bin/env bash
+          namespace="$1"
+          log_file="$2"
+          state_dir="$3"
+
+          mkdir -p "${state_dir}"
+          touch "${log_file}"
+
+          while true; do
+            pods=$(oc get -n "${namespace}" pods -o name 2>/dev/null) || {
+              sleep 5
+              continue
+            }
+            for pod_resource in ${pods}; do
+              pod="${pod_resource#pod/}"
+              case "${pod}" in
+                nova-*) ;;
+                *) continue ;;
+              esac
+
+              pod_uid=$(oc get -n "${namespace}" pod "${pod}" -o jsonpath='{.metadata.uid}' 2>/dev/null)
+              containers=$(oc get -n "${namespace}" pod "${pod}" -o jsonpath='{.spec.containers[*].name}' 2>/dev/null)
+              statuses=$(oc get -n "${namespace}" pod "${pod}" -o jsonpath='{range .status.containerStatuses[*]}{.name} {.restartCount}{"\n"}{end}' 2>/dev/null)
+              for container in ${containers}; do
+                restart_count=$(printf '%s\n' "${statuses}" | awk -v name="${container}" '$1 == name {print $2}')
+                [ -n "${restart_count}" ] || continue
+
+                state_file="${state_dir}/${pod}-${container}"
+                previous_state=$(cat "${state_file}" 2>/dev/null || true)
+                current_state="${pod_uid} ${restart_count}"
+                [ "${previous_state}" = "${current_state}" ] && continue
+
+                process_list=$(oc exec -n "${namespace}" "${pod}" -c "${container}" -- ps -eo pid,ppid,args 2>&1)
+                if [ $? -eq 0 ]; then
+                  previous_uid="${previous_state%% *}"
+                  previous_restart_count="${previous_state#* }"
+                  if [ -z "${previous_state}" ]; then
+                    event="initial start"
+                  elif [ "${previous_uid}" != "${pod_uid}" ]; then
+                    event="pod recreated"
+                  else
+                    event="restart ${previous_restart_count} -> ${restart_count}"
+                  fi
+                  {
+                    printf '\n%s: %s for %s/%s (pod UID %s)\n' "$(date --iso-8601=seconds)" "${event}" "${pod}" "${container}" "${pod_uid}"
+                    printf '%s\n' "${process_list}"
+                  } >> "${log_file}"
+                  printf '%s\n' "${current_state}" > "${state_file}"
+                fi
+              done
+            done
+            sleep 5
+          done
+
+    - name: Start Nova service PID monitor
+      ansible.builtin.shell: |
+        monitor_pid_file="{{ monitor_dir }}/nova-service-pid-monitor.pid"
+        if test -f "${monitor_pid_file}" && kill -0 "$(cat "${monitor_pid_file}")" 2>/dev/null; then
+          exit 0
+        fi
+        nohup /tmp/nova-service-pid-monitor.sh \
+          "{{ collection_namespace }}" \
+          "{{ monitor_dir }}/nova-service-pids.log" \
+          "{{ monitor_dir }}/nova-service-pid-monitor-state" \
+          >/dev/null 2>&1 &
+        echo $! > "${monitor_pid_file}"
+      changed_when: true
+      tags:
+        - skip_ansible_lint
