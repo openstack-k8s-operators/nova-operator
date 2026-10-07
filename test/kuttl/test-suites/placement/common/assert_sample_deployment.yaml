@@ -229,7 +229,7 @@ metadata:
   name: placement-internal
 spec:
   ports:
-    - name: placement-internal
+    - name: internal
   selector:
     service: placement
   type: ClusterIP
@@ -243,7 +243,7 @@ metadata:
   name: placement-public
 spec:
   ports:
-    - name: placement-public
+    - name: public
   selector:
     service: placement
   type: ClusterIP

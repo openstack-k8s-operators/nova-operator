@@ -12,10 +12,10 @@ require (
 	github.com/onsi/gomega v1.44.0
 	github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20261103163710-492c1c9c64d0
 	github.com/openstack-k8s-operators/keystone-operator/api v0.6.1-0.20261106113705-926c49438ebe
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.6.1-0.20261102122626-a5970f05c6a9
-	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.6.1-0.20261102122626-a5970f05c6a9
-	github.com/openstack-k8s-operators/lib-common/modules/test v0.6.1-0.20261102122626-a5970f05c6a9
-	github.com/openstack-k8s-operators/lib-common/modules/users v0.0.0-20261102122626-a5970f05c6a9
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.6.1-0.20261111093153-d3e5c656b371
+	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.6.1-0.20261111093153-d3e5c656b371
+	github.com/openstack-k8s-operators/lib-common/modules/test v0.6.1-0.20261111093153-d3e5c656b371
+	github.com/openstack-k8s-operators/lib-common/modules/users v0.0.0-20261111093153-d3e5c656b371
 	github.com/openstack-k8s-operators/mariadb-operator/api v0.6.1-0.20261102202215-9d29efc4f568
 	github.com/openstack-k8s-operators/nova-operator/api v0.0.0-00010101000000-000000000000
 	go.uber.org/zap v1.28.0
@@ -72,7 +72,7 @@ require (
 	github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/openshift/api v3.9.0+incompatible // indirect
-	github.com/openstack-k8s-operators/lib-common/modules/storage v0.6.1-0.20261029132259-9d025389145b // indirect
+	github.com/openstack-k8s-operators/lib-common/modules/storage v0.6.1-0.20261102122626-a5970f05c6a9 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_golang v1.22.0 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect

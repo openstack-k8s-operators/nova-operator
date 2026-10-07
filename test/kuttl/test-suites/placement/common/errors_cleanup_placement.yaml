@@ -33,26 +33,12 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
-    admin: "true"
-    service: placement
-  name: placement-admin
-spec:
-  ports:
-    - name: placement-admin
-  selector:
-    service: placement
-  type: ClusterIP
----
-apiVersion: v1
-kind: Service
-metadata:
-  labels:
     endpoint: internal
     service: placement
   name: placement-internal
 spec:
   ports:
-    - name: placement-internal
+    - name: internal
   selector:
     service: placement
   type: ClusterIP
@@ -66,7 +52,7 @@ metadata:
   name: placement-public
 spec:
   ports:
-    - name: placement-public
+    - name: public
   selector:
     service: placement
   type: ClusterIP
