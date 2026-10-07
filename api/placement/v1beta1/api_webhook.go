@@ -25,6 +25,7 @@ import (
 	"fmt"
 
 	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/webhook"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -126,6 +127,7 @@ func (r PlacementAPISpecCore) ValidateCreate(basePath *field.Path, namespace str
 	// validate the service override key is valid
 	allErrs = append(allErrs, service.ValidateRoutedOverrides(basePath.Child("override").Child("service"), r.Override.Service)...)
 	allErrs = append(allErrs, r.Override.Probes.ValidateProbes(basePath.Child("override").Child("probes"))...)
+	allErrs = append(allErrs, validateServicePortNames(basePath.Child("override").Child("service"), r.Override.Service)...)
 
 	allErrs = append(allErrs, ValidateDefaultConfigOverwrite(basePath, r.DefaultConfigOverwrite)...)
 
@@ -142,6 +144,7 @@ func (r PlacementAPISpecCore) ValidateUpdate(old PlacementAPISpecCore, basePath 
 	// validate the service override key is valid
 	allErrs = append(allErrs, service.ValidateRoutedOverrides(basePath.Child("override").Child("service"), r.Override.Service)...)
 	allErrs = append(allErrs, r.Override.Probes.ValidateProbes(basePath.Child("override").Child("probes"))...)
+	allErrs = append(allErrs, validateServicePortNames(basePath.Child("override").Child("service"), r.Override.Service)...)
 
 	allErrs = append(allErrs, ValidateDefaultConfigOverwrite(basePath, r.DefaultConfigOverwrite)...)
 
@@ -150,6 +153,13 @@ func (r PlacementAPISpecCore) ValidateUpdate(old PlacementAPISpecCore, basePath 
 	allErrs = append(allErrs, r.ValidateTopology(basePath, namespace)...)
 
 	return allErrs
+}
+
+// validateServicePortNames rejects a service port override (public or
+// internal) whose name does not match the corresponding Placement Service
+// port name. See webhook.ValidatePortNameOverrides for why this matters.
+func validateServicePortNames(basePath *field.Path, overrides map[service.Endpoint]service.RoutedOverrideSpec) field.ErrorList {
+	return webhook.ValidatePortNameOverrides(basePath, overrides, webhook.DefaultServicePortNames())
 }
 
 func ValidateDefaultConfigOverwrite(
