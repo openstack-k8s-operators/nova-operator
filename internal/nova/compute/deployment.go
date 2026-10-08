@@ -97,10 +97,11 @@ func StatefulSet(
 					Labels:      labels,
 				},
 				Spec: corev1.PodSpec{
-					ServiceAccountName:           instance.Spec.ServiceAccount,
-					AutomountServiceAccountToken: ptr.To(false),
-					SecurityContext:              pod.RestrictivePodSecurityContext(users.NovaUID, users.NovaGID),
-					Volumes:                      volumes,
+					ServiceAccountName:            instance.Spec.ServiceAccount,
+					AutomountServiceAccountToken:  ptr.To(false),
+					SecurityContext:               pod.RestrictivePodSecurityContext(users.NovaUID, users.NovaGID),
+					TerminationGracePeriodSeconds: ptr.To(nova.TerminationGracePeriodSeconds),
+					Volumes:                       volumes,
 					Containers: []corev1.Container{
 						{
 							Name: instance.Name + "-compute",
