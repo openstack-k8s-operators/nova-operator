@@ -4,7 +4,7 @@ reportFormat: JSON
 reportName: kuttl-nova-results
 namespace: nova-kuttl-tests
 # we could set this lower, but the initial image pull can take a while
-timeout: 300
+timeout: 500
 parallel: 1
 skipDelete: true
 testDirs:
