@@ -1,7 +1,12 @@
 apiVersion: kuttl.dev/v1beta1
 kind: TestStep
-delete:
-- apiVersion: nova.openstack.org/v1beta1
-  kind: Nova
-  name: nova-kuttl
-  namespace: nova-kuttl-tests
+# DNM: cleanup disabled on purpose. Keeping the Nova CR (and therefore the
+# nova service pods) around so logs can be collected and the graceful
+# shutdown behaviour can be investigated manually on an autohold node.
+# The original step deleted the nova-kuttl Nova CR; restore before merge:
+#
+# delete:
+# - apiVersion: nova.openstack.org/v1beta1
+#   kind: Nova
+#   name: nova-kuttl
+#   namespace: nova-kuttl-tests

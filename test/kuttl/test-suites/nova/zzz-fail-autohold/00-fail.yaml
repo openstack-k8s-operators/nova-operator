@@ -1,0 +1,10 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+# DNM: intentional failure. This runs last in the suite (sorts after
+# zz-appcred-tests) so the kuttl job always reports failure, which lets
+# zuul autohold the node. The nova service pods are left running (cleanup
+# is disabled) so they can be investigated manually. Remove before merge.
+commands:
+  - script: |
+      echo "DNM: forcing kuttl failure so zuul holds the node for pod investigation"
+      exit 1
