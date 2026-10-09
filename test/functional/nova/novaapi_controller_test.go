@@ -18,6 +18,7 @@ package nova_test
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	. "github.com/onsi/ginkgo/v2" //revive:disable:dot-imports
 	. "github.com/onsi/gomega"    //revive:disable:dot-imports
@@ -203,8 +204,9 @@ var _ = Describe("NovaAPI controller", func() {
 			})
 		})
 
-		When("the Secret is created with all the expected fields", func() {
+		When("the Secret is created with all expected fields and Memcached uses IPv6", func() {
 			BeforeEach(func() {
+				infra.SimulateIPv6MemcachedReady(novaNames.MemcachedNamespace)
 				DeferCleanup(
 					k8sClient.Delete, ctx, CreateInternalTopLevelSecret(novaNames))
 
@@ -253,15 +255,18 @@ var _ = Describe("NovaAPI controller", func() {
 				Expect(configData).Should(
 					ContainSubstring("[upgrade_levels]\ncompute = auto"))
 				memcacheInstance := infra.GetMemcached(novaNames.MemcachedNamespace)
+				memcachedServersWithInet := memcacheInstance.GetMemcachedServerListWithInetString()
+				Expect(strings.Split(memcachedServersWithInet, ",")).To(HaveEach(HavePrefix("inet6:")))
 				Expect(configData).Should(
 					ContainSubstring("backend = dogpile.cache.memcached"))
 				Expect(configData).Should(
-					ContainSubstring(fmt.Sprintf("memcache_servers=%s", memcacheInstance.GetMemcachedServerListWithInetString())))
+					ContainSubstring(fmt.Sprintf("memcache_servers=%s", memcachedServersWithInet)))
 				Expect(configData).Should(
-					ContainSubstring(fmt.Sprintf("memcached_servers=memcached-0.memcached.%s.svc:11211,memcached-1.memcached.%s.svc:11211,memcached-2.memcached.%s.svc:11211",
-						novaNames.Namespace, novaNames.Namespace, novaNames.Namespace)))
+					ContainSubstring(fmt.Sprintf("memcached_servers=%s", memcachedServersWithInet)))
 				Expect(configData).Should(
 					ContainSubstring("tls_enabled=false"))
+				Expect(configData).ShouldNot(
+					ContainSubstring("memcache_tls_enabled = true"))
 				Expect(configData).Should(ContainSubstring("enforce_new_defaults=true"))
 				Expect(configData).Should(ContainSubstring("policy_file=/etc/nova/policy.yaml"))
 				// need for initial quota check when using unified limits
@@ -1205,12 +1210,17 @@ var _ = Describe("NovaAPI controller", func() {
 			configData = string(configDataMap.Data["01-nova.conf"])
 			Expect(configData).Should(
 				ContainSubstring("backend = oslo_cache.memcache_pool"))
+			memcachedInstance := infra.GetMemcached(novaNames.MemcachedNamespace)
+			tlsServerList := memcachedInstance.GetMemcachedServerListString()
+			Expect(strings.Split(tlsServerList, ",")).To(HaveEach(HaveSuffix(fmt.Sprintf(":%d", memcachedTLSListenerPort))))
 			Expect(configData).Should(
-				ContainSubstring(fmt.Sprintf("memcache_servers=memcached-0.memcached.%s.svc:11211,memcached-1.memcached.%s.svc:11211,memcached-2.memcached.%s.svc:11211",
-					novaNames.Namespace, novaNames.Namespace, novaNames.Namespace)))
+				ContainSubstring(fmt.Sprintf("memcache_servers=%s", tlsServerList)))
 			Expect(configData).Should(
-				ContainSubstring(fmt.Sprintf("memcached_servers=memcached-0.memcached.%s.svc:11211,memcached-1.memcached.%s.svc:11211,memcached-2.memcached.%s.svc:11211",
-					novaNames.Namespace, novaNames.Namespace, novaNames.Namespace)))
+				ContainSubstring(fmt.Sprintf("memcached_servers=%s", tlsServerList)))
+			Expect(configData).Should(
+				ContainSubstring("memcache_tls_enabled = true"))
+			Expect(configData).ShouldNot(
+				ContainSubstring("memcache_tls_certfile ="))
 			Expect(configData).Should(
 				ContainSubstring("tls_enabled=true"))
 
@@ -1548,6 +1558,11 @@ var _ = Describe("NovaAPI controller", func() {
 			Expect(configDataMap).ShouldNot(BeNil())
 
 			configData := string(configDataMap.Data["01-nova.conf"])
+			memcachedInstance := infra.GetMemcached(novaNames.MemcachedNamespace)
+			tlsServerList := memcachedInstance.GetMemcachedServerListString()
+			Expect(strings.Split(tlsServerList, ",")).To(HaveEach(HaveSuffix(fmt.Sprintf(":%d", memcachedTLSListenerPort))))
+			Expect(configData).Should(
+				ContainSubstring(fmt.Sprintf("memcached_servers=%s", tlsServerList)))
 
 			// MTLS - [cache]
 			Expect(configData).Should(
