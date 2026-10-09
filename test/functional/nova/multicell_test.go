@@ -248,8 +248,7 @@ var _ = Describe("Nova multi cell", func() {
 				ContainSubstring(fmt.Sprintf("memcache_servers=memcached-0.memcached.%s.svc:11211,memcached-1.memcached.%s.svc:11211,memcached-2.memcached.%s.svc:11211",
 					novaNames.Namespace, novaNames.Namespace, novaNames.Namespace)))
 			Expect(configData).Should(
-				ContainSubstring(fmt.Sprintf("memcached_servers=memcached-0.memcached.%s.svc:11211,memcached-1.memcached.%s.svc:11211,memcached-2.memcached.%s.svc:11211",
-					novaNames.Namespace, novaNames.Namespace, novaNames.Namespace)))
+				ContainSubstring(fmt.Sprintf("memcached_servers=%s", getMemcachedServersForNovaConfig(novaNames.MemcachedNamespace))))
 
 			Expect(configData).To(ContainSubstring("transport_url=rabbit://cell0/fake"))
 
@@ -375,8 +374,7 @@ var _ = Describe("Nova multi cell", func() {
 				ContainSubstring(fmt.Sprintf("memcache_servers=memcached1-0.memcached1.%s.svc:11211,memcached1-1.memcached1.%s.svc:11211,memcached1-2.memcached1.%s.svc:11211",
 					novaNames.Namespace, novaNames.Namespace, novaNames.Namespace)))
 			Expect(configData).Should(
-				ContainSubstring(fmt.Sprintf("memcached_servers=memcached1-0.memcached1.%s.svc:11211,memcached1-1.memcached1.%s.svc:11211,memcached1-2.memcached1.%s.svc:11211",
-					novaNames.Namespace, novaNames.Namespace, novaNames.Namespace)))
+				ContainSubstring(fmt.Sprintf("memcached_servers=%s", getMemcachedServersForNovaConfig(types.NamespacedName{Name: "memcached1", Namespace: novaNames.Namespace}))))
 			Expect(configData).Should(
 				ContainSubstring("tls_enabled=false"))
 

@@ -54,6 +54,16 @@ const (
 	MemcachedInstance  = "memcached"
 )
 
+const memcachedTLSListenerPort = 11212
+
+func getMemcachedServersForNovaConfig(name types.NamespacedName) string {
+	memcachedInstance := infra.GetMemcached(name)
+	if memcachedInstance.Status.TLSSupport {
+		return memcachedInstance.GetMemcachedServerListString()
+	}
+	return memcachedInstance.GetMemcachedServerListWithInetString()
+}
+
 func GetDefaultNovaAPISpec(novaNames NovaNames) map[string]any {
 	return map[string]any{
 		"secret":                novaNames.InternalTopLevelSecretName.Name,
