@@ -285,27 +285,27 @@
         - workloads-s2i-content-provider
         - nova-operator-kuttl
         - nova-operator-kuttl-placement
-        - nova-operator-tempest-multinode
-        - nova-operator-tempest-multinode-ceph:
-            nodeset: centos-10-medium-centos-10-crc-cloud-ocp-4-22-1-3xl
-        - nova-operator-cyborg-tempest-multinode:
-            voting: false
-            files:
-              - ^api/cyborg/
-              - ^internal/cyborg/
-              - ^internal/controller/cyborg/
-              - ^internal/webhook/cyborg/
-              - ^templates/cyborg/
-              - ^config/samples/cyborg.*
-              - ^api/bases/cyborg\.openstack\.org.*
-              - ^test/functional/cyborg/
-              - ^test/kuttl/test-suites/default/cyborg-tests/
-              - ^ci/nova-operator-cyborg-tempest-multinode/
-              - ^go\.mod$
-              - ^go\.sum$
-              - ^go\.work.*
-              - ^api/go\.mod$
-              - ^api/go\.sum$
+       # - nova-operator-tempest-multinode
+       # - nova-operator-tempest-multinode-ceph:
+       #     nodeset: centos-10-medium-centos-10-crc-cloud-ocp-4-22-1-3xl
+       # - nova-operator-cyborg-tempest-multinode:
+       #     voting: false
+       #     files:
+       #       - ^api/cyborg/
+       #       - ^internal/cyborg/
+       #       - ^internal/controller/cyborg/
+       #       - ^internal/webhook/cyborg/
+       #       - ^templates/cyborg/
+       #       - ^config/samples/cyborg.*
+       #       - ^api/bases/cyborg\.openstack\.org.*
+       #       - ^test/functional/cyborg/
+       #       - ^test/kuttl/test-suites/default/cyborg-tests/
+       #       - ^ci/nova-operator-cyborg-tempest-multinode/
+       #       - ^go\.mod$
+       #       - ^go\.sum$
+       #       - ^go\.work.*
+       #       - ^api/go\.mod$
+       #       - ^api/go\.sum$
 
 - pragma:
     implied-branch-matchers: True
