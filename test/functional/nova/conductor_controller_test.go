@@ -247,8 +247,7 @@ var _ = Describe("NovaConductor controller", func() {
 					ContainSubstring(fmt.Sprintf("memcache_servers=memcached-0.memcached.%s.svc:11211,memcached-1.memcached.%s.svc:11211,memcached-2.memcached.%s.svc:11211",
 						novaNames.Namespace, novaNames.Namespace, novaNames.Namespace)))
 				Expect(configData).Should(
-					ContainSubstring(fmt.Sprintf("memcached_servers=memcached-0.memcached.%s.svc:11211,memcached-1.memcached.%s.svc:11211,memcached-2.memcached.%s.svc:11211",
-						novaNames.Namespace, novaNames.Namespace, novaNames.Namespace)))
+					ContainSubstring(fmt.Sprintf("memcached_servers=%s", getMemcachedServersForNovaConfig(novaNames.MemcachedNamespace))))
 				Expect(configData).Should(
 					ContainSubstring("tls_enabled=false"))
 				Expect(configDataMap.Data).Should(HaveKey("02-nova-override.conf"))
@@ -1175,11 +1174,9 @@ var _ = Describe("NovaConductor controller", func() {
 			Expect(configData).Should(
 				ContainSubstring("backend = oslo_cache.memcache_pool"))
 			Expect(configData).Should(
-				ContainSubstring(fmt.Sprintf("memcache_servers=memcached-0.memcached.%s.svc:11211,memcached-1.memcached.%s.svc:11211,memcached-2.memcached.%s.svc:11211",
-					novaNames.Namespace, novaNames.Namespace, novaNames.Namespace)))
+				ContainSubstring(fmt.Sprintf("memcache_servers=%s", getMemcachedServersForNovaConfig(novaNames.MemcachedNamespace))))
 			Expect(configData).Should(
-				ContainSubstring(fmt.Sprintf("memcached_servers=memcached-0.memcached.%s.svc:11211,memcached-1.memcached.%s.svc:11211,memcached-2.memcached.%s.svc:11211",
-					novaNames.Namespace, novaNames.Namespace, novaNames.Namespace)))
+				ContainSubstring(fmt.Sprintf("memcached_servers=%s", getMemcachedServersForNovaConfig(novaNames.MemcachedNamespace))))
 			Expect(configData).Should(
 				ContainSubstring("tls_enabled=true"))
 
@@ -1307,6 +1304,72 @@ var _ = Describe("NovaConductor controller", func() {
 				ContainSubstring("memcache_tls_enabled = true"))
 		})
 
+	})
+})
+
+var _ = Describe("NovaConductor controller", func() {
+	BeforeEach(func() {
+		mariadb.CreateMariaDBDatabase(cell0.MariaDBDatabaseName.Namespace, cell0.MariaDBDatabaseName.Name, mariadbv1.MariaDBDatabaseSpec{})
+		DeferCleanup(k8sClient.Delete, ctx, mariadb.GetMariaDBDatabase(cell0.MariaDBDatabaseName))
+
+		apiMariaDBAccount, apiMariaDBSecret := mariadb.CreateMariaDBAccountAndSecret(
+			novaNames.APIMariaDBDatabaseAccount, mariadbv1.MariaDBAccountSpec{})
+		DeferCleanup(k8sClient.Delete, ctx, apiMariaDBAccount)
+		DeferCleanup(k8sClient.Delete, ctx, apiMariaDBSecret)
+
+		cell0Account, cell0Secret := mariadb.CreateMariaDBAccountAndSecret(
+			cell0.MariaDBAccountName, mariadbv1.MariaDBAccountSpec{})
+		DeferCleanup(k8sClient.Delete, ctx, cell0Account)
+		DeferCleanup(k8sClient.Delete, ctx, cell0Secret)
+
+		memcachedSpec := infra.GetDefaultMemcachedSpec()
+		// Create Memcached configured for MTLS auth (SslVerifyMode is set, so
+		// MemcachedAuthCert is derived from the Spec), but simulate it ready
+		// WITHOUT base TLS support (Status.TLSSupport=false, hence MemcachedTLS
+		// is false). Nothing in the Memcached webhook prevents setting an MTLS
+		// verify-mode while base TLS is disabled, so this is a reachable state.
+		DeferCleanup(infra.DeleteMemcached, infra.CreateMTLSMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
+		infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
+	})
+
+	When("NovaConductor is created with MTLS memcached but base TLS disabled", func() {
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateDefaultCellInternalSecret(cell0))
+			DeferCleanup(th.DeleteInstance, CreateNovaConductor(cell0.ConductorName, GetDefaultNovaConductorSpec(cell0)))
+		})
+
+		It("does not render memcache TLS settings in nova.conf", func() {
+			th.ExpectCondition(
+				cell0.ConductorName,
+				ConditionGetterFunc(NovaConductorConditionGetter),
+				condition.ServiceConfigReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			configDataMap := th.GetSecret(cell0.ConductorConfigDataName)
+			Expect(configDataMap).ShouldNot(BeNil())
+
+			configData := string(configDataMap.Data["01-nova.conf"])
+
+			// base TLS is off, so the plaintext (inet) server list is used and
+			// TLS must not be enabled in any section
+			Expect(configData).Should(
+				ContainSubstring(fmt.Sprintf("memcached_servers=%s", getMemcachedServersForNovaConfig(novaNames.MemcachedNamespace))))
+			Expect(configData).Should(ContainSubstring("tls_enabled=false"))
+			Expect(configData).ShouldNot(ContainSubstring("memcache_tls_enabled = true"))
+
+			// The MTLS cert files must not be emitted when TLS is not enabled,
+			// otherwise oslo.cache silently ignores them and falls back to
+			// plaintext. The cert lines are gated on MemcachedTLS so that they
+			// only appear together with memcache_tls_enabled / tls_enabled.
+			Expect(configData).ShouldNot(ContainSubstring("memcache_tls_certfile"))
+			Expect(configData).ShouldNot(ContainSubstring("memcache_tls_keyfile"))
+			Expect(configData).ShouldNot(ContainSubstring("memcache_tls_cafile"))
+			Expect(configData).ShouldNot(ContainSubstring("tls_certfile="))
+			Expect(configData).ShouldNot(ContainSubstring("tls_keyfile="))
+			Expect(configData).ShouldNot(ContainSubstring("tls_cafile="))
+		})
 	})
 })
 
