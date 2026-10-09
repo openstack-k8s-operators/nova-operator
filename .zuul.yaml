@@ -13,8 +13,6 @@
       that is the minimum set of openstack services required to boot a vm.
       Operator images come from openstack-k8s-operators-content-provider;
       nova/placement/cyborg service images come from workloads-s2i-content-provider.
-    post-run:
-      - ci/nova-operator-base/playbooks/collect-logs.yaml
     vars:
       collection_namespace_override: "nova-kuttl-tests"
       operator_name: nova-operator
@@ -89,8 +87,6 @@
     dependencies:
       - openstack-k8s-operators-content-provider
       - workloads-s2i-content-provider
-    post-run:
-      - ci/nova-operator-base/playbooks/collect-logs.yaml
     vars:
       cifmw_extras:
         - "@scenarios/centos-10/base.yml"
@@ -177,8 +173,6 @@
       - openstack-k8s-operators-content-provider
       - workloads-s2i-content-provider
     # Note:  When inheriting from a job (or creating a variant of a job) vars are merged with previous definitions
-    post-run:
-      - ci/nova-operator-base/playbooks/collect-logs.yaml
     vars:
       s2i_extras:
         - "@{{ ansible_user_dir }}/{{ zuul.projects['github.com/openstack-k8s-operators/nova-operator'].src_dir }}/ci/nova-operator-tempest-multinode-ceph/ci_fw_vars.yaml"
