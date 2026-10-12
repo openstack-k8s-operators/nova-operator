@@ -335,6 +335,86 @@
                 override-checkout: main
             vars:
               content_provider_registry_ip: '{{ s2i_content_provider_registry_ip }}'
+              # Whitebox runs only for s2i consumers of this template.
+              # A workflow replaces the single tempest run, so the first step
+              # repeats the job's compute/scenario selection.
+              cifmw_test_operator_tempest_ssh_key_secret_name: dataplane-ansible-ssh-private-key-secret
+              cifmw_test_operator_tempest_tempestconf_config:
+                overrides: |
+                  identity.v3_endpoint_type public
+                  compute-feature-enabled.vnc_console true
+                  compute-feature-enabled.stable_rescue true
+                  compute-feature-enabled.hostname_fqdn_sanitization true
+                  compute-feature-enabled.live_migration true
+                  compute-feature-enabled.live_migrate_back_and_forth true
+                  compute-feature-enabled.block_migration_for_live_migration true
+                  compute-feature-enabled.ide_bus false
+                  service_available.swift false
+                  service_available.cinder false
+                  validation.image_ssh_user cirros
+                  validation.image_ssh_password cubswin:)
+                  validation.image_alt_ssh_user cirros
+                  validation.image_alt_ssh_password cubswin:)
+                  validation.allowed_network_downtime 10
+                  whitebox.nodes_yaml '/etc/test_operator/whitebox_node_yaml'
+                  whitebox.ctlplane_addresses compute-0.ctlplane.example.com:192.168.122.100,compute-1.ctlplane.example.com:192.168.122.101
+                  whitebox.ctlplane_ssh_username cloud-admin
+                  whitebox.ctlplane_ssh_private_key_path '/var/lib/tempest/.ssh/id_ecdsa'
+                  whitebox.max_compute_nodes 2
+                  whitebox.cpu_model Nehalem
+                  whitebox.selinux_label 'system_u:system_r:svirt_t:s0'
+                  whitebox.selinux_imagelabel 'system_u:object_r:svirt_image_t:s0'
+                  whitebox-nova-compute.journalctl_unit edpm_nova_compute
+                  whitebox-database.host openstack-cell1-galera
+                  whitebox-database.user root
+              cifmw_test_operator_tempest_config_overwrite:
+                whitebox_node_yaml: |
+                  compute-0.ctlplane.example.com:
+                    services:
+                      libvirt:
+                        container_name: nova_virtqemud
+                        start_command: 'systemctl start virtqemud'
+                        stop_command: 'systemctl stop virtqemud'
+                      nova-compute:
+                        config_path: '/var/lib/openstack/nova/25-nova-extra.conf'
+                        start_command: 'systemctl start edpm_nova_compute'
+                        stop_command: 'systemctl stop edpm_nova_compute'
+                  compute-1.ctlplane.example.com:
+                    services:
+                      libvirt:
+                        container_name: nova_virtqemud
+                        start_command: 'systemctl start virtqemud'
+                        stop_command: 'systemctl stop virtqemud'
+                      nova-compute:
+                        config_path: '/var/lib/openstack/nova/25-nova-extra.conf'
+                        start_command: 'systemctl start edpm_nova_compute'
+                        stop_command: 'systemctl stop edpm_nova_compute'
+              cifmw_test_operator_tempest_workflow:
+                - stepName: tempest
+                  tempestRun:
+                    includeList: |
+                      tempest.api.compute
+                      tempest.scenario
+                    excludeList: |
+                      test_live_block_migration_paused
+                - stepName: whitebox
+                  tempestRun:
+                    concurrency: 1
+                    externalPlugin:
+                      - repository: https://opendev.org/openstack/whitebox-tempest-plugin.git
+                    includeList: |
+                      whitebox_tempest_plugin.api.
+                    # Pinning and provider.yaml are not configured. Cinder is off,
+                    # so the volume evacuation and encryption cases error instead
+                    # of skipping. The watchdog case is excluded in RHOSO 18.
+                    excludeList: |
+                      whitebox_tempest_plugin.api.compute.test_live_migration.LiveMigrationBase.test_live_migrate_and_reboot
+                      whitebox_tempest_plugin.api.compute.test_cpu_pinning.CPUThreadPolicyTest.test_threads_isolate
+                      whitebox_tempest_plugin.api.compute.test_watchdog_devices.WatchdogDeviceTest.test_action_with_flavor_5_disabled
+                      whitebox_tempest_plugin.api.compute.test_provider_yaml.TestProviderYamlViaTraits.test_valid_trait_with_provider_yaml
+                      whitebox_tempest_plugin.api.compute.test_server_evacuation.ServerEvacuation.test_evacuate_attached_vol
+                      whitebox_tempest_plugin.api.compute.test_server_evacuation.ServerEvacuation.test_evacuate_bfv_server
+                      whitebox_tempest_plugin.api.compute.test_volume_encryption.TestQEMUVolumeEncryption.test_qemu_volume_encryption
             files:
               - ^containers/nova/
               - ^containers/placement/
@@ -350,6 +430,80 @@
                 override-checkout: main
             vars:
               content_provider_registry_ip: '{{ s2i_content_provider_registry_ip }}'
+              # Same s2i-only whitebox step as the non-Ceph job. This job is
+              # 1-compute HCI, so the host map has compute-0 only.
+              cifmw_test_operator_tempest_ssh_key_secret_name: dataplane-ansible-ssh-private-key-secret
+              cifmw_test_operator_tempest_tempestconf_config:
+                overrides: |
+                  identity.v3_endpoint_type public
+                  compute-feature-enabled.vnc_console true
+                  compute-feature-enabled.stable_rescue true
+                  compute-feature-enabled.hostname_fqdn_sanitization true
+                  compute-feature-enabled.live_migration false
+                  compute-feature-enabled.ide_bus false
+                  compute-feature-enabled.volume_backed_live_migration false
+                  compute-feature-enabled.volume_multiattach true
+                  volume.volume_type_multiattach multiattach
+                  volume.storage_protocol ceph
+                  service_available.swift false
+                  service_available.cinder true
+                  validation.image_ssh_user cirros
+                  validation.image_ssh_password cubswin:)
+                  validation.image_alt_ssh_user cirros
+                  validation.image_alt_ssh_password cubswin:)
+                  validation.allowed_network_downtime 10
+                  whitebox.nodes_yaml '/etc/test_operator/whitebox_node_yaml'
+                  whitebox.ctlplane_addresses compute-0.ctlplane.example.com:192.168.122.100
+                  whitebox.ctlplane_ssh_username cloud-admin
+                  whitebox.ctlplane_ssh_private_key_path '/var/lib/tempest/.ssh/id_ecdsa'
+                  whitebox.max_compute_nodes 1
+                  whitebox.available_cinder_storage 15
+                  whitebox.cpu_model Nehalem
+                  whitebox.selinux_label 'system_u:system_r:svirt_t:s0'
+                  whitebox.selinux_imagelabel 'system_u:object_r:svirt_image_t:s0'
+                  whitebox-nova-compute.journalctl_unit edpm_nova_compute
+                  whitebox-database.host openstack-cell1-galera
+                  whitebox-database.user root
+              cifmw_test_operator_tempest_config_overwrite:
+                whitebox_node_yaml: |
+                  compute-0.ctlplane.example.com:
+                    services:
+                      libvirt:
+                        container_name: nova_virtqemud
+                        start_command: 'systemctl start virtqemud'
+                        stop_command: 'systemctl stop virtqemud'
+                      nova-compute:
+                        config_path: '/var/lib/openstack/nova/25-nova-extra.conf'
+                        start_command: 'systemctl start edpm_nova_compute'
+                        stop_command: 'systemctl stop edpm_nova_compute'
+              cifmw_test_operator_tempest_workflow:
+                - stepName: tempest
+                  tempestRun:
+                    includeList: |
+                      tempest.api.compute
+                      tempest.scenario
+                    excludeList: |
+                      tempest.scenario.test_server_volume_attachment.TestServerVolumeAttachmentScenario.test_server_detach_rules
+                      tempest.scenario.test_server_volume_attachment.TestServerVolumeAttachScenarioOldVersion.test_old_versions_reject
+                      tempest.scenario.test_encrypted_cinder_volumes.TestEncryptedCinderVolumes.test_encrypted_cinder_volumes_cryptsetup
+                      tempest.scenario.test_network_v6
+                - stepName: whitebox
+                  tempestRun:
+                    concurrency: 1
+                    externalPlugin:
+                      - repository: https://opendev.org/openstack/whitebox-tempest-plugin.git
+                    includeList: |
+                      whitebox_tempest_plugin.api.
+                    # Cinder is enabled
+                    # This job has one compute and no CPU pinning, so the
+                    # dedicated-CPU and live-migration cases fail instead of skipping.
+                    excludeList: |
+                      whitebox_tempest_plugin.api.compute.test_volume_negative.VolumesAdminNegativeTest.test_detach_failure
+                      whitebox_tempest_plugin.api.compute.test_volume_encryption.TestQEMUVolumeEncryption.test_qemu_volume_encryption
+                      whitebox_tempest_plugin.api.compute.test_cpu_pinning.CPUThreadPolicyTest.test_threads_isolate
+                      whitebox_tempest_plugin.api.compute.test_watchdog_devices.WatchdogDeviceTest.test_action_with_flavor_5_disabled
+                      whitebox_tempest_plugin.api.compute.test_default_hyperv_enlightenments.HyperVEnlightenments.test_live_migrate_with_enlightenments
+                      whitebox_tempest_plugin.api.compute.test_validate_selinux_labels.SelinuxLabelsTest.test_live_migrate_with_label_check
             files:
               - ^containers/nova/
               - ^containers/placement/
