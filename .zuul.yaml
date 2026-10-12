@@ -365,6 +365,21 @@
             dependencies:
               - s2i-openstack-container-content-provider
               - s2i-openstack-container-consumer-smoke
+        - nova-operator-tempest-multinode-ceph:
+            required-projects:
+              - name: openstack-k8s-operators/s2i-openstack-containers
+                override-checkout: main
+              - name: openstack-k8s-operators/nova-operator
+                override-checkout: main
+            vars:
+              content_provider_registry_ip: '{{ s2i_content_provider_registry_ip }}'
+            files:
+              - ^containers/nova/
+              - ^containers/placement/
+              - ^containers/base/
+            dependencies:
+              - s2i-openstack-container-content-provider
+              - s2i-openstack-container-consumer-smoke
         - nova-operator-cyborg-tempest-multinode:
             voting: false
             required-projects:
