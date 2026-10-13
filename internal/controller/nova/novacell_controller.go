@@ -194,12 +194,48 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 
 	}
 
+	cellHasVNCService := (*instance.Spec.NoVNCProxyServiceTemplate.Enabled)
+	novncproxyInputApplied := true
+	if cellHasVNCService {
+		result, novncproxyInputApplied, err = r.ensureNoVNCProxy(ctx, instance, cellSecretHash)
+		if err != nil {
+			return result, err
+		}
+	} else {
+		// The NoVNCProxy is explicitly disable for this cell so we delete its
+		// deployment if exists
+		err = r.ensureNoVNCProxyDeleted(ctx, instance)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+		instance.Status.Conditions.Remove(novav1.NovaNoVNCProxyReadyCondition)
+	}
+
+	// We need to wait for the NovaNoVNCProxy to become Ready before we can
+	// generate the compute configs as they need the endpoint of the proxy
+	// to be included. This applies to both the control plane compute CRs
+	// and the data plane compute-config Secret.
+	// NovaNoVNCProxy is never deployed in cell0, and optional in other
+	// cells too.
+	if cellHasVNCService && !instance.Status.Conditions.IsTrue(novav1.NovaNoVNCProxyReadyCondition) {
+		Log.Info("Waiting for the NovaNoVNCProxyService to become Ready before generating the compute config")
+		return ctrl.Result{}, nil
+	}
+
+	var vncProxyURL *string
+	if cellHasVNCService {
+		vncProxyURL, err = r.getVNCProxyURL(ctx, h, instance)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+
 	// manage nova-computes with selected driver based on created template
 	// we need to keep statuses for deleting and discover action and also create map with hashes
 	// to run discover job only when all computes are deployed and never discovered
 	computeTemplatesHashMap := make(map[string]string)
 	for computeName, computeTemplate := range instance.Spec.NovaComputeTemplates {
-		computeStatus := r.ensureNovaCompute(ctx, instance, computeTemplate, computeName, cellSecretHash)
+		computeStatus := r.ensureNovaCompute(ctx, instance, computeTemplate, computeName, cellSecretHash, vncProxyURL)
 		instance.Status.NovaComputesStatus[computeName] = computeStatus
 		// We hash the entire compute template to keep track of changes in the number of replicas,
 		// allowing us to discover nodes accordingly
@@ -254,43 +290,8 @@ func (r *NovaCellReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 	}
 	instance.Status.Hash[novav1.ComputeDiscoverHashKey] = computeTemplatesHash
 
-	cellHasVNCService := (*instance.Spec.NoVNCProxyServiceTemplate.Enabled)
-	novncproxyInputApplied := true
-	if cellHasVNCService {
-		result, novncproxyInputApplied, err = r.ensureNoVNCProxy(ctx, instance, cellSecretHash)
-		if err != nil {
-			return result, err
-		}
-	} else {
-		// The NoVNCProxy is explicitly disable for this cell so we delete its
-		// deployment if exists
-		err = r.ensureNoVNCProxyDeleted(ctx, instance)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
-		instance.Status.Conditions.Remove(novav1.NovaNoVNCProxyReadyCondition)
-	}
-
 	if conductorInputApplied && metadataInputApplied && novncproxyInputApplied && allComputesApplied {
 		instance.Status.AppliedInputSecretHash = cellSecretHash
-	}
-
-	// We need to wait for the NovaNoVNCProxy to become Ready before we can try
-	// to generate the compute config secret as that needs the endpoint of the
-	// proxy to be included.
-	// However NovaNoVNCProxy is never deployed in cell0, and optional in other
-	// cells too.
-	if cellHasVNCService && !instance.Status.Conditions.IsTrue(novav1.NovaNoVNCProxyReadyCondition) {
-		Log.Info("Waiting for the NovaNoVNCProxyService to become Ready before generating the compute config")
-		return ctrl.Result{}, nil
-	}
-
-	var vncProxyURL *string
-	if cellHasVNCService {
-		vncProxyURL, err = r.getVNCProxyURL(ctx, h, instance)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
 	}
 
 	if instance.Spec.CellName != novav1.Cell0Name {
@@ -712,6 +713,7 @@ func (r *NovaCellReconciler) ensureNovaCompute(
 	compute novav1.NovaComputeTemplate,
 	computeName string,
 	expectedInputSecretHash string,
+	vncProxyURL *string,
 ) novav1.NovaComputeCellStatus {
 	Log := r.GetLogger(ctx)
 	// There is a case when the user manually created a NovaCompute with selected name.
@@ -754,7 +756,7 @@ func (r *NovaCellReconciler) ensureNovaCompute(
 		return computeStatus
 	}
 
-	novacomputeSpec := novav1.NewNovaComputeSpec(instance.Spec, compute, computeName)
+	novacomputeSpec := novav1.NewNovaComputeSpec(instance.Spec, compute, computeName, vncProxyURL)
 	novacompute = &novav1.NovaCompute{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fullComputeName.Name,

@@ -447,8 +447,9 @@ var _ = Describe("Nova multi cell", func() {
 			mariadb.SimulateMariaDBDatabaseCompleted(cell1.MariaDBDatabaseName)
 			mariadb.SimulateMariaDBAccountCompleted(cell1.MariaDBAccountName)
 			infra.SimulateTransportURLReady(cell1.TransportURLName)
-			th.SimulateStatefulSetReplicaReady(cell1.NovaComputeStatefulSetName)
+			// NoVNCProxy must be ready before the NovaCompute CR is created
 			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
+			th.SimulateStatefulSetReplicaReady(cell1.NovaComputeStatefulSetName)
 			th.SimulateJobSuccess(cell1.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
 			th.SimulateJobSuccess(cell1.CellMappingJobName)
