@@ -443,11 +443,179 @@ var _ = Describe("NovaCell controller", func() {
 			Expect(GetNovaCell(cell1.CellCRName).Status.Hash).To(HaveKey(cell1.ComputeConfigSecretName.Name))
 		})
 
+		It("sets noVNCProxyURL on the NovaCompute CR when NoVNCProxy is enabled", func() {
+			th.SimulateJobSuccess(cell1.DBSyncJobName)
+			th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
+			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
+
+			// After VNCProxy is ready, the NovaCompute CR should have the
+			// VNC proxy URL set in its spec
+			expectedURL := fmt.Sprintf("http://nova-novncproxy-%s-public.%s.svc:6080/vnc_lite.html",
+				cell1.CellName, cell1.CellCRName.Namespace)
+			Eventually(func(g Gomega) {
+				novaCompute := GetNovaCompute(cell1.NovaComputeName)
+				g.Expect(novaCompute.Spec.NoVNCProxyURL).NotTo(BeNil())
+				g.Expect(*novaCompute.Spec.NoVNCProxyURL).To(Equal(expectedURL))
+			}, timeout, interval).Should(Succeed())
+
+			// The compute's generated config should have VNC enabled
+			configDataMap := th.GetSecret(cell1.NovaComputeConfigDataName)
+			configData := string(configDataMap.Data["01-nova.conf"])
+			Expect(configData).To(ContainSubstring("[vnc]\nenabled = True"))
+			Expect(configData).To(ContainSubstring(
+				fmt.Sprintf("novncproxy_base_url = %s", expectedURL)))
+		})
+
+		It("does not pass the new proxy URL to the computes while the NoVNCProxy rolls out an update", func() {
+			th.SimulateJobSuccess(cell1.DBSyncJobName)
+			th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
+			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
+			th.SimulateStatefulSetReplicaReady(cell1.NovaComputeStatefulSetName)
+			th.SimulateStatefulSetReplicaReady(cell1.MetadataStatefulSetName)
+
+			th.ExpectCondition(
+				cell1.CellCRName,
+				ConditionGetterFunc(NovaCellConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			oldURL := fmt.Sprintf("http://nova-novncproxy-%s-public.%s.svc:6080/vnc_lite.html",
+				cell1.CellName, cell1.CellCRName.Namespace)
+			originalComputeHash := GetEnvVarValue(
+				th.GetStatefulSet(cell1.NovaComputeStatefulSetName).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
+			Expect(originalComputeHash).NotTo(BeEmpty())
+
+			// Reconfigure the NoVNCProxy with a new custom config to
+			// trigger a rollout of a new generation and change its public
+			// endpoint URL at the same time
+			Eventually(func(g Gomega) {
+				novaCell := GetNovaCell(cell1.CellCRName)
+				novaCell.Spec.NoVNCProxyServiceTemplate.CustomServiceConfig = "[DEFAULT]\nfoo = bar\n"
+				novaCell.Spec.NoVNCProxyServiceTemplate.Override.Service = &service.RoutedOverrideSpec{
+					EndpointURL: ptr.To("http://bar"),
+				}
+				g.Expect(k8sClient.Update(ctx, novaCell)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			// The NoVNCProxy is not Ready while it rolls out the new
+			// generation
+			th.ExpectCondition(
+				cell1.CellCRName,
+				ConditionGetterFunc(NovaCellConditionGetter),
+				novav1.NovaNoVNCProxyReadyCondition,
+				corev1.ConditionFalse,
+			)
+
+			// Therefore the previous proxy URL is kept in the compute
+			// config Secret and in the NovaCompute CR until the NoVNCProxy
+			// becomes Ready with the new generation
+			Consistently(func(g Gomega) {
+				computeConfigData := th.GetSecret(cell1.ComputeConfigSecretName)
+				configData := string(computeConfigData.Data["01-nova.conf"])
+				g.Expect(configData).To(ContainSubstring(
+					fmt.Sprintf("novncproxy_base_url = %s", oldURL)))
+				novaCompute := GetNovaCompute(cell1.NovaComputeName)
+				g.Expect(novaCompute.Spec.NoVNCProxyURL).NotTo(BeNil())
+				g.Expect(*novaCompute.Spec.NoVNCProxyURL).To(Equal(oldURL))
+			}, "2s", interval).Should(Succeed())
+
+			// The NoVNCProxy becomes Ready with the new generation
+			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
+
+			// Now the new proxy URL is passed down to the compute config
+			// Secret and the NovaCompute CR
+			newURL := "http://bar/vnc_lite.html"
+			Eventually(func(g Gomega) {
+				computeConfigData := th.GetSecret(cell1.ComputeConfigSecretName)
+				configData := string(computeConfigData.Data["01-nova.conf"])
+				g.Expect(configData).To(ContainSubstring(
+					fmt.Sprintf("novncproxy_base_url = %s", newURL)))
+				novaCompute := GetNovaCompute(cell1.NovaComputeName)
+				g.Expect(novaCompute.Spec.NoVNCProxyURL).NotTo(BeNil())
+				g.Expect(*novaCompute.Spec.NoVNCProxyURL).To(Equal(newURL))
+			}, timeout, interval).Should(Succeed())
+
+			// The compute rolls out the config with the new proxy URL
+			Eventually(func(g Gomega) {
+				newHash := GetEnvVarValue(
+					th.GetStatefulSet(cell1.NovaComputeStatefulSetName).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
+				g.Expect(newHash).NotTo(BeEmpty())
+				g.Expect(newHash).NotTo(Equal(originalComputeHash))
+			}, timeout, interval).Should(Succeed())
+			th.SimulateStatefulSetReplicaReady(cell1.NovaComputeStatefulSetName)
+
+			th.ExpectCondition(
+				cell1.CellCRName,
+				ConditionGetterFunc(NovaCellConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
+
+		It("deletes an obsolete NovaCompute while the NoVNCProxy is not Ready", func() {
+			th.SimulateJobSuccess(cell1.DBSyncJobName)
+			th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
+			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
+			th.SimulateStatefulSetReplicaReady(cell1.NovaComputeStatefulSetName)
+			th.SimulateStatefulSetReplicaReady(cell1.MetadataStatefulSetName)
+
+			th.ExpectCondition(
+				cell1.CellCRName,
+				ConditionGetterFunc(NovaCellConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			// Reconfigure the NoVNCProxy with a new custom config so that
+			// it starts rolling out a new generation and is therefore not
+			// Ready
+			Eventually(func(g Gomega) {
+				novaCell := GetNovaCell(cell1.CellCRName)
+				novaCell.Spec.NoVNCProxyServiceTemplate.CustomServiceConfig = "[DEFAULT]\nfoo = bar\n"
+				g.Expect(k8sClient.Update(ctx, novaCell)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			th.ExpectCondition(
+				cell1.CellCRName,
+				ConditionGetterFunc(NovaCellConditionGetter),
+				novav1.NovaNoVNCProxyReadyCondition,
+				corev1.ConditionFalse,
+			)
+
+			// While the NoVNCProxy is not Ready, remove the compute
+			// definition from the cell
+			Eventually(func(g Gomega) {
+				novaCell := GetNovaCell(cell1.CellCRName)
+				novaCell.Spec.NovaComputeTemplates = map[string]novav1.NovaComputeTemplate{}
+				g.Expect(k8sClient.Update(ctx, novaCell)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			// The obsolete NovaCompute is deleted despite the NoVNCProxy
+			// being not Ready
+			AssertComputeDoesNotExist(cell1.NovaComputeName)
+			Eventually(func(g Gomega) {
+				novaCell := GetNovaCell(cell1.CellCRName)
+				g.Expect(novaCell.Status.NovaComputesStatus).To(BeEmpty())
+			}, timeout, interval).Should(Succeed())
+
+			// The cell becomes Ready again once the NoVNCProxy finished
+			// rolling out the new generation
+			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
+			th.ExpectCondition(
+				cell1.CellCRName,
+				ConditionGetterFunc(NovaCellConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
+
 		It("is Ready when all cell services is ready", func() {
 			th.SimulateJobSuccess(cell1.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
-			th.SimulateStatefulSetReplicaReady(cell1.NovaComputeStatefulSetName)
+			// NoVNCProxy must be ready before the NovaCompute CR is created
 			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
+			th.SimulateStatefulSetReplicaReady(cell1.NovaComputeStatefulSetName)
 			th.SimulateStatefulSetReplicaReady(cell1.MetadataStatefulSetName)
 			cell := GetNovaCell(cell1.CellCRName)
 			th.ExpectCondition(
@@ -463,8 +631,9 @@ var _ = Describe("NovaCell controller", func() {
 		It("does not advance AppliedInputSecretHash until all cell services roll out the rotated input", func() {
 			th.SimulateJobSuccess(cell1.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
-			th.SimulateStatefulSetReplicaReady(cell1.NovaComputeStatefulSetName)
+			// NoVNCProxy must be ready before the NovaCompute CR is created
 			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
+			th.SimulateStatefulSetReplicaReady(cell1.NovaComputeStatefulSetName)
 			th.SimulateStatefulSetReplicaReady(cell1.MetadataStatefulSetName)
 
 			th.ExpectCondition(
@@ -543,8 +712,9 @@ var _ = Describe("NovaCell controller", func() {
 		It("deletes NoVNCProxy if it is disabled later", func() {
 			th.SimulateJobSuccess(cell1.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
-			th.SimulateStatefulSetReplicaReady(cell1.NovaComputeStatefulSetName)
+			// NoVNCProxy must be ready before the NovaCompute CR is created
 			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
+			th.SimulateStatefulSetReplicaReady(cell1.NovaComputeStatefulSetName)
 			th.SimulateStatefulSetReplicaReady(cell1.MetadataStatefulSetName)
 
 			th.ExpectCondition(
@@ -564,6 +734,13 @@ var _ = Describe("NovaCell controller", func() {
 
 			// Assert that the NoVNCProxy is deleted
 			AssertNoVNCProxyDoesNotExist(cell1.NoVNCProxyName)
+
+			// Disabling VNC updates the NovaCompute CR spec (clears
+			// NoVNCProxyURL), which triggers a config regeneration and
+			// StatefulSet rollout. Simulate the compute becoming ready
+			// with the new config.
+			th.SimulateStatefulSetReplicaReady(cell1.NovaComputeStatefulSetName)
+
 			th.ExpectCondition(
 				cell1.CellCRName,
 				ConditionGetterFunc(NovaCellConditionGetter),
@@ -571,7 +748,7 @@ var _ = Describe("NovaCell controller", func() {
 				corev1.ConditionTrue,
 			)
 
-			// updates the compute config and disables VNC there
+			// updates the data plane compute config and disables VNC there
 			computeConfigData := th.GetSecret(cell1.ComputeConfigSecretName)
 			Expect(computeConfigData).ShouldNot(BeNil())
 			Expect(computeConfigData.Data).Should(HaveKey("01-nova.conf"))
@@ -579,12 +756,18 @@ var _ = Describe("NovaCell controller", func() {
 			Expect(configData).NotTo(ContainSubstring("novncproxy_base_url"))
 			Expect(configData).To(ContainSubstring("[vnc]\nenabled = False"))
 
+			// The control plane NovaCompute CR also has VNC cleared
+			Eventually(func(g Gomega) {
+				novaCompute := GetNovaCompute(cell1.NovaComputeName)
+				g.Expect(novaCompute.Spec.NoVNCProxyURL).To(BeNil())
+			}, timeout, interval).Should(Succeed())
 		})
 		It("deletes NovaMetadata if it is disabled later", func() {
 			th.SimulateJobSuccess(cell1.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
-			th.SimulateStatefulSetReplicaReady(cell1.NovaComputeStatefulSetName)
+			// NoVNCProxy must be ready before the NovaCompute CR is created
 			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
+			th.SimulateStatefulSetReplicaReady(cell1.NovaComputeStatefulSetName)
 			th.SimulateStatefulSetReplicaReady(cell1.MetadataStatefulSetName)
 
 			th.ExpectCondition(
@@ -613,8 +796,9 @@ var _ = Describe("NovaCell controller", func() {
 		It("deletes NovaCompute if removed from the template", func() {
 			th.SimulateJobSuccess(cell1.DBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
-			th.SimulateStatefulSetReplicaReady(cell1.NovaComputeStatefulSetName)
+			// NoVNCProxy must be ready before the NovaCompute CR is created
 			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
+			th.SimulateStatefulSetReplicaReady(cell1.NovaComputeStatefulSetName)
 			th.SimulateStatefulSetReplicaReady(cell1.MetadataStatefulSetName)
 
 			th.ExpectCondition(
