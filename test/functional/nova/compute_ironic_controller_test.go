@@ -33,6 +33,7 @@ import (
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/nova/v1beta1"
+	"k8s.io/utils/ptr"
 )
 
 var _ = Describe("NovaCompute controller", func() {
@@ -212,6 +213,9 @@ var _ = Describe("NovaCompute controller", func() {
 					ContainSubstring("[upgrade_levels]\ncompute = auto"))
 				Expect(configData).Should(ContainSubstring("password = service-password"))
 				Expect(configData).Should(ContainSubstring("compute_driver = ironic.IronicDriver"))
+				// VNC is disabled by default when noVNCProxyURL is not set
+				Expect(configData).To(ContainSubstring("[vnc]\nenabled = False"))
+				Expect(configData).NotTo(ContainSubstring("novncproxy_base_url"))
 				Expect(configDataMap.Data).Should(HaveKey("02-nova-override.conf"))
 				extraData := string(configDataMap.Data["02-nova-override.conf"])
 				Expect(extraData).To(Equal("foo=bar"))
@@ -759,6 +763,93 @@ var _ = Describe("NovaCompute controller", func() {
 				// oslo_limit is configured
 				g.Expect(conf).To(ContainSubstring("[oslo_limit]"))
 				g.Expect(conf).NotTo(ContainSubstring("system_scope"))
+			}, timeout, interval).Should(Succeed())
+		})
+	})
+})
+
+var _ = Describe("NovaCompute controller with VNC enabled", func() {
+	BeforeEach(func() {
+		DeferCleanup(
+			k8sClient.Delete, ctx, CreateDefaultCellInternalSecret(cell1))
+
+		memcachedSpec := infra.GetDefaultMemcachedSpec()
+		DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(novaNames.NovaName.Namespace, MemcachedInstance, memcachedSpec))
+		infra.SimulateMemcachedReady(novaNames.MemcachedNamespace)
+	})
+
+	When("NovaCompute is created with noVNCProxyURL set", func() {
+		BeforeEach(func() {
+			spec := GetDefaultNovaComputeSpec(cell1)
+			spec["noVNCProxyURL"] = "http://novncproxy.example.com:6080/vnc_lite.html"
+			compute := CreateNovaCompute(cell1.NovaComputeName, spec)
+			DeferCleanup(th.DeleteInstance, compute)
+		})
+
+		It("generates config with VNC enabled and the proxy URL", func() {
+			th.ExpectCondition(
+				cell1.NovaComputeName,
+				ConditionGetterFunc(NovaComputeConditionGetter),
+				condition.ServiceConfigReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			configDataMap := th.GetSecret(cell1.NovaComputeConfigDataName)
+			Expect(configDataMap).ShouldNot(BeNil())
+			Expect(configDataMap.Data).Should(HaveKey("01-nova.conf"))
+			configData := string(configDataMap.Data["01-nova.conf"])
+
+			Expect(configData).To(ContainSubstring("[vnc]\nenabled = True"))
+			Expect(configData).To(ContainSubstring(
+				"novncproxy_base_url = http://novncproxy.example.com:6080/vnc_lite.html"))
+			Expect(configData).To(ContainSubstring("server_listen = \"::0\""))
+			Expect(configData).To(ContainSubstring("server_proxyclient_address = \"$my_ip\""))
+		})
+
+		It("updates VNC config when noVNCProxyURL is changed", func() {
+			th.ExpectCondition(
+				cell1.NovaComputeName,
+				ConditionGetterFunc(NovaComputeConditionGetter),
+				condition.ServiceConfigReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			// Update the VNC proxy URL
+			Eventually(func(g Gomega) {
+				novaCompute := GetNovaCompute(cell1.NovaComputeName)
+				novaCompute.Spec.NoVNCProxyURL = ptr.To("http://new-proxy.example.com:6080/vnc_lite.html")
+				g.Expect(k8sClient.Update(ctx, novaCompute)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				configDataMap := th.GetSecret(cell1.NovaComputeConfigDataName)
+				configData := string(configDataMap.Data["01-nova.conf"])
+				g.Expect(configData).To(ContainSubstring(
+					"novncproxy_base_url = http://new-proxy.example.com:6080/vnc_lite.html"))
+				g.Expect(configData).To(ContainSubstring("[vnc]\nenabled = True"))
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("disables VNC when noVNCProxyURL is cleared", func() {
+			th.ExpectCondition(
+				cell1.NovaComputeName,
+				ConditionGetterFunc(NovaComputeConditionGetter),
+				condition.ServiceConfigReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			// Clear the VNC proxy URL
+			Eventually(func(g Gomega) {
+				novaCompute := GetNovaCompute(cell1.NovaComputeName)
+				novaCompute.Spec.NoVNCProxyURL = nil
+				g.Expect(k8sClient.Update(ctx, novaCompute)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				configDataMap := th.GetSecret(cell1.NovaComputeConfigDataName)
+				configData := string(configDataMap.Data["01-nova.conf"])
+				g.Expect(configData).To(ContainSubstring("[vnc]\nenabled = False"))
+				g.Expect(configData).NotTo(ContainSubstring("novncproxy_base_url"))
 			}, timeout, interval).Should(Succeed())
 		})
 	})
