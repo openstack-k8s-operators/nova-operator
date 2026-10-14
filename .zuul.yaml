@@ -211,6 +211,7 @@
             compute-feature-enabled.stable_rescue true
             compute-feature-enabled.hostname_fqdn_sanitization true
             compute-feature-enabled.live_migration false
+            compute-feature-enabled.unified_limits true
             compute-feature-enabled.ide_bus false
             compute-feature-enabled.volume_backed_live_migration false
             compute-feature-enabled.volume_multiattach true
@@ -339,6 +340,23 @@
               # A workflow replaces the single tempest run, so the first step
               # repeats the job's compute/scenario selection.
               cifmw_test_operator_tempest_ssh_key_secret_name: dataplane-ansible-ssh-private-key-secret
+              # Same Nehalem model as the job, plus the extra flags and queue
+              # size the whitebox tests assert. s2i only; nova-operator pulls
+              # keep the job definition. /var/lib/nova is already mounted into
+              # the compute container, so a provider.yaml written there after
+              # deploy is visible on restart.
+              cifmw_edpm_deploy_nova_compute_extra_config: |
+                [compute]
+                provider_config_location = /var/lib/nova/provider_config
+                cpu_dedicated_set = 0,1,4,5
+                cpu_shared_set = 2,6
+                [libvirt]
+                cpu_mode = custom
+                cpu_models = Nehalem
+                cpu_model_extra_flags = vme,+ssse3,-mmx
+                rx_queue_size = 1024
+                [key_manager]
+                backend = barbican
               cifmw_test_operator_tempest_tempestconf_config:
                 overrides: |
                   identity.v3_endpoint_type public
@@ -349,6 +367,13 @@
                   compute-feature-enabled.live_migrate_back_and_forth true
                   compute-feature-enabled.block_migration_for_live_migration true
                   compute-feature-enabled.ide_bus false
+                  compute-feature-enabled.virtio_rng true
+                  compute-feature-enabled.vtpm_device_supported true
+                  compute-feature-enabled.vtpm_live_migration_supported false
+                  compute-feature-enabled.bochs_display_support true
+                  compute-feature-enabled.uefi_boot true
+                  compute-feature-enabled.uefi_secure_boot true
+                  compute-feature-enabled.stable_compute_uuid_supported true
                   service_available.swift false
                   service_available.cinder false
                   validation.image_ssh_user cirros
@@ -361,7 +386,14 @@
                   whitebox.ctlplane_ssh_username cloud-admin
                   whitebox.ctlplane_ssh_private_key_path '/var/lib/tempest/.ssh/id_ecdsa'
                   whitebox.max_compute_nodes 2
+                  whitebox-hardware.dedicated_cpus_per_numa 2
+                  whitebox-hardware.shared_cpus_per_numa 1
                   whitebox.cpu_model Nehalem
+                  whitebox.cpu_model_extra_flags 'vme,+ssse3,-mmx'
+                  whitebox.rx_queue_size 1024
+                  whitebox.default_video_model virtio
+                  whitebox.flavor_ram_size 256
+                  whitebox.provider_config_location '/var/lib/nova/provider_config'
                   whitebox.selinux_label 'system_u:system_r:svirt_t:s0'
                   whitebox.selinux_imagelabel 'system_u:object_r:svirt_image_t:s0'
                   whitebox-nova-compute.journalctl_unit edpm_nova_compute
@@ -370,6 +402,8 @@
               cifmw_test_operator_tempest_config_overwrite:
                 whitebox_node_yaml: |
                   compute-0.ctlplane.example.com:
+                    cpu_dedicated_set: '0,1,4,5'
+                    cpu_shared_set: '2,6'
                     services:
                       libvirt:
                         container_name: nova_virtqemud
@@ -380,6 +414,8 @@
                         start_command: 'systemctl start edpm_nova_compute'
                         stop_command: 'systemctl stop edpm_nova_compute'
                   compute-1.ctlplane.example.com:
+                    cpu_dedicated_set: '0,1,4,5'
+                    cpu_shared_set: '2,6'
                     services:
                       libvirt:
                         container_name: nova_virtqemud
@@ -404,17 +440,19 @@
                       - repository: https://opendev.org/openstack/whitebox-tempest-plugin.git
                     includeList: |
                       whitebox_tempest_plugin.api.
-                    # Pinning and provider.yaml are not configured. Cinder is off,
-                    # so the volume evacuation and encryption cases error instead
-                    # of skipping. The watchdog case is excluded in RHOSO 18.
+                    # Cinder is off, so the volume evacuation and encryption
+                    # cases error instead of skipping.
                     excludeList: |
                       whitebox_tempest_plugin.api.compute.test_live_migration.LiveMigrationBase.test_live_migrate_and_reboot
-                      whitebox_tempest_plugin.api.compute.test_cpu_pinning.CPUThreadPolicyTest.test_threads_isolate
+                      whitebox_tempest_plugin.api.compute.test_cpu_pinning.MixedCPUPolicyTest.test_shared_pinned_and_unpinned_guest
+                      whitebox_tempest_plugin.api.compute.test_cpu_pinning.NUMALiveMigrationTest.test_cpu_pinning_and_emulator_threads
+                      whitebox_tempest_plugin.api.compute.test_cpu_pinning.NUMACPUDedicatedLiveMigrationTest.test_collocation_migration
                       whitebox_tempest_plugin.api.compute.test_watchdog_devices.WatchdogDeviceTest.test_action_with_flavor_5_disabled
-                      whitebox_tempest_plugin.api.compute.test_provider_yaml.TestProviderYamlViaTraits.test_valid_trait_with_provider_yaml
                       whitebox_tempest_plugin.api.compute.test_server_evacuation.ServerEvacuation.test_evacuate_attached_vol
                       whitebox_tempest_plugin.api.compute.test_server_evacuation.ServerEvacuation.test_evacuate_bfv_server
                       whitebox_tempest_plugin.api.compute.test_volume_encryption.TestQEMUVolumeEncryption.test_qemu_volume_encryption
+                      whitebox_tempest_plugin.api.compute.test_uefi.TestUEFIBoot.test_uefi_boot_and_rebuild
+                      whitebox_tempest_plugin.api.compute.test_vtpm.VTPMTest.test_vtpm_live_migration_secret_security_user
             files:
               - ^containers/nova/
               - ^containers/placement/
@@ -433,6 +471,29 @@
               # Same s2i-only whitebox step as the non-Ceph job. This job is
               # 1-compute HCI, so the host map has compute-0 only.
               cifmw_test_operator_tempest_ssh_key_secret_name: dataplane-ansible-ssh-private-key-secret
+              # Ceph is already deployed here, so RBD download can be enabled.
+              # Config drive counts as a disk, so leave it off or the attach
+              # limit of 8 is reached one volume early. Disk-attach limit, CPU
+              # flags, and rx queue size match what the whitebox tests read.
+              cifmw_edpm_deploy_nova_compute_extra_config: |
+                [DEFAULT]
+                force_config_drive = false
+                [compute]
+                cpu_dedicated_set = 0,1,4,5
+                cpu_shared_set = 2,6
+                max_disk_devices_to_attach = 8
+                [libvirt]
+                cpu_mode = custom
+                cpu_models = Nehalem
+                cpu_model_extra_flags = vme,+ssse3,-mmx
+                rx_queue_size = 1024
+                [key_manager]
+                backend = barbican
+                [glance]
+                enable_rbd_download = true
+                rbd_user = openstack
+                rbd_pool = images
+                rbd_ceph_conf = /etc/ceph/ceph.conf
               cifmw_test_operator_tempest_tempestconf_config:
                 overrides: |
                   identity.v3_endpoint_type public
@@ -440,6 +501,15 @@
                   compute-feature-enabled.stable_rescue true
                   compute-feature-enabled.hostname_fqdn_sanitization true
                   compute-feature-enabled.live_migration false
+                  compute-feature-enabled.unified_limits true
+                  compute-feature-enabled.rbd_download true
+                  compute-feature-enabled.virtio_rng true
+                  compute-feature-enabled.vtpm_device_supported true
+                  compute-feature-enabled.vtpm_live_migration_supported false
+                  compute-feature-enabled.bochs_display_support true
+                  compute-feature-enabled.uefi_boot true
+                  compute-feature-enabled.uefi_secure_boot true
+                  compute-feature-enabled.stable_compute_uuid_supported true
                   compute-feature-enabled.ide_bus false
                   compute-feature-enabled.volume_backed_live_migration false
                   compute-feature-enabled.volume_multiattach true
@@ -457,8 +527,17 @@
                   whitebox.ctlplane_ssh_username cloud-admin
                   whitebox.ctlplane_ssh_private_key_path '/var/lib/tempest/.ssh/id_ecdsa'
                   whitebox.max_compute_nodes 1
+                  whitebox-hardware.dedicated_cpus_per_numa 2
+                  whitebox-hardware.shared_cpus_per_numa 1
                   whitebox.available_cinder_storage 15
                   whitebox.cpu_model Nehalem
+                  whitebox.cpu_model_extra_flags 'vme,+ssse3,-mmx'
+                  whitebox.rx_queue_size 1024
+                  whitebox.max_disk_devices_to_attach 8
+                  whitebox.default_video_model virtio
+                  whitebox.flavor_ram_size 256
+                  whitebox.file_backed_memory_size 10240
+                  whitebox.provider_config_location '/var/lib/openstack/nova'
                   whitebox.selinux_label 'system_u:system_r:svirt_t:s0'
                   whitebox.selinux_imagelabel 'system_u:object_r:svirt_image_t:s0'
                   whitebox-nova-compute.journalctl_unit edpm_nova_compute
@@ -467,6 +546,8 @@
               cifmw_test_operator_tempest_config_overwrite:
                 whitebox_node_yaml: |
                   compute-0.ctlplane.example.com:
+                    cpu_dedicated_set: '0,1,4,5'
+                    cpu_shared_set: '2,6'
                     services:
                       libvirt:
                         container_name: nova_virtqemud
@@ -494,16 +575,17 @@
                       - repository: https://opendev.org/openstack/whitebox-tempest-plugin.git
                     includeList: |
                       whitebox_tempest_plugin.api.
-                    # Cinder is enabled
-                    # This job has one compute and no CPU pinning, so the
-                    # dedicated-CPU and live-migration cases fail instead of skipping.
+                    # Cinder is enabled. This job has one compute.
                     excludeList: |
+                      whitebox_tempest_plugin.api.compute.test_rbd_direct_download.TestRBDDirectDownload.test_rbd_logs_and_conf
                       whitebox_tempest_plugin.api.compute.test_volume_negative.VolumesAdminNegativeTest.test_detach_failure
                       whitebox_tempest_plugin.api.compute.test_volume_encryption.TestQEMUVolumeEncryption.test_qemu_volume_encryption
-                      whitebox_tempest_plugin.api.compute.test_cpu_pinning.CPUThreadPolicyTest.test_threads_isolate
+                      whitebox_tempest_plugin.api.compute.test_cpu_pinning.MixedCPUPolicyTest.test_shared_pinned_and_unpinned_guest
                       whitebox_tempest_plugin.api.compute.test_watchdog_devices.WatchdogDeviceTest.test_action_with_flavor_5_disabled
                       whitebox_tempest_plugin.api.compute.test_default_hyperv_enlightenments.HyperVEnlightenments.test_live_migrate_with_enlightenments
                       whitebox_tempest_plugin.api.compute.test_validate_selinux_labels.SelinuxLabelsTest.test_live_migrate_with_label_check
+                      whitebox_tempest_plugin.api.compute.test_uefi.TestUEFIBoot.test_uefi_boot_and_rebuild
+                      whitebox_tempest_plugin.api.compute.test_vtpm.VTPMTest.test_vtpm_live_migration_secret_security_user
             files:
               - ^containers/nova/
               - ^containers/placement/
