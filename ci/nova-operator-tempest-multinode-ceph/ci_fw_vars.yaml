@@ -42,6 +42,14 @@ pre_tests:
   - name: 01 Create cinder multiattach volume type
     type: playbook
     source: cinder_multiattach_volume_type.yml
+  - name: 02 Install crudini for whitebox nova.conf edits
+    type: playbook
+    source: "{{ ansible_user_dir }}/{{ zuul.projects['github.com/openstack-k8s-operators/nova-operator'].src_dir }}/ci/nova-operator-tempest-multinode/install-crudini.yaml"
+
+post_admin_setup:
+  - name: 83 Enable Nova unified limits
+    type: playbook
+    source: "{{ ansible_user_dir }}/{{ zuul.projects['github.com/openstack-k8s-operators/nova-operator'].src_dir }}/ci/nova-operator-tempest-multinode-ceph/nova-unified-limits-enable.yaml"
 
 
 cifmw_run_tests: true

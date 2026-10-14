@@ -1,0 +1,73 @@
+---
+- name: Create Registered Limits
+  hosts: "{{ cifmw_target_hook_host | default('localhost') }}"
+  gather_facts: false
+  environment:
+    KUBECONFIG: "{{ cifmw_openshift_kubeconfig }}"
+    PATH: "{{ cifmw_path }}"
+  vars:
+    limits:
+      servers: 10
+      class:VCPU: 20
+      class:MEMORY_MB: 51200
+      class:DISK_GB: 20
+      server_metadata_items: 128
+      server_injected_files: 5
+      server_injected_file_content_bytes: 10240
+      server_injected_file_path_bytes: 255
+      server_key_pairs: 100
+      server_groups: 10
+      server_group_members: 10
+  tasks:
+    - name: Create the nova patch file
+      vars:
+        file_content:
+          spec:
+            nova:
+              template:
+                apiServiceTemplate:
+                  customServiceConfig: |
+                    [quota]
+                    driver = nova.quota.UnifiedLimitsDriver
+                cellTemplates:
+                  cell0:
+                    conductorServiceTemplate:
+                      customServiceConfig: |
+                        [quota]
+                        driver = nova.quota.UnifiedLimitsDriver
+                  cell1:
+                    conductorServiceTemplate:
+                      customServiceConfig: |
+                        [quota]
+                        driver = nova.quota.UnifiedLimitsDriver
+      ansible.builtin.copy:
+        dest: "{{ cifmw_basedir }}/artifacts/{{ step }}_{{ hook_name }}.yml"
+        content: "{{ file_content | to_nice_yaml }}"
+
+    - name: Patch nova to use the unified limits quota driver
+      ansible.builtin.command:
+        cmd: >-
+          oc patch -n "{{ namespace|default('openstack') }}" osctlplane controlplane --type merge --patch-file "{{ cifmw_basedir }}/artifacts/{{ step }}_{{ hook_name }}.yml"
+      changed_when: false
+
+    - name: Wait for OpenStack controlplane to be updated
+      ansible.builtin.command:
+        cmd: >-
+          oc wait OpenStackControlPlane controlplane
+          --namespace={{ namespace|default('openstack') }}
+          --for=condition=ready
+          --timeout=300s
+      changed_when: false
+
+    - name: Create required registered limits for servers
+      ansible.builtin.command:
+        cmd: >-
+          oc rsh -n "{{ namespace|default('openstack') }}" openstackclient openstack registered limit create --service nova --default-limit "{{ item.value }}" "{{ item.key }}" --region regionOne
+      loop: "{{ limits | dict2items }}"
+      changed_when: false
+
+    - name: Add Nova user to reader role
+      ansible.builtin.command:
+        cmd: >-
+          oc rsh -n "{{ namespace|default('openstack') }}" openstackclient openstack role add --user nova --user-domain default --system all reader
+      changed_when: false
