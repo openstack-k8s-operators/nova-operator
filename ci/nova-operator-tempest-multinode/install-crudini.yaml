@@ -1,0 +1,65 @@
+---
+- name: Install crudini on the computes
+  hosts: "{{ cifmw_target_hook_host | default('localhost') }}"
+  gather_facts: false
+  environment:
+    KUBECONFIG: "{{ cifmw_openshift_kubeconfig }}"
+    PATH: "{{ cifmw_path }}"
+  vars:
+    crudini_hosts: "{{ cifmw_whitebox_crudini_hosts | default(['192.168.122.100']) }}"
+  tasks:
+    - name: Skip when this run is not the s2i whitebox job
+      ansible.builtin.meta: end_play
+      when: not (cifmw_whitebox_install_crudini | default(false) | bool)
+
+    - name: Install crudini on the computes
+      block:
+        - name: Read the dataplane SSH key
+          ansible.builtin.command:
+            cmd: >-
+              oc get secret dataplane-ansible-ssh-private-key-secret
+              -n openstack -o jsonpath={.data.ssh-privatekey}
+          register: ssh_key_b64
+          changed_when: false
+          no_log: true
+
+        - name: Create a temporary file for the SSH key
+          ansible.builtin.tempfile:
+            state: file
+          register: ssh_key_file
+
+        - name: Write the dataplane SSH key
+          ansible.builtin.copy:
+            content: "{{ ssh_key_b64.stdout | b64decode }}"
+            dest: "{{ ssh_key_file.path }}"
+            mode: "0600"
+          no_log: true
+
+        - name: Install crudini with pip
+          vars:
+            ssh_prefix:
+              - ssh
+              - -i
+              - "{{ ssh_key_file.path }}"
+              - -o
+              - StrictHostKeyChecking=no
+              - -o
+              - UserKnownHostsFile=/dev/null
+              - -o
+              - IdentitiesOnly=yes
+            crudini_steps:
+              - [sudo, dnf, install, "-y", python3-pip]
+              - [sudo, python3, "-m", pip, install, "--break-system-packages", crudini]
+              - [sudo, ln, -sfn, /usr/local/bin/crudini, /usr/bin/crudini]
+          ansible.builtin.command:
+            argv: "{{ ssh_prefix + ['cloud-admin@' ~ item.0] + item.1 }}"
+          loop: "{{ crudini_hosts | product(crudini_steps) | list }}"
+          loop_control:
+            label: "{{ item.0 }} {{ item.1 | join(' ') }}"
+          changed_when: true
+      always:
+        - name: Remove the SSH key
+          ansible.builtin.file:
+            path: "{{ ssh_key_file.path }}"
+            state: absent
+          when: ssh_key_file.path is defined
