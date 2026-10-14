@@ -45,6 +45,11 @@ cifmw_tempest_container: openstack-tempest-extras
 # via the job definition.
 cifmw_tempest_default_groups: []
 
+pre_tests:
+  - name: 02 Install crudini for whitebox nova.conf edits
+    type: playbook
+    source: "{{ ansible_user_dir }}/{{ zuul.projects['github.com/openstack-k8s-operators/nova-operator'].src_dir }}/ci/nova-operator-tempest-multinode/install-crudini.yaml"
+
 
 cifmw_edpm_kustomize_content: |-
     apiVersion: kustomize.config.k8s.io/v1beta1
