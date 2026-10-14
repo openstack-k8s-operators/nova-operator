@@ -1,0 +1,34 @@
+---
+- name: Install crudini on the computes
+  hosts: computes
+  gather_facts: false
+  tasks:
+    - name: Skip when this run is not the s2i whitebox job
+      ansible.builtin.meta: end_play
+      when: not (cifmw_whitebox_install_crudini | default(false) | bool)
+
+    - name: Install python3-pip
+      become: true
+      ansible.builtin.dnf:
+        name: python3-pip
+        state: present
+
+    - name: Create the crudini virtualenv
+      become: true
+      ansible.builtin.command:
+        argv: [python3, -m, venv, /usr/local/crudini-venv]
+        creates: /usr/local/crudini-venv/bin/pip
+
+    - name: Install crudini into the virtualenv
+      become: true
+      ansible.builtin.command:
+        argv: [/usr/local/crudini-venv/bin/pip, install, crudini]
+        creates: /usr/local/crudini-venv/bin/crudini
+
+    - name: Symlink crudini onto the default PATH
+      become: true
+      ansible.builtin.file:
+        src: /usr/local/crudini-venv/bin/crudini
+        dest: /usr/bin/crudini
+        state: link
+        force: true
