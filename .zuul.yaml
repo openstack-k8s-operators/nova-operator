@@ -87,6 +87,8 @@
     dependencies:
       - openstack-k8s-operators-content-provider
       - workloads-s2i-content-provider
+    required-projects:
+      - name: openstack-k8s-operators/cinder-operator
     vars:
       cifmw_extras:
         - "@scenarios/centos-10/base.yml"
@@ -111,9 +113,7 @@
       # NOTE(gibi): identity.v3_endpoint_type override is a WA to force the
       # publicURL as otherwise tempest gets configured with adminURL and that
       # causes test instability.
-      # NOTE(efoley): swift and cinder are not disabled, we're just telling
-      # tempest that they're unavailable so that it'll skip the tests that
-      # require cinder or swift
+      # Cinder is enabled with an NFS backend; Swift remains unavailable.
       # TODO(sean-k-mooney): we are currently using cirros 0.5.2 we should be using 0.6.2
       # for now we need to use the old password cubswin:) but we should update this to gocubsgo!
       # once we update the image
@@ -127,8 +127,11 @@
             compute-feature-enabled.live_migrate_back_and_forth true
             compute-feature-enabled.block_migration_for_live_migration true
             compute-feature-enabled.ide_bus false
+            compute-feature-enabled.attach_encrypted_volume false
+            compute-feature-enabled.volume_multiattach false
+            volume.storage_protocol 'nfs'
             service_available.swift false
-            service_available.cinder false
+            service_available.cinder true
             validation.image_ssh_user cirros
             validation.image_ssh_password cubswin:)
             validation.image_alt_ssh_user cirros
@@ -142,6 +145,11 @@
       # https://issues.redhat.com/browse/RHEL-33754
       cifmw_test_operator_tempest_exclude_list: |
           test_live_block_migration_paused
+          tempest.scenario.test_encrypted_cinder_volumes
+          tempest.scenario.test_volume_backup_restore
+          tempest.scenario.test_volume_migrate_attached
+          tempest.scenario.test_server_volume_attachment.TestServerVolumeAttachmentScenario.test_server_detach_rules
+          tempest.scenario.test_server_volume_attachment.TestServerVolumeAttachScenarioOldVersion.test_old_versions_reject
       # We need to use a custom cpu model to allow live migrating between
       # slightly different computes coming from the node pool
       cifmw_edpm_deploy_nova_compute_extra_config: |
