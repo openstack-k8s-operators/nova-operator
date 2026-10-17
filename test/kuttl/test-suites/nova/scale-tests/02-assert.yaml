@@ -568,3 +568,10 @@ status:
     ready: true
     started: true
 ---
+apiVersion: kuttl.dev/v1beta1
+kind: TestAssert
+# DNM: fail after 01-deploy setup and 02-scale-up have run
+commands:
+  - script: |
+      echo "DNM: intentional failure after nova scale-up for collector validation"
+      exit 1
