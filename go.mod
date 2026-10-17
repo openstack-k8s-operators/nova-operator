@@ -12,11 +12,11 @@ require (
 	github.com/onsi/gomega v1.44.0
 	github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20261012081708-7aa3021e95e4
 	github.com/openstack-k8s-operators/keystone-operator/api v0.6.1-0.20261012061721-27c1cd2f194d
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.6.1-0.20261010081703-9c4377961aa3
-	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.6.1-0.20261010081703-9c4377961aa3
-	github.com/openstack-k8s-operators/lib-common/modules/test v0.6.1-0.20261010081703-9c4377961aa3
-	github.com/openstack-k8s-operators/lib-common/modules/users v0.0.0-20261010081703-9c4377961aa3
-	github.com/openstack-k8s-operators/mariadb-operator/api v0.6.1-0.20261012072743-743a0178d6da
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.6.1-0.20261013151427-9b94821abb9f
+	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.6.1-0.20261013151427-9b94821abb9f
+	github.com/openstack-k8s-operators/lib-common/modules/test v0.6.1-0.20261013151427-9b94821abb9f
+	github.com/openstack-k8s-operators/lib-common/modules/users v0.0.0-20261013151427-9b94821abb9f
+	github.com/openstack-k8s-operators/mariadb-operator/api v0.6.1-0.20261013061113-26004622bba0
 	github.com/openstack-k8s-operators/nova-operator/api v0.0.0-00010101000000-000000000000
 	go.uber.org/zap v1.28.0
 	golang.org/x/exp v0.0.0-20260611194520-c48552f49976
