@@ -8,6 +8,17 @@ cifmw_edpm_prepare_skip_crc_storage_creation: true
 cifmw_cls_pv_count: 20
 
 cifmw_services_swift_enabled: false
+cifmw_edpm_deploy_nfs: true
+cifmw_nfs_shares:
+  - cinder
+  - cinderbackup
+
+post_deploy_81_kustomize_openstack_CR_to_enable_genericNFS_cinder_backend:
+  type: playbook
+  source: control_plane_cinder_nfs_enable.yml
+post_deploy_82_kustomize_and_update_Control_Plane:
+  type: playbook
+  source: control_plane_kustomize_deploy.yml
 
 
 # note by default the source for the playbook specified
