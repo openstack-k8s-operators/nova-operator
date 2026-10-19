@@ -760,6 +760,9 @@ func (r *NovaMetadataReconciler) ensureServiceExposed(
 		svc.AddAnnotation(map[string]string{
 			service.AnnotationHostnameKey: svc.GetServiceHostname(), // add annotation to register service name in dnsmasq
 		})
+	} else {
+		// drop a registration left by a previous release or a former LoadBalancer
+		svc.RemoveAnnotation(service.AnnotationHostnameKey)
 	}
 
 	ctrlResult, err := svc.CreateOrPatch(ctx, h)

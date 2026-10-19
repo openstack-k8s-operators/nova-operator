@@ -650,6 +650,27 @@ var _ = Describe("NovaMetadata controller", func() {
 			DeferCleanup(th.DeleteInstance, metadata)
 		})
 
+		It("drops the dnsmasq hostname annotation when switched to ClusterIP", func() {
+			th.SimulateStatefulSetReplicaReady(novaNames.MetadataStatefulSetName)
+			th.SimulateLoadBalancerServiceIP(novaNames.InternalNovaMetadataServiceName)
+			Eventually(func(g Gomega) {
+				g.Expect(th.GetService(novaNames.InternalNovaMetadataServiceName).Annotations).To(
+					HaveKey("dnsmasq.network.openstack.org/hostname"))
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				md := GetNovaMetadata(novaNames.MetadataName)
+				md.Spec.Override.Service.Spec = nil
+				g.Expect(k8sClient.Update(ctx, md)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				svc := th.GetService(novaNames.InternalNovaMetadataServiceName)
+				g.Expect(svc.Spec.Type).To(Equal(corev1.ServiceTypeClusterIP))
+				g.Expect(svc.Annotations).NotTo(HaveKey("dnsmasq.network.openstack.org/hostname"))
+			}, timeout, interval).Should(Succeed())
+		})
+
 		It("creates LoadBalancer service", func() {
 			th.SimulateStatefulSetReplicaReady(novaNames.MetadataStatefulSetName)
 			th.SimulateLoadBalancerServiceIP(novaNames.InternalNovaMetadataServiceName)
