@@ -428,11 +428,17 @@ func (r *CyborgAPIReconciler) generateServiceConfig(
 	// Build per-endpoint VirtualHost parameters for the Apache WSGI config
 	httpdVhostConfig := map[string]any{}
 	for _, endpt := range []libservice.Endpoint{libservice.EndpointInternal, libservice.EndpointPublic} {
+		defaultName := fmt.Sprintf("%s-%s.%s.svc", cyborgservice.ServiceName, endpt.String(), instance.Namespace)
+		serverName, serverAliases, err := libservice.GetVHostServerName(instance.Spec.Override.Service[endpt], defaultName)
+		if err != nil {
+			return err
+		}
 		endptConfig := map[string]any{
-			"ServerName": fmt.Sprintf("%s-%s.%s.svc", cyborgservice.ServiceName, endpt.String(), instance.Namespace),
-			"Port":       cyborgservice.CyborgPublicPort,
-			"TLS":        false,
-			"TimeOut":    *instance.Spec.APITimeout,
+			"ServerName":    serverName,
+			"ServerAliases": serverAliases,
+			"Port":          cyborgservice.CyborgPublicPort,
+			"TLS":           false,
+			"TimeOut":       *instance.Spec.APITimeout,
 		}
 		if instance.Spec.TLS.API.Enabled(endpt) {
 			endptConfig["TLS"] = true
@@ -506,7 +512,7 @@ func (r *CyborgAPIReconciler) ensureServiceExposed(
 				Labels:    exportLabels,
 				Selector:  serviceLabels,
 				Port: libservice.GenericServicePort{
-					Name:     endpointName,
+					Name:     endpointTypeStr,
 					Port:     data.Port,
 					Protocol: corev1.ProtocolTCP,
 				},
@@ -529,6 +535,10 @@ func (r *CyborgAPIReconciler) ensureServiceExposed(
 			libservice.AnnotationEndpointKey: endpointTypeStr,
 		})
 
+		// Drop a hostname registration left by a previous release or a former
+		// LoadBalancer; it is re-added below only when still wanted.
+		svc.RemoveAnnotation(libservice.AnnotationHostnameKey)
+
 		if endpointType == libservice.EndpointPublic && svc.GetServiceType() == corev1.ServiceTypeClusterIP {
 			svc.AddAnnotation(map[string]string{
 				libservice.AnnotationIngressCreateKey: "true",
@@ -537,9 +547,12 @@ func (r *CyborgAPIReconciler) ensureServiceExposed(
 			svc.AddAnnotation(map[string]string{
 				libservice.AnnotationIngressCreateKey: "false",
 			})
-			if svc.GetServiceType() == corev1.ServiceTypeLoadBalancer {
+			// The public endpoint's DNS is user-managed (its hostname is the
+			// endpointURL host, not the in-cluster Service name), so skip
+			// registering it in dnsmasq even when it is a LoadBalancer.
+			if svc.GetServiceType() == corev1.ServiceTypeLoadBalancer && endpointType != libservice.EndpointPublic {
 				svc.AddAnnotation(map[string]string{
-					libservice.AnnotationHostnameKey: svc.GetServiceHostname(),
+					libservice.AnnotationHostnameKey: svc.GetServiceHostname(), // add annotation to register service name in dnsmasq
 				})
 			}
 		}
