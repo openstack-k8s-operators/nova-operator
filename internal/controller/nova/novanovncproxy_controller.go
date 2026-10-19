@@ -691,7 +691,10 @@ func (r *NovaNoVNCProxyReconciler) ensureServiceExposed(
 			Labels:    exportLabels,
 			Selector:  getNoVNCProxyServiceLabels(instance.Spec.CellName),
 			Port: service.GenericServicePort{
-				Name:     serviceName,
+				// Service object name stays per-cell (serviceName); the port name is
+				// the bare endpoint string so a service override can address it by
+				// the canonical "public" name.
+				Name:     endpointTypeStr,
 				Port:     novncproxy.NoVNCProxyPort,
 				Protocol: corev1.ProtocolTCP,
 			},
@@ -714,6 +717,12 @@ func (r *NovaNoVNCProxyReconciler) ensureServiceExposed(
 		service.AnnotationEndpointKey: endpointTypeStr,
 	})
 
+	// The novncproxy Service is the public endpoint, whose DNS is user-managed
+	// (its hostname is the endpointURL host, not the in-cluster Service name), so
+	// it is never registered in dnsmasq. Drop any registration left by a previous
+	// release or a former LoadBalancer.
+	svc.RemoveAnnotation(service.AnnotationHostnameKey)
+
 	// add Annotation to whether creating an ingress is required or not
 	if svc.GetServiceType() == corev1.ServiceTypeClusterIP {
 		svc.AddAnnotation(map[string]string{
@@ -723,11 +732,6 @@ func (r *NovaNoVNCProxyReconciler) ensureServiceExposed(
 		svc.AddAnnotation(map[string]string{
 			service.AnnotationIngressCreateKey: "false",
 		})
-		if svc.GetServiceType() == corev1.ServiceTypeLoadBalancer {
-			svc.AddAnnotation(map[string]string{
-				service.AnnotationHostnameKey: svc.GetServiceHostname(), // add annotation to register service name in dnsmasq
-			})
-		}
 	}
 
 	ctrlResult, err := svc.CreateOrPatch(ctx, h)

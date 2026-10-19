@@ -895,8 +895,11 @@ func (r *NovaCellReconciler) getVNCProxyURL(
 		return nil, err
 	}
 
-	// TODO: TLS
-	vncProxyURL, err := svc.GetAPIEndpoint(svcOverride.EndpointURL, ptr.To(service.ProtocolHTTP), "/vnc_lite.html")
+	protocol := service.ProtocolHTTP
+	if instance.Spec.NoVNCProxyServiceTemplate.TLS.Service.Enabled() {
+		protocol = service.ProtocolHTTPS
+	}
+	vncProxyURL, err := svc.GetAPIEndpoint(svcOverride.EndpointURL, ptr.To(protocol), "/vnc_lite.html")
 	if err != nil {
 		return nil, err
 	}

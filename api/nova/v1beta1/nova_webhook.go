@@ -207,6 +207,10 @@ func (spec *NovaSpecCore) ValidateCellTemplates(basePath *field.Path, namespace 
 		errors = append(errors,
 			cell.NoVNCProxyServiceTemplate.Override.Probes.ValidateProbes(
 				cellPath.Child("noVNCProxyServiceTemplate").Child("override").Child("probes"))...)
+		errors = append(errors,
+			validateNoVNCProxyServiceOverride(
+				cellPath.Child("noVNCProxyServiceTemplate").Child("override").Child("service"),
+				cell.NoVNCProxyServiceTemplate.Override.Service)...)
 
 		errors = append(errors,
 			cell.ConductorServiceTemplate.ValidateTopology(
