@@ -1238,6 +1238,129 @@ var _ = Describe("Nova validation", func() {
 		Entry("embedded Nova API template create", "Nova", false),
 		Entry("embedded Nova API template update", "Nova", true),
 	)
+	DescribeTable("validates NoVNCProxy service port name on create and update",
+		func(kind string, update bool) {
+			namePrefix := cell1.NoVNCProxyName.Name
+			servicePath := []string{"spec", "override", "service"}
+			errPath := "spec.override.service.spec.ports[0].name"
+			if kind == "Nova" {
+				namePrefix = novaNames.NovaName.Name
+				servicePath = []string{"spec", "cellTemplates", "cell1", "noVNCProxyServiceTemplate", "override", "service"}
+				errPath = "spec.cellTemplates[cell1].noVNCProxyServiceTemplate.override.service.spec.ports[0].name"
+			}
+
+			newObject := func(name string, overrides map[string]any) *unstructured.Unstructured {
+				spec := GetDefaultNovaNoVNCProxySpec(cell1)
+				if kind == "Nova" {
+					spec = GetDefaultNovaSpec()
+					cell1Template := GetDefaultNovaCellTemplate()
+					cell1Template["noVNCProxyServiceTemplate"] = map[string]any{
+						"enabled":  true,
+						"override": map[string]any{"service": overrides},
+					}
+					spec["cellTemplates"] = map[string]any{
+						"cell0": GetDefaultNovaCellTemplate(),
+						"cell1": cell1Template,
+					}
+				} else {
+					spec["override"] = map[string]any{"service": overrides}
+				}
+
+				return &unstructured.Unstructured{Object: map[string]any{
+					"apiVersion": "nova.openstack.org/v1beta1",
+					"kind":       kind,
+					"metadata": map[string]any{
+						"name":      name,
+						"namespace": novaNames.Namespace,
+					},
+					"spec": spec,
+				}}
+			}
+
+			// NoVNCProxy exposes a single public endpoint, so "public" is the only valid port name.
+			for _, valid := range []bool{true, false} {
+				portName := "wrong"
+				if valid {
+					portName = "public"
+				}
+				name := fmt.Sprintf("%s-%t", namePrefix, valid)
+				portOverride := map[string]any{
+					"spec": map[string]any{
+						"ports": []any{map[string]any{"name": portName, "port": int64(6080)}},
+					},
+				}
+				obj := newObject(name, map[string]any{})
+				var err error
+				if update {
+					_, err = controllerutil.CreateOrPatch(ctx, k8sClient, obj, func() error { return nil })
+					Expect(err).NotTo(HaveOccurred())
+					DeferCleanup(th.DeleteInstance, obj)
+					err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+						if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(obj), obj); err != nil {
+							return err
+						}
+						if err := unstructured.SetNestedMap(obj.Object, portOverride, servicePath...); err != nil {
+							return err
+						}
+						return k8sClient.Update(ctx, obj)
+					})
+				} else {
+					obj = newObject(name, portOverride)
+					_, err = controllerutil.CreateOrPatch(ctx, k8sClient, obj, func() error { return nil })
+					if valid && err == nil {
+						DeferCleanup(th.DeleteInstance, obj)
+					}
+				}
+
+				if valid {
+					Expect(err).NotTo(HaveOccurred())
+				} else {
+					Expect(err).To(HaveOccurred())
+					Expect(err.Error()).To(ContainSubstring(
+						fmt.Sprintf("invalid: %s: Invalid value: %q: must be %q", errPath, portName, "public"),
+					))
+				}
+			}
+		},
+		Entry("NovaNoVNCProxy create", "NovaNoVNCProxy", false),
+		Entry("NovaNoVNCProxy update", "NovaNoVNCProxy", true),
+		Entry("embedded Nova cell NoVNCProxy template create", "Nova", false),
+		Entry("embedded Nova cell NoVNCProxy template update", "Nova", true),
+	)
+	DescribeTable("validates NoVNCProxy service endpointURL on create",
+		func(serviceOverride map[string]any, expectedErr string) {
+			spec := GetDefaultNovaNoVNCProxySpec(cell1)
+			spec["override"] = map[string]any{"service": serviceOverride}
+			obj := &unstructured.Unstructured{Object: map[string]any{
+				"apiVersion": "nova.openstack.org/v1beta1",
+				"kind":       "NovaNoVNCProxy",
+				"metadata": map[string]any{
+					"name":      cell1.NoVNCProxyName.Name + "-url",
+					"namespace": novaNames.Namespace,
+				},
+				"spec": spec,
+			}}
+			_, err := controllerutil.CreateOrPatch(ctx, k8sClient, obj, func() error { return nil })
+			if expectedErr == "" {
+				Expect(err).NotTo(HaveOccurred())
+				DeferCleanup(th.DeleteInstance, obj)
+			} else {
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring(expectedErr))
+			}
+		},
+		Entry("accepts an FQDN endpointURL",
+			map[string]any{"endpointURL": "http://nova-novncproxy-cell1.example.org"}, ""),
+		Entry("rejects an IP-literal endpointURL",
+			map[string]any{"endpointURL": "http://1.2.3.4"},
+			`spec.override.service.endpointURL: Invalid value: "http://1.2.3.4": host must not be an IP literal`),
+		Entry("rejects an endpointURL port that disagrees with the service port",
+			map[string]any{
+				"endpointURL": "http://nova-novncproxy-cell1.example.org:1234",
+				"spec":        map[string]any{"ports": []any{map[string]any{"name": "public", "port": int64(6080)}}},
+			},
+			"spec.override.service.spec.ports[0].port: Invalid value: 6080: must match the port in endpointURL"),
+	)
 	DescribeTable("rejects wrong topology for",
 		func(serviceNameFunc func() (map[string]any, string, string)) {
 			expectedErrorMessage := "spec.topologyRef.namespace: Invalid value: \"namespace\": Customizing namespace field is not supported"

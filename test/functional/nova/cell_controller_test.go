@@ -399,7 +399,7 @@ var _ = Describe("NovaCell controller", func() {
 			Eventually(func(g Gomega) {
 				novaCell := GetNovaCell(cell1.CellCRName)
 				novaCell.Spec.NoVNCProxyServiceTemplate.Override.Service = &service.RoutedOverrideSpec{
-					EndpointURL: ptr.To("http://foo"),
+					EndpointURL: ptr.To("http://foo.example.test"),
 				}
 
 				g.Expect(k8sClient.Update(ctx, novaCell)).To(Succeed())
@@ -429,7 +429,7 @@ var _ = Describe("NovaCell controller", func() {
 			configData := string(computeConfigData.Data["01-nova.conf"])
 			Expect(configData).To(ContainSubstring("transport_url=rabbit://cell1/fake"))
 			Expect(configData).To(ContainSubstring("username = nova\npassword = service-password\n"))
-			vncURLConfig := "novncproxy_base_url = http://foo/vnc_lite.html"
+			vncURLConfig := "novncproxy_base_url = http://foo.example.test/vnc_lite.html"
 			Expect(configData).To(ContainSubstring(vncURLConfig))
 			Expect(configData).To(ContainSubstring("[vnc]\nenabled = True"))
 
@@ -441,6 +441,81 @@ var _ = Describe("NovaCell controller", func() {
 			)
 
 			Expect(GetNovaCell(cell1.CellCRName).Status.Hash).To(HaveKey(cell1.ComputeConfigSecretName.Name))
+		})
+
+		It("uses https in the novncproxy_base_url when the NoVNCProxy service TLS is enabled", func() {
+			certName := types.NamespacedName{Namespace: cell1.CellCRName.Namespace, Name: "vnc-service-cert"}
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(certName))
+			Eventually(func(g Gomega) {
+				novaCell := GetNovaCell(cell1.CellCRName)
+				novaCell.Spec.NoVNCProxyServiceTemplate.TLS.Service.SecretName = ptr.To(certName.Name)
+				g.Expect(k8sClient.Update(ctx, novaCell)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			th.SimulateJobSuccess(cell1.DBSyncJobName)
+			th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
+			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
+
+			expectedURL := fmt.Sprintf("https://nova-novncproxy-%s-public.%s.svc:6080/vnc_lite.html",
+				cell1.CellName, cell1.CellCRName.Namespace)
+			Eventually(func(g Gomega) {
+				configData := string(th.GetSecret(cell1.ComputeConfigSecretName).Data["01-nova.conf"])
+				g.Expect(configData).To(ContainSubstring(fmt.Sprintf("novncproxy_base_url = %s", expectedURL)))
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("keeps the custom port of the VNCProxy endpointURL in the novncproxy_base_url", func() {
+			Eventually(func(g Gomega) {
+				novaCell := GetNovaCell(cell1.CellCRName)
+				novaCell.Spec.NoVNCProxyServiceTemplate.Override.Service = &service.RoutedOverrideSpec{
+					EndpointURL: ptr.To("https://nova-novncproxy-cell1.foo.bar:13111"),
+				}
+				g.Expect(k8sClient.Update(ctx, novaCell)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			th.SimulateJobSuccess(cell1.DBSyncJobName)
+			th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
+			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
+
+			Eventually(func(g Gomega) {
+				configData := string(th.GetSecret(cell1.ComputeConfigSecretName).Data["01-nova.conf"])
+				g.Expect(configData).To(ContainSubstring(
+					"novncproxy_base_url = https://nova-novncproxy-cell1.foo.bar:13111/vnc_lite.html"))
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("uses the overridden Service port in the novncproxy_base_url without changing the target port", func() {
+			Eventually(func(g Gomega) {
+				novaCell := GetNovaCell(cell1.CellCRName)
+				novaCell.Spec.NoVNCProxyServiceTemplate.Override.Service = &service.RoutedOverrideSpec{
+					OverrideSpec: service.OverrideSpec{
+						Spec: &service.OverrideServiceSpec{
+							Ports: []service.OverrideServicePort{{Name: "public", Port: 13111}},
+						},
+					},
+				}
+				g.Expect(k8sClient.Update(ctx, novaCell)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			th.SimulateJobSuccess(cell1.DBSyncJobName)
+			th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
+			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
+
+			expectedURL := fmt.Sprintf("http://nova-novncproxy-%s-public.%s.svc:13111/vnc_lite.html",
+				cell1.CellName, cell1.CellCRName.Namespace)
+			Eventually(func(g Gomega) {
+				configData := string(th.GetSecret(cell1.ComputeConfigSecretName).Data["01-nova.conf"])
+				g.Expect(configData).To(ContainSubstring(fmt.Sprintf("novncproxy_base_url = %s", expectedURL)))
+			}, timeout, interval).Should(Succeed())
+
+			svc := th.GetService(types.NamespacedName{
+				Namespace: cell1.CellCRName.Namespace,
+				Name:      fmt.Sprintf("nova-novncproxy-%s-public", cell1.CellName),
+			})
+			Expect(svc.Spec.Ports).To(HaveLen(1))
+			port := svc.Spec.Ports[0]
+			Expect(port.Port).To(Equal(int32(13111)))
+			Expect(port.TargetPort.IntValue()).To(Equal(6080))
 		})
 
 		It("sets noVNCProxyURL on the NovaCompute CR when NoVNCProxy is enabled", func() {
@@ -493,7 +568,7 @@ var _ = Describe("NovaCell controller", func() {
 				novaCell := GetNovaCell(cell1.CellCRName)
 				novaCell.Spec.NoVNCProxyServiceTemplate.CustomServiceConfig = "[DEFAULT]\nfoo = bar\n"
 				novaCell.Spec.NoVNCProxyServiceTemplate.Override.Service = &service.RoutedOverrideSpec{
-					EndpointURL: ptr.To("http://bar"),
+					EndpointURL: ptr.To("http://bar.example.test"),
 				}
 				g.Expect(k8sClient.Update(ctx, novaCell)).To(Succeed())
 			}, timeout, interval).Should(Succeed())
@@ -525,7 +600,7 @@ var _ = Describe("NovaCell controller", func() {
 
 			// Now the new proxy URL is passed down to the compute config
 			// Secret and the NovaCompute CR
-			newURL := "http://bar/vnc_lite.html"
+			newURL := "http://bar.example.test/vnc_lite.html"
 			Eventually(func(g Gomega) {
 				computeConfigData := th.GetSecret(cell1.ComputeConfigSecretName)
 				configData := string(computeConfigData.Data["01-nova.conf"])
