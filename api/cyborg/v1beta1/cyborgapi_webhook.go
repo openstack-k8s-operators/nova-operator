@@ -29,6 +29,7 @@ import (
 
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/webhook"
 )
 
 // log is for logging in this package.
@@ -43,6 +44,7 @@ func (r *CyborgAPI) ValidateCreate() (admission.Warnings, error) {
 
 	// validate the service override key is valid
 	errors = append(errors, service.ValidateRoutedOverrides(basePath.Child("override").Child("service"), r.Spec.Override.Service)...)
+	errors = append(errors, validateServicePortNames(basePath.Child("override").Child("service"), r.Spec.Override.Service)...)
 
 	errors = append(errors, r.Spec.Override.Probes.ValidateProbes(
 		basePath.Child("override").Child("probes"))...)
@@ -74,6 +76,7 @@ func (r *CyborgAPI) ValidateUpdate(old runtime.Object) (admission.Warnings, erro
 
 	// validate the service override key is valid
 	errors = append(errors, service.ValidateRoutedOverrides(basePath.Child("override").Child("service"), r.Spec.Override.Service)...)
+	errors = append(errors, validateServicePortNames(basePath.Child("override").Child("service"), r.Spec.Override.Service)...)
 
 	errors = append(errors, r.Spec.Override.Probes.ValidateProbes(
 		basePath.Child("override").Child("probes"))...)
@@ -95,6 +98,10 @@ func (r *CyborgAPI) ValidateDelete() (admission.Warnings, error) {
 
 	// TODO(user): fill in your validation logic upon object deletion.
 	return nil, nil
+}
+
+func validateServicePortNames(basePath *field.Path, overrides map[service.Endpoint]service.RoutedOverrideSpec) field.ErrorList {
+	return webhook.ValidatePortNameOverrides(basePath, overrides, webhook.DefaultServicePortNames())
 }
 
 // ValidateTopology validates the referenced TopoRef.Namespace.
