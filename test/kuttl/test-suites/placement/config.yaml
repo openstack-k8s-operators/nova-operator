@@ -39,4 +39,4 @@ testDirs:
   - test/kuttl/test-suites/placement/tests
 suppress:
   - events
-artifactsDir: test/kuttl/test-suites/placement/tests/output
+artifactsDir: test/kuttl/test-suites/placement/output
