@@ -351,7 +351,7 @@ metadata:
   name: cyborg-public
 spec:
   ports:
-  - name: cyborg-public
+  - name: public
     port: 6666
     protocol: TCP
     targetPort: 6666
@@ -369,7 +369,7 @@ metadata:
   name: cyborg-internal
 spec:
   ports:
-  - name: cyborg-internal
+  - name: internal
     port: 6666
     protocol: TCP
     targetPort: 6666

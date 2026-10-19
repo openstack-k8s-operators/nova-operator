@@ -17,6 +17,7 @@ package cyborg_test
 
 import (
 	"errors"
+	"fmt"
 
 	. "github.com/onsi/ginkgo/v2" //revive:disable:dot-imports
 	. "github.com/onsi/gomega"    //revive:disable:dot-imports
@@ -1131,6 +1132,62 @@ var _ = Describe("Cyborg webhook validation", func() {
 			),
 		)
 	})
+
+	DescribeTable("validates public and internal apiServiceTemplate port names",
+		func(endpoint string, valid bool) {
+			portName := "wrong"
+			if valid {
+				portName = endpoint
+			}
+			name := fmt.Sprintf("%s-%s-%t", cyborgNames.CyborgName.Name, endpoint, valid)
+
+			spec := GetDefaultCyborgSpec()
+			spec["apiServiceTemplate"] = map[string]any{
+				"override": map[string]any{
+					"service": map[string]any{
+						endpoint: map[string]any{
+							"spec": map[string]any{
+								"ports": []any{map[string]any{"name": portName, "port": int64(6666)}},
+							},
+						},
+					},
+				},
+			}
+			raw := map[string]any{
+				"apiVersion": "cyborg.openstack.org/v1beta1",
+				"kind":       "Cyborg",
+				"metadata": map[string]any{
+					"name":      name,
+					"namespace": cyborgNames.CyborgName.Namespace,
+				},
+				"spec": spec,
+			}
+
+			unstructuredObj := &unstructured.Unstructured{Object: raw}
+			_, err := controllerutil.CreateOrPatch(
+				ctx, k8sClient, unstructuredObj, func() error { return nil })
+
+			if valid {
+				Expect(err).NotTo(HaveOccurred())
+				DeferCleanup(th.DeleteInstance, unstructuredObj)
+			} else {
+				Expect(err).To(HaveOccurred())
+				var statusError *k8s_errors.StatusError
+				Expect(errors.As(err, &statusError)).To(BeTrue())
+				Expect(statusError.ErrStatus.Details.Kind).To(Equal("Cyborg"))
+				Expect(statusError.ErrStatus.Message).To(ContainSubstring(
+					fmt.Sprintf(
+						"spec.apiServiceTemplate.override.service[%s].spec.ports[0].name: "+
+							"Invalid value: %q: must be %q",
+						endpoint, portName, endpoint),
+				))
+			}
+		},
+		Entry("public valid", "public", true),
+		Entry("public invalid", "public", false),
+		Entry("internal valid", "internal", true),
+		Entry("internal invalid", "internal", false),
+	)
 
 	It("accepts Cyborg with a correct spec", func() {
 		raw := map[string]any{

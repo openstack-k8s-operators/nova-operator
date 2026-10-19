@@ -32,6 +32,7 @@ import (
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/probes"
+	commonservice "github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
 	cyborgv1beta1 "github.com/openstack-k8s-operators/nova-operator/api/cyborg/v1beta1"
 )
@@ -420,6 +421,234 @@ var _ = Describe("CyborgAPI controller", func() {
 
 			api := GetCyborgAPI(apiNames.APIName)
 			Expect(api.Status.ObservedGeneration).To(Equal(api.Generation))
+		})
+	})
+
+	When("CyborgAPI is created with a public endpointURL override", func() {
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete, ctx,
+				CreateCyborgAPIConfigSecret(apiNames.ConfigSecretName),
+			)
+
+			publicURL := "http://cyborg-" + apiNames.APIName.Namespace + ".apps-crc.testing"
+			DeferCleanup(th.DeleteInstance, CreateCyborgAPICR(
+				apiNames.APIName,
+				cyborgv1beta1.CyborgAPISpec{
+					CyborgAPITemplate: cyborgv1beta1.CyborgAPITemplate{
+						Replicas: ptr.To(int32(1)),
+						Override: cyborgv1beta1.APIOverrideSpec{
+							Service: map[commonservice.Endpoint]commonservice.RoutedOverrideSpec{
+								commonservice.EndpointPublic: {
+									EndpointURL: &publicURL,
+								},
+							},
+						},
+					},
+					ConfigSecret:   apiNames.ConfigSecretName.Name,
+					ContainerImage: APITestImage,
+					ServiceAccount: APITestSA,
+					APITimeout:     ptr.To(60),
+				},
+			))
+		})
+
+		It("keeps the default vhost ServerName when the public endpointURL is set without a LoadBalancer (Route)", func() {
+			th.SimulateStatefulSetReplicaReady(apiNames.StatefulSetName)
+
+			Eventually(func(g Gomega) {
+				wsgiConf := string(th.GetSecret(apiNames.ConfigDataName).Data["10-cyborg-wsgi-main.conf"])
+				// the router sends no SNI, so the route host must not become a ServerName
+				g.Expect(wsgiConf).NotTo(ContainSubstring("apps-crc.testing"))
+				g.Expect(wsgiConf).To(ContainSubstring("ServerName cyborg-public." + apiNames.APIName.Namespace + ".svc"))
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("keeps the public Service object name unchanged and names its port 'public'", func() {
+			th.SimulateStatefulSetReplicaReady(apiNames.StatefulSetName)
+
+			Eventually(func(g Gomega) {
+				svc := th.GetService(apiNames.PublicServiceName)
+				g.Expect(svc.Name).To(Equal("cyborg-public"))
+				g.Expect(svc.Spec.Ports[0].Name).To(Equal("public"))
+
+				svcInternal := th.GetService(apiNames.InternalServiceName)
+				g.Expect(svcInternal.Name).To(Equal("cyborg-internal"))
+				g.Expect(svcInternal.Spec.Ports[0].Name).To(Equal("internal"))
+			}, timeout, interval).Should(Succeed())
+		})
+	})
+
+	When("CyborgAPI public and internal endpoints are LoadBalancer Services", func() {
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete, ctx,
+				CreateCyborgAPIConfigSecret(apiNames.ConfigSecretName),
+			)
+
+			DeferCleanup(th.DeleteInstance, CreateCyborgAPICR(
+				apiNames.APIName,
+				cyborgv1beta1.CyborgAPISpec{
+					CyborgAPITemplate: cyborgv1beta1.CyborgAPITemplate{
+						Replicas: ptr.To(int32(1)),
+						Override: cyborgv1beta1.APIOverrideSpec{
+							Service: map[commonservice.Endpoint]commonservice.RoutedOverrideSpec{
+								commonservice.EndpointPublic: {
+									OverrideSpec: commonservice.OverrideSpec{
+										Spec: &commonservice.OverrideServiceSpec{Type: corev1.ServiceTypeLoadBalancer},
+									},
+								},
+								commonservice.EndpointInternal: {
+									OverrideSpec: commonservice.OverrideSpec{
+										Spec: &commonservice.OverrideServiceSpec{Type: corev1.ServiceTypeLoadBalancer},
+									},
+								},
+							},
+						},
+					},
+					ConfigSecret:   apiNames.ConfigSecretName.Name,
+					ContainerImage: APITestImage,
+					ServiceAccount: APITestSA,
+					APITimeout:     ptr.To(60),
+				},
+			))
+		})
+
+		It("drops the dnsmasq hostname annotation when the internal endpoint is switched to ClusterIP", func() {
+			th.SimulateStatefulSetReplicaReady(apiNames.StatefulSetName)
+			th.SimulateLoadBalancerServiceIP(apiNames.PublicServiceName)
+			th.SimulateLoadBalancerServiceIP(apiNames.InternalServiceName)
+			Eventually(func(g Gomega) {
+				g.Expect(th.GetService(apiNames.InternalServiceName).Annotations).To(
+					HaveKey(commonservice.AnnotationHostnameKey))
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				api := GetCyborgAPI(apiNames.APIName)
+				override := api.Spec.Override.Service[commonservice.EndpointInternal]
+				override.Spec = nil
+				api.Spec.Override.Service[commonservice.EndpointInternal] = override
+				g.Expect(k8sClient.Update(ctx, api)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				svc := th.GetService(apiNames.InternalServiceName)
+				g.Expect(svc.Spec.Type).To(Equal(corev1.ServiceTypeClusterIP))
+				g.Expect(svc.Annotations).NotTo(HaveKey(commonservice.AnnotationHostnameKey))
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("drops a stale dnsmasq hostname annotation when the public Service becomes ClusterIP", func() {
+			th.SimulateStatefulSetReplicaReady(apiNames.StatefulSetName)
+			th.SimulateLoadBalancerServiceIP(apiNames.PublicServiceName)
+			th.SimulateLoadBalancerServiceIP(apiNames.InternalServiceName)
+
+			Eventually(func(g Gomega) {
+				api := GetCyborgAPI(apiNames.APIName)
+				override := api.Spec.Override.Service[commonservice.EndpointPublic]
+				override.Spec = nil
+				api.Spec.Override.Service[commonservice.EndpointPublic] = override
+				g.Expect(k8sClient.Update(ctx, api)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				g.Expect(th.GetService(apiNames.PublicServiceName).Spec.Type).To(Equal(corev1.ServiceTypeClusterIP))
+			}, timeout, interval).Should(Succeed())
+
+			// simulate a registration (as left by a previous release); the update triggers a reconcile
+			Eventually(func(g Gomega) {
+				svc := th.GetService(apiNames.PublicServiceName)
+				svc.Annotations[commonservice.AnnotationHostnameKey] = "cyborg-public.stale.svc"
+				g.Expect(k8sClient.Update(ctx, svc)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				svc := th.GetService(apiNames.PublicServiceName)
+				g.Expect(svc.Annotations).NotTo(HaveKey(commonservice.AnnotationHostnameKey))
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("registers the in-cluster dnsmasq hostname on the internal LoadBalancer only", func() {
+			th.SimulateStatefulSetReplicaReady(apiNames.StatefulSetName)
+			th.SimulateLoadBalancerServiceIP(apiNames.PublicServiceName)
+			th.SimulateLoadBalancerServiceIP(apiNames.InternalServiceName)
+
+			Eventually(func(g Gomega) {
+				pub := th.GetService(apiNames.PublicServiceName)
+				g.Expect(pub.Annotations).NotTo(HaveKey(commonservice.AnnotationHostnameKey))
+				g.Expect(th.GetService(apiNames.InternalServiceName).Annotations).To(HaveKeyWithValue(
+					commonservice.AnnotationHostnameKey, apiNames.InternalServiceName.Name+"."+apiNames.APIName.Namespace+".svc"))
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("renders custom vhost hosts and keeps the dnsmasq hostname in-cluster on internal only, with and without endpointURL", func() {
+			th.SimulateStatefulSetReplicaReady(apiNames.StatefulSetName)
+			th.SimulateLoadBalancerServiceIP(apiNames.PublicServiceName)
+			th.SimulateLoadBalancerServiceIP(apiNames.InternalServiceName)
+
+			publicHost := "cyborg-public.example.org"
+			internalHost := "cyborg-internal.example.org"
+			publicURL := "http://" + publicHost
+			internalURL := "http://" + internalHost
+			Eventually(func(g Gomega) {
+				api := GetCyborgAPI(apiNames.APIName)
+				public := api.Spec.Override.Service[commonservice.EndpointPublic]
+				public.EndpointURL = &publicURL
+				api.Spec.Override.Service[commonservice.EndpointPublic] = public
+				internal := api.Spec.Override.Service[commonservice.EndpointInternal]
+				internal.EndpointURL = &internalURL
+				api.Spec.Override.Service[commonservice.EndpointInternal] = internal
+				g.Expect(k8sClient.Update(ctx, api)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				wsgiConf := string(th.GetSecret(apiNames.ConfigDataName).Data["10-cyborg-wsgi-main.conf"])
+				g.Expect(wsgiConf).To(ContainSubstring("ServerName " + publicHost))
+				g.Expect(wsgiConf).To(ContainSubstring("ServerAlias cyborg-public." + apiNames.APIName.Namespace + ".svc"))
+				g.Expect(wsgiConf).To(ContainSubstring("ServerName " + internalHost))
+				g.Expect(wsgiConf).To(ContainSubstring("ServerAlias cyborg-internal." + apiNames.APIName.Namespace + ".svc"))
+			}, timeout, interval).Should(Succeed())
+			th.SimulateStatefulSetReplicaReady(apiNames.StatefulSetName)
+
+			Eventually(func(g Gomega) {
+				for _, endpoint := range []struct{ name, host string }{
+					{"cyborg-public", publicHost},
+					{"cyborg-internal", internalHost},
+				} {
+					svc := th.GetService(types.NamespacedName{Name: endpoint.name, Namespace: apiNames.APIName.Namespace})
+					if endpoint.name == "cyborg-public" {
+						g.Expect(svc.Annotations).NotTo(HaveKey(commonservice.AnnotationHostnameKey))
+					} else {
+						g.Expect(svc.Annotations).To(HaveKeyWithValue(
+							commonservice.AnnotationHostnameKey, endpoint.name+"."+apiNames.APIName.Namespace+".svc"))
+					}
+				}
+			}, timeout, interval).Should(Succeed())
+
+			// Clear the custom URLs again; both annotations must revert to the in-cluster default.
+			Eventually(func(g Gomega) {
+				api := GetCyborgAPI(apiNames.APIName)
+				public := api.Spec.Override.Service[commonservice.EndpointPublic]
+				public.EndpointURL = nil
+				api.Spec.Override.Service[commonservice.EndpointPublic] = public
+				internal := api.Spec.Override.Service[commonservice.EndpointInternal]
+				internal.EndpointURL = nil
+				api.Spec.Override.Service[commonservice.EndpointInternal] = internal
+				g.Expect(k8sClient.Update(ctx, api)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				wsgiConf := string(th.GetSecret(apiNames.ConfigDataName).Data["10-cyborg-wsgi-main.conf"])
+				g.Expect(wsgiConf).To(ContainSubstring("ServerName cyborg-public." + apiNames.APIName.Namespace + ".svc"))
+				g.Expect(wsgiConf).To(ContainSubstring("ServerName cyborg-internal." + apiNames.APIName.Namespace + ".svc"))
+			}, timeout, interval).Should(Succeed())
+			th.SimulateStatefulSetReplicaReady(apiNames.StatefulSetName)
+
+			Eventually(func(g Gomega) {
+				g.Expect(th.GetService(apiNames.PublicServiceName).Annotations).NotTo(HaveKey(commonservice.AnnotationHostnameKey))
+				g.Expect(th.GetService(apiNames.InternalServiceName).Annotations).To(HaveKeyWithValue(
+					commonservice.AnnotationHostnameKey, apiNames.InternalServiceName.Name+"."+apiNames.APIName.Namespace+".svc"))
+			}, timeout, interval).Should(Succeed())
 		})
 	})
 
