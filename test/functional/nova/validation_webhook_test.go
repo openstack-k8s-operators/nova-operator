@@ -22,6 +22,8 @@ import (
 
 	. "github.com/onsi/ginkgo/v2" //revive:disable:dot-imports
 	. "github.com/onsi/gomega"    //revive:disable:dot-imports
+	"k8s.io/client-go/util/retry"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
@@ -1150,6 +1152,92 @@ var _ = Describe("Nova validation", func() {
 					"Invalid value: \"wrooong\": invalid endpoint type: wrooong"),
 		)
 	})
+	DescribeTable("validates public and internal API port names on create and update",
+		func(kind string, update bool) {
+			namePrefix := novaNames.APIName.Name
+			servicePath := []string{"spec", "override", "service"}
+			if kind == "Nova" {
+				namePrefix = novaNames.NovaName.Name
+				servicePath = []string{"spec", "apiServiceTemplate", "override", "service"}
+			}
+
+			newObject := func(name string, overrides map[string]any) *unstructured.Unstructured {
+				spec := GetDefaultNovaAPISpec(novaNames)
+				if kind == "Nova" {
+					spec = GetDefaultNovaSpec()
+					spec["cellTemplates"] = map[string]any{"cell0": GetDefaultNovaCellTemplate()}
+					spec["apiServiceTemplate"] = map[string]any{
+						"override": map[string]any{"service": overrides},
+					}
+				} else {
+					spec["override"] = map[string]any{"service": overrides}
+				}
+
+				return &unstructured.Unstructured{Object: map[string]any{
+					"apiVersion": "nova.openstack.org/v1beta1",
+					"kind":       kind,
+					"metadata": map[string]any{
+						"name":      name,
+						"namespace": novaNames.Namespace,
+					},
+					"spec": spec,
+				}}
+			}
+
+			for _, endpoint := range []string{"public", "internal"} {
+				for _, valid := range []bool{true, false} {
+					portName := "wrong"
+					if valid {
+						portName = endpoint
+					}
+					name := fmt.Sprintf("%s-%s-%t", namePrefix, endpoint, valid)
+					portOverride := map[string]any{
+						endpoint: map[string]any{
+							"spec": map[string]any{
+								"ports": []any{map[string]any{"name": portName, "port": int64(8774)}},
+							},
+						},
+					}
+					obj := newObject(name, map[string]any{})
+					var err error
+					if update {
+						_, err = controllerutil.CreateOrPatch(ctx, k8sClient, obj, func() error { return nil })
+						Expect(err).NotTo(HaveOccurred())
+						DeferCleanup(th.DeleteInstance, obj)
+						err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+							if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(obj), obj); err != nil {
+								return err
+							}
+							if err := unstructured.SetNestedMap(obj.Object, portOverride, servicePath...); err != nil {
+								return err
+							}
+							return k8sClient.Update(ctx, obj)
+						})
+					} else {
+						obj = newObject(name, portOverride)
+						_, err = controllerutil.CreateOrPatch(ctx, k8sClient, obj, func() error { return nil })
+						if valid && err == nil {
+							DeferCleanup(th.DeleteInstance, obj)
+						}
+					}
+
+					if valid {
+						Expect(err).NotTo(HaveOccurred())
+					} else {
+						Expect(err).To(HaveOccurred())
+						path := strings.Join(servicePath, ".") + "[" + endpoint + "].spec.ports[0].name"
+						Expect(err.Error()).To(ContainSubstring(
+							fmt.Sprintf("invalid: %s: Invalid value: %q: must be %q", path, portName, endpoint),
+						))
+					}
+				}
+			}
+		},
+		Entry("NovaAPI create", "NovaAPI", false),
+		Entry("NovaAPI update", "NovaAPI", true),
+		Entry("embedded Nova API template create", "Nova", false),
+		Entry("embedded Nova API template update", "Nova", true),
+	)
 	DescribeTable("rejects wrong topology for",
 		func(serviceNameFunc func() (map[string]any, string, string)) {
 			expectedErrorMessage := "spec.topologyRef.namespace: Invalid value: \"namespace\": Customizing namespace field is not supported"

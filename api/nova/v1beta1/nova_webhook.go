@@ -58,7 +58,6 @@ func SetupNovaDefaults(defaults NovaDefaults) {
 	novalog.Info("Nova defaults initialized", "defaults", defaults)
 }
 
-
 // Default sets defaults for the type
 func (r *Nova) Default() {
 	novalog.Info("default", "name", r.Name)
@@ -127,7 +126,6 @@ func (spec *NovaSpecCore) Default() {
 		spec.CellTemplates[cellName] = cellTemplate
 	}
 }
-
 
 // ValidateCellTemplates validates cell templates configuration
 func (spec *NovaSpecCore) ValidateCellTemplates(basePath *field.Path, namespace string) field.ErrorList {
@@ -279,6 +277,9 @@ func (spec *NovaSpecCore) ValidateAPIServiceTemplate(basePath *field.Path, names
 		service.ValidateRoutedOverrides(
 			basePath.Child("apiServiceTemplate").Child("override").Child("service"),
 			spec.APIServiceTemplate.Override.Service)...)
+	errors = append(errors, validateServicePortNames(
+		basePath.Child("apiServiceTemplate").Child("override").Child("service"),
+		spec.APIServiceTemplate.Override.Service)...)
 	errors = append(errors,
 		spec.APIServiceTemplate.Override.Probes.ValidateProbes(
 			basePath.Child("apiServiceTemplate").Child("override").Child("probes"))...)
@@ -309,7 +310,6 @@ func (spec *NovaSpecCore) ValidateSchedulerServiceTemplate(basePath *field.Path,
 			basePath.Child("schedulerServiceTemplate").Child("override").Child("probes"))...)
 	return errors
 }
-
 
 // ValidateCreate validates the NovaSpec during the webhook invocation.
 func (spec *NovaSpec) ValidateCreate(basePath *field.Path, namespace string) (admission.Warnings, field.ErrorList) {

@@ -261,7 +261,7 @@ metadata:
     name: nova-kuttl-api
 spec:
   ports:
-  - name: nova-internal
+  - name: internal
   selector:
     service: nova-api
 ---
@@ -279,7 +279,7 @@ metadata:
     name: nova-kuttl-api
 spec:
   ports:
-  - name: nova-public
+  - name: public
   selector:
     service: nova-api
 ---

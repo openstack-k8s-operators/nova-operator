@@ -33,8 +33,9 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
-	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/webhook"
 )
 
 // NovaAPIDefaults -
@@ -53,7 +54,6 @@ func SetupNovaAPIDefaults(defaults NovaAPIDefaults) {
 	novaapilog.Info("NovaAPI defaults initialized", "defaults", defaults)
 }
 
-
 // Default sets defaults for the type
 func (r *NovaAPI) Default() {
 	novaapilog.Info("default", "name", r.Name)
@@ -68,7 +68,6 @@ func (spec *NovaAPISpec) Default() {
 	}
 }
 
-
 // ValidateCreate validates the type on creation
 func (r *NovaAPI) ValidateCreate() (admission.Warnings, error) {
 	novaapilog.Info("validate create", "name", r.Name)
@@ -78,6 +77,7 @@ func (r *NovaAPI) ValidateCreate() (admission.Warnings, error) {
 
 	// validate the service override key is valid
 	errors = append(errors, service.ValidateRoutedOverrides(basePath.Child("override").Child("service"), r.Spec.Override.Service)...)
+	errors = append(errors, validateServicePortNames(basePath.Child("override").Child("service"), r.Spec.Override.Service)...)
 	errors = append(errors, r.Spec.Override.Probes.ValidateProbes(basePath.Child("override").Child("probes"))...)
 
 	errors = append(errors,
@@ -112,6 +112,7 @@ func (r *NovaAPI) ValidateUpdate(old runtime.Object) (admission.Warnings, error)
 
 	// validate the service override key is valid
 	errors = append(errors, service.ValidateRoutedOverrides(basePath.Child("override").Child("service"), r.Spec.Override.Service)...)
+	errors = append(errors, validateServicePortNames(basePath.Child("override").Child("service"), r.Spec.Override.Service)...)
 	errors = append(errors, r.Spec.Override.Probes.ValidateProbes(basePath.Child("override").Child("probes"))...)
 
 	errors = append(errors,
@@ -148,6 +149,10 @@ func ValidateAPIDefaultConfigOverwrite(
 		basePath,
 		defaultConfigOverwrite,
 		[]string{"policy.yaml", "api-paste.ini", "nova_api_audit_map.conf"})
+}
+
+func validateServicePortNames(basePath *field.Path, overrides map[service.Endpoint]service.RoutedOverrideSpec) field.ErrorList {
+	return webhook.ValidatePortNameOverrides(basePath, overrides, webhook.DefaultServicePortNames())
 }
 
 // ValidateTopology validates the referenced TopoRef.Namespace.
