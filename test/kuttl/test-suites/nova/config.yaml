@@ -1,6 +1,7 @@
 apiVersion: kuttl.dev/v1beta1
 kind: TestSuite
-reportFormat: JSON
+reportFormat: xml
+reportGranularity: test
 reportName: kuttl-nova-results
 namespace: nova-kuttl-tests
 # we could set this lower, but the initial image pull can take a while
