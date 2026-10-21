@@ -268,6 +268,9 @@ var _ = Describe("NovaAPI controller", func() {
 				// im using a multi line string literal so it must be dedented to avoid including
 				// the tabs in the assert
 				Expect(configData).Should(
+					ContainSubstring(`[quota]
+driver = nova.quota.UnifiedLimitsDriver`))
+				Expect(configData).Should(
 					ContainSubstring(`[oslo_limit]
 system_scope = all
 endpoint_interface = internal
