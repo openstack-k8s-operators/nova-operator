@@ -381,6 +381,12 @@ var _ = Describe("NovaScheduler controller", func() {
 			container := ss.Spec.Template.Spec.Containers[0]
 			Expect(container.VolumeMounts).To(HaveLen(4))
 			Expect(container.Image).To(Equal(ContainerImage))
+			Expect(container.LivenessProbe.Exec.Command).To(
+				Equal([]string{"/usr/bin/pgrep", "-r", "DRST", "nova-scheduler"}))
+			Expect(container.StartupProbe.Exec.Command).To(
+				Equal([]string{"/usr/bin/pgrep", "-r", "DRST", "nova-scheduler"}))
+			Expect(container.Lifecycle.PreStop.Exec.Command).To(
+				Equal([]string{"/bin/sh", "-c", "log() { echo \"preStop: $(date +%Y-%m-%dT%H:%M:%S%z): $1\" > /proc/1/fd/1; }; i=0; while [ $i -lt 10 ]; do /usr/bin/pgrep -r DRST nova-scheduler >/dev/null 2>&1 && { sleep 5; log \"found nova-scheduler; waited 5s before returning to kubelet\"; exit 0; }; i=$((i+1)); sleep 1; done; log \"timed out waiting for nova-scheduler; returning to kubelet\""}))
 		})
 
 		When("the StatefulSet has at least one Replica ready", func() {

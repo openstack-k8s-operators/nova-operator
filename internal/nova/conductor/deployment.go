@@ -117,6 +117,7 @@ func StatefulSet(
 							Resources:       instance.Spec.Resources,
 							StartupProbe:    conductorProbes.Startup,
 							LivenessProbe:   conductorProbes.Liveness,
+							Lifecycle:       internalcommon.GetStartupAwarePreStop("nova-conductor"),
 						},
 					},
 				},

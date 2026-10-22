@@ -114,6 +114,7 @@ func StatefulSet(
 							Resources:       instance.Spec.Resources,
 							StartupProbe:    computeProbes.Startup,
 							LivenessProbe:   computeProbes.Liveness,
+							Lifecycle:       internalcommon.GetStartupAwarePreStop("nova-compute"),
 						},
 					},
 				},
