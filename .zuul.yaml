@@ -197,7 +197,7 @@
 
 - job:
     name: nova-operator-tempest-multinode-ceph
-    parent: s2i-test-base-ceph
+    parent: s2i-test-base-ceph-2comp
     dependencies:
       - openstack-k8s-operators-content-provider
       - workloads-s2i-content-provider
@@ -226,16 +226,20 @@
       # TODO(sean-k-mooney): we are currently using cirros 0.5.2 we should be using 0.6.2
       # for now we need to use the old password cubswin:) but we should update this to gocubsgo!
       # once we update the image
-      # s2i-test-base-ceph is 1comp HCI, so live migration cannot run.
       cifmw_test_operator_tempest_tempestconf_config:
           overrides: |
             identity.v3_endpoint_type public
             compute-feature-enabled.vnc_console true
             compute-feature-enabled.stable_rescue true
             compute-feature-enabled.hostname_fqdn_sanitization true
-            compute-feature-enabled.live_migration false
+            compute.min_compute_nodes 2
+            compute-feature-enabled.cold_migration true
+            compute-feature-enabled.live_migration true
+            compute-feature-enabled.live_migrate_back_and_forth true
+            compute-feature-enabled.block_migration_for_live_migration false
+            compute-feature-enabled.resize true
             compute-feature-enabled.ide_bus false
-            compute-feature-enabled.volume_backed_live_migration false
+            compute-feature-enabled.volume_backed_live_migration true
             compute-feature-enabled.volume_multiattach true
             volume.volume_type_multiattach multiattach
             volume.storage_protocol ceph
@@ -309,8 +313,7 @@
         - nova-operator-kuttl
         - nova-operator-kuttl-placement
         - nova-operator-tempest-multinode
-        - nova-operator-tempest-multinode-ceph:
-            nodeset: centos-10-medium-centos-10-crc-cloud-ocp-4-22-1-3xl
+        - nova-operator-tempest-multinode-ceph
         - nova-operator-cyborg-tempest-multinode:
             voting: false
             files:
