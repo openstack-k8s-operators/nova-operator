@@ -1,10 +1,7 @@
 #
-# EXECUTION (from placement-operator repo root directory):
+# EXECUTION (from nova-operator repo root directory):
 #
-#  kubectl-kuttl test --config ${PLACEMENT_KUTTL_CONF}
-#
-#  PLACEMENT_KUTTL_CONF: path to 'kuttl-test.yaml' there is a default kuttl-test.yaml in the top directory
-#  of placement
+#  KUTTL_SUITE=placement make kuttl-test-run
 #
 # ASSUMPTIONS:
 #
@@ -23,10 +20,8 @@
 #    2g. make mariadb
 #    2h. make keystone_deploy
 #    2i. make mariadb_deploy
-#    2j. start placement-operator either through install_yamls via 'make placement' or in another
-#    terminal execute 'OPERATOR_TEMPLATES=./templates make run' within root of placement repo
-# 3. The above environment variable PLACEMENT_KUTTL_CONF is set
-
+#    2j. start nova-operator either through install_yamls or in another
+#        terminal execute 'OPERATOR_TEMPLATES=./templates make run' within root of nova-operator repo
 apiVersion: kuttl.dev/v1beta1
 kind: TestSuite
 reportFormat: JSON
