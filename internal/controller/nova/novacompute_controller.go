@@ -370,9 +370,11 @@ func (r *NovaComputeReconciler) generateConfigs(
 		"transport_url":              string(secret.Data[TransportURLSelector]),
 		"notification_transport_url": string(secret.Data[NotificationTransportURLSelector]),
 		"compute_driver":             instance.Spec.ComputeDriver,
-		// Neither the ironic driver nor the fake driver support VNC
-		"vnc_enabled":           false,
-		QuorumQueuesTemplateKey: parseQuorumQueues(secret.Data[QuorumQueuesTemplateKey]),
+		"vnc_enabled":                instance.Spec.NoVNCProxyURL != nil,
+		QuorumQueuesTemplateKey:      parseQuorumQueues(secret.Data[QuorumQueuesTemplateKey]),
+	}
+	if instance.Spec.NoVNCProxyURL != nil {
+		templateParameters["novncproxy_base_url"] = *instance.Spec.NoVNCProxyURL
 	}
 
 	// Application Credential data

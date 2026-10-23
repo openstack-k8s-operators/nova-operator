@@ -46,6 +46,10 @@ spec:
         customServiceConfig: ""
         replicas: 1
         resources: {}
+      novaComputeTemplates:
+        compute-fake:
+          computeDriver: fake.FakeDriver
+          replicas: 1
   keystoneInstance: keystone
   metadataServiceTemplate:
     enabled: true
@@ -134,6 +138,32 @@ status:
     reason: Ready
     status: "True"
     type: ServiceAccountReady
+---
+# The control plane compute in cell1 gets the public URL of the cell's
+# NoVNCProxy passed down by the NovaCell controller so that VNC consoles
+# are enabled on the compute
+apiVersion: nova.openstack.org/v1beta1
+kind: NovaCompute
+metadata:
+  name: nova-kuttl-cell1-compute-fake-compute
+  namespace: nova-kuttl-tests
+  ownerReferences:
+  - apiVersion: nova.openstack.org/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: NovaCell
+    name: nova-kuttl-cell1
+spec:
+  cellName: cell1
+  computeDriver: fake.FakeDriver
+  computeName: compute-fake
+  noVNCProxyURL: http://nova-novncproxy-cell1-public.nova-kuttl-tests.svc:6080/vnc_lite.html
+status:
+  conditions:
+  - message: Setup complete
+    reason: Ready
+    status: "True"
+    type: Ready
 ---
 apiVersion: v1
 kind: Pod

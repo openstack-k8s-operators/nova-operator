@@ -4,3 +4,22 @@ metadata:
   name: nova-kuttl
 spec:
   secret: osp-secret
+  # NOTE: the cellTemplates defaults are spelled out here instead of
+  # relying on the CRD defaults so that a control plane compute with the
+  # fake driver can be added to cell1
+  cellTemplates:
+    cell0:
+      cellDatabaseInstance: openstack
+      cellDatabaseAccount: nova-cell0
+      messagingBus:
+        cluster: rabbitmq
+      hasAPIAccess: true
+    cell1:
+      cellDatabaseInstance: openstack-cell1
+      cellDatabaseAccount: nova-cell1
+      messagingBus:
+        cluster: rabbitmq-cell1
+      hasAPIAccess: true
+      novaComputeTemplates:
+        compute-fake:
+          computeDriver: fake.FakeDriver

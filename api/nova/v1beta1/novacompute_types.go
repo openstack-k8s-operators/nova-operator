@@ -141,6 +141,13 @@ type NovaComputeSpec struct {
 	// +kubebuilder:validation:Optional
 	// DefaultConfigOverwrite - interface to overwrite default config files like e.g. provider.yaml
 	DefaultConfigOverwrite map[string]string `json:"defaultConfigOverwrite,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// NoVNCProxyURL is the public URL of the noVNCProxy service for this
+	// cell. When set, VNC console access is enabled for this compute
+	// service. This is set by the parent NovaCellReconciler based on the
+	// cell's NoVNCProxy deployment state.
+	NoVNCProxyURL *string `json:"noVNCProxyURL,omitempty"`
 }
 
 // NovaComputeStatus defines the observed state of NovaCompute
@@ -233,6 +240,7 @@ func NewNovaComputeSpec(
 	novaCell NovaCellSpec,
 	computeTemplate NovaComputeTemplate,
 	novaComputeName string,
+	vncProxyURL *string,
 ) NovaComputeSpec {
 	novaComputeSpec := NovaComputeSpec{
 		CellName:    novaCell.CellName,
@@ -255,6 +263,7 @@ func NewNovaComputeSpec(
 		ComputeDriver:          computeTemplate.ComputeDriver,
 		TLS:                    novaCell.TLS,
 		DefaultConfigOverwrite: computeTemplate.DefaultConfigOverwrite,
+		NoVNCProxyURL:          vncProxyURL,
 	}
 
 	if novaComputeSpec.NodeSelector == nil {
