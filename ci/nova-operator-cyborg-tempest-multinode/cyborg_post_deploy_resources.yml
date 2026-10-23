@@ -5,19 +5,8 @@
     KUBECONFIG: "{{ cifmw_openshift_kubeconfig }}"
     PATH: "{{ cifmw_path }}"
   tasks:
-      # TODO(chandankumar): cyborg is natively supported in OSC, drop this
-      # once RHOSO 19 beta gets released.
-    - name: Create Python venv in openstackclient pod
-      ansible.builtin.shell: |
-        oc -n {{ namespace }} exec pod/openstackclient -- python3 -m venv /tmp/venv
-
-    - name: Install OpenStack and Cyborg clients
-      ansible.builtin.shell: |
-        oc -n {{ namespace }} exec pod/openstackclient -- \
-          /tmp/venv/bin/pip install python-openstackclient python-cyborgclient
-
     - name: Create pci-sim device profile for cyborg tempest plugin tests
       ansible.builtin.shell: |
         oc -n {{ namespace }} exec pod/openstackclient -- \
-          /tmp/venv/bin/openstack --insecure accelerator device profile create pci-sim-cyborg-dp \
+          openstack accelerator device profile create pci-sim-cyborg-dp \
           '[{"resources:CUSTOM_PCI":"1","trait:CUSTOM_PCI_PRODUCT_ID_1000":"required"}]'
