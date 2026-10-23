@@ -27,6 +27,9 @@
           source: "{{ nova_hook }}"
           extra_vars:
             nova_catalog_image: "{{ content_provider_registry_ip }}:5001/openstack-k8s-operators/nova-operator-index:{{ zuul.patchset }}"
+        - name: 80 Monitor Nova service PIDs
+          type: playbook
+          source: "{{ ansible_user_dir }}/{{ zuul.projects['github.com/openstack-k8s-operators/nova-operator'].src_dir }}/ci/nova-operator-kuttl/monitor_nova_service_pids.yaml"
       # Operator CP owns content_provider_registry_ip. Trust the s2i
       # registry and inject built service images during prepare.
       cifmw_crc_additional_insecure_registries:
