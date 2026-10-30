@@ -409,7 +409,31 @@
     name: opendev-cyborg-edpm-pipeline
     description: |
       EDPM validation for OpenDev cyborg projects, plus speculative
-      s2i watcher image rebuild and deploy.
+      s2i cyborg image rebuild and deploy.
     openstack-check:
       jobs:
-        - noop
+        - workloads-s2i-content-provider:
+            files: &files_cyborg
+              - ^cyborg/
+            irrelevant-files: &irrelevant_files_cyborg
+            # Taken from cyborg irrelevant files: https://github.com/openstack/cyborg/blob/master/.zuul.yaml#L34
+              - ^.*\.rst$
+              - ^api-ref/.*$
+              - ^doc/.*$
+              - ^setup.cfg$
+              - ^releasenotes/.*$
+              - ^(test-|)requirements.txt$
+              - ^.git.*$
+              - ^tox.ini$
+              - ^cyborg/tests/.*$
+            override-checkout: main
+        - nova-operator-cyborg-tempest-multinode:
+            dependencies:
+              - workloads-s2i-content-provider
+            files: *files_cyborg
+            irrelevant-files: *irrelevant_files_cyborg
+            override-checkout: main
+            required-projects:
+              - github.com/openstack-k8s-operators/nova-operator
+            vars:
+              cifmw_repo_setup_branch: master
