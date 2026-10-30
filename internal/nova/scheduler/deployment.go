@@ -118,6 +118,7 @@ func StatefulSet(
 							Resources:       instance.Spec.Resources,
 							StartupProbe:    schedulerProbes.Startup,
 							LivenessProbe:   schedulerProbes.Liveness,
+							Lifecycle:       internalcommon.GetStartupAwarePreStop("nova-scheduler"),
 						},
 					},
 				},
