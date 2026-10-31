@@ -10,12 +10,12 @@ require (
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.7.7
 	github.com/onsi/ginkgo/v2 v2.33.1
 	github.com/onsi/gomega v1.44.0
-	github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20261019120010-4f7fe6080c01
-	github.com/openstack-k8s-operators/keystone-operator/api v0.6.1-0.20261019070056-e9a4467c8188
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.6.1-0.20261013084430-51fe9c07def7
-	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.6.1-0.20261013084430-51fe9c07def7
-	github.com/openstack-k8s-operators/lib-common/modules/test v0.6.1-0.20261013084430-51fe9c07def7
-	github.com/openstack-k8s-operators/mariadb-operator/api v0.6.1-0.20261023182325-25fcf35dd049
+	github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20261029162902-788ea2b9b568
+	github.com/openstack-k8s-operators/keystone-operator/api v0.6.1-0.20261026085401-be2a7b1305a4
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.6.1-0.20261029145133-3102c1c3b3b2
+	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.6.1-0.20261029145133-3102c1c3b3b2
+	github.com/openstack-k8s-operators/lib-common/modules/test v0.6.1-0.20261029145133-3102c1c3b3b2
+	github.com/openstack-k8s-operators/mariadb-operator/api v0.6.1-0.20261026085402-7093ecba9c4e
 	github.com/openstack-k8s-operators/nova-operator/api v0.0.0-00010101000000-000000000000
 	go.uber.org/zap v1.28.0
 	golang.org/x/exp v0.0.0-20260611194520-c48552f49976
@@ -94,14 +94,14 @@ require (
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/mod v0.41.0 // indirect
-	golang.org/x/net v0.60.0 // indirect
+	golang.org/x/net v0.62.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
-	golang.org/x/sync v0.23.0 // indirect
-	golang.org/x/sys v0.48.0 // indirect
-	golang.org/x/term v0.46.0 // indirect
-	golang.org/x/text v0.42.0 // indirect
+	golang.org/x/sync v0.24.0 // indirect
+	golang.org/x/sys v0.49.0 // indirect
+	golang.org/x/term v0.47.0 // indirect
+	golang.org/x/text v0.43.0 // indirect
 	golang.org/x/time v0.12.0 // indirect
-	golang.org/x/tools v0.49.0 // indirect
+	golang.org/x/tools v0.51.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.5.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260803160001-6ac0973c030d // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260803160001-6ac0973c030d // indirect
