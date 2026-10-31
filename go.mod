@@ -10,13 +10,13 @@ require (
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.7.7
 	github.com/onsi/ginkgo/v2 v2.33.1
 	github.com/onsi/gomega v1.44.0
-	github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20261019104913-82fa8b3c2e30
-	github.com/openstack-k8s-operators/keystone-operator/api v0.6.1-0.20261019173258-be8b225bb10c
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.6.1-0.20261023124652-eebd8803b178
-	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.6.1-0.20261023124652-eebd8803b178
-	github.com/openstack-k8s-operators/lib-common/modules/test v0.6.1-0.20261023124652-eebd8803b178
-	github.com/openstack-k8s-operators/lib-common/modules/users v0.0.0-20261023124652-eebd8803b178
-	github.com/openstack-k8s-operators/mariadb-operator/api v0.6.1-0.20261022144157-a99fc6fde11c
+	github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20261029162903-5860bf3fd6a5
+	github.com/openstack-k8s-operators/keystone-operator/api v0.6.1-0.20261028052944-9c675f19d0de
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.6.1-0.20261029132259-9d025389145b
+	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.6.1-0.20261029132259-9d025389145b
+	github.com/openstack-k8s-operators/lib-common/modules/test v0.6.1-0.20261029132259-9d025389145b
+	github.com/openstack-k8s-operators/lib-common/modules/users v0.0.0-20261029132259-9d025389145b
+	github.com/openstack-k8s-operators/mariadb-operator/api v0.6.1-0.20261028124714-bb706f15f5e5
 	github.com/openstack-k8s-operators/nova-operator/api v0.0.0-00010101000000-000000000000
 	go.uber.org/zap v1.28.0
 	golang.org/x/exp v0.0.0-20260611194520-c48552f49976
@@ -72,7 +72,7 @@ require (
 	github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/openshift/api v3.9.0+incompatible // indirect
-	github.com/openstack-k8s-operators/lib-common/modules/storage v0.6.1-0.20261013151427-9b94821abb9f // indirect
+	github.com/openstack-k8s-operators/lib-common/modules/storage v0.6.1-0.20261023124652-eebd8803b178 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_golang v1.22.0 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
