@@ -153,10 +153,12 @@ spec:
         - mountPath: /var/log/placement
           name: logs
       - args:
-        - -c
-        - /usr/sbin/httpd -DFOREGROUND
+        - --single-child
+        - --
+        - /usr/sbin/httpd
+        - -DFOREGROUND
         command:
-        - /bin/bash
+        - /usr/bin/dumb-init
         imagePullPolicy: IfNotPresent
         livenessProbe:
           failureThreshold: 10

@@ -97,9 +97,15 @@ func StatefulSet(
 						{
 							Name: ComponentName,
 							Command: []string{
-								"cyborg-conductor",
+								"/usr/bin/dumb-init",
 							},
-							Args:            []string{"--config-dir", "/etc/cyborg/cyborg.conf.d"},
+							// dumb-init runs as PID 1 to manage the actual service process in Args.
+							Args: []string{
+								"--single-child",
+								"--",
+								"cyborg-conductor",
+								"--config-dir", "/etc/cyborg/cyborg.conf.d",
+							},
 							Image:           instance.Spec.ContainerImage,
 							SecurityContext: pod.RestrictiveSecurityContext(users.CyborgUID, users.CyborgGID),
 							Env:             env.MergeEnvs([]corev1.EnvVar{}, envVars),

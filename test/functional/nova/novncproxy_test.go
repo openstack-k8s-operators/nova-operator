@@ -258,6 +258,8 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 				Expect(ss.Spec.Selector.MatchLabels).To(Equal(map[string]string{"service": "nova-novncproxy", "cell": "cell1"}))
 
 				container := ss.Spec.Template.Spec.Containers[0]
+				Expect(container.Command).To(Equal([]string{"/usr/bin/dumb-init"}))
+				Expect(container.Args).To(Equal([]string{"--single-child", "--", "/usr/bin/nova-novncproxy", "--web", "/usr/share/novnc/"}))
 				Expect(container.VolumeMounts).To(HaveLen(4))
 				Expect(container.Image).To(Equal(ContainerImage))
 

@@ -171,6 +171,7 @@ func StatefulSet(
 							Command: []string{
 								"/usr/bin/dumb-init",
 							},
+							// dumb-init runs as PID 1 to manage the actual service process in Args.
 							Args: []string{
 								"--single-child",
 								"--",
@@ -188,9 +189,14 @@ func StatefulSet(
 						{
 							Name: ComponentName,
 							Command: []string{
-								"/usr/sbin/httpd",
+								"/usr/bin/dumb-init",
 							},
-							Args:            []string{"-DFOREGROUND"},
+							Args: []string{
+								"--single-child",
+								"--",
+								"/usr/sbin/httpd",
+								"-DFOREGROUND",
+							},
 							Image:           instance.Spec.ContainerImage,
 							SecurityContext: pod.RestrictiveSecurityContext(users.CyborgUID, users.CyborgGID),
 							Env:             env.MergeEnvs([]corev1.EnvVar{}, envVars),

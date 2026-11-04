@@ -68,8 +68,6 @@ func Deployment(
 		return nil, err
 	}
 
-	args := []string{"-c", "/usr/sbin/httpd -DFOREGROUND"}
-
 	envVars := map[string]env.Setter{}
 	envVars["CONFIG_HASH"] = env.SetValue(configHash)
 
@@ -142,6 +140,7 @@ func Deployment(
 							Command: []string{
 								"/usr/bin/dumb-init",
 							},
+							// dumb-init runs as PID 1 to manage the actual service process in Args.
 							Args: []string{
 								"--single-child",
 								"--",
@@ -161,9 +160,14 @@ func Deployment(
 						{
 							Name: instance.Name + "-api",
 							Command: []string{
-								"/bin/bash",
+								"/usr/bin/dumb-init",
 							},
-							Args:            args,
+							Args: []string{
+								"--single-child",
+								"--",
+								"/usr/sbin/httpd",
+								"-DFOREGROUND",
+							},
 							Image:           instance.Spec.ContainerImage,
 							SecurityContext: pod.RestrictiveSecurityContext(users.PlacementUID, users.PlacementGID),
 							Env:             env.MergeEnvs([]corev1.EnvVar{}, envVars),

@@ -287,6 +287,8 @@ var _ = Describe("CyborgAPI controller", func() {
 				// Main API container (index 1)
 				container := ss.Spec.Template.Spec.Containers[1]
 				g.Expect(container.Name).To(Equal("cyborg-api"))
+				g.Expect(container.Command).To(Equal([]string{"/usr/bin/dumb-init"}))
+				g.Expect(container.Args).To(Equal([]string{"--single-child", "--", "/usr/sbin/httpd", "-DFOREGROUND"}))
 				g.Expect(container.Image).To(Equal(APITestImage))
 
 				hasConfigHash := false
