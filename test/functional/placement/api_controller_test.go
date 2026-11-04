@@ -565,6 +565,9 @@ var _ = Describe("PlacementAPI controller", func() {
 			)
 
 			deployment := th.GetDeployment(names.DeploymentName)
+			apiContainer := deployment.Spec.Template.Spec.Containers[1]
+			Expect(apiContainer.Command).To(Equal([]string{"/usr/bin/dumb-init"}))
+			Expect(apiContainer.Args).To(Equal([]string{"--single-child", "--", "/usr/sbin/httpd", "-DFOREGROUND"}))
 			Expect(int(*deployment.Spec.Replicas)).To(Equal(1))
 			Expect(deployment.Spec.Selector.MatchLabels).To(Equal(map[string]string{"service": "placement", "owner": names.PlacementAPIName.Name}))
 			Expect(deployment.Spec.Template.Spec.ServiceAccountName).To(Equal(names.ServiceAccountName.Name))

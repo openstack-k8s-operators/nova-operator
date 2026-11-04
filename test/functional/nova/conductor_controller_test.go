@@ -375,6 +375,8 @@ var _ = Describe("NovaConductor controller", func() {
 				Expect(*ss.Spec.Template.Spec.AutomountServiceAccountToken).To(BeFalse())
 				Expect(ss.Spec.Template.Spec.Containers).To(HaveLen(1))
 				container := ss.Spec.Template.Spec.Containers[0]
+				Expect(container.Command).To(Equal([]string{"/usr/bin/dumb-init"}))
+				Expect(container.Args).To(Equal([]string{"--single-child", "--", "/usr/bin/nova-conductor"}))
 				Expect(container.LivenessProbe.Exec.Command).To(
 					Equal([]string{"/usr/bin/pgrep", "-r", "DRST", "nova-conductor"}))
 				Expect(container.StartupProbe.Exec.Command).To(

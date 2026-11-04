@@ -108,6 +108,12 @@ func StatefulSet(
 						{
 							Name: instance.Name + "-conductor",
 							Command: []string{
+								"/usr/bin/dumb-init",
+							},
+							// dumb-init runs as PID 1 to manage the actual service process in Args.
+							Args: []string{
+								"--single-child",
+								"--",
 								"/usr/bin/nova-conductor",
 							},
 							Image:           instance.Spec.ContainerImage,

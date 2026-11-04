@@ -138,9 +138,15 @@ func StatefulSet(
 						{
 							Name: instance.Name + "-novncproxy",
 							Command: []string{
-								"/usr/bin/nova-novncproxy",
+								"/usr/bin/dumb-init",
 							},
-							Args:            []string{"--web", "/usr/share/novnc/"},
+							// dumb-init runs as PID 1 to manage the actual service process in Args.
+							Args: []string{
+								"--single-child",
+								"--",
+								"/usr/bin/nova-novncproxy",
+								"--web", "/usr/share/novnc/",
+							},
 							Image:           instance.Spec.ContainerImage,
 							SecurityContext: pod.RestrictiveSecurityContext(users.NovaUID, users.NovaGID),
 							Env:             env,

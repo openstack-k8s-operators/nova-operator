@@ -229,6 +229,8 @@ var _ = Describe("CyborgConductor controller", func() {
 
 				container := ss.Spec.Template.Spec.Containers[0]
 				g.Expect(container.Name).To(Equal("cyborg-conductor"))
+				g.Expect(container.Command).To(Equal([]string{"/usr/bin/dumb-init"}))
+				g.Expect(container.Args).To(Equal([]string{"--single-child", "--", "cyborg-conductor", "--config-dir", "/etc/cyborg/cyborg.conf.d"}))
 				g.Expect(container.Image).To(Equal(ConductorTestImage))
 
 				hasConfigHash := false

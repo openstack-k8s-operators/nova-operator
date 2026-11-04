@@ -379,6 +379,8 @@ var _ = Describe("NovaScheduler controller", func() {
 			Expect(ss.Spec.Template.Spec.Containers).To(HaveLen(1))
 
 			container := ss.Spec.Template.Spec.Containers[0]
+			Expect(container.Command).To(Equal([]string{"/usr/bin/dumb-init"}))
+			Expect(container.Args).To(Equal([]string{"--single-child", "--", "/usr/bin/nova-scheduler"}))
 			Expect(container.VolumeMounts).To(HaveLen(4))
 			Expect(container.Image).To(Equal(ContainerImage))
 		})

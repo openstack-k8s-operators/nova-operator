@@ -432,6 +432,8 @@ endpoint_service_type = compute`))
 			Expect(container.Image).To(Equal(ContainerImage))
 
 			container = ss.Spec.Template.Spec.Containers[1]
+			Expect(container.Command).To(Equal([]string{"/usr/bin/dumb-init"}))
+			Expect(container.Args).To(Equal([]string{"--single-child", "--", "/usr/sbin/httpd", "-DFOREGROUND"}))
 			Expect(container.VolumeMounts).To(HaveLen(8))
 			Expect(container.Image).To(Equal(ContainerImage))
 
