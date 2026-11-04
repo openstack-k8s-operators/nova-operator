@@ -135,15 +135,17 @@ commands:
   # (the pod is gone by the time must-gather runs), so dump it from here along
   # with the nova_api cell/host mapping state that delete_cell checks.
   # Must stay first in the list: kuttl skips the remaining commands once one
-  # fails. Throttled to once every 30s and always exits 0 so it never changes
-  # the assert outcome.
+  # fails. Throttled to once every 5s and always exits 0 so it never changes
+  # the assert outcome. 5s rather than 30s because on a passing run the step
+  # finishes in ~15s and the single 30s-throttled sample landed while the
+  # cell-delete pod was still ContainerCreating.
   - script: |
       set +e
       NS=nova-kuttl-tests
       STAMP=/tmp/kuttl-cell-delete-diag.stamp
       now=$(date +%s)
       last=$(cat "${STAMP}" 2>/dev/null || echo 0)
-      if [ $((now - last)) -lt 30 ]; then
+      if [ $((now - last)) -lt 5 ]; then
         exit 0
       fi
       echo "${now}" > "${STAMP}"
@@ -167,13 +169,17 @@ commands:
 
       # delete_cell returns 2 when host mappings exist and 3 when instance
       # mappings exist, so these three tables tell us which check is tripping.
+      # The count(*) selects matter: mysql in batch mode prints nothing at all
+      # for an empty result set, which reads as "query did not run" rather than
+      # "table is empty".
       # DbRootPassword is the literal "password" from test/kuttl/.../deps.
       echo "===== DIAG: nova_api mappings ====="
       oc exec -n "${NS}" openstack-galera-0 -c galera -- \
         env MYSQL_PWD=password mysql -uroot -t -e \
-        'select uuid, name from nova_api.cell_mappings;
-         select id, host, cell_id from nova_api.host_mappings;
-         select count(*) as instance_mappings from nova_api.instance_mappings;'
+        'select uuid, name, created_at from nova_api.cell_mappings;
+         select count(*) as n_host_mappings from nova_api.host_mappings;
+         select id, host, cell_id, created_at from nova_api.host_mappings;
+         select count(*) as n_instance_mappings from nova_api.instance_mappings;'
       exit 0
   - script: |
       oc get -n nova-kuttl-tests pod/nova-kuttl-cell1-novncproxy-0 || exit 0
