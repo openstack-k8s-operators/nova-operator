@@ -3,16 +3,15 @@
     name: nova-operator-kuttl
     parent: cifmw-multinode-kuttl-operator-target
     dependencies:
-      - openstack-k8s-operators-content-provider
-      - workloads-s2i-content-provider
+      - openstack-s2i-content-provider
     roles:
       - zuul: github.com/openstack-k8s-operators/ci-framework
     description: |
       This job deploy a basic "Compute Starter Kit" topology
       https://www.openstack.org/software/sample-configs#compute-starter-kit
       that is the minimum set of openstack services required to boot a vm.
-      Operator images come from openstack-k8s-operators-content-provider;
-      nova/placement/cyborg service images come from workloads-s2i-content-provider.
+      Operator and nova/placement/cyborg service images come from the
+      combined openstack-s2i-content-provider job.
     vars:
       collection_namespace_override: "nova-kuttl-tests"
       operator_name: nova-operator
@@ -85,8 +84,7 @@
     # cyborg (via parent) and the s2i-component-jobs template.
     nodeset: centos-10-medium-2x-centos-10-crc-cloud-ocp-4-22-1-3xl
     dependencies:
-      - openstack-k8s-operators-content-provider
-      - workloads-s2i-content-provider
+      - openstack-s2i-content-provider
     required-projects:
       - name: openstack-k8s-operators/cinder-operator
     vars:
@@ -193,8 +191,7 @@
     name: nova-operator-tempest-multinode-ceph
     parent: s2i-test-base-ceph-2comp
     dependencies:
-      - openstack-k8s-operators-content-provider
-      - workloads-s2i-content-provider
+      - openstack-s2i-content-provider
     # Note:  When inheriting from a job (or creating a variant of a job) vars are merged with previous definitions
     vars:
       s2i_extras:
@@ -567,39 +564,26 @@
               whitebox_tempest_plugin.api.compute.test_uefi.TestUEFIBoot.test_uefi_boot_and_rebuild
               whitebox_tempest_plugin.api.compute.test_vtpm.VTPMTest.test_vtpm_live_migration_secret_security_user
 
-- job:
-    name: workloads-s2i-content-provider
-    parent: s2i-openstack-container-content-provider
-    description: |
-      Build s2i nova, placement, and cyborg service images for
-      nova-operator kuttl and tempest jobs. Operator images come from
-      openstack-k8s-operators-content-provider.
-    required-projects:
-      - name: openstack-k8s-operators/s2i-openstack-containers
-        override-checkout: main
-    vars:
-      s2i_ci_images:
-        - nova/nova-api
-        - nova/nova-compute
-        - nova/nova-conductor
-        - nova/nova-novncproxy
-        - nova/nova-scheduler
-        - placement/placement-api
-        - cyborg/cyborg
-        - cyborg/cyborg-agent
-
 - project:
     name: openstack-k8s-operators/nova-operator
     default-branch: main
     merge-mode: rebase
     github-check:
       jobs:
-        # Operator images only. Nova, placement, and cyborg service
-        # images come from workloads-s2i-content-provider.
-        - openstack-k8s-operators-content-provider:
+        # Build operator, nova, placement, and cyborg service images in one
+        # CS10 content-provider job.
+        - openstack-s2i-content-provider:
             vars:
               cifmw_install_yamls_sdk_version: v1.41.1
-        - workloads-s2i-content-provider
+              s2i_ci_images:
+                - nova/nova-api
+                - nova/nova-compute
+                - nova/nova-conductor
+                - nova/nova-novncproxy
+                - nova/nova-scheduler
+                - placement/placement-api
+                - cyborg/cyborg
+                - cyborg/cyborg-agent
         - nova-operator-kuttl
         - nova-operator-kuttl-placement
         - nova-operator-tempest-multinode
@@ -670,19 +654,26 @@
 
 - project-template:
     name: opendev-nova-edpm-pipeline
-    # Operator images from openstack-k8s-operators-content-provider;
-    # nova/placement/cyborg service images from s2i. The old meta CP +
-    # RDO centos9-master RPM path is not functional.
+    # Operator, nova, placement, and cyborg service images are built by
+    # the combined CS10 content-provider job. The old meta CP + RDO
+    # centos9-master RPM path is not functional.
     openstack-experimental: &experimentalJobs
       jobs:
-        - openstack-k8s-operators-content-provider:
+        - openstack-s2i-content-provider:
             override-checkout: main
             required-projects:
               - github.com/openstack-k8s-operators/nova-operator
             vars:
               cifmw_install_yamls_sdk_version: v1.41.1
-        - workloads-s2i-content-provider:
-            override-checkout: main
+              s2i_ci_images:
+                - nova/nova-api
+                - nova/nova-compute
+                - nova/nova-conductor
+                - nova/nova-novncproxy
+                - nova/nova-scheduler
+                - placement/placement-api
+                - cyborg/cyborg
+                - cyborg/cyborg-agent
         - nova-operator-tempest-multinode: &job_vars
             override-checkout: main
             required-projects:
