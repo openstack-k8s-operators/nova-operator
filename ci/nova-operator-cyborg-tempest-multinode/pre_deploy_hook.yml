@@ -92,13 +92,14 @@
           label: cyborg
           playbookContents: |
             - hosts: all
+              gather_facts: true
               strategy: linear
               tasks:
                 - name: Install required dependencies for Cyborg
                   become: true
-                  ansible.builtin.dnf:
+                  ansible.builtin.package:
                     name:
-                      - kernel-devel
+                      - "kernel-devel-{{ '{{ ansible_facts.kernel }}' }}"
                       - gcc
                       - make
                       - pciutils
