@@ -142,6 +142,309 @@ var _ = Describe("PlacementAPI Webhook", func() {
 		)
 	})
 
+	It("accepts a public service override port with the valid name", func() {
+		spec := GetDefaultPlacementAPISpec()
+		spec["override"] = map[string]any{
+			"service": map[string]any{
+				// 13778 is the director legacy public TLS port (D4.2 compat-port map);
+				// it is not validated here, only Name is.
+				"public": map[string]any{
+					"spec": map[string]any{
+						"ports": []any{
+							map[string]any{
+								"name": "public",
+								"port": 13778,
+							},
+						},
+					},
+				},
+			},
+		}
+		raw := map[string]any{
+			"apiVersion": "placement.openstack.org/v1beta1",
+			"kind":       "PlacementAPI",
+			"metadata": map[string]any{
+				"name":      placementAPIName.Name,
+				"namespace": placementAPIName.Namespace,
+			},
+			"spec": spec,
+		}
+		unstructuredObj := &unstructured.Unstructured{Object: raw}
+		_, err := controllerutil.CreateOrPatch(
+			th.Ctx, th.K8sClient, unstructuredObj, func() error { return nil })
+		Expect(err).ToNot(HaveOccurred())
+		DeferCleanup(th.DeleteInstance, GetPlacementAPI(placementAPIName))
+	})
+
+	It("rejects a public service override port with the wrong name", func() {
+		spec := GetDefaultPlacementAPISpec()
+		spec["override"] = map[string]any{
+			"service": map[string]any{
+				"public": map[string]any{
+					"spec": map[string]any{
+						"ports": []any{
+							map[string]any{
+								"name": "wrong",
+								"port": 13778,
+							},
+						},
+					},
+				},
+			},
+		}
+		raw := map[string]any{
+			"apiVersion": "placement.openstack.org/v1beta1",
+			"kind":       "PlacementAPI",
+			"metadata": map[string]any{
+				"name":      placementAPIName.Name,
+				"namespace": placementAPIName.Namespace,
+			},
+			"spec": spec,
+		}
+		unstructuredObj := &unstructured.Unstructured{Object: raw}
+		_, err := controllerutil.CreateOrPatch(
+			th.Ctx, th.K8sClient, unstructuredObj, func() error { return nil })
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(
+			ContainSubstring(
+				"invalid: spec.override.service[public].spec.ports[0].name: " +
+					"Invalid value: \"wrong\": must be \"public\""),
+		)
+	})
+
+	It("accepts a public service override with endpointURL and a matching port", func() {
+		spec := GetDefaultPlacementAPISpec()
+		spec["override"] = map[string]any{
+			"service": map[string]any{
+				"public": map[string]any{
+					"endpointURL": "https://placement.foo.bar:13778",
+					"spec": map[string]any{
+						"ports": []any{
+							map[string]any{
+								"name": "public",
+								"port": 13778,
+							},
+						},
+					},
+				},
+			},
+		}
+		raw := map[string]any{
+			"apiVersion": "placement.openstack.org/v1beta1",
+			"kind":       "PlacementAPI",
+			"metadata": map[string]any{
+				"name":      placementAPIName.Name,
+				"namespace": placementAPIName.Namespace,
+			},
+			"spec": spec,
+		}
+		unstructuredObj := &unstructured.Unstructured{Object: raw}
+		_, err := controllerutil.CreateOrPatch(
+			th.Ctx, th.K8sClient, unstructuredObj, func() error { return nil })
+		Expect(err).ToNot(HaveOccurred())
+		DeferCleanup(th.DeleteInstance, GetPlacementAPI(placementAPIName))
+	})
+
+	It("accepts a public service override with only endpointURL set (no ports[])", func() {
+		spec := GetDefaultPlacementAPISpec()
+		spec["override"] = map[string]any{
+			"service": map[string]any{
+				"public": map[string]any{
+					"endpointURL": "https://placement.foo.bar:13778",
+				},
+			},
+		}
+		raw := map[string]any{
+			"apiVersion": "placement.openstack.org/v1beta1",
+			"kind":       "PlacementAPI",
+			"metadata": map[string]any{
+				"name":      placementAPIName.Name,
+				"namespace": placementAPIName.Namespace,
+			},
+			"spec": spec,
+		}
+		unstructuredObj := &unstructured.Unstructured{Object: raw}
+		_, err := controllerutil.CreateOrPatch(
+			th.Ctx, th.K8sClient, unstructuredObj, func() error { return nil })
+		Expect(err).ToNot(HaveOccurred())
+		DeferCleanup(th.DeleteInstance, GetPlacementAPI(placementAPIName))
+	})
+
+	It("rejects a public service override with endpointURL/port mismatch", func() {
+		spec := GetDefaultPlacementAPISpec()
+		spec["override"] = map[string]any{
+			"service": map[string]any{
+				"public": map[string]any{
+					"endpointURL": "https://placement.foo.bar:13778",
+					"spec": map[string]any{
+						"ports": []any{
+							map[string]any{
+								"name": "public",
+								"port": 5000,
+							},
+						},
+					},
+				},
+			},
+		}
+		raw := map[string]any{
+			"apiVersion": "placement.openstack.org/v1beta1",
+			"kind":       "PlacementAPI",
+			"metadata": map[string]any{
+				"name":      placementAPIName.Name,
+				"namespace": placementAPIName.Namespace,
+			},
+			"spec": spec,
+		}
+		unstructuredObj := &unstructured.Unstructured{Object: raw}
+		_, err := controllerutil.CreateOrPatch(
+			th.Ctx, th.K8sClient, unstructuredObj, func() error { return nil })
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(
+			ContainSubstring(
+				"invalid: spec.override.service[public].spec.ports[0].port: " +
+					"Invalid value: 5000: must match the port in endpointURL \"https://placement.foo.bar:13778\""),
+		)
+	})
+
+	It("accepts a public service override with a port-less https endpointURL matching the scheme default", func() {
+		spec := GetDefaultPlacementAPISpec()
+		spec["override"] = map[string]any{
+			"service": map[string]any{
+				"public": map[string]any{
+					"endpointURL": "https://placement.foo.bar",
+					"spec": map[string]any{
+						"ports": []any{
+							map[string]any{
+								"name": "public",
+								"port": 443,
+							},
+						},
+					},
+				},
+			},
+		}
+		raw := map[string]any{
+			"apiVersion": "placement.openstack.org/v1beta1",
+			"kind":       "PlacementAPI",
+			"metadata": map[string]any{
+				"name":      placementAPIName.Name,
+				"namespace": placementAPIName.Namespace,
+			},
+			"spec": spec,
+		}
+		unstructuredObj := &unstructured.Unstructured{Object: raw}
+		_, err := controllerutil.CreateOrPatch(
+			th.Ctx, th.K8sClient, unstructuredObj, func() error { return nil })
+		Expect(err).ToNot(HaveOccurred())
+		DeferCleanup(th.DeleteInstance, GetPlacementAPI(placementAPIName))
+	})
+
+	It("rejects a public service override with a port-less https endpointURL disagreeing with ports[]", func() {
+		spec := GetDefaultPlacementAPISpec()
+		spec["override"] = map[string]any{
+			"service": map[string]any{
+				"public": map[string]any{
+					"endpointURL": "https://placement.foo.bar",
+					"spec": map[string]any{
+						"ports": []any{
+							map[string]any{
+								"name": "public",
+								"port": 13778,
+							},
+						},
+					},
+				},
+			},
+		}
+		raw := map[string]any{
+			"apiVersion": "placement.openstack.org/v1beta1",
+			"kind":       "PlacementAPI",
+			"metadata": map[string]any{
+				"name":      placementAPIName.Name,
+				"namespace": placementAPIName.Namespace,
+			},
+			"spec": spec,
+		}
+		unstructuredObj := &unstructured.Unstructured{Object: raw}
+		_, err := controllerutil.CreateOrPatch(
+			th.Ctx, th.K8sClient, unstructuredObj, func() error { return nil })
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(
+			ContainSubstring(
+				"invalid: spec.override.service[public].spec.ports[0].port: " +
+					"Invalid value: 13778: must match the port in endpointURL \"https://placement.foo.bar\""),
+		)
+	})
+
+	It("accepts an internal service override port with the valid name", func() {
+		spec := GetDefaultPlacementAPISpec()
+		spec["override"] = map[string]any{
+			"service": map[string]any{
+				"internal": map[string]any{
+					"spec": map[string]any{
+						"ports": []any{
+							map[string]any{
+								"name": "internal",
+								"port": 8778,
+							},
+						},
+					},
+				},
+			},
+		}
+		raw := map[string]any{
+			"apiVersion": "placement.openstack.org/v1beta1",
+			"kind":       "PlacementAPI",
+			"metadata": map[string]any{
+				"name":      placementAPIName.Name,
+				"namespace": placementAPIName.Namespace,
+			},
+			"spec": spec,
+		}
+		unstructuredObj := &unstructured.Unstructured{Object: raw}
+		_, err := controllerutil.CreateOrPatch(
+			th.Ctx, th.K8sClient, unstructuredObj, func() error { return nil })
+		Expect(err).ToNot(HaveOccurred())
+		DeferCleanup(th.DeleteInstance, GetPlacementAPI(placementAPIName))
+	})
+
+	It("rejects an internal service override port with the wrong name", func() {
+		spec := GetDefaultPlacementAPISpec()
+		spec["override"] = map[string]any{
+			"service": map[string]any{
+				"internal": map[string]any{
+					"spec": map[string]any{
+						"ports": []any{
+							map[string]any{
+								"name": "wrong",
+								"port": 8778,
+							},
+						},
+					},
+				},
+			},
+		}
+		raw := map[string]any{
+			"apiVersion": "placement.openstack.org/v1beta1",
+			"kind":       "PlacementAPI",
+			"metadata": map[string]any{
+				"name":      placementAPIName.Name,
+				"namespace": placementAPIName.Namespace,
+			},
+			"spec": spec,
+		}
+		unstructuredObj := &unstructured.Unstructured{Object: raw}
+		_, err := controllerutil.CreateOrPatch(
+			th.Ctx, th.K8sClient, unstructuredObj, func() error { return nil })
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(
+			ContainSubstring(
+				"invalid: spec.override.service[internal].spec.ports[0].name: " +
+					"Invalid value: \"wrong\": must be \"internal\""),
+		)
+	})
+
 	When("A PlacementAPI instance is updated with wrong service override endpoint", func() {
 		BeforeEach(func() {
 			DeferCleanup(k8sClient.Delete, ctx, CreatePlacementAPISecret(namespace, SecretName))
@@ -187,6 +490,28 @@ var _ = Describe("PlacementAPI Webhook", func() {
 				ContainSubstring(
 					"invalid: spec.override.service[wrooong]: " +
 						"Invalid value: \"wrooong\": invalid endpoint type: wrooong"),
+			)
+		})
+
+		It("rejects update with a wrong public service override port name", func() {
+			PlacementAPI := GetPlacementAPI(names.PlacementAPIName)
+			Expect(PlacementAPI).NotTo(BeNil())
+			if PlacementAPI.Spec.Override.Service == nil {
+				PlacementAPI.Spec.Override.Service = map[service.Endpoint]service.RoutedOverrideSpec{}
+			}
+			PlacementAPI.Spec.Override.Service[service.EndpointPublic] = service.RoutedOverrideSpec{
+				OverrideSpec: service.OverrideSpec{
+					Spec: &service.OverrideServiceSpec{
+						Ports: []service.OverrideServicePort{{Name: "wrong", Port: 13778}},
+					},
+				},
+			}
+			err := k8sClient.Update(ctx, PlacementAPI)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(
+				ContainSubstring(
+					"invalid: spec.override.service[public].spec.ports[0].name: " +
+						"Invalid value: \"wrong\": must be \"public\""),
 			)
 		})
 	})

@@ -99,6 +99,10 @@ func (spec *CyborgSpecCore) ValidateAPIServiceTemplate(basePath *field.Path, nam
 		service.ValidateRoutedOverrides(
 			basePath.Child("apiServiceTemplate").Child("override").Child("service"),
 			spec.APIServiceTemplate.Override.Service)...)
+	errors = append(errors,
+		validateServicePortNames(
+			basePath.Child("apiServiceTemplate").Child("override").Child("service"),
+			spec.APIServiceTemplate.Override.Service)...)
 
 	errors = append(errors,
 		spec.APIServiceTemplate.ValidateTopology(

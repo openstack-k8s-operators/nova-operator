@@ -19,6 +19,7 @@ package placement_test
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	. "github.com/onsi/ginkgo/v2" //revive:disable:dot-imports
 	. "github.com/onsi/gomega"    //revive:disable:dot-imports
@@ -26,6 +27,7 @@ import (
 	//revive:disable-next-line:dot-imports
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/clusterdns"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
@@ -604,8 +606,12 @@ var _ = Describe("PlacementAPI controller", func() {
 
 			public := th.GetService(names.PublicServiceName)
 			Expect(public.Labels["service"]).To(Equal("placement"))
+			Expect(public.Name).To(Equal("placement-public"))
+			Expect(public.Spec.Ports[0].Name).To(Equal("public"))
 			internal := th.GetService(names.InternalServiceName)
 			Expect(internal.Labels["service"]).To(Equal("placement"))
+			Expect(internal.Name).To(Equal("placement-internal"))
+			Expect(internal.Spec.Ports[0].Name).To(Equal("internal"))
 
 			th.ExpectCondition(
 				names.PlacementAPIName,
@@ -746,10 +752,9 @@ var _ = Describe("PlacementAPI controller", func() {
 			serviceOverride["internal"] = map[string]any{
 				"metadata": map[string]map[string]string{
 					"annotations": {
-						"dnsmasq.network.openstack.org/hostname": "placement-internal.openstack.svc",
-						"metallb.universe.tf/address-pool":       "osp-internalapi",
-						"metallb.universe.tf/allow-shared-ip":    "osp-internalapi",
-						"metallb.universe.tf/loadBalancerIPs":    "internal-lb-ip-1,internal-lb-ip-2",
+						"metallb.universe.tf/address-pool":    "osp-internalapi",
+						"metallb.universe.tf/allow-shared-ip": "osp-internalapi",
+						"metallb.universe.tf/loadBalancerIPs": "internal-lb-ip-1,internal-lb-ip-2",
 					},
 					"labels": {
 						"internal": "true",
@@ -806,7 +811,7 @@ var _ = Describe("PlacementAPI controller", func() {
 			// gets a LoadBalancer Service with MetalLB annotations
 			service := th.GetService(types.NamespacedName{Namespace: namespace, Name: "placement-internal"})
 			Expect(service.Annotations).To(
-				HaveKeyWithValue("dnsmasq.network.openstack.org/hostname", "placement-internal.openstack.svc"))
+				HaveKeyWithValue("dnsmasq.network.openstack.org/hostname", "placement-internal."+namespace+".svc"))
 			Expect(service.Annotations).To(
 				HaveKeyWithValue("metallb.universe.tf/address-pool", "osp-internalapi"))
 			Expect(service.Annotations).To(
@@ -821,6 +826,39 @@ var _ = Describe("PlacementAPI controller", func() {
 				corev1.ConditionTrue,
 			)
 		})
+		It("keeps the in-cluster dnsmasq hostname on the internal LoadBalancer with and without endpointURL", func() {
+			endpointURL := "http://placement-internal.example.test:8778"
+			Eventually(func(g Gomega) {
+				api := GetPlacementAPI(names.PlacementAPIName)
+				override := api.Spec.Override.Service["internal"]
+				override.EndpointURL = &endpointURL
+				api.Spec.Override.Service["internal"] = override
+				g.Expect(k8sClient.Update(ctx, api)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				svc := th.GetService(types.NamespacedName{Namespace: namespace, Name: "placement-internal"})
+				g.Expect(svc.Annotations).To(HaveKeyWithValue("dnsmasq.network.openstack.org/hostname", "placement-internal."+namespace+".svc"))
+				g.Expect(string(th.GetSecret(names.ConfigMapName).Data["httpd.conf"])).To(ContainSubstring("ServerName placement-internal.example.test"))
+			}, timeout, interval).Should(Succeed())
+
+			emptyURL := ""
+			Eventually(func(g Gomega) {
+				api := GetPlacementAPI(names.PlacementAPIName)
+				override := api.Spec.Override.Service["internal"]
+				override.EndpointURL = &emptyURL
+				api.Spec.Override.Service["internal"] = override
+				g.Expect(k8sClient.Update(ctx, api)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				svc := th.GetService(types.NamespacedName{Namespace: namespace, Name: "placement-internal"})
+				g.Expect(svc.Annotations).To(HaveKeyWithValue("dnsmasq.network.openstack.org/hostname", "placement-internal."+namespace+".svc"))
+				g.Expect(string(th.GetSecret(names.ConfigMapName).Data["httpd.conf"])).To(ContainSubstring("ServerName placement-internal." + namespace + ".svc"))
+				g.Expect(string(th.GetSecret(names.ConfigMapName).Data["httpd.conf"])).To(ContainSubstring(fmt.Sprintf("ServerAlias placement-internal.%s.svc.%s", namespace, clusterdns.GetDNSClusterDomain())))
+			}, timeout, interval).Should(Succeed())
+		})
+
 	})
 
 	When("A PlacementAPI is created with service override endpointURL set", func() {
@@ -871,6 +909,71 @@ var _ = Describe("PlacementAPI controller", func() {
 				condition.KeystoneEndpointReadyCondition,
 				corev1.ConditionTrue,
 			)
+		})
+
+		It("renders the public vhost ServerName from endpointURL with service aliases", func() {
+			cm := th.GetSecret(names.ConfigMapName)
+			configData := string(cm.Data["httpd.conf"])
+
+			Expect(configData).Should(
+				ContainSubstring("ServerName placement-openstack.apps-crc.testing"))
+			Expect(configData).Should(
+				ContainSubstring("ServerAlias placement-public." + namespace + ".svc"))
+
+			// Internal vhost keeps the short name canonical and adds its cluster FQDN as an alias.
+			Expect(configData).Should(
+				ContainSubstring("ServerName placement-internal." + namespace + ".svc"))
+			Expect(configData).Should(
+				ContainSubstring(fmt.Sprintf("ServerAlias placement-public.%s.svc.%s", namespace, clusterdns.GetDNSClusterDomain())))
+			Expect(configData).Should(
+				ContainSubstring(fmt.Sprintf("ServerAlias placement-internal.%s.svc.%s", namespace, clusterdns.GetDNSClusterDomain())))
+			Expect(strings.Count(configData, "ServerAlias")).To(Equal(3))
+		})
+	})
+
+	When("A PlacementAPI public endpoint is a LoadBalancer with endpointURL set", func() {
+		BeforeEach(func() {
+			DeferCleanup(k8sClient.Delete, ctx, CreatePlacementAPISecret(namespace, SecretName))
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(namespace))
+
+			spec := GetDefaultPlacementAPISpec()
+			serviceOverride := map[string]any{}
+			serviceOverride["public"] = map[string]any{
+				"endpointURL": "https://placement.foo.bar:8778",
+				"spec": map[string]any{
+					"type": "LoadBalancer",
+				},
+			}
+
+			spec["override"] = map[string]any{
+				"service": serviceOverride,
+			}
+
+			placementAPI := CreatePlacementAPI(names.PlacementAPIName, spec)
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
+					namespace,
+					GetPlacementAPI(names.PlacementAPIName).Spec.DatabaseInstance,
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+
+			mariadb.SimulateMariaDBDatabaseCompleted(names.MariaDBDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(names.MariaDBAccount)
+			th.SimulateLoadBalancerServiceIP(types.NamespacedName{Namespace: namespace, Name: "placement-public"})
+			th.SimulateJobSuccess(names.DBSyncJobName)
+			th.SimulateDeploymentReplicaReady(names.DeploymentName)
+			keystone.SimulateKeystoneServiceReady(names.KeystoneServiceName)
+			keystone.SimulateKeystoneEndpointReady(names.KeystoneEndpointName)
+			DeferCleanup(th.DeleteInstance, placementAPI)
+		})
+
+		It("does not set the dnsmasq hostname annotation on the public LoadBalancer Service", func() {
+			service := th.GetService(types.NamespacedName{Namespace: namespace, Name: "placement-public"})
+			Expect(service.Annotations).NotTo(HaveKey("dnsmasq.network.openstack.org/hostname"))
 		})
 	})
 

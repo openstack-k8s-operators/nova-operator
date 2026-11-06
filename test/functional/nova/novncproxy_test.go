@@ -27,6 +27,7 @@ import (
 	networkv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
+	commonservice "github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/nova/v1beta1"
@@ -306,6 +307,9 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 				service := th.GetService(types.NamespacedName{Namespace: cell1.NoVNCProxyName.Namespace, Name: "nova-novncproxy-cell1-public"})
 				Expect(service.Labels["service"]).To(Equal("nova-novncproxy"))
 				Expect(service.Labels["cell"]).To(Equal("cell1"))
+				// Service object name stays per-cell; the port name is the bare "public" endpoint string.
+				Expect(service.Name).To(Equal("nova-novncproxy-cell1-public"))
+				Expect(service.Spec.Ports[0].Name).To(Equal("public"))
 				// for novnc we only expose a public service intentionally
 				th.AssertServiceDoesNotExist(types.NamespacedName{Namespace: cell1.NoVNCProxyName.Namespace, Name: "nova-novncproxy-cell1-internal"})
 			})
@@ -542,10 +546,9 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 			serviceOverride := map[string]any{
 				"metadata": map[string]map[string]string{
 					"annotations": {
-						"dnsmasq.network.openstack.org/hostname": "nova-novncproxy-cell1-public.openstack.svc",
-						"metallb.universe.tf/address-pool":       "osp-internalapi",
-						"metallb.universe.tf/allow-shared-ip":    "osp-internalapi",
-						"metallb.universe.tf/loadBalancerIPs":    "internal-lb-ip-1,internal-lb-ip-2",
+						"metallb.universe.tf/address-pool":    "osp-internalapi",
+						"metallb.universe.tf/allow-shared-ip": "osp-internalapi",
+						"metallb.universe.tf/loadBalancerIPs": "internal-lb-ip-1,internal-lb-ip-2",
 					},
 					"labels": {
 						"service": "nova-novncproxy",
@@ -573,8 +576,8 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 			service := th.GetService(types.NamespacedName{Namespace: cell1.NoVNCProxyName.Namespace, Name: "nova-novncproxy-cell1-public"})
 			Expect(service.Annotations).To(
 				HaveKeyWithValue("core.openstack.org/ingress_create", "false"))
-			Expect(service.Annotations).To(
-				HaveKeyWithValue("dnsmasq.network.openstack.org/hostname", "nova-novncproxy-cell1-public.openstack.svc"))
+			// the public endpoint's DNS is user-managed: no dnsmasq hostname
+			Expect(service.Annotations).NotTo(HaveKey(commonservice.AnnotationHostnameKey))
 			Expect(service.Annotations).To(
 				HaveKeyWithValue("metallb.universe.tf/address-pool", "osp-internalapi"))
 			Expect(service.Annotations).To(
@@ -591,6 +594,40 @@ var _ = Describe("NovaNoVNCProxy controller", func() {
 				condition.ReadyCondition,
 				corev1.ConditionTrue,
 			)
+		})
+	})
+
+	When("NovaNoVNCProxy is created with service override with endpointURL set on a LoadBalancer", func() {
+		publicHost := "nova-novncproxy-cell1.example.org"
+		publicURL := "http://" + publicHost
+
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete, ctx, CreateDefaultCellInternalSecret(cell1))
+
+			spec := GetDefaultNovaNoVNCProxySpec(cell1)
+			spec["override"] = map[string]any{
+				"service": map[string]any{
+					"endpointURL": publicURL,
+					"spec":        map[string]any{"type": "LoadBalancer"},
+				},
+			}
+			noVNC := CreateNovaNoVNCProxy(cell1.NoVNCProxyName, spec)
+			DeferCleanup(th.DeleteInstance, noVNC)
+		})
+
+		It("does not set the dnsmasq hostname annotation on the public LoadBalancer Service", func() {
+			svcName := types.NamespacedName{Namespace: cell1.NoVNCProxyName.Namespace, Name: "nova-novncproxy-cell1-public"}
+
+			th.SimulateLoadBalancerServiceIP(svcName)
+			th.SimulateStatefulSetReplicaReady(cell1.NoVNCProxyStatefulSetName)
+
+			Eventually(func(g Gomega) {
+				service := th.GetService(svcName)
+				g.Expect(service.Name).To(Equal("nova-novncproxy-cell1-public"))
+				g.Expect(service.Spec.Ports[0].Name).To(Equal("public"))
+				g.Expect(service.Annotations).NotTo(HaveKey(commonservice.AnnotationHostnameKey))
+			}, timeout, interval).Should(Succeed())
 		})
 	})
 

@@ -26,14 +26,37 @@ import (
 	"fmt"
 
 	"github.com/google/go-cmp/cmp"
+	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/webhook"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
-	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 )
+
+// validateNoVNCProxyServiceOverride validates the NoVNCProxy service override:
+// the endpointURL host (must be an FQDN, not an IP), that a port.Name is the
+// bare "public" endpoint string, and that the endpointURL port agrees with any
+// overridden port. The NoVNCProxy override Service is a single public endpoint
+// (not a map), so this calls the lower-level lib-common validators directly
+// rather than the map-shaped webhook.ValidatePortNameOverrides bundle.
+func validateNoVNCProxyServiceOverride(basePath *field.Path, override *service.RoutedOverrideSpec) field.ErrorList {
+	if override == nil {
+		return nil
+	}
+	allErrs := webhook.ValidateEndpointURL(basePath, *override)
+	if override.Spec != nil {
+		allErrs = append(allErrs, webhook.ValidateServicePortNames(
+			basePath.Child("spec").Child("ports"),
+			override.Spec.Ports,
+			string(service.EndpointPublic),
+		)...)
+	}
+	return append(allErrs, webhook.ValidateEndpointURLPort(basePath, *override)...)
+}
 
 // NovaNoVNCProxyDefaults -
 type NovaNoVNCProxyDefaults struct {
@@ -51,7 +74,6 @@ func SetupNovaNoVNCProxyDefaults(defaults NovaNoVNCProxyDefaults) {
 	novanovncproxylog.Info("NovaNoVNCProxy defaults initialized", "defaults", defaults)
 }
 
-
 // Default sets defaults for the type
 func (r *NovaNoVNCProxy) Default() {
 	novanovncproxylog.Info("default", "name", r.Name)
@@ -66,7 +88,6 @@ func (spec *NovaNoVNCProxySpec) Default() {
 	}
 }
 
-
 // ValidateCreate validates the type on creation
 func (r *NovaNoVNCProxy) ValidateCreate() (admission.Warnings, error) {
 	novanovncproxylog.Info("validate create", "name", r.Name)
@@ -77,6 +98,8 @@ func (r *NovaNoVNCProxy) ValidateCreate() (admission.Warnings, error) {
 	errors = append(errors, topologyv1.ValidateTopologyRef(
 		r.Spec.TopologyRef, *basePath.Child("topologyRef"), r.Namespace)...)
 	errors = append(errors, r.Spec.Override.Probes.ValidateProbes(basePath.Child("override").Child("probes"))...)
+	errors = append(errors, validateNoVNCProxyServiceOverride(
+		basePath.Child("override").Child("service"), r.Spec.Override.Service)...)
 
 	if len(errors) != 0 {
 		novanovncproxylog.Info("validation failed", "name", r.Name)
@@ -93,7 +116,6 @@ func (r *NovaNoVNCProxy) ValidateUpdate(old runtime.Object) (admission.Warnings,
 	errors := field.ErrorList{}
 	basePath := field.NewPath("spec")
 
-
 	oldProxy, ok := old.(*NovaNoVNCProxy)
 	if !ok || oldProxy == nil {
 		return nil, apierrors.NewInternalError(fmt.Errorf("unable to convert existing object"))
@@ -104,6 +126,8 @@ func (r *NovaNoVNCProxy) ValidateUpdate(old runtime.Object) (admission.Warnings,
 	errors = append(errors, topologyv1.ValidateTopologyRef(
 		r.Spec.TopologyRef, *basePath.Child("topologyRef"), r.Namespace)...)
 	errors = append(errors, r.Spec.Override.Probes.ValidateProbes(basePath.Child("override").Child("probes"))...)
+	errors = append(errors, validateNoVNCProxyServiceOverride(
+		basePath.Child("override").Child("service"), r.Spec.Override.Service)...)
 
 	if len(errors) != 0 {
 		novanovncproxylog.Info("validation failed", "name", r.Name)
