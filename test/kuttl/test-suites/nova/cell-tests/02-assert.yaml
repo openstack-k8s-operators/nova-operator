@@ -128,6 +128,59 @@ status:
 apiVersion: kuttl.dev/v1beta1
 kind: TestAssert
 commands:
+  # DIAGNOSTIC (temporary): this step intermittently times out with the Nova CR
+  # stuck on "NovaCells deletion in progress: cell1" because the
+  # nova-kuttl-cell1-cell-delete Job's nova-manage container exits non-zero and
+  # goes into CrashLoopBackOff. Its stdout is not collected by must-gather
+  # (the pod is gone by the time must-gather runs), so dump it from here along
+  # with the nova_api cell/host mapping state that delete_cell checks.
+  # Must stay first in the list: kuttl skips the remaining commands once one
+  # fails. Throttled to once every 5s and always exits 0 so it never changes
+  # the assert outcome. 5s rather than 30s because on a passing run the step
+  # finishes in ~15s and the single 30s-throttled sample landed while the
+  # cell-delete pod was still ContainerCreating.
+  - script: |
+      set +e
+      NS=nova-kuttl-tests
+      STAMP=/tmp/kuttl-cell-delete-diag.stamp
+      now=$(date +%s)
+      last=$(cat "${STAMP}" 2>/dev/null || echo 0)
+      if [ $((now - last)) -lt 5 ]; then
+        exit 0
+      fi
+      echo "${now}" > "${STAMP}"
+
+      echo "===== DIAG: cell-delete job ====="
+      oc get -n "${NS}" job/nova-kuttl-cell1-cell-delete -o wide
+      oc get -n "${NS}" pods -l job-name=nova-kuttl-cell1-cell-delete
+      for p in $(oc get -n "${NS}" pods -l job-name=nova-kuttl-cell1-cell-delete -o name); do
+        echo "--- ${p} current"
+        oc logs -n "${NS}" "${p}" --all-containers --tail=60
+        echo "--- ${p} previous"
+        oc logs -n "${NS}" "${p}" --all-containers --previous --tail=60
+        echo "--- ${p} state"
+        oc get -n "${NS}" "${p}" -o jsonpath='{range .status.containerStatuses[*]}{.name}{" restarts="}{.restartCount}{" last="}{.lastState}{"\n"}{end}'
+      done
+
+      echo "===== DIAG: host-discover job ====="
+      for p in $(oc get -n "${NS}" pods -l job-name=nova-kuttl-cell1-host-discover -o name); do
+        oc logs -n "${NS}" "${p}" --all-containers --tail=60
+      done
+
+      # delete_cell returns 2 when host mappings exist and 3 when instance
+      # mappings exist, so these three tables tell us which check is tripping.
+      # The count(*) selects matter: mysql in batch mode prints nothing at all
+      # for an empty result set, which reads as "query did not run" rather than
+      # "table is empty".
+      # DbRootPassword is the literal "password" from test/kuttl/.../deps.
+      echo "===== DIAG: nova_api mappings ====="
+      oc exec -n "${NS}" openstack-galera-0 -c galera -- \
+        env MYSQL_PWD=password mysql -uroot -t -e \
+        'select uuid, name, created_at from nova_api.cell_mappings;
+         select count(*) as n_host_mappings from nova_api.host_mappings;
+         select id, host, cell_id, created_at from nova_api.host_mappings;
+         select count(*) as n_instance_mappings from nova_api.instance_mappings;'
+      exit 0
   - script: |
       oc get -n nova-kuttl-tests pod/nova-kuttl-cell1-novncproxy-0 || exit 0
       exit 1

@@ -1,5 +1,84 @@
 apiVersion: kuttl.dev/v1beta1
 kind: TestStep
 commands:
+  # DIAGNOSTIC (temporary): force the losing side of the host-discover race so
+  # the failure reproduces on every run instead of roughly one in five.
+  #
+  # nova_controller.go:1559 calls ensureCellMapped, which returns
+  # nova.CellMapping with a nil error while its Job is still running. The caller
+  # only inspects err and then overwrites status on the next line, so
+  # ensureNovaComputeDiscover creates nova-kuttl-cell1-host-discover in the same
+  # reconcile that created nova-kuttl-cell1-cell-mapping. The two Jobs race:
+  #
+  #   host-discover wins -> CellMappingList.get_all() sees cell0 only, so the
+  #       Job prints "Found 1 cell mappings" / "Skipping cell0", creates no
+  #       host_mappings row, and is never retried because of the hash guard in
+  #       instance.Status.DiscoveredCells. delete_cell then exits 0 and this
+  #       test passes, but only because the compute was silently left unmapped.
+  #   cell-mapping wins  -> cell1 is discovered, a host_mappings row exists, and
+  #       delete_cell without --force returns 2.
+  #
+  # Re-running discovery here makes the second outcome certain. Deleting the
+  # Job is not enough: lib-common DoJob no-ops when the hash is unchanged and
+  # the Job is absent. So clone the Job object instead, which is only possible
+  # because 01-deploy.yaml sets preserveJobs: true.
+  - script: |
+      set -eu
+      NS=nova-kuttl-tests
+      CLONE=kuttl-force-host-discover
+
+      oc delete job -n "${NS}" "${CLONE}" --ignore-not-found
+      oc get -n "${NS}" job/nova-kuttl-cell1-host-discover -o json > /tmp/hd-src.json
+
+      CLONE="${CLONE}" python3 - <<'PY'
+      import json
+      import os
+
+      j = json.load(open('/tmp/hd-src.json'))
+      j.pop('status', None)
+
+      m = j['metadata']
+      for k in ('uid', 'resourceVersion', 'creationTimestamp', 'generation',
+                'ownerReferences', 'managedFields', 'selfLink', 'labels',
+                'annotations'):
+          m.pop(k, None)
+      m['name'] = os.environ['CLONE']
+
+      s = j['spec']
+      # the generated selector and the injected pod labels are derived from the
+      # original Job's uid, so drop them and let the apiserver regenerate them
+      for k in ('selector', 'ttlSecondsAfterFinished', 'suspend'):
+          s.pop(k, None)
+      tm = s['template'].setdefault('metadata', {})
+      tm.pop('labels', None)
+      tm.pop('creationTimestamp', None)
+
+      json.dump(j, open('/tmp/hd-clone.json', 'w'))
+      PY
+
+      oc create -n "${NS}" -f /tmp/hd-clone.json
+      if ! oc wait --for=condition=complete --timeout=180s -n "${NS}" "job/${CLONE}"; then
+        echo "forced host-discover Job did not complete"
+        oc describe -n "${NS}" "job/${CLONE}" || true
+        oc logs -n "${NS}" "job/${CLONE}" --all-containers --tail=100 || true
+        exit 1
+      fi
+
+      echo "===== FORCE: discover_hosts output ====="
+      oc logs -n "${NS}" "job/${CLONE}"
+
+      echo "===== FORCE: nova_api.host_mappings after forced discovery ====="
+      oc exec -n "${NS}" openstack-galera-0 -c galera -- \
+        env MYSQL_PWD=password mysql -uroot -t -e \
+        'select id, host, cell_id, created_at from nova_api.host_mappings;'
+
+      n=$(oc exec -n "${NS}" openstack-galera-0 -c galera -- \
+            env MYSQL_PWD=password mysql -uroot -N -B -e \
+            'select count(*) from nova_api.host_mappings;' | tr -d '[:space:]')
+      if [ "${n}" -eq 0 ]; then
+        echo "FORCE FAILED: host_mappings is still empty, delete_cell would have succeeded anyway"
+        exit 1
+      fi
+      echo "FORCE: host_mappings has ${n} row(s), delete_cell is now expected to return 2"
   - script: |
       oc patch -n nova-kuttl-tests nova/nova-kuttl --type='json' -p='[{"op": "remove", "path": "/spec/cellTemplates/cell1"}]'

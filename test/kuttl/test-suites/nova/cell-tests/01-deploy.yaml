@@ -4,6 +4,10 @@ metadata:
   name: nova-kuttl
 spec:
   secret: osp-secret
+  # DIAGNOSTIC (temporary): keep the cell-delete and host-discover Jobs around
+  # after they finish so their pods and logs survive for the assert-loop dump
+  # in 02-assert.yaml and for must-gather.
+  preserveJobs: true
   # NOTE: the cellTemplates defaults are spelled out here instead of
   # relying on the CRD defaults so that a control plane compute with the
   # fake driver can be added to cell1
