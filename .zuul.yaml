@@ -161,11 +161,6 @@
         - "@{{ ansible_user_dir }}/{{ zuul.projects['github.com/openstack-k8s-operators/nova-operator'].src_dir }}/ci/nova-operator-cyborg-tempest-multinode/ci_fw_vars.yaml"
       # The s2i master tempest image is inherited from
       # nova-operator-tempest-multinode.
-      # Pin cyborg tempest plugin as newer commits require roles that are not created in RHOSO18
-      cifmw_test_operator_tempest_external_plugin:
-        - repository: https://opendev.org/openstack/cyborg-tempest-plugin.git
-          changeRepository: "https://review.opendev.org/openstack/cyborg-tempest-plugin"
-          changeRefspec: "e98dfff4bacdaeffe1fa79d3cfd5f2e28002cd98"
       cifmw_test_operator_tempest_include_list: |
           cyborg_tempest_plugin
       cifmw_test_operator_tempest_tempestconf_config:
@@ -185,6 +180,7 @@
             validation.image_alt_ssh_user cirros
             validation.image_alt_ssh_password gocubsgo
             validation.allowed_network_downtime 10
+            cyborg.fpga_program true
             cyborg_pci.device_profile_name pci-sim-cyborg-dp
             cyborg_pci.vendor_id 1d55
             cyborg_pci.product_id 1000

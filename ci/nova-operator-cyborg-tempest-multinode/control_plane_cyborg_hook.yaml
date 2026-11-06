@@ -1,0 +1,38 @@
+---
+- name: Kustomize ControlPlane for Cyborg
+  hosts: "{{ cifmw_target_hook_host | default('localhost') }}"
+  gather_facts: false
+  tasks:
+    - name: Ensure the kustomizations dir exists
+      ansible.builtin.file:
+        path: "{{ cifmw_basedir }}/artifacts/manifests/kustomizations/controlplane"
+        state: directory
+
+    - name: Create Cyborg kustomization
+      ansible.builtin.copy:
+        dest: "{{ cifmw_basedir }}/artifacts/manifests/kustomizations/controlplane/72-cyborg-kustomization.yaml"
+        content: |-
+          apiVersion: kustomize.config.k8s.io/v1beta1
+          kind: Kustomization
+          resources:
+          namespace: {{ cifmw_install_yamls_defaults['NAMESPACE'] }}
+          patches:
+          - target:
+              kind: OpenStackControlPlane
+            patch: |-
+              - op: add
+                path: /spec/cyborg
+                value:
+                  enabled: true
+                  template:
+                    apiServiceTemplate:
+                      override:
+                        service:
+                          internal:
+                            metadata:
+                              annotations:
+                                metallb.universe.tf/address-pool: internalapi
+                                metallb.universe.tf/allow-shared-ip: internalapi
+                                metallb.universe.tf/loadBalancerIPs: 172.17.0.80
+                            spec:
+                              type: LoadBalancer

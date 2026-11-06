@@ -284,15 +284,13 @@ func main() {
 	novav1.SetupDefaults()
 	placementv1.SetupDefaults()
 
-	if os.Getenv("ENABLE_CYBORG") == "true" {
-		cyborgreconcilers := cyborgcontroller.NewReconcilers(mgr, kclient)
-		err = cyborgreconcilers.Setup(mgr, setupLog)
-		if err != nil {
-			setupLog.Error(err, "unable to create controller", "controller", "Cyborg")
-			os.Exit(1)
-		}
-		cyborgv1.SetupDefaults()
+	cyborgreconcilers := cyborgcontroller.NewReconcilers(mgr, kclient)
+	err = cyborgreconcilers.Setup(mgr, setupLog)
+	if err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Cyborg")
+		os.Exit(1)
 	}
+	cyborgv1.SetupDefaults()
 
 	// nolint:goconst
 	checker := healthz.Ping
@@ -335,19 +333,17 @@ func main() {
 			setupLog.Error(err, "unable to create webhook", "webhook", "PlacementAPI")
 			os.Exit(1)
 		}
-		if os.Getenv("ENABLE_CYBORG") == "true" {
-			if err := cyborgwebhookv1beta1.SetupCyborgWebhookWithManager(mgr); err != nil {
-				setupLog.Error(err, "unable to create webhook", "webhook", "Cyborg")
-				os.Exit(1)
-			}
-			if err := cyborgwebhookv1beta1.SetupCyborgAPIWebhookWithManager(mgr); err != nil {
-				setupLog.Error(err, "unable to create webhook", "webhook", "CyborgAPI")
-				os.Exit(1)
-			}
-			if err := cyborgwebhookv1beta1.SetupCyborgConductorWebhookWithManager(mgr); err != nil {
-				setupLog.Error(err, "unable to create webhook", "webhook", "CyborgConductor")
-				os.Exit(1)
-			}
+		if err := cyborgwebhookv1beta1.SetupCyborgWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "Cyborg")
+			os.Exit(1)
+		}
+		if err := cyborgwebhookv1beta1.SetupCyborgAPIWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "CyborgAPI")
+			os.Exit(1)
+		}
+		if err := cyborgwebhookv1beta1.SetupCyborgConductorWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "CyborgConductor")
+			os.Exit(1)
 		}
 		checker = mgr.GetWebhookServer().StartedChecker()
 	}
