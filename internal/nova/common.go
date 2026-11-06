@@ -28,6 +28,14 @@ const (
 	// is actively consuming, preventing the infra-operator from cleaning up
 	// old RabbitMQ users before nova pods have rolled out new credentials
 	TransportConsumerFinalizer = "openstack.org/nova-transport-consumer"
+
+	// TerminationGracePeriodSeconds is the pod termination grace period for
+	// the oslo.service based nova services: nova's default
+	// graceful_shutdown_timeout (180s) plus a 20s buffer, so that the service
+	// can finish its graceful shutdown before kubelet sends SIGKILL.
+	// If graceful_shutdown_timeout is increased then the
+	// TerminationGracePeriodSeconds should be increased too.
+	TerminationGracePeriodSeconds int64 = 180 + 20
 )
 
 // DatabaseStatus -
