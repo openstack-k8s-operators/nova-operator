@@ -393,7 +393,15 @@ var _ = Describe("Nova multi cell", func() {
 
 			th.SimulateStatefulSetReplicaReady(cell1.NovaComputeStatefulSetName)
 			th.SimulateStatefulSetReplicaReady(cell1.ConductorStatefulSetName)
+
+			// Cell mapping Job must exist but host discovery must wait until
+			// mapping succeeds.
+			th.GetJob(cell1.CellMappingJobName)
+			AssertJobRemainsAbsent(cell1.HostDiscoveryJobName)
+
 			th.SimulateJobSuccess(cell1.CellMappingJobName)
+			th.GetJob(cell1.HostDiscoveryJobName)
+
 			th.ExpectCondition(
 				cell1.CellCRName,
 				ConditionGetterFunc(NovaCellConditionGetter),
