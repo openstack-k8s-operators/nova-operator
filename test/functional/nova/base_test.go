@@ -888,6 +888,18 @@ func AssertComputeDoesNotExist(name types.NamespacedName) {
 	}, timeout, interval).Should(Succeed())
 }
 
+// AssertJobRemainsAbsent checks that a Job stays absent for the whole
+// consistency window. th.AssertJobDoesNotExist is not usable here: it uses
+// Eventually, which passes on its first poll because the Job has not been
+// created yet so it would assert nothing about the ordering.
+func AssertJobRemainsAbsent(name types.NamespacedName) {
+	Consistently(func(g Gomega) {
+		job := &batchv1.Job{}
+		err := k8sClient.Get(ctx, name, job)
+		g.Expect(k8s_errors.IsNotFound(err)).To(BeTrue())
+	}, consistencyTimeout, interval).Should(Succeed())
+}
+
 func GetCronJob(name types.NamespacedName) *batchv1.CronJob {
 	cron := &batchv1.CronJob{}
 	Eventually(func(g Gomega) {

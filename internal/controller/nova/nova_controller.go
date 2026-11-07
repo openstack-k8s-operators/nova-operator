@@ -1562,6 +1562,13 @@ func (r *NovaReconciler) ensureCell(
 	if err != nil {
 		return cell, status, err
 	}
+	// Host discovery must not start until the cell is mapped. ensureCellMapped
+	// returns (CellMapping, nil) while its Job is still Active; previously we
+	// only checked err and started discover_hosts in the same reconcile which
+	// raced with cell mapping.
+	if status != nova.CellMappingReady {
+		return cell, status, nil
+	}
 
 	// We need to discover computes when cell have compute templates and mapping is done
 	status, err = r.ensureNovaComputeDiscover(

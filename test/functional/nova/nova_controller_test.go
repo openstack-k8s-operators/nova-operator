@@ -1868,6 +1868,11 @@ var _ = Describe("Nova controller", func() {
 			}, timeout, interval).Should(Succeed())
 
 			SimulateReadyOfNovaTopServices()
+			Eventually(func(g Gomega) {
+				th.SimulateJobSuccess(cell0.CellMappingJobName)
+				nova := GetNova(novaNames.NovaName)
+				g.Expect(nova.Status.Conditions.IsTrue(novav1.NovaAllCellsReadyCondition)).To(BeTrue())
+			}, timeout, interval).Should(Succeed())
 		},
 		// delete the CR, allowing tests that exercise finalizer removal
 		DeleteCR: func() {
@@ -1998,7 +2003,9 @@ var _ = Describe("Nova controller", func() {
 
 			SimulateReadyOfNovaTopServices()
 			Eventually(func(g Gomega) {
+				th.SimulateJobSuccess(cell0.CellMappingJobName)
 				nova := GetNova(novaNames.NovaName)
+				g.Expect(nova.Status.Conditions.IsTrue(novav1.NovaAllCellsReadyCondition)).To(BeTrue())
 				g.Expect(nova.Status.APIServiceReadyCount).To(Equal(int32(1)))
 				g.Expect(nova.Status.SchedulerServiceReadyCount).To(Equal(int32(1)))
 				g.Expect(nova.Status.MetadataServiceReadyCount).To(Equal(int32(1)))
@@ -2632,6 +2639,7 @@ var _ = Describe("Nova controller - transport URL secret rotation", func() {
 			// the first poll, so re-simulate the current generation and poke a
 			// reconcile on every iteration until the finalizer has moved.
 			Eventually(func(g Gomega) {
+				th.SimulateJobSuccess(cell0.CellMappingJobName)
 				th.SimulateStatefulSetReplicaReady(novaNames.APIStatefulSetName)
 				th.SimulateStatefulSetReplicaReady(novaNames.SchedulerStatefulSetName)
 				th.SimulateStatefulSetReplicaReady(novaNames.MetadataStatefulSetName)
@@ -2800,6 +2808,8 @@ var _ = Describe("Nova controller - cell transport URL secret rotation", func() 
 		// workloads to update. Simulate all workloads ready and wait
 		// for Nova to become Ready again.
 		Eventually(func(g Gomega) {
+			th.SimulateJobSuccess(cell1.CellMappingJobName)
+			th.SimulateJobSuccess(cell1.HostDiscoveryJobName)
 			th.SimulateStatefulSetReplicaReady(novaNames.APIStatefulSetName)
 			th.SimulateStatefulSetReplicaReady(novaNames.SchedulerStatefulSetName)
 			th.SimulateStatefulSetReplicaReady(novaNames.MetadataStatefulSetName)
@@ -2812,6 +2822,8 @@ var _ = Describe("Nova controller - cell transport URL secret rotation", func() 
 		}, 2*timeout, interval).Should(Succeed())
 
 		Eventually(func(g Gomega) {
+			th.SimulateJobSuccess(cell1.CellMappingJobName)
+			th.SimulateJobSuccess(cell1.HostDiscoveryJobName)
 			th.SimulateStatefulSetReplicaReady(novaNames.APIStatefulSetName)
 			th.SimulateStatefulSetReplicaReady(novaNames.SchedulerStatefulSetName)
 			th.SimulateStatefulSetReplicaReady(novaNames.MetadataStatefulSetName)
