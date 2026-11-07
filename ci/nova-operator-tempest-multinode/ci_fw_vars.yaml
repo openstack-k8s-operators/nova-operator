@@ -9,6 +9,10 @@ cifmw_cls_pv_count: 20
 
 cifmw_services_swift_enabled: false
 cifmw_edpm_deploy_nfs: true
+cifmw_nfs_target: controller
+cifmw_nfs_server_ip: "{{ hostvars['controller'].ansible_host }}"
+cifmw_nfs_clients_cidr: "{{ hostvars['crc'].ansible_host }}/32"
+cifmw_nfs_debug: true
 cifmw_nfs_shares:
   - cinder
   - cinderbackup
@@ -19,6 +23,9 @@ post_deploy_81_kustomize_openstack_CR_to_enable_genericNFS_cinder_backend:
 post_deploy_82_kustomize_and_update_Control_Plane:
   type: playbook
   source: control_plane_kustomize_deploy.yml
+post_deploy_83_debug_cinder_nfs_connectivity:
+  type: playbook
+  source: "{{ ansible_user_dir }}/{{ zuul.projects['github.com/openstack-k8s-operators/nova-operator'].src_dir }}/ci/nova-operator-tempest-multinode/nfs_connectivity_debug.yml"
 
 
 # note by default the source for the playbook specified
