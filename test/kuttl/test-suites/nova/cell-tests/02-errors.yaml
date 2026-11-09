@@ -1,0 +1,12 @@
+# The fake compute must be gone before cell1 itself is deleted.
+apiVersion: nova.openstack.org/v1beta1
+kind: NovaCompute
+metadata:
+  name: nova-kuttl-cell1-compute-fake-compute
+  namespace: nova-kuttl-tests
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nova-kuttl-cell1-compute-fake-compute-0
+  namespace: nova-kuttl-tests

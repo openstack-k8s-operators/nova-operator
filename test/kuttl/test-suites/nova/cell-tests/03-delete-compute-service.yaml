@@ -1,0 +1,17 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+  - script: |
+      set -eu
+      # The compute pod is already gone. Deleting the nova-compute service
+      # removes its host mapping when the host has no instances.
+      NS=nova-kuttl-tests
+      service_ids=$(oc exec -n "${NS}" openstackclient -- openstack --os-compute-api-version 2.53 compute service list \
+        --service nova-compute -f value -c ID -c Host | awk '$2 ~ /cell1/ { print $1 }')
+      if [ -z "${service_ids}" ]; then
+        echo "expected a nova-compute service for cell1"
+        exit 1
+      fi
+      for service_id in ${service_ids}; do
+        oc exec -n "${NS}" openstackclient -- openstack --os-compute-api-version 2.53 compute service delete "${service_id}"
+      done
