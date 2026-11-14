@@ -1,0 +1,124 @@
+---
+- name: Diagnose Cinder to controller NFS reachability
+  hosts: "{{ cifmw_target_hook_host | default('localhost') }}"
+  gather_facts: false
+  vars:
+    _nfs_probe_script: |
+      import socket
+      import subprocess
+      import time
+
+      for args in (['ip', '-brief', 'address'], ['ip', 'route'], ['ip', 'route', 'get', '{{ cifmw_nfs_ip }}']):
+          try:
+              result = subprocess.run(args, capture_output=True, text=True, check=False)
+              print('$ ' + ' '.join(args))
+              print(result.stdout, end='')
+              print(result.stderr, end='')
+          except OSError as exc:
+              print('$ ' + ' '.join(args))
+              print(str(exc))
+
+      try:
+          connection = socket.create_connection(('{{ cifmw_nfs_ip }}', 2049), timeout=5)
+          print('tcp_2049=connected local=%s peer=%s' % (connection.getsockname(), connection.getpeername()))
+          time.sleep(8)
+          connection.close()
+      except OSError as exc:
+          print('tcp_2049=failed error=%s' % exc)
+  tasks:
+    - name: Log configured NFS endpoint and export CIDR
+      ansible.builtin.debug:
+        msg:
+          nfs_server_ip: "{{ cifmw_nfs_ip }}"
+          nfs_clients_cidr: "{{ cifmw_nfs_network_range }}"
+          expected_crc_egress_ip: "{{ hostvars['crc'].ansible_host }}"
+
+    - name: Find the NFS-backed Cinder volume pod
+      environment:
+        KUBECONFIG: "{{ cifmw_openshift_kubeconfig }}"
+        PATH: "{{ cifmw_path | default(lookup('env', 'HOME') ~ '/.crc/bin:' ~ lookup('env', 'PATH')) }}"
+      ansible.builtin.command:
+        argv:
+          - oc
+          - get
+          - pods
+          - -n
+          - "{{ namespace }}"
+          - -l
+          - service=cinder,component=cinder-volume,backend=nfs
+          - -o
+          - jsonpath={.items[0].metadata.name}
+      register: _cinder_nfs_pod
+      changed_when: false
+      failed_when: false
+
+    - name: Log missing Cinder NFS volume pod
+      when: _cinder_nfs_pod.stdout | default('') | length == 0
+      ansible.builtin.debug:
+        msg: "No Cinder NFS volume pod was found; inspect the OpenStackControlPlane reconciliation logs."
+
+    - name: Start reachability probe from the Cinder volume pod
+      when: _cinder_nfs_pod.stdout | default('') | length > 0
+      environment:
+        KUBECONFIG: "{{ cifmw_openshift_kubeconfig }}"
+        PATH: "{{ cifmw_path | default(lookup('env', 'HOME') ~ '/.crc/bin:' ~ lookup('env', 'PATH')) }}"
+      ansible.builtin.command:
+        argv:
+          - oc
+          - exec
+          - -n
+          - "{{ namespace }}"
+          - "{{ _cinder_nfs_pod.stdout }}"
+          - -c
+          - cinder-volume
+          - --
+          - python3
+          - -c
+          - "{{ _nfs_probe_script }}"
+      async: 30
+      poll: 0
+      register: _cinder_nfs_probe_job
+      changed_when: false
+      failed_when: false
+
+    - name: Capture controller-side NFS TCP peers during the probe
+      when: _cinder_nfs_probe_job.ansible_job_id is defined
+      ansible.builtin.command:
+        argv:
+          - ss
+          - -H
+          - -tn
+          - state
+          - established
+          - sport
+          - "="
+          - :2049
+      register: _nfs_server_peers
+      changed_when: false
+      failed_when: false
+      retries: 8
+      delay: 1
+      until: _nfs_server_peers.stdout | default('') | length > 0
+
+    - name: Log controller-side NFS TCP peers
+      when: _cinder_nfs_probe_job.ansible_job_id is defined
+      ansible.builtin.debug:
+        var: _nfs_server_peers.stdout
+
+    - name: Collect Cinder-side route and TCP probe output
+      when: _cinder_nfs_probe_job.ansible_job_id is defined
+      ansible.builtin.async_status:
+        jid: "{{ _cinder_nfs_probe_job.ansible_job_id }}"
+      register: _cinder_nfs_probe_result
+      until: _cinder_nfs_probe_result.finished | default(false)
+      retries: 15
+      delay: 1
+      failed_when: false
+
+    - name: Log Cinder-side route and TCP probe output
+      when: _cinder_nfs_probe_job.ansible_job_id is defined
+      ansible.builtin.debug:
+        msg:
+          rc: "{{ _cinder_nfs_probe_result.rc | default('unknown') }}"
+          stdout: "{{ _cinder_nfs_probe_result.stdout | default('') }}"
+          stderr: "{{ _cinder_nfs_probe_result.stderr | default('') }}"
