@@ -94,6 +94,7 @@
         - "@scenarios/centos-10/base.yml"
         - "@scenarios/centos-10/multinode-ci.yml"
         - "@{{ ansible_user_dir }}/{{ zuul.projects['github.com/openstack-k8s-operators/nova-operator'].src_dir }}/ci/nova-operator-tempest-multinode/ci_fw_vars.yaml"
+      cifmw_artifacts_gather_nova_compute_logs: true
       cifmw_run_test_role: test_operator
       cifmw_test_operator_tempest_concurrency: 4
       cifmw_test_operator_timeout: 7200
@@ -200,6 +201,7 @@
       s2i_extras:
         - "@{{ ansible_user_dir }}/{{ zuul.projects['github.com/openstack-k8s-operators/nova-operator'].src_dir }}/ci/nova-operator-tempest-multinode-ceph/ci_fw_vars.yaml"
       # dedupe this later
+      cifmw_artifacts_gather_nova_compute_logs: true
       cifmw_run_test_role: test_operator
       cifmw_test_operator_tempest_concurrency: 4
       cifmw_test_operator_timeout: 7200
