@@ -555,8 +555,8 @@ func (r *NovaCellReconciler) ensureNoVNCProxyDeleted(
 
 	// OK this was created by us so we go and delete it
 	err = r.Client.Delete(ctx, novncproxy)
-	if err != nil && k8s_errors.IsNotFound(err) {
-		return nil
+	if err != nil && !k8s_errors.IsNotFound(err) {
+		return err
 	}
 	Log.Info("NovaNoVNCProxy is disabled in this cell, so deleted NovaNoVNCProxy",
 		"NovaNoVNCProxy", novncproxy)
@@ -711,7 +711,7 @@ func (r *NovaCellReconciler) ensureNovaComputeDeleted(
 
 	// OK this was created by us so we go and delete it
 	err = r.Client.Delete(ctx, compute)
-	if err != nil && k8s_errors.IsNotFound(err) {
+	if err != nil && !k8s_errors.IsNotFound(err) {
 		return err
 	}
 	Log.Info("NovaCompute isn't defined in the cell, so deleted NovaCompute", "NovaCompute", compute)

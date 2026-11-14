@@ -28,9 +28,14 @@ import (
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	novav1 "github.com/openstack-k8s-operators/nova-operator/api/nova/v1beta1"
 	controllers "github.com/openstack-k8s-operators/nova-operator/internal/controller/nova"
+	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
+	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 )
 
 var _ = Describe("Nova multi cell", func() {
@@ -1019,6 +1024,73 @@ var _ = Describe("Nova multi cell deletion", func() {
 
 		})
 
+		It("keeps the cell registered if the NovaCell cannot be deleted", func() {
+			allowDelete := DenyDelete(GetNovaCell(cell3.CellCRName), "novacells")
+
+			Eventually(func(g Gomega) {
+				nova := GetNova(novaNames.NovaName)
+				delete(nova.Spec.CellTemplates, "cell3")
+				g.Expect(k8sClient.Update(ctx, nova)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+			th.SimulateJobSuccess(cell3.CellDeleteJobName)
+			// the cell DB is deleted right before the NovaCell
+			mariadb.AssertMariaDBDatabaseDoesNotExist(cell3.MariaDBDatabaseName)
+
+			// The NovaCell cannot be deleted so the cell deletion must not
+			// be reported as completed
+			Consistently(func(g Gomega) {
+				g.Expect(k8sClient.Get(ctx, cell3.CellCRName, &novav1.NovaCell{})).To(Succeed())
+				nova := GetNova(novaNames.NovaName)
+				g.Expect(nova.Status.RegisteredCells).To(HaveKey(cell3.CellCRName.Name))
+				g.Expect(nova.Status.Conditions.IsTrue(novav1.NovaCellsDeletionCondition)).To(BeFalse())
+			}, consistencyTimeout, interval).Should(Succeed())
+
+			// The deletion is retried and completes once the NovaCell can be
+			// deleted
+			allowDelete()
+			Eventually(func(g Gomega) {
+				err := k8sClient.Get(ctx, cell3.CellCRName, &novav1.NovaCell{})
+				g.Expect(k8s_errors.IsNotFound(err)).To(BeTrue())
+				nova := GetNova(novaNames.NovaName)
+				g.Expect(nova.Status.RegisteredCells).NotTo(HaveKey(cell3.CellCRName.Name))
+				g.Expect(nova.Status.Conditions.IsTrue(novav1.NovaCellsDeletionCondition)).To(BeTrue())
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("keeps tracking the NovaCompute if it cannot be deleted", func() {
+			allowDelete := DenyDelete(GetNovaCompute(cell1.NovaComputeName), "novacomputes")
+
+			Eventually(func(g Gomega) {
+				nova := GetNova(novaNames.NovaName)
+				cellTemplate := nova.Spec.CellTemplates["cell1"]
+				cellTemplate.NovaComputeTemplates = nil
+				nova.Spec.CellTemplates["cell1"] = cellTemplate
+				g.Expect(k8sClient.Update(ctx, nova)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+			// the NovaCell reconciled the removal of the compute template
+			Eventually(func(g Gomega) {
+				cell := GetNovaCell(cell1.CellCRName)
+				g.Expect(cell.Spec.NovaComputeTemplates).To(BeEmpty())
+				g.Expect(cell.Status.ObservedGeneration).To(Equal(cell.Generation))
+			}, timeout, interval).Should(Succeed())
+
+			// The NovaCompute cannot be deleted so the cell must keep
+			// tracking it to retry the deletion
+			Consistently(func(g Gomega) {
+				g.Expect(k8sClient.Get(ctx, cell1.NovaComputeName, &novav1.NovaCompute{})).To(Succeed())
+				cell := GetNovaCell(cell1.CellCRName)
+				g.Expect(cell.Status.NovaComputesStatus).To(HaveKey(ironicComputeName))
+			}, consistencyTimeout, interval).Should(Succeed())
+
+			allowDelete()
+			Eventually(func(g Gomega) {
+				err := k8sClient.Get(ctx, cell1.NovaComputeName, &novav1.NovaCompute{})
+				g.Expect(k8s_errors.IsNotFound(err)).To(BeTrue())
+				cell := GetNovaCell(cell1.CellCRName)
+				g.Expect(cell.Status.NovaComputesStatus).NotTo(HaveKey(ironicComputeName))
+			}, timeout, interval).Should(Succeed())
+		})
+
 		It("retrieve sorted cells", func() {
 			cellList := &novav1.NovaCellList{
 				Items: []novav1.NovaCell{
@@ -1045,3 +1117,72 @@ var _ = Describe("Nova multi cell deletion", func() {
 		})
 	})
 })
+
+// DenyDelete denies the deletion of obj with a ValidatingAdmissionPolicy and
+// waits until the API server enforces it. resource is the plural resource name
+// of obj. The returned function allows the deletion again.
+func DenyDelete(obj client.Object, resource string) func() {
+	gvk, err := apiutil.GVKForObject(obj, k8sClient.Scheme())
+	Expect(err).ToNot(HaveOccurred())
+	name := fmt.Sprintf("deny-delete-%s-%s", resource, obj.GetNamespace())
+
+	policy := &admissionregistrationv1.ValidatingAdmissionPolicy{
+		ObjectMeta: metav1.ObjectMeta{Name: name},
+		Spec: admissionregistrationv1.ValidatingAdmissionPolicySpec{
+			FailurePolicy: ptr.To(admissionregistrationv1.Fail),
+			MatchConstraints: &admissionregistrationv1.MatchResources{
+				ResourceRules: []admissionregistrationv1.NamedRuleWithOperations{{
+					RuleWithOperations: admissionregistrationv1.RuleWithOperations{
+						Operations: []admissionregistrationv1.OperationType{admissionregistrationv1.Delete},
+						Rule: admissionregistrationv1.Rule{
+							APIGroups:   []string{gvk.Group},
+							APIVersions: []string{gvk.Version},
+							Resources:   []string{resource},
+						},
+					},
+				}},
+			},
+			Validations: []admissionregistrationv1.Validation{{
+				Expression: fmt.Sprintf("oldObject.metadata.name != '%s'", obj.GetName()),
+				Message:    "deletion denied by test",
+			}},
+		},
+	}
+	Expect(k8sClient.Create(ctx, policy)).To(Succeed())
+	binding := &admissionregistrationv1.ValidatingAdmissionPolicyBinding{
+		ObjectMeta: metav1.ObjectMeta{Name: name},
+		Spec: admissionregistrationv1.ValidatingAdmissionPolicyBindingSpec{
+			PolicyName:        name,
+			ValidationActions: []admissionregistrationv1.ValidationAction{admissionregistrationv1.Deny},
+			MatchResources: &admissionregistrationv1.MatchResources{
+				NamespaceSelector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{"kubernetes.io/metadata.name": obj.GetNamespace()},
+				},
+			},
+		},
+	}
+	Expect(k8sClient.Create(ctx, binding)).To(Succeed())
+
+	allowDelete := func() {
+		Expect(client.IgnoreNotFound(k8sClient.Delete(ctx, binding))).To(Succeed())
+		Expect(client.IgnoreNotFound(k8sClient.Delete(ctx, policy))).To(Succeed())
+		// wait until the API server does not enforce the policy anymore
+		Eventually(func(g Gomega) {
+			err := k8sClient.Delete(ctx, obj, &client.DeleteOptions{DryRun: []string{metav1.DryRunAll}})
+			g.Expect(client.IgnoreNotFound(err)).To(Succeed())
+		}, timeout, interval).Should(Succeed())
+	}
+	DeferCleanup(func() {
+		Expect(client.IgnoreNotFound(k8sClient.Delete(ctx, binding))).To(Succeed())
+		Expect(client.IgnoreNotFound(k8sClient.Delete(ctx, policy))).To(Succeed())
+	})
+
+	// wait until the API server enforces the policy
+	Eventually(func(g Gomega) {
+		err := k8sClient.Delete(ctx, obj, &client.DeleteOptions{DryRun: []string{metav1.DryRunAll}})
+		g.Expect(err).To(HaveOccurred())
+		g.Expect(err.Error()).To(ContainSubstring("deletion denied by test"))
+	}, timeout, interval).Should(Succeed())
+
+	return allowDelete
+}
