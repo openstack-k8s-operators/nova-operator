@@ -163,6 +163,13 @@
       # nova-operator-tempest-multinode.
       cifmw_test_operator_tempest_include_list: |
           cyborg_tempest_plugin
+      # The FPGA programming tests (test_fpga_program,
+      # test_fpga_program_on_bind) are skipped by the plugin's default
+      # until https://bugs.launchpad.net/openstack-cyborg/+bug/2174459
+      # is fixed and deployed: server-addressed agent RPC
+      # (fpga_program) is unroutable when the agent's CONF.host
+      # differs from its resource provider name, so the program API
+      # times out. Re-enable by setting cyborg.fpga_program true.
       cifmw_test_operator_tempest_tempestconf_config:
           overrides: |
             identity.v3_endpoint_type public
@@ -180,7 +187,6 @@
             validation.image_alt_ssh_user cirros
             validation.image_alt_ssh_password gocubsgo
             validation.allowed_network_downtime 10
-            cyborg.fpga_program true
             cyborg_pci.device_profile_name pci-sim-cyborg-dp
             cyborg_pci.vendor_id 1d55
             cyborg_pci.product_id 1000
