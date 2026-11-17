@@ -229,7 +229,7 @@ make undeploy
 
 ## Contributing
 
-// TODO(user): Add detailed information on how you would like others to contribute to this project
+See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines and DCO information.
 
 ### How it works
 
