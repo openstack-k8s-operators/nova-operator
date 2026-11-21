@@ -18,13 +18,16 @@ post_ctlplane_deploy:
   - name: 71 Kustomize control plane to scale openstack services
     type: playbook
     source: "{{ ansible_user_dir }}/{{ zuul.projects['github.com/openstack-k8s-operators/nova-operator'].src_dir }}/ci/nova-operator-tempest-multinode/control_plane_hook.yaml"
+  - name: 72 Kustomize control plane to enable Cyborg
+    type: playbook
+    source: "{{ ansible_user_dir }}/{{ zuul.projects['github.com/openstack-k8s-operators/nova-operator'].src_dir }}/ci/nova-operator-cyborg-tempest-multinode/control_plane_cyborg_hook.yaml"
   - name: 82 Kustomize and update Control Plane
     type: playbook
     source: control_plane_kustomize_deploy.yml
   - name: 85 Create neutron-metadata-custom
     type: playbook
     source: "{{ ansible_user_dir }}/{{ zuul.projects['github.com/openstack-k8s-operators/nova-operator'].src_dir }}/ci/nova-operator-cyborg-tempest-multinode/pre_deploy_hook.yml"
-  - name: 90 Deploy Cyborg service
+  - name: 90 Wait for Cyborg and create extra config
     type: playbook
     source: "{{ ansible_user_dir }}/{{ zuul.projects['github.com/openstack-k8s-operators/nova-operator'].src_dir }}/ci/nova-operator-cyborg-tempest-multinode/deploy_cyborg_service.yaml"
 

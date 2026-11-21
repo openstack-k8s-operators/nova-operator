@@ -161,13 +161,15 @@
         - "@{{ ansible_user_dir }}/{{ zuul.projects['github.com/openstack-k8s-operators/nova-operator'].src_dir }}/ci/nova-operator-cyborg-tempest-multinode/ci_fw_vars.yaml"
       # The s2i master tempest image is inherited from
       # nova-operator-tempest-multinode.
-      # Pin cyborg tempest plugin as newer commits require roles that are not created in RHOSO18
-      cifmw_test_operator_tempest_external_plugin:
-        - repository: https://opendev.org/openstack/cyborg-tempest-plugin.git
-          changeRepository: "https://review.opendev.org/openstack/cyborg-tempest-plugin"
-          changeRefspec: "e98dfff4bacdaeffe1fa79d3cfd5f2e28002cd98"
       cifmw_test_operator_tempest_include_list: |
           cyborg_tempest_plugin
+      # The FPGA programming tests (test_fpga_program,
+      # test_fpga_program_on_bind) are skipped by the plugin's default
+      # until https://bugs.launchpad.net/openstack-cyborg/+bug/2174459
+      # is fixed and deployed: server-addressed agent RPC
+      # (fpga_program) is unroutable when the agent's CONF.host
+      # differs from its resource provider name, so the program API
+      # times out. Re-enable by setting cyborg.fpga_program true.
       cifmw_test_operator_tempest_tempestconf_config:
           overrides: |
             identity.v3_endpoint_type public
