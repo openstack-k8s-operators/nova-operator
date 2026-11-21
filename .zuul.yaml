@@ -283,33 +283,53 @@
       cifmw_whitebox_install_crudini: true
       # avoid using default test_operator exclude list
       cifmw_test_operator_tempest_tests_exclude_override_scenario: false
-      # This replaces the parent job's extra config, so repeat its Nehalem
-      # model. A nova-operator pull request runs the parent and does not
-      # get this block.
-      # TODO: one NodeSet gives every compute the same nova.conf. Different
-      # CPU sets need two OpenStackDataPlaneNodeSets, two nova dataplane
-      # services, and two ConfigMaps. Until then whitebox does not prove
-      # that live migration updates CPU pinning.
-      cifmw_edpm_deploy_nova_compute_extra_config: |
-        [compute]
-        # /var/lib/nova is already mounted into the compute container, so
-        # a provider.yaml written there after deploy is visible on restart.
-        provider_config_location = /var/lib/nova/provider_config
-        # Eight CPUs on each compute. The dedicated set is 0,1,4,5,
-        # same as the RHOSO 18 job, so a guest that pins two CPUs
-        # leaves two free. The shared set is 2,3,6,7 so a live
-        # migration still has a free vCPU while Tempest runs four
-        # tests at once.
-        cpu_dedicated_set = 0,1,4,5
-        cpu_shared_set = 2,3,6,7
-        max_disk_devices_to_attach = 8
-        [libvirt]
-        cpu_mode = custom
-        cpu_models = Nehalem
-        cpu_model_extra_flags = vme,+ssse3,-mmx
-        rx_queue_size = 1024
-        [key_manager]
-        backend = barbican
+      # This replaces the parent job's extra config, so every entry repeats
+      # its Nehalem model. A nova-operator pull request runs the parent and
+      # does not get this block.
+      # Each compute gets its own OpenStackDataPlaneNodeSet, nova
+      # OpenStackDataPlaneService, and nova-extra-config ConfigMap. The CPU
+      # sets are swapped between the computes: each has eight CPUs, four
+      # dedicated and four shared, so a guest that pins two CPUs still
+      # leaves two free, but a dedicated pin on one compute lands in the
+      # shared set of the other. Live migration must therefore regenerate
+      # the vCPUPin XML, and a stale pin from the source host fails the
+      # destination assertions.
+      cifmw_edpm_deploy_nova_compute_extra_configs:
+        openstack-edpm-0:
+          hosts:
+            - compute-0
+          nova_compute_extra_config: |
+            [compute]
+            # /var/lib/nova is already mounted into the compute container,
+            # so a provider.yaml written there after deploy is visible on
+            # restart.
+            provider_config_location = /var/lib/nova/provider_config
+            cpu_dedicated_set = 0,1,4,5
+            cpu_shared_set = 2,3,6,7
+            max_disk_devices_to_attach = 8
+            [libvirt]
+            cpu_mode = custom
+            cpu_models = Nehalem
+            cpu_model_extra_flags = vme,+ssse3,-mmx
+            rx_queue_size = 1024
+            [key_manager]
+            backend = barbican
+        openstack-edpm-1:
+          hosts:
+            - compute-1
+          nova_compute_extra_config: |
+            [compute]
+            provider_config_location = /var/lib/nova/provider_config
+            cpu_dedicated_set = 2,3,6,7
+            cpu_shared_set = 0,1,4,5
+            max_disk_devices_to_attach = 8
+            [libvirt]
+            cpu_mode = custom
+            cpu_models = Nehalem
+            cpu_model_extra_flags = vme,+ssse3,-mmx
+            rx_queue_size = 1024
+            [key_manager]
+            backend = barbican
       # identity.v3_endpoint_type public: tempest otherwise uses the
       # admin URL and the run becomes unstable.
       # ide_bus false: the default machine type has no IDE bus.
@@ -347,6 +367,7 @@
           whitebox.ctlplane_addresses compute-0.ctlplane.example.com:192.168.122.100,compute-1.ctlplane.example.com:192.168.122.101
           whitebox.ctlplane_ssh_username cloud-admin
           whitebox.ctlplane_ssh_private_key_path '/var/lib/tempest/.ssh/id_ecdsa'
+          compute.min_compute_nodes 2
           whitebox.max_compute_nodes 2
           whitebox-hardware.dedicated_cpus_per_numa 2
           whitebox-hardware.shared_cpus_per_numa 1
@@ -377,8 +398,8 @@
                 start_command: 'systemctl start edpm_nova_compute'
                 stop_command: 'systemctl stop edpm_nova_compute'
           compute-1.ctlplane.example.com:
-            cpu_dedicated_set: '0,1,4,5'
-            cpu_shared_set: '2,3,6,7'
+            cpu_dedicated_set: '2,3,6,7'
+            cpu_shared_set: '0,1,4,5'
             services:
               libvirt:
                 start_command: 'systemctl start virtqemud'
