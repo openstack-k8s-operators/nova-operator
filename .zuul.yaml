@@ -291,6 +291,11 @@
       # services, and two ConfigMaps. Until then whitebox does not prove
       # that live migration updates CPU pinning.
       cifmw_edpm_deploy_nova_compute_extra_config: |
+        [DEFAULT]
+        # Nova refuses to start nova-compute when whitebox sets
+        # libvirt.file_backed_memory unless this reservation is 0. The test
+        # sets ram_allocation_ratio=1 and leaves the default 512.
+        reserved_host_memory_mb = 0
         [compute]
         # /var/lib/nova is already mounted into the compute container, so
         # a provider.yaml written there after deploy is visible on restart.
@@ -308,8 +313,17 @@
         cpu_models = Nehalem
         cpu_model_extra_flags = vme,+ssse3,-mmx
         rx_queue_size = 1024
+        # nova-operator defaults post-copy on but QEMU rejects post-copy when
+        # guest RAM is a file on a non-tmpfs filesystem which is exactly what
+        # whitebox's file_backed_memory tests configure. Without this,
+        # test_live_migrate_file_backed_server fails with "Postcopy is not
+        # supported: Host backend files need to be TMPFS or HUGETLBFS only".
+        live_migration_permit_post_copy = false
         [key_manager]
         backend = barbican
+      # whitebox-hardware.* describes the compute hosts: eight CPUs in two
+      # NUMA cells, matching cpu_dedicated_set/cpu_shared_set above, so two
+      # dedicated and two shared CPUs per cell.
       # identity.v3_endpoint_type public: tempest otherwise uses the
       # admin URL and the run becomes unstable.
       # ide_bus false: the default machine type has no IDE bus.
@@ -327,6 +341,7 @@
           compute-feature-enabled.ide_bus false
           compute-feature-enabled.attach_encrypted_volume false
           compute-feature-enabled.volume_multiattach false
+          compute-feature-enabled.volume_backed_live_migration true
           compute-feature-enabled.virtio_rng true
           compute-feature-enabled.vtpm_device_supported true
           compute-feature-enabled.vtpm_live_migration_supported true
@@ -348,8 +363,10 @@
           whitebox.ctlplane_ssh_username cloud-admin
           whitebox.ctlplane_ssh_private_key_path '/var/lib/tempest/.ssh/id_ecdsa'
           whitebox.max_compute_nodes 2
+          whitebox-hardware.cpu_topology '0:[0,1,2,3],1:[4,5,6,7]'
           whitebox-hardware.dedicated_cpus_per_numa 2
-          whitebox-hardware.shared_cpus_per_numa 1
+          whitebox-hardware.shared_cpus_per_numa 2
+          whitebox.file_backed_memory_size 10240
           whitebox.cpu_model Nehalem
           whitebox.cpu_model_extra_flags 'vme,+ssse3,-mmx'
           whitebox.rx_queue_size 1024
@@ -417,7 +434,7 @@
               whitebox_tempest_plugin.api.compute.test_volume_negative.VolumesAdminNegativeTest.test_detach_failure
               whitebox_tempest_plugin.api.compute.test_virtio_scsi_attach.VirtioSCSIDiskRestrictAttachments.test_max_iscsi_disks_attachment_enforced
               whitebox_tempest_plugin.api.compute.test_live_migration.LiveMigrationBase.test_live_migrate_and_reboot
-              whitebox_tempest_plugin.api.compute.test_cpu_pinning.MixedCPUPolicyTest.test_shared_pinned_and_unpinned_guest
+              whitebox_tempest_plugin.api.compute.test_cpu_pinning.MixedCPUPolicyTestMultiNuma.test_shared_pinned_and_unpinned_guest
               whitebox_tempest_plugin.api.compute.test_watchdog_devices.WatchdogDeviceTest.test_action_with_flavor_5_disabled
               whitebox_tempest_plugin.api.compute.test_uefi.TestUEFIBoot.test_uefi_boot_and_rebuild
               whitebox_tempest_plugin.api.compute.test_vtpm.VTPMTest.test_vtpm_live_migration_secret_security_user
