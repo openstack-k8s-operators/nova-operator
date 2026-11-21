@@ -94,11 +94,22 @@
             - hosts: all
               strategy: linear
               tasks:
+                - name: Get kernel release
+                  ansible.builtin.command: uname -r
+                  register: running_kernel
+                  changed_when: false
+
+                  # Note(chandankumar): When we build pci-sim,
+                  # installed kernel-devel and kernel package version should
+                  # match, otherwise pci-sim build will fail is missing
+                  # /lib/modules/<release kernel version>/ directory.
+                  # We need to use uname -r to get the released kernel
+                  # version and then install required kernel-devel package.
                 - name: Install required dependencies for Cyborg
                   become: true
-                  ansible.builtin.dnf:
+                  ansible.builtin.package:
                     name:
-                      - kernel-devel
+                      - "kernel-devel-{{ '{{  running_kernel.stdout }}' }}"
                       - gcc
                       - make
                       - pciutils
