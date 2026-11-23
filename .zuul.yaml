@@ -80,7 +80,7 @@
         KUTTL_SUITE: placement
 - job:
     name: nova-operator-tempest-multinode
-    parent: s2i-test-base
+    parent: s2i-test-base-2comp
     # Pin the nodeset on the job so every consumer inherits it, including
     # cyborg (via parent) and the s2i-component-jobs template.
     nodeset: centos-10-medium-2x-centos-10-crc-cloud-ocp-4-22-1-3xl
