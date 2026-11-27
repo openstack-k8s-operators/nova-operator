@@ -1130,7 +1130,7 @@ func (r *NovaReconciler) ensureCellDeleted(
 	// otherwise we cannot retry the above cleanup as we won't have the data
 	// what to clean up.
 	err = r.Client.Delete(ctx, cell)
-	if err != nil && k8s_errors.IsNotFound(err) {
+	if err != nil && !k8s_errors.IsNotFound(err) {
 		return nova.CellDeleteFailed, err
 	}
 

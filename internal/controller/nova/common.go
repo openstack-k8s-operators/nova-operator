@@ -319,8 +319,8 @@ func (r *ReconcilerBase) ensureMetadataDeleted(
 
 	// OK this was created by us so we go and delete it
 	err = r.Client.Delete(ctx, metadata)
-	if err != nil && k8s_errors.IsNotFound(err) {
-		return nil
+	if err != nil && !k8s_errors.IsNotFound(err) {
+		return err
 	}
 	Log.Info("NovaMetadata is disabled, so deleted NovaMetadata",
 		"NovaMetadata", metadata)
