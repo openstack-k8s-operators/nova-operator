@@ -931,6 +931,8 @@ func SimulateReadyOfNovaTopServices() {
 	keystone.SimulateKeystoneEndpointReady(novaNames.APIKeystoneEndpointName)
 
 	Eventually(func(g Gomega) {
+		// the conductor may be re-rendered (generation bump) after the cell Ready check above
+		th.SimulateStatefulSetReplicaReady(cell0.ConductorStatefulSetName)
 		th.SimulateStatefulSetReplicaReady(novaNames.SchedulerStatefulSetName)
 		th.SimulateStatefulSetReplicaReady(novaNames.MetadataStatefulSetName)
 		th.SimulateStatefulSetReplicaReady(novaNames.APIStatefulSetName)
