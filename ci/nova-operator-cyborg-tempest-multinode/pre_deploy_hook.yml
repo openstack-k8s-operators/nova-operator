@@ -134,11 +134,14 @@
                     cd /var/tmp/cyborg
                     make -C pci-sim modules
 
-                - name: Load vfio-pci module
+                - name: Load PCI simulator dependency modules
                   become: true
                   ansible.builtin.modprobe:
-                    name: vfio-pci
+                    name: "{{ '{{ item }}' }}"
                     state: present
+                  loop:
+                    - vfio-pci
+                    - mdev
 
                 - name: Enable unsafe VFIO interrupts at runtime
                   become: true
