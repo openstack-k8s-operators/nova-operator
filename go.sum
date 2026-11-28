@@ -142,8 +142,8 @@ github.com/openshift/api v0.0.0-20260710141509-36dec0bfafe4 h1:YVY7Mb0AdJBbNgC/Z
 github.com/openshift/api v0.0.0-20260710141509-36dec0bfafe4/go.mod h1:SPLf21TYPipzCO67BURkCfK6dcIIxx0oNRVWaOyRcXM=
 github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20261026075308-c598716245d3 h1:042To9yy2536EINdBuoj9rKcI7ROWAm5Aej6+hGdWZE=
 github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20261026075308-c598716245d3/go.mod h1:QMagXN0jEhBK/XIXZHJyv+EQTuUzB5MqdKuaipESD8w=
-github.com/openstack-k8s-operators/keystone-operator/api v0.6.1-0.20261026075307-fdb1993c547e h1:dOjxpF9HnWGXAcurFi6ikrXv1Tw3LtW5wqkrcVoJgiY=
-github.com/openstack-k8s-operators/keystone-operator/api v0.6.1-0.20261026075307-fdb1993c547e/go.mod h1:ScJZ1B6dDlA7xG0j07mOhnIP4/f658Ciey+t8QYP7zo=
+github.com/openstack-k8s-operators/keystone-operator/api v0.6.1-0.20261121131643-ce0a2167ff7d h1:i9mBa/dBQiZgSe8YKvvzDN5Lv7jwWWjwbAhr8UgbP7s=
+github.com/openstack-k8s-operators/keystone-operator/api v0.6.1-0.20261121131643-ce0a2167ff7d/go.mod h1:ZDc3Nre7FN3vIPjI7XI6mEEtkO7NszTx0fx0tCeDs+8=
 github.com/openstack-k8s-operators/lib-common/modules/common v0.6.1-0.20261020132816-6109367117f2 h1:mXvEAfj0gPCOGHMsgqeJpnZwciqvpdKidEe0WJrByvo=
 github.com/openstack-k8s-operators/lib-common/modules/common v0.6.1-0.20261020132816-6109367117f2/go.mod h1:q0N2DU1KwZT+Iez34wwkESeHKHN5pbda8G0Gg2QRWNE=
 github.com/openstack-k8s-operators/lib-common/modules/openstack v0.6.1-0.20261020132816-6109367117f2 h1:HUxvXY6cqAjII7ZcTJpIYwGd4tZF0j6+RQIM+iRsrl0=
