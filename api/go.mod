@@ -4,8 +4,8 @@ go 1.26.10
 
 require (
 	github.com/google/go-cmp v0.7.0
-	github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20261118064744-5c00118ba512
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.6.1-0.20261120143313-344125315151
+	github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20261127104837-231af4a2a64a
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.6.1-0.20261127133425-40f6cd116a00
 	github.com/robfig/cron/v3 v3.0.1
 	k8s.io/api v0.33.13
 	k8s.io/apimachinery v0.33.13
